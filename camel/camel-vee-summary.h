@@ -41,7 +41,6 @@ typedef struct _CamelVeeMessageInfo CamelVeeMessageInfo;
 struct _CamelVeeMessageInfo {
 	CamelMessageInfo info;
 
-	CamelFolder *folder;	/* This isn't needed really, real->summary->folder should contain the same info */
 	CamelMessageInfo *real;
 };
 

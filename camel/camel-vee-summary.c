@@ -55,8 +55,6 @@ vee_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
 	to = (CamelVeeMessageInfo *)camel_message_info_new(s);
 
 	to->real = camel_message_info_clone(from->real);
-	to->folder = from->folder;
-	camel_object_ref(to->folder);
 	to->info.summary = s;
 
 	return (CamelMessageInfo *)to;
@@ -221,7 +219,6 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolder *f, CamelMessageInfo *info
 	mi = (CamelVeeMessageInfo *)camel_message_info_new(&s->summary);
 	mi->real = info;
 	camel_message_info_ref(info);
-	mi->folder = f;
 	mi->info.uid = vuid;
 
 	camel_folder_summary_add(&s->summary, (CamelMessageInfo *)mi);

@@ -199,20 +199,20 @@ vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 			continue;
 		}
 		
-		if (dest == mi->folder) {
+		if (dest == mi->real->summary->folder) {
 			/* Just unset the flag on the original message */
 			camel_folder_set_message_flags (source, uids->pdata[i], sbit, 0);
 		} else {
 			if (batch == NULL)
 				batch = g_hash_table_new(NULL, NULL);
-			md = g_hash_table_lookup(batch, mi->folder);
+			md = g_hash_table_lookup(batch, mi->real->summary->folder);
 			if (md == NULL) {
 				md = g_malloc0(sizeof(*md));
-				md->folder = mi->folder;
+				md->folder = mi->real->summary->folder;
 				camel_object_ref((CamelObject *)md->folder);
 				md->uids = g_ptr_array_new();
 				md->dest = dest;
-				g_hash_table_insert(batch, mi->folder, md);
+				g_hash_table_insert(batch, mi->real->summary->folder, md);
 			}
 
 			tuid = uids->pdata[i];
