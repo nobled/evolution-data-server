@@ -599,9 +599,11 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 
 	while (g_hash_table_lookup(s->messages_uid, uid)) {
 		g_warning("Trying to insert message with clashing uid (%s).  new uid re-assigned", camel_message_info_uid(info));
+		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 		camel_message_info_set_uid(info, camel_folder_summary_next_uid_string(s));
 		uid = camel_message_info_uid(info);
 		info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
+		CAMEL_SUMMARY_LOCK(s, summary_lock);
 	}
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);

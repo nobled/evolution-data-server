@@ -2,6 +2,8 @@
 
 	* camel-folder-summary.c (GLOBAL_INFO_UNLOCK): Doh, cut and paste
 	victim again, call unlock instead of lock!
+	(summary_assign_uid): Unlock around trying to get a new uid, if we
+	have a clash.
 
 2000-12-21  Not Zed  <NotZed@HelixCode.com>
 
