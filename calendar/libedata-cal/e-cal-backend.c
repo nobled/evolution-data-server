@@ -1004,7 +1004,6 @@ e_cal_backend_notify_object_created (ECalBackend *backend, const char *calobj)
 		e_iterator_next (iter);
 	}
 	g_object_unref (iter);
-	g_object_unref (queries);
 }
 
 static void
