@@ -98,11 +98,11 @@ block_file_validate_root(CamelBlockFile *bs)
 
 	fstat(bs->fd, &st);
 
-	printf("Validate root:\n");
-	printf("version: %.8s (%.8s)\n", bs->root->version, bs->version);
-	printf("block size: %d (%d)\n", br->block_size, bs->block_size);
-	printf("free: %d (%d add size < %d)\n", br->free, br->free / bs->block_size * bs->block_size, (int)st.st_size);
-	printf("last: %d (%d and size: %d)\n", br->free, br->free / bs->block_size * bs->block_size, (int)st.st_size);
+	d(printf("Validate root:\n"));
+	d(printf("version: %.8s (%.8s)\n", bs->root->version, bs->version));
+	d(printf("block size: %d (%d)\n", br->block_size, bs->block_size));
+	d(printf("free: %d (%d add size < %d)\n", br->free, br->free / bs->block_size * bs->block_size, (int)st.st_size));
+	d(printf("last: %d (%d and size: %d)\n", br->free, br->free / bs->block_size * bs->block_size, (int)st.st_size));
 
 	if (br->last == 0
 	    || memcmp(bs->root->version, bs->version, 8) != 0
@@ -112,7 +112,7 @@ block_file_validate_root(CamelBlockFile *bs)
 	    || fstat(bs->fd, &st) == -1
 	    || st.st_size != br->last
 	    || br->free > st.st_size
-	    /*|| (br->flags & CAMEL_BLOCK_FILE_SYNC) == 0*/) {
+	    || (br->flags & CAMEL_BLOCK_FILE_SYNC) == 0) {
 		return -1;
 	}
 
@@ -163,8 +163,6 @@ camel_block_file_init(CamelBlockFile *bs)
 	p = bs->priv = g_malloc0(sizeof(*bs->priv));
 	p->base = bs;
 
-	printf("initialising object %p priv %p\n", bs, bs->priv);
-
 #ifdef ENABLE_THREADS
 	pthread_mutex_init(&p->root_lock, NULL);
 	pthread_mutex_init(&p->cache_lock, NULL);
@@ -197,8 +195,6 @@ camel_block_file_finalise(CamelBlockFile *bs)
 	struct _CamelBlockFilePrivate *p;
 
 	p = bs->priv;
-
-	printf("finalising object %p priv %p\n", bs, bs->priv);
 
 	if (bs->root_block)
 		camel_block_file_sync(bs);
@@ -273,7 +269,7 @@ block_file_use(CamelBlockFile *bs)
 	if (bs->fd != -1)
 		return 0;
 	else
-		printf("Turning block file online: %s\n", bs->path);
+		d(printf("Turning block file online: %s\n", bs->path));
 
 	if ((bs->fd = open(bs->path, bs->flags, 0600)) == -1) {
 		err = errno;
@@ -299,7 +295,7 @@ block_file_use(CamelBlockFile *bs)
 			if (CAMEL_BLOCK_FILE_TRYLOCK(bf, root_lock) == 0) {
 				if (CAMEL_BLOCK_FILE_TRYLOCK(bf, cache_lock) == 0) {
 					if (CAMEL_BLOCK_FILE_TRYLOCK(bf, io_lock) == 0) {
-						printf("Turning block file offline: %s\n", bf->path);
+						d(printf("[%d] Turning block file offline: %s\n", block_file_count-1, bf->path));
 						sync_nolock(bf);
 						close(bf->fd);
 						bf->fd = -1;
@@ -401,6 +397,8 @@ camel_block_file_rename(CamelBlockFile *bs, const char *path)
 	struct stat st;
 	int err;
 
+	CAMEL_BLOCK_FILE_LOCK(bs, io_lock);
+
 	ret = rename(bs->path, path);
 	if (ret == -1) {
 		/* Maybe the rename actually worked */
@@ -416,6 +414,8 @@ camel_block_file_rename(CamelBlockFile *bs, const char *path)
 		g_free(bs->path);
 		bs->path = g_strdup(path);
 	}
+
+	CAMEL_BLOCK_FILE_UNLOCK(bs, io_lock);
 
 	return ret;
 }
@@ -613,11 +613,20 @@ void camel_block_file_attach_block(CamelBlockFile *bs, CamelBlock *bl)
  **/
 void camel_block_file_touch_block(CamelBlockFile *bs, CamelBlock *bl)
 {
+	CAMEL_BLOCK_FILE_LOCK(bs, root_lock);
 	CAMEL_BLOCK_FILE_LOCK(bs, cache_lock);
 
 	bl->flags |= CAMEL_BLOCK_DIRTY;
 
+	if ((bs->root->flags & CAMEL_BLOCK_FILE_SYNC) && bl != bs->root_block) {
+		d(printf("turning off sync flag\n"));
+		bs->root->flags &= ~CAMEL_BLOCK_FILE_SYNC;
+		bs->root_block->flags |= CAMEL_BLOCK_DIRTY;
+		camel_block_file_sync_block(bs, bs->root_block);
+	}
+
 	CAMEL_BLOCK_FILE_UNLOCK(bs, cache_lock);
+	CAMEL_BLOCK_FILE_UNLOCK(bs, root_lock);
 }
 
 /**
@@ -663,16 +672,26 @@ static int
 sync_nolock(CamelBlockFile *bs)
 {
 	CamelBlock *bl, *bn;
+	int work = FALSE;
 
 	bl = (CamelBlock *)bs->block_cache.head;
 	bn = bl->next;
 	while (bn) {
-		if (bl->flags & CAMEL_BLOCK_DIRTY
-		    && sync_block_nolock(bs, bl) == -1)
-			return -1;
-		bl = bn;
-		bn = bn->next;
+		if (bl->flags & CAMEL_BLOCK_DIRTY) {
+			work = TRUE;
+			if (sync_block_nolock(bs, bl) == -1)
+				return -1;
+			bl = bn;
+			bn = bn->next;
+		}
 	}
+
+	if (!work
+	    && (bs->root_block->flags & CAMEL_BLOCK_DIRTY) == 0
+	    && (bs->root->flags & CAMEL_BLOCK_FILE_SYNC) != 0)
+		return 0;
+
+	d(printf("turning on sync flag\n"));
 
 	bs->root->flags |= CAMEL_BLOCK_FILE_SYNC;
 
@@ -850,7 +869,7 @@ key_file_use(CamelKeyFile *bs)
 	if (bs->fp != NULL)
 		return 0;
 	else
-		printf("Turning key file online: '%s'\n", bs->path);
+		d(printf("Turning key file online: '%s'\n", bs->path));
 
 	if ((bs->flags & O_ACCMODE) == O_RDONLY)
 		flag = "r";
@@ -870,7 +889,7 @@ key_file_use(CamelKeyFile *bs)
 	e_dlist_remove((EDListNode *)p);
 	e_dlist_addtail(&key_file_active_list, (EDListNode *)p);
 
-	block_file_count++;
+	key_file_count++;
 
 	nw = (struct _CamelKeyFilePrivate *)key_file_list.head;
 	nn = nw->next;
@@ -881,7 +900,7 @@ key_file_use(CamelKeyFile *bs)
 			/* Need to trylock, as any of these lock levels might be trying
 			   to lock the key_file_lock, so we need to check and abort if so */
 			if (CAMEL_BLOCK_FILE_TRYLOCK(bf, lock) == 0) {
-				printf("Turning key file offline: %s\n", bf->path);
+				d(printf("Turning key file offline: %s\n", bf->path));
 				fclose(bf->fp);
 				bf->fp = NULL;
 				key_file_count--;
@@ -905,7 +924,7 @@ key_file_unuse(CamelKeyFile *bs)
 	e_dlist_addtail(&key_file_list, (EDListNode *)bs->priv);
 	UNLOCK(key_file_lock);
 
-	CAMEL_BLOCK_FILE_UNLOCK(bs, lock);
+	CAMEL_KEY_FILE_UNLOCK(bs, lock);
 }
 
 /**
@@ -927,7 +946,7 @@ camel_key_file_new(const char *path, int flags, const char version[8])
 	off_t last;
 	int err;
 
-	printf("New key file '%s'\n", path);
+	d(printf("New key file '%s'\n", path));
 
 	kf = (CamelKeyFile *)camel_object_new(camel_key_file_get_type());
 	kf->path = g_strdup(path);
@@ -950,7 +969,6 @@ camel_key_file_new(const char *path, int flags, const char version[8])
 		err = ferror(kf->fp);
 		key_file_unuse(kf);
 
-
 		/* we only need these flags on first open */
 		kf->flags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
@@ -970,6 +988,8 @@ camel_key_file_rename(CamelKeyFile *kf, const char *path)
 	struct stat st;
 	int err;
 
+	CAMEL_KEY_FILE_LOCK(kf, lock);
+
 	ret = rename(kf->path, path);
 	if (ret == -1) {
 		/* Maybe the rename actually worked */
@@ -985,6 +1005,8 @@ camel_key_file_rename(CamelKeyFile *kf, const char *path)
 		g_free(kf->path);
 		kf->path = g_strdup(path);
 	}
+
+	CAMEL_KEY_FILE_UNLOCK(kf, lock);
 
 	return ret;
 }
@@ -1007,10 +1029,10 @@ camel_key_file_write(CamelKeyFile *kf, camel_block_t *parent, size_t len, camel_
 	guint32 size;
 	int ret = -1;
 
-	printf("write key %08x len = %d\n", *parent, len);
+	d(printf("write key %08x len = %d\n", *parent, len));
 
 	if (len == 0) {
-		printf(" new parent = %08x\n", *parent);
+		d(printf(" new parent = %08x\n", *parent));
 		return 0;
 	}
 
@@ -1038,7 +1060,7 @@ camel_key_file_write(CamelKeyFile *kf, camel_block_t *parent, size_t len, camel_
 	/* UNLOCK */
 	key_file_unuse(kf);
 
-	printf(" new parent = %08x\n", *parent);
+	d(printf(" new parent = %08x\n", *parent));
 
 	return ret;
 }

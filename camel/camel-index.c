@@ -185,6 +185,18 @@ camel_index_find(CamelIndex *idx, const char *word)
 	return ret;
 }
 
+CamelIndexCursor *
+camel_index_words(CamelIndex *idx)
+{
+	return CI_CLASS(idx)->words(idx);
+}
+
+CamelIndexCursor *
+camel_index_names(CamelIndex *idx)
+{
+	return CI_CLASS(idx)->names(idx);
+}
+
 /* ********************************************************************** */
 /* CamelIndexName */
 /* ********************************************************************** */

@@ -703,6 +703,9 @@ camel_key_table_add(CamelKeyTable *ki, const char *key, camel_block_t data, unsi
 
 	kblast = (CamelKeyBlock *)&last->data;
 
+	if (kblast->used >= 127)
+		goto fail;
+
 	if (kblast->used > 0) {
 		left = &kblast->u.keydata[kblast->u.keys[kblast->used-1].offset] - (char *)(&kblast->u.keys[kblast->used+1]);
 		d(printf("used = %d (%d), filled = %d, left = %d  len = %d?\n",
@@ -831,6 +834,10 @@ camel_key_table_lookup(CamelKeyTable *ki, camel_key_t keyid, char **keyp, unsign
 	char *key;
 	CamelKeyBlock *kb;
 
+	if (keyp)
+		*keyp = 0;
+	if (flags)
+		*flags = 0;
 	if (keyid == 0)
 		return 0;
 

@@ -1,3 +1,67 @@
+2002-03-22  Not Zed  <NotZed@Ximian.com>
+
+	* providers/local/camel-local-folder.c
+	(camel_local_folder_construct): Use the right option to remove the
+	index file and reset the index file on creation.
+	(camel_local_folder_construct): Remove any existing '.ibex' files
+	- these are the old format index files.
+
+	* camel-block-file.c (camel_block_file_rename): Lock io lock while
+	renaming.
+	(camel_key_file_rename): Lock around rename.
+	(block_file_validate_root): Implement sync flag checking.
+	(camel_block_file_touch_block): Turn off the sync flag if we're
+	touching any non-root block and write it to disk.  Shoudl this
+	fsync()?
+	(sync_nolock): sync the root block only if we need to.
+
+	* providers/local/camel-local-store.c (rename_folder): Re-enable
+	index rename code.  Not sure how race-free it is though.
+	(delete_folder): Delete the index file properly.
+
+	* camel-partition-table.c (camel_key_table_lookup): Initialise
+	output values to 0 before doing anything.
+	(camel_key_table_add): Do some range-checking on values.
+
+	* camel-text-index.c (text_index_compress): Changed to call sync here.
+	(text_index_compress_nolock): and not here - stops a recursive
+	sync call when sync performs a compress also.
+	(text_index_compress_nolock): Change to _nosync, since the locking
+	is irrelevent (recursive lock).  Fixed callers.
+	(text_index_add_name_to_word): If we get a failure with key table
+	ops, fail immediately.
+	(text_index_compress_nosync): Likewise.
+	(text_index_write_name): If the nameid is 0, do nothing.
+	(text_index_add_name): If we can't get a keyid, dont add it to the
+	partition table.
+	(camel_text_index_remove): Function to delete an index file.
+	(text_index_compress_nosync): Clean up temp files when done.
+
+	* camel-folder-search.c (match_messages_index): New function,
+	split from body_contains, matches a regex against all words in an
+	index.
+	(match_message_index): Similar to above but matches against an
+	individual message.
+	(search_body_contains): Changed to use above functions for
+	matching - substring matches should now work on indexed data.
+
+2002-03-21  Not Zed  <NotZed@Ximian.com>
+
+	* camel-index.c (camel_index_words/names): New virtual
+	methods/stubs to get a cursor of all words and names.
+
+	* camel-text-index.c (text_index_compress_nolock): Split from
+	text_index_compress, so we can call the compressor while locked
+	also, removed lock calls.
+	(text_index_compress): Changed to stub which calls
+	text_index_compress_nolock.
+	(camel_text_index_key_cursor_new): New object to iterate through
+	a key table.
+	(text_index_words, text_index_names): Implement virtual functions
+	for iterating through all words or names.
+
+	* camel-block-file.c: Turn off some debug.
+
 2002-03-20  Not Zed  <NotZed@Ximian.com>
 
 	** New body index implementation.

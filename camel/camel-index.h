@@ -130,6 +130,9 @@ struct _CamelIndexClass {
 	CamelIndexCursor *	(*find_name)(CamelIndex *idx, const char *name);
 	void 			(*delete_name)(CamelIndex *idx, const char *name);
 	CamelIndexCursor * 	(*find)(CamelIndex *idx, const char *word);
+
+	CamelIndexCursor *      (*words)(CamelIndex *idx);
+	CamelIndexCursor *      (*names)(CamelIndex *idx);
 };
 
 guint	           camel_index_get_type	(void);
@@ -149,5 +152,8 @@ int                camel_index_write_name(CamelIndex *idx, CamelIndexName *idn);
 CamelIndexCursor  *camel_index_find_name(CamelIndex *idx, const char *name);
 void               camel_index_delete_name(CamelIndex *idx, const char *name);
 CamelIndexCursor  *camel_index_find(CamelIndex *idx, const char *word);
+
+CamelIndexCursor  *camel_index_words(CamelIndex *idx);
+CamelIndexCursor  *camel_index_names(CamelIndex *idx);
 
 #endif /* ! _CAMEL_INDEX_H */

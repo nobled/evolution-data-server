@@ -212,10 +212,17 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 	
 	lf->changes = camel_folder_change_info_new();
 
-	/* if we have no index file, force it */
+	/* TODO: Remove the following line, it is a temporary workaround to remove
+	   the old-format 'ibex' files that might be lying around */
+	unlink(lf->index_path);
+
+	/* if we have no/invalid index file, force it */
 	forceindex = camel_text_index_check(lf->index_path) == -1;
 	if (flags & CAMEL_STORE_FOLDER_BODY_INDEX) {
-		lf->index = (CamelIndex *)camel_text_index_new(lf->index_path, O_RDWR|O_CREAT);
+		int flag = O_RDWR|O_CREAT;
+		if (forceindex)
+			flag |= O_TRUNC;
+		lf->index = (CamelIndex *)camel_text_index_new(lf->index_path, flag);
 		if (lf->index == NULL) {
 			/* yes, this isn't fatal at all */
 			g_warning("Could not open/create index file: %s: indexing not performed", strerror(errno));
@@ -225,13 +232,10 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		}
 	} else {
 		/* if we do have an index file, remove it (?) */
-		if (forceindex == FALSE) {
-			unlink(lf->index_path);
-		}
+		if (forceindex == FALSE)
+			camel_text_index_remove(lf->index_path);
 		forceindex = FALSE;
 	}
-
-	printf("forceindex = %s\n", forceindex?"true":"false");
 
 	lf->flags = flags;
 
