@@ -1,3 +1,29 @@
+2004-11-16 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* idl/Evolution-DataServer-Calendar.idl : added a new method 
+	notifyAuthRequired to cal listener interface 
+
+	* libedata-cal/e-cal-backend.[ch]
+	(e_cal_backend_notify_auth_required):
+	
+	* libedatacal/e-data-cal.[ch] 
+	(e_data_cal_notify_auth_required) : methods for backend 
+	to notify clients about auth when mode is changed to online
+	
+	* libecal/e-cal-listener.[ch] : implemented notifyAuthRequired
+	interface and  add AUTH_REQUIRED signal 
+	
+	* libecal/e-cal.c : connect to AUTH_REQUIRED signal of cal listener
+	and call e_cal_open in the singnal call back 
+	(open_calendar) : don't call e_password stuff in offline mode
+
+	* libecal/e-cal-marshal.list : added NONE:NONE to list 	
+
+	* backends/groupwise/e-cal-backend-groupwise.c 
+	(e_cal_backend_groupwise_set_mode) : send auth required notification
+	when mode changes to online
+ 
+	
 2004-11-10 Sivaiah Nallagatla   <snallagatla@novell.com>
 
 	* backends/http/e-cal-backend-http.c 

@@ -204,7 +204,6 @@ get_deltas (gpointer handle)
         
 	if (!handle)
 		return FALSE;
-	
 	cbgw = (ECalBackendGroupwise *) handle;
 	priv= cbgw->priv;
  	cnc = priv->cnc; 
@@ -731,8 +730,7 @@ e_cal_backend_groupwise_open (ECalBackendSync *backend, EDataCal *cal, gboolean 
 			if (!priv->cache) {
 				g_mutex_unlock (priv->mutex);
 				e_cal_backend_notify_error (E_CAL_BACKEND (cbgw), _("Could not create cache file"));
-		
-				g_mutex_unlock (priv->mutex);
+				
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 		}
@@ -748,7 +746,6 @@ e_cal_backend_groupwise_open (ECalBackendSync *backend, EDataCal *cal, gboolean 
 	status = connect_to_server (cbgw);
 
 	g_mutex_unlock (priv->mutex);
-
 	return status;
 }
 
@@ -822,11 +819,13 @@ e_cal_backend_groupwise_set_mode (ECalBackend *backend, CalMode mode)
 		priv->read_only = FALSE;
 		e_cal_backend_notify_mode (backend, GNOME_Evolution_Calendar_CalListener_MODE_SET,
 						    GNOME_Evolution_Calendar_MODE_REMOTE);
+		if(e_cal_backend_groupwise_is_loaded (backend))
+		              e_cal_backend_notify_auth_required(backend);	
 		break;
+
 	case CAL_MODE_LOCAL : /* go offline */
 		/* FIXME: make sure we update the cache before closing the connection */
 		priv->mode = CAL_MODE_LOCAL;
-
 		in_offline (cbgw);
 		e_cal_backend_notify_mode (backend, GNOME_Evolution_Calendar_CalListener_MODE_SET,
 					   GNOME_Evolution_Calendar_MODE_LOCAL);
