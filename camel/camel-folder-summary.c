@@ -119,31 +119,6 @@ static void camel_folder_summary_finalize   (CamelObject *obj);
 static CamelObjectClass *camel_folder_summary_parent;
 
 static void
-camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
-{
-	camel_folder_summary_parent = camel_type_get_global_classfuncs (camel_object_get_type ());
-
-	klass->summary_header_load = summary_header_load;
-	klass->summary_header_save = summary_header_save;
-
-	klass->message_info_new_from_header  = message_info_new_from_header;
-	klass->message_info_new_from_parser = message_info_new_from_parser;
-	klass->message_info_new_from_message = message_info_new_from_message;
-	klass->message_info_load = message_info_load;
-	klass->message_info_save = message_info_save;
-	klass->message_info_free = message_info_free;
-
-	klass->content_info_new_from_header  = content_info_new_from_header;
-	klass->content_info_new_from_parser = content_info_new_from_parser;
-	klass->content_info_new_from_message = content_info_new_from_message;
-	klass->content_info_load = content_info_load;
-	klass->content_info_save = content_info_save;
-	klass->content_info_free = content_info_free;
-
-	klass->next_uid_string = next_uid_string;
-}
-
-static void
 camel_folder_summary_init (CamelFolderSummary *s)
 {
 	struct _CamelFolderSummaryPrivate *p;
@@ -252,17 +227,21 @@ camel_folder_summary_get_type (void)
 
 /**
  * camel_folder_summary_new:
+ * @folder: Parent folder.  It will hold a ref to us, not the other way around.
  *
  * Create a new CamelFolderSummary object.
  * 
  * Return value: A new CamelFolderSummary widget.
  **/
 CamelFolderSummary *
-camel_folder_summary_new (void)
+camel_folder_summary_new (struct _CamelFolder *folder)
 {
-	CamelFolderSummary *new = CAMEL_FOLDER_SUMMARY ( camel_object_new (camel_folder_summary_get_type ()));	return new;
-}
+	CamelFolderSummary *new = CAMEL_FOLDER_SUMMARY ( camel_object_new (camel_folder_summary_get_type ()));
 
+	new->folder = folder;
+
+	return new;
+}
 
 /**
  * camel_folder_summary_set_filename:
@@ -2746,10 +2725,10 @@ static time_t
 info_time(const CamelMessageInfo *mi, int id)
 {
 	switch (id) {
-	case CAMEL_MESSAGE_INFO_FLAGS:
-		return ((const CamelMessageInfoBase *)mi)->flags;
-	case CAMEL_MESSAGE_INFO_SIZE:
-		return ((const CamelMessageInfoBase *)mi)->size;
+	case CAMEL_MESSAGE_INFO_DATE_SENT:
+		return ((const CamelMessageInfoBase *)mi)->date_sent;
+	case CAMEL_MESSAGE_INFO_DATE_RECEIVED:
+		return ((const CamelMessageInfoBase *)mi)->date_received;
 	default:
 		abort();
 	}
@@ -2950,4 +2929,48 @@ camel_message_info_dump (CamelMessageInfo *mi)
 	printf("UID: %s\n", camel_message_info_uid(mi));
 	printf("Flags: %04x\n", camel_message_info_flags(mi));
 	/*camel_content_info_dump(mi->content, 0);*/
+}
+
+
+static void
+camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
+{
+	camel_folder_summary_parent = camel_type_get_global_classfuncs (camel_object_get_type ());
+
+	klass->summary_header_load = summary_header_load;
+	klass->summary_header_save = summary_header_save;
+
+	klass->message_info_new_from_header  = message_info_new_from_header;
+	klass->message_info_new_from_parser = message_info_new_from_parser;
+	klass->message_info_new_from_message = message_info_new_from_message;
+	klass->message_info_load = message_info_load;
+	klass->message_info_save = message_info_save;
+	klass->message_info_free = message_info_free;
+	klass->message_info_clone = message_info_clone;
+
+	klass->content_info_new_from_header  = content_info_new_from_header;
+	klass->content_info_new_from_parser = content_info_new_from_parser;
+	klass->content_info_new_from_message = content_info_new_from_message;
+	klass->content_info_load = content_info_load;
+	klass->content_info_save = content_info_save;
+	klass->content_info_free = content_info_free;
+
+	klass->next_uid_string = next_uid_string;
+
+	klass->info_ptr = info_ptr;
+	klass->info_uint32 = info_uint32;
+	klass->info_time = info_time;
+	klass->info_user_flag = info_user_flag;
+	klass->info_user_tag = info_user_tag;
+
+#if 0
+	klass->info_set_string = info_set_string;
+	klass->info_set_uint32 = info_set_uint32;
+	klass->info_set_time = info_set_time;
+	klass->info_set_ptr = info_set_ptr;
+#endif
+	klass->info_set_user_flag = info_set_user_flag;
+	klass->info_set_user_tag = info_set_user_tag;
+
+	klass->info_set_flags = info_set_flags;
 }

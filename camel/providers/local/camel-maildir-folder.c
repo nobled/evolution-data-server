@@ -153,7 +153,7 @@ camel_maildir_folder_new(CamelStore *parent_store, const char *full_name, guint3
 
 static CamelLocalSummary *maildir_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index)
 {
-	return (CamelLocalSummary *)camel_maildir_summary_new(path, folder, index);
+	return (CamelLocalSummary *)camel_maildir_summary_new((CamelFolder *)lf, path, folder, index);
 }
 
 static void

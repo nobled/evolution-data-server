@@ -106,9 +106,11 @@ camel_spool_summary_finalise(CamelObject *obj)
 }
 
 CamelSpoolSummary *
-camel_spool_summary_new(const char *mbox_name)
+camel_spool_summary_new(struct _CamelFolder *folder, const char *mbox_name)
 {
 	CamelSpoolSummary *new = (CamelSpoolSummary *)camel_object_new(camel_spool_summary_get_type());
+
+	((CamelFolderSummary *)new)->folder = folder;
 
 	camel_local_summary_construct((CamelLocalSummary *)new, NULL, mbox_name, NULL);
 	return new;

@@ -62,7 +62,7 @@ struct _CamelMaildirSummaryClass {
 };
 
 CamelType	 camel_maildir_summary_get_type	(void);
-CamelMaildirSummary	*camel_maildir_summary_new	(const char *filename, const char *maildirdir, CamelIndex *index);
+CamelMaildirSummary	*camel_maildir_summary_new	(struct _CamelFolder *folder, const char *filename, const char *maildirdir, CamelIndex *index);
 
 /* convert some info->flags to/from the messageinfo */
 char *camel_maildir_summary_info_to_name(const CamelMaildirMessageInfo *info);

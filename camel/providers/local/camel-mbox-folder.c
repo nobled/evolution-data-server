@@ -194,7 +194,7 @@ camel_mbox_folder_get_meta_path (CamelLocalFolder *lf, const char *toplevel_dir,
 
 static CamelLocalSummary *mbox_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index)
 {
-	return (CamelLocalSummary *)camel_mbox_summary_new(path, folder, index);
+	return (CamelLocalSummary *)camel_mbox_summary_new((CamelFolder *)lf, path, folder, index);
 }
 
 static int mbox_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex)

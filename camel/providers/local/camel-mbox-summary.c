@@ -200,9 +200,11 @@ camel_mbox_summary_finalise(CamelObject *obj)
  * Return value: A new CamelMboxSummary widget.
  **/
 CamelMboxSummary *
-camel_mbox_summary_new(const char *filename, const char *mbox_name, CamelIndex *index)
+camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index)
 {
 	CamelMboxSummary *new = (CamelMboxSummary *)camel_object_new(camel_mbox_summary_get_type());
+
+	((CamelFolderSummary *)new)->folder = folder;
 
 	camel_local_summary_construct((CamelLocalSummary *)new, filename, mbox_name, index);
 	return new;

@@ -151,14 +151,19 @@ camel_maildir_summary_finalise(CamelObject *obj)
 
 /**
  * camel_maildir_summary_new:
+ * @folder: parent folder.
+ * @filename: Path to root of this maildir directory (containing new/tmp/cur directories).
+ * @index: Index if one is reqiured.
  *
  * Create a new CamelMaildirSummary object.
  * 
  * Return value: A new #CamelMaildirSummary object.
  **/
-CamelMaildirSummary	*camel_maildir_summary_new	(const char *filename, const char *maildirdir, CamelIndex *index)
+CamelMaildirSummary	*camel_maildir_summary_new(struct _CamelFolder *folder, const char *filename, const char *maildirdir, CamelIndex *index)
 {
 	CamelMaildirSummary *o = (CamelMaildirSummary *)camel_object_new(camel_maildir_summary_get_type ());
+
+	((CamelFolderSummary *)o)->folder = folder;
 
 	camel_local_summary_construct((CamelLocalSummary *)o, filename, maildirdir, index);
 	return o;

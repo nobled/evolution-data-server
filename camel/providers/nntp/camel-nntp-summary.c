@@ -124,9 +124,11 @@ camel_nntp_summary_finalise(CamelObject *obj)
 }
 
 CamelNNTPSummary *
-camel_nntp_summary_new(const char *path)
+camel_nntp_summary_new(struct _CamelFolder *folder, const char *path)
 {
 	CamelNNTPSummary *cns = (CamelNNTPSummary *)camel_object_new(camel_nntp_summary_get_type());
+
+	((CamelFolderSummary *)cns)->folder = folder;
 
 	camel_folder_summary_set_filename((CamelFolderSummary *)cns, path);
 	camel_folder_summary_set_build_content((CamelFolderSummary *)cns, FALSE);

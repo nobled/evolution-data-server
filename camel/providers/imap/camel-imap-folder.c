@@ -237,7 +237,7 @@ camel_imap_folder_new (CamelStore *parent, const char *folder_name,
 	camel_folder_construct (folder, parent, folder_name, short_name);
 
 	summary_file = g_strdup_printf ("%s/summary", folder_dir);
-	folder->summary = camel_imap_summary_new (summary_file);
+	folder->summary = camel_imap_summary_new (folder, summary_file);
 	g_free (summary_file);
 	if (!folder->summary) {
 		camel_object_unref (CAMEL_OBJECT (folder));

@@ -117,7 +117,7 @@ camel_mh_folder_new(CamelStore *parent_store, const char *full_name, guint32 fla
 
 static CamelLocalSummary *mh_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index)
 {
-	return (CamelLocalSummary *)camel_mh_summary_new(path, folder, index);
+	return (CamelLocalSummary *)camel_mh_summary_new((CamelFolder *)lf, path, folder, index);
 }
 
 static void

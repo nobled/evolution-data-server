@@ -115,6 +115,7 @@ camel_imap_summary_init (CamelImapSummary *obj)
 
 /**
  * camel_imap_summary_new:
+ * @folder: Parent folder.
  * @filename: the file to store the summary in.
  *
  * This will create a new CamelImapSummary object and read in the
@@ -123,10 +124,11 @@ camel_imap_summary_init (CamelImapSummary *obj)
  * Return value: A new CamelImapSummary object.
  **/
 CamelFolderSummary *
-camel_imap_summary_new (const char *filename)
+camel_imap_summary_new (struct _CamelFolder *folder, const char *filename)
 {
-	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (
-		camel_object_new (camel_imap_summary_get_type ()));
+	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (camel_object_new (camel_imap_summary_get_type ()));
+
+	summary->folder = folder;
 
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);

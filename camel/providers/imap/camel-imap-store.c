@@ -1044,7 +1044,7 @@ imap_forget_folder (CamelImapStore *imap_store, const char *folder_name, CamelEx
 	}
 	
 	summary_file = g_strdup_printf ("%s/summary", folder_dir);
-	summary = camel_imap_summary_new (summary_file);
+	summary = camel_imap_summary_new (NULL, summary_file);
 	if (!summary) {
 		g_free (summary_file);
 		g_free (folder_dir);

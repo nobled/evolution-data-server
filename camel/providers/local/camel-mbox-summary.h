@@ -64,7 +64,7 @@ struct _CamelMboxSummaryClass {
 };
 
 CamelType		camel_mbox_summary_get_type	(void);
-CamelMboxSummary      *camel_mbox_summary_new	(const char *filename, const char *mbox_name, CamelIndex *index);
+CamelMboxSummary      *camel_mbox_summary_new	(struct _CamelFolder *, const char *filename, const char *mbox_name, CamelIndex *index);
 
 /* do we honour/use xstatus headers, etc */
 void camel_mbox_summary_xstatus(CamelMboxSummary *mbs, int state);

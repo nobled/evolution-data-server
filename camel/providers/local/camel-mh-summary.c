@@ -123,9 +123,11 @@ camel_mh_summary_finalise(CamelObject *obj)
  * 
  * Return value: A new #CamelMhSummary object.
  **/
-CamelMhSummary	*camel_mh_summary_new	(const char *filename, const char *mhdir, CamelIndex *index)
+CamelMhSummary	*camel_mh_summary_new(struct _CamelFolder *folder, const char *filename, const char *mhdir, CamelIndex *index)
 {
 	CamelMhSummary *o = (CamelMhSummary *)camel_object_new(camel_mh_summary_get_type ());
+
+	((CamelFolderSummary *)o)->folder = folder;
 
 	camel_local_summary_construct((CamelLocalSummary *)o, filename, mhdir, index);
 	return o;
