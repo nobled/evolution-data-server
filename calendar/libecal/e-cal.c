@@ -1518,7 +1518,6 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 		e_calendar_remove_op (ecal, our_op);
 		g_mutex_unlock (our_op->mutex);
 		e_calendar_free_op (our_op);
-		g_mutex_unlock (ecal->priv->mutex);
 		
 		CORBA_exception_free (&ev);
 
@@ -2553,7 +2552,6 @@ e_cal_get_object_list (ECal *ecal, const char *query, GList **objects, GError **
 	CORBA_Environment ev;
 	ECalendarOp *our_op;
 	ECalendarStatus status;
-
 
 	e_return_error_if_fail (ecal && E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);	
 	e_return_error_if_fail (query, E_CALENDAR_STATUS_INVALID_ARG);
