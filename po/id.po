@@ -1,67 +1,64 @@
-# Serbian translation of evolution-data-server
-# Courtesy of Prevod.org team (http://prevod.org/) -- 2003, 2004.
-#
+# Indonesian translation of evolution-data-server.
+# Copyright (C) 2004 THE evolution-data-server'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the evolution-data-server package.
-#
-# Maintainer: Danilo Šegan <dsegan@gmx.net>
-#
+# Mohammad DAMT <mdamt@bisnisweb.com>, 2004.
+# 
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: evolution-data-server 2\n"
+"Project-Id-Version: evolution-data-server gnome-2-8\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2004-10-15 23:09+0200\n"
-"PO-Revision-Date: 2004-10-15 23:10+0200\n"
-"Last-Translator: Danilo Šegan <danilo@prevod.org>\n"
-"Language-Team: Serbian (sr) <gnom@prevod.org>\n"
+"POT-Creation-Date: 2004-09-10 16:57+0700\n"
+"PO-Revision-Date: 2004-09-14 07:08+0700\n"
+"Last-Translator: Mohammad DAMT <mdamt@bisnisweb.com>\n"
+"Language-Team: Indonesian <l10n@gnome.linux.or.id>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3;    plural=n%10==1 && n%100!=11 ? 0 :    n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 
 #: addressbook/backends/file/e-book-backend-file.c:440
 #: addressbook/backends/vcf/e-book-backend-vcf.c:437
 msgid "Loading..."
-msgstr "Učitavam..."
+msgstr "Membuka...."
 
 #: addressbook/backends/file/e-book-backend-file.c:442
-#: addressbook/backends/groupwise/e-book-backend-groupwise.c:1884
+#: addressbook/backends/groupwise/e-book-backend-groupwise.c:1855
 #: addressbook/backends/ldap/e-book-backend-ldap.c:3158
 #: addressbook/backends/vcf/e-book-backend-vcf.c:439
 msgid "Searching..."
-msgstr "Tražim..."
+msgstr "Sedang lakukan pencarian..."
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:620
 msgid "Using Distinguished Name (DN)"
-msgstr "Koristim istaknuto ime (DN)"
+msgstr "Gunakan Distinguished Name (DN)"
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:623
 msgid "Using Email Address"
-msgstr "Koristim elektronsku adresu"
+msgstr "Gunakan Alamat Email"
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:789
 msgid "Reconnecting to LDAP server..."
-msgstr "Ponovo uspostavljam vezu sa LDAP serverom..."
+msgstr "Sambung ulang ke server LDAP"
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:1309
 msgid "Adding contact to LDAP server..."
-msgstr "Dodajem kontakt na LDAP server..."
+msgstr "Memasukkan kontak ke server LDAP..."
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:1409
 msgid "Removing contact from LDAP server..."
-msgstr "Uklanjam kontakt sa LDAP servera..."
+msgstr "Hapus kontak dari server LDAP..."
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:1632
 msgid "Modifying contact from LDAP server..."
-msgstr "Menjam kontakt na LDAP serveru..."
+msgstr "Ubah kontak pada server LDAP..."
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:3070
 msgid "Receiving LDAP search results..."
-msgstr "Primam rezultate pretrage sa LDAP servera"
+msgstr "Ambil hasil pencarian LDAP..."
 
 #: addressbook/backends/ldap/e-book-backend-ldap.c:3178
 msgid "Error performing search"
-msgstr "Greška tokom pretrage"
+msgstr "Error saat melakukan pencarian"
 
 #. translators: the placeholders will be filled by
 #. * function names, e.g.
@@ -77,10 +74,10 @@ msgstr "Greška tokom pretrage"
 #: addressbook/libebook/e-book.c:1514 addressbook/libebook/e-book.c:1518
 #: addressbook/libebook/e-book.c:1741 addressbook/libebook/e-book.c:1745
 #: addressbook/libebook/e-book.c:1948 addressbook/libebook/e-book.c:1952
-#: addressbook/libebook/e-book.c:2974
+#: addressbook/libebook/e-book.c:2985
 #, c-format
 msgid "\"%s\" on book before \"%s\""
-msgstr "„%s“ na kalendaru pre „%s“"
+msgstr "\"%s\" pada buku sebelum \"%s\""
 
 #: addressbook/libebook/e-book.c:249 addressbook/libebook/e-book.c:455
 #: addressbook/libebook/e-book.c:591 addressbook/libebook/e-book.c:797
@@ -89,7 +86,7 @@ msgstr "„%s“ na kalendaru pre „%s“"
 #: addressbook/libebook/e-book.c:1755 addressbook/libebook/e-book.c:1961
 #: addressbook/libebook/e-book.c:2299 addressbook/libebook/e-book.c:2495
 msgid "book busy"
-msgstr "imenik zauzet"
+msgstr "program buku sedang dipakai"
 
 #: addressbook/libebook/e-book.c:282 addressbook/libebook/e-book.c:286
 #: addressbook/libebook/e-book.c:488 addressbook/libebook/e-book.c:492
@@ -103,63 +100,64 @@ msgstr "imenik zauzet"
 #: addressbook/libebook/e-book.c:1989 addressbook/libebook/e-book.c:1993
 #: addressbook/libebook/e-book.c:2240 addressbook/libebook/e-book.c:2327
 #: addressbook/libebook/e-book.c:2331 addressbook/libebook/e-book.c:2523
-#: addressbook/libebook/e-book.c:2527 addressbook/libebook/e-book.c:2983
+#: addressbook/libebook/e-book.c:2527 addressbook/libebook/e-book.c:2994
 #, c-format
 msgid "CORBA exception making \"%s\" call"
-msgstr "Corba izuzetak poziva „%s“"
+msgstr "Eksepsi CORBA saat memanggil \"%s\""
 
 #: addressbook/libebook/e-book.c:2221
 msgid "e_book_cancel: there is no current operation"
-msgstr "e_book_cancel: nema tekuće operacije"
+msgstr "e_book_cancel: tidak ada operasi yang sedang berlangsung"
 
 #: addressbook/libebook/e-book.c:2256
 msgid "e_book_cancel: couldn't cancel"
-msgstr "e_book_cancel: ne mogu da otkažem"
+msgstr "e_book_cancel: tidak dapat membatalkan"
 
 #: addressbook/libebook/e-book.c:2285 addressbook/libebook/e-book.c:2289
 #, c-format
 msgid "\"%s\" on book after \"%s\""
-msgstr "„%s“ na adresaru pre „%s“"
+msgstr "\"%s\" pada buku setelah \"%s\""
 
 #: addressbook/libebook/e-book.c:2355
 msgid "e_book_open: cancelled"
-msgstr "e_book_open: otkazan"
+msgstr "e_book_open: batal"
 
-#: addressbook/libebook/e-book.c:2840
+#: addressbook/libebook/e-book.c:2851
 msgid "e_book_load_uri: Invalid source."
-msgstr "e_book_load_uri: neispravan izvor."
+msgstr "e_book_load_uri: sumber salah"
 
-#: addressbook/libebook/e-book.c:2848
+#: addressbook/libebook/e-book.c:2859
 #, c-format
 msgid "e_book_load_uri: no factories available for uri `%s'"
-msgstr "e_book_load_uri: nema dostupnih tvornica za adresu „%s“"
+msgstr "e_book_load_uri: tidak ada faktori tersedia untuk uri '%s'"
 
-#: addressbook/libebook/e-book.c:2860
+#: addressbook/libebook/e-book.c:2871
 msgid "e_book_load_uri: Could not create EBookListener"
-msgstr "e_book_load_uri: ne mogu da napravim EBookListener"
+msgstr "e_book_load_uri: Tidak dapat membuat EBookListener"
 
-#: addressbook/libebook/e-book.c:2912
+#: addressbook/libebook/e-book.c:2923
 #, c-format
 msgid "e_book_new: no factories available for uri `%s'"
-msgstr "e_book_new: nema dostupnih tvornica za adresu „%s“"
+msgstr "e_book_ne: tidak ada faktori untuk uri '%s'"
 
-#: addressbook/libebook/e-book.c:3078
+#: addressbook/libebook/e-book.c:3081
 msgid "e_book_get_self: there was no self contact uid stored in gconf"
-msgstr "e_book_get_self: nema svog JIB-a kontakta u GKonfu"
+msgstr "e_book_get_self: tidak ada uid kontak diri sendiri disimpan dalam gconf"
 
-#: addressbook/libebook/e-book.c:3189
+#: addressbook/libebook/e-book.c:3192
 #, c-format
 msgid ""
 "e_book_set_default_source: there was no source for uid `%s' stored in gconf."
-msgstr "e_book_set_default_source: nema izvora za JIB „%s“ u GKonfu."
+msgstr ""
+"e_book_set_default_source: tidak ada id sumber '%s' tersimpan dalam gconf."
 
 #: addressbook/libebook/e-contact.c:100
 msgid "Unique ID"
-msgstr "Jedinstveni IB"
+msgstr "ID Unik"
 
 #: addressbook/libebook/e-contact.c:101
 msgid "File As"
-msgstr "Zavedi kao"
+msgstr "Simpan Sebagai"
 
 #. Name fields
 #. FN isn't really a structured field - we use a getter/setter
@@ -167,96 +165,96 @@ msgstr "Zavedi kao"
 #. vcards that don't even have a N attribute.  *sigh*)
 #: addressbook/libebook/e-contact.c:107
 msgid "Full Name"
-msgstr "Puno ime"
+msgstr "Nama Lengkap"
 
 #: addressbook/libebook/e-contact.c:108
 msgid "Name"
-msgstr "Ime"
+msgstr "Nama"
 
 #: addressbook/libebook/e-contact.c:109
 msgid "Given Name"
-msgstr "Dato ime"
+msgstr "Nama Asli"
 
 #: addressbook/libebook/e-contact.c:110
 msgid "Family Name"
-msgstr "Prezime"
+msgstr "Nama Keluarga"
 
 #: addressbook/libebook/e-contact.c:111
 msgid "Nickname"
-msgstr "Nadimak"
+msgstr "Nama panggilan"
 
 #: addressbook/libebook/e-contact.c:112
 msgid "Name or Org"
-msgstr "Ime ili udruženje"
+msgstr "Nama atau Organisasi"
 
 #. Address fields
 #: addressbook/libebook/e-contact.c:115
 msgid "Address List"
-msgstr "Spisak adresa"
+msgstr "Daftar Alamat"
 
 #: addressbook/libebook/e-contact.c:116
 msgid "Home Address"
-msgstr "Kućna adresa"
+msgstr "Alamat Rumah"
 
 #: addressbook/libebook/e-contact.c:117
 msgid "Work Address"
-msgstr "Adresa na poslu"
+msgstr "Alamat Kantor"
 
 #: addressbook/libebook/e-contact.c:118
 msgid "Other Address"
-msgstr "Druga adresa"
+msgstr "Alamat Lain"
 
 #: addressbook/libebook/e-contact.c:120
 msgid "Home Address Label"
-msgstr "Oznaka kućne adrese"
+msgstr "Label Alamat Rumah"
 
 #: addressbook/libebook/e-contact.c:121
 msgid "Work Address Label"
-msgstr "Oznaka adrese na poslu"
+msgstr "Label Alamat Kantor"
 
 #: addressbook/libebook/e-contact.c:122
 msgid "Other Address Label"
-msgstr "Oznaka druge adrese"
+msgstr "Label Alamat Lain"
 
 #: addressbook/libebook/e-contact.c:124
 msgid "Assistant Phone"
-msgstr "Pomoćni telefon"
+msgstr "Telepon Asisten"
 
 #: addressbook/libebook/e-contact.c:125
 msgid "Business Phone"
-msgstr "Telefon na poslu"
+msgstr "Telepon Urusan Bisnis"
 
 #: addressbook/libebook/e-contact.c:126
 msgid "Business Phone 2"
-msgstr "2. telefon na poslu"
+msgstr "Telepon Urusan Bisnis 2"
 
 #: addressbook/libebook/e-contact.c:127
 msgid "Business Fax"
-msgstr "Poslovni faks"
+msgstr "Fax Urusan Bisnis"
 
 #: addressbook/libebook/e-contact.c:128
 msgid "Callback Phone"
-msgstr "Povratni telefon"
+msgstr "Telepon CallBack"
 
 #: addressbook/libebook/e-contact.c:129
 msgid "Car Phone"
-msgstr "Telefon u kolima"
+msgstr "Telepon Mobil"
 
 #: addressbook/libebook/e-contact.c:130
 msgid "Company Phone"
-msgstr "Telefon preduzeća"
+msgstr "Telepon Kantor"
 
 #: addressbook/libebook/e-contact.c:131
 msgid "Home Phone"
-msgstr "Kućni telefon"
+msgstr "Telepon Rumah"
 
 #: addressbook/libebook/e-contact.c:132
 msgid "Home Phone 2"
-msgstr "2. kućni telefon"
+msgstr "Telepon Rumah 2"
 
 #: addressbook/libebook/e-contact.c:133
 msgid "Home Fax"
-msgstr "Kućni faks"
+msgstr "Fax Rumah"
 
 #: addressbook/libebook/e-contact.c:134
 msgid "ISDN"
@@ -264,23 +262,23 @@ msgstr "ISDN"
 
 #: addressbook/libebook/e-contact.c:135
 msgid "Mobile Phone"
-msgstr "Mobilni telefon"
+msgstr "Telepon Seluler"
 
 #: addressbook/libebook/e-contact.c:136
 msgid "Other Phone"
-msgstr "Drugi telefon"
+msgstr "Telepon Lainnya"
 
 #: addressbook/libebook/e-contact.c:137
 msgid "Other Fax"
-msgstr "Drugi faks"
+msgstr "Fax Lainnya"
 
 #: addressbook/libebook/e-contact.c:138
 msgid "Pager"
-msgstr "Pejdžer"
+msgstr "Penyeranta/Pager"
 
 #: addressbook/libebook/e-contact.c:139
 msgid "Primary Phone"
-msgstr "Glavni telefon"
+msgstr "Telepon Utama"
 
 #: addressbook/libebook/e-contact.c:140
 msgid "Radio"
@@ -288,7 +286,7 @@ msgstr "Radio"
 
 #: addressbook/libebook/e-contact.c:141
 msgid "Telex"
-msgstr "Teleks"
+msgstr "Telex"
 
 #: addressbook/libebook/e-contact.c:142
 msgid "TTY"
@@ -297,583 +295,575 @@ msgstr "TTY"
 #. Email fields
 #: addressbook/libebook/e-contact.c:145
 msgid "Email List"
-msgstr "Spisak e-adresa"
+msgstr "Daftar Email"
 
 #: addressbook/libebook/e-contact.c:146
 msgid "Email 1"
-msgstr "1. e-adresa"
+msgstr "Email 1"
 
 #: addressbook/libebook/e-contact.c:147
 msgid "Email 2"
-msgstr "2. e-adresa"
+msgstr "Email 2"
 
 #: addressbook/libebook/e-contact.c:148
 msgid "Email 3"
-msgstr "3. e-adresa"
+msgstr "Email 3"
 
 #: addressbook/libebook/e-contact.c:149
 msgid "Email 4"
-msgstr "4. e-adresa"
+msgstr "Email 4"
 
 #: addressbook/libebook/e-contact.c:150
 msgid "Mailer"
-msgstr "Pošiljalac"
+msgstr "Mailer"
 
 #: addressbook/libebook/e-contact.c:151
 msgid "Wants HTML Mail"
-msgstr "Želi HTML poštu"
+msgstr "Ingin Email HTML"
 
 #. Instant messaging fields
 #: addressbook/libebook/e-contact.c:154
 msgid "AIM Screen Name List"
-msgstr "Spisak ekranskih imena za AIM"
+msgstr "Daftar AIM"
 
 #: addressbook/libebook/e-contact.c:155
 msgid "Groupwise Id List"
-msgstr "Spisak Grupvajz IB-ova"
+msgstr "Daftar ID Groupwise"
 
 #: addressbook/libebook/e-contact.c:156
 msgid "Jabber Id List"
-msgstr "Spisak DŽaber naloga"
+msgstr "Daftar Id Jabber"
 
 #: addressbook/libebook/e-contact.c:157
 msgid "Yahoo! Screen Name List"
-msgstr "Spisak ekranskih imena za Jahu!"
+msgstr "Daftar Yahoo!"
 
 #: addressbook/libebook/e-contact.c:158
 msgid "MSN Screen Name List"
-msgstr "Spisak ekranskih imena za MSN"
+msgstr "Daftar MSN"
 
 #: addressbook/libebook/e-contact.c:159
 msgid "ICQ Id List"
-msgstr "Spisak ICQ IB-eva"
+msgstr "Daftar ICQ"
 
 #: addressbook/libebook/e-contact.c:161
 msgid "AIM Home Screen Name 1"
-msgstr "1. kućni nadimak za AIM"
+msgstr "AIM Rumah 1"
 
 #: addressbook/libebook/e-contact.c:162
 msgid "AIM Home Screen Name 2"
-msgstr "2. kućni nadimak za AIM"
+msgstr "AIM Rumah 2"
 
 #: addressbook/libebook/e-contact.c:163
 msgid "AIM Home Screen Name 3"
-msgstr "3. kućni nadimak za AIM"
+msgstr "AIM Rumah 3"
 
 #: addressbook/libebook/e-contact.c:164
 msgid "AIM Work Screen Name 1"
-msgstr "1. poslovni nadimak za AIM"
+msgstr "AIM Kantor 1"
 
 #: addressbook/libebook/e-contact.c:165
 msgid "AIM Work Screen Name 2"
-msgstr "2. poslovni nadimak za AIM"
+msgstr "AIM Kantor 2"
 
 #: addressbook/libebook/e-contact.c:166
 msgid "AIM Work Screen Name 3"
-msgstr "3. poslovni nadimak za AIM"
+msgstr "AIM Kantor 3"
 
 #: addressbook/libebook/e-contact.c:167
 msgid "Groupwise Home Screen Name 1"
-msgstr "1. kućni nadimak za grupvajz"
+msgstr "Groupwise Rumah 1"
 
 #: addressbook/libebook/e-contact.c:168
 msgid "Groupwise Home Screen Name 2"
-msgstr "2. kućni nadimak za grupvajz"
+msgstr "Groupwise Rumah 2"
 
 #: addressbook/libebook/e-contact.c:169
 msgid "Groupwise Home Screen Name 3"
-msgstr "3. kućni nadimak za grupvajz"
+msgstr "Groupwise Rumah 3"
 
 #: addressbook/libebook/e-contact.c:170
 msgid "Groupwise Work Screen Name 1"
-msgstr "1. poslovni nadimak za grupvajz"
+msgstr "Groupwise Kantor 1"
 
 #: addressbook/libebook/e-contact.c:171
 msgid "Groupwise Work Screen Name 2"
-msgstr "2. poslovni nadimak za grupvajz"
+msgstr "Groupwise Kantor 2"
 
 #: addressbook/libebook/e-contact.c:172
 msgid "Groupwise Work Screen Name 3"
-msgstr "3. poslovni nadimak za grupvajz"
+msgstr "Groupwise Kantor 3"
 
 #: addressbook/libebook/e-contact.c:173
 msgid "Jabber Home Id 1"
-msgstr "1. kućni DŽaber nalog"
+msgstr "Jabber Rumah 1"
 
 #: addressbook/libebook/e-contact.c:174
 msgid "Jabber Home Id 2"
-msgstr "2. kućni DŽaber nalog"
+msgstr "Jabber Rumah 2"
 
 #: addressbook/libebook/e-contact.c:175
 msgid "Jabber Home Id 3"
-msgstr "3. kućni DŽaber nalog"
+msgstr "Jabber Rumah 3"
 
 #: addressbook/libebook/e-contact.c:176
 msgid "Jabber Work Id 1"
-msgstr "1. poslovni DŽaber nalog"
+msgstr "Jabber Kantor 1"
 
 #: addressbook/libebook/e-contact.c:177
 msgid "Jabber Work Id 2"
-msgstr "2. poslovni DŽaber nalog"
+msgstr "Jabber Kantor 2"
 
 #: addressbook/libebook/e-contact.c:178
 msgid "Jabber Work Id 3"
-msgstr "3. poslovni DŽaber nalog"
+msgstr "Jabber Kantor 3"
 
 #: addressbook/libebook/e-contact.c:179
 msgid "Yahoo! Home Screen Name 1"
-msgstr "1. kućni Jahu! nalog"
+msgstr "Yahoo! Rumah 1"
 
 #: addressbook/libebook/e-contact.c:180
 msgid "Yahoo! Home Screen Name 2"
-msgstr "2. kućni Jahu! nalog"
+msgstr "Yahoo! Rumah 2"
 
 #: addressbook/libebook/e-contact.c:181
 msgid "Yahoo! Home Screen Name 3"
-msgstr "3. kućni Jahu! nalog"
+msgstr "Yahoo! Rumah 3"
 
 #: addressbook/libebook/e-contact.c:182
 msgid "Yahoo! Work Screen Name 1"
-msgstr "1. poslovni Jahu! nalog"
+msgstr "Yahoo! Kantor 1"
 
 #: addressbook/libebook/e-contact.c:183
 msgid "Yahoo! Work Screen Name 2"
-msgstr "2. poslovni Jahu! nalog"
+msgstr "Yahoo! Kantor 2"
 
 #: addressbook/libebook/e-contact.c:184
 msgid "Yahoo! Work Screen Name 3"
-msgstr "3. poslovni Jahu! nalog"
+msgstr "Yahoo! Kantor 3"
 
 #: addressbook/libebook/e-contact.c:185
 msgid "MSN Home Screen Name 1"
-msgstr "1. kućni MSN nalog"
+msgstr "MSN Rumah 1"
 
 #: addressbook/libebook/e-contact.c:186
 msgid "MSN Home Screen Name 2"
-msgstr "2. kućni MSN nalog"
+msgstr "MSN Rumah 2"
 
 #: addressbook/libebook/e-contact.c:187
 msgid "MSN Home Screen Name 3"
-msgstr "3. kućni MSN nalog"
+msgstr "MSN Rumah 3"
 
 #: addressbook/libebook/e-contact.c:188
 msgid "MSN Work Screen Name 1"
-msgstr "1. poslovni MSN nalog"
+msgstr "MSN Kantor 1"
 
 #: addressbook/libebook/e-contact.c:189
 msgid "MSN Work Screen Name 2"
-msgstr "2. poslovni MSN nalog"
+msgstr "MSN Kantor 2"
 
 #: addressbook/libebook/e-contact.c:190
 msgid "MSN Work Screen Name 3"
-msgstr "3. poslovni MSN nalog"
+msgstr "MSN Kantor 3"
 
 #: addressbook/libebook/e-contact.c:191
 msgid "ICQ Home Id 1"
-msgstr "1. kućni ICQ nalog"
+msgstr "ICQ Rumah 1"
 
 #: addressbook/libebook/e-contact.c:192
 msgid "ICQ Home Id 2"
-msgstr "2. kućni ICQ nalog"
+msgstr "ICQ Rumah 2"
 
 #: addressbook/libebook/e-contact.c:193
 msgid "ICQ Home Id 3"
-msgstr "3. kućni ICQ nalog"
+msgstr "ICQ Rumah 3"
 
 #: addressbook/libebook/e-contact.c:194
 msgid "ICQ Work Id 1"
-msgstr "1. poslovni ICQ nalog"
+msgstr "ICQ Kantor 1"
 
 #: addressbook/libebook/e-contact.c:195
 msgid "ICQ Work Id 2"
-msgstr "2. poslovni ICQ nalog"
+msgstr "ICQ Kantor 2"
 
 #: addressbook/libebook/e-contact.c:196
 msgid "ICQ Work Id 3"
-msgstr "3. poslovni ICQ nalog"
+msgstr "ICQ Kantor 3"
 
 #. Organizational fields
 #: addressbook/libebook/e-contact.c:199
 msgid "Organization"
-msgstr "Organizacija"
+msgstr "Organisasi"
 
 #: addressbook/libebook/e-contact.c:200
 msgid "Organizational Unit"
-msgstr "Organizaciona jedinica"
+msgstr "Unit Organisasi (OU)"
 
 #: addressbook/libebook/e-contact.c:201
 msgid "Office"
-msgstr "Kancelarija"
+msgstr "Perkantoran"
 
 #: addressbook/libebook/e-contact.c:203
 msgid "Title"
-msgstr "Titula"
+msgstr "Judul"
 
 #: addressbook/libebook/e-contact.c:204
 msgid "Role"
-msgstr "Uloga"
+msgstr "Peranan"
 
 #: addressbook/libebook/e-contact.c:205
 msgid "Manager"
-msgstr "Rukovodilac"
+msgstr "Manajer"
 
 #: addressbook/libebook/e-contact.c:206
 msgid "Assistant"
-msgstr "Pomoćnik"
+msgstr "Asisten"
 
 #. Web fields
 #: addressbook/libebook/e-contact.c:209
 msgid "Homepage URL"
-msgstr "Adresa lične strane"
+msgstr "URL Homepage"
 
 #: addressbook/libebook/e-contact.c:210
 msgid "Weblog URL"
-msgstr "Adresa veb dnevnika"
+msgstr "URL Weblog"
 
 #: addressbook/libebook/e-contact.c:211
 msgid "Video Conferencing URL"
-msgstr "Adresa video konferencije"
+msgstr "URL Konferensi Video"
 
 #. Photo/Logo
 #: addressbook/libebook/e-contact.c:214
 msgid "Photo"
-msgstr "Slika"
+msgstr "Foto"
 
 #: addressbook/libebook/e-contact.c:215
 msgid "Logo"
-msgstr "Logotip"
+msgstr "Logo"
 
 #. Security fields
 #: addressbook/libebook/e-contact.c:218
 msgid "X.509 Certificate"
-msgstr "X.509 sertifikat"
+msgstr "Sertifikat X.509"
 
 #. Contact categories
 #: addressbook/libebook/e-contact.c:221
 msgid "Category List"
-msgstr "Spisak kategorija"
+msgstr "Daftar Kategori"
 
 #: addressbook/libebook/e-contact.c:222
 msgid "Categories"
-msgstr "Kategorije"
+msgstr "Kategori"
 
 #. Collaboration fields
 #: addressbook/libebook/e-contact.c:225
 msgid "Calendar URI"
-msgstr "Adresa kalendara"
+msgstr "URI Kalender"
 
 #: addressbook/libebook/e-contact.c:226
 msgid "Free/Busy URL"
-msgstr "Adresa za slobodan/zauzet"
+msgstr "URL Luang/Sibuk"
 
 #: addressbook/libebook/e-contact.c:227
 msgid "ICS Calendar"
-msgstr "ICS kalendar"
+msgstr "Kalender ICS"
 
 #. Misc fields
 #: addressbook/libebook/e-contact.c:230
 msgid "Spouse's Name"
-msgstr "Ime supružnika"
+msgstr "Nama Pasangan"
 
 #: addressbook/libebook/e-contact.c:231
 msgid "Note"
-msgstr "Napomena"
+msgstr "Catatan"
 
 #: addressbook/libebook/e-contact.c:233
 msgid "Birth Date"
-msgstr "Rođendan"
+msgstr "Tanggal Lahir"
 
 #: addressbook/libebook/e-contact.c:234
 msgid "Anniversary"
-msgstr "Godišnjica"
+msgstr "Peringatan Pernikahan"
 
 #: addressbook/libebook/e-contact.c:236
 msgid "List"
-msgstr "Spisak"
+msgstr "Daftar"
 
 #: addressbook/libebook/e-contact.c:237
 msgid "List Show Addresses"
-msgstr "Spisak prikazanih adresa"
+msgstr "Tampilan Alamat"
 
 #: addressbook/libebook/e-contact.c:1206
 msgid "Unnamed List"
-msgstr "Lista bez imena"
+msgstr "Daftar Belum Berjudul"
 
 #. Set category and visibility
 #: calendar/backends/contacts/e-cal-backend-contacts.c:446
 msgid "Birthday"
-msgstr "Rođendan"
+msgstr "Ulang tahun"
 
 #: calendar/backends/contacts/e-cal-backend-contacts.c:470
 #, c-format
 msgid "Birthday: %s"
-msgstr "Rođendan: %s"
+msgstr "Ulang Tahun: %s"
 
 #: calendar/backends/contacts/e-cal-backend-contacts.c:491
 #, c-format
 msgid "Anniversary: %s"
-msgstr "Godišnjica: %s"
+msgstr "Peringatan Pernikahan: %s"
 
 #: calendar/backends/file/e-cal-backend-file.c:183
 msgid "Can't save calendar data: Malformed URI."
-msgstr "Ne mogu da sačuvam podatke iz kalendara: Loša URI."
+msgstr "Tidak dapat menyimpan data kalender: URI tidak benar"
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:449
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:287
 msgid "Invalid server URI"
-msgstr "Neispravna adresa servera"
+msgstr "URI server tidak benar"
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:485
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:488
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:323
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:326
 msgid "Calendar"
-msgstr "Kalendar"
+msgstr "Kalender"
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:495
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:333
 msgid "Could not create cache file"
-msgstr "Ne mogu da napravim datoteku za ostavu"
+msgstr "Tidak dapat membuat file cache"
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:505
-msgid "Could not create thread for populating cache"
-msgstr "Ne mogu da napravim nit za popunjavanje ostave"
-
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:511
-#: calendar/libecal/e-cal.c:4315
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:364
+#: calendar/libecal/e-cal.c:4311
 msgid "Authentication failed"
-msgstr "Neuspešna identifikacija"
+msgstr "Otentikasi gagal"
 
-#: calendar/backends/http/e-cal-backend-http.c:239
+#: calendar/backends/http/e-cal-backend-http.c:225
 msgid "Redirected to Invalid URI"
-msgstr "Preusmeren na neispravnu adresu"
+msgstr "Diarahkan ke URI yang salah"
 
-#: calendar/backends/http/e-cal-backend-http.c:263
+#: calendar/backends/http/e-cal-backend-http.c:249
 msgid "Bad file format."
-msgstr "Loš zapis datoteke."
+msgstr "Format file tidak benar."
 
-#: calendar/backends/http/e-cal-backend-http.c:269
+#: calendar/backends/http/e-cal-backend-http.c:255
 msgid "Not a calendar."
-msgstr "Nije kalendar."
+msgstr "Bukan kalender."
 
-#: calendar/libecal/e-cal-component.c:1269
+#: calendar/libecal/e-cal-component.c:1237
 msgid "Untitled appointment"
-msgstr "Neimenovani sastanak"
+msgstr "Janji belum diberi nama"
 
 #: calendar/libecal/e-cal-recur.c:3996
 msgid "1st"
-msgstr "1."
+msgstr "ke-1"
 
 #: calendar/libecal/e-cal-recur.c:3997
 msgid "2nd"
-msgstr "2."
+msgstr "ke-2"
 
 #: calendar/libecal/e-cal-recur.c:3998
 msgid "3rd"
-msgstr "3."
+msgstr "ke-3"
 
 #: calendar/libecal/e-cal-recur.c:3999
 msgid "4th"
-msgstr "4."
+msgstr "ke-4"
 
 #: calendar/libecal/e-cal-recur.c:4000
 msgid "5th"
-msgstr "5."
+msgstr "ke-5"
 
 #: calendar/libecal/e-cal-recur.c:4001
 msgid "6th"
-msgstr "6."
+msgstr "ke-6"
 
 #: calendar/libecal/e-cal-recur.c:4002
 msgid "7th"
-msgstr "7."
+msgstr "ke-7"
 
 #: calendar/libecal/e-cal-recur.c:4003
 msgid "8th"
-msgstr "8."
+msgstr "ke-8"
 
 #: calendar/libecal/e-cal-recur.c:4004
 msgid "9th"
-msgstr "9."
+msgstr "ke-9"
 
 #: calendar/libecal/e-cal-recur.c:4005
 msgid "10th"
-msgstr "10."
+msgstr "ke-10"
 
 #: calendar/libecal/e-cal-recur.c:4006
 msgid "11th"
-msgstr "11."
+msgstr "ke-11"
 
 #: calendar/libecal/e-cal-recur.c:4007
 msgid "12th"
-msgstr "12."
+msgstr "ke-12"
 
 #: calendar/libecal/e-cal-recur.c:4008
 msgid "13th"
-msgstr "13."
+msgstr "ke-13"
 
 #: calendar/libecal/e-cal-recur.c:4009
 msgid "14th"
-msgstr "14."
+msgstr "ke-14"
 
 #: calendar/libecal/e-cal-recur.c:4010
 msgid "15th"
-msgstr "15."
+msgstr "ke-15"
 
 #: calendar/libecal/e-cal-recur.c:4011
 msgid "16th"
-msgstr "16."
+msgstr "ke-16"
 
 #: calendar/libecal/e-cal-recur.c:4012
 msgid "17th"
-msgstr "17."
+msgstr "ke-17"
 
 #: calendar/libecal/e-cal-recur.c:4013
 msgid "18th"
-msgstr "18."
+msgstr "ke-18"
 
 #: calendar/libecal/e-cal-recur.c:4014
 msgid "19th"
-msgstr "19."
+msgstr "ke-19"
 
 #: calendar/libecal/e-cal-recur.c:4015
 msgid "20th"
-msgstr "20."
+msgstr "ke-20"
 
 #: calendar/libecal/e-cal-recur.c:4016
 msgid "21st"
-msgstr "21."
+msgstr "ke-21"
 
 #: calendar/libecal/e-cal-recur.c:4017
 msgid "22nd"
-msgstr "22."
+msgstr "ke-22"
 
 #: calendar/libecal/e-cal-recur.c:4018
 msgid "23rd"
-msgstr "23."
+msgstr "ke-23"
 
 #: calendar/libecal/e-cal-recur.c:4019
 msgid "24th"
-msgstr "24."
+msgstr "ke-24"
 
 #: calendar/libecal/e-cal-recur.c:4020
 msgid "25th"
-msgstr "25."
+msgstr "ke-25"
 
 #: calendar/libecal/e-cal-recur.c:4021
 msgid "26th"
-msgstr "26."
+msgstr "26"
 
 #: calendar/libecal/e-cal-recur.c:4022
 msgid "27th"
-msgstr "27."
+msgstr "27"
 
 #: calendar/libecal/e-cal-recur.c:4023
 msgid "28th"
-msgstr "28."
+msgstr "28"
 
 #: calendar/libecal/e-cal-recur.c:4024
 msgid "29th"
-msgstr "29."
+msgstr "29"
 
 #: calendar/libecal/e-cal-recur.c:4025
 msgid "30th"
-msgstr "30."
+msgstr "30"
 
 #: calendar/libecal/e-cal-recur.c:4026
 msgid "31st"
-msgstr "31."
+msgstr "31"
 
 #: calendar/libecal/e-cal-util.c:569 calendar/libecal/e-cal-util.c:591
 msgid "High"
-msgstr "Velika"
+msgstr "Tinggi"
 
 #: calendar/libecal/e-cal-util.c:571 calendar/libecal/e-cal-util.c:593
 msgid "Normal"
-msgstr "Obična"
+msgstr "Normal"
 
 #: calendar/libecal/e-cal-util.c:573 calendar/libecal/e-cal-util.c:595
 msgid "Low"
-msgstr "Mala"
+msgstr "Rendah"
 
 #. An empty string is the same as 'None'.
 #: calendar/libecal/e-cal-util.c:589
 msgid "Undefined"
-msgstr "Nedefinisano"
+msgstr "Belum didefinisikan"
 
 #. actually ask the client for authentication
-#: calendar/libecal/e-cal.c:1523
+#: calendar/libecal/e-cal.c:1521
 #, c-format
 msgid "Enter password for %s (user %s)"
-msgstr "Unesite lozinku za %s (korisnik %s)"
+msgstr "Ketikkan kata sandi %s (user %s)"
+
+#: calendar/libecal/e-cal.c:4285
+msgid "Invalid argument"
+msgstr "Argumen invalid"
 
 #: calendar/libecal/e-cal.c:4287
-msgid "Invalid argument"
-msgstr "Neispravan argument"
+msgid "Backend is busy"
+msgstr "Program backend sibuk"
 
 #: calendar/libecal/e-cal.c:4289
-msgid "Backend is busy"
-msgstr "Podrška je zauzeta"
+msgid "Repository is offline"
+msgstr "Repositori sedang mati"
 
 #: calendar/libecal/e-cal.c:4291
-msgid "Repository is offline"
-msgstr "Skladište nije povezano"
-
-#: calendar/libecal/e-cal.c:4293
 msgid "No such calendar"
-msgstr "Nema takvog kalendara"
+msgstr "Kalender tidak ada"
 
-#: calendar/libecal/e-cal.c:4295 servers/groupwise/e-gw-connection.c:155
+#: calendar/libecal/e-cal.c:4293 servers/groupwise/e-gw-connection.c:86
 msgid "Object not found"
-msgstr "Objekat nije nađen"
+msgstr "Obyek tidak ada"
 
-#: calendar/libecal/e-cal.c:4297 servers/groupwise/e-gw-connection.c:151
+#: calendar/libecal/e-cal.c:4295 servers/groupwise/e-gw-connection.c:82
 msgid "Invalid object"
-msgstr "Neispravan predmet"
+msgstr "Obyek invalid"
+
+#: calendar/libecal/e-cal.c:4297
+msgid "URI not loaded"
+msgstr "URI tidak dapat dibuka"
 
 #: calendar/libecal/e-cal.c:4299
-msgid "URI not loaded"
-msgstr "Adresa nije učitana"
+msgid "URI already loaded"
+msgstr "URI sudah dibuka"
 
 #: calendar/libecal/e-cal.c:4301
-msgid "URI already loaded"
-msgstr "Adresa je već učitana"
+msgid "Permission denied"
+msgstr "Hak akses ditolak"
 
 #: calendar/libecal/e-cal.c:4303
-msgid "Permission denied"
-msgstr "Zabranjen pristup"
+msgid "Object ID already exists"
+msgstr "ID obyek sudah ada"
 
-#: calendar/libecal/e-cal.c:4305 servers/groupwise/e-gw-connection.c:157
-msgid "Unknown User"
-msgstr "Nepoznat korisnik"
+#: calendar/libecal/e-cal.c:4305
+msgid "Protocol not supported"
+msgstr "Protokol tidak didukung"
 
 #: calendar/libecal/e-cal.c:4307
-msgid "Object ID already exists"
-msgstr "ID objekta već postoji"
+msgid "Operation has been cancelled"
+msgstr "Operasi telah dibatalkan"
 
 #: calendar/libecal/e-cal.c:4309
-msgid "Protocol not supported"
-msgstr "Protokol nije podržan"
-
-#: calendar/libecal/e-cal.c:4311
-msgid "Operation has been cancelled"
-msgstr "Operacija je obustavljena"
+msgid "Could not cancel operation"
+msgstr "Tidak dapat membatalkan operasi"
 
 #: calendar/libecal/e-cal.c:4313
-msgid "Could not cancel operation"
-msgstr "Ne mogu da otkažem operaciju"
-
-#: calendar/libecal/e-cal.c:4317
 msgid "Authentication required"
-msgstr "Neophodna identifikacija"
+msgstr "Otentikasi diperlukan"
+
+#: calendar/libecal/e-cal.c:4315
+msgid "A CORBA exception has occurred"
+msgstr "Eksepsi CORBA terjadi"
+
+#: calendar/libecal/e-cal.c:4317 servers/groupwise/e-gw-connection.c:92
+msgid "Unknown error"
+msgstr "Error tidak dikenal"
 
 #: calendar/libecal/e-cal.c:4319
-msgid "A CORBA exception has occurred"
-msgstr "Došlo je do CORBA izuzetka"
-
-#: calendar/libecal/e-cal.c:4321 servers/groupwise/e-gw-connection.c:163
-msgid "Unknown error"
-msgstr "Nepoznata greška"
-
-#: calendar/libecal/e-cal.c:4323
 msgid "No error"
-msgstr "Nema greške"
+msgstr "Tidak ada error"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:50
 #: calendar/libedata-cal/e-cal-backend-sexp.c:529
@@ -881,7 +871,7 @@ msgstr "Nema greške"
 #: calendar/libedata-cal/e-cal-backend-sexp.c:749
 #, c-format
 msgid "\"%s\" expects no arguments"
-msgstr "„%s“ ne očekuje argumente"
+msgstr "\"%s\" tidak memerlukan argumen"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:75
 #: calendar/libedata-cal/e-cal-backend-sexp.c:169
@@ -890,7 +880,7 @@ msgstr "„%s“ ne očekuje argumente"
 #: calendar/libedata-cal/e-cal-backend-sexp.c:787
 #, c-format
 msgid "\"%s\" expects one argument"
-msgstr "„%s“ očekuje 1 argument"
+msgstr "\"%s\" membutuhkan satu argumen"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:81
 #: calendar/libedata-cal/e-cal-backend-sexp.c:88
@@ -898,12 +888,12 @@ msgstr "„%s“ očekuje 1 argument"
 #: calendar/libedata-cal/e-cal-backend-sexp.c:473
 #, c-format
 msgid "\"%s\" expects the first argument to be a string"
-msgstr "„%s“ očekuje da prvi argument bude niska"
+msgstr "\"%s\" mengharuskan argumen pertama berupa string"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:96
 #, c-format
 msgid "\"%s\" expects the first argument to be an ISO 8601 date/time string"
-msgstr "„%s“ očekuje da prvi argument bude niska ISO 8601 datuma/vremena"
+msgstr "\"%s\" mengharuskan argumen pertama berupa string tanggal/waktu dalam ISO8601"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:127
 #: calendar/libedata-cal/e-cal-backend-sexp.c:312
@@ -911,7 +901,7 @@ msgstr "„%s“ očekuje da prvi argument bude niska ISO 8601 datuma/vremena"
 #: calendar/libedata-cal/e-cal-backend-sexp.c:561
 #, c-format
 msgid "\"%s\" expects two arguments"
-msgstr "„%s“ očekuje 2 argumenta"
+msgstr "\"%s\" mengharuskan ada dua argumen"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:133
 #: calendar/libedata-cal/e-cal-backend-sexp.c:175
@@ -921,38 +911,37 @@ msgstr "„%s“ očekuje 2 argumenta"
 #: calendar/libedata-cal/e-cal-backend-sexp.c:793
 #, c-format
 msgid "\"%s\" expects the first argument to be a time_t"
-msgstr "„%s“ očekuje da prvi argument bude time_t"
+msgstr "\"%s\" mengharuskan argumen pertama berupa time_t"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:141
 #, c-format
 msgid "\"%s\" expects the second argument to be an integer"
-msgstr "„%s“ očekuje da drugi argument bude ceo broj"
+msgstr "\"%s\" mengharuskan argumen kedua berupa integer"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:326
 #: calendar/libedata-cal/e-cal-backend-sexp.c:575
 #, c-format
 msgid "\"%s\" expects the second argument to be a time_t"
-msgstr "„%s“ očekuje da drugi argument bude time_t"
+msgstr "\"%s\" mengharuskan argumen kedua berupa time_t"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:481
 #, c-format
 msgid "\"%s\" expects the second argument to be a string"
-msgstr "„%s“ očekuje da drugi argument bude niska"
+msgstr "\"%s\" mengharuskan argumen kedua berupa string"
 
-# bug: no need for two ", or"
 #: calendar/libedata-cal/e-cal-backend-sexp.c:501
 #, c-format
 msgid ""
 "\"%s\" expects the first argument to be either \"any\", \"summary\", or "
 "\"description\", or \"location\""
 msgstr ""
-"„%s“ očekuje da prvi argument bude ili „any“, „summary“, „description“ ili "
-"„location“"
+"\"%s\" mengharuskan argumen pertama berupa \"any\", \"summary\", atau "
+"\"description\", atau \"locaion\""
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:624
 #, c-format
 msgid "\"%s\" expects at least one argument"
-msgstr "„%s“ očekuje bar jedan argument"
+msgstr "\"%s\" membutuhkan paling tidak satu argumen"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:638
 #, c-format
@@ -960,153 +949,37 @@ msgid ""
 "\"%s\" expects all arguments to be strings or one and only one argument to "
 "be a boolean false (#f)"
 msgstr ""
-"„%s“ očekuje da svi argumenti budu niske ili jedan i samo jedan argument da "
-"bude logički netačan (#f)"
+"\"%s\" mengharuskan semua argumen berupa string atau satu dan hanya satu "
+"argumen berupa boolean false (#f)"
 
-#: servers/groupwise/e-gw-connection.c:149
+#: servers/groupwise/e-gw-connection.c:80
 msgid "Invalid connection"
-msgstr "Neispravno povezivanje"
+msgstr "Koneksi tidak benar"
 
-#: servers/groupwise/e-gw-connection.c:153
+#: servers/groupwise/e-gw-connection.c:84
 msgid "Invalid response from server"
-msgstr "Neispravan odgovor servera"
+msgstr "Balasan dari server tidak benar"
 
-#: servers/groupwise/e-gw-connection.c:159
+#: servers/groupwise/e-gw-connection.c:88
 msgid "Bad parameter"
-msgstr "Loš parametar"
+msgstr "Parameter tidak benar"
 
-#: src/GNOME_Evolution_DataServer.server.in.in.h:1
-msgid "Evolution Addressbook file backend"
-msgstr "Podrška datoteke adresara za Evoluciju"
+#: src/GNOME_Evolution_DataServerLDAP.server.in.in.h:1
+msgid "Evolution Addressbook file and LDAP backend"
+msgstr "Backend file dan LDAP Buku Alamat Evolution"
 
-#: src/GNOME_Evolution_DataServer.server.in.in.h:2
+#: src/GNOME_Evolution_DataServerLDAP.server.in.in.h:2
+#: src/GNOME_Evolution_DataServerNOLDAP.server.in.in.h:2
 msgid "Evolution Calendar file and webcal backend"
-msgstr "Datoteka kalendara i vebkal podrška za Evoluciju"
+msgstr "Backend file dan webcal Kalender Evolution"
+
+#: src/GNOME_Evolution_DataServerNOLDAP.server.in.in.h:1
+msgid "Evolution Addressbook file backend"
+msgstr "Backend file Buku Alamat Evolution"
 
 #. dialog display isn't working out
-#: src/server.c:99
+#: src/server.c:110
 #, c-format
 msgid "Multiple segmentation faults occurred; can't display error dialog\n"
-msgstr ""
-"Došlo je do višestrukih prekoračenja segmenta; ne mogu da prikažem prozorče "
-"za greške\n"
+msgstr "Ada segmentation fault terjadi; tidak dapat menampilkan dialog error\n"
 
-#~ msgid "Evolution Addressbook file and LDAP backend"
-#~ msgstr "Datoteka adresara i LDAP podrška za Evoluciju"
-
-#~ msgid "Checklist"
-#~ msgstr "Spisak za overu"
-
-#~ msgid "uid? expects 1 argument"
-#~ msgstr "uid? očekuje 1 argument"
-
-#~ msgid "uid? expects argument 1 to be a string"
-#~ msgstr "uid? očekuje 1 argument da bude niska"
-
-#~ msgid "e_book_add_contact called on book before e_book_load_uri"
-#~ msgstr "pozvan je e_book_add_contact na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::addContact call"
-#~ msgstr "Corba izuzetak poziva Book::addContact"
-
-#~ msgid "e_book_commit_contact called on book before e_book_load_uri"
-#~ msgstr "pozvan je e_book_commit_contact na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::modifyContact call"
-#~ msgstr "Corba izuzetak poziva Book::modifyContact"
-
-#~ msgid "e_book_get_supported_fields on book before e_book_load_uri"
-#~ msgstr "e_book_get_supported_fields na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::getSupportedFields call"
-#~ msgstr "Corba izuzetak poziva Book::getSupportedFields"
-
-#~ msgid "e_book_get_supported_auth_methods on book before e_book_load_uri"
-#~ msgstr "e_book_get_supported_auth_methods na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::getSupportedAuthMethods call"
-#~ msgstr "Corba izuzetak poziva Book::getSupportedAuthMethods"
-
-#~ msgid "e_book_authenticate_user on book before e_book_load_uri"
-#~ msgstr "e_book_authenticate_user na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::authenticateUser call"
-#~ msgstr "Corba izuzetak poziva Book::authenticateUser"
-
-#~ msgid "e_book_get_contact on book before e_book_load_uri"
-#~ msgstr "e_book_get_contact na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::getContact call"
-#~ msgstr "Corba izuzetak poziva Book::getContact"
-
-#~ msgid "e_book_remove_contact on book before e_book_load_uri"
-#~ msgstr "e_book_remove_contact na imeniku pre e_book_load_uri"
-
-#~ msgid "e_book_remove_contacts on book before e_book_load_uri"
-#~ msgstr "e_book_remove_contacts na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::removeContacts call"
-#~ msgstr "Corba izuzetak poziva Book::removeContacts"
-
-#~ msgid "e_book_get_book_view on book before e_book_load_uri"
-#~ msgstr "e_book_get_book_view na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::getBookView call"
-#~ msgstr "Corba izuzetak poziva Book::getBookView"
-
-#~ msgid "e_book_get_contacts on book before e_book_load_uri"
-#~ msgstr "e_book_get_contacts na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::getContactList call"
-#~ msgstr "Corba izuzetak poziva Book::getContactList"
-
-#~ msgid "e_book_get_changes on book before e_book_load_uri"
-#~ msgstr "e_book_get_changes na imeniku pre e_book_load_uri"
-
-#~ msgid "Corba exception making Book::getChanges call"
-#~ msgstr "Corba izuzetak poziva Book::getChanges"
-
-#~ msgid "Corba exception making Book::cancelOperation call"
-#~ msgstr "Corba izuzetak poziva Book::cancelOperation"
-
-#~ msgid "e_book_remove on book before e_book_load_uri"
-#~ msgstr "e_book_remove na imeniku pre e_book_load_uri"
-
-#~ msgid "time-now expects 0 arguments"
-#~ msgstr "vreme-sada očekuje 0 argumenata"
-
-#~ msgid "make-time expects argument 1 to be a string"
-#~ msgstr "unesi-vreme očekuje da argument 1 bude niz"
-
-#~ msgid "time-add-day expects 2 arguments"
-#~ msgstr "dodaj-vreme očekuje 2 argumenta"
-
-#~ msgid "time-day-begin expects 1 argument"
-#~ msgstr "vreme-početka-dana očekuje 1 argument"
-
-#~ msgid "time-day-begin expects argument 1 to be a time_t"
-#~ msgstr "vreme-početka-dana očekuje da argument 1 bude time_t"
-
-#~ msgid "time-day-end expects 1 argument"
-#~ msgstr "vreme-kraja-dana očekuje 1 argument"
-
-#~ msgid "occur-in-time-range? expects 2 arguments"
-#~ msgstr "desi-se-u-periodu? očekuje 2 argumenta"
-
-#~ msgid "occur-in-time-range? expects argument 1 to be a time_t"
-#~ msgstr "desi-se-u-periodu? očekuje da argument 1 bude time_t"
-
-#~ msgid "occur-in-time-range? expects argument 2 to be a time_t"
-#~ msgstr "desi-se-u-periodu? očekuje da argument 2 bude time_t"
-
-#~ msgid "has-recurrences? expects no arguments"
-#~ msgstr "ponavlja-se? ne očekuje argumente"
-
-#~ msgid "is-completed? expects 0 arguments"
-#~ msgstr "je-gotov? očekuje 0 argumenata"
-
-#~ msgid "completed-before? expects 1 argument"
-#~ msgstr "gotov-pre? očekuje 1 argument"
-
-#~ msgid "completed-before? expects argument 1 to be a time_t"
-#~ msgstr "gotov-pre? očekuje da argument 1 bude time_t"

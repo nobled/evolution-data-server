@@ -1541,6 +1541,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 		g_free (key);
 	}
 
+
 	CORBA_exception_init (&ev);
 
 	priv->load_state = E_CAL_LOAD_LOADING;
@@ -2833,7 +2834,6 @@ process_detached_instances (GList *instances, GList *detached_instances)
 			if (strcmp (uid, instance_uid) == 0) {
 				if (strcmp (e_cal_component_get_recurid_as_string (ci->comp),
 					    e_cal_component_get_recurid_as_string (cid->comp)) == 0) {
-					/* if it's this instance, replace it */
 					g_object_unref (ci->comp);
 					ci->comp = g_object_ref (cid->comp);
 					ci->start = cid->start;
@@ -2880,20 +2880,6 @@ process_detached_instances (GList *instances, GList *detached_instances)
 	return instances;
 }
 
-/**
- * e_cal_generate_instances:
- * @ecal: A calendar ecal.
- * @start: Start time for query.
- * @end: End time for query.
- * @cb: Callback for each generated instance.
- * @cb_data: Closure data for the callback.
- * 
- * Does a combination of e_cal_get_object_list () and
- * cal_recur_generate_instances().  
- *
- * The callback function should do a g_object_ref() of the calendar component
- * it gets passed if it intends to keep it around.
- **/
 static void
 generate_instances (ECal *ecal, time_t start, time_t end, const char *uid,
 		    ECalRecurInstanceFn cb, gpointer cb_data)
@@ -3000,7 +2986,6 @@ generate_instances (ECal *ecal, time_t start, time_t end, const char *uid,
 	}
 
 	g_list_free (detached_instances);
-
 }
 
 /**
@@ -3095,80 +3080,6 @@ e_cal_generate_instances_for_object (ECal *ecal, icalcomponent *icalcomp,
 					result = (* cb) (ci->comp, ci->start, ci->end, cb_data);
 			} else
 				result = (* cb)  (ci->comp, ci->start, ci->end, cb_data);
-		}
-
-		/* remove instance from list */
-		instances = g_list_remove (instances, ci);
-		g_object_unref (ci->comp);
-		g_free (ci);
-	}
-
-	/* clean up */
-	g_object_unref (comp);
-}
-
-/**
- * e_cal_generate_instances_for_object:
- * @ecal: A calendar ecal.
- * @icalcomp: Object to generate instances from.
- * @start: Start time for query.
- * @end: End time for query.
- * @cb: Callback for each generated instance.
- * @cb_data: Closure data for the callback.
- * 
- * Does a combination of e_cal_get_object_list () and
- * cal_recur_generate_instances(), like e_cal_generate_instances(), but
- * for a single object.
- *
- * The callback function should do a g_object_ref() of the calendar component
- * it gets passed if it intends to keep it around.
- **/
-void
-e_cal_generate_instances_for_object (ECal *ecal, icalcomponent *icalcomp,
-				     time_t start, time_t end,
-				     ECalRecurInstanceFn cb, gpointer cb_data)
-{
-	ECalPrivate *priv;
-	ECalComponent *comp;
-	const char *uid, *rid;
-	gboolean result;
-	GList *instances = NULL;
-
-	g_return_if_fail (E_IS_CAL (ecal));
-	g_return_if_fail (start != -1 && end != -1);
-	g_return_if_fail (start <= end);
-	g_return_if_fail (cb != NULL);
-
-	priv = ecal->priv;
-
-	comp = e_cal_component_new ();
-	e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (icalcomp));
-
-	/* generate all instances in the given time range */
-	e_cal_generate_instances (ecal, start, end, add_instance, &instances);
-
-	/* now only return back the instances for the given object */
-	e_cal_component_get_uid (comp, &uid);
-	rid = e_cal_component_get_recurid_as_string (comp);
-
-	result = TRUE;
-	while (instances != NULL) {
-		struct comp_instance *ci;
-		const char *instance_uid, *instance_rid;
-
-		ci = instances->data;
-
-		if (result) {
-			e_cal_component_get_uid (ci->comp, &instance_uid);
-			instance_rid = e_cal_component_get_recurid_as_string (ci->comp);
-
-			if (instance_uid && strcmp (uid, instance_uid) == 0) {
-				if (rid && *rid) {
-					if (instance_rid && *instance_rid && strcmp (rid, instance_rid) == 0)
-						result = (* cb) (ci->comp, ci->start, ci->end, cb_data);
-				} else
-					result = (* cb)  (ci->comp, ci->start, ci->end, cb_data);
-			}
 		}
 
 		/* remove instance from list */
