@@ -30,7 +30,7 @@ camel_maildir_summary filename string
 	should not be able to modify the string
 	array contents after it has been added to
 	the summary.
-camel_folder
+camel_folder						done
 	Make every camel-folder use a camel-folder-summary.
 	This just reduces some of the code duplication,
 	since everything but vee-folder does this already.
@@ -50,10 +50,10 @@ Per-service locks for various internal lists and
 3. Further fine-grained locking where it can be done/is worthwhile.
 
 A per-index lock for libibex				done
-Locking for the search object
+Locking for the search object				half done
 Internal lock for the folder_summary itself
 	So that searching can be detatched from other
-	folder operations, etc.
+	folder operations, etc.				done
 Possibly a lock for access to parts of a mime-part
 	or message
 
@@ -142,3 +142,25 @@ Fixed imap summary to ref/unref too.
 
 Built some test cases, and expanded the test framework library to
 handle multiple threads.  It works!
+
+Next, added a recursive mutex class, so that locking inside imap had
+any chance of working.  Got imap working.
+
+Moved the camel folder summary into the base folder class, and fixed
+everything to use it that way.
+
+Made the vfolder use a real camel-folder-summary rather than a
+hashtable + array that it was using, and probably fixed some problems
+which caused evolution-mail not to always catch flag updates.  Oh, and
+made it sync/expunge all its subfolders when sync/expungeing.
+
+Made the camel-folder summary completely mt-safe.
+
+Removed all of the locks on the folder functions dealing directly with
+the summary, so now for example all summary lookups will not be
+interupted by long operations.
+
+Made the nntp newsrc thing mt-safe, because of some unfortunate
+sideeffect of it being called from the summary interaction code in
+nntp-folder.
+

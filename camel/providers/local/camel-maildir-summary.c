@@ -33,6 +33,7 @@
 
 #include <ctype.h>
 
+#include "camel-private.h"
 #include "e-util/e-memory.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
@@ -580,11 +581,13 @@ maildir_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Ca
 				d(printf("filename changed: %s to %s\n", filename, d->d_name));
 
 				/* need to update the summary hash string reference since it might (will) change */
+				CAMEL_SUMMARY_LOCK(s, summary_lock);
 				g_hash_table_remove(s->messages_uid, uid);
 				info->strings = e_strv_set_ref(info->strings, CAMEL_MAILDIR_INFO_FILENAME, d->d_name);
 				/* we need to re-pack as well */
 				info->strings = e_strv_pack(info->strings);
 				g_hash_table_insert(s->messages_uid, (char *)camel_message_info_uid(info), info);
+				CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 #else	
 				g_free(mdi->filename);
 				mdi->filename = g_strdup(d->d_name);
@@ -647,7 +650,9 @@ maildir_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Ca
 	g_free(cur);
 
 	/* sort the summary based on receive time, since the directory order is not useful */
+	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	qsort(s->messages->pdata, s->messages->len, sizeof(CamelMessageInfo *), sort_receive_cmp);
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 	/* FIXME: move this up a class? */
 
@@ -718,11 +723,13 @@ maildir_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChange
 					   Sigh, this may mean the maildir name has to be cached another way */
 #ifdef DOESTRV
 #warning "cannot modify the estrv after its been setup, for mt-safe code"
+					CAMEL_SUMMARY_LOCK(s, summary_lock);
 					/* need to update the summary hash ref */
 					g_hash_table_remove(s->messages_uid, camel_message_info_uid(info));
 					info->strings = e_strv_set_ref_free(info->strings, CAMEL_MAILDIR_INFO_FILENAME, newname);
 					info->strings = e_strv_pack(info->strings);
 					g_hash_table_insert(s->messages_uid, (char *)camel_message_info_uid(info), info);
+					CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 #else
 					g_free(mdi->filename);
 					mdi->filename = newname;

@@ -56,7 +56,6 @@ typedef struct {
 	char *index_path;	/* where the index file lives */
 
 	ibex *index;		   /* index for this folder */
-	CamelLocalSummary *summary;
 	CamelFolderSearch *search; /* used to run searches, we just use the real thing (tm) */
 	CamelFolderChangeInfo *changes;	/* used to store changes to the folder during processing */
 } CamelLocalFolder;

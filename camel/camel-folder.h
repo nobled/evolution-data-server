@@ -61,6 +61,7 @@ struct _CamelFolder
 	char *name;
 	char *full_name;
 	CamelStore *parent_store;
+	CamelFolderSummary *summary;
 
 	guint32 permanent_flags;
 	gboolean has_summary_capability:1;

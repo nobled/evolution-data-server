@@ -116,6 +116,34 @@ struct _CamelRemoteStorePrivate {
 #define CAMEL_REMOTE_STORE_UNLOCK(f, l)
 #endif
 
+/* most of this stuff really is private, but the lock can be used by subordinate classes */
+struct _CamelFolderSummaryPrivate {
+	GHashTable *filter_charset;	/* CamelMimeFilterCharset's indexed by source charset */
+
+	CamelMimeFilterIndex *filter_index;
+	CamelMimeFilterBasic *filter_64;
+	CamelMimeFilterBasic *filter_qp;
+	CamelMimeFilterSave *filter_save;
+
+	struct ibex *index;
+
+#ifdef ENABLE_THREADS
+	GMutex *summary_lock;
+	GMutex *io_lock;	/* load/save lock, for access to saved_count, etc */
+	GMutex *filter_lock;	/* for accessing any of the filtering/indexing stuff, since we share them */
+	GMutex *alloc_lock;	/* for setting up and using allocators */
+#endif
+};
+
+#ifdef ENABLE_THREADS
+#define CAMEL_SUMMARY_LOCK(f, l) (g_mutex_lock(((CamelFolderSummary *)f)->priv->l))
+#define CAMEL_SUMMARY_UNLOCK(f, l) (g_mutex_unlock(((CamelFolderSummary *)f)->priv->l))
+#else
+#define CAMEL_SUMMARY_LOCK(f, l)
+#define CAMEL_SUMMARY_UNLOCK(f, l)
+#endif
+
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
