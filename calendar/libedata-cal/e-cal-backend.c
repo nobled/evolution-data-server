@@ -1014,7 +1014,7 @@ match_query_and_notify (EDataCalView *query, const char *old_object, const char 
 		e_data_cal_view_notify_objects_modified_1 (query, object);
 	else if (new_match)
 		e_data_cal_view_notify_objects_added_1 (query, object);
-	else /* if (old_match) */ {
+	else if (old_match) {
 		icalcomponent *icalcomp;
 	
 		if (old_object) {
