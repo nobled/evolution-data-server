@@ -47,7 +47,7 @@ extern "C" {
 #endif
 
 /* turn on so that camel_object_class_dump_tree() dumps object instances as well */
-/*#define CAMEL_OBJECT_TRACK_INSTANCES*/
+#define CAMEL_OBJECT_TRACK_INSTANCES
 
 typedef struct _CamelObjectClass *CamelType;
 
@@ -110,7 +110,7 @@ struct _CamelObject {
 	/* current hooks on this object */
 	struct _CamelHookList *hooks;
 
-	guint32 ref_count:24;
+	guint32 ref:24;
 	guint32 flags:8;
 
 #ifdef CAMEL_OBJECT_TRACK_INSTANCES
@@ -176,22 +176,23 @@ CamelType camel_type_register(CamelType parent, const char * name, /*unsigned in
 /* object class methods (types == classes now) */
 const char *camel_type_to_name (CamelType type);
 CamelType camel_name_to_type (const char *name);
-void camel_object_class_add_event (CamelObjectClass *class, const char *name, CamelObjectEventPrepFunc prep);
+void camel_object_class_add_event (void *class, const char *name, CamelObjectEventPrepFunc prep);
 
 void camel_object_class_dump_tree (CamelType root);
 
 /* casting */
-CamelObject *camel_object_cast(CamelObject *obj, CamelType ctype);
-gboolean camel_object_is(CamelObject *obj, CamelType ctype);
+void *camel_object_cast(void *, CamelType ctype);
+gboolean camel_object_is(void *obj, CamelType ctype);
 
-CamelObjectClass *camel_object_class_cast (CamelObjectClass *klass, CamelType ctype);
-gboolean camel_object_class_is (CamelObjectClass *klass, CamelType ctype);
+void *camel_object_class_cast (void *klass, CamelType ctype);
+gboolean camel_object_class_is (void *klass, CamelType ctype);
 
 CamelType camel_object_get_type (void);
 
-CamelObject *camel_object_new (CamelType type);
-CamelObject *camel_object_new_name (const char *name);
+void *camel_object_new (CamelType type);
+/*void *camel_object_new_name (const char *name);*/
 
+/* refcounting, normal and 'weak' */
 void camel_object_ref(void *);
 void camel_object_unref(void *);
 
@@ -201,10 +202,10 @@ void camel_object_unref(void *);
 #endif
 
 /* hooks */
-CamelObjectHookID camel_object_hook_event(CamelObject *obj, const char *name, CamelObjectEventHookFunc hook, void *data);
-void camel_object_remove_event(CamelObject *obj, CamelObjectHookID id);
-void camel_object_unhook_event(CamelObject *obj, const char *name, CamelObjectEventHookFunc hook, void *data);
-void camel_object_trigger_event(CamelObject *obj, const char *name, void *event_data);
+CamelObjectHookID camel_object_hook_event(void *obj, const char *name, CamelObjectEventHookFunc hook, void *data);
+void camel_object_remove_event(void *obj, CamelObjectHookID id);
+void camel_object_unhook_event(void *obj, const char *name, CamelObjectEventHookFunc hook, void *data);
+void camel_object_trigger_event(void *obj, const char *name, void *event_data);
 
 /* get/set methods */
 int camel_object_set(void *obj, struct _CamelException *ex, ...);

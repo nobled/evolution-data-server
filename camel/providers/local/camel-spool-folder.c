@@ -59,8 +59,7 @@ static CamelFolderClass *parent_class = NULL;
 static int spool_lock(CamelSpoolFolder *lf, CamelLockType type, CamelException *ex);
 static void spool_unlock(CamelSpoolFolder *lf);
 
-static void spool_sync(CamelFolder *folder, gboolean expunge, CamelException *ex);
-static void spool_expunge(CamelFolder *folder, CamelException *ex);
+static void spool_sync(CamelFolder *folder, guint32 flags, CamelException *ex);
 
 static GPtrArray *spool_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex);
 static GPtrArray *spool_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids, CamelException *ex);
@@ -84,7 +83,6 @@ camel_spool_folder_class_init(CamelSpoolFolderClass * camel_spool_folder_class)
 
 	/* virtual method overload */
 	camel_folder_class->sync = spool_sync;
-	camel_folder_class->expunge = spool_expunge;
 
 	camel_folder_class->search_by_expression = spool_search_by_expression;
 	camel_folder_class->search_by_uids = spool_search_by_uids;
@@ -311,7 +309,7 @@ spool_unlock(CamelSpoolFolder *lf)
 }
 
 static void
-spool_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
+spool_sync(CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	CamelSpoolFolder *lf = CAMEL_SPOOL_FOLDER(folder);
 
@@ -321,23 +319,13 @@ spool_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 		return;
 
 	/* if sync fails, we'll pass it up on exit through ex */
-	camel_spool_summary_sync((CamelSpoolSummary *)folder->summary, expunge, lf->changes, ex);
+	camel_spool_summary_sync((CamelSpoolSummary *)folder->summary, (flags & CAMEL_STORE_SYNC_EXPUNGE) != 0, lf->changes, ex);
 	camel_spool_folder_unlock(lf);
 
 	if (camel_folder_change_info_changed(lf->changes)) {
 		camel_object_trigger_event(CAMEL_OBJECT(folder), "folder_changed", lf->changes);
 		camel_folder_change_info_clear(lf->changes);
 	}
-}
-
-static void
-spool_expunge(CamelFolder *folder, CamelException *ex)
-{
-	d(printf("expunge\n"));
-
-	/* Just do a sync with expunge, serves the same purpose */
-	/* call the callback directly, to avoid locking problems */
-	CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(folder))->sync(folder, TRUE, ex);
 }
 
 static GPtrArray *

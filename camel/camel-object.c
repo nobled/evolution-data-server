@@ -92,7 +92,6 @@ static unsigned int pair_id = 1;
 static EMutex *type_lock;
 
 static GHashTable *type_table;
-static EMemChunk *type_chunks;
 
 CamelType camel_object_type;
 
@@ -172,7 +171,6 @@ camel_type_init(void)
 	pair_chunks = e_memchunk_new(16, sizeof(CamelHookPair));
 	hook_chunks = e_memchunk_new(16, sizeof(CamelHookList));
 	type_lock = e_mutex_new(E_MUTEX_REC);
-	type_chunks = e_memchunk_new(32, sizeof(CamelType));
 	type_table = g_hash_table_new(NULL, NULL);
 }
 
@@ -184,14 +182,14 @@ cobject_init (CamelObject *o, CamelObjectClass *klass)
 {
 	o->klass = klass;
 	o->magic = CAMEL_OBJECT_MAGIC;
-	o->ref_count = 1;
+	o->ref = 1;
 	o->flags = 0;
 }
 
 static void
 cobject_finalise(CamelObject *o)
 {
-	g_assert(o->ref_count == 0);
+	g_assert(o->ref == 0);
 
 	camel_object_free_hooks(o);
 
@@ -243,6 +241,7 @@ cobject_class_init(CamelObjectClass *klass)
 	klass->setv = cobject_setv;
 	klass->free = cobject_free;
 
+	camel_object_class_add_event(klass, "finalize_weak", NULL);
 	camel_object_class_add_event(klass, "finalize", NULL);
 }
 
@@ -380,7 +379,7 @@ camel_object_init(CamelObject *o, CamelObjectClass *klass, CamelType type)
 		type->init(o, klass);
 }
 
-CamelObject *
+void *
 camel_object_new(CamelType type)
 {
 	CamelObject *o;
@@ -416,7 +415,7 @@ camel_object_ref(void *vo)
 	g_return_if_fail(CAMEL_IS_OBJECT(o));
 
 	CLASS_LOCK(o->klass);
-	o->ref_count++;
+	o->ref++;
 	CLASS_UNLOCK(o->klass);
 }
 
@@ -431,8 +430,10 @@ camel_object_unref(void *vo)
 	klass = o->klass;
 
 	CLASS_LOCK(klass);
-	o->ref_count--;
-	if (o->ref_count > 0
+	if (o->ref == 0)
+		g_warning("Object being unref'd below 0 refcount: %s", klass->name);
+	o->ref--;
+	if (o->ref > 0
 	    || (o->flags & CAMEL_OBJECT_DESTROY)) {
 		CLASS_UNLOCK(klass);
 		return;
@@ -443,6 +444,15 @@ camel_object_unref(void *vo)
 	CLASS_UNLOCK(klass);
 
 	camel_object_trigger_event(o, "finalize", NULL);
+
+	CLASS_LOCK(klass);
+	if (o->ref > 0) {
+		g_warning("object came back to life: %s", klass->name);
+		o->flags &= ~ CAMEL_OBJECT_DESTROY;
+		CLASS_UNLOCK(klass);
+		return;
+	}
+	CLASS_UNLOCK(klass);
 
 	k = klass;
 	while (k) {
@@ -536,8 +546,9 @@ check_magic(void *o, CamelType ctype, int isob)
 }
 
 gboolean
-camel_object_is (CamelObject *o, CamelType ctype)
+camel_object_is (void *vo, CamelType ctype)
 {
+	CamelObject *o = vo;
 	CamelObjectClass *k;
 
 	g_return_val_if_fail(check_magic(o, ctype, TRUE), FALSE);
@@ -553,8 +564,10 @@ camel_object_is (CamelObject *o, CamelType ctype)
 }
 
 gboolean
-camel_object_class_is (CamelObjectClass *k, CamelType ctype)
+camel_object_class_is (void *vk, CamelType ctype)
 {
+	CamelObjectClass *k = vk;
+
 	g_return_val_if_fail(check_magic(k, ctype, FALSE), FALSE);
 
 	while (k) {
@@ -566,9 +579,10 @@ camel_object_class_is (CamelObjectClass *k, CamelType ctype)
 	return FALSE;
 }
 
-CamelObject *
-camel_object_cast(CamelObject *o, CamelType ctype)
+void *
+camel_object_cast(void *vo, CamelType ctype)
 {
+	CamelObject *o = vo;
 	CamelObjectClass *k;
 
 	g_return_val_if_fail(check_magic(o, ctype, TRUE), NULL);
@@ -585,9 +599,10 @@ camel_object_cast(CamelObject *o, CamelType ctype)
 	return NULL;
 }
 
-CamelObjectClass *
-camel_object_class_cast(CamelObjectClass *k, CamelType ctype)
+void *
+camel_object_class_cast(void *vk, CamelType ctype)
 {
+	CamelObjectClass *k = vk;
 	CamelObjectClass *r = k;
 
 	g_return_val_if_fail(check_magic(k, ctype, FALSE), NULL);
@@ -604,8 +619,9 @@ camel_object_class_cast(CamelObjectClass *k, CamelType ctype)
 }
 
 void
-camel_object_class_add_event(CamelObjectClass *klass, const char *name, CamelObjectEventPrepFunc prep)
+camel_object_class_add_event(void *vk, const char *name, CamelObjectEventPrepFunc prep)
 {
+	CamelObjectClass *klass = vk;
 	CamelHookPair *pair;
 
 	g_return_if_fail (name);
@@ -694,8 +710,9 @@ static CamelHookList *camel_object_get_hooks(CamelObject *o)
 #endif
 
 unsigned int
-camel_object_hook_event(CamelObject * obj, const char * name, CamelObjectEventHookFunc func, void *data)
+camel_object_hook_event(void *vo, const char * name, CamelObjectEventHookFunc func, void *data)
 {
+	CamelObject *obj = vo;
 	CamelHookPair *pair, *hook;
 	CamelHookList *hooks;
 	int id;
@@ -736,8 +753,9 @@ setup:
 }
 
 void
-camel_object_remove_event(CamelObject * obj, unsigned int id)
+camel_object_remove_event(void *vo, unsigned int id)
 {
+	CamelObject *obj = vo;
 	CamelHookList *hooks;
 	CamelHookPair *pair, *parent;
 
@@ -778,8 +796,9 @@ camel_object_remove_event(CamelObject * obj, unsigned int id)
 }
 
 void
-camel_object_unhook_event(CamelObject * obj, const char * name, CamelObjectEventHookFunc func, void *data)
+camel_object_unhook_event(void *vo, const char * name, CamelObjectEventHookFunc func, void *data)
 {
+	CamelObject *obj = vo;
 	CamelHookList *hooks;
 	CamelHookPair *pair, *parent;
 
@@ -823,8 +842,9 @@ camel_object_unhook_event(CamelObject * obj, const char * name, CamelObjectEvent
 }
 
 void
-camel_object_trigger_event (CamelObject * obj, const char * name, void *event_data)
+camel_object_trigger_event(void *vo, const char * name, void *event_data)
 {
+	CamelObject *obj = vo;
 	CamelHookList *hooks;
 	CamelHookPair *pair, **pairs, *parent, *hook;
 	int i, size;
@@ -1009,7 +1029,10 @@ object_class_dump_tree_rec(CamelType root, int depth)
 #ifdef CAMEL_OBJECT_TRACK_INSTANCES
 		o = root->instances;
 		while (o) {
-			printf("%s instance %p [%d]\n", p, o, o->ref_count);
+			char *desc;
+
+			camel_object_get(o, NULL, CAMEL_OBJECT_DESCRIPTION, &desc, 0);
+			printf("%s instance %p [%d] '%s'\n", p, o, o->ref, desc);
 			/* todo: should lock hooks while it scans them */
 			if (o->hooks) {
 				CamelHookPair *pair = o->hooks->list;

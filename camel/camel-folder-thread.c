@@ -623,7 +623,7 @@ add_present_rec(CamelFolderThread *thread, GHashTable *have, GPtrArray *summary,
 
 		if (g_hash_table_lookup(have, (char *)uid)) {
 			g_hash_table_remove(have, (char *)camel_message_info_uid(node->message));
-			g_ptr_array_add(summary, node->message);
+			g_ptr_array_add(summary, (void *)node->message);
 		} else {
 			camel_folder_free_message_info(thread->folder, (CamelMessageInfo *)node->message);
 		}

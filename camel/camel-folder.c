@@ -52,8 +52,7 @@ static void camel_folder_finalize (CamelObject *object);
 
 static void refresh_info (CamelFolder *folder, CamelException *ex);
 
-static void folder_sync (CamelFolder *folder, gboolean expunge,
-			 CamelException *ex);
+static void folder_sync (CamelFolder *folder, guint32 flags, CamelException *ex);
 
 static const gchar *get_name (CamelFolder *folder);
 static const gchar *get_full_name (CamelFolder *folder);
@@ -72,8 +71,6 @@ static void set_message_user_tag(CamelFolder *folder, const char *uid, const cha
 static gint get_message_count (CamelFolder *folder);
 static gint get_unread_message_count (CamelFolder *folder);
 
-static void expunge             (CamelFolder *folder,
-				 CamelException *ex);
 static int folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args);
 static void folder_free(CamelObject *o, guint32 tag, void *val);
 
@@ -128,7 +125,6 @@ camel_folder_class_init (CamelFolderClass *camel_folder_class)
 	camel_folder_class->get_name = get_name;
 	camel_folder_class->get_full_name = get_full_name;
 	camel_folder_class->get_parent_store = get_parent_store;
-	camel_folder_class->expunge = expunge;
 	camel_folder_class->get_message_count = get_message_count;
 	camel_folder_class->get_unread_message_count = get_unread_message_count;
 	camel_folder_class->append_message = append_message;
@@ -253,7 +249,7 @@ camel_folder_construct (CamelFolder *folder, CamelStore *parent_store,
 
 
 static void
-folder_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+folder_sync (CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	w(g_warning ("CamelFolder::sync not implemented for `%s'",
 		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (folder))));
@@ -262,25 +258,24 @@ folder_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 /**
  * camel_folder_sync:
  * @folder: The folder object
- * @expunge: whether or not to expunge deleted messages
+ * @flags: Option flags, see CAMEL_STORE_SYNC_* flags in camel_store_sync.
  * @ex: exception object
  *
  * Sync changes made to a folder to its backing store, possibly expunging
  * deleted messages as well.
  **/
 void
-camel_folder_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+camel_folder_sync (CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 
 	CAMEL_FOLDER_LOCK(folder, lock);
 	
 	if (!(folder->folder_flags & CAMEL_FOLDER_HAS_BEEN_DELETED))
-		CF_CLASS (folder)->sync (folder, expunge, ex);
+		CF_CLASS (folder)->sync (folder, flags, ex);
 	
 	CAMEL_FOLDER_UNLOCK(folder, lock);
 }
-
 
 static void
 refresh_info (CamelFolder *folder, CamelException *ex)
@@ -478,35 +473,6 @@ camel_folder_get_parent_store (CamelFolder *folder)
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
 
 	return CF_CLASS (folder)->get_parent_store (folder);
-}
-
-
-static void
-expunge (CamelFolder *folder, CamelException *ex)
-{
-	w(g_warning ("CamelFolder::expunge not implemented for `%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (folder))));
-}
-
-
-/**
- * camel_folder_expunge:
- * @folder: the folder
- * @ex: a CamelException
- *
- * Delete messages which have been marked as "DELETED"
- **/
-void
-camel_folder_expunge (CamelFolder *folder, CamelException *ex)
-{
-	g_return_if_fail (CAMEL_IS_FOLDER (folder));
-	
-	CAMEL_FOLDER_LOCK(folder, lock);
-	
-	if (!(folder->folder_flags & CAMEL_FOLDER_HAS_BEEN_DELETED))
-		CF_CLASS (folder)->expunge (folder, ex);
-	
-	CAMEL_FOLDER_UNLOCK(folder, lock);
 }
 
 static int

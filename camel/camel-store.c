@@ -62,7 +62,7 @@ static void delete_folder (CamelStore *store, const char *folder_name,
 static void rename_folder (CamelStore *store, const char *old_name,
 			   const char *new_name, CamelException *ex);
 
-static void store_sync (CamelStore *store, CamelException *ex);
+static void store_sync (CamelStore *store, guint32 flags, CamelException *ex);
 static CamelFolderInfo *get_folder_info (CamelStore *store, const char *top,
 					 guint32 flags, CamelException *ex);
 static void free_folder_info (CamelStore *store, CamelFolderInfo *tree);
@@ -144,6 +144,8 @@ static void
 camel_store_finalize (CamelObject *object)
 {
 	CamelStore *store = CAMEL_STORE (object);
+
+	printf("store finalise\n");
 
 	if (store->folders) {
 		if (g_hash_table_size (store->folders) != 0) {
@@ -260,6 +262,10 @@ camel_store_get_folder (CamelStore *store, const char *folder_name, guint32 flag
 	g_return_val_if_fail (folder_name != NULL, NULL);
 	
 	CAMEL_STORE_LOCK(store, folder_lock);
+
+	/* always setup trash, this prevents us having to add any folders at init time */
+	if ((store->flags & CAMEL_STORE_VTRASH) != 0 && store->vtrash == NULL)
+		CS_CLASS (store)->init_trash (store);
 	
 	if (store->folders) {
 		/* Try cache first. */
@@ -548,16 +554,28 @@ trash_add_folder (gpointer key, gpointer value, gpointer data)
 {
 	CamelFolder *folder = CAMEL_FOLDER (value);
 	CamelStore *store = CAMEL_STORE (data);
-	
+
+	printf(" adding folder '%s' to trash\n", folder->full_name);
 	camel_vee_folder_add_folder (CAMEL_VEE_FOLDER (store->vtrash), folder);
 }
 
 static void
-trash_finalize (CamelObject *trash, gpointer event_data, gpointer user_data)
+vtrash_finalise(CamelObject *s, gpointer event_data, gpointer user_data)
 {
-	CamelStore *store = CAMEL_STORE (user_data);
-	
-	store->vtrash = NULL;
+	CamelFolder *trash = s;
+	CamelStore *store = (CamelStore *)user_data;
+
+	printf("trash finalised, trying to keep it alive\n");
+
+	/* if vtrash_weak is set, then it means we already have a ref on it
+	   and shouldn't re-ref when passing out to callers */
+	store->priv->vtrash_weak = trash;
+	camel_object_ref(trash);
+
+	/* this removes the trash's ref on the store, so if this is the final ref
+	   everything is cleaned up.  we add it back if the vfolder is retrieved again later */
+	printf("unreffing store\n");
+	camel_object_unref(store);
 }
 
 static void
@@ -566,15 +584,21 @@ init_trash (CamelStore *store)
 	if ((store->flags & CAMEL_STORE_VTRASH) == 0)
 		return;
 
+	printf("init_trash: before vtrash new: store ref = %d\n", ((CamelObject *)store)->ref);
+
 	store->vtrash = camel_vtrash_folder_new (store, CAMEL_VTRASH_NAME);
+
+	printf("init_trash: after vtrash new: store ref = %d\n", ((CamelObject *)store)->ref);
+
+	/* this is no good because we keep a ref to the store, even if the vtrash is never used
+	   by anyone else, we need to unref the store here */
 	
 	if (store->vtrash) {
-		/* attach to the finalise event of the vtrash */
-		camel_object_hook_event (CAMEL_OBJECT (store->vtrash), "finalize",
-					 trash_finalize, store);
-		
-		/* add all the pre-opened folders to the vtrash */
+		camel_object_hook_event(store->vtrash, "finalize", vtrash_finalise, store);
+
 		if (store->folders) {
+			printf("adding folders to trash:\n");
+			/* add all the pre-opened folders to the vtrash */
 			CAMEL_STORE_LOCK(store, cache_lock);
 			g_hash_table_foreach (store->folders, trash_add_folder, store);
 			CAMEL_STORE_UNLOCK(store, cache_lock);
@@ -582,25 +606,20 @@ init_trash (CamelStore *store)
 	}
 }
 
-
 static CamelFolder *
 get_trash (CamelStore *store, CamelException *ex)
 {
 	if (store->vtrash) {
-		camel_object_ref (CAMEL_OBJECT (store->vtrash));
-		return store->vtrash;
+		if (store->priv->vtrash_weak) {
+			store->priv->vtrash_weak = NULL;
+			camel_object_ref(store);
+		} else
+			camel_object_ref (CAMEL_OBJECT (store->vtrash));
 	} else {
 		CS_CLASS (store)->init_trash (store);
-		if (store->vtrash) {
-			/* We don't ref here because we don't want the
-                           store to own a ref on the trash folder */
-			/*camel_object_ref (CAMEL_OBJECT (store->vtrash));*/
-			return store->vtrash;
-		} else {
-			w(g_warning ("This store does not support vTrash."));
-			return NULL;
-		}
 	}
+
+	return store->vtrash;
 }
 
 /** 
@@ -626,59 +645,63 @@ camel_store_get_trash (CamelStore *store, CamelException *ex)
 	return folder;
 }
 
-
 static void
-sync_folder (gpointer key, gpointer folder, gpointer ex)
+get_folders(void *key, CamelFolder *folder, GPtrArray *folders)
 {
-	if (!camel_exception_is_set (ex))
-		camel_folder_sync (folder, FALSE, ex);
-	
-	camel_object_unref (CAMEL_OBJECT (folder));
-	g_free (key);
+	camel_object_ref(folder);
+	g_ptr_array_add(folders, folder);
 }
 
 static void
-copy_folder_cache (gpointer key, gpointer folder, gpointer hash)
-{
-	g_hash_table_insert ((GHashTable *) hash, g_strdup (key), folder);
-	camel_object_ref (CAMEL_OBJECT (folder));
-}
-
-static void
-store_sync (CamelStore *store, CamelException *ex)
+store_sync (CamelStore *store, guint32 flags, CamelException *ex)
 {
 	if (store->folders) {
-		CamelException internal_ex;
-		GHashTable *hash;
+		CamelException x;
+		GPtrArray *folders;
+		int i;
+
+		camel_exception_init(&x);
+		folders = g_ptr_array_new();
 		
-		hash = g_hash_table_new (CS_CLASS (store)->hash_folder_name,
-					 CS_CLASS (store)->compare_folder_name);
-		
-		camel_exception_init (&internal_ex);
 		CAMEL_STORE_LOCK(store, cache_lock);
-		g_hash_table_foreach (store->folders, copy_folder_cache, hash);
+		g_hash_table_foreach (store->folders, (GHFunc)get_folders, folders);
 		CAMEL_STORE_UNLOCK(store, cache_lock);
-		camel_exception_xfer (ex, &internal_ex);
 		
-		g_hash_table_foreach (hash, sync_folder, &internal_ex);
-		g_hash_table_destroy (hash);
+		for (i=0;i<folders->len;i++) {
+			CamelFolder *folder = folders->pdata[i];
+
+			if (!camel_exception_is_set(&x))
+				camel_folder_sync(folder, flags, &x);
+			camel_object_unref(folder);
+		}
+
+		g_ptr_array_free(folders, TRUE);
+		camel_exception_xfer(ex, &x);
 	}
 }
 
 /**
  * camel_store_sync:
  * @store: a CamelStore
+ * @flags: flags to sync with.
  * @ex: a CamelException
  *
  * Syncs any changes that have been made to the store object and its
  * folders with the real store.
+ *
+ * @flags may be one or more of:
+ *
+ * CAMEL_STORE_SYNC_EXPUNGE: Expunge deleted messages from store.
+ *
+ * CAMEL_STORE_SYNC_OFFLINE: Prepare for offline mode as well.
+ * Currently unimplemented.
  **/
 void
-camel_store_sync (CamelStore *store, CamelException *ex)
+camel_store_sync (CamelStore *store, guint32 flags, CamelException *ex)
 {
 	g_return_if_fail (CAMEL_IS_STORE (store));
 
-	CS_CLASS (store)->sync (store, ex);
+	CS_CLASS (store)->sync(store, flags, ex);
 }
 
 

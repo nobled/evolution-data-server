@@ -60,9 +60,8 @@ struct _CamelStorePrivate {
 #ifdef ENABLE_THREADS
 	EMutex *folder_lock;	/* for locking folder operations */
 	EMutex *cache_lock;	/* for locking access to the cache */
-#else
-	gpointer dummy;
 #endif
+	void *vtrash_weak;	/* an outstanding weak-ref to the vtrash is active */
 };
 
 #ifdef ENABLE_THREADS

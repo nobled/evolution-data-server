@@ -35,8 +35,7 @@
 static CamelFolderClass *parent_class = NULL;
 
 static void disco_refresh_info (CamelFolder *folder, CamelException *ex);
-static void disco_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
-static void disco_expunge (CamelFolder *folder, CamelException *ex);
+static void disco_sync (CamelFolder *folder, guint32 flags, CamelException *ex);
 
 static void disco_append_message (CamelFolder *folder, CamelMimeMessage *message,
 				  const CamelMessageInfo *info, char **appended_uid, CamelException *ex);
@@ -66,7 +65,6 @@ camel_disco_folder_class_init (CamelDiscoFolderClass *camel_disco_folder_class)
 	/* virtual method overload */
 	camel_folder_class->refresh_info = disco_refresh_info;
 	camel_folder_class->sync = disco_sync;
-	camel_folder_class->expunge = disco_expunge;
 
 	camel_folder_class->append_message = disco_append_message;
 	camel_folder_class->transfer_messages_to = disco_transfer_messages_to;
@@ -99,30 +97,6 @@ disco_refresh_info (CamelFolder *folder, CamelException *ex)
 }
 
 static void
-disco_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
-{
-	if (expunge) {
-		disco_expunge (folder, ex);
-		if (camel_exception_is_set (ex))
-			return;
-	}
-
-	switch (camel_disco_store_status (CAMEL_DISCO_STORE (folder->parent_store))) {
-	case CAMEL_DISCO_STORE_ONLINE:
-		CDF_CLASS (folder)->sync_online (folder, ex);
-		break;
-
-	case CAMEL_DISCO_STORE_OFFLINE:
-		CDF_CLASS (folder)->sync_offline (folder, ex);
-		break;
-
-	case CAMEL_DISCO_STORE_RESYNCING:
-		CDF_CLASS (folder)->sync_resyncing (folder, ex);
-		break;
-	}
-}
-
-static void
 disco_expunge_uids (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
 {
 	CamelDiscoStore *disco = CAMEL_DISCO_STORE (folder->parent_store);
@@ -146,26 +120,45 @@ disco_expunge_uids (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
 }
 
 static void
-disco_expunge (CamelFolder *folder, CamelException *ex)
+disco_sync (CamelFolder *folder, guint32 flags, CamelException *ex)
 {
-	GPtrArray *uids;
-	int i, count;
-	CamelMessageInfo *info;
+	if (flags & CAMEL_STORE_SYNC_EXPUNGE) {
+		GPtrArray *uids;
+		int i, count;
+		CamelMessageInfo *info;
 
-	uids = g_ptr_array_new ();
-	count = camel_folder_summary_count (folder->summary);
-	for (i = 0; i < count; i++) {
-		info = camel_folder_summary_index (folder->summary, i);
-		if (info->flags & CAMEL_MESSAGE_DELETED)
-			g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
-		camel_folder_summary_info_free (folder->summary, info);
+		/* this code is a load of crap because expunge_uid's could expunge anything */
+		uids = g_ptr_array_new ();
+		count = camel_folder_summary_count (folder->summary);
+		for (i = 0; i < count; i++) {
+			info = camel_folder_summary_index (folder->summary, i);
+			if (info->flags & CAMEL_MESSAGE_DELETED)
+				g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
+			camel_folder_summary_info_free (folder->summary, info);
+		}
+
+		disco_expunge_uids (folder, uids, ex);
+
+		for (i = 0; i < uids->len; i++)
+			g_free (uids->pdata[i]);
+		g_ptr_array_free (uids, TRUE);
+		if (camel_exception_is_set (ex))
+			return;
 	}
 
-	disco_expunge_uids (folder, uids, ex);
+	switch (camel_disco_store_status (CAMEL_DISCO_STORE (folder->parent_store))) {
+	case CAMEL_DISCO_STORE_ONLINE:
+		CDF_CLASS (folder)->sync_online (folder, ex);
+		break;
 
-	for (i = 0; i < uids->len; i++)
-		g_free (uids->pdata[i]);
-	g_ptr_array_free (uids, TRUE);
+	case CAMEL_DISCO_STORE_OFFLINE:
+		CDF_CLASS (folder)->sync_offline (folder, ex);
+		break;
+
+	case CAMEL_DISCO_STORE_RESYNCING:
+		CDF_CLASS (folder)->sync_resyncing (folder, ex);
+		break;
+	}
 }
 
 static void

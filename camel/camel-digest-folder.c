@@ -45,9 +45,8 @@ struct _CamelDigestFolderPrivate {
 static CamelFolderClass *parent_class = NULL;
 
 static void digest_refresh_info (CamelFolder *folder, CamelException *ex);
-static void digest_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
+static void digest_sync (CamelFolder *folder, guint32 flags, CamelException *ex);
 static const char *digest_get_full_name (CamelFolder *folder);
-static void digest_expunge (CamelFolder *folder, CamelException *ex);
 
 static GPtrArray *digest_get_uids (CamelFolder *folder);
 static void digest_free_uids (CamelFolder *folder, GPtrArray *uids);
@@ -75,7 +74,6 @@ camel_digest_folder_class_init (CamelDigestFolderClass *camel_digest_folder_clas
 	/* virtual method overload */
 	camel_folder_class->refresh_info = digest_refresh_info;
 	camel_folder_class->sync = digest_sync;
-	camel_folder_class->expunge = digest_expunge;
 	camel_folder_class->get_full_name = digest_get_full_name;
 	
 	camel_folder_class->get_uids = digest_get_uids;
@@ -201,13 +199,7 @@ digest_refresh_info (CamelFolder *folder, CamelException *ex)
 }
 
 static void
-digest_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
-{
-	/* no-op */
-}
-
-static void
-digest_expunge (CamelFolder *folder, CamelException *ex)
+digest_sync (CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	/* no-op */
 }

@@ -1,4 +1,83 @@
+2002-06-12  Not Zed  <NotZed@Ximian.com>
+
+	* camel-session.c (camel_session_class_init): Setup a 'vtrash' provider too.
+	(camel_session_construct): "
+
+	* camel-store.c (get_trash): 
+	(init_trash): 
+	(vtrash_finalise): Do some weak reference magic using the existing
+	ref structure.  So the trash exists but doesn't hold a ref on the
+	store when it isn't active.
+
+	* camel-object.c (camel_object_unref): Changed my mind.  Get rid
+	of weak ref handling, but allow an object to be re-ref'd during
+	its finalise event.
+	(camel_object_weak): 
+	(camel_object_unweak): Removed.
+	(camel_object_trigger_event): 
+	(camel_object_unhook_event): 
+	(camel_object_remove_event): 
+	(camel_object_hook_event): Take void * as object.
+	(camel_type_init): Remove type_chunks, no longer used.
+	(camel_object_new): Return a void * rather than CamelObject *.
+	(camel_object_class_cast): 
+	(camel_object_cast): Take a void *, return a void *.
+	(camel_object_class_add_event): Take void * as class.
+
 2002-06-11  Not Zed  <NotZed@Ximian.com>
+
+	* camel-digest-folder.c (digest_sync): api change.
+	(digest_expunge): Removed.
+
+	* providers/nntp/camel-nntp-folder.c (nntp_folder_sync): api change.
+
+	* providers/pop3/camel-pop3-folder.c (pop3_sync): api changes.
+
+	* camel-object.c (camel_object_weak): New method, perform a 'weak'
+	ref on the object.  Maybe we need a camel_object_pissweak for
+	really weak references.
+	(camel_object_unref): Handle weak referencing issues.
+	(cobject_init): Init ref/weak.
+	(cobject_class_init): Added a new event type, "finalize_weak".
+	(camel_object_unweak): Remove a weak reference/hook.
+
+	* camel-object.h (CamelObject): Added a 'weak' count, limited to
+	255 references, and changed the ref_count to just be 'ref'.
+
+	* camel-disco-store.c (set_status): Fix for store sync api chagne.
+
+	* camel-disco-folder.c (disco_expunge): Killed.
+	(disco_sync): Fixed for api changes.
+
+	* providers/local/camel-spool-folder.c (spool_sync): Fix for api
+	changes.
+	(spool_expunge): Removed.
+
+	* providers/local/camel-local-folder.c (local_expunge): Removed.
+	(local_sync): api change fixes.
+
+	* camel-vee-folder.c (vee_sync): Changes to api.
+	(vee_expunge): Removed.
+
+	* camel-folder.c (camel_folder_class_init): Removed expunge method.
+	(folder_sync): 
+	(camel_folder_sync): Fixes for api change.
+	(expunge): 
+	(camel_folder_expunge): Removed.
+
+	* camel-folder.h: Changed sync to take flags rather than boolean.
+	Uses store sync flags.  Removed the expunge method.
+ 
+	* camel-store.c (store_sync): Fixed this code, it was messy and
+	didn't propagate exceptions properly.  Added a flags parameter.
+	(camel_store_sync): Now takes a flags argument.
+	(trash_finalize): Removed.
+	(init_trash): We no longer hook onto the trash.
+	(get_trash): We ref the trash folder whenever we give it out.
+	(store_finalise_weak): Handle the weak finalise event.
+	(camel_store_get_folder): always setup the vtrash here, since we
+	now weak-ref the store as the parent of the vtrash.  should fix a
+	vtrash setup hang bug.
 
 	* camel-vtrash-folder.c (camel_vtrash_folder_class_init): Our
 	parent class is camel_vee_folder, not camel_folder, fix setting of

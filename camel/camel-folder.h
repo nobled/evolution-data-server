@@ -105,16 +105,12 @@ typedef struct {
 	/* Virtual methods */	
 	void   (*refresh_info) (CamelFolder *folder, CamelException *ex);
 
-	void   (*sync) (CamelFolder *folder, gboolean expunge, 
-			CamelException *ex);
+	void   (*sync) (CamelFolder *folder, guint32 flags, CamelException *ex);
 
 	const char *  (*get_name)  (CamelFolder *folder);
 	const char *  (*get_full_name)   (CamelFolder *folder);
 
 	CamelStore *  (*get_parent_store) (CamelFolder *folder);
-
-	void (*expunge)  (CamelFolder *folder, 
-			  CamelException *ex);
 
 	int   (*get_message_count)   (CamelFolder *folder);
 
@@ -197,24 +193,15 @@ void               camel_folder_construct              (CamelFolder *folder,
 							const char *full_name,
 							const char *name);
 
-void               camel_folder_refresh_info           (CamelFolder * folder, 
-							CamelException * ex);
-void               camel_folder_sync                   (CamelFolder *folder, 
-							gboolean expunge, 
-							CamelException *ex);
+void               camel_folder_refresh_info           (CamelFolder *folder, CamelException * ex);
+/* uses CAMEL_STORE_SYNC* flags */
+void               camel_folder_sync                   (CamelFolder *folder, guint32 flags, CamelException *ex);
 
 CamelStore *       camel_folder_get_parent_store       (CamelFolder *folder);
-
-
-/* delete operations */
-void		   camel_folder_expunge                (CamelFolder *folder, 
-							CamelException *ex);
-
 
 /* folder name operations */
 const char *      camel_folder_get_name                (CamelFolder *folder);
 const char *      camel_folder_get_full_name           (CamelFolder *folder);
-
 
 /* various properties accessors */
 guint32		   camel_folder_get_permanent_flags    (CamelFolder *folder);

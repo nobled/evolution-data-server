@@ -50,7 +50,7 @@ static CamelFolderClass *parent_class;
 
 static void pop3_finalize (CamelObject *object);
 static void pop3_refresh_info (CamelFolder *folder, CamelException *ex);
-static void pop3_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
+static void pop3_sync (CamelFolder *folder, guint32 flags, CamelException *ex);
 static gint pop3_get_message_count (CamelFolder *folder);
 static GPtrArray *pop3_get_uids (CamelFolder *folder);
 static CamelMimeMessage *pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex);
@@ -309,14 +309,14 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 }
 
 static void
-pop3_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+pop3_sync (CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	CamelPOP3Folder *pop3_folder;
 	CamelPOP3Store *pop3_store;
 	int i;
 	CamelPOP3FolderInfo *fi;
 
-	if (!expunge)
+	if ((flags & CAMEL_STORE_SYNC_EXPUNGE) == 0)
 		return;
 
 	pop3_folder = CAMEL_POP3_FOLDER (folder);

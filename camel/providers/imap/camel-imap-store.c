@@ -1966,7 +1966,7 @@ get_folder_info_online (CamelStore *store, const char *top,
 	/* Get unread counts. Sync flag changes to the server first so
 	 * it has the same ideas about read/unread as we do.
 	 */
-	camel_store_sync (store, NULL);
+	camel_store_sync (store, 0, NULL);
 	for (i = 0; i < folders->len; i++) {
 		const char *noselect;
 		CamelURL *url;

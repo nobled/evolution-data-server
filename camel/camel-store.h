@@ -98,6 +98,10 @@ struct _CamelStore
 #define CAMEL_STORE_FOLDER_INFO_RECURSIVE  (1 << 1)
 #define CAMEL_STORE_FOLDER_INFO_SUBSCRIBED (1 << 2)
 
+/* camel store (and folder) sync flags */
+#define CAMEL_STORE_SYNC_EXPUNGE (1<<0) /* expunge deleted messages */
+#define CAMEL_STORE_SYNC_OFFLINE (1<<1)	/* prepare for offline */
+
 typedef struct {
 	CamelServiceClass parent_class;
 
@@ -127,8 +131,7 @@ typedef struct {
 						     const char *new_name,
 						     CamelException *ex);
 	
-	void            (*sync)                     (CamelStore *store,
-						     CamelException *ex);
+	void            (*sync)                     (CamelStore *store, guint32 flags, CamelException *ex);
 	
 	CamelFolderInfo *(*get_folder_info)         (CamelStore *store,
 						     const char *top,
@@ -173,8 +176,7 @@ void             camel_store_rename_folder      (CamelStore *store,
 						 const char *new_name,
 						 CamelException *ex);
 
-void             camel_store_sync               (CamelStore *store,
-						 CamelException *ex);
+void             camel_store_sync               (CamelStore *store, guint32 flags, CamelException *ex);
 
 CamelFolderInfo *camel_store_get_folder_info    (CamelStore *store,
 						 const char *top,

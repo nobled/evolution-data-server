@@ -41,6 +41,7 @@
 #include "camel-url.h"
 #include "hash-table-utils.h"
 #include "camel-vee-store.h"
+#include "camel-vtrash-store.h"
 
 #include "camel-private.h"
 
@@ -73,15 +74,21 @@ static void session_thread_wait(CamelSession *session, int id);
 static CamelProvider vee_provider = {
 	"vfolder",
 	N_("Virtual folder email provider"),
-
 	N_("For reading mail as a query of another set of folders"),
-
 	"vfolder",
-
 	CAMEL_PROVIDER_IS_STORAGE,
-
 	0, /* url_flags */
+	/* ... */
+};
 
+/* The vtrash provider is also always available */
+static CamelProvider vtrash_provider = {
+	"vtrash",
+	N_("Virtual trash email provider"),
+	N_("For storing deleted messages as a query on a store"),
+	"vtrash",
+	CAMEL_PROVIDER_IS_STORAGE,
+	0, /* url_flags */
 	/* ... */
 };
 
@@ -157,6 +164,10 @@ camel_session_class_init (CamelSessionClass *camel_session_class)
 	vee_provider.object_types[CAMEL_PROVIDER_STORE] = camel_vee_store_get_type ();
 	vee_provider.url_hash = camel_url_hash;
 	vee_provider.url_equal = camel_url_equal;
+
+	vtrash_provider.object_types[CAMEL_PROVIDER_STORE] = camel_vtrash_store_get_type();
+	vtrash_provider.url_hash = camel_url_hash;
+	vtrash_provider.url_equal = camel_url_equal;
 }
 
 CamelType
@@ -191,6 +202,7 @@ camel_session_construct (CamelSession *session, const char *storage_path)
 {
 	session->storage_path = g_strdup (storage_path);
 	camel_session_register_provider(session, &vee_provider);
+	camel_session_register_provider(session, &trash_provider);
 }
 
 

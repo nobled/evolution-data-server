@@ -60,9 +60,17 @@ struct _CamelVeeFolder {
 
 struct _CamelVeeFolderClass {
 	CamelFolderClass parent_class;
-};
 
-#define CAMEL_UNMATCHED_NAME "UNMATCHED"
+	/* add/remove folders, returns 0 if actually added or removed */
+	int (*add_folder)(CamelVeeFolder *vf, CamelFolder *sub);
+	int (*remove_folder)(CamelVeeFolder *vf, CamelFolder *sub);
+
+	/* rebuild 1 folder totally */
+	void (*rebuild_folder)(CamelVeeFolder *vf, CamelFolder *sub);
+
+	/* apply changes from 1 folder */
+	void (*change_folder)(CamelVeeFolder *vf, CamelFolder *sub, CamelFolderChangeInfo *changes);
+};
 
 CamelType	      camel_vee_folder_get_type		(void);
 CamelFolder  *camel_vee_folder_new		(CamelStore *parent_store, const char *name, guint32 flags);
@@ -72,6 +80,10 @@ CamelFolder *camel_vee_folder_get_location(CamelVeeFolder *vf, const CamelVeeMes
 
 void         camel_vee_folder_add_folder        (CamelVeeFolder *vf, CamelFolder *sub);
 void         camel_vee_folder_remove_folder     (CamelVeeFolder *vf, CamelFolder *sub);
+
+void	     camel_vee_folder_rebuild_folder	(vf, sub) ((CamelVeeFolderClass *)((CamelObject *)(vf))->klass)->rebuild_folder((vf), (sub))
+void	     camel_vee_folder_change_folder	(vf, sub, changes) ((CamelVeeFolderClass *)((CamelObject *)(vf))->klass)->change_folder((vf), (sub), (changes))
+
 void	     camel_vee_folder_set_folders	(CamelVeeFolder *vf, GList *folders);
 void	     camel_vee_folder_set_expression	(CamelVeeFolder *vf, const char *expr);
 

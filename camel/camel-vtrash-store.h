@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ *  Copyright (C) 2002 Ximian Inc.
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -20,8 +20,8 @@
  */
 
 
-#ifndef _CAMEL_VEE_STORE_H
-#define _CAMEL_VEE_STORE_H
+#ifndef _CAMEL_VTRASH_STORE_H
+#define _CAMEL_VTRASH_STORE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,34 +31,28 @@ extern "C" {
 #include <glib.h>
 #include <camel/camel-store.h>
 
-#define CAMEL_VEE_STORE(obj)         CAMEL_CHECK_CAST (obj, camel_vee_store_get_type (), CamelVeeStore)
-#define CAMEL_VEE_STORE_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_vee_store_get_type (), CamelVeeStoreClass)
-#define CAMEL_IS_VEE_STORE(obj)      CAMEL_CHECK_TYPE (obj, camel_vee_store_get_type ())
+#define CAMEL_VTRASH_STORE(obj)         CAMEL_CHECK_CAST (obj, camel_vtrash_store_get_type (), CamelVTrashStore)
+#define CAMEL_VTRASH_STORE_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_vtrash_store_get_type (), CamelVTrashStoreClass)
+#define CAMEL_IS_VTRASH_STORE(obj)      CAMEL_CHECK_TYPE (obj, camel_vtrash_store_get_type ())
 
-typedef struct _CamelVeeStore      CamelVeeStore;
-typedef struct _CamelVeeStoreClass CamelVeeStoreClass;
+typedef struct _CamelVTrashStore      CamelVTrashStore;
+typedef struct _CamelVTrashStoreClass CamelVTrashStoreClass;
 
-/* open mode for folder, vee folder auto-update */
-#define CAMEL_STORE_VEE_FOLDER_AUTO (1<<16)
-
-/* the name of the default unmatched folder for any vfolder store */
-#define CAMEL_UNMATCHED_NAME "UNMATCHED"
-
-struct _CamelVeeStore {
+struct _CamelVTrashStore {
 	CamelStore parent;
 
-	struct _CamelVeeStorePrivate *priv;
+	struct _CamelVTrashStorePrivate *priv;
 };
 
-struct _CamelVeeStoreClass {
+struct _CamelVTrashStoreClass {
 	CamelStoreClass parent_class;
 };
 
-CamelType		camel_vee_store_get_type	(void);
-CamelVeeStore      *camel_vee_store_new	(void);
+CamelType		camel_vtrash_store_get_type	(void);
+CamelVTrashStore      *camel_vtrash_store_new	(void);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* ! _CAMEL_VEE_STORE_H */
+#endif /* ! _CAMEL_VTRASH_STORE_H */

@@ -56,7 +56,7 @@ static CamelFolderClass *parent_class=NULL;
 #define CNNTPS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 static void
-nntp_folder_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+nntp_folder_sync (CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	CamelNNTPStore *nntp_store;
 	CamelFolderChangeInfo *changes = NULL;

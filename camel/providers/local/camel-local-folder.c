@@ -72,8 +72,7 @@ static void local_unlock(CamelLocalFolder *lf);
 
 static void local_refresh_info(CamelFolder *folder, CamelException *ex);
 
-static void local_sync(CamelFolder *folder, gboolean expunge, CamelException *ex);
-static void local_expunge(CamelFolder *folder, CamelException *ex);
+static void local_sync(CamelFolder *folder, guint32 flags, CamelException *ex);
 
 static GPtrArray *local_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex);
 static GPtrArray *local_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids, CamelException *ex);
@@ -98,7 +97,6 @@ camel_local_folder_class_init(CamelLocalFolderClass * camel_local_folder_class)
 
 	camel_folder_class->refresh_info = local_refresh_info;
 	camel_folder_class->sync = local_sync;
-	camel_folder_class->expunge = local_expunge;
 
 	camel_folder_class->search_by_expression = local_search_by_expression;
 	camel_folder_class->search_by_uids = local_search_by_uids;
@@ -390,7 +388,7 @@ local_refresh_info(CamelFolder *folder, CamelException *ex)
 }
 
 static void
-local_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
+local_sync(CamelFolder *folder, guint32 flags, CamelException *ex)
 {
 	CamelLocalFolder *lf = CAMEL_LOCAL_FOLDER(folder);
 
@@ -400,23 +398,13 @@ local_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 		return;
 
 	/* if sync fails, we'll pass it up on exit through ex */
-	camel_local_summary_sync((CamelLocalSummary *)folder->summary, expunge, lf->changes, ex);
+	camel_local_summary_sync((CamelLocalSummary *)folder->summary, (flags & CAMEL_STORE_SYNC_EXPUNGE) != 0, lf->changes, ex);
 	camel_local_folder_unlock(lf);
 
 	if (camel_folder_change_info_changed(lf->changes)) {
 		camel_object_trigger_event(CAMEL_OBJECT(folder), "folder_changed", lf->changes);
 		camel_folder_change_info_clear(lf->changes);
 	}
-}
-
-static void
-local_expunge(CamelFolder *folder, CamelException *ex)
-{
-	d(printf("expunge\n"));
-
-	/* Just do a sync with expunge, serves the same purpose */
-	/* call the callback directly, to avoid locking problems */
-	CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(folder))->sync(folder, TRUE, ex);
 }
 
 static void
