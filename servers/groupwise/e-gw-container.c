@@ -30,6 +30,7 @@
 struct _EGwContainerPrivate {
 	char *name;
 	char *id;
+	gboolean is_writable;
 };
 
 static GObjectClass *parent_class = NULL;
@@ -146,7 +147,7 @@ e_gw_container_set_from_soap_parameter (EGwContainer *container, SoupSoapParamet
 	g_return_val_if_fail (E_IS_GW_CONTAINER (container), FALSE);
 	g_return_val_if_fail (param != NULL, FALSE);
 
-	if (strcmp (soup_soap_parameter_get_name (param), "folder") != 0) {
+	if (strcmp (soup_soap_parameter_get_name (param), "book") != 0) {
 		g_warning (G_STRLOC ": SOAP parameter is not a folder");
 		return FALSE;
 	}
@@ -220,4 +221,21 @@ e_gw_container_set_id (EGwContainer *container, const char *new_id)
 	if (priv->id)
 		g_free (priv->id);
 	priv->id = g_strdup (new_id);
+}
+
+gboolean 
+e_gw_container_get_is_writable (EGwContainer *container)
+{
+	g_return_if_fail (E_IS_GW_CONTAINER (container));
+	
+	return container->priv->is_writable;
+
+}
+
+void 
+e_gw_container_set_is_writable (EGwContainer *container, gboolean is_writable)
+{
+	g_return_if_fail (E_IS_GW_CONTAINER (container));
+	
+	container->priv->is_writable = is_writable;
 }

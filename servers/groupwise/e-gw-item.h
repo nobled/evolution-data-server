@@ -42,7 +42,12 @@ typedef struct _EGwItemPrivate EGwItemPrivate;
 typedef enum {
 	E_GW_ITEM_TYPE_APPOINTMENT,
 	E_GW_ITEM_TYPE_TASK,
+	E_GW_ITEM_TYPE_CONTACT,
+	E_GW_ITEM_TYPE_GROUP,
+	E_GW_ITEM_TYPE_ORGANISATION,
+	E_GW_ITEM_TYPE_RESOURCE,
 	E_GW_ITEM_TYPE_UNKNOWN
+	
 } EGwItemType;
 
 struct _EGwItem {
@@ -53,6 +58,23 @@ struct _EGwItem {
 struct _EGwItemClass {
 	GObjectClass parent_class;
 };
+
+
+typedef struct {
+	char *street_address;
+	char *location;
+	char *city;
+	char *state;
+	char *postal_code;
+	char *country;
+} PostalAddress;
+
+typedef struct {
+
+	char *service;
+	char *address;
+}IMAddress;
+
 
 GType       e_gw_item_get_type (void);
 EGwItem    *e_gw_item_new_empty (void);
@@ -80,6 +102,18 @@ const char *e_gw_item_get_place (EGwItem *item);
 void        e_gw_item_set_place (EGwItem *item, const char *new_place);
 gboolean    e_gw_item_get_completed (EGwItem *item);
 void        e_gw_item_set_completed (EGwItem *item, gboolean new_completed);
+char*  e_gw_item_get_field_value (EGwItem *item, char *field_name);
+void e_gw_item_set_field_value (EGwItem *item, char *field_name, char* field_value);
+GList* e_gw_item_get_email_list (EGwItem *item);
+void  e_gw_item_set_email_list (EGwItem *item, GList *email_list);
+char *e_gw_item_get_full_name (EGwItem *item);
+void e_gw_item_set_full_name (EGwItem *item, char* full_name);
+GList *e_gw_item_get_member_list (EGwItem *item);
+void e_gw_item_set_member_list (EGwItem *item, GList *list);
+PostalAddress *e_gw_item_get_address (EGwItem *item, char *address_type);
+void e_gw_item_set_address (EGwItem *item, char *addres_type, PostalAddress *address);
+GList * e_gw_item_get_im_list (EGwItem *item);
+void e_gw_item_set_im_list (EGwItem *item, GList *im_list);
 
 #define E_GW_ITEM_CLASSIFICATION_PUBLIC       "Public"
 #define E_GW_ITEM_CLASSIFICATION_PRIVATE      "Private"
@@ -110,6 +144,8 @@ typedef struct {
 		E_GW_ITEM_RECIPIENT_NONE
 	} type;
 } EGwItemRecipient;
+
+
 
 gboolean    e_gw_item_append_to_soap_message (EGwItem *item, SoupSoapMessage *msg);
 
