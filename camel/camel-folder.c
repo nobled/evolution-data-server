@@ -921,7 +921,7 @@ _async_get_message (FullMessageReference *msg_ref)
 		
 		CAMEL_LOG_FULL_DEBUG ("CamelFolder::async_get_message message node = %p\n", message_node);
 	}
-	
+	/* g_static_mutex_unlock (&(folder->message_list_mutex)); */
 	if (!new_message) new_message = CF_CLASS (folder)->get_message (folder, number);
 	if (!new_message) {
 		g_free (msg_ref);
@@ -930,7 +930,7 @@ _async_get_message (FullMessageReference *msg_ref)
 
 	/* if the message has not been already put in 
 	 * this folder active message list, put it in */
-	
+	/* g_static_mutex_lock (&(folder->message_list_mutex)); */
 	if ((!folder->message_list) || (!g_list_find (folder->message_list, new_message)))
 	    folder->message_list = g_list_append (folder->message_list, new_message);
 
@@ -957,7 +957,7 @@ void
 camel_folder_get_message (CamelFolder *folder, gint number)
 {
 	FullMessageReference *msg_ref;
-	
+#undef 	G_THREADS_ENABLED
 #if defined(G_THREADS_ENABLED) && defined(G_THREADS_IMPL_POSIX)
 	pthread_t get_message_thread;
 	pthread_attr_t attr;

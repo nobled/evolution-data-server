@@ -77,6 +77,7 @@ camel_stream_fs_get_type (void)
 {
 	static GtkType camel_stream_fs_type = 0;
 	
+	gdk_threads_enter ();
 	if (!camel_stream_fs_type)	{
 		GtkTypeInfo camel_stream_fs_info =	
 		{
@@ -92,7 +93,7 @@ camel_stream_fs_get_type (void)
 		
 		camel_stream_fs_type = gtk_type_unique (camel_stream_get_type (), &camel_stream_fs_info);
 	}
-	
+	gdk_threads_leave ();
 	return camel_stream_fs_type;
 }
 

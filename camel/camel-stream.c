@@ -70,7 +70,7 @@ GtkType
 camel_stream_get_type (void)
 {
 	static GtkType camel_stream_type = 0;
-	
+	gdk_threads_enter ();
 	if (!camel_stream_type)	{
 		GtkTypeInfo camel_stream_info =	
 		{
@@ -86,7 +86,7 @@ camel_stream_get_type (void)
 		
 		camel_stream_type = gtk_type_unique (gtk_object_get_type (), &camel_stream_info);
 	}
-	
+	gdk_threads_leave ();
 	return camel_stream_type;
 }
 

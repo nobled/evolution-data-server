@@ -139,7 +139,7 @@ _store_header_pair_from_string (GHashTable *header_table, gchar *header_line)
 				     STRING_TRIM_STRIP_LEADING | STRING_TRIM_STRIP_TRAILING);
 			key_exists = g_hash_table_lookup_extended (header_table, header_name, &old_header_name, &old_header_name);
 			if (key_exists)
-				printf ("-------- Key %s already exists /n", header_name);
+				printf ("-------- Key %s already exists \n", header_name);
 			g_hash_table_insert (header_table, header_name, header_value);
 		}
 	}

@@ -76,7 +76,7 @@ typedef struct {
 	const gchar * (*get_description) (CamelMimePart *mime_part);
 	void  (*set_disposition) (CamelMimePart *mime_part, gchar *disposition);
 	const gchar * (*get_disposition) (CamelMimePart *mime_part);
-	void  (*set_filename) (CamelMimePart *mime_part, gchar *filename);
+	void  (*set_filename) (CamelMimePart *mime_part, const gchar *filename);
 	const gchar * (*get_filename) (CamelMimePart *mime_part);
 	void  (*set_content_id) (CamelMimePart *mime_part, gchar *content_id);
 	const gchar * (*get_content_id) (CamelMimePart *mime_part);
@@ -112,7 +112,7 @@ void camel_mime_part_set_description (CamelMimePart *mime_part,	gchar *descripti
 const gchar *camel_mime_part_get_description (CamelMimePart *mime_part);
 void camel_mime_part_set_disposition (CamelMimePart *mime_part, gchar *disposition);
 const gchar *camel_mime_part_get_disposition (CamelMimePart *mime_part);
-void camel_mime_part_set_filename (CamelMimePart *mime_part, gchar *filename);
+void camel_mime_part_set_filename (CamelMimePart *mime_part, const gchar *filename);
 const gchar *camel_mime_part_get_filename (CamelMimePart *mime_part);
 const gchar *camel_mime_part_get_content_id (CamelMimePart *mime_part);
 const gchar *camel_mime_part_get_content_MD5 (CamelMimePart *mime_part);

@@ -58,7 +58,7 @@ static void _set_description (CamelMimePart *mime_part, gchar *description);
 static const gchar *_get_description (CamelMimePart *mime_part);
 static void _set_disposition (CamelMimePart *mime_part, gchar *disposition);
 static const gchar *_get_disposition (CamelMimePart *mime_part);
-static void _set_filename (CamelMimePart *mime_part, gchar *filename);
+static void _set_filename (CamelMimePart *mime_part, const gchar *filename);
 static const gchar *_get_filename (CamelMimePart *mime_part);
 static void _set_content_id (CamelMimePart *mime_part, gchar *content_id);
 static const gchar *_get_content_id (CamelMimePart *mime_part);
@@ -150,6 +150,8 @@ camel_mime_part_init (gpointer   object,  gpointer   klass)
 	
 	camel_mime_part->headers =  g_hash_table_new (g_str_hash, g_str_equal);
 	camel_mime_part->content_type = gmime_content_field_new (NULL, NULL);
+	camel_mime_part->filename = NULL;
+	camel_mime_part->disposition = NULL;
 }
 
 
@@ -331,7 +333,7 @@ _set_disposition (CamelMimePart *mime_part, gchar *disposition)
 #warning Do not use MimeContentfield here !!!
 	//if (mime_part->disposition) g_free(mime_part->disposition);
 	if (!mime_part->disposition) 
-		mime_part->disposition = g_new (GMimeContentField,1);
+		mime_part->disposition = g_new0 (GMimeContentField,1);
 	if ((mime_part->disposition)->type) g_free ((mime_part->disposition)->type);
 	(mime_part->disposition)->type = disposition;
 }
@@ -362,15 +364,15 @@ camel_mime_part_get_disposition (CamelMimePart *mime_part)
 
 
 static void
-_set_filename (CamelMimePart *mime_part, gchar *filename)
+_set_filename (CamelMimePart *mime_part, const gchar *filename)
 {
-	if (mime_part->filename) g_free(mime_part->filename);
-	mime_part->filename = filename;
+	if (mime_part->filename) g_free (mime_part->filename);
+	mime_part->filename = g_strdup (filename);
 }
 
 
 void
-camel_mime_part_set_filename (CamelMimePart *mime_part, gchar *filename)
+camel_mime_part_set_filename (CamelMimePart *mime_part, const gchar *filename)
 {
 	CMP_CLASS(mime_part)->set_filename (mime_part, filename);
 }
@@ -815,7 +817,7 @@ _construct_from_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 	/* the object is referenced in the set_content_object method, so unref it here */
 	gtk_object_unref (GTK_OBJECT (content_object));
 	
-	
+
 	CAMEL_LOG_FULL_DEBUG ("CamelMimePart::construct_from_stream content parsed\n");
 	
 	
