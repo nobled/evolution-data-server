@@ -1,5 +1,20 @@
 2000-05-07  NotZed  <NotZed@HelixCode.com>
 
+	* camel-mime-part.c (write_to_stream): Apply encoding to content
+	part, when writing to a stream *sigh*.
+
+	* camel-stream-filter.c (do_write): implement write for the
+	filtering stream.  Writes shouldn't be mixed with reads.
+	(do_flush): Implemented flush.  Again write/flush shouldn't be
+	mixed with reads.  Only flushes if the last op was write.
+	(do_close): Force flush on close.
+
+	* camel-mime-filter.c (filter_run): Oops, make sure we include the
+	backlen in the total length before passing onto the filter.
+
+	* camel-mime-filter-from.c: New filter, munges 'From ' lines into
+	'>From ', for mbox.
+
 	* camel-mime-parser.c (camel_mime_parser_header_remove): New
 	function to remove the parser's raw header, rather than
 	manipulating the header directly (wich doesn't work with
@@ -18,11 +33,16 @@
 	another.
 	(header_write): Utility function to write out raw headers to an
 	fd.
+	(camel_mbox_summary_update): Incremental summary updater.
 
 	* providers/mbox/camel-mbox-folder.c (mbox_get_message_by_uid):
 	Dont unref the stream, because of the broken(tm) ref model of gtk
 	widget that for some odd reason is being perpetuated in camel.	
 	(mbox_expunge): Reenable expunge again.
+	(mbox_append_message): Removed the optimised mbox append.  If its
+	an issue, it can go back later.  Cleaned up a lot, checks error
+	returns, and automagically translates 'From ' into '>From' as
+	necessary.
 
 2000-05-07    <notzed@helixcode.com>
 

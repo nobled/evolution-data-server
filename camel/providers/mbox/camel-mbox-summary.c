@@ -317,6 +317,13 @@ summary_rebuild(CamelMboxSummary *mbs, off_t offset)
 }
 
 int
+camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset)
+{
+	mbs->index_force = FALSE;
+	summary_rebuild(mbs, offset);
+}
+
+int
 camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;

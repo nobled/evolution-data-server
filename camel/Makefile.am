@@ -71,6 +71,7 @@ libcamel_la_SOURCES = 				\
 	camel-mime-filter-save.c		\
 	camel-mime-filter-charset.c		\
 	camel-mime-filter-index.c		\
+	camel-mime-filter-from.c		\
 	camel-stream-filter.c			\
 	camel-address.c				\
 	camel-internet-address.c		\
@@ -116,6 +117,7 @@ libcamelinclude_HEADERS =			\
 	camel-mime-filter-save.h		\
 	camel-mime-filter-charset.h		\
 	camel-mime-filter-index.h		\
+	camel-mime-filter-from.h		\
 	camel-stream-filter.h			\
 	camel-address.h				\
 	camel-internet-address.h		\
@@ -131,12 +133,12 @@ EXTRA_DIST =					\
 	README 
 
 #noinst_PROGRAMS =				\
-#	camel-folder-summary
-
-#camel_folder_summary_SOURCES = 			\
-#	camel-folder-summary.c
-
-#camel_folder_summary_LDADD = 			\
+#	camel-mime-filter-from
+#
+#camel_mime_filter_from_SOURCES = 		\
+#	camel-mime-filter-from.c
+#
+#camel_mime_filter_from_LDADD = 		\
 #	../camel/libcamel.la			\
 #	../e-util/libeutil.la			\
 #	../libibex/libibex.la			\

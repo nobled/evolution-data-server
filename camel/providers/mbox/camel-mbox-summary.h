@@ -70,6 +70,8 @@ CamelMboxSummary      *camel_mbox_summary_new	(const char *filename, const char 
 
 /* load/check the summary */
 int camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex);
+/* incremental update */
+int camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset);
 /* perform a folder expunge */
 int camel_mbox_summary_expunge(CamelMboxSummary *mbs);
 
