@@ -2655,9 +2655,7 @@ activate_factories_for_uri (EBook *book, const char *uri)
 	}
 
 	protocol = g_strndup (uri, colon-uri);
-	query = g_strdup_printf ("repo_ids.has ('IDL:GNOME/Evolution/DataServer/BookFactory:" BASE_VERSION "')"
-				 " AND addressbook:supported_protocols.has ('%s')", protocol
-				 );
+	query = "repo_ids.has ('IDL:GNOME/Evolution/DataServer/BookFactory:" BASE_VERSION "')";
 
 	CORBA_exception_init (&ev);
 	
@@ -2698,7 +2696,6 @@ activate_factories_for_uri (EBook *book, const char *uri)
  done:
 	if (info_list)
 		CORBA_free (info_list);
-	g_free (query);
 	g_free (protocol);
 
 	return factories;
