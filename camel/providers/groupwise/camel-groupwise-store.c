@@ -704,6 +704,7 @@ gw_forget_folder (CamelGroupwiseStore *gw_store, const char *folder_name, CamelE
 	/**** IMPLEMENT MESSAGE CACHE *****/
 	CamelFolderSummary *summary;
 	CamelGroupwiseStorePrivate *priv = gw_store->priv ;
+	CamelGroupwiseMessageCache *cache ;
 	char *summary_file, *state_file;
 	char *folder_dir, *storage_path;
 	CamelFolderInfo *fi;
@@ -729,6 +730,11 @@ gw_forget_folder (CamelGroupwiseStore *gw_store, const char *folder_name, CamelE
 		return ;
 	}
 
+/*	cache = camel_groupwise_message_cache_new (folder_dir, summary, ex) ;
+	if (cache) 
+		camel_groupwise_message_cache_clear (cache) ;
+
+	camel_object_unref (cache) ;*/
 	camel_object_unref (summary) ;
 	unlink (summary_file) ;
 	g_free (summary_file) ;

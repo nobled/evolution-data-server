@@ -36,6 +36,7 @@ extern "C" {
 #include <camel/camel-folder.h>
 #include <camel/camel-mime-message.h>
 #include <camel/camel-internet-address.h>
+#include <camel/camel-data-cache.h>
 
 #include "camel-groupwise-message-cache.h"
 
@@ -52,7 +53,7 @@ struct _CamelGroupwiseFolder {
 	struct _CamelGroupwiseFolderPrivate *priv;
 
 	CamelFolderSearch *search;
-	CamelGroupwiseMessageCache *cache;
+	CamelDataCache *cache;
 
 	unsigned int need_rescan:1;
 	unsigned int need_refresh:1;

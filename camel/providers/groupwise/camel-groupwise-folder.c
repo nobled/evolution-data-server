@@ -80,6 +80,8 @@ static CamelMimeMessage
 	EGwConnectionStatus status ;
 	EGwConnection *cnc ;
 	EGwItem *item ;
+	char *test ="From: Harry Lu <Harry.Lu@Sun.COM>\nSubject: Re: [evolution-patches] patch related with shell\nIn-reply-to: <1099387728.4470.38.camel@lostzed.mmc.com.au>\nTo: patches <evolution-patches@lists.ximian.com>\nContent-type: multipart/alternative;" ;
+
 
 	printf("\n|||| GET MESSAGE: %s |||\n",folder->name) ;
 	folder_name = g_strdup(folder->name) ;
@@ -104,8 +106,7 @@ static CamelMimeMessage
 	printf ("|| Now connecting to e-d-s |||\n") ;
 
 	cnc = cnc_lookup (priv) ;
-	status = e_gw_connection_get_item (cnc, container_id, uid, "message", &item) ;
-	//status = e_gw_connection_get_item (cnc, container_id, uid, "message", &item) ;
+	status = e_gw_connection_get_item (cnc, container_id, uid, "message attachments", &item) ;
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		 camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));
 		                 return NULL;
@@ -117,22 +118,33 @@ static CamelMimeMessage
 	camel_internet_address_add (from_addr,org->display_name,org->email) ;
 	camel_internet_address_add (to_addr, e_gw_item_get_to (item), e_gw_item_get_to (item) ) ;
 	
+	body = g_strdup(e_gw_item_get_message(item));
+	if (body) {
+		camel_mime_message_set_source (msg, body ) ;
+		camel_mime_part_set_encoding((CamelMimePart *)msg, CAMEL_TRANSFER_ENCODING_8BIT);
+		camel_mime_part_set_content((CamelMimePart *)msg, body, strlen(body),"text/html") ;
+
+		stream = camel_stream_mem_new_with_buffer (body, strlen(body) ) ; 
+
+		/*	if (camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg),stream) == -1) {
+			printf ("|| NOT RIGHT!!!! \n") ;
+			}*/
+	printf ("||| MESSAGE:%d |||\n %s\n",strlen(body), body) ;
+	} else {
+		camel_mime_message_set_source (msg, "No Message" ) ;
+		camel_mime_part_set_encoding((CamelMimePart *)msg, CAMEL_TRANSFER_ENCODING_8BIT);
+		camel_mime_part_set_content((CamelMimePart *)msg, "No Message", strlen("No Message"),"text/html") ;
+	}
+	
 	camel_mime_message_set_subject (msg, e_gw_item_get_subject(item) ) ;
-	camel_mime_message_set_source (msg, e_gw_item_get_message(item) ) ;
 	camel_mime_message_set_date (msg,  e_gw_connection_format_date_string(e_gw_item_get_creation_date(item)), 0 ) ;
 	camel_mime_message_set_from (msg, from_addr) ;
 	
-	body = g_strdup (e_gw_item_get_message(item)) ;
 
-	stream = camel_stream_mem_new_with_buffer (body, strlen(body) ) ; 
-	
-	if (camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg),stream) == -1) {
-		printf ("|| NOT RIGHT!!!! \n") ;
-	}
 
-	printf ("||| MESSAGE:%d |||\n %s\n",strlen(body), body) ;
 
-	g_free (body) ;
+	if (body)
+		g_free (body) ;
 
 	return msg ;
 
@@ -234,6 +246,11 @@ camel_gw_folder_new(CamelStore *store, const char *folder_dir, const char *folde
 	camel_object_state_read(folder);
 
 	gw_folder = CAMEL_GROUPWISE_FOLDER (folder) ;
+	gw_folder->cache = camel_data_cache_new (folder_dir,0 ,ex) ;
+	if (!gw_folder->cache) {
+		camel_object_unref (folder) ;
+		return NULL ;
+	}
 
 	
 	return folder ;
@@ -439,6 +456,8 @@ camel_groupwise_folder_finalize (CamelObject *object)
 	CamelGroupwiseFolder *gw_folder = CAMEL_GROUPWISE_FOLDER (object);
 	if (gw_folder->priv)
 		g_free(gw_folder->priv) ;
+	if (gw_folder->cache)
+		camel_object_unref ( CAMEL_OBJECT (gw_folder->cache)) ;
 
 }
 
