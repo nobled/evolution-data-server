@@ -49,39 +49,21 @@ evolution_data_server_SOURCES = \
 	server-logging.h		\
 	server.c
 
-if ENABLE_LDAP
-LDAP_BACKEND_LIB=$(top_builddir)/addressbook/backends/ldap/libebookbackendldap.la
-else
-LDAP_BACKEND_LIB=
-endif
-
 evolution_data_server_LDADD =							\
 	$(top_builddir)/addressbook/libedata-book/libedata-book.la		\
-	$(top_builddir)/addressbook/backends/file/libebookbackendfile.la	\
-	$(top_builddir)/addressbook/backends/vcf/libebookbackendvcf.la		\
-	$(top_builddir)/addressbook/backends/groupwise/libebookbackendgroupwise.la \
-	$(LDAP_BACKEND_LIB)							\
 	$(top_builddir)/calendar/libedata-cal/libedata-cal.la			\
 	$(top_builddir)/calendar/backends/file/libecalbackendfile.la		\
 	$(top_builddir)/calendar/backends/groupwise/libecalbackendgroupwise.la	\
 	$(top_builddir)/calendar/backends/http/libecalbackendhttp.la		\
 	$(top_builddir)/addressbook/libebook/libebook.la			\
 	$(top_builddir)/calendar/backends/contacts/libecalbackendcontacts.la	\
-	$(LDAP_LIBS)								\
 	$(E_DATA_SERVER_LIBS)
 
 install-evolution-data-servers:
 	$(mkinstalldirs) $(DESTDIR)$(libexecdir)
 	$(LIBTOOL) --mode=install $(INSTALL_PROGRAM) evolution-data-server $(DESTDIR)$(libexecdir)/evolution-data-server-$(BASE_VERSION)
 
-if ENABLE_LDAP
-SERVER_IN_FILE=GNOME_Evolution_DataServerLDAP.server.in.in
-else
-SERVER_IN_FILE=GNOME_Evolution_DataServerNOLDAP.server.in.in
-endif
-
-GNOME_Evolution_DataServer.server.in.in: $(SERVER_IN_FILE) Makefile
-	cp $< $@
+SERVER_IN_FILE=GNOME_Evolution_DataServer.server.in.in
 
 server_in_files = GNOME_Evolution_DataServer.server.in.in
 server_DATA = $(server_in_files:.server.in.in=_$(BASE_VERSION).server)
@@ -93,9 +75,7 @@ idl_DATA = $(IDLS)
 
 EXTRA_DIST = 						\
 	$(server_in_files)				\
-	$(idl_DATA)					\
-	GNOME_Evolution_DataServerLDAP.server.in.in	\
-	GNOME_Evolution_DataServerNOLDAP.server.in.in
+	$(idl_DATA)
 
 BUILT_SOURCES = $(IDL_GENERATED) $(server_DATA)
 CLEANFILES = $(BUILT_SOURCES) GNOME_Evolution_DataServer.server.in.in
