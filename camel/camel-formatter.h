@@ -19,7 +19,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Street #330, Boston, MA 02111-1307, USA.
  *
- *
  *----------------------------------------------------------------------*/
 
 #ifndef CAMEL_FORMATTER_H
@@ -59,13 +58,14 @@ GtkType  camel_formatter_get_type (void);
 /* Public functions */
 CamelFormatter* camel_formatter_new (void);
 
-/* The main job of CamelFormatter is to take a mime message, and
-   produce html from it. */
 void camel_formatter_mime_message_to_html (CamelFormatter* formatter,
 					   CamelMimeMessage* mime_message,
 					   CamelStream* header_stream,
 					   CamelStream* body_stream);
 
+void camel_formatter_wrapper_to_html (CamelFormatter* formatter,
+				      CamelDataWrapper* data_wrapper,
+				      CamelStream* header_stream);
 
 #ifdef __cplusplus
 }
