@@ -626,7 +626,7 @@ cal_objects_received_cb (ECalListener *listener, ECalendarStatus status, gpointe
 }
 
 static void
-cal_objects_sent_cb (ECalListener *listener, ECalendarStatus status, GList *users, icalcomponent *modified_icalcomp, gpointer data)
+cal_objects_sent_cb (ECalListener *listener, ECalendarStatus status, GList *users, const char *object, gpointer data)
 {
 	ECal *ecal = data;
 	ECalendarOp *op;
@@ -1636,15 +1636,16 @@ async_auth_func_cb (ECal *ecal, const char *prompt, const char *key, gpointer us
 	ccad->auth_key = key;
 
 	g_idle_add ((GSourceFunc) async_auth_idle_cb, ccad);
-
+		
 	g_mutex_lock (ccad->mutex);
 	g_cond_wait (ccad->cond, ccad->mutex);
 	password = ccad->password;
 	ccad->password = NULL;
-	g_mutex_unlock (ccad->mutex);
+	g_mutex_unlock (ccad->mutex);	
 
 	return password;
 }
+
 
 static gpointer
 open_async (gpointer data) 
@@ -1660,10 +1661,9 @@ open_async (gpointer data)
 	ccad->ecal->priv->auth_user_data = ccad;
 
 	ccad->result = open_calendar (ccad->ecal, ccad->exists, NULL, &ccad->status);
-
 	g_idle_add ((GSourceFunc) async_signal_idle_cb, ccad);
 
-	return GINT_TO_POINTER (ccad->result); 
+	return GINT_TO_POINTER (ccad->result);
 }
 
 void
@@ -1672,7 +1672,6 @@ e_cal_open_async (ECal *ecal, gboolean only_if_exists)
 	ECalAsyncData *ccad;
 	GThread *thread;
 	GError *error = NULL;
-
 	g_return_if_fail (ecal != NULL);
 	g_return_if_fail (E_IS_CAL (ecal));
 
@@ -2357,7 +2356,7 @@ e_cal_get_default_object (ECal *ecal, icalcomponent **icalcomp, GError **error)
 	g_cond_wait (our_op->cond, our_op->mutex);
 
 	status = our_op->status;
-        if (status) {
+        if (status != E_CALENDAR_STATUS_OK) {
                 *icalcomp = NULL;
         } else {
                 *icalcomp = icalparser_parse_string (our_op->string);
@@ -2439,7 +2438,7 @@ e_cal_get_object (ECal *ecal, const char *uid, const char *rid, icalcomponent **
 	g_cond_wait (our_op->cond, our_op->mutex);
 
 	status = our_op->status;
-        if (status) {
+        if (status != E_CALENDAR_STATUS_OK){ 
                 *icalcomp = NULL;
         } else {
                 *icalcomp = icalparser_parse_string (our_op->string);
@@ -2569,6 +2568,7 @@ e_cal_get_object_list (ECal *ecal, const char *query, GList **objects, GError **
 	CORBA_Environment ev;
 	ECalendarOp *our_op;
 	ECalendarStatus status;
+
 
 	e_return_error_if_fail (ecal && E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);	
 	e_return_error_if_fail (query, E_CALENDAR_STATUS_INVALID_ARG);
@@ -3780,7 +3780,19 @@ e_cal_send_objects (ECal *ecal, icalcomponent *icalcomp, GList **users, icalcomp
 
 	status = our_op->status;
 	*users = our_op->list;
-	*modified_icalcomp = our_op->icalcomp;
+	if (status != E_CALENDAR_STATUS_OK) {
+		*modified_icalcomp = NULL;
+		g_list_foreach (*users, (GFunc) g_free, NULL);
+		*users = NULL;
+	} else {
+		*modified_icalcomp = icalparser_parse_string (our_op->string);
+		if (!(*modified_icalcomp)) {
+			status = E_CALENDAR_STATUS_INVALID_OBJECT;
+			g_list_foreach (*users, (GFunc) g_free, NULL);
+			*users = NULL;
+		}		
+	}
+	g_free (our_op->string);
 	
 	e_calendar_remove_op (ecal, our_op);
 	g_mutex_unlock (our_op->mutex);
@@ -3873,8 +3885,8 @@ e_cal_get_timezone (ECal *ecal, const char *tzid, icaltimezone **zone, GError **
 	   successful response will notity us via our cv */
 	g_cond_wait (our_op->cond, our_op->mutex);
 
-	status = our_op->status;	
-        if (status) {
+	status = our_op->status;
+        if (status != E_CALENDAR_STATUS_OK){ 
                 icalcomp = NULL;
         } else {
                 icalcomp = icalparser_parse_string (our_op->string);
@@ -3934,7 +3946,7 @@ e_cal_add_timezone (ECal *ecal, icaltimezone *izone, GError **error)
 
 	e_return_error_if_fail (ecal && E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (izone, E_CALENDAR_STATUS_INVALID_ARG);
-
+	
 	priv = ecal->priv;
 
 	g_mutex_lock (priv->mutex);
@@ -3961,10 +3973,10 @@ e_cal_add_timezone (ECal *ecal, icaltimezone *izone, GError **error)
 		e_calendar_remove_op (ecal, our_op);
 		g_mutex_unlock (our_op->mutex);
 		e_calendar_free_op (our_op);
-
+		
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_OK, error);
 	}
-
+	
 	icalcomp = icaltimezone_get_component (izone);
 	if (!icalcomp) {
 		e_calendar_remove_op (ecal, our_op);
@@ -3974,7 +3986,7 @@ e_cal_add_timezone (ECal *ecal, icaltimezone *izone, GError **error)
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_INVALID_ARG, error);
 	}
 
-	/* convert icaltimezone into a string */
+	/* convert icaltimezone into a string */	
 	tzobj = icalcomponent_as_ical_string (icalcomp);
 
 	/* call the backend */
