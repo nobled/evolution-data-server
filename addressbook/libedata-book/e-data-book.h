@@ -104,7 +104,9 @@ void                    e_data_book_respond_get_changes    (EDataBook           
 
 void                    e_data_book_report_writable        (EDataBook                         *book,
 							    gboolean                           writable);
-
+void 
+                        e_data_book_report_connection_status (EDataBook                        *book,
+							      gboolean                         is_online);
 GType                   e_data_book_get_type               (void);
 
 G_END_DECLS

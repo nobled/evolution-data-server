@@ -332,6 +332,19 @@ impl_BookListener_report_writable (PortableServer_Servant servant,
 }
 
 static void
+impl_BookListener_report_link_status (PortableServer_Servant servant,
+				   const CORBA_boolean is_online,
+				   CORBA_Environment *ev)
+{
+	EBookListener *listener = E_BOOK_LISTENER (bonobo_object (servant));
+	EBookListenerResponse response;
+
+	response.op       = LinkStatusEvent;
+	response.connected = is_online;
+	g_signal_emit (listener, e_book_listener_signals [RESPONSE], 0, &response);
+}
+
+static void
 impl_BookListener_respond_progress (PortableServer_Servant servant,
 				    const CORBA_char * message,
 				    const CORBA_short percent,
@@ -405,6 +418,7 @@ e_book_listener_class_init (EBookListenerClass *klass)
 	epv->notifyViewRequested        = impl_BookListener_respond_get_view;
 	epv->notifyChangesRequested     = impl_BookListener_respond_get_changes;
 	epv->notifyWritable             = impl_BookListener_report_writable;
+	epv->notifyConnectionStatus          = impl_BookListener_report_link_status;
 }
 
 BONOBO_TYPE_FUNC_FULL (

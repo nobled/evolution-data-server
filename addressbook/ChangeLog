@@ -1,4 +1,46 @@
 2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* libedata-book/e-book-backend.[ch] : new functions 
+	(e_book_backend_set_mode) : a virtual method 
+	to set online/offline mode on backends
+	(e_book_backend_notify_writable) : A function
+	using which a backend can notify all of its clients
+	about changge in its  writable status 
+	(e_book_backend_notify_connection_status) : A fcuntion using 
+	which a backend can notify all of its clients 
+	about change in the online/offline status 
+
+	* libedata-book/e-data-book.[ch] : new function
+	(e_data_book_report_connection_status) : notifes the corresponding 
+	EBook client about change in connection status via 
+	EbookListener
+
+	* libedata-book/e-data-book-factory.[ch] : new functions
+	(e_data_book_factory_set_backend_mode) : sets the online/offline
+	mode on all the backends created by it 
+	(set_backend_online_status) : sets the online/offline status on a backend
+	(impl_GNOME_Evolution_Addressbook_BookFactory_getBook) : changed this 
+	function  set online/offline mode on the backend after creating it
+	
+	* idl/Evolution-DataServer-Addressbook.idl : Define constants
+	MODEL_LOCAL, MODE_REMOTE etc for online/offline modes
+	Added notifyConnectionStatus method to BookListner interface  
+
+	* libebook/e-book-listner.c : new function
+	(impl_BookListener_report_link_status) : informs Ebook about 
+	change in the online status of the backend it is talking to
+	
+	* libebook/e-book.[ch] :
+	Added a new signal connection_status which gets emitted whenever 
+	there is change in the connection status of the book (because 
+	of the change in the online status of the corresponding backend)
+	(e_book_is_online) : new function to get online status 
+	(e_book_handle_response) : added the handling for LinkStatusEvent 
+	(e_book_idle_connection) : new idle functions which emits
+	connection_status signal on EBook 
+	
+
+2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* libedata-book/e-book-backend-cache.[ch] : 
 	added new functions e_book_backend_check_contact 
