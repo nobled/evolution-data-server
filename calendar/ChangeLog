@@ -1,5 +1,12 @@
 2004-04-29  Rodrigo Moya <rodrigo@ximian.com>
 
+	* libecal/e-cal.c (e_cal_generate_instances): 'expand' instances also
+	for detached instances, so that we can create the instance private data
+	for the list, including its correct start and end dates. Free correctly
+	the new content of the detached instances list.
+	(process_detached_instances): now, the list of detached instances contains
+	'struct comp_instance's.
+
 	* backends/file/e-cal-backend-file.c (e_cal_backend_file_modify_object):
 	added missing code to manage THISANDPRIOR/THISANDFUTURE when getting a
 	full object (not recurrences).
