@@ -1116,8 +1116,118 @@ camel_folder_change_info_new(void)
 	info->uid_added = g_ptr_array_new();
 	info->uid_removed = g_ptr_array_new();
 	info->uid_changed = g_ptr_array_new();
+	info->uid_source = NULL;
 
 	return info;
+}
+
+/**
+ * camel_folder_change_info_add_source:
+ * @info: 
+ * @uid: 
+ * 
+ * Add a source uid for generating a changeset.
+ **/
+void
+camel_folder_change_info_add_source(CamelFolderChangeInfo *info, const char *uid)
+{
+	if (info->uid_source == NULL)
+		info->uid_source = g_hash_table_new(g_str_hash, g_str_equal);
+
+	if (g_hash_table_lookup(info->uid_source, uid) == NULL)
+		g_hash_table_insert(info->uid_source, g_strdup(uid), (void *)1);
+}
+
+/**
+ * camel_folder_change_info_add_source_list:
+ * @info: 
+ * @list: 
+ * 
+ * Add a list of source uid's for generating a changeset.
+ **/
+void
+camel_folder_change_info_add_source_list(CamelFolderChangeInfo *info, const GPtrArray *list)
+{
+	int i;
+
+	if (info->uid_source == NULL)
+		info->uid_source = g_hash_table_new(g_str_hash, g_str_equal);
+
+	for (i=0;i<list->len;i++) {
+		char *uid = list->pdata[i];
+
+		if (g_hash_table_lookup(info->uid_source, uid) == NULL)
+			g_hash_table_insert(info->uid_source, g_strdup(uid), (void *)1);
+	}
+}
+
+/**
+ * camel_folder_change_info_add_update:
+ * @info: 
+ * @uid: 
+ * 
+ * Add a uid from the updated list, used to generate a changeset diff.
+ **/
+void
+camel_folder_change_info_add_update(CamelFolderChangeInfo *info, const char *uid)
+{
+	char *key;
+	int value;
+
+	if (info->uid_source == NULL
+	    || !g_hash_table_lookup_extended(info->uid_source, uid, (void **)&key, (void **)&value)) {
+		g_hash_table_remove(info->uid_source, key);
+		g_free(key);
+	} else {
+		camel_folder_change_info_add_uid(info, uid);
+	}
+}
+
+/**
+ * camel_folder_change_info_add_update_list:
+ * @info: 
+ * @list: 
+ * 
+ * Add a list of uid's from the updated list.
+ **/
+void
+camel_folder_change_info_add_update_list(CamelFolderChangeInfo *info, const GPtrArray *list)
+{
+	int i;
+
+	for (i=0;i<list->len;i++) {
+		camel_folder_change_info_add_update(info, list->pdata[i]);
+	}
+}
+
+static void
+change_info_remove(char *key, void *value, CamelFolderChangeInfo *info)
+{
+	camel_folder_change_info_remove_uid(info, key);
+	g_free(key);
+}
+
+static void
+change_info_free_update(char *key, void *value, CamelFolderChangeInfo *info)
+{
+	g_free(key);
+}
+
+/**
+ * camel_folder_change_info_build_diff:
+ * @info: 
+ * 
+ * Compare the source uid set to the updated uid set and generate the differences
+ * into the added and removed lists.
+ **/
+void
+camel_folder_change_info_build_diff(CamelFolderChangeInfo *info)
+{
+	if (info->uid_source) {
+		g_hash_table_foreach(info->uid_source, (GHFunc)change_info_remove, info);
+		g_hash_table_destroy(info->uid_source);
+		info->uid_source = NULL;
+	}
 }
 
 static void
@@ -1169,7 +1279,6 @@ camel_folder_change_info_cat(CamelFolderChangeInfo *info, CamelFolderChangeInfo 
 void
 camel_folder_change_info_add_uid(CamelFolderChangeInfo *info, const char *uid)
 {
-	printf("adding uid to changeset: %s\n", uid);
 	change_info_add_uid(info, info->uid_added, uid);
 }
 
@@ -1183,7 +1292,6 @@ camel_folder_change_info_add_uid(CamelFolderChangeInfo *info, const char *uid)
 void
 camel_folder_change_info_remove_uid(CamelFolderChangeInfo *info, const char *uid)
 {
-	printf("removing uid from changeset: %s\n", uid);
 	change_info_add_uid(info, info->uid_removed, uid);
 }
 
@@ -1197,7 +1305,6 @@ camel_folder_change_info_remove_uid(CamelFolderChangeInfo *info, const char *uid
 void
 camel_folder_change_info_change_uid(CamelFolderChangeInfo *info, const char *uid)
 {
-	printf("changing uid in changeset: %s\n", uid);
 	change_info_add_uid(info, info->uid_changed, uid);
 }
 
@@ -1235,7 +1342,13 @@ camel_folder_change_info_clear(CamelFolderChangeInfo *info)
 void
 camel_folder_change_info_free(CamelFolderChangeInfo *info)
 {
+	if (info->uid_source) {
+		g_hash_table_foreach(info->uid_source, (GHFunc)change_info_free_update, info);
+		g_hash_table_destroy(info->uid_source);
+	}
+
 	camel_folder_change_info_clear(info);
+
 	g_ptr_array_free(info->uid_added, TRUE);
 	g_ptr_array_free(info->uid_removed, TRUE);
 	g_ptr_array_free(info->uid_changed, TRUE);

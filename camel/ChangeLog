@@ -1,3 +1,35 @@
+2000-10-27  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-mime-utils.c (quoted_encode_step): Removed is_blank() stuff.
+	(header_decode_init): When we set the 'space' bit, dont clear all
+	the others.
+	(quoted_encode): Put back the safemask.  Yes we totally need it,
+	see rfc 2047 section 5, parts (1) and (3).
+	(CHARS_PSPECIAL): Remove '=' and '_' from the list of allowed
+	characters (this is an allowed list, not a not-allowed list, like
+	the ESPECIAL).
+	(camel_mime_special_table): Updated for fixes to definitions.
+	(CHARS_ESPECIAL): Added '_' to list of characters that should be
+	encoded.
+
+2000-10-26  Not Zed  <NotZed@HelixCode.com>
+
+	* providers/mbox/camel-mbox-summary.c (camel_mbox_summary_update):
+	Use the new camel_folder_change_info_* stuff to build the update
+	diff, rather than doing it ourselves.
+
+	* camel-folder.c (camel_folder_change_info_add_source): Add a
+	'source' list, used to create change lists.
+	(camel_folder_change_info_add_source_list): Add a list of uid's,
+	convenience function.
+	(camel_folder_change_info_add_update): Add a uid to the list of
+	uid's in the new updated list.
+	(camel_folder_change_info_add_update_list): Add a bunch of uid's
+	at once for the same purpose.
+	(camel_folder_change_info_build_diff): Take the source list, the
+	update list, and find the differences, building on the added or
+	removed list as appropriate.
+
 2000-10-20  Not Zed  <NotZed@HelixCode.com>
 
 	* providers/mbox/camel-mbox-summary.c (removed_uids): REnamed from

@@ -337,28 +337,17 @@ summary_rebuild(CamelMboxSummary *mbs, off_t offset)
 	return ok;
 }
 
-
-static void
-removed_uids(void *key, void *value, CamelFolderChangeInfo *changeinfo)
-{
-	camel_folder_change_info_remove_uid(changeinfo, key);
-	g_free(key);
-}
-
 int
 camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset, CamelFolderChangeInfo *changeinfo)
 {
 	int ret, i, count;
-	GHashTable *uids = g_hash_table_new(g_str_hash, g_str_equal);
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
 
-	/* this is the easiest way to get the added/removed list for the changeinfo.
-	   I'm too lazy to poke it into summary_rebuild */
-	/* TODO: this code is probably useful elsewhere too */
+	/* we use the diff function of the change_info to build the update list. */
 	for (i = 0; i < camel_folder_summary_count(s); i++) {
 		CamelMessageInfo *mi = camel_folder_summary_index(s, i);
 
-		g_hash_table_insert(uids, g_strdup(mi->uid), (void *)1);
+		camel_folder_change_info_add_source(changeinfo, mi->uid);
 	}
 
 	/* do the actual work */
@@ -368,18 +357,9 @@ camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset, CamelFolderChange
 	count = camel_folder_summary_count(s);
 	for (i = 0; i < count; i++) {
 		CamelMessageInfo *mi = camel_folder_summary_index(s, i);
-		char *key;
-		int value;
-
-		if (g_hash_table_lookup_extended(uids, mi->uid, (void **)&key, (void **)&value)) {
-			g_hash_table_remove(uids, key);
-			g_free(key);
-		} else {
-			camel_folder_change_info_add_uid(changeinfo, mi->uid);
-		}
+		camel_folder_change_info_add_update(changeinfo, mi->uid);
 	}
-	g_hash_table_foreach(uids, (GHFunc)removed_uids, changeinfo);
-	g_hash_table_destroy(uids);
+	camel_folder_change_info_build_diff(changeinfo);
 	
 #if 0
 #warning "Saving full summary and index after every summarisation is slow ..."
