@@ -40,7 +40,6 @@ libcamel_la_SOURCES = 				\
 	camel-simple-data-wrapper-stream.c	\
 	camel-stream-data-wrapper.c		\
 	camel-folder.c				\
-	camel-folder-summary.c			\
 	camel-folder-utils.c			\
 	camel-formatter.c			\
 	camel-medium.c				\
@@ -90,7 +89,6 @@ libcamelinclude_HEADERS =			\
 	camel-simple-data-wrapper-stream.h	\
 	camel-stream-data-wrapper.h		\
 	camel-folder.h				\
-	camel-folder-summary.h			\
 	camel-folder-utils.h			\
 	camel-formatter.h			\
 	camel-mime-body-part.h			\

@@ -755,8 +755,10 @@ header_decode_text(char *in, int inlen)
 }
 
 char *
-header_decode_string(char *in)
+header_decode_string(const char *in)
 {
+	if (in == NULL)
+		return NULL;
 	return header_decode_text(in, strlen(in));
 }
 
@@ -992,26 +994,38 @@ header_content_type_new(const char *type, const char *subtype)
 	t->type = type;
 	t->subtype = subtype;
 	t->params = NULL;
+	t->refcount = 1;
 	return t;
 }
 
 void
-header_content_type_free(struct _header_content_type *ct)
+header_content_type_ref(struct _header_content_type *ct)
+{
+	if (ct)
+		ct->refcount++;
+}
+
+void
+header_content_type_unref(struct _header_content_type *ct)
 {
 	struct _header_param *p, *n;
 
 	if (ct) {
-		p = ct->params;
-		while (p) {
-			n = p->next;
-			g_free(p->name);
-			g_free(p->value);
-			g_free(p);
-			p = n;
+		if (ct->refcount <= 1) {
+			p = ct->params;
+			while (p) {
+				n = p->next;
+				g_free(p->name);
+				g_free(p->value);
+				g_free(p);
+				p = n;
+			}
+			g_free(ct->type);
+			g_free(ct->subtype);
+			g_free(ct);
+		} else {
+			ct->refcount--;
 		}
-		g_free(ct->type);
-		g_free(ct->subtype);
-		g_free(ct);
 	}
 }
 
@@ -1506,6 +1520,12 @@ header_decode_date(const char *in, int *saveoffset)
 	struct tm tm;
 	int i;
 	time_t t;
+
+	if (in == NULL) {
+		if (*saveoffset)
+			*saveoffset = 0;
+		return 0;
+	}
 
 	printf("\ndecoding date '%s'\n", inptr);
 

@@ -103,4 +103,7 @@ void camel_mime_parser_filter_remove(CamelMimeParser *, int);
 off_t camel_mime_parser_tell(CamelMimeParser *);
 off_t camel_mime_parser_seek(CamelMimeParser *, off_t, int);
 
+off_t camel_mime_parser_tell_start_headers(CamelMimeParser *);
+off_t camel_mime_parser_tell_start_from(CamelMimeParser *);
+
 #endif /* ! _CAMEL_MIME_PARSER_H */

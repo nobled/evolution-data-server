@@ -21,17 +21,20 @@
 #ifndef _CAMEL_MIME_UTILS_H
 #define _CAMEL_MIME_UTILS_H
 
+#include <time.h>
+
 struct _header_param {
 	struct _header_param *next;
 	char *name;
 	char *value;
 };
 
-/* FIXME: this should probably be refcounted */
+/* describes a content-type */
 struct _header_content_type {
 	char *type;
 	char *subtype;
 	struct _header_param *params;
+	unsigned int refcount;
 };
 
 /* a raw rfc822 header */
@@ -45,7 +48,8 @@ struct _header_raw {
 
 struct _header_content_type *header_content_type_new(const char *type, const char *subtype);
 struct _header_content_type *header_content_type_decode(const char *in);
-void header_content_type_free(struct _header_content_type *ct);
+void header_content_type_unref(struct _header_content_type *ct);
+void header_content_type_ref(struct _header_content_type *ct);
 const char *header_content_type_param(struct _header_content_type *t, const char *name);
 void header_content_type_set_param(struct _header_content_type *t, const char *name, const char *value);
 int header_content_type_is(struct _header_content_type *t, char *type, char *subtype);
@@ -66,6 +70,16 @@ void header_raw_clear(struct _header_raw **list);
 
 /* raw header parsing functions */
 char *header_decode_token(const char **in);
+
+/* decode a string type, like a subject line */
+char *header_decode_string(const char *in);
+
+/* decode an email date field into a GMT time, + optional offset */
+time_t header_decode_date(const char *in, int *saveoffset);
+char *header_format_date(time_t time, int offset);
+
+/* decode a message id */
+char *header_msgid_decode(const char *in);
 
 /* do incremental base64/quoted-printable (de/en)coding */
 int base64_decode_step(unsigned char *in, int len, unsigned char *out, int *state, unsigned int *save);

@@ -61,25 +61,6 @@ gmime_content_field_new (const gchar *type, const gchar *subtype)
 } 
 
 /**
- * gmime_content_field_free: free a GMimeContentField object
- * @content_field: GMimeContentField object
- * 
- * This method destroys the object and should be used very carefully.
- * Use gmime_content_field_unref instead.
- *
- **/
-void 
-gmime_content_field_free (GMimeContentField *content_field)
-{
-	if (!content_field) return;
-
-	g_assert (content_field->ref <= 0);
-
-	header_content_type_free(content_field->content_type);
-	g_free (content_field);
-}
-
-/**
  * gmime_content_field_ref: add a reference to a GMimeContentField object
  * @content_field: GMimeContentField object
  * 
@@ -92,6 +73,7 @@ void
 gmime_content_field_ref (GMimeContentField *content_field)
 {
 	content_field->ref += 1;
+	header_content_type_ref (content_field->content_type);
 }
 
 /**
@@ -110,8 +92,9 @@ gmime_content_field_unref (GMimeContentField *content_field)
 	if (!content_field) return;
 	
 	content_field->ref -= 1;
+	header_content_type_unref (content_field->content_type);
 	if (content_field->ref <= 0)
-		gmime_content_field_free (content_field);
+		g_free (content_field);
 }
 
 
@@ -234,7 +217,7 @@ gmime_content_field_construct_from_string (GMimeContentField *content_field, con
 
 	new = header_content_type_decode(string);
 	if (content_field->content_type)
-		header_content_type_free(content_field->content_type);
+		header_content_type_unref(content_field->content_type);
 
 	if (new == NULL) {
 		new = header_content_type_new(NULL, NULL);

@@ -1,3 +1,92 @@
+2000-04-18  NotZed  <NotZed@HelixCode.com>
+
+	* camel-mime-parser.c (folder_scan_init): init stream to null.
+
+	* providers/mbox/camel-mbox-summary.c
+	(CAMEL_MBOX_SUMMARY_VERSION): Moved to .c file, incremented.
+	(index_folder): Changed to have index passed via the summary.
+	(decode_string): Do a sanity check on the string size, so we dont
+	visit g_malloc()'s friendly abort().
+
+	* camel-folder-pt-proxy.c (camel_folder_pt_proxy_class_init):
+	Removed reference to set_name.
+	(_set_name): Removed.
+
+	* providers/mbox/camel-mbox-utils.c
+	(parsed_information_to_mbox_summary): Removed.  Most of this file
+	is about to be binned.
+
+	* providers/mbox/camel-mbox-search.c (func_header_contains): Fixes
+	for changes to summary interface.
+	(struct _searchcontext): Remove pointer to message info, get it
+	straight from the mboxsummary.
+	(camel_mbox_folder_search_by_expression): New summary interface.
+	(camel_mbox_folder_search_by_expression): Uh, the summary is not
+	an object anymore (well not yet).
+
+	* providers/mbox/camel-mbox-folder.c
+	(camel_mbox_folder_class_init): Removed set_name init.
+	(_set_name): Removed.
+	(_open): Call new summary interface.
+	(_close): Use new summary interface.
+	(_create): Removed a summary object leak.
+	(_get_message_count): New summary interface.
+	(_get_uid_list): Use new summary interface. FIXME: this is leaky.
+	(_get_message_by_uid): Use the new summary interface, some
+	cleanup.
+	(_append_message): Totally changed, basically just appends the
+	message directly, ignores the summary (for now), the summary will
+	fix itself up if it needs to.
+	(_check_get_or_maybe_generate_summary_file): Bye bye old code.
+	(summary_get_message_info): Implement get_message_info again, for
+	folder.
+
+	* camel-folder.c (camel_folder_class_init): Removed set_name
+	setup.
+	(_set_name): Moved contents into _init.
+	(_init): Perform the old functions of set_name here.
+
+	* camel-folder.h: Removed the set_name internal interface.
+
+2000-04-14  NotZed  <NotZed@HelixCode.com>
+
+	* providers/mbox/camel-mbox-summary.[ch]: Completely replaced with
+	new code.
+
+	* Makefile.am (libcamel_la_SOURCES): Removed
+	camel-folder-summary.[ch].
+
+	* camel-folder.h (struct _CamelFolder): Removed summary.
+	(struct _CamelFolder): Changed flags to be 1 bit bitfields.
+
+	* camel-folder-summary.[ch]: Class removed entirely.
+
+	* camel-folder.c (camel_folder_get_summary): Removed.
+	(camel_folder_summary_get_message_info): Moved from
+	camel-folder-summary.c
+	(camel_folder_summary_get_subfolder_info): Moved from
+	camel-folder-summary.c
+
+	* camel-mime-parser.c (folder_scan_step): Store the start of
+	headers and start of from in the scan state.
+	(camel_mime_parser_tell_start_headers): Query the start of the
+	headers.
+	(camel_mime_parser_tell_start_from): Query the cached start of
+	from marker.
+
+2000-04-13  NotZed  <NotZed@HelixCode.com>
+
+	* gmime-content-field.c (gmime_content_field_free): Removed this
+	function.  If its too dangerous to use, it shouldn't be here.
+	(gmime_content_field_ref): Also ref the embedded content-type.
+	(gmime_content_field_unref): Ditto to unref it.
+
+	* camel-mime-utils.h: Add a refcount for content-type header.
+
+	* camel-mime-utils.c (header_content_type_unref): Implement unref
+	for content-type.
+	(header_content_type_ref): Implement ref for header content type.
+
 2000-04-12  NotZed  <NotZed@HelixCode.com>
 
 	* gmime-content-field.h: Changed to use a _header_content_type.
@@ -54,6 +143,7 @@
 	(header_content_type_set_param): Set a parameter in the
 	content-type.
 	(header_set_param): Generic header parameter setting function.
+	(header_decode_string): Handle NULL input.
 
 	* camel-mime-parser.c (camel_mime_parser_headers_raw): New
 	function to get access to all the raw headers.

@@ -77,6 +77,9 @@ struct _header_scan_state {
 	int midline;		/* are we mid-line interrupted? */
 	int scan_from;		/* do we care about From lines? */
 
+	int start_of_from;	/* where from started */
+	int start_of_headers;	/* where headers started from the last scan */
+
 	int header_start;	/* start of last header, or -1 */
 
 	struct _header_scan_stack *top_part;	/* top of message header */
@@ -336,6 +339,20 @@ off_t camel_mime_parser_tell(CamelMimeParser *m)
 	return folder_tell(s);
 }
 
+off_t camel_mime_parser_tell_start_headers(CamelMimeParser *m)
+{
+	struct _header_scan_state *s = _PRIVATE(m);
+
+	return s->start_of_headers;
+}
+
+off_t camel_mime_parser_tell_start_from(CamelMimeParser *m)
+{
+	struct _header_scan_state *s = _PRIVATE(m);
+
+	return s->start_of_from;
+}
+
 off_t camel_mime_parser_seek(CamelMimeParser *m, off_t off, int whence)
 {
 	struct _header_scan_state *s = _PRIVATE(m);
@@ -440,7 +457,7 @@ folder_pull_part(struct _header_scan_state *s)
 		s->parts = h->parent;
 		g_free(h->boundary);
 		header_raw_clear(&h->headers);
-		header_content_type_free(h->content_type);
+		header_content_type_unref(h->content_type);
 		g_free(h);
 	} else {
 		g_warning("Header stack underflow!\n");
@@ -823,6 +840,7 @@ folder_scan_init(void)
 	s = g_malloc(sizeof(*s));
 
 	s->fd = -1;
+	s->stream = NULL;
 
 	s->outbuf = g_malloc(1024);
 	s->outptr = s->outbuf;
@@ -837,6 +855,9 @@ folder_scan_init(void)
 	s->seek = 0;		/* current character position in file of the last read block */
 
 	s->header_start = -1;
+
+	s->start_of_from = -1;
+	s->start_of_headers = -1;
 
 	s->midline = FALSE;
 	s->scan_from = FALSE;
@@ -933,6 +954,7 @@ tail_recurse:
 			
 			if (*datalength==0 && hb==h) {
 				d(printf("found 'From '\n"));
+				s->start_of_from = folder_tell(s);
 				folder_scan_skip_line(s);
 				h->savestate = HSCAN_INITIAL;
 				s->state = HSCAN_FROM;
@@ -941,10 +963,13 @@ tail_recurse:
 				s->state = HSCAN_EOF;
 			}
 			return;
+		} else {
+			s->start_of_from = -1;
 		}
 
 #endif
 	case HSCAN_FROM:
+		s->start_of_headers = folder_tell(s);
 		h = folder_scan_header(s, &state);
 #ifdef USE_FROM
 		if (s->scan_from)
