@@ -67,7 +67,7 @@ static void e_cal_backend_groupwise_finalize (GObject *object);
 static ECalBackendClass *parent_class = NULL;
 
 /* Time interval in milliseconds for obtaining changes from server and refresh the cache. */
-#define CACHE_REFRESH_INTERVAL 30000
+#define CACHE_REFRESH_INTERVAL 600000
 #define CURSOR_ITEM_LIMIT 100
 
 EGwConnection *
@@ -132,7 +132,7 @@ populate_cache (ECalBackendGroupwise *cbgw)
 		g_mutex_unlock (mutex);
                 return status;
         }
-	status = e_gw_connection_create_cursor (priv->cnc, priv->container_id, "recipients message recipientStatus", NULL, &cursor);
+	status = e_gw_connection_create_cursor (priv->cnc, priv->container_id, "recipients message recipientStatus default", NULL, &cursor);
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		e_cal_backend_groupwise_notify_error_code (cbgw, status);
 		g_mutex_unlock (mutex);
@@ -220,11 +220,12 @@ get_deltas (gpointer handle)
 	tm = gmtime (&mod_time);
 	strftime (time_string, 100, "%Y-%m-%dT%H:%M:%SZ", tm);
 	
-	status = e_gw_connection_get_quick_messages (cnc, cbgw->priv->container_id, "recipients message recipientStatus", time_string, "New", "CalendarItem", NULL,  -1,  &item_list);
+	status = e_gw_connection_get_quick_messages (cnc, cbgw->priv->container_id, "recipients message recipientStatus default", time_string, "New", "CalendarItem", NULL,  -1,  &item_list);
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		e_cal_backend_groupwise_notify_error_code (cbgw, status);
 		return TRUE;
 	}
+
 	for (; item_list != NULL; item_list = g_slist_next(item_list)) {
 		EGwItem *item = E_GW_ITEM(item_list->data);
 		ECalComponent *comp = e_gw_item_to_cal_component (item, cbgw);
@@ -250,13 +251,14 @@ get_deltas (gpointer handle)
 		g_slist_free (item_list);
 		item_list = NULL;
 	}
-	status = e_gw_connection_get_quick_messages (cnc, cbgw->priv->container_id,"recipients message recipientStatus iCalId", time_string, "Modified", "CalendarItem", NULL,  -1,  &item_list);
+
+	status = e_gw_connection_get_quick_messages (cnc, cbgw->priv->container_id,"recipients message recipientStatus  default", time_string, "Modified", "CalendarItem", NULL,  -1,  &item_list);
 	
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		e_cal_backend_groupwise_notify_error_code (cbgw, status);
 		return TRUE;
 	}
-	
+
 	for (; item_list != NULL; item_list = g_slist_next(item_list)) {
 		EGwItem *item = E_GW_ITEM(item_list->data);
 		ECalComponent *modified_comp, *cache_comp;
@@ -279,6 +281,7 @@ get_deltas (gpointer handle)
 		g_object_unref (item);
 		g_object_unref (modified_comp);
 	}
+
 	if (item_list) {
 		g_slist_free (item_list);
 		item_list = NULL;
@@ -374,9 +377,19 @@ cache_init (ECalBackendGroupwise *cbgw)
 	ECalBackendGroupwisePrivate *priv = cbgw->priv;
 	EGwConnectionStatus cnc_status;
 	icalcomponent_kind kind;
+	const char *time_interval_string;
+	int time_interval;
 
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgw));
-
+	
+	time_interval = CACHE_REFRESH_INTERVAL;
+	time_interval_string = g_getenv ("GETQM_TIME_INTERVAL");
+	if (time_interval_string) {
+		time_interval = g_ascii_strtod (time_interval_string, NULL);
+		time_interval *= (60*1000); 
+		
+	}
+	
 	/* We poke the cache for a default timezone. Its
 	 * absence indicates that the cache file has not been
 	 * populated before. */
@@ -390,7 +403,7 @@ cache_init (ECalBackendGroupwise *cbgw)
 			return GNOME_Evolution_Calendar_PermissionDenied;
 		} else {
 			e_cal_backend_cache_set_marker (priv->cache);
-			priv->timeout_id = g_timeout_add (CACHE_REFRESH_INTERVAL, (GSourceFunc) get_deltas, (gpointer) cbgw);
+			priv->timeout_id = g_timeout_add (time_interval, (GSourceFunc) get_deltas, (gpointer) cbgw);
 			priv->mode = CAL_MODE_REMOTE;
 			return GNOME_Evolution_Calendar_Success;
 		}
@@ -415,7 +428,7 @@ cache_init (ECalBackendGroupwise *cbgw)
 		
 		/* get the deltas from the cache */
 		if (get_deltas (cbgw)) {
-			priv->timeout_id = g_timeout_add (CACHE_REFRESH_INTERVAL, (GSourceFunc) get_deltas, (gpointer) cbgw);
+			priv->timeout_id = g_timeout_add (time_interval, (GSourceFunc) get_deltas, (gpointer) cbgw);
 			priv->mode = CAL_MODE_REMOTE;
 			return GNOME_Evolution_Calendar_Success;
 		} else {
@@ -1489,8 +1502,10 @@ receive_object (ECalBackendGroupwise *cbgw, EDataCal *cal, icalcomponent *icalco
 	
 	status = e_gw_connection_send_appointment (cbgw, priv->container_id, comp, method, &remove, &modif_comp);
 
-	if (status == E_GW_CONNECTION_STATUS_OK && !modif_comp)
+	if (status == E_GW_CONNECTION_STATUS_OK && !modif_comp) {
+		g_object_unref (comp);
 		return GNOME_Evolution_Calendar_Success;
+	}
 
 	/* update the cache */
 	if (status == E_GW_CONNECTION_STATUS_OK) {

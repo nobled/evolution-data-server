@@ -799,7 +799,7 @@ e_gw_connection_send_appointment (ECalBackendGroupwise *cbgw, const char *contai
 	if (!*remove && status == E_GW_CONNECTION_STATUS_OK) {
 		EGwItem *item;
 
-		status = e_gw_connection_get_item (cnc, container, item_id, &item);
+		status = e_gw_connection_get_item (cnc, container, item_id, "recipients message recipientStatus attachments",&item);
 		*created_comp = e_gw_item_to_cal_component (item, cbgw);
 	}
 
@@ -1099,7 +1099,7 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
 		}
 
 		e_cal_component_commit_sequence (comp);
-		*freebusy = g_list_append (*freebusy, g_strdup (e_cal_component_get_as_string (comp)));
+		*freebusy = g_list_append (*freebusy, e_cal_component_get_as_string (comp));
 		g_object_unref (comp);
 	}
 

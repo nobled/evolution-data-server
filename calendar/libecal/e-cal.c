@@ -2371,9 +2371,9 @@ e_cal_get_default_object (ECal *ecal, icalcomponent **icalcomp, GError **error)
  * e_cal_get_object:
  * @ecal: A calendar ecal.
  * @uid: Unique identifier for a calendar component.
- * @rid: 
+ * @rid: Recurrence identifier.
  * @icalcomp: Return value for the calendar component object.
- * @error: 
+ * @error: Placeholder for error information.
  *
  * Queries a calendar for a calendar component object based on its unique
  * identifier.
