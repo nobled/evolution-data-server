@@ -72,18 +72,21 @@ static CamelMimeMessage
 	CamelGroupwiseStore *gw_store = CAMEL_GROUPWISE_STORE(folder->parent_store) ;
 	CamelGroupwiseStorePrivate  *priv = gw_store->priv;
 	CamelMessageInfo *mi = NULL ;
-	CamelStream *stream = NULL ;
 	char *temp_name, *folder_name, *container_id, *body ;
-	CamelInternetAddress *from_addr, *to_addr ;
-	EGwItemOrganizer *org ;
+	CamelInternetAddress *from_addr, *to_addr, *cc_addr, *bcc_addr ;
 
+	GSList *recipient_list, *attach_list ;
+	
+	EGwItemOrganizer *org ;
+	EGwItemType type ;
 	EGwConnectionStatus status ;
 	EGwConnection *cnc ;
 	EGwItem *item ;
-	char *test ="From: Harry Lu <Harry.Lu@Sun.COM>\nSubject: Re: [evolution-patches] patch related with shell\nIn-reply-to: <1099387728.4470.38.camel@lostzed.mmc.com.au>\nTo: patches <evolution-patches@lists.ximian.com>\nContent-type: multipart/alternative;" ;
+	EGwItemRecipient *recp ;
 
+	CamelMultipart *multipart ;
 
-	printf("\n|||| GET MESSAGE: %s |||\n",folder->name) ;
+	/*FIXME: Currently supports only 2 levels of folder heirarchy*/
 	folder_name = g_strdup(folder->name) ;
 	temp_name = strchr (folder_name,'/') ;
 	if(temp_name == NULL) {
@@ -94,8 +97,11 @@ static CamelMimeMessage
 		container_id =  g_strdup (container_id_lookup (priv,g_strdup(temp_name))) ;
 	}
 
-
+	
+	/*Create and populate the MIME Message structure*/
 	msg = camel_mime_message_new () ;
+
+	multipart = camel_multipart_new () ;
 
 	mi = camel_folder_summary_uid (folder->summary, uid);
 	if (mi == NULL) {
@@ -103,37 +109,85 @@ static CamelMimeMessage
 				_("Cannot get message: %s\n  %s"), uid, _("No such message"));
 		return NULL;
 	}
-	printf ("|| Now connecting to e-d-s |||\n") ;
 
 	cnc = cnc_lookup (priv) ;
-	status = e_gw_connection_get_item (cnc, container_id, uid, "message attachments", &item) ;
+
+	status = e_gw_connection_get_item (cnc, container_id, uid, "recipient message attachments", &item) ;
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		 camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));
 		                 return NULL;
 	}
+	
+	type = e_gw_item_get_item_type(item) ;
+	if (type == E_GW_ITEM_TYPE_MAIL) {
+		printf ("MAIL\n") ;
 
+	} else if (type == E_GW_ITEM_TYPE_APPOINTMENT) {
+		printf ("APPOINTMENT\n") ;
+
+	} else if (type == E_GW_ITEM_TYPE_TASK) {
+		printf ("TASK\n") ;
+
+	} else if (type == E_GW_ITEM_TYPE_UNKNOWN) {
+		printf ("UNKNOWN\n") ;
+		/*XXX: Free memory allocations*/
+		return NULL ;
+	}
+	
 	org = e_gw_item_get_organizer (item) ;
+	recipient_list = e_gw_item_get_recipient_list (item) ;
+
+	/*Addresses*/
 	from_addr = camel_internet_address_new () ;
 	to_addr = camel_internet_address_new () ;
+	cc_addr = camel_internet_address_new () ;
+	bcc_addr = camel_internet_address_new () ;
+
+	if (recipient_list) {
+		GSList *rl ;
+		
+		for (rl = recipient_list ; rl != NULL ; rl = rl->next) {
+			EGwItemRecipient *recp = (EGwItemRecipient *) rl->data;
+
+			if (recp->type == E_GW_ITEM_RECIPIENT_TO) {
+				camel_internet_address_add (to_addr, recp->display_name, recp->email ) ;
+				
+			} else if (recp->type == E_GW_ITEM_RECIPIENT_CC) {
+				camel_internet_address_add (cc_addr, recp->display_name, recp->email ) ;
+				
+			} else if (recp->type == E_GW_ITEM_RECIPIENT_BC) {
+				camel_internet_address_add (bcc_addr, recp->display_name, recp->email ) ;
+
+			}
+		}
+		
+		camel_mime_message_set_recipients (msg, "To", to_addr) ;
+		camel_mime_message_set_recipients (msg, "Cc", cc_addr) ;
+		camel_mime_message_set_recipients (msg, "Bcc", bcc_addr) ;
+	}
 	camel_internet_address_add (from_addr,org->display_name,org->email) ;
-	camel_internet_address_add (to_addr, e_gw_item_get_to (item), e_gw_item_get_to (item) ) ;
 	
+
+	/*Content and content-type*/
 	body = g_strdup(e_gw_item_get_message(item));
 	if (body) {
-		camel_mime_message_set_source (msg, body ) ;
-		camel_mime_part_set_encoding((CamelMimePart *)msg, CAMEL_TRANSFER_ENCODING_8BIT);
-		camel_mime_part_set_content((CamelMimePart *)msg, body, strlen(body),"text/html") ;
+		CamelMimePart *part ;
+		part = camel_mime_part_new () ;
 
-		stream = camel_stream_mem_new_with_buffer (body, strlen(body) ) ; 
+		camel_mime_part_set_encoding(part, CAMEL_TRANSFER_ENCODING_8BIT);
+		camel_mime_part_set_content(part, body, strlen(body), e_gw_item_get_msg_content_type (item)) ;
+		camel_multipart_add_part (multipart, part) ;
+		camel_object_unref (part) ;
 
-		/*	if (camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg),stream) == -1) {
-			printf ("|| NOT RIGHT!!!! \n") ;
-			}*/
-	printf ("||| MESSAGE:%d |||\n %s\n",strlen(body), body) ;
 	} else {
-		camel_mime_message_set_source (msg, "No Message" ) ;
-		camel_mime_part_set_encoding((CamelMimePart *)msg, CAMEL_TRANSFER_ENCODING_8BIT);
-		camel_mime_part_set_content((CamelMimePart *)msg, "No Message", strlen("No Message"),"text/html") ;
+		CamelMimePart *part ;
+		part = camel_mime_part_new () ;
+		
+		camel_mime_part_set_encoding(part, CAMEL_TRANSFER_ENCODING_8BIT);
+		camel_mime_part_set_content(part, " ", strlen(" "),"text/html") ;
+		camel_multipart_add_part (multipart, part) ;
+
+		camel_object_unref (part) ;
 	}
 	
 	camel_mime_message_set_subject (msg, e_gw_item_get_subject(item) ) ;
@@ -141,8 +195,49 @@ static CamelMimeMessage
 	camel_mime_message_set_from (msg, from_addr) ;
 	
 
+	/*Attachments*/
+	attach_list = e_gw_item_get_attach_id_list (item) ;
+	if (attach_list) {
+		GSList *al ;
+		int count = g_slist_length (attach_list) ;
+		
 
+		printf ("||Attachments present : %d ||\n", count) ;
 
+		for (al = attach_list ; al != NULL ; al = al->next) {
+			EGwItemAttachment *attach = (EGwItemAttachment *)al->data ;
+			char *attachment ;
+			int len ;
+			CamelMimePart *part ;
+
+			status = e_gw_connection_get_attachment (cnc, g_strdup(attach->id), 0, -1, &attachment, &len) ;
+			if (status != E_GW_CONNECTION_STATUS_OK) {
+				camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));
+				return NULL;
+			}
+			if (attach && (len !=0) ) {
+				part = camel_mime_part_new () ;
+
+				camel_data_wrapper_set_mime_type(CAMEL_DATA_WRAPPER (multipart), "multipart/digest") ;
+				camel_multipart_set_boundary(multipart, NULL);
+
+				camel_mime_part_set_filename(part, g_strdup(attach->name)) ;
+				camel_mime_part_set_content(part, attachment, len, attach->contentType) ;
+
+				camel_multipart_add_part (multipart, part) ;
+
+				camel_object_unref (part) ;
+			}
+			g_free (attachment) ;
+		}
+		
+
+	}
+	camel_medium_set_content_object(CAMEL_MEDIUM (msg), CAMEL_DATA_WRAPPER(multipart));
+
+	camel_object_unref (multipart) ;
+
+	
 	if (body)
 		g_free (body) ;
 
@@ -230,6 +325,7 @@ camel_gw_folder_new(CamelStore *store, const char *folder_dir, const char *folde
 
 	summary_file = g_strdup_printf ("%s/summary",folder_dir) ;
 	folder->summary = camel_groupwise_summary_new(summary_file) ;
+	camel_folder_summary_clear (folder->summary) ;
 	g_free(summary_file) ;
 	if (!folder->summary) {
 		camel_object_unref (CAMEL_OBJECT (folder));
@@ -321,6 +417,7 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 	//CAMEL_SERVICE_ASSERT_LOCKED (gw_store, connect_lock);
 
 	summary_count = camel_folder_summary_count (folder->summary) ;
+	camel_folder_summary_clear (folder->summary) ;
 
 	first = summary_count + 1 ; 
 
@@ -357,8 +454,8 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 
 
 		}*/
-		//mi = camel_message_info_new () ;
-		mi = camel_message_info_new () ; camel_folder_summary_info_new (folder->summary) ;
+		//camel_folder_summary_info_new (folder->summary) ;
+		mi = camel_message_info_new () ; 
 		if (mi->content == NULL) {
 			mi->content = camel_folder_summary_content_info_new (folder->summary);
 			mi->content->type = camel_content_type_new ("multipart", "mixed");
@@ -371,9 +468,11 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 			
 		} else if (type == E_GW_ITEM_TYPE_APPOINTMENT) {
 			printf ("Its an appointment\n") ;
+			continue ;
 
 		} else if (type == E_GW_ITEM_TYPE_TASK) {
 			printf ("Its a task\n") ;
+			continue ;
 
 		} else if (type == E_GW_ITEM_TYPE_UNKNOWN) {
 			printf ("UNKNOWN ITEM...\n") ;

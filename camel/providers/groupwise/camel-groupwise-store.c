@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <glib.h>
 
 #include "e-util/e-path.h"
 
@@ -376,7 +377,7 @@ CamelFolder * camel_groupwise_get_folder( CamelStore *store,
 	CamelFolder *folder ;
 	char *storage_path, *folder_dir, *temp_name,*temp_str,*container_id ;
 	EGwConnectionStatus status ;
-	GList *list ;
+	GList *list = NULL ;
 
 	printf("||| Get FOLDER : %s ||| \n",folder_name) ;
 	temp_name = folder_name ;
@@ -413,6 +414,8 @@ CamelFolder * camel_groupwise_get_folder( CamelStore *store,
 		
 		/*gw_folder_selected() ;*/
 		
+		count = camel_folder_summary_count (folder->summary) ;
+		printf(" |||| COUNT : %d ||||\n", count) ;
 		gw_update_summary (folder, list,  ex) ;
 
 		count = camel_folder_summary_count (folder->summary) ;
@@ -420,6 +423,7 @@ CamelFolder * camel_groupwise_get_folder( CamelStore *store,
 		/*gw_rescan() ;*/
 		camel_folder_summary_save(folder->summary) ;
 	}
+	//g_free_list (list) ;
 	camel_operation_end (NULL);
 	return folder ;
 }
@@ -659,7 +663,7 @@ void camel_groupwise_delete_folder(CamelStore *store,
 
 	printf("||| DELETING FOLDER |||\n") ;
 	
-	status = e_gw_connection_remove_item (priv->cnc, container, folder_name) ;
+	status = e_gw_connection_remove_item (priv->cnc, container, container) ;
 
 	if (status == E_GW_CONNECTION_STATUS_OK) {
 		printf(" ||| Deleted Successfully : %s|||\n", folder_name) ;
