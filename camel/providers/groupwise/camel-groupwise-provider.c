@@ -30,14 +30,14 @@
 
 #include <string.h>
 #include <gmodule.h>
-#include "camel-imap-store.h"
 #include "camel-provider.h"
 #include "camel-session.h"
-#include "camel-smtp-transport.h"
 #include "camel-url.h"
 #include "camel-sasl.h"
 #include "camel-gw-listener.h"
 #include "camel-i18n.h"
+#include "camel-groupwise-store.h"
+#include "camel-groupwise-transport.h"
 
 static void add_hash (guint *hash, char *s);
 static guint groupwise_url_hash (gconstpointer key);
@@ -135,14 +135,13 @@ camel_provider_module_init(void)
 	CamelProvider *imap_provider;
 	CamelException ex = CAMEL_EXCEPTION_INITIALISER;
 
-	imap_provider =  camel_provider_get("imap://", &ex);
-//	imap_provider =  camel_provider_get("groupwise://", &ex);
 	groupwise_provider.url_hash = groupwise_url_hash;
 	groupwise_provider.url_equal = groupwise_url_equal;
 	groupwise_provider.auto_detect = groupwise_auto_detect_cb;
 	groupwise_provider.authtypes = g_list_prepend (groupwise_provider.authtypes, &camel_groupwise_password_authtype);
 	if (imap_provider != NULL) {
-		groupwise_provider.object_types[CAMEL_PROVIDER_STORE] =  camel_groupwise_store_get_type() ;//imap_provider->object_types [CAMEL_PROVIDER_STORE];
+		groupwise_provider.object_types[CAMEL_PROVIDER_STORE] =  camel_groupwise_store_get_type() ;
+		groupwise_provider.object_types[CAMEL_PROVIDER_TRANSPORT] = camel_groupwise_transport_get_type();
 		camel_provider_register(&groupwise_provider);
 	} else {
 		camel_exception_clear(&ex);
