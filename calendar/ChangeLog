@@ -3,6 +3,21 @@
 	* libecal/e-cal.[ch] (e_cal_generate_instances_for_object): new function.
 	(e_cal_generate_instances): fixed gtk-doc comments.
 
+2004-04-12  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	Fixes #56517
+                                                                                
+        * libecal/e-cal.c (e_cal_add_timezone): Added a check for icalcomponent
+        structure. Return FALSE if icalcomponent is NULL.
+
+2004-04-12  Harish K <kharish@novell.com>
+
+	Fixes #53926
+	
+	* backends/groupwise/e-cal-backend-groupwise-utils.c
+	(e_gw_item_to_cal_component) : set the tzid to "UTC"
+	while setting the dueDate.
+
 2004-04-12  Rodrigo Moya <rodrigo@ximian.com>
 
 	* backends/file/e-cal-backend-file.c (e_cal_backend_file_modify_object):
@@ -73,8 +88,8 @@
 	* backends/file/e-cal-backend-file.c (notify_removals_cb,
 	e_cal_backend_file_receive_objects):
 	* backends/contacts/e-cal-backend-contacts.c (contact_record_free):
-	adapted to changes in e_cal_backend_notify_object_removed.
-
+	adapted to changes in e_cal_backend_notify_object_removed.		
+	
 2004-04-05  Rodrigo Moya <rodrigo@ximian.com>
 
 	* backends/groupwise/e-cal-backend-groupwise.c
