@@ -2802,12 +2802,15 @@ static GList *
 process_detached_instances (GList *instances, GList *detached_instances)
 {
 	struct comp_instance *ci, *cid;
-	GList *dl;
+	GList *dl, *unprocessed_instances = NULL;
 
 	for (dl = detached_instances; dl != NULL; dl = dl->next) {
 		GList *il;
 		const char *uid;
+		gboolean processed;
 		ECalComponentRange recur_id, instance_recur_id;
+
+		processed = FALSE;
 
 		cid = dl->data;
 		e_cal_component_get_uid (cid->comp, &uid);
@@ -2829,6 +2832,8 @@ process_detached_instances (GList *instances, GList *detached_instances)
 					ci->comp = g_object_ref (cid->comp);
 					ci->start = cid->start;
 					ci->end = cid->end;
+
+					processed = TRUE;
 				} else {
 					cmp = icaltime_compare (*instance_recur_id.datetime.value,
 								*recur_id.datetime.value);
@@ -2849,6 +2854,21 @@ process_detached_instances (GList *instances, GList *detached_instances)
 				}
 			}
 		}
+
+		if (!processed)
+			unprocessed_instances = g_list_prepend (unprocessed_instances, cid);
+	}
+
+	/* add the unprocessed instances (ie, detached instances with no master object */
+	while (unprocessed_instances != NULL) {
+		cid = unprocessed_instances->data;
+		ci = g_new0 (struct comp_instance, 1);
+		ci->comp = g_object_ref (cid->comp);
+		ci->start = cid->start;
+		ci->end = cid->end;
+		instances = g_list_append (instances, ci);
+
+		unprocessed_instances = g_list_remove (unprocessed_instances, cid);
 	}
 
 	return instances;
@@ -2921,6 +2941,8 @@ e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 			e_cal_recur_generate_instances (comp, start, end, add_instance, &detached_instances,
 							e_cal_resolve_tzid_cb, ecal,
 							priv->default_zone);
+
+			g_object_unref (comp);
 		} else {
 			e_cal_recur_generate_instances (comp, start, end, add_instance, &instances,
 							e_cal_resolve_tzid_cb, ecal,
