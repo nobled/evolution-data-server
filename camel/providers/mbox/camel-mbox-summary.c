@@ -337,14 +337,50 @@ summary_rebuild(CamelMboxSummary *mbs, off_t offset)
 	return ok;
 }
 
-int
-camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset)
-{
-	int ret;
 
+static void
+removed_uids(void *key, void *value, CamelFolderChangeInfo *changeinfo)
+{
+	camel_folder_change_info_remove_uid(changeinfo, key);
+	g_free(key);
+}
+
+int
+camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset, CamelFolderChangeInfo *changeinfo)
+{
+	int ret, i, count;
+	GHashTable *uids = g_hash_table_new(g_str_hash, g_str_equal);
+	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
+
+	/* this is the easiest way to get the added/removed list for the changeinfo.
+	   I'm too lazy to poke it into summary_rebuild */
+	/* TODO: this code is probably useful elsewhere too */
+	for (i = 0; i < camel_folder_summary_count(s); i++) {
+		CamelMessageInfo *mi = camel_folder_summary_index(s, i);
+
+		g_hash_table_insert(uids, g_strdup(mi->uid), (void *)1);
+	}
+
+	/* do the actual work */
 	mbs->index_force = FALSE;
 	ret = summary_rebuild(mbs, offset);
 
+	count = camel_folder_summary_count(s);
+	for (i = 0; i < count; i++) {
+		CamelMessageInfo *mi = camel_folder_summary_index(s, i);
+		char *key;
+		int value;
+
+		if (g_hash_table_lookup_extended(uids, mi->uid, (void **)&key, (void **)&value)) {
+			g_hash_table_remove(uids, key);
+			g_free(key);
+		} else {
+			camel_folder_change_info_add_uid(changeinfo, mi->uid);
+		}
+	}
+	g_hash_table_foreach(uids, (GHFunc)removed_uids, changeinfo);
+	g_hash_table_destroy(uids);
+	
 #if 0
 #warning "Saving full summary and index after every summarisation is slow ..."
 	if (ret != -1) {
@@ -590,7 +626,8 @@ camel_mbox_summary_build_from(struct _header_raw *header)
 	thetime += ((offset / 100) * (60 * 60)) + (offset % 100) * 60;
 
 	/* a pseudo, but still bogus attempt at thread safing the function */
-	memcpy(&tm, gmtime(&thetime), sizeof(tm));
+	/*memcpy(&tm, gmtime(&thetime), sizeof(tm));*/
+	gmtime_r(&thetime, &tm);
 
 	g_string_sprintfa(out, " %s %s %d %02d:%02d:%02d %4d\n",
 			  tz_days[tm.tm_wday],
@@ -602,7 +639,7 @@ camel_mbox_summary_build_from(struct _header_raw *header)
 }
 
 int
-camel_mbox_summary_sync(CamelMboxSummary *mbs, gboolean expunge, CamelException *ex)
+camel_mbox_summary_sync(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
 {
 	CamelMimeParser *mp = NULL;
 	int i, count;
@@ -619,13 +656,13 @@ camel_mbox_summary_sync(CamelMboxSummary *mbs, gboolean expunge, CamelException 
 	struct stat st;
 	char *fromline;
 
-	/* make sure we're in sync */
+	/* make sure we're in sync, after this point we at least have a complete list of id's */
 	count = camel_folder_summary_count (s);
 	if (count > 0) {
 		CamelMessageInfo *mi = camel_folder_summary_index(s, count - 1);
-		camel_mbox_summary_update(mbs, mi->content->endpos);
+		camel_mbox_summary_update(mbs, mi->content->endpos, changeinfo);
 	} else {
-		camel_mbox_summary_update(mbs, 0);
+		camel_mbox_summary_update(mbs, 0, changeinfo);
 	}
 
 	/* check if we have any work to do */
@@ -693,6 +730,8 @@ camel_mbox_summary_sync(CamelMboxSummary *mbs, gboolean expunge, CamelException 
 			offset -= (info->info.content->endpos - info->frompos);
 			if (mbs->index)
 				ibex_unindex(mbs->index, info->info.uid);
+			/* remove it from teh change list */
+			camel_folder_change_info_remove_uid(changeinfo, info->info.uid);
 			camel_folder_summary_remove(s, (CamelMessageInfo *)info);
 			count--;
 			i--;
