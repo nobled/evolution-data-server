@@ -1,5 +1,7 @@
 2000-12-21  Not Zed  <NotZed@HelixCode.com>
 
+	* tests/folder/Makefile.am (TESTS): reenabled the tests here.
+
 	* providers/nntp/camel-nntp-newsrc.c (CamelNNTPNewsrc): Add a
 	lock.  Made completely mt-safe.  Sigh, this is all so i can
 	support snooping of the set_flags stuff inside camel-nntp-folder,
@@ -58,6 +60,16 @@
 	(camel_folder_summary_info_new): And here too.
 	(camel_folder_summary_load): Changed to use a differnet lock for
 	loading/saving.
+	(camel_folder_summary_init): Doh, i do need a reflock afterall,
+	set one up.
+	(camel_folder_summary_finalize): Free it.
+	(camel_folder_summary_index): Add a reflock.
+	(camel_folder_summary_uid): And here too.
+	(camel_folder_summary_info_free): Use reflock instead of
+	summary_lock.
+	(camel_folder_summary_info_ref): Likewise.
+	(camel_folder_summary_remove_uid): Add reflocking.
+	(camel_folder_summary_remove_index): And here too.
 
 	* providers/vee/camel-vee-folder.c (camel_vee_folder_new): Setup a
 	summary object.

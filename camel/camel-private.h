@@ -128,10 +128,11 @@ struct _CamelFolderSummaryPrivate {
 	struct ibex *index;
 
 #ifdef ENABLE_THREADS
-	GMutex *summary_lock;
+	GMutex *summary_lock;	/* for the summary hashtable/array */
 	GMutex *io_lock;	/* load/save lock, for access to saved_count, etc */
 	GMutex *filter_lock;	/* for accessing any of the filtering/indexing stuff, since we share them */
 	GMutex *alloc_lock;	/* for setting up and using allocators */
+	GMutex *ref_lock;	/* for reffing/unreffing messageinfo's ALWAYS obtain before summary_lock */
 #endif
 };
 
