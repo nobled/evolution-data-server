@@ -2767,9 +2767,11 @@ add_instance (ECalComponent *comp, time_t start, time_t end, gpointer data)
 	itt_start = icalcomponent_get_dtstart (icalcomp);
 
 	/* set the RECUR-ID for the instance */
-	if (!(icalcomponent_get_first_property (icalcomp, ICAL_RECURRENCEID_PROPERTY))) {
-		itt = icaltime_from_timet (start, itt_start.is_date);
-		icalcomponent_set_recurrenceid (icalcomp, itt);
+	if (e_cal_util_component_has_recurrences (icalcomp)) {
+		if (!(icalcomponent_get_first_property (icalcomp, ICAL_RECURRENCEID_PROPERTY))) {
+			itt = icaltime_from_timet (start, itt_start.is_date);
+			icalcomponent_set_recurrenceid (icalcomp, itt);
+		}
 	}
 
 	/* add the instance to the list */
