@@ -1,5 +1,15 @@
 2003-08-08  Jeffrey Stedfast  <fejj@ximian.com>
 
+	* tests/message/test4.c: New test suite for the mime parser (which
+	is where the below 2 fixes were noticed).
+
+	* camel-mime-parser.c (folder_boundary_check): Calculate 'len' by
+	subtracting the boundary start from inend rather than 'atleast'.
+	(folder_scan_content): Calculate 'inend' differently depending on
+	the EOF state.
+
+2003-08-08  Jeffrey Stedfast  <fejj@ximian.com>
+
 	* camel-mime-filter-tohtml.c (html_convert): Rather than checking
 	*inptr == '\n', check inptr >= inend - this gets rid of an Invalid
 	Read report from valgrind.

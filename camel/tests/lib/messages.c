@@ -5,6 +5,7 @@
 #include "messages.h"
 #include "camel-test.h"
 
+#include <camel/camel-multipart.h>
 #include <camel/camel-mime-message.h>
 #include <camel/camel-stream-fs.h>
 #include <camel/camel-stream-mem.h>
@@ -141,6 +142,8 @@ hexdump (const unsigned char *in, int inlen)
 			octets++;
 		}
 		
+		printf ("       ");
+		
 		while (start < inptr) {
 			fputc (isprint ((int) *start) ? *start : '.', stdout);
 			start++;
@@ -176,6 +179,47 @@ test_message_compare_content(CamelDataWrapper *dw, const char *text, int len)
 
 	check_unref(content, 1);
 
+	return 0;
+}
+
+int
+test_message_compare (CamelMimeMessage *msg)
+{
+	CamelMimeMessage *msg2;
+	CamelStreamMem *mem1, *mem2;
+	
+	mem1 = (CamelStreamMem *) camel_stream_mem_new ();
+	camel_data_wrapper_write_to_stream ((CamelDataWrapper *) msg, (CamelStream *) mem1);
+	camel_stream_reset ((CamelStream *) mem1);
+	
+	msg2 = camel_mime_message_new ();
+	camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) msg2, (CamelStream *) mem1);
+	camel_stream_reset ((CamelStream *) mem1);
+	
+	mem2 = (CamelStreamMem *) camel_stream_mem_new ();
+	camel_data_wrapper_write_to_stream ((CamelDataWrapper *) msg2, (CamelStream *) mem2);
+	camel_stream_reset ((CamelStream *) mem2);
+	
+	camel_object_unref (msg2);
+	
+	if (mem1->buffer->len != mem2->buffer->len) {
+		CamelDataWrapper *content;
+		
+		printf ("mem1 stream:\n%.*s\n", mem1->buffer->len, mem1->buffer->data);
+		printf ("mem2 stream:\n%.*s\n\n", mem2->buffer->len, mem2->buffer->data);
+		
+		content = camel_medium_get_content_object ((CamelMedium *) msg);
+	}
+	
+	check_msg (mem1->buffer->len == mem2->buffer->len,
+		   "mem1->buffer->len = %d, mem2->buffer->len = %d",
+		   mem1->buffer->len, mem2->buffer->len);
+	
+	check_msg (memcmp (mem1->buffer->data, mem2->buffer->data, mem1->buffer->len) == 0, "msg/stream compare");
+	
+	camel_object_unref (mem1);
+	camel_object_unref (mem2);
+	
 	return 0;
 }
 
