@@ -1,3 +1,10 @@
+2004-04-23  Jeffrey Stedfast  <fejj@ximian.com>
+
+	* libedata-cal/e-data-cal.c (e_data_cal_notify_changes): Fixed a
+	c/p bug. Don't call notifyDefaultTimezoneSet, we want to
+	notifyChanges! Took me long enough to track this little bugger
+	down.
+
 2004-04-23  Rodrigo Moya <rodrigo@ximian.com>
 
 	* backends/file/e-cal-backend-file.c (e_cal_backend_file_modify_object):
@@ -29,6 +36,14 @@
 
 	* libecal/e-cal.c (add_instance): set the RECUR-ID property on all
 	instances.
+
+2004-04-21  Jeffrey Stedfast  <fejj@ximian.com>
+
+	* backends/file/e-cal-backend-file.c
+	(e_cal_backend_file_receive_objects): Pass the address of calobj
+	to file_create_object().
+	(e_cal_backend_file_compute_changes): "Gracefully" handle a NULL
+	return from e_xmlhash_new().
 
 2004-04-21  Rodrigo Moya <rodrigo@ximian.com>
 
