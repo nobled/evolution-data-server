@@ -140,7 +140,7 @@ module Calendar {
 	/* Listener for changes in a query of a calendar */
 	interface CalViewListener : Bonobo::Unknown {
 		oneway void notifyObjectsAdded (in stringlist objects);		
-		oneway void notifyObjectsModified (in stringlist objects);		
+		oneway void notifyObjectsModified (in stringlist objects);
 		oneway void notifyObjectsRemoved (in CalObjUIDSeq uids);
 		oneway void notifyQueryProgress (in string message, in short percent);
 		oneway void notifyQueryDone (in CallStatus status);
