@@ -35,7 +35,7 @@
 #include "camel-imapp-store.h"
 
 CamelProviderConfEntry imapp_conf_entries[] = {
-	{ CAMEL_PROVIDER_CONF_SECTION_START, NULL, NULL,
+	{ CAMEL_PROVIDER_CONF_SECTION_START, "storage", NULL,
 	  N_("Message storage") },
 	{ CAMEL_PROVIDER_CONF_SECTION_END },
 	{ CAMEL_PROVIDER_CONF_END }

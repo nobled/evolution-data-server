@@ -34,7 +34,7 @@
 #include "camel-sasl.h"
 
 CamelProviderConfEntry pop3_conf_entries[] = {
-	{ CAMEL_PROVIDER_CONF_SECTION_START, NULL, NULL,
+	{ CAMEL_PROVIDER_CONF_SECTION_START, "storage", NULL,
 	  N_("Message storage") },
 	{ CAMEL_PROVIDER_CONF_CHECKBOX, "keep_on_server", NULL,
 	  N_("Leave messages on server"), "0" },

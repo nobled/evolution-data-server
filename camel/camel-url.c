@@ -428,7 +428,10 @@ camel_url_set_port (CamelURL *url, int port)
 void
 camel_url_set_param (CamelURL *url, const char *name, const char *value)
 {
-	g_datalist_set_data_full (&url->params, name, value ? g_strdup (value) : NULL, g_free);
+	if (value)
+		g_datalist_set_data_full (&url->params, name, g_strdup(value), g_free);
+	else
+		g_datalist_remove_data(&url->params, name);
 }
 
 const char *
