@@ -1,3 +1,8 @@
+2004-04-22  Rodrigo Moya <rodrigo@ximian.com>
+
+	* libecal/e-cal.c (add_instance): set the RECUR-ID property on all
+	instances.
+
 2004-04-21  Rodrigo Moya <rodrigo@ximian.com>
 
 	* libedata-cal/e-cal-backend-cache.c (e_cal_backend_cache_put_timezone):
