@@ -73,6 +73,12 @@ libcamel_la_SOURCES = 				\
 	hash-table-utils.c			\
 	md5-utils.c				\
 	string-utils.c				\
+	camel-mime-parser.c			\
+	camel-mime-utils.c			\
+	camel-mime-filter.c			\
+	camel-mime-filter-basic.c		\
+	camel-mime-filter-save.c		\
+	camel-mime-filter-charset.c		\
 	$(pthread_SRC)
 
 libcamelinclude_HEADERS =			\
@@ -118,6 +124,12 @@ libcamelinclude_HEADERS =			\
 	md5-utils.h				\
 	string-utils.h				\
 	camel-exception-list.def		\
+	camel-mime-parser.h			\
+	camel-mime-utils.h			\
+	camel-mime-filter.h			\
+	camel-mime-filter-basic.h		\
+	camel-mime-filter-save.h		\
+	camel-mime-filter-charset.h		\
 	$(pthread_HDR)
 
 libcamel_extra_sources =			\

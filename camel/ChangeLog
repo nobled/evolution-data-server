@@ -1,4 +1,28 @@
+2000-04-08  NotZed  <NotZed@HelixCode.com>
+
+	* Makefile.am: Added camel-mime-filter*.[ch].
+
+	* camel-mime-filter-charset.[ch]: A filter to preform character set
+	conversion (uses unicode_iconv).
+
+	* camel-mime-filter-save.[ch]: A simple filter which will save all
+	data directly to a file or file descriptor.
+
+	* camel-mime-filter-basic.[ch]: Implements the basic mime filters,
+	base64 and quoted-printable decoding (encoding not implemented yet).
+
+	* camel-mime-filter.[ch]: A filtering class, which can filter streams
+	of data without having to copy them.  Simpler than stream classes,
+	and can be plugged into a single stream class (when i write it).
+
 2000-04-07  NotZed  <NotZed@HelixCode.com>
+
+	* Makefile.am: Added camel-mime-parser/camel-mime-utils.
+
+	* camel-mime-parser.c: Fast mime parser.
+
+	* camel-mime-utils.c: Mime utility functions, and email header
+	parsers.
 
 	* providers/Makefile.am: Removed smtp for now, its a long way from
 	building.
