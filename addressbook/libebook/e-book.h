@@ -14,8 +14,9 @@
 #include <glib.h>
 #include <glib-object.h>
 
-#include <libedataserver/e-source.h>
 #include <libebook/Evolution-DataServer-Addressbook.h>
+#include <libedataserver/e-source.h>
+#include <libedataserver/e-list.h>
 #include <libebook/e-contact.h>
 #include <libebook/e-book-query.h>
 #include <libebook/e-book-view.h>
@@ -34,6 +35,18 @@ G_BEGIN_DECLS
 typedef struct _EBook        EBook;
 typedef struct _EBookClass   EBookClass;
 typedef struct _EBookPrivate EBookPrivate;
+
+typedef void (*EBookCallback) (EBook *book, EBookStatus status, gpointer closure);
+typedef void (*EBookOpenProgressCallback)     (EBook          *book,
+					       const char     *status_message,
+					       short           percent,
+					       gpointer        closure);
+typedef void (*EBookIdCallback)       (EBook *book, EBookStatus status, const char *id, gpointer closure);
+typedef void (*EBookContactCallback)  (EBook *book, EBookStatus status, EContact *contact, gpointer closure);
+typedef void (*EBookListCallback)     (EBook *book, EBookStatus status, GList *list, gpointer closure);
+typedef void (*EBookBookViewCallback) (EBook *book, EBookStatus status, EBookView *book_view, gpointer closure);
+typedef void (*EBookEListCallback)   (EBook *book, EBookStatus status, EList *list, gpointer closure);
+
 
 struct _EBook {
 	GObject       parent;
@@ -59,33 +72,43 @@ struct _EBookClass {
 };
 
 /* Creating a new addressbook. */
-EBook    *e_book_new                       (void);
+EBook    *e_book_new                       (ESource *source, GError **error);
+EBook    *e_book_new_from_uri              (const char *uri, GError **error);
+EBook    *e_book_new_system_addressbook    (GError **error);
+EBook    *e_book_new_default_addressbook   (GError **error);
 
-/* loading arbitrary addressbooks */
-gboolean e_book_load_source                (EBook       *book,
-					    ESource     *source,
+/* loading addressbooks */
+gboolean e_book_open                       (EBook       *book,
 					    gboolean     only_if_exists,
 					    GError     **error);
 
-gboolean e_book_load_uri                   (EBook       *book,
-					    const char  *uri,
-					    gboolean     only_if_exists,
-					    GError     **error);
+guint    e_book_async_open                 (EBook         *book,
+					    gboolean       only_if_exists,
+					    EBookCallback  open_response,
+					    gpointer       closure);
 
 gboolean e_book_remove                     (EBook       *book,
 					    GError     **error);
-
-/* convenience function for loading the "local" contact folder */
-gboolean e_book_load_local_addressbook     (EBook   *book,
-					    GError **error);
+guint    e_book_async_remove               (EBook   *book,
+					    EBookCallback cb,
+					    gpointer closure);
 
 gboolean e_book_get_supported_fields       (EBook       *book,
 					    GList      **fields,
 					    GError     **error);
 
-gboolean e_book_get_supported_auth_methods (EBook       *book,
-					    GList      **auth_methods,
-					    GError     **error);
+guint    e_book_async_get_supported_fields (EBook              *book,
+					    EBookEListCallback  cb,
+					    gpointer            closure);
+
+gboolean e_book_get_supported_auth_methods       (EBook       *book,
+						  GList      **auth_methods,
+						  GError     **error);
+
+guint    e_book_async_get_supported_auth_methods (EBook              *book,
+						  EBookEListCallback  cb,
+						  gpointer            closure);
+
 
 /* User authentication. */
 gboolean e_book_authenticate_user          (EBook       *book,
@@ -94,30 +117,66 @@ gboolean e_book_authenticate_user          (EBook       *book,
 					    const char  *auth_method,
 					    GError     **error);
 
+guint e_book_async_authenticate_user       (EBook                 *book,
+					    const char            *user,
+					    const char            *passwd,
+					    const char            *auth_method,
+					    EBookCallback         cb,
+					    gpointer              closure);
+
 /* Fetching contacts. */
 gboolean e_book_get_contact                (EBook       *book,
 					    const char  *id,
 					    EContact   **contact,
 					    GError     **error);
 
+guint     e_book_async_get_contact         (EBook                 *book,
+					    const char            *id,
+					    EBookContactCallback   cb,
+					    gpointer               closure);
+
 /* Deleting contacts. */
 gboolean e_book_remove_contact             (EBook       *book,
 					    const char  *id,
 					    GError     **error);
 
+guint    e_book_async_remove_contact       (EBook                 *book,
+					    EContact              *contact,
+					    EBookCallback          cb,
+					    gpointer               closure);
+guint    e_book_async_remove_contact_by_id (EBook                 *book,
+					    const char            *id,
+					    EBookCallback          cb,
+					    gpointer               closure);
+
 gboolean e_book_remove_contacts            (EBook       *book,
 					    GList       *ids,
 					    GError     **error);
 
+guint    e_book_async_remove_contacts      (EBook                 *book,
+					    GList                 *id_list,
+					    EBookCallback          cb,
+					    gpointer               closure);
+
 /* Adding contacts. */
-gboolean e_book_add_contact                (EBook       *book,
-					    EContact    *contact,
-					    GError     **error);
+gboolean e_book_add_contact                (EBook           *book,
+					    EContact        *contact,
+					    GError         **error);
+
+gboolean e_book_async_add_contact          (EBook           *book,
+					    EContact        *contact,
+					    EBookIdCallback  cb,
+					    gpointer         closure);
 
 /* Modifying contacts. */
 gboolean e_book_commit_contact             (EBook       *book,
 					    EContact    *contact,
 					    GError     **error);
+
+guint e_book_async_commit_contact          (EBook                 *book,
+					    EContact              *contact,
+					    EBookCallback          cb,
+					    gpointer               closure);
 
 /* Returns a live view of a query. */
 gboolean e_book_get_book_view              (EBook       *book,
@@ -127,16 +186,34 @@ gboolean e_book_get_book_view              (EBook       *book,
 					    EBookView  **book_view,
 					    GError     **error);
 
+guint e_book_async_get_book_view           (EBook                 *book,
+					    EBookQuery            *query,
+					    GList                 *requested_fields,
+					    int                    max_results,
+					    EBookBookViewCallback  cb,
+					    gpointer               closure);
+
 /* Returns a static snapshot of a query. */
 gboolean e_book_get_contacts               (EBook       *book,
 					    EBookQuery  *query,
 					    GList      **contacts,
 					    GError     **error);
 
+guint     e_book_async_get_contacts        (EBook             *book,
+					    EBookQuery        *query,
+					    EBookListCallback  cb,
+					    gpointer           closure);
+
+/* Needed for syncing */
 gboolean e_book_get_changes                (EBook       *book,
 					    char        *changeid,
 					    GList      **changes,
 					    GError     **error);
+
+guint    e_book_async_get_changes          (EBook             *book,
+					    char              *changeid,
+					    EBookListCallback  cb,
+					    gpointer           closure);
 
 void     e_book_free_change_list           (GList       *change_list);
 
@@ -159,7 +236,6 @@ gboolean    e_book_set_self                (EBook *book, EContact *contact, GErr
 gboolean    e_book_is_self                 (EContact *contact);
 
 /* Addressbook Discovery */
-gboolean    e_book_get_default_addressbook (EBook **book, GError **error);
 gboolean    e_book_set_default_addressbook (EBook  *book, GError **error);
 gboolean    e_book_set_default_source      (ESource *source, GError **error);
 gboolean    e_book_get_addressbooks        (ESourceList** addressbook_sources, GError **error);

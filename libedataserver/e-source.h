@@ -59,6 +59,8 @@ GType    e_source_get_type (void);
 
 ESource *e_source_new                (const char   *name,
 				      const char   *relative_uri);
+ESource *e_source_new_with_absolute_uri(const char   *name,
+					const char   *absolute_uri);
 ESource *e_source_new_from_xml_node  (xmlNodePtr    node);
 ESource *e_source_new_from_standalone_xml (const char *xml);
 
@@ -78,6 +80,8 @@ void  e_source_set_name          (ESource      *source,
 				  const char   *name);
 void  e_source_set_relative_uri  (ESource      *source,
 				  const char   *relative_uri);
+void  e_source_set_absolute_uri  (ESource      *source,
+				  const char   *absolute_uri);
 void  e_source_set_readonly      (ESource      *source,
 				  gboolean      readonly);
 void  e_source_set_color         (ESource      *source,
@@ -88,6 +92,7 @@ ESourceGroup *e_source_peek_group         (ESource *source);
 const char   *e_source_peek_uid           (ESource *source);
 const char   *e_source_peek_name          (ESource *source);
 const char   *e_source_peek_relative_uri  (ESource *source);
+const char   *e_source_peek_absolute_uri  (ESource *source);
 gboolean      e_source_get_readonly       (ESource *source);
 gboolean      e_source_get_color          (ESource *source,
 					   guint32 *color_return);
@@ -106,6 +111,8 @@ void         e_source_set_property     (ESource *source,
 void         e_source_foreach_property (ESource *source,
 					GHFunc func,
 					gpointer data);
+
+char *e_source_build_absolute_uri (ESource *source);
 
 G_END_DECLS
 

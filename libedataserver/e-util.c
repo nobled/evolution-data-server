@@ -28,6 +28,7 @@
 #include <glib/gstrfuncs.h>
 #include <glib/gunicode.h>
 #include <glib/gutils.h>
+#include <glib/galloca.h>
 #include "e-util.h"
 
 int
@@ -105,7 +106,7 @@ e_util_utf8_strstrcase (const gchar *haystack, const gchar *needle)
         if (strlen (needle) == 0) return haystack;
         if (strlen (haystack) == 0) return NULL;
                                                                                 
-        nuni = alloca (sizeof (gunichar) * strlen (needle));
+        nuni = g_alloca (sizeof (gunichar) * strlen (needle));
                                                                                 
         nlen = 0;
         for (p = e_util_unicode_get_utf8 (needle, &unival); p && unival; p = e_util_unicode_get_utf8 (p, &unival)) {
@@ -1501,7 +1502,7 @@ e_util_utf8_strstrcasedecomp (const gchar *haystack, const gchar *needle)
         if (strlen (needle) == 0) return haystack;
         if (strlen (haystack) == 0) return NULL;
                                                                                 
-        nuni = alloca (sizeof (gunichar) * strlen (needle));
+        nuni = g_alloca (sizeof (gunichar) * strlen (needle));
                                                                                 
         nlen = 0;
         for (p = e_util_unicode_get_utf8 (needle, &unival); p && unival; p = e_util_unicode_get_utf8 (p, &unival)) {

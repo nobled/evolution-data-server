@@ -63,6 +63,9 @@ struct _ECalBackendHttpPrivate {
 	/* Reload */
 	guint reload_timeout_id;
 	guint is_loading : 1;
+
+	/* Flags */
+	gboolean opened;
 };
 
 
@@ -190,6 +193,18 @@ webcal_to_http_method (const gchar *webcal_str)
 	return g_strconcat ("http://", webcal_str + sizeof ("webcal://") - 1, NULL);
 }
 
+static gboolean
+notify_and_remove_from_cache (gpointer key, gpointer value, gpointer user_data)
+{
+	const char *uid = key;
+	const char *calobj = value;
+	ECalBackendHttp *cbhttp = E_CAL_BACKEND_HTTP (user_data);
+
+	e_cal_backend_notify_object_removed (E_CAL_BACKEND (cbhttp), uid, calobj);
+
+	return TRUE;
+}
+
 static void
 retrieval_done (SoupMessage *msg, ECalBackendHttp *cbhttp)
 {
@@ -198,6 +213,8 @@ retrieval_done (SoupMessage *msg, ECalBackendHttp *cbhttp)
 	icalcomponent_kind kind;
 	const char *newuri;
 	char *str;
+	GHashTable *old_cache;
+	GList *comps_in_cache;
 
 	priv = cbhttp->priv;
 
@@ -217,8 +234,10 @@ retrieval_done (SoupMessage *msg, ECalBackendHttp *cbhttp)
 			priv->uri = webcal_to_http_method (newuri);
 			begin_retrieval_cb (cbhttp);
 		} else {
-			e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp),
-						    _("Redirected to Invalid URI"));
+			if (!priv->opened) {
+				e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp),
+							    _("Redirected to Invalid URI"));
+			}
 		}
 
 		return;
@@ -226,8 +245,10 @@ retrieval_done (SoupMessage *msg, ECalBackendHttp *cbhttp)
 
 	/* check status code */
 	if (!SOUP_STATUS_IS_SUCCESSFUL (msg->status_code)) {
-		e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp),
-					    soup_status_get_phrase (msg->status_code));
+		if (!priv->opened) {
+			e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp),
+						    soup_status_get_phrase (msg->status_code));
+		}
 		return;
 	}
 
@@ -238,33 +259,76 @@ retrieval_done (SoupMessage *msg, ECalBackendHttp *cbhttp)
 	g_free (str);
 
 	if (!icalcomp) {
-		e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp), _("Bad file format."));
+		if (!priv->opened)
+			e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp), _("Bad file format."));
 		return;
 	}
 
 	if (icalcomponent_isa (icalcomp) != ICAL_VCALENDAR_COMPONENT) {
-		e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp), _("Not a calendar."));
+		if (!priv->opened)
+			e_cal_backend_notify_error (E_CAL_BACKEND (cbhttp), _("Not a calendar."));
 		icalcomponent_free (icalcomp);
 		return;
 	}
 
 	/* Update cache */
+	old_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+
+	comps_in_cache = e_cal_backend_cache_get_components (priv->cache);
+	while (comps_in_cache != NULL) {
+		const char *uid;
+		ECalComponent *comp = comps_in_cache->data;
+
+		e_cal_component_get_uid (comp, &uid);
+		g_hash_table_insert (old_cache, g_strdup (uid), e_cal_component_get_as_string (comp));
+
+		comps_in_cache = g_list_remove (comps_in_cache, comps_in_cache->data);
+		g_object_unref (comp);
+	}
+
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbhttp));
-	subcomp = icalcomponent_get_first_component (icalcomp, kind);
+	subcomp = icalcomponent_get_first_component (icalcomp, ICAL_ANY_COMPONENT);
 	while (subcomp) {
 		ECalComponent *comp;
+		icalcomponent_kind subcomp_kind;
 
-		comp = e_cal_component_new ();
-		if (e_cal_component_set_icalcomponent (comp, subcomp)) {
-			e_cal_backend_cache_put_component (priv->cache, comp);
-			e_cal_backend_notify_object_created (E_CAL_BACKEND (cbhttp),
-							     icalcomponent_as_ical_string (subcomp));
+		subcomp_kind = icalcomponent_isa (subcomp);
+		if (subcomp_kind == kind) {
+			comp = e_cal_component_new ();
+			if (e_cal_component_set_icalcomponent (comp, subcomp)) {
+				const char *uid, *orig_key, *orig_value;
+
+				e_cal_backend_cache_put_component (priv->cache, comp);
+
+				e_cal_component_get_uid (comp, &uid);
+				if (g_hash_table_lookup_extended (old_cache, uid, &orig_key, &orig_value)) {
+					e_cal_backend_notify_object_modified (E_CAL_BACKEND (cbhttp),
+									      orig_value,
+									      icalcomponent_as_ical_string (subcomp));
+					g_hash_table_remove (old_cache, uid);
+				} else {
+					e_cal_backend_notify_object_created (E_CAL_BACKEND (cbhttp),
+									     icalcomponent_as_ical_string (subcomp));
+				}
+			}
+
+			g_object_unref (comp);
+		} else if (subcomp_kind == ICAL_VTIMEZONE_COMPONENT) {
+			icaltimezone *zone;
+
+			zone = icaltimezone_new ();
+			icaltimezone_set_component (zone, subcomp);
+			e_cal_backend_cache_put_timezone (priv->cache, (const icaltimezone *) zone);
+
+			icaltimezone_free (zone, 1);
 		}
-
-		g_object_unref (comp);
 
 		subcomp = icalcomponent_get_next_component (icalcomp, kind);
 	}
+
+	/* notify the removals */
+	g_hash_table_foreach_remove (old_cache, (GHRFunc) notify_and_remove_from_cache, cbhttp);
+	g_hash_table_destroy (old_cache);
 
 	/* free memory */
 	icalcomponent_free (icalcomp);
@@ -327,6 +391,7 @@ reload_cb (ECalBackendHttp *cbhttp)
 	d(g_message ("Reload!\n"));
 
 	priv->reload_timeout_id = 0;
+	priv->opened = TRUE;
 	begin_retrieval_cb (cbhttp);
 	return FALSE;
 }
@@ -812,6 +877,7 @@ e_cal_backend_http_init (ECalBackendHttp *cbhttp, ECalBackendHttpClass *class)
 
 	priv->uri = NULL;
 	priv->reload_timeout_id = 0;
+	priv->opened = FALSE;
 }
 
 /* Class initialization function for the file backend */

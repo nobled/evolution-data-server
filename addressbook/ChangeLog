@@ -1,3 +1,1001 @@
+2004-10-14  Rodney Dawes  <dobey@novell.com>
+
+	* backends/*/Makefile.am: Add -avoid-version to LDFLAGS for all
+	of the backends
+	
+2004-10-13 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backend/groupwise/e-book-backend-groupwise.c (
+	e_book_backend_groupwise_create_contact) 
+	(e_book_backend_groupwise_get_contact_list)
+	(book_view_thread) (e_book_backend_groupwise_authenticate_user)
+	: call the e_gw_connection_* api again if the retuned status 
+	code is E_GW_CONNECTION_STATUS_INVALID_CONNECTION. Part of the fix 
+	for #64298 
+
+2004-10-04  Chris Toshok  <toshok@ximian.com>
+
+	* backends/groupwise/e-book-backend-groupwise-factory.c: use the new
+	E_BOOK_BACKEND_FACTORY_SIMPLE macro.
+
+	* backends/groupwise/e-book-backend-groupwise-factory.h: nuke
+	
+	* backends/groupwise/Makegroupwise.am (libebookbackendgroupwise_la_SOURCES):
+	remove e-book-backend-groupwise-factory.h.
+
+	* backends/ldap/e-book-backend-ldap-factory.c: use the new
+	E_BOOK_BACKEND_FACTORY_SIMPLE macro.
+
+	* backends/ldap/e-book-backend-ldap-factory.h: nuke
+	
+	* backends/ldap/Makeldap.am (libebookbackendldap_la_SOURCES):
+	remove e-book-backend-ldap-factory.h.
+	
+	* backends/vcf/e-book-backend-vcf-factory.c: use the new
+	E_BOOK_BACKEND_FACTORY_SIMPLE macro.
+
+	* backends/vcf/e-book-backend-vcf-factory.h: nuke
+	
+	* backends/vcf/Makevcf.am (libebookbackendvcf_la_SOURCES):
+	remove e-book-backend-vcf-factory.h.
+
+	
+	* backends/file/e-book-backend-file-factory.c: use the new
+	E_BOOK_BACKEND_FACTORY_SIMPLE macro.
+
+	* backends/file/e-book-backend-file-factory.h: nuke
+	
+	* backends/file/Makefile.am (libebookbackendfile_la_SOURCES):
+	remove e-book-backend-file-factory.h.
+
+	* libedata-book/e-book-backend-factory.h: add a macro for all the
+	factory boilerplate.
+
+2004-10-04  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise-ebook-backend-groupwise.c :
+	(e_book_backend_groupwise_build_gw_filter) : add an argument 
+	to get the search string present in query
+	(book_view_thread) : create a gw filter with just firstName
+	and lastNmae in case of system address book. This is to simplify the
+	auto completion query. Server team believes that this improves scalability limit 
+	(e_book_backend_groupwise_get_contact_list) : pass NULL to 
+	extra arument added to e_book_backend_groupwise_build_gw_filter
+	. We do't need top get back serch string here 
+ 
+
+
+2004-09-30  Hans Petter Jansson  <hpj@ximian.com>
+
+	Fixes bug #66368.
+
+	* libebook/e-contact.c (e_contact_new_from_vcard): If the constructed
+	vcard does not have a file_as attribute, try to generate one.
+
+2004-09-30  Chris Toshok  <toshok@ximian.com>
+
+	* libedata-book/e-data-book-factory.c
+	(e_data_book_factory_register_backend): this function takes an
+	EBookBackendFactory* now, instead of an EBookBackendFactoryFn.
+	(e_data_book_factory_register_backends): new function.  Get the
+	extensions that implement E_TYPE_BOOK_BACKEND_FACTORY, and
+	register them.
+	(e_data_book_factory_lookup_backend_factory): use an
+	EBookBackendFactory instead of EBookBackendFactoryFn.
+	(impl_GNOME_Evolution_Addressbook_BookFactory_getBook): change to
+	match the EBookBackendFactoryFn -> EBookBackendFactory switch.
+
+	* libedata-book/e-book-backend.h: remove typedef for
+	EBookBackendFactoryFn.
+
+	* libedata-book/e-book-backend-sync.h: remove typedef for
+	EBookBackendSyncFactoryFn, since it wasn't ever used (and even the
+	non-sync version is obsolete now.)
+
+	* libedata-book/e-book-backend-factory.[ch]: new file, superclass
+	for all dynamically loaded addressbook factories.
+
+	* libedata-book/Makefile.am (libedata_book_la_SOURCES): add
+	e-book-backend-factory.c
+	(libedata_bookinclude_HEADERS): add e-book-backend-factory.h
+
+	* libebook/e-book.c (activate_factories_for_uri): don't look for
+	factories based on the supported_protocol property, since we can't
+	use those anymore with dynamically loaded backends.
+
+	* backends/file/e-book-backend-file-factory.[ch]: new files,
+	subclass EBookBackendFactory.
+
+	* backends/file/Makefile.am (extension_LTLIBRARIES):
+	libebookbackendfile.la is no longer noinst.
+	(libebookbackendfile_la_SOURCES): add
+	e-book-backend-file-factory.[ch].
+
+	* backends/groupwise/e-book-backend-groupwise-factory.[ch]: new
+	files, subclass EBookBackendFactory.
+	
+	* backends/groupwise/Makefile.am (extension_LTLIBRARIES):
+	libebookbackendgroupwise.la is no longer noinst.
+	(libebookbackendfile_la_SOURCES): add
+	e-book-backend-groupwise-factory.[ch].
+
+	* backends/ldap/e-book-backend-ldap-factory.[ch]: new files,
+	subclass EBookBackendFactory.
+	
+	* backends/ldap/Makefile.am (extension_LTLIBRARIES):
+	libebookbackendldap.la is no longer noinst.
+	(libebookbackendfile_la_SOURCES): add
+	e-book-backend-ldap-factory.[ch].
+
+	* backends/vcf/e-book-backend-vcf-factory.[ch]: new files,
+	subclass EBookBackendFactory.
+	
+	* backends/vcf/Makefile.am (extension_LTLIBRARIES):
+	libebookbackendvcf.la is no longer noinst.
+	(libebookbackendfile_la_SOURCES): add
+	e-book-backend-vcf-factory.[ch].
+	
+2004-09-23  Diego Gonzalez  <diego@pemas.net>
+
+	Fixes #66574.
+
+	* libebook/e-book.c (e_book_get_self): open the book before
+	getting the contact.
+
+2004-09-23  JP Rosevear  <jpr@novell.com>
+
+	* libebook/Makefile.am: build a versioned lib, don't hard
+	code the pkgconfig version
+
+	* libedata-book/Makefile.am: ditto
+	
+	* backends/file/Makefile.am: link against the correct library
+	version
+	
+	* backends/groupwise/Makefile.am: ditto
+
+	* backends/vcf/Makefile.am: ditto
+
+	* backends/ldap/Makefile.am: ditto
+
+	* tests/vcard/Makefile.am: ditto
+
+	* tests/ebook/Makefile.am: ditto
+	
+2004-09-22  William Jon McCann  <mccann@jhu.edu>
+
+	* libebook/e-book.c (emit_async_open_response)
+	(e_book_response_open): 
+	* libebook/e-book-view-listener.c (d): Disable debugging noise.
+
+2004-09-16 Sivaiah Nallagatla  <snallagatla@novell.com>
+
+	* backends/gropwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_get_contact_list) :
+	don't try to search over summary in case of system addr book
+	as we don't maintain one. 
+
+2004-09-13  Hans Petter Jansson  <hpj@ximian.com>
+
+	* backends/ldap/e-book-backend-ldap.c: Revert the LDAP attribute names
+	changed by Sivaiah's last commit.
+
+2004-09-09  Hans Petter Jansson  <hpj@ximian.com>
+
+	Fixes #63385.
+
+	* libebook/e-book.c (fetch_corba_book): Use g_signal_connect_object ()
+	to connect to the listener, so we won't be destroyed in another thread
+	while processing signals from it.
+	(e_book_dispose): Only disconnect the listener signal if it hasn't
+	already been done by GLib. Bug compatibility.
+
+2004-09-06  Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* backends/ldap/e-book-backend-ldap.c : Update 
+	the ldap attribute names for calendar ui and free busy uri
+	fileds to match with what is present in evolutionPerson.schema
+	(add_to_supported_fields) : add E_CONTACT_EMAIL_1 also to list of supported fields.
+	Also use e_contact_field_name function instead of hardcodring field names
+        (anniversary_populate) : correct incorrect contact date
+	parameter passing. Also free the contact date
+
+	Fixes some of the issues mentioned in #59582 	
+	
+2004-08-26  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(e_book_backend_groupwise_authenitcate_user) : don' try 
+	to get container id and categories if we have already authenitcated
+        Fixes #63844
+
+	
+2004-08-25  Frederic Crozat  <fcrozat@mandrakesoft.com>
+
+	* tests/ebook/test-photo.c:
+	Add missing prototype.
+
+2004-08-23  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(e_book_backend_groupwise_get_contact_list)
+	(book_view_thread)
+	(set_members_in_gw_item) : add "members" view 
+	while getting items explicitly to take care of change in server 
+	behaviour 
+        (e_book_backnd_groupwise_start_book_view) : make the thread 
+	non-joinable 
+	(e_book_backend_groupwise_stop_book_view) : don;'t try to join
+	the thread as it is acusing gui blokcing when server response is slow	
+	
+2004-08-20  Chris Toshok  <toshok@ximian.com>
+
+	* backends/ldap/e-book-backend-ldap.c
+	(e_book_backend_ldap_dispose): free bl->priv->schema_dn.
+
+2004-08-20  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backend/groupwise/e-book-backend-groupwise.c (populate_full_name) :
+	ignore the name prefix returned by server as it is reurning incorrect values
+	see #63225 
+
+2004-08-19  Chris Toshok  <toshok@ximian.com>
+
+	[ part of fix for #60889 ]
+	* backends/file/e-book-backend-file.c
+	(e_book_backend_file_load_source): add DB_THREAD flag to all calls
+	to db->open.
+	(string_to_dbt): set dbt->flags to DB_DBT_USERMEM.
+	(e_book_backend_file_modify_contact): set dbt->flags to
+	DB_DBT_MALLOC and free the dbt's data when we're done.
+	(e_book_backend_file_get_contact): same.
+	(book_view_thread): same.
+	(e_book_backend_file_changes_foreach_key): same.
+	(e_book_backend_file_maybe_upgrade_db): same.
+	
+2004-08-17  Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* backends/groupwise/e-book-backend-groupwise.c (func_begins_with):
+	do a OR operation insted of assinging BEGINS_WITH_FILE_AS
+
+2004-08-17  Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* backends/groupwise/e-book-backend-groupwise.c (book_view_thread) :
+	don't update the view with contact when id is not present. Send the 
+	"name email" view to server when the query is for auto-completion
+	don't try to search on system address book with out filter
+	(e_book_backend_groupwise_build_gw_filter) : add an extra argument to know 
+	whether the query is auto-completion one or not 
+	(e_book_backend_groupwise_get_contact_list) : call the updated build_gw_filter 
+	method
+	(e_book_backend_groupwise_remove) : return error when 
+	there is an attempt to remove System adddress book
+	(e_book_backend_groupwise_get_supported_auth_methods ) : return plain/password 
+	
+2004-08-16  Chris Toshok  <toshok@ximian.com>
+
+	* backends/vcf/e-book-backend-vcf.c: keep both a hash table and a
+	GList around for the contacts.
+	(insert_contact): insert the contact into the GList and insert the
+	GList* into the hashtable.
+	(save_file): just use the GList directly instead of building it up
+	from the hash table.
+	(do_create): call insert_contact instead of directly inserting
+	into the hash table.
+	(e_book_backend_vcf_remove_contacts): remove the contact from both
+	the hashtable and the list.
+	(e_book_backend_vcf_modify_contact): just update the GList.
+	(e_book_backend_vcf_get_contact): the hashtable contains GList*'s.
+	(foreach_get_contact_compare): this is a GFunc now, not a GHFunc.
+	(e_book_backend_vcf_get_contact_list): iterate over the list, not
+	the hashtable.
+	(foreach_search_compare): nuke.
+	(book_view_thread): do the iteration here, and break out properly
+	when the search is stopped.
+	(e_book_backend_vcf_load_source): use g_hash_table_new instead of
+	_new_full here.
+	(e_book_backend_vcf_dispose): destroy the list and free the hash
+	keys.
+
+2004-08-13  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(populate_birth_date), (populate_full_name),
+	(set_emails_in_gw_item) : patch
+	from Vincent Noel (vnoel@cox.net) to fix
+	#62597 
+	
+2004-08-12  Sivaiah Nallagatla <snallagatla@novell.com>
+
+        * backends/ldap/e-book-backend-ldap.c
+        (e_book_backend_ldap_get_static_capabilities) : add "anon-access"
+        static capability
+
+2004-08-09  Chris Toshok  <toshok@ximian.com>
+
+	* tests/vcard/README (Test): add note about 11.vcf.
+
+2004-08-03  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #61719 ]
+	* libebook/e-vcard.c (read_attribute_params): fix the one
+	remaining g_assert_not_reached case.
+
+2004-08-03  Chris Toshok  <toshok@ximian.com>
+
+	* tests/vcard/Makefile.am (EXTRA_DIST): add 11.vcf.
+
+	* tests/vcard/11.vcf: new test, for missing attribute parameters.
+
+2004-07-23  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_load_source) : read the "use_ssl"
+	property from ESource and form the uri accrodingly
+	(e_book_backend_groupwise_authenticate_user) : when "use_ssl" is
+	"when-posible", try with https first and then http if that fails.
+	(e_book_backend_groupwise_init) (e_book_backend_groupwise_dispose) :
+	initialize and free the newly added priv member use_ssl
+
+2004-07-19  Hans Petter Jansson  <hpj@ximian.com>
+
+	Really fixes #61052, #61466, #61160. Tested.
+
+	* libebook/e-book.c (e_book_op_remove): Don't lock the book's
+	mutex here, for symmetry with e_book_new_op ().
+	(do_add_contact): Lock book around op removal.
+	(do_commit_contact): Ditto.
+	(do_get_supported_fields): Ditto.
+	(do_get_supported_auth_methods): Ditto.
+	(do_authenticate_user): Ditto.
+	(do_get_contact): Ditto.
+	(do_get_contacts): Ditto.
+	(do_get_changes): Ditto.
+	(do_open): Ditto.
+	(do_remove): Ditto.
+	(emit_async_add_contact_response): Widen the scope of the
+	book's lock.
+	(emit_async_elist_response): Ditto.
+	(emit_async_get_contact_response): Ditto.
+	(emit_async_get_book_view_response): Ditto.
+	(emit_async_get_contacts_response): Ditto.
+	(emit_async_get_changes_response): Ditto.
+	(emit_async_generic_response): Ditto.
+	(emit_async_open_response): Ditto.
+	(e_book_response_add_contact): Lock book around op manipulation,
+	widen scope.
+	(e_book_response_get_supported_fields): Ditto.
+	(e_book_response_get_supported_auth_methods): Ditto.
+	(e_book_response_get_contact): Ditto.
+	(e_book_response_get_book_view): Ditto.
+	(e_book_response_get_contacts): Ditto.
+	(e_book_response_get_changes): Ditto.
+	(e_book_response_generic): Ditto.
+	(e_book_response_open): Ditto.
+	(e_book_response_remove): Ditto.
+
+2004-07-19  Sivaiah Nallagatla <snallagatla@novell.com> 
+	
+	* libedata-book/e-book-backend-sexp.c (compare_address) : provided
+	implementation, search in all fileds of all types of addresses 
+	till a match occurs
+	Fixes #58701
+  
+2004-07-16  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #61052 ]
+	
+	* libebook/e-book.c (e_book_op_remove): lock the book's mutex
+	around operations on the id_to_op hashtable, as is done in all
+	other e_book_* functions.
+	(emit_async_add_contact_response): lock the book's mutex around
+	operations on the pending_idle list.
+	(e_book_response_add_contact): same.
+	(emit_async_elist_response): same.
+	(e_book_response_get_supported_fields): same.
+	(e_book_response_get_supported_auth_methods): same.
+	(emit_async_get_contact_response): same.
+	(e_book_response_get_contact): same.
+	(emit_async_get_book_view_response): same.
+	(e_book_response_get_book_view): same.
+	(emit_async_get_contacts_response): same.
+	(e_book_response_get_contacts): same.
+	(emit_async_get_changes_response): same.
+	(e_book_response_get_changes): same.
+	(emit_async_generic_response): same.
+	(e_book_response_generic): same.
+	(emit_async_open_response): same.
+	(e_book_response_open): same.
+	(e_book_response_remove): same.
+	
+2004-07-14  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-book.c (e_book_idle_writable): simplify this a bit,
+	since we don't need to pass the writable state in a closure - we
+	can just get it from the book.  also wrap stuff up in a mutex
+	since we can get multiple report_writable calls from a backend.
+	(e_book_handle_response): make sure we only have 1 idle call at a
+	time going, and simplify the closure passing to be just the EBook.
+	same with the mutex juju.
+	(e_book_dispose): remove the writable idle callback if there is
+	one registered.
+
+2004-07-13  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-book.c (e_book_get_self): only propagate the GError
+	if @error != NULL.  Fixes some console warnings.
+	(e_book_set_default_source): same.
+	(e_book_new_system_addressbook): same.
+	(e_book_new_default_addressbook): same.
+
+2004-07-13  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #58639 ]
+	
+	* libebook/e-book-listener.c (impl_BookListener_respond_get_view):
+	no need to wrap the g_signal_emit with dup_ref/release_unref.  the
+	construct for EBookView does a dup_ref of its own.
+
+	* libedata-book/e-data-book-view.c
+	(e_data_book_view_notify_update): don't call
+	e_data_book_view_notify_remove when the pending_mutex is already
+	called.  call notify_remove directly.
+	
+2004-07-09  Chris Toshok  <toshok@ximian.com>
+
+	[ part of fix for #56520 ]
+	
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_get_static_capabilities): add
+	"contact-lists".
+
+	* backends/vcf/e-book-backend-vcf.c
+	(e_book_backend_vcf_get_static_capabilities): add "contact-lists".
+
+	* backends/file/e-book-backend-file.c
+	(e_book_backend_file_get_static_capabilities): add
+	"contact-lists".
+
+2004-07-03  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(book_view_thread) : fix the problem
+	of returning from the fucntion without singalling the
+	parent thread when cnc is null. A probable fix for #60947
+	Also send the query to server when summary is not present
+	(build_summary), (update_summary) : set priv->is_summary_ready 
+	to TRUE when summary loading is done  
+	 
+2004-06-26  Chris Toshok  <toshok@ximian.com>
+
+	* backends/ldap/e-book-backend-ldap.c (get_ldap_library_info): use
+	ldap_unbind_ext_s.
+	(e_book_backend_ldap_connect): same.
+	(e_book_backend_ldap_dispose): unbind our LDAP* when we're shut
+	down.
+
+	* libedata-book/e-data-book-view.h: add prototype for
+	e_data_book_view_set_thresholds.
+
+2004-06-24  Hans Petter Jansson  <hpj@ximian.com>
+
+	See bug #51127.
+
+	* backends/vcf/e-book-backend-vcf.c (e_book_backend_vcf_load_source):
+	Don't add a default vcard to new books.
+
+	* backends/file/e-book-backend-file.c
+	(e_book_backend_file_load_source): Don't add default vcard to new
+	books.
+
+2004-06-23  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-book.c (e_book_response_add_contact): ref in the
+	assignment.
+	(e_book_response_get_supported_fields): same.
+	(e_book_response_get_supported_auth_methods): same.
+	(emit_async_get_contact_response): unref the book before
+	returning.
+	(e_book_response_get_contact): ref the book in the assignment.
+	(emit_async_get_book_view_response): unref the book before
+	returning.
+	(e_book_response_get_book_view): ref the book in the assignment.
+	(e_book_response_get_contacts): same.
+	(emit_async_get_changes_response): unref the book before
+	returning.
+	(e_book_response_get_changes): ref the book in the assignment.
+	(emit_async_generic_response): we ref before registering the idle
+	handler.
+	(e_book_response_generic): ref the book in the assignment.
+	(emit_async_open_response): unref the book before returning
+	(e_book_response_open): ref the book in the assignment.
+	(e_book_response_remove): same.
+
+2004-06-23  Hans Petter Jansson  <hpj@ximan.com>
+
+	* libebook/e-book.c (emit_async_generic_response): Keep a ref on
+	the book while we're accessing it, since the callback might unref
+	it to zero, causing a crash.
+
+2004-06-22  Chris Toshok  <toshok@ximian.com>
+
+	* libedata-book/e-data-book-view.c
+	(e_data_book_view_set_thresholds): allow consumers of
+	EDataBookView to control the thresholds used in aggregating
+	contacts before sending them to the gui.  allows us to implement
+	the different thresholds that were used in the 1.4.x ldap and file
+	backends.
+
+	* libedata-book/e-data-book-view.h: add prototype for
+	e_data_book_view_set_thresholds.
+
+2004-06-21  Chris Toshok  <toshok@ximian.com>
+
+	* backends/ldap/e-book-backend-ldap.c
+	(e_book_backend_ldap_search): clamp the search result limit to the
+	ldap backend's limit.
+
+2004-06-21  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-contact.c (e_contact_get_const): reorder some stuff
+	so we only generate 1 free per string on object destruction.
+
+2004-06-21  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-contact.c (e_contact_get_const): cache the most
+	recently fetched const pointer so we can hand it out more than
+	once (unless there's an intervening _set).  Should substantially
+	lessen the number of allocations we do because of this function.
+	(e_contact_set): clear the cached slot for this field, so we'll
+	allocate/return a new const string from e_contact_get_const.
+
+2004-06-18  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #59978 ]
+	
+	* backends/ldap/e-book-backend-ldap.c (photo_ber): implement
+	(photo_compare): same.
+	(prop_info): set add ber/compare functions for E_CONTACT_PHOTO.
+
+2004-06-18  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-book.c (e_book_new_system_addressbook): "oops".
+
+2004-06-18  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #57628 ]
+	
+	* libebook/e-book.c (e_book_new_system_addressbook): use the
+	new_default_addressbook model, and search for a property on
+	sources (system=true).  If we find one, use that source, otherwise
+	default to ~/.evolution/local/system.
+
+2004-06-17  Chris Toshok  <toshok@ximian.com>
+
+	* tests/ebook/test-ebook-async.c: down with e-book-async.h, up
+	with e-book.h.
+
+	* libedata-book/e-data-book.h: add @opid args to all the
+	e_data_book_respond* functions.
+
+	* libedata-book/e-data-book.c
+	(impl_GNOME_Evolution_Addressbook_Book_open): add @opid arg and
+	pass it on.
+	(impl_GNOME_Evolution_Addressbook_Book_remove): same.
+	(impl_GNOME_Evolution_Addressbook_Book_getContact): same.
+	(impl_GNOME_Evolution_Addressbook_Book_getContactList): same.
+	(impl_GNOME_Evolution_Addressbook_Book_authenticateUser): same.
+	(impl_GNOME_Evolution_Addressbook_Book_addContact): same.
+	(impl_GNOME_Evolution_Addressbook_Book_removeContacts): same.
+	(impl_GNOME_Evolution_Addressbook_Book_modifyContact): same.
+	(impl_GNOME_Evolution_Addressbook_Book_getBookView): same.
+	(impl_GNOME_Evolution_Addressbook_Book_getChanges): same.
+	(impl_GNOME_Evolution_Addressbook_Book_getSupportedFields): same.
+	(impl_GNOME_Evolution_Addressbook_Book_getSupportedAuthMethods): same.
+	(e_data_book_respond_open): same.
+	(e_data_book_respond_remove): same.
+	(e_data_book_respond_create): same.
+	(e_data_book_respond_remove_contacts): same.
+	(e_data_book_respond_modify): same.
+	(e_data_book_respond_authenticate_user): same.
+	(e_data_book_respond_get_supported_fields): same.
+	(e_data_book_respond_get_supported_auth_methods): same.
+	(e_data_book_respond_get_book_view): same.
+	(e_data_book_respond_get_contact): same.
+	(e_data_book_respond_get_contact_list): same.
+	(e_data_book_respond_get_changes): same.
+
+	* libedata-book/e-book-backend.h: add @opid args everywhere.
+
+	* libedata-book/e-book-backend.c (e_book_backend_open): add @opid
+	arg, and pass it along to the backend subclass, as well as all
+	calls to e_data_book_respond_*.
+	(e_book_backend_remove): same.
+	(e_book_backend_create_contact): same.
+	(e_book_backend_remove_contacts): same.
+	(e_book_backend_modify_contact): same.
+	(e_book_backend_get_contact): same.
+	(e_book_backend_get_contact_list): same.
+	(e_book_backend_start_book_view): same.
+	(e_book_backend_stop_book_view): same.
+	(e_book_backend_get_changes): same.
+	(e_book_backend_authenticate_user): same.
+	(e_book_backend_get_supported_fields): same.
+	(e_book_backend_get_supported_auth_methods): same.
+
+	* libedata-book/e-book-backend-sync.h: add @opid args everywhere.
+
+	* libedata-book/e-book-backend-sync.c
+	(e_book_backend_sync_create_contact): add @opid arg and pass it
+	along to subclass.
+	(e_book_backend_sync_remove): same.
+	(e_book_backend_sync_remove_contacts): same.
+	(e_book_backend_sync_modify_contact): same.
+	(e_book_backend_sync_get_contact): same.
+	(e_book_backend_sync_get_contact_list): same.
+	(e_book_backend_sync_get_changes): same.
+	(e_book_backend_sync_authenticate_user): same.
+	(e_book_backend_sync_get_supported_fields): same.
+	(e_book_backend_sync_get_supported_auth_methods): same.
+	(_e_book_backend_remove): same.
+	(_e_book_backend_create_contact): same.
+	(_e_book_backend_remove_contacts): same.
+	(_e_book_backend_modify_contact): same.
+	(_e_book_backend_get_contact): same.
+	(_e_book_backend_get_contact_list): same.
+	(_e_book_backend_get_changes): same.
+	(_e_book_backend_authenticate_user): same.
+	(_e_book_backend_get_supported_fields): same.
+	(_e_book_backend_get_supported_auth_methods): same.
+
+	* libebook/e-book.c (struct EBookOp): augment this structure with
+	enough info to handle the asynchronous operations.
+	(struct _EBookPrivate): remove the current_op pointer and add a
+	hashtable mapping ids to ops.  The current sync op is always id 0.
+	(e_book_new_op): add @sync arg.
+	(e_book_get_op): add @opid arg, and look up the op in the
+	hashtable.
+	(e_book_get_current_sync_op): convenience function to lookup the
+	current sync op.
+	(e_book_op_remove): remove the op from the hashtable.
+	(do_add_contact): split out all the code from e_book_add_contact
+	here, and make it handle both synchronous and async calling
+	sequences.
+	(e_book_add_contact): call do_add_contact.
+	(e_book_async_add_contact): same.
+	(e_book_response_add_contact): handle both sync/async ops.  sync =
+	notify on our cvar and return.  async = add idle handler that will
+	call the op's callback.
+	(emit_async_add_contact_response): idle handler for adding
+	contacts asynchronously.
+	(do_commit_contact): same pattern as above...
+	(do_get_supported_fields): same.
+	(do_get_supported_auth_methods): same.
+	(do_authenticate_user): same.
+	(do_get_contact): same.
+	(do_remove_contacts): same.
+	(do_get_book_view): same.
+	(do_get_contacts): same.
+	(do_get_changes): same.
+	(do_open): same.
+	(do_remove): same.
+
+	* libebook/e-book.h: move all the async api foo here.
+
+	* libebook/e-book-listener.h (struct _EBookListenerResponse): add
+	opid slot.
+
+	* libebook/e-book-listener.c
+	(impl_BookListener_respond_create_contact): add @opid arg and add
+	it to the response struct.
+	(impl_BookListener_respond_remove_contacts): same.
+	(impl_BookListener_respond_modify_contact): same.
+	(impl_BookListener_respond_get_contact): same.
+	(impl_BookListener_respond_get_contact_list): same.
+	(impl_BookListener_respond_get_view): same.
+	(impl_BookListener_respond_get_changes): same
+	(impl_BookListener_respond_open_book): same.
+	(impl_BookListener_respond_remove_book): same.
+	(impl_BookListener_respond_authentication_result): same.
+	(impl_BookListener_respond_get_supported_fields): same.
+	(impl_BookListener_respond_get_supported_auth_methods): same.
+
+	* libebook/Makefile.am (libebook_la_SOURCES): remove
+	e-book-async.c
+	(libebookinclude_HEADERS): remove e-book-async.h
+
+	* idl/Evolution-DataServer-Addressbook.idl: add opid args to all
+	the oneway void Book methods, and to all the responses in
+	BookListener.
+
+	* backends/vcf/e-book-backend-vcf.c
+	(e_book_backend_vcf_create_contact)
+	(e_book_backend_vcf_remove_contacts)
+	(e_book_backend_vcf_modify_contact)
+	(e_book_backend_vcf_get_contact)
+	(e_book_backend_vcf_get_contact_list)
+	(e_book_backend_vcf_authenticate_user)
+	(e_book_backend_vcf_get_supported_fields): add @opid arg.
+	(init_closure): make this more like the file:// backend.
+	(closure_destroy): free the cvar.
+	(book_view_thread): move the search code into another thread.
+	(e_book_backend_vcf_start_book_view): steal this from the file
+	backend.
+	(e_book_backend_vcf_stop_book_view): same.
+
+	* backends/ldap/e-book-backend-ldap.c (struct LDAPOp): add opid.
+	(ldap_op_add): add @opid arg.
+	(create_contact_handler): use op->opid in calls to
+	e_data_book_respond_*.
+	(e_book_backend_ldap_create_contact): same.
+	(remove_contact_handler): same.
+	(e_book_backend_ldap_remove_contacts): same.
+	(modify_contact_modify_handler): same.
+	(modify_contact_search_handler): same.
+	(e_book_backend_ldap_modify_contact): same.
+	(get_contact_handler): same.
+	(e_book_backend_ldap_get_contact): same.
+	(contact_list_handler): same.
+	(e_book_backend_ldap_get_contact_list): same.
+	(e_book_backend_ldap_authenticate_user): same.
+	(e_book_backend_ldap_get_supported_fields): same.
+	(e_book_backend_ldap_get_supported_auth_methods): same.
+	(e_book_backend_ldap_get_changes): add @opid arg.
+	(e_book_backend_ldap_remove): same.
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_create_contact)
+	(e_book_backend_groupwise_remove_contacts)
+	(e_book_backend_groupwise_modify_contact)
+	(e_book_backend_groupwise_get_contact)
+	(e_book_backend_groupwise_get_contact_list)
+	(e_book_backend_groupwise_get_changes)
+	(e_book_backend_groupwise_authenticate_user)
+	(e_book_backend_groupwise_get_supported_fields)
+	(e_book_backend_groupwise_get_supported_auth_methods)
+	(e_book_backend_groupwise_remove): : add @opid arg, and pass it to
+	e_data_book_respond_* functions.
+
+	* backends/file/e-book-backend-file.c
+	(e_book_backend_file_create_contact)
+	(e_book_backend_file_remove_contacts)
+	(e_book_backend_file_modify_contact)
+	(e_book_backend_file_get_contact)
+	(e_book_backend_file_get_contact_list)
+	(e_book_backend_file_get_changes)
+	(e_book_backend_file_authenticate_user)
+	(e_book_backend_file_get_supported_fields)
+	(e_book_backend_file_remove): add @opid arg.
+
+2004-06-16  Not Zed  <NotZed@Ximian.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_cancel_operation): implement, noop
+	currently.  Saves an assert exploding the server.
+
+	* backends/ldap/e-book-backend-ldap.c
+	(e_book_backend_ldap_cancel_operation): implement.
+	(ldap_cancel_op): cancel each operation synchronously (?).
+	Related to #56479.
+
+2004-06-15 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(populate_contact_members) : set EVC_X_DEST_CONTACT_UID
+	EVC_X_DEST_NAME parameters also
+	(set_members_in_gw_item) : read the uid's of contacts
+	and use them instead of searching based on email values
+	
+ 
+2004-06-09  Chris Toshok  <toshok@ximian.com>
+
+	[ probable fix for #58803 ]
+	
+	* backends/ldap/e-book-backend-ldap.c (ldap_search_handler):
+	remove the ref/unref of the book view here.
+	(e_book_backend_ldap_search): move the dup_ref of the book view
+	here.
+	(ldap_search_dtor): and the release_unref to here.
+
+2004-06-09  Chris Toshok  <toshok@ximian.com>
+
+	* backends/ldap/e-book-backend-ldap.c (ldap_search_dtor): we don't
+	need to lock/unlock the view's mutex anymore.
+
+2004-06-07  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes bug #58606 ]
+	
+	* libebook/e-vcard.c (read_attribute_params): actually do what the
+	commend above this block says - if there aren't values, free the
+	parameter and skip past the character (unless it's a :).
+
+2004-06-03 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(update_summary) : new function to update the summary after
+	getting the changes from server
+	
+2004-06-01 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_remove_contacts) : use the new
+	e_gw_connection_remove_items which removes all the items form the
+	server at once instead of sending one request for each item
+
+2004-05-28 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	( e_book_backend_groupwise_authenicate_user) : form the summary
+	(e_book_backend_groupwise_start_book_view),
+	(e_book_backend_groupwise_get_contact_list) : search over the
+	summary to get ids and retrieve those items from the summary
+
+2004-05-25 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_load_source) : port is no longer part of
+	uri, read it from e-source
+	(set_memebers_in_groupwise_item) : compare emails with ignore case
+	fixes #58888
+
+2004-05-25  Chris Toshok  <toshok@ximian.com>
+
+	* libebook/e-book-query.c (e_book_query_to_string): encode the
+	values we place in the sexp.
+
+2004-05-20  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes bug #58495 ]
+	
+	* libebook/e-book-async.c (worker): this is now a thread pool
+	function, so there's no to_worker_queue to pop things off of.
+	(init_async): create the thread pool with MAX_WORKERS threads
+	maximum.
+	(e_book_async_open, e_book_async_get_supported_fields)
+	(e_book_async_get_supported_auth_methods)
+	(e_book_async_authenticate_user, e_book_async_get_contact)
+	(e_book_async_remove_contacts, e_book_async_add_contact)
+	(e_book_async_commit_contact, e_book_async_get_book_view)
+	(e_book_async_get_contacts): use g_thread_pool_push here.
+
+2004-05-19  Chris Toshok  <toshok@ximian.com>
+
+	* tests/ebook/*.c: port to new e_book_new/e_book_open apis.
+	
+	* libebook/e-book-types.h (EBookStatus): URI -> SOURCE.
+
+	* libebook/e-book-async.c (e_book_async_open): new function,
+	mostly the same as e_book_async_load_source was.
+	(e_book_async_load_local_addressbook, e_book_async_load_source,
+	e_book_async_load_uri, e_book_async_get_default_addressbook):
+	nuke.
+	
+	* libebook/e-book-async.h: remove prototypes for
+	e_book_async_load_uri/source/local_address, and
+	e_book_async_get_default_addressbook.
+
+	* libebook/e-book.c (EBookLoadState): URI -> SOURCE.
+	(e_book_add_contact): URI -> SOURCE, and "e_book_load_uri" ->
+	"e_book_open"
+	(e_book_commit_contact): same.
+	(e_book_get_supported_fields): same.
+	(e_book_get_supported_auth_methods): same.
+	(e_book_authenticate_user): same.
+	(e_book_get_contact): same.
+	(e_book_remove_contacts): same.
+	(e_book_get_book_view): same.
+	(e_book_get_contacts): same.
+	(e_book_get_changes): same.
+	(e_book_open): new function, mostly split out from the old
+	contents of fetch_corba_book.  call Book::open here.
+	(e_book_remove): we no longer require the book is loaded here, as
+	the source (and corba book) is associated at e_book_new time.
+	(e_book_unload_uri): URI -> SOURCE.
+	(backend_died_cb): same.
+	(fetch_corba_book): split out roughly half of the inner loop (the
+	part that calls Book::open).  This does nothing more than find a
+	factory that will hand us a reference to a corba book.
+	(e_book_load_source, e_book_load_uri,
+	e_book_load_local_addressbook, e_book_get_default_addressbook):
+	nuke.
+	(e_book_get_static_capabilities): URI -> SOURCE.
+	(e_book_get_self): use new e_book_new* api.
+	(e_book_set_default_addressbook): URI -> SOURCE.
+	(e_book_new): set the source and call fetch_corba_book here.
+	(e_book_new_from_uri): new function, implement in terms of the new
+	e_book_new.
+	(e_book_new_system_addressbook): new function, implement in terms
+	of e_book_new_from_uri.
+	(e_book_new_default_addressbook): new function, implement in terms
+	of the new e_book_new.
+	(e_book_init): URI -> SOURCE.
+	(e_book_dispose): same.
+
+	* libebook/e-book.h: rework the e_book_new_* api to be more like
+	the calendar.  gone is the constructor with no args.  now you
+	associate a source/uri/etc with an ebook at creation time.  Also,
+	add e_book_open, and remove all the e_book_load_* calls.
+
+2004-05-19  Hans Petter Jansson  <hpj@ximian.com>
+
+	* backends/ldap/e-book-backend-ldap.c (add_to_supported_fields):
+	Add EMAIL_4 field.
+	(email_ids): Add EMAIL_4.
+	(email_populate): Ditto.
+	(email_ber): Ditto.
+
+	* libebook/e-contact.c (field_info): Add EMAIL_4 field.
+
+	* libebook/e-contact.h: Add EMAIL_4 field.
+
+	* libedata-book/e-book-backend-sexp.c (compare_email): Add
+	EMAIL_4.
+
+	* libedata-book/e-book-backend-summary.c: Add EMAIL_4 to structs,
+	bump version to 5000 (5.0).
+	(free_summary_item): Add EMAIL_4.
+	(e_book_backend_summary_load_item): Ditto.
+	(e_book_backend_summary_save_item): Ditto.
+	(e_book_backend_summary_add_contact): Ditto.
+	(do_compare): Ditto.
+	(e_book_backend_summary_get_summary_vcard): Ditto.
+
+2004-05-18  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #58522, and some other misc update problems ]
+	
+	* libedata-book/evolutionperson.schema: make both evolutionPerson
+	and evolutionPersonList AUXILIARY classes, so they can be added to
+	inetOrgPerson objects in openldap 2.1.x+ servers.
+
+	* backends/ldap/e-book-backend-ldap.c (free_mods): guard against
+	mod->mod_bvalues/mod->mod_values being NULL... this shouldn't ever
+	happen, but it seem to, and is causing a crash.
+	(category_ber): simpler check to see if there are categories - get
+	the CATEGORIES property and check if it's NULL/0-length.
+
+	* libebook/e-contact.c (e_contact_set_property): remove the
+	CATEGORIES attribute if the string is empty or NULL, and do the
+	same for non-synthetic string attributes.
+
+2004-05-18 Sivaiah Nallagatla <snallagatla@novell.com>
+
+        * backends/groupwise/e-book-backend-groupwise.c (set_members_in_gw_item) :
+	make sure not to add more than one item id for single email
+	Fixes #58369
+	(set_organization_in_gw_item) (set_organization_changes_in_gw_item) :
+	new functions to add organization field  le storing  contact on server
+	Fixes #57846
+
+2004-05-17  Rodney Dawes  <dobey@ximian.com>
+
+	* libebook/Makefile.am (libebook_la_LIBADD):
+	* libedata-book/Makefile.am (libedata_book_la_LIBADD):
+	Add $(EVOLUTION_ADDRESSBOOK_LIBS) to link to all the right dependencies
+	so that the mono bindings will work correctly
+
+	Fixes #58615
+
+2004-05-17  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes bug #57505 ]
+	
+	* backends/ldap/e-book-backend-ldap.c (category_ber): only include
+	category list elements in the ber if they're non-empty.
+	(category_compare): don't free the const char*'s.
+	(address_ber): make static.
+	(add_to_supported_fields): make sure "categories" gets included in
+	the list if we support "category_list", since the contact editor
+	uses the former, not the latter (and they're really the same thing
+	as far as the backend is concerned.)
+
+2004-05-10 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c (populate_ims) :
+	if im does not correspond to one supported in evo, ignore it 
+	fixes #58262 
+
 2004-05-04  Sivaiah Nallagatla <snallagatla@novell.com>
 	
 	* backends/groupwise/e-book-backend-groupwise.c (populate_ims) :

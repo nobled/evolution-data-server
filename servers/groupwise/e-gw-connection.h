@@ -60,7 +60,9 @@ typedef enum {
 	E_GW_CONNECTION_STATUS_INVALID_OBJECT,
 	E_GW_CONNECTION_STATUS_INVALID_RESPONSE,
 	E_GW_CONNECTION_STATUS_OBJECT_NOT_FOUND,
+	E_GW_CONNECTION_STATUS_UNKNOWN_USER,
 	E_GW_CONNECTION_STATUS_BAD_PARAMETER,
+	E_GW_CONNECTION_STATUS_ITEM_ALREADY_ACCEPTED,
 	E_GW_CONNECTION_STATUS_OTHER,
 	E_GW_CONNECTION_STATUS_UNKNOWN
 } EGwConnectionStatus;
@@ -76,8 +78,9 @@ char               *e_gw_connection_get_container_id (EGwConnection *cnc, const 
 EGwConnectionStatus e_gw_connection_get_items (EGwConnection *cnc, const char *container,
 					       const char *view, EGwFilter *filter, GList **list);
 EGwConnectionStatus e_gw_connection_get_deltas ( EGwConnection *cnc, GSList **adds, GSList **deletes, GSList **updates);
-EGwConnectionStatus e_gw_connection_send_item (EGwConnection *cnc, EGwItem *item, char **id);
+EGwConnectionStatus e_gw_connection_send_item (EGwConnection *cnc, EGwItem *item, GSList **id_list);
 EGwConnectionStatus e_gw_connection_remove_item (EGwConnection *cnc, const char *container, const char *id);
+EGwConnectionStatus e_gw_connection_remove_items (EGwConnection *cnc, const char *container, GList *item_ids);
 
 const char         *e_gw_connection_get_uri (EGwConnection *cnc);
 const char         *e_gw_connection_get_session_id (EGwConnection *cnc);
@@ -87,10 +90,16 @@ const char         *e_gw_connection_get_user_uuid (EGwConnection *cnc);
 
 
 time_t              e_gw_connection_get_date_from_string (const char *dtstring);
+char               *e_gw_connection_format_date_string (const char *dtstring);
+
 
 EGwConnectionStatus e_gw_connection_create_item (EGwConnection *cnc, EGwItem *item, char** id);
 EGwConnectionStatus e_gw_connection_get_item (EGwConnection *cnc, const char *container, const char *id, EGwItem **item);
 EGwConnectionStatus e_gw_connection_modify_item (EGwConnection *cnc, const char *id, EGwItem *item);
+EGwConnectionStatus e_gw_connection_accept_request (EGwConnection *cnc, const char *id, const char *accept_level);
+EGwConnectionStatus e_gw_connection_decline_request (EGwConnection *cnc, const char *id);
+EGwConnectionStatus e_gw_connection_retract_request (EGwConnection *cnc, const char *id, const char *comment, gboolean retract_all, gboolean resend);
+EGwConnectionStatus e_gw_connection_complete_request (EGwConnection *cnc, const char *id);
 EGwConnectionStatus e_gw_connection_create_book (EGwConnection *cnc, char *book_name, char**id);
 EGwConnectionStatus e_gw_connection_remove_book (EGwConnection *cnc, char *book_uid);
 EGwConnectionStatus e_gw_connection_get_address_book_list (EGwConnection *cnc, GList **container_list);
@@ -98,6 +107,15 @@ EGwConnectionStatus e_gw_connection_get_address_book_id ( EGwConnection *cnc, ch
 EGwConnectionStatus e_gw_connection_get_categories  (EGwConnection *cnc, GHashTable *categories_by_id, GHashTable *categoreis_by_name);
 EGwConnectionStatus e_gw_connection_add_members (EGwConnection *cnc, const char *group_id, GList *member_ids);
 EGwConnectionStatus e_gw_connection_remove_members (EGwConnection *cnc, const char *group_id, GList *member_ids);
+EGwConnectionStatus e_gw_connection_get_items_from_ids (EGwConnection *cnc, const char *container, const char *view, GPtrArray *item_ids, GList **list);
+
+EGwConnectionStatus e_gw_connection_create_cursor (EGwConnection *cnc, const char *container, const char *view, EGwFilter *filter, int *cursor);
+EGwConnectionStatus e_gw_connection_destroy_cursor (EGwConnection *cnc, const char *container,  int cursor);
+EGwConnectionStatus e_gw_connection_read_cursor (EGwConnection *cnc, const char *container, int cursor, gboolean forward, int count, GList **item_list);
+EGwConnectionStatus e_gw_connection_position_cursor (EGwConnection *cnc, const char *container, int cursor, const char *seek, int offset);
+
+EGwConnectionStatus e_gw_connection_get_quick_messages (EGwConnection *cnc, const char *container, const char *view, const char *start_date, const char *message_list, const char *item_types, const char *item_sources, int count, GSList **item_list);
+
 G_END_DECLS
 
 #endif

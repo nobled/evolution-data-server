@@ -16,16 +16,21 @@ INCLUDES =						\
 	$(SOUP_CFLAGS)					\
 	$(DEBUG_CFLAGS)
 
-noinst_LTLIBRARIES = libecalbackendgroupwise.la
+extension_LTLIBRARIES = libecalbackendgroupwise.la
 
 libecalbackendgroupwise_la_SOURCES =		\
+	e-cal-backend-groupwise-factory.c	\
+	e-cal-backend-groupwise-factory.h	\
 	e-cal-backend-groupwise.c		\
 	e-cal-backend-groupwise.h		\
 	e-cal-backend-groupwise-utils.c		\
 	e-cal-backend-groupwise-utils.h
 
 libecalbackendgroupwise_la_LIBADD =					\
-	$(top_builddir)/calendar/libedata-cal/libedata-cal.la		\
-	$(top_builddir)/calendar/backends/file/libecalbackendfile.la	\
-	$(top_builddir)/servers/groupwise/libegroupwise.la		\
+	$(top_builddir)/calendar/libedata-cal/libedata-cal-1.2.la	\
+	$(top_builddir)/calendar/backends/file/libecalbackendfile.la\
+	$(top_builddir)/servers/groupwise/libegroupwise-1.2.la		\
 	$(SOUP_LIBS)
+
+libecalbackendgroupwise_la_LDFLAGS =		\
+	-avoid-version

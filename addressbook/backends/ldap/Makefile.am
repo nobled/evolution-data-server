@@ -7,16 +7,20 @@ INCLUDES =						\
 	$(LDAP_CFLAGS)					\
         $(EVOLUTION_ADDRESSBOOK_CFLAGS)
 
-noinst_LTLIBRARIES = libebookbackendldap.la
+extension_LTLIBRARIES = libebookbackendldap.la
 
 libebookbackendldap_la_SOURCES =			\
 	e-book-backend-ldap.c				\
-	e-book-backend-ldap.h
+	e-book-backend-ldap.h				\
+	e-book-backend-ldap-factory.c
 
 libebookbackendldap_la_LIBADD =						\
 	$(LDAP_LIBS)							\
-	$(top_builddir)/addressbook/libedata-book/libedata-book.la	\
-	$(top_builddir)/libedataserver/libedataserver.la
+	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la	\
+	$(top_builddir)/libedataserver/libedataserver-1.2.la
+
+libebookbackendldap_la_LDFLAGS =	\
+	-avoid-version
 
 LDAP_SCHEMA =						\
 	evolutionperson.schema

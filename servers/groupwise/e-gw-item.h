@@ -95,11 +95,17 @@ typedef struct {
 typedef struct {
 	char *id;
 	char *email;
+	char *name;
 } EGroupMember;
+
+typedef struct {
+	char *email;
+	char *display_name;
+} EGwItemOrganizer;
 
 GType       e_gw_item_get_type (void);
 EGwItem    *e_gw_item_new_empty (void);
-EGwItem    *e_gw_item_new_from_soap_parameter (const char *container, SoupSoapParameter *param);
+EGwItem    *e_gw_item_new_from_soap_parameter (const char *email, const char *container, SoupSoapParameter *param);
 
 EGwItemType e_gw_item_get_item_type (EGwItem *item);
 void        e_gw_item_set_item_type (EGwItem *item, EGwItemType new_type);
@@ -109,14 +115,16 @@ const char *e_gw_item_get_icalid (EGwItem *item);
 void        e_gw_item_set_icalid (EGwItem *item, const char *new_icalid);
 const char *e_gw_item_get_id (EGwItem *item);
 void        e_gw_item_set_id (EGwItem *item, const char *new_id);
-time_t      e_gw_item_get_creation_date (EGwItem *item);
-void        e_gw_item_set_creation_date (EGwItem *item, time_t new_date);
-time_t      e_gw_item_get_start_date (EGwItem *item);
-void        e_gw_item_set_start_date (EGwItem *item, time_t new_date);
-time_t      e_gw_item_get_end_date (EGwItem *item);
-void        e_gw_item_set_end_date (EGwItem *item, time_t new_date);
-time_t      e_gw_item_get_due_date (EGwItem *item);
-void        e_gw_item_set_due_date (EGwItem *item, time_t new_date);
+char       *e_gw_item_get_creation_date (EGwItem *item);
+void        e_gw_item_set_creation_date (EGwItem *item, const char *new_date);
+char       *e_gw_item_get_start_date (EGwItem *item);
+void        e_gw_item_set_start_date (EGwItem *item, const char *new_date);
+char       *e_gw_item_get_completed_date (EGwItem *item);
+void        e_gw_item_set_completed_date (EGwItem *item, const char *new_date);
+char       *e_gw_item_get_end_date (EGwItem *item);
+void        e_gw_item_set_end_date (EGwItem *item, const char *new_date);
+char       *e_gw_item_get_due_date (EGwItem *item);
+void        e_gw_item_set_due_date (EGwItem *item, const char *new_date);
 const char *e_gw_item_get_subject (EGwItem *item);
 void        e_gw_item_set_subject (EGwItem *item, const char *new_subject);
 const char *e_gw_item_get_message (EGwItem *item);
@@ -125,6 +133,8 @@ const char *e_gw_item_get_place (EGwItem *item);
 void        e_gw_item_set_place (EGwItem *item, const char *new_place);
 gboolean    e_gw_item_get_completed (EGwItem *item);
 void        e_gw_item_set_completed (EGwItem *item, gboolean new_completed);
+gboolean    e_gw_item_get_is_allday_event (EGwItem *item);
+void	    e_gw_item_set_is_allday_event (EGwItem *item, gboolean is_allday);	
 char*       e_gw_item_get_field_value (EGwItem *item, char *field_name);
 void        e_gw_item_set_field_value (EGwItem *item, char *field_name, char* field_value);
 GList*      e_gw_item_get_email_list (EGwItem *item);
@@ -154,6 +164,7 @@ void        e_gw_item_set_classification (EGwItem *item, const char *new_class);
 
 #define E_GW_ITEM_ACCEPT_LEVEL_BUSY          "Busy"
 #define E_GW_ITEM_ACCEPT_LEVEL_OUT_OF_OFFICE "OutOfOffice"
+#define E_GW_ITEM_ACCEPT_LEVEL_FREE	     "Free" 	
 
 const char *e_gw_item_get_accept_level (EGwItem *item);
 void        e_gw_item_set_accept_level (EGwItem *item, const char *new_level);
@@ -168,8 +179,22 @@ void        e_gw_item_set_priority (EGwItem *item, const char *new_priority);
 GSList *e_gw_item_get_recipient_list (EGwItem *item);
 void e_gw_item_set_recipient_list (EGwItem *item, GSList *new_recipient_list);
 
+EGwItemOrganizer *e_gw_item_get_organizer (EGwItem *item);
+void e_gw_item_set_organizer (EGwItem  *item, EGwItemOrganizer *organizer);
+
+
+GSList *e_gw_item_get_recurrence_dates (EGwItem *item);
+void e_gw_item_set_recurrence_dates (EGwItem  *item, GSList *new_recurrence_dates);
+
+
 int e_gw_item_get_trigger (EGwItem *item);
 void e_gw_item_set_trigger (EGwItem *item, int trigger);
+
+typedef enum {
+	E_GW_ITEM_STAT_ACCEPTED,
+	E_GW_ITEM_STAT_DECLINED,
+	E_GW_ITEM_STAT_NONE
+} ItemStatus; 
 
 typedef struct {
 	char *email;
@@ -177,8 +202,11 @@ typedef struct {
 	enum {
 		E_GW_ITEM_RECIPIENT_TO,
 		E_GW_ITEM_RECIPIENT_CC,
+		E_GW_ITEM_RECIPIENT_BC,
 		E_GW_ITEM_RECIPIENT_NONE
 	} type;
+
+	ItemStatus status;
 } EGwItemRecipient;
 
 gboolean    e_gw_item_append_to_soap_message (EGwItem *item, SoupSoapMessage *msg);

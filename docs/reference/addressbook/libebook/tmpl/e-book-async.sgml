@@ -58,17 +58,6 @@ Handles asynchronous interactions with the EBook.
 @closure: 
 
 
-<!-- ##### USER_FUNCTION EBookContactsCallback ##### -->
-<para>
-
-</para>
-
-@book: 
-@status: 
-@contacts: 
-@closure: 
-
-
 <!-- ##### USER_FUNCTION EBookBookViewCallback ##### -->
 <para>
 
@@ -77,59 +66,6 @@ Handles asynchronous interactions with the EBook.
 @book: 
 @status: 
 @book_view: 
-@closure: 
-
-
-<!-- ##### USER_FUNCTION EBookFieldsCallback ##### -->
-<para>
-
-</para>
-
-@book: 
-@status: 
-@fields: 
-@closure: 
-
-
-<!-- ##### USER_FUNCTION EBookAuthMethodsCallback ##### -->
-<para>
-
-</para>
-
-@book: 
-@status: 
-@auth_methods: 
-@closure: 
-
-
-<!-- ##### FUNCTION e_book_async_load_source ##### -->
-<para>
-
-</para>
-
-@book: 
-@source: 
-@open_response: 
-@closure: 
-
-
-<!-- ##### FUNCTION e_book_async_load_uri ##### -->
-<para>
-
-</para>
-
-@book: 
-@uri: 
-@open_response: 
-@closure: 
-
-
-<!-- ##### FUNCTION e_book_async_get_default_addressbook ##### -->
-<para>
-
-</para>
-
-@open_response: 
 @closure: 
 
 
@@ -166,6 +102,7 @@ Handles asynchronous interactions with the EBook.
 @auth_method: 
 @cb: 
 @closure: 
+@Returns: 
 
 
 <!-- ##### FUNCTION e_book_async_get_contact ##### -->

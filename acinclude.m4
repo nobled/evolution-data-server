@@ -1,60 +1,6 @@
 # evolution/acinclude.m4
 # shared configure.in hacks between Evolution and Connector
 
-# EVO_CHECK_LIB(dispname, pkgname, minvers[, maxvers])
-# Checks if the package with human-readable name @dispname, known
-# to gnome-config as @pkgname exists and has an appropriate version.
-# The version must be >= @minvers. If @maxvers is equal to @minvers,
-# it must be exactly that version. Otherwise, if @maxvers is set,
-# the version must be LESS THAN @maxvers (not less than or equal).
-AC_DEFUN([EVO_CHECK_LIB], [
-	dispname="$1"
-	pkgname="$2"
-	minvers="$3"
-	maxvers="$4"
-
-	AC_MSG_CHECKING(for $dispname)
-
-	if gnome-config --libs $pkgname > /dev/null 2>&1; then
-		pkgvers=`gnome-config --modversion $pkgname | sed -e 's/^[[^0-9]]*//'`
-	else
-		pkgvers=not
-	fi
-	AC_MSG_RESULT($pkgvers found)
-
-	pkgvers=`echo $pkgvers | awk -F. '{ print $[]1 * 1000000 + $[]2 * 10000 + $[]3 * 100 + $[]4;}'`
-	cmpminvers=`echo $minvers | awk -F. '{ print $[]1 * 1000000 + $[]2 * 10000 + $[]3 * 100 + $[]4;}'`
-	cmpmaxvers=`echo $maxvers | awk -F. '{ print $[]1 * 1000000 + $[]2 * 10000 + $[]3 * 100 + $[]4;}'`
-	ok=yes
-	if test "$pkgvers" -lt $cmpminvers; then
-		ok=no
-	elif test -n "$maxvers"; then
-		if test "$pkgvers" -gt $cmpmaxvers; then
-			ok=no
-		elif test "$maxvers" != "$minvers" -a "$cmpmaxvers" -eq "$pkgvers"; then
-			ok=no
-		fi
-	fi
-	if test $ok = no; then
-		case $maxvers in
-		"")
-			dispvers="$minvers or higher"
-			;;
-		$minvers)
-			dispvers="$minvers (exactly)"
-			;;
-		*)
-			dispvers="$minvers or higher, but less than $maxvers,"
-			;;
-		esac
-
-		AC_MSG_ERROR([
-""
-"You need $dispname $dispvers to build $PACKAGE"
-"If you think you already have this installed, consult the README."])
-	fi
-])
-
 
 # EVO_PURIFY_SUPPORT
 # Add --enable-purify. If the user turns it on, subst PURIFY and set
@@ -164,6 +110,7 @@ AC_DEFUN([EVO_LDAP_CHECK], [
 	fi
 	AM_CONDITIONAL(ENABLE_LDAP, test $with_openldap != no)
 ])
+
 
 # EVO_PTHREAD_CHECK
 AC_DEFUN([EVO_PTHREAD_CHECK],[

@@ -13,13 +13,18 @@ INCLUDES =						\
 	$(EVOLUTION_CALENDAR_CFLAGS)			\
 	$(SOUP_CFLAGS)
 
-noinst_LTLIBRARIES = libecalbackendhttp.la
+extension_LTLIBRARIES = libecalbackendhttp.la
 
 libecalbackendhttp_la_SOURCES =		\
+	e-cal-backend-http-factory.c	\
+	e-cal-backend-http-factory.h	\
 	e-cal-backend-http.c		\
 	e-cal-backend-http.h
 
-libecalbackendhttp_la_LIBADD =						\
-	$(top_builddir)/calendar/libedata-cal/libedata-cal.la		\
-	$(top_builddir)/calendar/backends/file/libecalbackendfile.la	\
+libecalbackendhttp_la_LIBADD =							\
+	$(top_builddir)/calendar/libedata-cal/libedata-cal-1.2.la		\
+	$(top_builddir)/calendar/backends/file/libecalbackendfile.la		\
 	$(SOUP_LIBS)
+
+libecalbackendhttp_la_LDFLAGS =		\
+	-avoid-version

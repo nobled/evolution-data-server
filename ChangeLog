@@ -1,5 +1,373 @@
+2004-10-14  JP Rosevear  <jpr@novell.com>
+
+	* libedataserverui/e-source-selector.c: G_DEFINE_TYPE cleanups for
+	parent class
+
+	* libedataserverui/e-source-option-menu.c: ditto
+	
+2004-10-14  JP Rosevear  <jpr@novell.com>
+	
+	* libedataserverui/libedataserverui.pc.in: link to the right lib
+	and require libedataserver 1.2
+
+2004-10-13  JP Rosevear  <jpr@novell.com>
+
+	* libedataserver/e-data-server-marshal.list: add missing
+	marshaller list
+
+2004-10-13  JP Rosevear  <jpr@novell.com>
+	
+	* Makefile.am: build libedataserverui
+
+2004-10-13  JP Rosevear  <jpr@novell.com>
+	
+	* libedataserverui/test-source-option-menu.c: move from evolution
+	
+	* libedataserverui/e-source-selector.c: ditto
+
+	* libedataserverui/e-source-selector.h: ditto
+
+	* libedataserverui/e-source-option-menu.c: ditto
+
+	* libedataserverui/e-source-option-menu.h: ditto
+
+	* libedataserverui/test-source-selector.c: ditto
+
+	* libedataserverui/libedataserverui.pc.in: add a pkg-config file
+
+	* libedataserverui/Makefile.am: build libedataserverui and test progs
+
+	* configure.in: add libtool versioning for libedataserverui and
+	output the files
+
+2004-10-11  Hans Petter Jansson  <hpj@ximian.com>
+
+	Probably fixes bugs #67600 and #65996.
+
+	* libdb/dbinc/mutex.h
+	* libdb/dist/config.hin
+	* libdb/dist/configure
+	* libdb/mutex/mut_tas.c
+	* libdb/lock/lock_region.c
+	* libdb/dist/aclocal/mutex.ac
+	* libdb/dist/aclocal/libtool.ac: Commit mutex portability changes for
+	x86-64 and a couple of other archs, and rebuild the generated
+	configure files.
+
+2004-10-04  Chris Toshok  <toshok@ximian.com>
+
+	* libedataserver/e-data-server-module.h: add the prototype for the
+	eds_module_* functions here, so modules can include this file
+	instead of writing their own prototypes in module sepcific
+	headers.
+
+2004-09-30  Chris Toshok  <toshok@ximian.com>
+
+	* evolution-data-server.pc.in (extensiondir,privlibdir): add these
+	variables so extension authors can find the place to install their
+	stuff.
+
+2004-09-30  Chris Toshok  <toshok@ximian.com>
+
+	* src/GNOME_Evolution_DataServer.server.in.in: add this
+	(previously generated) file to the build.
+
+	* src/GNOME_Evolution_DataServerLDAP.server.in.in,
+	src/GNOME_Evolution_DataServerNOLDAP.server.in.in: nuke these
+	files.
+	
+	* src/Makefile.am (evolution_data_server_LDADD): remove all the
+	addressbook/calendar backend .la's from here.
+	(SERVER_IN_FILE): always use
+	GNOME_Evolution_DataServer.server.in.in here, and it's no longer
+	generated from LDAP/NOLDAP.
+	(EXTRA_DIST): remove
+	GNOME_Evolution_DataServer{LDAP,NOLDAP}.server.in.in
+	(CLEANFILES): remove GNOME_Evolution_DataServer.server.in.in.
+	
+	* src/server.c (setup_books): replace hardcoded knowledge of
+	backends with a call to e_data_book_factory_register_backends.
+	(setup_cals): remove explicit backend registration with a call to
+	e_data_cal_factory_register_backends.
+	(main): call e_data_server_module_init.
+
+	* libedataserver/Makefile.am (INCLUDES): add extensiondir #define.
+	(libedataserver_la_SOURCES): add e-data-server-module.c
+	(libedataserverinclude_HEADERS): add e-data-server-module.h
+
+	* libedataserver/e-data-server-module.[ch]: new files, manage the
+	extensions.  ripped almost entirely from Dave Camp's nautilus
+	module stuff.
+
+	* configure.in (privlibdir, extensiondir): new Makefile variables.
+
+2004-09-23  Not Zed  <NotZed@Ximian.com>
+
+	** See bug #66209
+
+	* libedataserver/e-source-list.c (sync_idle_callback): clear the
+	idle id after we've been called.
+
+2004-09-23  JP Rosevear  <jpr@novell.com>
+
+	* Makefile.am: don't hard code pkg config version
+
+	* configure.in: bump version, reset libtool versions because the
+	library is now versioned
+
+	* libedataserver/Makefile.am: build versioned lib and version
+	pkgconfig stuff
+
+	* src/Makefile.am: link against versioned libs
+
+2004-09-22  Harish Krishnaswamy  <kharish@novell.com>
+
+	* libedataserver/e-file-cache.[ch]: 
+	(e_file_cache_get_keys): utility function that allows to get 
+	 a list of the keys of all the items in the cache. Used by 
+	 the fix for bug #61865	
+
+2004-09-21  Hans Petter Jansson  <hpj@ximian.com>
+
+	* libdb/dbinc/mutex.h
+	* libdb/dist/configure
+	* libdb/dist/aclocal/mutex.ac
+	* libdb/dist/aclocal/options.ac:
+	Applied patch from Toshok that fixes issues related to NPTL and AMD
+	processors.
+
+2004-09-16  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: update version to 1.1.0 and BASE_VERSION to 1.2
+
+2004-09-14  Roozbeh Pournader  <roozbeh@farsiweb.info>
+
+	* configure.in: Added 'fa' (Persian) to ALL_LINGUAG.
+
+2004-09-14  Tomasz Kłoczko  <kloczek@pld.org.pl>
+
+	* servers/groupwise/Makefile.am: automake fix for paralel build ("make -j<N>").
+
+2004-09-10  Mohammad DAMT  <mdamt@bisnisweb.com>
+
+	* configure.in: Added 'id' to ALL_LINGUAS
+	* po/id.po: Added Indonesian translation
+
+2004-08-27  Akagic Amila <bono@linux.org.ba>
+
+	* configure.in: Added 'bs' to ALL_LINGUAS.
+
+2004-08-26  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump verision, libtool numbers
+
+2004-08-26  Not Zed  <NotZed@Ximian.com>
+
+	** See bug #63051.
+
+	* libedataserver/e-util.c (e_util_utf8_strstrcase) 
+	(e_util_utf8_strstrcasedecomp): 
+
+	* libedataserver/e-sexp.c (e_sexp_term_eval):
+	* libedataserver/e-memory.c (e_memchunk_clean): use g_alloca for
+	stupid arcanely out of date and posixly-busted slowaris which
+	doesn't put alloca in stdlib.h like any sane system.
+
+2004-08-25  Frederic Crozat  <fcrozat@mandrakesoft.com>
+
+	* libedataserver/e-file-cache.c: (add_key_to_list),
+	(add_object_to_list):
+	Add missing include, fix warnings.
+
+	* libedataserver/e-util.c: add missing include.
+
+	* servers/groupwise/e-gw-connection.c:
+	(e_gw_connection_get_categories):
+	Fix type, causing warnings.
+
+2004-08-23  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* libedataserver/e-file-cache.c (e_file_cache_set_property) :
+	assing the value set for filename property to priv->filename 
+ 
+2004-08-21  Kjartan Maraas  <kmaraas@gnome.org>
+
+	* configure.in: Added «nb» to ALL_LINGUAS.
+
+2004-08-13  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers, soup requirement
+
+2004-08-13  Rodney Dawes  <dobey@novell.com>
+
+	* acinclude.m4: Revert previous EVO_LDAP_CHECK changes, aren't working
+	as well as expceted and determined in testing
+
+2004-08-13  Rodney Dawes  <dobey@novell.com>
+
+	* acinclude.m4: Remove EVO_CHECK_LIB
+	Update EVO_LDAP_CHECK to support --with-openldap-{libs,includes}
+
+2004-08-09  Ankit Patel <ankit@redhat.com>
+
+	* configure.in: Added Gujarati & Panjabi
+
+2004-08-06  Sayamindu Dasgupta <sayamindu@gnome.org>
+
+	* configure.in: Added bn (Bengali) to ALL_LINGUAS.
+
+2004-08-02  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers
+
+2004-08-02  Not Zed  <NotZed@Ximian.com>
+
+	* src/server.c (gnome_segv_handler): deadlock in non-main threads
+	so we only run once, and increment our recursive-call code
+	properly, and actually exit anyway.  should fix infinite crash
+	loop crap.
+
+2004-07-29  Rodney Dawes  <dobey@novell.com>
+
+	* configure.in: Check for libgnomeui_serverdir with pkgconfig, and
+	AC_DEFINE it so we know where to find gnome_segv2
+
+	* src/server.c (gnome_segv_handler): Use GNOMEUI_SERVERDIR that we
+	now define at configure time to find the path to gnome_segv2
+
+	Fixes #62021
+
+2004-07-19  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers, soup requirement
+
+2004-07-16  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* libedataserver/e-source-group.c (e_source_group_remove_source)
+	(e_source_group_remove_source) : disconnet the signal 
+	handler registered on source object for CHANGED singal
+	as we may not be interested in the changes in source once
+	it is removed form the group
+
+2004-07-12  Chris Toshok  <toshok@ximian.com>
+
+	[ most likely fixes #57999 ]
+	
+	* libdb/dist/aclocal/options.ac: set the default unique name to
+	"_eds".  this will append _eds to all externally visible libdb
+	symbols, so we can be sure it won't conflict with another libdb
+	(linked dynamically).
+
+	* libdb/dist/configure: regen after options.ac change.
+
+	* libdb/dist/.cvsignore: ignore db_int_def.h
+
+2004-07-07  Rodrigo Moya <rodrigo@novell.com>
+
+	* libedataserver/e-source.[ch] (e_source_build_absolute_uri): made
+	this function public.
+
+2004-07-07  Not Zed  <NotZed@Ximian.com>
+
+	* src/server.c (main): bind to the right charset (i.e. utf8).  See
+	#58976.
+
+2004-07-02  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers
+
+2004-07-02  Chris Toshok  <toshok@ximian.com>
+
+	[ fixes #60691 ]
+	
+	* libedataserver/e-iterator.h: rename the "delete" member to
+	"remove", to fix c++ build.
+
+	* libedataserver/e-iterator.c (e_iterator_delete): same.
+	(e_iterator_class_init): same.
+
+	* libedataserver/e-list-iterator.c (e_list_iterator_class_init): same.
+	(e_list_iterator_remove): same.
+
+2004-06-23  Jeffrey Stedfast  <fejj@novell.com>
+
+	* src/server.c (main): Register a segv handler to popup bug-buddy
+	or whatever. Fixes bug #51165.
+
+2004-06-14  Not Zed  <NotZed@Ximian.com>
+
+	* libedataserver/e-source-group.c
+	(e_source_group_new_from_xmldoc): abort and fail if we get an xml
+	error setting up the new_source entries.  #59592.
+
+2004-06-03  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers
+
+2004-06-02  Chris Toshok  <toshok@ximian.com>
+
+	* configure.in: bump to 0.0.93.1 so we can rev evo's dep.
+
+2004-06-01  Chris Toshok  <toshok@ximian.com>
+
+	* libedataserver/e-source.c (e_source_set_absolute_uri): permit
+	NULL absolute_uri, so we can clear it.
+
+2004-06-01  Chris Toshok  <toshok@ximian.com>
+
+	* libedataserver/e-source.c (e_source_set_group): back out the
+	change that causes this function to always add an absolute_uri to
+	the ESource, as this uri is always used instead of the
+	relative_uri in e_source_get_uri, which is NOT what we want in 99%
+	of the cases.  If you want an absolute uri, call
+	e_source_set_absolute_uri - it should never happen implicitly.
+	(e_source_copy): when copying an ESource don't create an absolute
+	uri when @source might have had one.
+	(e_source_set_absolute_uri): use strcmp, not ==.  also,
+	"source->priv->readonly" governs whether or not data can be stored
+	in the folder represented by the ESource, not that the ESource
+	itself is readonly.
+
+2004-05-27  Rodrigo Moya <rodrigo@novell.com>
+
+	* libedataserver/e-file-cache.[ch] (e_file_cache_clean): new function.
+
+2004-05-27  Sushma Rai <rsushma@novell.com>
+
+	* libedataserver/e-source.[ch] (e_source_new_with_absolute_uri)
+	(e_source_set_absolute_uri)(e_source_peek_absolute_uri):
+	Added new.
+
+	* libedataserver/e-source.c: (e_source_set_group)(e_source_get_uri):
+	Build absolute URI only if source is not having it.
+
+	* libedataserver/e-source.c: (dump_common_to_xml_node): Writing
+	absolute URI to the file.
+
+2004-05-26  Rodney Dawes  <dobey@novell.com>
+
+	* configure.in: Make the ORBit >= 2.9.8 requirement more obvious to
+	work around a problem with the AM_PATH_ORBIT2() m4 function not failing
+	properly when < 2.9.8 is found
+
+	* libedataserver/libedataserver-1.0.pc.in (Requires): Add the ORBit
+	requirement here, so that dependents pick it up properly as well
+	
+2004-05-19  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers
+
+2004-05-17  Rodney Dawes  <dobey@ximian.com>
+
+	* libedataserver/Makefile.am (libedataserver_la_LIBADD):
+	Add $(E_DATA_SERVER_LIBS) to link all the right dependencies for the
+	mono bindings to work correctly
+
+	Fixes #58615
+
 2004-05-04  Edward Rudd <urkle@outoforder.cc>
-	* addressbook/backend/ldap/e-book-backend-ldap.c: Added new	complex
+	
+	* addressbook/backend/ldap/e-book-backend-ldap.c: Added new complex
 	handlers for postal address fields. Bug # 45210
 
 2004-05-03  JP Rosevear  <jpr@ximian.com>

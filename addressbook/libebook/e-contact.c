@@ -33,7 +33,7 @@
 #define d(x)
 
 struct _EContactPrivate {
-	int padding;
+	char *cached_strings [E_CONTACT_FIELD_LAST];
 };
 
 #define E_CONTACT_FIELD_TYPE_STRING       0x00000001   /* used for simple single valued attributes */
@@ -146,6 +146,7 @@ static EContactFieldInfo field_info[] = {
 	MULTI_ELEM_STR_FIELD (E_CONTACT_EMAIL_1,    EVC_EMAIL,        "email_1",    N_("Email 1"),         FALSE, 0),
 	MULTI_ELEM_STR_FIELD (E_CONTACT_EMAIL_2,    EVC_EMAIL,        "email_2",    N_("Email 2"),         FALSE, 1),
 	MULTI_ELEM_STR_FIELD (E_CONTACT_EMAIL_3,    EVC_EMAIL,        "email_3",    N_("Email 3"),         FALSE, 2),
+	MULTI_ELEM_STR_FIELD (E_CONTACT_EMAIL_4,    EVC_EMAIL,        "email_4",    N_("Email 4"),         FALSE, 3),
 	STRING_FIELD         (E_CONTACT_MAILER,     EVC_MAILER,       "mailer",     N_("Mailer"),          FALSE),
 	BOOLEAN_FIELD        (E_CONTACT_WANTS_HTML, EVC_X_WANTS_HTML, "wants_html", N_("Wants HTML Mail"), FALSE),
 
@@ -253,9 +254,6 @@ e_contact_dispose (GObject *object)
 	EContact *ec = E_CONTACT (object);
 
 	if (ec->priv) {
-
-		/* XXX free instance specific stuff */
-
 		g_free (ec->priv);
 		ec->priv = NULL;
 	}
@@ -860,7 +858,7 @@ e_contact_set_property (GObject *object,
 				}
 
 				str = g_value_get_string (value);
-				if (str) {
+				if (str && *str) {
 					split = g_strsplit (str, ",", 0);
 					if (split) {
 						for (s = split; *s; s++) {
@@ -869,6 +867,11 @@ e_contact_set_property (GObject *object,
 						g_strfreev (split);
 					} else
 						e_vcard_attribute_add_value (attr, str);
+				}
+				else {
+					d(printf ("removing %s\n", info->vcard_field_name));
+
+					e_vcard_remove_attribute (E_VCARD (contact), attr);
 				}
 				break;
 			}
@@ -935,8 +938,15 @@ e_contact_set_property (GObject *object,
 		if (attr) {
 			d(printf ("setting %s to `%s'\n", info->vcard_field_name, sval));
 			e_vcard_attribute_remove_values (attr);
-			if (sval)
+			if (sval) {
 				e_vcard_attribute_add_value (attr, sval);
+			}
+			else {
+				d(printf ("removing %s\n", info->vcard_field_name));
+
+				e_vcard_remove_attribute (E_VCARD (contact), attr);
+			}
+
 		}
 		else if (sval) {
 			/* and if we don't find one we create a new attribute */
@@ -1268,11 +1278,48 @@ EContact*
 e_contact_new_from_vcard  (const char *vcard)
 {
 	EContact *contact;
+	const gchar *file_as;
 
 	g_return_val_if_fail (vcard != NULL, NULL);
 
 	contact = g_object_new (E_TYPE_CONTACT, NULL);
 	e_vcard_construct (E_VCARD (contact), vcard);
+
+	/* Generate a FILE_AS field if needed */
+
+	file_as = e_contact_get_const (contact, E_CONTACT_FILE_AS);
+	if (!file_as || !*file_as) {
+		EContactName *name;
+		const gchar *org;
+		gchar *file_as_new = NULL;
+		gchar *strings [4];
+		gchar **strings_p = strings;
+
+		name = e_contact_get (contact, E_CONTACT_NAME);
+		org = e_contact_get_const (contact, E_CONTACT_ORG);
+
+		if (name) {
+			if (name->family && *name->family)
+				*(strings_p++) = name->family;
+			if (name->given && *name->given)
+				*(strings_p++) = name->given;
+
+			if (strings_p != strings) {
+				*strings_p = NULL;
+				file_as_new = g_strjoinv (", ", strings);
+			}
+
+			e_contact_name_free (name);
+		}
+
+		if (!file_as_new && org && *org)
+			file_as_new = g_strdup (org);
+
+		if (file_as_new) {
+			e_contact_set (contact, E_CONTACT_FILE_AS, file_as_new);
+			g_free (file_as_new);
+		}
+	}
 
 	return contact;
 }
@@ -1378,14 +1425,26 @@ free_const_data (gpointer data, GObject *where_object_was)
 const gpointer
 e_contact_get_const (EContact *contact, EContactField field_id)
 {
-	gpointer value;
+	gboolean is_string = FALSE;
+	gpointer value = NULL;
 
 	g_return_val_if_fail (E_IS_CONTACT (contact), NULL);
 	g_return_val_if_fail (field_id >= 1 && field_id <= E_CONTACT_LAST_SIMPLE_STRING, NULL);
 
-	value = e_contact_get (contact, field_id);
+	if (field_info [field_id].t & E_CONTACT_FIELD_TYPE_STRING)
+		is_string = TRUE;
 
-	g_object_weak_ref (G_OBJECT (contact), free_const_data, value);
+	if (is_string)
+		value = contact->priv->cached_strings[field_id];
+
+	if (!value) {
+		value = e_contact_get (contact, field_id);
+		if (is_string && value)
+			contact->priv->cached_strings[field_id] = value;
+
+		if (value)
+			g_object_weak_ref (G_OBJECT (contact), free_const_data, value);
+	}
 
 	return value;
 }
@@ -1397,6 +1456,10 @@ e_contact_set (EContact *contact, EContactField field_id, gpointer value)
 
 	g_return_if_fail (contact && E_IS_CONTACT (contact));
 	g_return_if_fail (field_id >= 1 && field_id <= E_CONTACT_FIELD_LAST);
+
+	/* set the cached slot to NULL so we'll re-get the new string
+	   if e_contact_get_const is called again */
+	contact->priv->cached_strings[field_id] = NULL;
 
 	g_object_set (contact,
 		      e_contact_field_name (field_id), value,

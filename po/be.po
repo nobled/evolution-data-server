@@ -4,142 +4,154 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: evolution.HEAD.be\n"
-"POT-Creation-Date: 2004-04-19 09:18-0400\n"
-"PO-Revision-Date: 2003-05-25 19:42GMT+2\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2004-08-13 14:27-0400\n"
+"PO-Revision-Date: 2004-08-12 11:42+0300\n"
 "Last-Translator: Vital Khilko <dojlid@mova.org>\n"
 "Language-Team: belarusian <i18n@mova.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: KBabel 1.0\n"
 
-#: addressbook/backends/file/e-book-backend-file.c:442
-#: addressbook/backends/vcf/e-book-backend-vcf.c:452
+#: addressbook/backends/file/e-book-backend-file.c:433
+#: addressbook/backends/vcf/e-book-backend-vcf.c:445
 msgid "Loading..."
 msgstr "Загрузка..."
 
-#: addressbook/backends/file/e-book-backend-file.c:444
-#: addressbook/backends/ldap/e-book-backend-ldap.c:2938
-#: addressbook/backends/vcf/e-book-backend-vcf.c:454
+#: addressbook/backends/file/e-book-backend-file.c:435
+#: addressbook/backends/groupwise/e-book-backend-groupwise.c:1827
+#: addressbook/backends/ldap/e-book-backend-ldap.c:3155
+#: addressbook/backends/vcf/e-book-backend-vcf.c:447
 msgid "Searching..."
 msgstr "Пошук..."
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:599
+#: addressbook/backends/ldap/e-book-backend-ldap.c:618
 msgid "Using Distinguished Name (DN)"
-msgstr "Выкарыстоўваць удакладнёную назву (DN)"
+msgstr "Выкарыстоўваць удакладненую назву (DN)"
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:602
+#: addressbook/backends/ldap/e-book-backend-ldap.c:621
 msgid "Using Email Address"
-msgstr "Выкарыстоўваць адрэсу пошты"
+msgstr "Выкарыстоўваць адрас пошты"
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:768
+#: addressbook/backends/ldap/e-book-backend-ldap.c:787
 msgid "Reconnecting to LDAP server..."
-msgstr "Перадалучэньне да паслужніка LDAP..."
+msgstr "Перадалучэньне да паслужніку LDAP..."
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:1283
-#, fuzzy
+#: addressbook/backends/ldap/e-book-backend-ldap.c:1307
 msgid "Adding contact to LDAP server..."
-msgstr "Даданьне карткі да паслужніка LDAP..."
+msgstr "Даданьне кантакту да паслужніку LDAP..."
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:1379
-#, fuzzy
+#: addressbook/backends/ldap/e-book-backend-ldap.c:1407
 msgid "Removing contact from LDAP server..."
-msgstr "Выдаленьне карткі з паслужніка LDAP..."
+msgstr "Выдаленьне кантакту з паслужніку LDAP..."
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:1594
-#, fuzzy
+#: addressbook/backends/ldap/e-book-backend-ldap.c:1630
 msgid "Modifying contact from LDAP server..."
-msgstr "Зьмяненьне карткі на паслужніку LDAP..."
+msgstr "Зьмяненьне кантакту на паслужніку LDAP..."
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:2851
+#: addressbook/backends/ldap/e-book-backend-ldap.c:3067
 msgid "Receiving LDAP search results..."
-msgstr "Атрыманьне вынікаў пошуку з паслужніка LDAP..."
+msgstr "Атрыманьне вынікаў пошуку з паслужніку LDAP..."
 
-#: addressbook/backends/ldap/e-book-backend-ldap.c:2958
+#: addressbook/backends/ldap/e-book-backend-ldap.c:3175
 msgid "Error performing search"
-msgstr "Памылка заданага пошуку"
+msgstr "Памылка зададзенага пошуку"
 
 #. translators: the placeholders will be filled by
 #. * function names, e.g.
 #. * "e_book_add_contact" on book before
-#. * "e_book_load_uri
-#: addressbook/libebook/e-book.c:220 addressbook/libebook/e-book.c:332
-#: addressbook/libebook/e-book.c:417 addressbook/libebook/e-book.c:519
-#: addressbook/libebook/e-book.c:632 addressbook/libebook/e-book.c:716
-#: addressbook/libebook/e-book.c:819 addressbook/libebook/e-book.c:873
-#: addressbook/libebook/e-book.c:972 addressbook/libebook/e-book.c:1106
-#: addressbook/libebook/e-book.c:1207 addressbook/libebook/e-book.c:1447
-#: addressbook/libebook/e-book.c:2047
-#, fuzzy, c-format
+#. * "e_book_open
+#: addressbook/libebook/e-book.c:236 addressbook/libebook/e-book.c:240
+#: addressbook/libebook/e-book.c:442 addressbook/libebook/e-book.c:446
+#: addressbook/libebook/e-book.c:578 addressbook/libebook/e-book.c:582
+#: addressbook/libebook/e-book.c:782 addressbook/libebook/e-book.c:787
+#: addressbook/libebook/e-book.c:962 addressbook/libebook/e-book.c:966
+#: addressbook/libebook/e-book.c:1107 addressbook/libebook/e-book.c:1111
+#: addressbook/libebook/e-book.c:1309 addressbook/libebook/e-book.c:1313
+#: addressbook/libebook/e-book.c:1514 addressbook/libebook/e-book.c:1518
+#: addressbook/libebook/e-book.c:1741 addressbook/libebook/e-book.c:1745
+#: addressbook/libebook/e-book.c:1948 addressbook/libebook/e-book.c:1952
+#: addressbook/libebook/e-book.c:2984
+#, c-format
 msgid "\"%s\" on book before \"%s\""
-msgstr "\"%s\" у \"%s\""
+msgstr "\"%s\" у кнізе перад  \"%s\""
 
-#: addressbook/libebook/e-book.c:228 addressbook/libebook/e-book.c:340
-#: addressbook/libebook/e-book.c:425 addressbook/libebook/e-book.c:528
-#: addressbook/libebook/e-book.c:640 addressbook/libebook/e-book.c:724
-#: addressbook/libebook/e-book.c:827 addressbook/libebook/e-book.c:881
-#: addressbook/libebook/e-book.c:980 addressbook/libebook/e-book.c:1114
-#: addressbook/libebook/e-book.c:1215 addressbook/libebook/e-book.c:1455
+#: addressbook/libebook/e-book.c:249 addressbook/libebook/e-book.c:455
+#: addressbook/libebook/e-book.c:591 addressbook/libebook/e-book.c:797
+#: addressbook/libebook/e-book.c:976 addressbook/libebook/e-book.c:1121
+#: addressbook/libebook/e-book.c:1322 addressbook/libebook/e-book.c:1527
+#: addressbook/libebook/e-book.c:1755 addressbook/libebook/e-book.c:1961
+#: addressbook/libebook/e-book.c:2299 addressbook/libebook/e-book.c:2495
 msgid "book busy"
-msgstr ""
+msgstr "кніга занятая"
 
-#: addressbook/libebook/e-book.c:255 addressbook/libebook/e-book.c:367
-#: addressbook/libebook/e-book.c:447 addressbook/libebook/e-book.c:551
-#: addressbook/libebook/e-book.c:666 addressbook/libebook/e-book.c:747
-#: addressbook/libebook/e-book.c:913 addressbook/libebook/e-book.c:1024
-#: addressbook/libebook/e-book.c:1142 addressbook/libebook/e-book.c:1239
-#: addressbook/libebook/e-book.c:1373 addressbook/libebook/e-book.c:1477
-#: addressbook/libebook/e-book.c:2056
+#: addressbook/libebook/e-book.c:282 addressbook/libebook/e-book.c:286
+#: addressbook/libebook/e-book.c:488 addressbook/libebook/e-book.c:492
+#: addressbook/libebook/e-book.c:620 addressbook/libebook/e-book.c:624
+#: addressbook/libebook/e-book.c:826 addressbook/libebook/e-book.c:829
+#: addressbook/libebook/e-book.c:1008 addressbook/libebook/e-book.c:1011
+#: addressbook/libebook/e-book.c:1150 addressbook/libebook/e-book.c:1154
+#: addressbook/libebook/e-book.c:1358 addressbook/libebook/e-book.c:1362
+#: addressbook/libebook/e-book.c:1574 addressbook/libebook/e-book.c:1578
+#: addressbook/libebook/e-book.c:1787 addressbook/libebook/e-book.c:1791
+#: addressbook/libebook/e-book.c:1989 addressbook/libebook/e-book.c:1993
+#: addressbook/libebook/e-book.c:2240 addressbook/libebook/e-book.c:2327
+#: addressbook/libebook/e-book.c:2331 addressbook/libebook/e-book.c:2523
+#: addressbook/libebook/e-book.c:2527 addressbook/libebook/e-book.c:2993
 #, c-format
 msgid "CORBA exception making \"%s\" call"
-msgstr ""
+msgstr "Выключэньне CORBA выклікае \"%s\""
 
-#: addressbook/libebook/e-book.c:1354
-#, fuzzy
+#: addressbook/libebook/e-book.c:2221
 msgid "e_book_cancel: there is no current operation"
-msgstr "Адмяніць бягучую паштовую апэрацыю"
+msgstr ""
 
-#: addressbook/libebook/e-book.c:1389
+#: addressbook/libebook/e-book.c:2256
 msgid "e_book_cancel: couldn't cancel"
-msgstr ""
+msgstr "e_book_cancel: немагчыма скасаваць"
 
-#: addressbook/libebook/e-book.c:1748
+#: addressbook/libebook/e-book.c:2285 addressbook/libebook/e-book.c:2289
+#, c-format
+msgid "\"%s\" on book after \"%s\""
+msgstr "\"%s\" у кнізе пасьля \"%s\""
+
+#: addressbook/libebook/e-book.c:2355
+msgid "e_book_open: cancelled"
+msgstr "e_book_open: скасаванае"
+
+#: addressbook/libebook/e-book.c:2851
 msgid "e_book_load_uri: Invalid source."
-msgstr ""
+msgstr "e_book_load_uri: нерэчаісная крыніца."
 
-#: addressbook/libebook/e-book.c:1757 addressbook/libebook/e-book.c:1875
+#: addressbook/libebook/e-book.c:2859
 #, c-format
 msgid "e_book_load_uri: no factories available for uri `%s'"
 msgstr ""
 
-#: addressbook/libebook/e-book.c:1770
+#: addressbook/libebook/e-book.c:2871
 msgid "e_book_load_uri: Could not create EBookListener"
 msgstr ""
 
-#: addressbook/libebook/e-book.c:1869
-msgid "e_book_load_uri: cancelled"
+#: addressbook/libebook/e-book.c:2922
+#, c-format
+msgid "e_book_new: no factories available for uri `%s'"
 msgstr ""
 
-#: addressbook/libebook/e-book.c:1906
-#, fuzzy, c-format
-msgid "\"%s\" on book after \"%s\""
-msgstr "\"%s\" у \"%s\""
-
-#: addressbook/libebook/e-book.c:2142
+#: addressbook/libebook/e-book.c:3080
 msgid "e_book_get_self: there was no self contact uid stored in gconf"
 msgstr ""
 
-#: addressbook/libebook/e-book.c:2319
+#: addressbook/libebook/e-book.c:3191
 #, c-format
 msgid ""
 "e_book_set_default_source: there was no source for uid `%s' stored in gconf."
 msgstr ""
 
-#: addressbook/libebook/e-contact.c:99
-msgid "Unique ID"
-msgstr ""
-
 #: addressbook/libebook/e-contact.c:100
+msgid "Unique ID"
+msgstr "Унікальны Ід"
+
+#: addressbook/libebook/e-contact.c:101
 msgid "File As"
 msgstr "Файл як"
 
@@ -147,645 +159,614 @@ msgstr "Файл як"
 #. FN isn't really a structured field - we use a getter/setter
 #. so we can set the N property (since evo 1.4 works fine with
 #. vcards that don't even have a N attribute.  *sigh*)
-#: addressbook/libebook/e-contact.c:106
+#: addressbook/libebook/e-contact.c:107
 msgid "Full Name"
 msgstr "Поўнае імя"
 
-#: addressbook/libebook/e-contact.c:107
+#: addressbook/libebook/e-contact.c:108
 msgid "Name"
 msgstr "Імя"
 
-#: addressbook/libebook/e-contact.c:108
-#, fuzzy
-msgid "Given Name"
-msgstr "Назва поля"
-
 #: addressbook/libebook/e-contact.c:109
+msgid "Given Name"
+msgstr "Наданае імя"
+
+#: addressbook/libebook/e-contact.c:110
 msgid "Family Name"
 msgstr "Прозьвішча"
 
-#: addressbook/libebook/e-contact.c:110
+#: addressbook/libebook/e-contact.c:111
 msgid "Nickname"
 msgstr "Мянушка"
 
-#: addressbook/libebook/e-contact.c:111
+#: addressbook/libebook/e-contact.c:112
 msgid "Name or Org"
-msgstr ""
+msgstr "Імя ці назва"
 
 #. Address fields
-#: addressbook/libebook/e-contact.c:114
-#, fuzzy
-msgid "Address List"
-msgstr "Адрэса"
-
 #: addressbook/libebook/e-contact.c:115
-msgid "Home Address"
-msgstr "Хатняя адрэса"
+msgid "Address List"
+msgstr "Сьпіс адрасоў"
 
 #: addressbook/libebook/e-contact.c:116
-#, fuzzy
-msgid "Work Address"
-msgstr "Хатняя адрэса"
+msgid "Home Address"
+msgstr "Хатні адрас"
 
 #: addressbook/libebook/e-contact.c:117
-msgid "Other Address"
-msgstr "Іншыя адрэсы"
+msgid "Work Address"
+msgstr "Працоўны адрас"
 
-#: addressbook/libebook/e-contact.c:119
-#, fuzzy
-msgid "Home Address Label"
-msgstr "Адмеціна адрэсы"
+#: addressbook/libebook/e-contact.c:118
+msgid "Other Address"
+msgstr "Іншыя адрасы"
 
 #: addressbook/libebook/e-contact.c:120
-#, fuzzy
-msgid "Work Address Label"
-msgstr "Адмеціна адрэсы"
+msgid "Home Address Label"
+msgstr "Адмеціна хатняга адрасу"
 
 #: addressbook/libebook/e-contact.c:121
-#, fuzzy
-msgid "Other Address Label"
-msgstr "Адмеціна адрэсы"
+msgid "Work Address Label"
+msgstr "Адмеціна працоўнага адрасу"
 
-#: addressbook/libebook/e-contact.c:123
+#: addressbook/libebook/e-contact.c:122
+msgid "Other Address Label"
+msgstr "Адмеціна іншага адрасу"
+
+#: addressbook/libebook/e-contact.c:124
 msgid "Assistant Phone"
 msgstr "Тэлефон памочніка"
 
-#: addressbook/libebook/e-contact.c:124
+#: addressbook/libebook/e-contact.c:125
 msgid "Business Phone"
 msgstr "Працоўны тэлефон"
 
-#: addressbook/libebook/e-contact.c:125
+#: addressbook/libebook/e-contact.c:126
 msgid "Business Phone 2"
 msgstr "Працоўны тэлефон 2"
 
-#: addressbook/libebook/e-contact.c:126
+#: addressbook/libebook/e-contact.c:127
 msgid "Business Fax"
 msgstr "Працоўны факс"
 
-#: addressbook/libebook/e-contact.c:127
+#: addressbook/libebook/e-contact.c:128
 msgid "Callback Phone"
 msgstr "Тэлефон зваротнага выкліку"
 
-#: addressbook/libebook/e-contact.c:128
-msgid "Car Phone"
-msgstr "Тэлефон у аўтамабіле"
-
 #: addressbook/libebook/e-contact.c:129
+msgid "Car Phone"
+msgstr "Тэлефон у аўтамабілі"
+
+#: addressbook/libebook/e-contact.c:130
 msgid "Company Phone"
 msgstr "Тэлефон установы"
 
-#: addressbook/libebook/e-contact.c:130
+#: addressbook/libebook/e-contact.c:131
 msgid "Home Phone"
 msgstr "Хатні тэлефон"
 
-#: addressbook/libebook/e-contact.c:131
+#: addressbook/libebook/e-contact.c:132
 msgid "Home Phone 2"
 msgstr "Хатні тэлефон 2"
 
-#: addressbook/libebook/e-contact.c:132
+#: addressbook/libebook/e-contact.c:133
 msgid "Home Fax"
 msgstr "Хатні факс"
 
-#: addressbook/libebook/e-contact.c:133
+#: addressbook/libebook/e-contact.c:134
 msgid "ISDN"
 msgstr "ISDN"
 
-#: addressbook/libebook/e-contact.c:134
+#: addressbook/libebook/e-contact.c:135
 msgid "Mobile Phone"
 msgstr "Мабільны тэлефон"
 
-#: addressbook/libebook/e-contact.c:135
+#: addressbook/libebook/e-contact.c:136
 msgid "Other Phone"
 msgstr "Іншыя тэлефоны"
 
-#: addressbook/libebook/e-contact.c:136
-msgid "Other Fax"
-msgstr "Іншы Fax"
-
 #: addressbook/libebook/e-contact.c:137
+msgid "Other Fax"
+msgstr "Іншы факс"
+
+#: addressbook/libebook/e-contact.c:138
 msgid "Pager"
 msgstr "Пэйджар"
 
-#: addressbook/libebook/e-contact.c:138
+#: addressbook/libebook/e-contact.c:139
 msgid "Primary Phone"
 msgstr "Першасны тэлефон"
 
-#: addressbook/libebook/e-contact.c:139
+#: addressbook/libebook/e-contact.c:140
 msgid "Radio"
 msgstr "Радыё"
 
-#: addressbook/libebook/e-contact.c:140
+#: addressbook/libebook/e-contact.c:141
 msgid "Telex"
 msgstr "Тэлекс"
 
-#: addressbook/libebook/e-contact.c:141
+#: addressbook/libebook/e-contact.c:142
 msgid "TTY"
 msgstr "TTY"
 
 #. Email fields
-#: addressbook/libebook/e-contact.c:144
-#, fuzzy
-msgid "Email List"
-msgstr "Э. пошта 2"
-
 #: addressbook/libebook/e-contact.c:145
-#, fuzzy
-msgid "Email 1"
-msgstr "Э. пошта 3"
+msgid "Email List"
+msgstr "Сьпіс э. пошты"
 
 #: addressbook/libebook/e-contact.c:146
+msgid "Email 1"
+msgstr "Э. пошта 1"
+
+#: addressbook/libebook/e-contact.c:147
 msgid "Email 2"
 msgstr "Э. пошта 2"
 
-#: addressbook/libebook/e-contact.c:147
+#: addressbook/libebook/e-contact.c:148
 msgid "Email 3"
 msgstr "Э. пошта 3"
 
-#: addressbook/libebook/e-contact.c:148
+#: addressbook/libebook/e-contact.c:149
+msgid "Email 4"
+msgstr "Э. пошта 4"
+
+#: addressbook/libebook/e-contact.c:150
 msgid "Mailer"
 msgstr "Паштавік"
 
-#: addressbook/libebook/e-contact.c:149
-#, fuzzy
+#: addressbook/libebook/e-contact.c:151
 msgid "Wants HTML Mail"
-msgstr "Жадае HTML"
+msgstr "Жадае лісты у HTML"
 
 #. Instant messaging fields
-#: addressbook/libebook/e-contact.c:152
-msgid "AIM Screen Name List"
-msgstr ""
-
-#: addressbook/libebook/e-contact.c:153
-msgid "Groupwise Id List"
-msgstr ""
-
 #: addressbook/libebook/e-contact.c:154
-#, fuzzy
-msgid "Jabber Id List"
-msgstr "Сьпіс бяз назвы"
+msgid "AIM Screen Name List"
+msgstr "Сьпіс кантактаў AIM"
 
 #: addressbook/libebook/e-contact.c:155
-msgid "Yahoo! Screen Name List"
-msgstr ""
+msgid "Groupwise Id List"
+msgstr "Сьпіс кантактаў Groupwise"
 
 #: addressbook/libebook/e-contact.c:156
-msgid "MSN Screen Name List"
-msgstr ""
+msgid "Jabber Id List"
+msgstr "Сьпіс кантактаў Jabber'у"
 
 #: addressbook/libebook/e-contact.c:157
-#, fuzzy
-msgid "ICQ Id List"
-msgstr "Гэта новы сьпіс"
+msgid "Yahoo! Screen Name List"
+msgstr "Сьпіс кантактаў Yahoo!"
+
+#: addressbook/libebook/e-contact.c:158
+msgid "MSN Screen Name List"
+msgstr "Сьпіс кантактаў MSN"
 
 #: addressbook/libebook/e-contact.c:159
-msgid "AIM Home Screen Name 1"
-msgstr ""
-
-#: addressbook/libebook/e-contact.c:160
-msgid "AIM Home Screen Name 2"
-msgstr ""
+msgid "ICQ Id List"
+msgstr "Сьпіс кантактаў ICQ"
 
 #: addressbook/libebook/e-contact.c:161
-msgid "AIM Home Screen Name 3"
-msgstr ""
+msgid "AIM Home Screen Name 1"
+msgstr "1-шы Хатні кантакт AIM"
 
 #: addressbook/libebook/e-contact.c:162
-msgid "AIM Work Screen Name 1"
-msgstr ""
+msgid "AIM Home Screen Name 2"
+msgstr "2-гі хатні кантакт AIM"
 
 #: addressbook/libebook/e-contact.c:163
-msgid "AIM Work Screen Name 2"
-msgstr ""
+msgid "AIM Home Screen Name 3"
+msgstr "3-ці хатні кантакт AIM"
 
 #: addressbook/libebook/e-contact.c:164
-msgid "AIM Work Screen Name 3"
-msgstr ""
+msgid "AIM Work Screen Name 1"
+msgstr "1-шы працоўны кантакт AIM"
 
 #: addressbook/libebook/e-contact.c:165
-msgid "Groupwise Home Screen Name 1"
-msgstr ""
+msgid "AIM Work Screen Name 2"
+msgstr "2-гі працоўны кантакт AIM"
 
 #: addressbook/libebook/e-contact.c:166
-msgid "Groupwise Home Screen Name 2"
-msgstr ""
+msgid "AIM Work Screen Name 3"
+msgstr "3-ці працоўны кантакт AIM"
 
 #: addressbook/libebook/e-contact.c:167
-msgid "Groupwise Home Screen Name 3"
-msgstr ""
+msgid "Groupwise Home Screen Name 1"
+msgstr "1-шы хатні кантакт Groupwise"
 
 #: addressbook/libebook/e-contact.c:168
-msgid "Groupwise Work Screen Name 1"
-msgstr ""
+msgid "Groupwise Home Screen Name 2"
+msgstr "2-гі хатні кантакт Groupwise"
 
 #: addressbook/libebook/e-contact.c:169
-msgid "Groupwise Work Screen Name 2"
-msgstr ""
+msgid "Groupwise Home Screen Name 3"
+msgstr "13-ці хатні кантакт Groupwise"
 
 #: addressbook/libebook/e-contact.c:170
-msgid "Groupwise Work Screen Name 3"
-msgstr ""
+msgid "Groupwise Work Screen Name 1"
+msgstr "1-шы працоўны кантакт Groupwise"
 
 #: addressbook/libebook/e-contact.c:171
-#, fuzzy
-msgid "Jabber Home Id 1"
-msgstr "Сьпіс бяз назвы"
+msgid "Groupwise Work Screen Name 2"
+msgstr "2-гі працоўны кантакт Groupwise"
 
 #: addressbook/libebook/e-contact.c:172
-#, fuzzy
-msgid "Jabber Home Id 2"
-msgstr "Сьпіс бяз назвы"
+msgid "Groupwise Work Screen Name 3"
+msgstr "3-ці працоўны кантакт Groupwise"
 
 #: addressbook/libebook/e-contact.c:173
-#, fuzzy
-msgid "Jabber Home Id 3"
-msgstr "Сьпіс бяз назвы"
+msgid "Jabber Home Id 1"
+msgstr "1-шы хатні кантакт Jabber'у"
 
 #: addressbook/libebook/e-contact.c:174
-#, fuzzy
-msgid "Jabber Work Id 1"
-msgstr "Сьпіс бяз назвы"
+msgid "Jabber Home Id 2"
+msgstr "2-гі хатні кантакт Jabber'у"
 
 #: addressbook/libebook/e-contact.c:175
-#, fuzzy
-msgid "Jabber Work Id 2"
-msgstr "Сьпіс бяз назвы"
+msgid "Jabber Home Id 3"
+msgstr "3-ці хатні кантакт Jabber'у"
 
 #: addressbook/libebook/e-contact.c:176
-#, fuzzy
-msgid "Jabber Work Id 3"
-msgstr "Сьпіс бяз назвы"
+msgid "Jabber Work Id 1"
+msgstr "1-шы працоўны кантакт Jabber'у"
 
 #: addressbook/libebook/e-contact.c:177
-msgid "Yahoo! Home Screen Name 1"
-msgstr ""
+msgid "Jabber Work Id 2"
+msgstr "2-гі працоўны кантакт Jabber'у"
 
 #: addressbook/libebook/e-contact.c:178
-msgid "Yahoo! Home Screen Name 2"
-msgstr ""
+msgid "Jabber Work Id 3"
+msgstr "3-ці працоўны кантакт Jabber'у"
 
 #: addressbook/libebook/e-contact.c:179
-msgid "Yahoo! Home Screen Name 3"
-msgstr ""
+msgid "Yahoo! Home Screen Name 1"
+msgstr "1-шы хатні кантакт Yahoo!"
 
 #: addressbook/libebook/e-contact.c:180
-msgid "Yahoo! Work Screen Name 1"
-msgstr ""
+msgid "Yahoo! Home Screen Name 2"
+msgstr "2-гі хатні кантакт Yahoo!"
 
 #: addressbook/libebook/e-contact.c:181
-msgid "Yahoo! Work Screen Name 2"
-msgstr ""
+msgid "Yahoo! Home Screen Name 3"
+msgstr "3-ці хатні кантакт Yahoo!"
 
 #: addressbook/libebook/e-contact.c:182
-msgid "Yahoo! Work Screen Name 3"
-msgstr ""
+msgid "Yahoo! Work Screen Name 1"
+msgstr "1-шы працоўны кантакт Yahoo!"
 
 #: addressbook/libebook/e-contact.c:183
-msgid "MSN Home Screen Name 1"
-msgstr ""
+msgid "Yahoo! Work Screen Name 2"
+msgstr "2-гі працоўны кантакт Yahoo!"
 
 #: addressbook/libebook/e-contact.c:184
-msgid "MSN Home Screen Name 2"
-msgstr ""
+msgid "Yahoo! Work Screen Name 3"
+msgstr "3-ці працоўны кантакт Yahoo!"
 
 #: addressbook/libebook/e-contact.c:185
-msgid "MSN Home Screen Name 3"
-msgstr ""
+msgid "MSN Home Screen Name 1"
+msgstr "1-шы хатні кантакт MSN"
 
 #: addressbook/libebook/e-contact.c:186
-msgid "MSN Work Screen Name 1"
-msgstr ""
+msgid "MSN Home Screen Name 2"
+msgstr "2-гі хатні кантакт MSN"
 
 #: addressbook/libebook/e-contact.c:187
-msgid "MSN Work Screen Name 2"
-msgstr ""
+msgid "MSN Home Screen Name 3"
+msgstr "3-ці хатні кантакт MSN"
 
 #: addressbook/libebook/e-contact.c:188
-msgid "MSN Work Screen Name 3"
-msgstr ""
+msgid "MSN Work Screen Name 1"
+msgstr "1-шы працоўны кантакт MSN"
 
 #: addressbook/libebook/e-contact.c:189
-msgid "ICQ Home Id 1"
-msgstr ""
+msgid "MSN Work Screen Name 2"
+msgstr "2-гі працоўны кантакт MSN"
 
 #: addressbook/libebook/e-contact.c:190
-#, fuzzy
-msgid "ICQ Home Id 2"
-msgstr "Хатні 2"
+msgid "MSN Work Screen Name 3"
+msgstr "3-ці працоўны кантакт MSN"
 
 #: addressbook/libebook/e-contact.c:191
-msgid "ICQ Home Id 3"
-msgstr ""
+msgid "ICQ Home Id 1"
+msgstr "1-шы хатні кантакт ICQ"
 
 #: addressbook/libebook/e-contact.c:192
-msgid "ICQ Work Id 1"
-msgstr ""
+msgid "ICQ Home Id 2"
+msgstr "2-гі хатні кантакт ICQ"
 
 #: addressbook/libebook/e-contact.c:193
-msgid "ICQ Work Id 2"
-msgstr ""
+msgid "ICQ Home Id 3"
+msgstr "3-ці хатні кантакт ICQ"
 
 #: addressbook/libebook/e-contact.c:194
+msgid "ICQ Work Id 1"
+msgstr "1-шы працоўны кантакт ICQ"
+
+#: addressbook/libebook/e-contact.c:195
+msgid "ICQ Work Id 2"
+msgstr "2-гі працоўны кантакт ICQ"
+
+#: addressbook/libebook/e-contact.c:196
 msgid "ICQ Work Id 3"
-msgstr ""
+msgstr "3-ці працоўны кантакт ICQ"
 
 #. Organizational fields
-#: addressbook/libebook/e-contact.c:197
+#: addressbook/libebook/e-contact.c:199
 msgid "Organization"
 msgstr "Установа"
 
-#: addressbook/libebook/e-contact.c:198
+#: addressbook/libebook/e-contact.c:200
 msgid "Organizational Unit"
 msgstr "Пасада"
 
-#: addressbook/libebook/e-contact.c:199
+#: addressbook/libebook/e-contact.c:201
 msgid "Office"
 msgstr "Офіс"
 
-#: addressbook/libebook/e-contact.c:201
+#: addressbook/libebook/e-contact.c:203
 msgid "Title"
 msgstr "Пасада"
 
-#: addressbook/libebook/e-contact.c:202
+#: addressbook/libebook/e-contact.c:204
 msgid "Role"
 msgstr "Роля"
 
-#: addressbook/libebook/e-contact.c:203
+#: addressbook/libebook/e-contact.c:205
 msgid "Manager"
-msgstr "Мэнаджар"
+msgstr "Мэнэджэр"
 
-#: addressbook/libebook/e-contact.c:204
+#: addressbook/libebook/e-contact.c:206
 msgid "Assistant"
 msgstr "Памочнік"
 
 #. Web fields
-#: addressbook/libebook/e-contact.c:207
-msgid "Homepage URL"
-msgstr ""
-
-#: addressbook/libebook/e-contact.c:208
-msgid "Weblog URL"
-msgstr ""
-
 #: addressbook/libebook/e-contact.c:209
+msgid "Homepage URL"
+msgstr "URL хатняе старонкі"
+
+#: addressbook/libebook/e-contact.c:210
+msgid "Weblog URL"
+msgstr "URL блогу"
+
+#: addressbook/libebook/e-contact.c:211
 msgid "Video Conferencing URL"
-msgstr ""
+msgstr "URL відэаканфэрэнцыі"
 
 #. Photo/Logo
-#: addressbook/libebook/e-contact.c:212
-#, fuzzy
+#: addressbook/libebook/e-contact.c:214
 msgid "Photo"
-msgstr "Праф."
+msgstr "Фотаздымак"
 
-#: addressbook/libebook/e-contact.c:213
-#, fuzzy
+#: addressbook/libebook/e-contact.c:215
 msgid "Logo"
-msgstr "Тога"
+msgstr "Лягатып"
 
 #. Security fields
-#: addressbook/libebook/e-contact.c:216
-#, fuzzy
+#: addressbook/libebook/e-contact.c:218
 msgid "X.509 Certificate"
-msgstr "_Ід сэртыфіката:"
+msgstr "X.509 Сэртыфікат"
 
 #. Contact categories
-#: addressbook/libebook/e-contact.c:219
+#: addressbook/libebook/e-contact.c:221
 msgid "Category List"
 msgstr "Сьпіс катэгорыяў"
 
-#: addressbook/libebook/e-contact.c:220
+#: addressbook/libebook/e-contact.c:222
 msgid "Categories"
 msgstr "Катэгорыі"
 
 #. Collaboration fields
-#: addressbook/libebook/e-contact.c:223
+#: addressbook/libebook/e-contact.c:225
 msgid "Calendar URI"
-msgstr "URI календара"
+msgstr "URI календару"
 
-#: addressbook/libebook/e-contact.c:224
+#: addressbook/libebook/e-contact.c:226
 msgid "Free/Busy URL"
 msgstr "Вольны/Заняты URL"
 
-#: addressbook/libebook/e-contact.c:225
+#: addressbook/libebook/e-contact.c:227
 msgid "ICS Calendar"
 msgstr "Каляндар ICS"
 
 #. Misc fields
-#: addressbook/libebook/e-contact.c:228
-#, fuzzy
+#: addressbook/libebook/e-contact.c:230
 msgid "Spouse's Name"
-msgstr "Супруг(а)"
+msgstr "Імя супруга(і)"
 
-#: addressbook/libebook/e-contact.c:229
+#: addressbook/libebook/e-contact.c:231
 msgid "Note"
 msgstr "Заўвага"
 
-#: addressbook/libebook/e-contact.c:231
+#: addressbook/libebook/e-contact.c:233
 msgid "Birth Date"
 msgstr "Дзень народзінаў"
 
-#: addressbook/libebook/e-contact.c:232
+#: addressbook/libebook/e-contact.c:234
 msgid "Anniversary"
 msgstr "Юбілей"
 
-#: addressbook/libebook/e-contact.c:234
+#: addressbook/libebook/e-contact.c:236
 msgid "List"
 msgstr "Сьпіс"
 
-#: addressbook/libebook/e-contact.c:235
+#: addressbook/libebook/e-contact.c:237
 msgid "List Show Addresses"
-msgstr "Сьпіс адлюстраваных адрэсаў"
+msgstr "Сьпіс адлюстраваных адрасоў"
 
-#: addressbook/libebook/e-contact.c:1197
+#: addressbook/libebook/e-contact.c:1206
 msgid "Unnamed List"
 msgstr "Сьпіс бяз назвы"
 
 #. Set category and visibility
-#: calendar/backends/contacts/e-cal-backend-contacts.c:440
-#, fuzzy
+#: calendar/backends/contacts/e-cal-backend-contacts.c:441
 msgid "Birthday"
-msgstr "_Дзень народзінаў:"
+msgstr "Дзень народзінаў"
 
-#: calendar/backends/contacts/e-cal-backend-contacts.c:464
-#, fuzzy, c-format
+#: calendar/backends/contacts/e-cal-backend-contacts.c:465
+#, c-format
 msgid "Birthday: %s"
-msgstr "_Дзень народзінаў:"
+msgstr "Дзень народзінаў: %s"
 
-#: calendar/backends/contacts/e-cal-backend-contacts.c:485
-#, fuzzy, c-format
+#: calendar/backends/contacts/e-cal-backend-contacts.c:486
+#, c-format
 msgid "Anniversary: %s"
-msgstr "_Юбілей:"
+msgstr "Юбілей:·%s"
 
 #: calendar/backends/file/e-cal-backend-file.c:183
 msgid "Can't save calendar data: Malformed URI."
-msgstr "Немагчыма захаваць даньні каляндара: Памылковы URI."
+msgstr "Немагчыма захаваць даньні календару: Памылковы URI."
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:195
-#, fuzzy
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:257
 msgid "Invalid server URI"
-msgstr "Памылковая мэта"
+msgstr "Памылковы URI паслужніку"
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:224
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:287
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:290
 msgid "Calendar"
 msgstr "Каляндар"
 
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:227
-#, fuzzy
-msgid "Checklist"
-msgstr "Густая дымка"
-
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:247
-#: calendar/libecal/e-cal.c:4062
-#, fuzzy
-msgid "Authentication failed"
-msgstr "Аўтарызацыя не адбылася."
-
-#: calendar/backends/groupwise/e-cal-backend-groupwise.c:420
-#, fuzzy
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:297
 msgid "Could not create cache file"
-msgstr ""
-"Неатрымалася стварыць файл \"%s\":\n"
-"%s"
+msgstr "Не атрымалася стварыць файл кэшу"
 
-#: calendar/backends/http/e-cal-backend-http.c:221
-#, fuzzy
+#: calendar/backends/groupwise/e-cal-backend-groupwise.c:319
+#: calendar/libecal/e-cal.c:4283
+msgid "Authentication failed"
+msgstr "Збой аўтарызацыі."
+
+#: calendar/backends/http/e-cal-backend-http.c:225
 msgid "Redirected to Invalid URI"
-msgstr "Памылковы URI"
+msgstr "Перанакіраваньне на нерэчаісны URI"
 
-#: calendar/backends/http/e-cal-backend-http.c:241
-#, fuzzy
+#: calendar/backends/http/e-cal-backend-http.c:249
 msgid "Bad file format."
-msgstr "Фармат часу:"
+msgstr "Кепскі фармат часу."
 
-#: calendar/backends/http/e-cal-backend-http.c:246
-#, fuzzy
+#: calendar/backends/http/e-cal-backend-http.c:255
 msgid "Not a calendar."
-msgstr "Тэчка %s адсутнічае "
+msgstr "Не каляндар."
 
-#: calendar/libecal/e-cal-component.c:1218
+#: calendar/libecal/e-cal-component.c:1237
 msgid "Untitled appointment"
 msgstr "Сустрэча бяз назвы"
 
-#: calendar/libecal/e-cal-recur.c:3989
+#: calendar/libecal/e-cal-recur.c:3996
 msgid "1st"
 msgstr "1-га"
 
-#: calendar/libecal/e-cal-recur.c:3990
+#: calendar/libecal/e-cal-recur.c:3997
 msgid "2nd"
 msgstr "2-га"
 
-#: calendar/libecal/e-cal-recur.c:3991
+#: calendar/libecal/e-cal-recur.c:3998
 msgid "3rd"
 msgstr "3-га"
 
-#: calendar/libecal/e-cal-recur.c:3992
+#: calendar/libecal/e-cal-recur.c:3999
 msgid "4th"
 msgstr "4-га"
 
-#: calendar/libecal/e-cal-recur.c:3993
+#: calendar/libecal/e-cal-recur.c:4000
 msgid "5th"
 msgstr "5-га"
 
-#: calendar/libecal/e-cal-recur.c:3994
+#: calendar/libecal/e-cal-recur.c:4001
 msgid "6th"
 msgstr "6-га"
 
-#: calendar/libecal/e-cal-recur.c:3995
+#: calendar/libecal/e-cal-recur.c:4002
 msgid "7th"
 msgstr "7-га"
 
-#: calendar/libecal/e-cal-recur.c:3996
+#: calendar/libecal/e-cal-recur.c:4003
 msgid "8th"
 msgstr "8-га"
 
-#: calendar/libecal/e-cal-recur.c:3997
+#: calendar/libecal/e-cal-recur.c:4004
 msgid "9th"
 msgstr "9-га"
 
-#: calendar/libecal/e-cal-recur.c:3998
+#: calendar/libecal/e-cal-recur.c:4005
 msgid "10th"
 msgstr "10-га"
 
-#: calendar/libecal/e-cal-recur.c:3999
+#: calendar/libecal/e-cal-recur.c:4006
 msgid "11th"
 msgstr "11-га"
 
-#: calendar/libecal/e-cal-recur.c:4000
+#: calendar/libecal/e-cal-recur.c:4007
 msgid "12th"
 msgstr "12-га"
 
-#: calendar/libecal/e-cal-recur.c:4001
+#: calendar/libecal/e-cal-recur.c:4008
 msgid "13th"
 msgstr "13-га"
 
-#: calendar/libecal/e-cal-recur.c:4002
+#: calendar/libecal/e-cal-recur.c:4009
 msgid "14th"
 msgstr "14-га"
 
-#: calendar/libecal/e-cal-recur.c:4003
+#: calendar/libecal/e-cal-recur.c:4010
 msgid "15th"
 msgstr "15-га"
 
-#: calendar/libecal/e-cal-recur.c:4004
+#: calendar/libecal/e-cal-recur.c:4011
 msgid "16th"
 msgstr "16-га"
 
-#: calendar/libecal/e-cal-recur.c:4005
+#: calendar/libecal/e-cal-recur.c:4012
 msgid "17th"
 msgstr "17-е"
 
-#: calendar/libecal/e-cal-recur.c:4006
+#: calendar/libecal/e-cal-recur.c:4013
 msgid "18th"
 msgstr "18-е"
 
-#: calendar/libecal/e-cal-recur.c:4007
+#: calendar/libecal/e-cal-recur.c:4014
 msgid "19th"
 msgstr "19-е"
 
-#: calendar/libecal/e-cal-recur.c:4008
+#: calendar/libecal/e-cal-recur.c:4015
 msgid "20th"
 msgstr "20-е"
 
-#: calendar/libecal/e-cal-recur.c:4009
+#: calendar/libecal/e-cal-recur.c:4016
 msgid "21st"
 msgstr "21-га"
 
-#: calendar/libecal/e-cal-recur.c:4010
+#: calendar/libecal/e-cal-recur.c:4017
 msgid "22nd"
 msgstr "22-га"
 
-#: calendar/libecal/e-cal-recur.c:4011
+#: calendar/libecal/e-cal-recur.c:4018
 msgid "23rd"
 msgstr "23-га"
 
-#: calendar/libecal/e-cal-recur.c:4012
+#: calendar/libecal/e-cal-recur.c:4019
 msgid "24th"
 msgstr "24-га"
 
-#: calendar/libecal/e-cal-recur.c:4013
+#: calendar/libecal/e-cal-recur.c:4020
 msgid "25th"
 msgstr "25-га"
 
-#: calendar/libecal/e-cal-recur.c:4014
+#: calendar/libecal/e-cal-recur.c:4021
 msgid "26th"
 msgstr "26-га"
 
-#: calendar/libecal/e-cal-recur.c:4015
+#: calendar/libecal/e-cal-recur.c:4022
 msgid "27th"
 msgstr "27-га"
 
-#: calendar/libecal/e-cal-recur.c:4016
+#: calendar/libecal/e-cal-recur.c:4023
 msgid "28th"
 msgstr "28-га"
 
-#: calendar/libecal/e-cal-recur.c:4017
+#: calendar/libecal/e-cal-recur.c:4024
 msgid "29th"
 msgstr "29-га"
 
-#: calendar/libecal/e-cal-recur.c:4018
+#: calendar/libecal/e-cal-recur.c:4025
 msgid "30th"
 msgstr "30-га"
 
-#: calendar/libecal/e-cal-recur.c:4019
+#: calendar/libecal/e-cal-recur.c:4026
 msgid "31st"
 msgstr "31-га"
 
@@ -807,198 +788,197 @@ msgid "Undefined"
 msgstr "Нявызначаны"
 
 #. actually ask the client for authentication
-#: calendar/libecal/e-cal.c:1486
-#, fuzzy, c-format
+#: calendar/libecal/e-cal.c:1521
+#, c-format
 msgid "Enter password for %s (user %s)"
-msgstr "%sУвядзіце пароль для %s (карыстальнік %s)"
+msgstr "Увядзіце пароль для %s (карыстальнік %s)"
 
-#: calendar/libecal/e-cal.c:4036
+#: calendar/libecal/e-cal.c:4257
 msgid "Invalid argument"
 msgstr "Недапушчальны аргумэнт"
 
-#: calendar/libecal/e-cal.c:4038
+#: calendar/libecal/e-cal.c:4259
 msgid "Backend is busy"
-msgstr ""
+msgstr "Праграма занятая"
 
-#: calendar/libecal/e-cal.c:4040
-#, fuzzy
+#: calendar/libecal/e-cal.c:4261
 msgid "Repository is offline"
 msgstr "Сховішча знаходзіцца ў адлучаным стане"
 
-#: calendar/libecal/e-cal.c:4042
-#, fuzzy
+#: calendar/libecal/e-cal.c:4263
 msgid "No such calendar"
-msgstr "Тэчка %s адсутнічае "
+msgstr "Няма календару"
 
-#: calendar/libecal/e-cal.c:4044 servers/groupwise/e-gw-connection.c:86
-#, fuzzy
+#: calendar/libecal/e-cal.c:4265 servers/groupwise/e-gw-connection.c:86
 msgid "Object not found"
-msgstr "Аб'ект адсутнічае\n"
+msgstr "Аб'ект адсутнічае"
 
-#: calendar/libecal/e-cal.c:4046 servers/groupwise/e-gw-connection.c:82
-#, fuzzy
+#: calendar/libecal/e-cal.c:4267 servers/groupwise/e-gw-connection.c:82
 msgid "Invalid object"
-msgstr "Памылковая мэта"
+msgstr "Нерэчаісны аб'ект"
 
-#: calendar/libecal/e-cal.c:4048
-#, fuzzy
+#: calendar/libecal/e-cal.c:4269
 msgid "URI not loaded"
-msgstr "EBook не загружана\n"
+msgstr "EBook не загружана"
 
-#: calendar/libecal/e-cal.c:4050
+#: calendar/libecal/e-cal.c:4271
 msgid "URI already loaded"
-msgstr ""
+msgstr "URI ужо загружаны"
 
-#: calendar/libecal/e-cal.c:4052
+#: calendar/libecal/e-cal.c:4273
 msgid "Permission denied"
 msgstr "Адмоўлена ў доступе"
 
-#: calendar/libecal/e-cal.c:4054
-#, fuzzy
+#: calendar/libecal/e-cal.c:4275
 msgid "Object ID already exists"
-msgstr "Ід карткі ужо існуе"
+msgstr "Ід аб'екту ўжо існуе"
 
-#: calendar/libecal/e-cal.c:4056
+#: calendar/libecal/e-cal.c:4277
 msgid "Protocol not supported"
 msgstr "Пратакол не падтрымліваецца"
 
-#: calendar/libecal/e-cal.c:4058
-#, fuzzy
+#: calendar/libecal/e-cal.c:4279
 msgid "Operation has been cancelled"
-msgstr "Дзеяньне адмененае"
+msgstr "Апэрацыя будзе скасаваная"
 
-#: calendar/libecal/e-cal.c:4060
-#, fuzzy
+#: calendar/libecal/e-cal.c:4281
 msgid "Could not cancel operation"
-msgstr "Адменена апэрацыі"
+msgstr "Немагчыма скасаваць апэрацыю"
 
-#: calendar/libecal/e-cal.c:4064
+#: calendar/libecal/e-cal.c:4285
 msgid "Authentication required"
 msgstr "Аўтарызацыя патрабуецца"
 
-#: calendar/libecal/e-cal.c:4066
+#: calendar/libecal/e-cal.c:4287
 msgid "A CORBA exception has occurred"
-msgstr ""
+msgstr "Адбылося выключэньне CORBA"
 
-#: calendar/libecal/e-cal.c:4068 servers/groupwise/e-gw-connection.c:92
+#: calendar/libecal/e-cal.c:4289 servers/groupwise/e-gw-connection.c:92
 msgid "Unknown error"
 msgstr "Невядомая памылка"
 
-#: calendar/libecal/e-cal.c:4070
+#: calendar/libecal/e-cal.c:4291
 msgid "No error"
 msgstr "Няма памылкі"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:50
-#: calendar/libedata-cal/e-cal-backend-sexp.c:518
-#: calendar/libedata-cal/e-cal-backend-sexp.c:650
-#: calendar/libedata-cal/e-cal-backend-sexp.c:677
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:529
+#: calendar/libedata-cal/e-cal-backend-sexp.c:661
+#: calendar/libedata-cal/e-cal-backend-sexp.c:688
+#, c-format
 msgid "\"%s\" expects no arguments"
-msgstr "has-categories? патрабуе хацяб адзін аргумэнт"
+msgstr "\"%s\" не чакае аргумэнтаў"
 
 #: calendar/libedata-cal/e-cal-backend-sexp.c:75
-#: calendar/libedata-cal/e-cal-backend-sexp.c:163
-#: calendar/libedata-cal/e-cal-backend-sexp.c:197
-#: calendar/libedata-cal/e-cal-backend-sexp.c:233
-#: calendar/libedata-cal/e-cal-backend-sexp.c:715
-#, fuzzy, c-format
-msgid "\"%s\" expects one argument"
-msgstr "contains? патрабуе два аргумэнты"
-
-#: calendar/libedata-cal/e-cal-backend-sexp.c:81
-#: calendar/libedata-cal/e-cal-backend-sexp.c:239
-#: calendar/libedata-cal/e-cal-backend-sexp.c:462
-#, fuzzy, c-format
-msgid "\"%s\" expects the first argument to be a string"
-msgstr "contains? патрабуе радок у якасьці аргумэнта 1"
-
-#: calendar/libedata-cal/e-cal-backend-sexp.c:90
-#, fuzzy, c-format
-msgid "\"%s\" expects the first argument to be an ISO 8601 date/time string"
-msgstr "аргумэнт 1 make-time мусіць быць радком даты ў фармаце ISO 8601"
-
-#: calendar/libedata-cal/e-cal-backend-sexp.c:121
-#: calendar/libedata-cal/e-cal-backend-sexp.c:305
-#: calendar/libedata-cal/e-cal-backend-sexp.c:456
-#, fuzzy, c-format
-msgid "\"%s\" expects two arguments"
-msgstr "contains? патрабуе два аргумэнты"
-
-#: calendar/libedata-cal/e-cal-backend-sexp.c:127
 #: calendar/libedata-cal/e-cal-backend-sexp.c:169
 #: calendar/libedata-cal/e-cal-backend-sexp.c:203
-#: calendar/libedata-cal/e-cal-backend-sexp.c:311
-#: calendar/libedata-cal/e-cal-backend-sexp.c:721
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:239
+#: calendar/libedata-cal/e-cal-backend-sexp.c:726
+#, c-format
+msgid "\"%s\" expects one argument"
+msgstr "\"%s\" патрабуе адзін аргумэнт"
+
+#: calendar/libedata-cal/e-cal-backend-sexp.c:81
+#: calendar/libedata-cal/e-cal-backend-sexp.c:88
+#: calendar/libedata-cal/e-cal-backend-sexp.c:245
+#: calendar/libedata-cal/e-cal-backend-sexp.c:473
+#, c-format
+msgid "\"%s\" expects the first argument to be a string"
+msgstr "\"%s\" чакае у якасьці першага аргумэнту радок"
+
+#: calendar/libedata-cal/e-cal-backend-sexp.c:96
+#, c-format
+msgid "\"%s\" expects the first argument to be an ISO 8601 date/time string"
+msgstr "\"%s\"чакае у якасьці першага элемэнту радок даты/часу ISO 8601"
+
+#: calendar/libedata-cal/e-cal-backend-sexp.c:127
+#: calendar/libedata-cal/e-cal-backend-sexp.c:312
+#: calendar/libedata-cal/e-cal-backend-sexp.c:467
+#, c-format
+msgid "\"%s\" expects two arguments"
+msgstr "\"%s\" чакае два аргумэнты"
+
+#: calendar/libedata-cal/e-cal-backend-sexp.c:133
+#: calendar/libedata-cal/e-cal-backend-sexp.c:175
+#: calendar/libedata-cal/e-cal-backend-sexp.c:209
+#: calendar/libedata-cal/e-cal-backend-sexp.c:318
+#: calendar/libedata-cal/e-cal-backend-sexp.c:732
+#, c-format
 msgid "\"%s\" expects the first argument to be a time_t"
-msgstr "time-day-end патрабуе тып time_t у якасьці аргумэнта 1"
+msgstr "\"%s\" чакае першы аргумэнт як time_t"
 
-#: calendar/libedata-cal/e-cal-backend-sexp.c:135
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:141
+#, c-format
 msgid "\"%s\" expects the second argument to be an integer"
-msgstr "time-add-day патрабуе цэлы лік у якасьці аргумэнта 2"
+msgstr "\"%s\"·чакае цэлы лік у якасьці другога аргумэнту"
 
-#: calendar/libedata-cal/e-cal-backend-sexp.c:319
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:326
+#, c-format
 msgid "\"%s\" expects the second argument to be a time_t"
-msgstr "time-add-day патрабуе тып time_t у якасьці аргумэнта 1"
+msgstr "\"%s\"· патрабуе тып time_t у якасьці другога аргумэнту"
 
-#: calendar/libedata-cal/e-cal-backend-sexp.c:470
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:481
+#, c-format
 msgid "\"%s\" expects the second argument to be a string"
-msgstr "contains? патрабуе радок у якасьці аргумэнта 2"
+msgstr "\"%s\"·патрабуе радок у якасьці другога аргумэнту"
 
-#: calendar/libedata-cal/e-cal-backend-sexp.c:490
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:501
+#, c-format
 msgid ""
 "\"%s\" expects the first argument to be either \"any\", \"summary\", or "
 "\"description\", or \"location\""
 msgstr ""
-"contains? патрабуе аргумэнт 1 адным з \"любы\", \"агулам\", \"апісаньне\""
+"\"%s\" патрабуе першы аргумэнт адным з \"любы\", \"агулам\", \"апісаньне\", "
+"ці \"разьмяшчэньне\""
 
-#: calendar/libedata-cal/e-cal-backend-sexp.c:552
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:563
+#, c-format
 msgid "\"%s\" expects at least one argument"
-msgstr "has-categories? патрабуе хацяб адзін аргумэнт"
+msgstr "\"%s\" патрабуе хаця б адзін аргумэнт"
 
-#: calendar/libedata-cal/e-cal-backend-sexp.c:566
-#, fuzzy, c-format
+#: calendar/libedata-cal/e-cal-backend-sexp.c:577
+#, c-format
 msgid ""
 "\"%s\" expects all arguments to be strings or one and only one argument to "
 "be a boolean false (#f)"
 msgstr ""
-"has-categories? патрабуе усе аргумэнты як радкі ці адзін і толькі адзін "
-"аргумэнт як булева мана (#f)"
+"\"%s\" патрабуе усе аргумэнты як радкі ці адзін і толькі адзін аргумэнт як "
+"булева мана (#f)"
 
 #: servers/groupwise/e-gw-connection.c:80
-#, fuzzy
 msgid "Invalid connection"
-msgstr "Памылковая мэта"
+msgstr "Нерэчаіснае далучэньне"
 
 #: servers/groupwise/e-gw-connection.c:84
-#, fuzzy
 msgid "Invalid response from server"
-msgstr "Кепскі адказ на аўтарызацыю з паслужніка."
+msgstr "Кепскі адказ на аўтарызацыю з паслужніку."
 
 #: servers/groupwise/e-gw-connection.c:88
 msgid "Bad parameter"
-msgstr ""
+msgstr "Кепскі парамэтар"
 
 #: src/GNOME_Evolution_DataServerLDAP.server.in.in.h:1
-#, fuzzy
 msgid "Evolution Addressbook file and LDAP backend"
-msgstr "Праграма лакальнай/LDAP кнігі адрэсаў \"Эвалюцыі\""
+msgstr "Праграма лякальнай/LDAP кнігі адрасоў \"Эвалюцыі\""
 
 #: src/GNOME_Evolution_DataServerLDAP.server.in.in.h:2
 #: src/GNOME_Evolution_DataServerNOLDAP.server.in.in.h:2
-#, fuzzy
 msgid "Evolution Calendar file and webcal backend"
-msgstr "Праграма лакальнага каляндара \"Эвалюцыі\""
+msgstr "Праграма лякальнага календару \"Эвалюцыі\""
 
 #: src/GNOME_Evolution_DataServerNOLDAP.server.in.in.h:1
-#, fuzzy
 msgid "Evolution Addressbook file backend"
-msgstr "Праграма лакальнай кнігі адрэсаў \"Эвалюцыі\""
+msgstr "Праграма лякальнай кнігі адрасоў \"Эвалюцыі\""
+
+#. dialog display isn't working out
+#: src/server.c:110
+#, c-format
+msgid "Multiple segmentation faults occurred; can't display error dialog\n"
+msgstr ""
+
+#, fuzzy
+#~ msgid "Checklist"
+#~ msgstr "Густая дымка"
 
 #, fuzzy
 #~ msgid "uid? expects 1 argument"
@@ -6786,9 +6766,6 @@ msgstr "Праграма лакальнай кнігі адрэсаў \"Эвал
 #~ msgid "For reading mail as a query of another set of folders"
 #~ msgstr "Для чытаньня пошты па запыце да іншага збору тэчак"
 
-#~ msgid "No provider available for protocol `%s'"
-#~ msgstr "Правайдэр для пратакола \"%s\" недаступны"
-
 #~ msgid ""
 #~ "Could not create directory %s:\n"
 #~ "%s"
@@ -7023,9 +7000,6 @@ msgstr "Праграма лакальнай кнігі адрэсаў \"Эвал
 
 #~ msgid "Cannot rename folder: %s: No such folder"
 #~ msgstr "Неатрымалася зьмяніць назву тэчкі: %s: тэчка адсутнічае"
-
-#~ msgid "Operation cancelled"
-#~ msgstr "Дзеяньне адмененае"
 
 #~ msgid "Server unexpectedly disconnected: %s"
 #~ msgstr "Паслужнік нечакана адключыўся: %s"

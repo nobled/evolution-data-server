@@ -84,13 +84,14 @@ static void contacts_removed_cb (EBookView *book_view, const GList *contact_ids,
 static BookRecord *
 book_record_new (ECalBackendContacts *cbc, ESource *source)
 {
-        EBook      *book = e_book_new ();
+        EBook      *book;
         GList      *fields = 0;
         EBookQuery *query;
         EBookView  *book_view;
         BookRecord *br;
         
-        e_book_load_source (book, source, TRUE, NULL);
+	book = e_book_new (source, NULL);
+        e_book_open (book, TRUE, NULL);
         
         /* Create book view */
         fields = g_list_append (fields, (char*)e_contact_field_name (E_CONTACT_FILE_AS));
@@ -272,20 +273,26 @@ static void
 source_group_added_cb (ESourceList *source_list, ESourceGroup *group, gpointer user_data)
 {
         ECalBackendContacts *cbc = E_CAL_BACKEND_CONTACTS (user_data);
+        const gchar *base_uri;
         GSList *i;
         
         g_return_if_fail (cbc);
 
-        /* Load all address books from this group */
-        for (i = e_source_group_peek_sources (group); i; i = i->next)
-        {
-                ESource *source = E_SOURCE (i->data);
-                add_source (cbc, source);
-        }
+        base_uri = e_source_group_peek_base_uri (group);
+        if (!base_uri)
+                return;
 
-        /* Watch for future changes */
-        g_signal_connect (group, "source_added", G_CALLBACK (source_added_cb), cbc);
-        g_signal_connect (group, "source_removed", G_CALLBACK (source_removed_cb), cbc);
+        /* Load all address books from this group */
+	if (!strncmp (base_uri, "file", 4)) {
+		for (i = e_source_group_peek_sources (group); i; i = i->next) {
+			ESource *source = E_SOURCE (i->data);
+			add_source (cbc, source);
+		}
+
+		/* Watch for future changes */
+		g_signal_connect (group, "source_added", G_CALLBACK (source_added_cb), cbc);
+		g_signal_connect (group, "source_removed", G_CALLBACK (source_removed_cb), cbc);
+	}
 }
 
 static void
@@ -297,8 +304,7 @@ source_group_removed_cb (ESourceList *source_list, ESourceGroup *group, gpointer
         g_return_if_fail (cbc);
         
         /* Unload all address books from this group */
-        for (i = e_source_group_peek_sources (group); i; i = i->next)
-        {
+        for (i = e_source_group_peek_sources (group); i; i = i->next) {
                 ESource *source = E_SOURCE (i->data);
                 const char *uid = e_source_peek_uid (source);
                 
@@ -314,8 +320,7 @@ contacts_changed_cb (EBookView *book_view, const GList *contacts, gpointer user_
         ECalBackendContacts *cbc = E_CAL_BACKEND_CONTACTS (user_data);
         const GList *i;
 
-        for (i = contacts; i; i = i->next)
-        {
+        for (i = contacts; i; i = i->next) {
                 EContact *contact = E_CONTACT (i->data);
                 char *uid = e_contact_get_const (contact, E_CONTACT_UID);
                 
@@ -376,7 +381,8 @@ cdate_to_icaltime (EContactDate *cdate)
 	ret.month = cdate->month;
 	ret.day = cdate->day;
 	ret.is_date = TRUE;
-	ret.zone = icaltimezone_get_utc_timezone ();
+	ret.is_utc = FALSE;
+	ret.zone = NULL;
 	
 	ret.hour = ret.minute = ret.second = 0;
 
@@ -413,13 +419,13 @@ create_component (ECalBackendContacts *cbc, const char *uid, EContactDate *cdate
         /* Set all-day event's date from contact data */
         itt = cdate_to_icaltime (cdate);
         dt.value = &itt;
-        dt.tzid = 0;
+        dt.tzid = NULL;
         e_cal_component_set_dtstart (cal_comp, &dt);
         
 	itt = cdate_to_icaltime (cdate);
 	icaltime_adjust (&itt, 1, 0, 0, 0);
 	dt.value = &itt;
-	dt.tzid = 0;
+	dt.tzid = NULL;
 	/* We have to add 1 day to DTEND, as it is not inclusive. */
 	e_cal_component_set_dtend (cal_comp, &dt);
  
@@ -428,12 +434,12 @@ create_component (ECalBackendContacts *cbc, const char *uid, EContactDate *cdate
         r.freq = ICAL_YEARLY_RECURRENCE;
 	r.interval = 1;
         recur_list.data = &r;
-        recur_list.next = 0;        
+        recur_list.next = NULL;        
         e_cal_component_set_rrule_list (cal_comp, &recur_list);
 
         /* Create summary */
         comp_summary.value = summary;
-        comp_summary.altrep = 0;
+        comp_summary.altrep = NULL;
         e_cal_component_set_summary (cal_comp, &comp_summary);
 	
 	/* Set category and visibility */
@@ -705,10 +711,9 @@ e_cal_backend_contacts_open (ECalBackendSync *backend, EDataCal *cal,
                 return GNOME_Evolution_Calendar_Success;
 
         /* Create address books for existing sources */
-        for (i = e_source_list_peek_groups (priv->addressbook_sources); i; i = i->next)
-        {
+        for (i = e_source_list_peek_groups (priv->addressbook_sources); i; i = i->next) {
                 ESourceGroup *source_group = E_SOURCE_GROUP (i->data);
-                        
+
                 source_group_added_cb (priv->addressbook_sources, source_group, cbc);
         }
 
@@ -804,7 +809,7 @@ e_cal_backend_contacts_set_default_timezone (ECalBackendSync *backend, EDataCal 
 	priv = cbcontacts->priv;
 
 	priv->default_zone = e_cal_backend_internal_get_timezone (E_CAL_BACKEND (backend), tzid);
-	if (priv->default_zone) {
+	if (!priv->default_zone) {
 		priv->default_zone = icaltimezone_get_utc_timezone ();
 
 		return GNOME_Evolution_Calendar_ObjectNotFound;

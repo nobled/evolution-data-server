@@ -101,7 +101,7 @@ compare_email (EContact *contact, const char *str,
 {
 	int i;
 
-	for (i = E_CONTACT_EMAIL_1; i <= E_CONTACT_EMAIL_3; i ++) {
+	for (i = E_CONTACT_EMAIL_1; i <= E_CONTACT_EMAIL_4; i ++) {
 		const char *email = e_contact_get_const (contact, i);
 
 		if (email && compare(email, str))
@@ -152,8 +152,30 @@ static gboolean
 compare_address (EContact *contact, const char *str,
 		 char *(*compare)(const char*, const char*))
 {
-	g_warning("address searching not implemented\n");
-	return FALSE;
+	
+	int i;
+	gboolean rv = FALSE;
+
+	for (i = E_CONTACT_FIRST_ADDRESS_ID; i <= E_CONTACT_LAST_ADDRESS_ID; i ++) {
+		EContactAddress *address = e_contact_get (contact, i);
+		if (address) {
+			rv =  (address->po && compare(address->po, str)) ||
+				(address->street && compare(address->street, str)) ||
+				(address->ext && compare(address->ext, str)) ||
+				(address->locality && compare(address->locality, str)) ||
+				(address->region && compare(address->region, str)) || 
+				(address->code && compare(address->code, str)) ||
+				(address->country && compare(address->country, str));
+			
+			e_contact_address_free (address);
+		
+			if (rv)
+				break;
+		}
+	}
+
+	return rv;
+	
 }
 
 static gboolean

@@ -21,6 +21,7 @@
 
 #include <config.h>
 #include <string.h>
+#include <unistd.h>
 #include "e-file-cache.h"
 #include "e-util.h"
 #include "e-xml-hash-utils.h"
@@ -52,7 +53,8 @@ e_file_cache_set_property (GObject *object, guint property_id, const GValue *val
 	switch (property_id) {
 	case PROP_FILENAME :
 		/* make sure the directory for the cache exists */
-		dirname = g_path_get_dirname ((const char *) g_value_get_string (value));
+		priv->filename = g_strdup ( g_value_get_string (value));
+		dirname = g_path_get_dirname (priv->filename);
 		result = e_util_mkdir_hier (dirname, 0700);
 		g_free (dirname);
 		if (result != 0)
@@ -204,6 +206,8 @@ e_file_cache_new (const char *filename)
  * @cache: A #EFileCache object.
  *
  * Remove the cache from disk.
+ *
+ * Returns: TRUE if successful, FALSE otherwise.
  */
 gboolean
 e_file_cache_remove (EFileCache *cache)
@@ -257,6 +261,41 @@ e_file_cache_remove (EFileCache *cache)
 	return TRUE;
 }
 
+static void
+add_key_to_list (const char *key, const char *value, gpointer user_data)
+{
+	GList **keys = user_data;
+
+	*keys = g_list_append (*keys, (char *) key);
+}
+
+/**
+ * e_file_cache_clean:
+ * @cache: A #EFileCache object.
+ *
+ * Clean up the cache's contents.
+ *
+ * Returns: TRUE if successful, FALSE otherwise.
+ */
+gboolean
+e_file_cache_clean (EFileCache *cache)
+{
+	EFileCachePrivate *priv;
+	GList *keys = NULL;
+
+	g_return_val_if_fail (E_IS_FILE_CACHE (cache), FALSE);
+
+	priv = cache->priv;
+
+	e_xmlhash_foreach_key (priv->xml_hash, (EXmlHashFunc) add_key_to_list, &keys);
+	while (keys != NULL) {
+		e_file_cache_remove_object (cache, (const char *) keys->data);
+		keys = g_list_remove (keys, keys->data);
+	}
+
+	return TRUE;
+}
+
 typedef struct {
 	const char *key;
 	gboolean found;
@@ -305,7 +344,7 @@ add_object_to_list (const char *key, const char *value, gpointer user_data)
 {
 	GSList **list = user_data;
 
-	*list = g_slist_prepend (*list, value);
+	*list = g_slist_prepend (*list, (char *) value);
 }
 
 /**
@@ -322,6 +361,24 @@ e_file_cache_get_objects (EFileCache *cache)
 	priv = cache->priv;
 
 	e_xmlhash_foreach_key (priv->xml_hash, (EXmlHashFunc) add_object_to_list, &list);
+
+	return list;
+}
+
+/**
+ * e_file_cache_get_keys:
+ */
+GSList *
+e_file_cache_get_keys (EFileCache *cache)
+{
+	EFileCachePrivate *priv;
+	GSList *list = NULL;
+
+	g_return_val_if_fail (E_IS_FILE_CACHE (cache), NULL);
+
+	priv = cache->priv;
+
+	e_xmlhash_foreach_key (priv->xml_hash, (EXmlHashFunc) add_key_to_list, &list);
 
 	return list;
 }

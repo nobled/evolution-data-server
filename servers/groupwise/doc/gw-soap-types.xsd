@@ -13,6 +13,7 @@
 	<xs:element name="id" type="tns:uid"/>
 	<xs:element name="modified" type="xs:dateTime"/>
 	<xs:element name="name" type="xs:string"/>
+	<xs:element name="recurrenceKey" type="xs:unsignedInt"/>
 	<xs:element name="rights" type="tns:Rights"/>
 	<xs:element name="sequence" type="xs:unsignedInt"/>
 	<xs:element name="startDate" type="xs:dateTime"/>
@@ -94,6 +95,7 @@
 		<xs:complexContent>
 			<xs:extension base="tns:Item">
 				<xs:sequence>
+					<xs:element ref="tns:description" minOccurs="0"/>
 					<xs:element name="isPersonal" type="xs:boolean" minOccurs="0"/>
 					<xs:element name="isFrequentContacts" type="xs:boolean" minOccurs="0"/>
 				</xs:sequence>
@@ -190,7 +192,8 @@
 			<xs:extension base="tns:Mail">
 				<xs:sequence>
 					<xs:element ref="tns:startDate" minOccurs="0"/>
-					<xs:element name="recurrance" type="xs:string" minOccurs="0"/>
+					<xs:element name="rdate" type="tns:RecurrenceDateType" minOccurs="0"/>
+					<xs:element name="isRecurring" ref="tns:recurrenceKey" minOccurs="0"/>
 					<xs:element name="iCalId" type="xs:string" minOccurs="0"/>
 				</xs:sequence>
 			</xs:extension>
@@ -470,6 +473,7 @@
 					<xs:element ref="tns:sequence" minOccurs="0"/>
 					<xs:element name="settings" type="tns:uid" minOccurs="0"/>
 					<xs:element name="hasSubfolders" type="xs:boolean" minOccurs="0"/>
+					<xs:element name="notification" type="tns:SharedFolderNotification" minOccurs="0"/>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -666,14 +670,6 @@
 		<xs:attribute name="type" type="xs:string"/>
 	</xs:complexType>
 
-	<xs:complexType name="ItemArg">
-		<xs:simpleContent>
-			<xs:extension base="tns:uid">
-				<xs:attribute name="type" type="xs:string"/>
-			</xs:extension>
-		</xs:simpleContent>
-	</xs:complexType>
-
 	<xs:complexType name="ItemChanges">
 		<xs:sequence>
 			<xs:element name="add" type="tns:Item" minOccurs="0" maxOccurs="1"/>
@@ -745,6 +741,10 @@
 		</xs:restriction>
 	</xs:simpleType>
 
+	<xs:simpleType name="ItemSourceList">
+	  <xs:list itemType="ItemSource"/>
+	</xs:simpleType>
+
 	<xs:complexType name="ItemStatus">
 		<xs:sequence>
 			<xs:element name="accepted" type="xs:boolean" minOccurs="0"/>
@@ -780,15 +780,39 @@
 		<xs:attribute name="defaultPart" type="xs:string"/>
 	</xs:complexType>
 
+	 <xs:simpleType name="MessageList">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="All"/>
+			<xs:enumeration value="Modified"/>
+			<xs:enumeration value="New"/>
+		</xs:restriction>
+	 </xs:simpleType>
+
 	<xs:complexType name="MessagePart">
 		<xs:simpleContent>
 			<xs:extension base="xs:base64Binary">
-				<xs:attribute name="contentId" type="xs:string"/>
-				<xs:attribute name="contentType" type="xs:string"/>
+				<xs:attribute name="contentId" type="xs:string" minOccurs="0"/>
+				<xs:attribute name="contentType" type="xs:string" minOccurs="0"/>
 				<xs:attribute name="length" type="xs:int"/>
 			</xs:extension>
 		</xs:simpleContent>
 	</xs:complexType>
+
+	 <xs:simpleType name="MessageType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="Appointment"/>
+			<xs:enumeration value="CalendarItem"/>
+			<xs:enumeration value="DocumentReference"/>
+			<xs:enumeration value="Mail"/>
+			<xs:enumeration value="Note"/>
+			<xs:enumeration value="PhoneMessage"/>
+			<xs:enumeration value="Task"/>
+		</xs:restriction>
+	 </xs:simpleType>
+
+	<xs:simpleType name="MessageTypeList">
+	  <xs:list itemType="MessageType"/>
+	</xs:simpleType>
 
 	<xs:simpleType name="Minute">
 		<xs:restriction base="xs:unsignedByte">
@@ -917,7 +941,7 @@
 			<xs:element name="postalCode" type="xs:string" minOccurs="0"/>
 			<xs:element name="country" type="xs:string" minOccurs="0"/>
 		</xs:sequence>
-		<xs:attribute name="type" type="xs:string" use="required"/>
+		<xs:attribute name="type" type="tns:PostalAddressType" use="required"/>
 	</xs:complexType>
 
 	<xs:complexType name="PostalAddressList">
@@ -925,6 +949,13 @@
 			<xs:element name="address" type="tns:PostalAddress" minOccurs="0" maxOccurs="unbounded"/>
 		</xs:sequence>
 	</xs:complexType>
+
+	<xs:simpleType name="PostalAddressType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="Home"/>
+			<xs:enumeration value="Office"/>
+		</xs:restriction>
+	</xs:simpleType>
 
 	<xs:complexType name="ProblemEntry">
 		<xs:sequence>
@@ -1035,6 +1066,12 @@
 		</xs:restriction>
 	</xs:simpleType>
 
+	<xs:complexType name="RecurrenceDateType">
+	 <xs:sequence>
+	  <xs:element name="date" type="xs:date" maxOccurs="unbounded" />
+	 </xs:sequence>
+	</xs:complexType>
+
 	<xs:complexType name="Resource">
 		<xs:complexContent>
 			<xs:extension base="tns:AddressBookItem">
@@ -1128,6 +1165,14 @@
 		</xs:complexContent>
 	</xs:complexType>
 
+	<xs:complexType name="SharedFolderNotification">
+		<xs:sequence>
+			<xs:element ref="tns:subject" minOccurs="0"/>
+			<xs:element name="message" type="xs:string" minOccurs="0"/>
+			<xs:element ref="tns:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+
 	<xs:complexType name="Status">
 		<xs:sequence>
 			<xs:element ref="tns:code"/>
@@ -1210,6 +1255,7 @@
 		<xs:complexContent>
 			<xs:extension base="tns:Authentication">
 				<xs:sequence>
+					<xs:element name="username" type="xs:string"/>
 					<xs:element name="name" type="xs:string"/>
 					<xs:element name="key" type="xs:string"/>
 				</xs:sequence>

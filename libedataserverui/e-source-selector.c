@@ -21,37 +21,33 @@
  * Author: Ettore Perazzoli <ettore@ximian.com>
  */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
-
-#include "e-source-selector.h"
-
-#include "e-util-marshal.h"
-
-#include <gal/util/e-util.h>
+#endif
 
 #include <gtk/gtkmenu.h>
 #include <gtk/gtktreeselection.h>
 #include <gtk/gtktreestore.h>
 #include <gtk/gtkcellrenderertoggle.h>
 #include <gtk/gtkcellrenderertext.h>
+#include <gtk/gtkcellrendererpixbuf.h>
 
-#define PARENT_TYPE gtk_tree_view_get_type ()
-static GtkTreeViewClass *parent_class = NULL;
-
+#include "e-data-server-ui-marshal.h"
+#include "e-source-selector.h"
 
 struct _ESourceSelectorPrivate {
 	ESourceList *list;
 
 	GtkTreeStore *tree_store;
-
+	
 	GHashTable *selected_sources;
 	GtkTreeRowReference *saved_primary_selection;
 	
 	int rebuild_model_idle_id;
 
 	gboolean toggled_last;
-
 	gboolean checkboxes_shown;
+	gboolean select_new;
 };
 
 typedef struct {
@@ -66,11 +62,12 @@ typedef struct {
 enum {
 	SELECTION_CHANGED,
 	PRIMARY_SELECTION_CHANGED,
-	FILL_POPUP_MENU,
+	POPUP_EVENT,
 	NUM_SIGNALS
 };
 static unsigned int signals[NUM_SIGNALS] = { 0 };
 
+G_DEFINE_TYPE (ESourceSelector, e_source_selector, GTK_TYPE_TREE_VIEW)
 
 /* Selection management.  */
 
@@ -275,6 +272,10 @@ rebuild_model (ESourceSelector *selector)
 
 			row_ref = g_hash_table_lookup (rebuild_data->remaining_uids, e_source_peek_uid (source));
 			if (!row_ref) {
+				if (selector->priv->select_new) {
+					select_source (selector, source);
+					rebuild_data->selection_changed = TRUE;
+				}
 				gtk_tree_store_append (GTK_TREE_STORE (tree_store), &child_iter, &iter);
 				gtk_tree_store_set (GTK_TREE_STORE (tree_store), &child_iter, 0, source, -1);
 
@@ -376,30 +377,55 @@ text_cell_data_func (GtkTreeViewColumn *column,
 			      NULL);
 	} else {
 		ESource *source;
-		guint32 color;
-		gboolean has_color;
-
+		
 		g_assert (E_IS_SOURCE (data));
 		source = E_SOURCE (data);
-
+		
 		g_object_set (renderer,
 			      "text", e_source_peek_name (source),
 			      "weight", PANGO_WEIGHT_NORMAL,
+			      "foreground_set", FALSE,
 			      NULL);
+	}
 
-		has_color = e_source_get_color (source, &color);
-		if (!has_color) {
-			g_object_set (renderer,
-				      "foreground_set", FALSE,
-				      NULL);
-		} else {
-			char *color_string = g_strdup_printf ("#%06x", color);
-			g_object_set (renderer,
-				      "foreground_set", TRUE,
-				      "foreground", color_string,
-				      NULL);
-			g_free (color_string);
+	g_object_unref (data);
+}
+
+static void
+pixbuf_cell_data_func (GtkTreeViewColumn *column,
+		       GtkCellRenderer *renderer,
+		       GtkTreeModel *model,
+		       GtkTreeIter *iter,
+		       ESourceSelector *selector)
+{
+	void *data;
+
+	gtk_tree_model_get (model, iter, 0, &data, -1);
+
+	if (E_IS_SOURCE_GROUP (data)) {
+		g_object_set (renderer,
+			      "visible", FALSE,
+			      NULL);
+	} else {	
+		ESource *source;
+		guint32 color;
+		GdkPixbuf *pixbuf = NULL;
+
+		g_assert (E_IS_SOURCE (data));
+		source = E_SOURCE (data);
+		
+		if (e_source_get_color (source, &color)) {
+			pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, FALSE, 8, 16, 16);
+			gdk_pixbuf_fill (pixbuf, color << 8);
 		}
+			
+		g_object_set (renderer,
+			      "visible", pixbuf != NULL,
+			      "pixbuf", pixbuf,
+			      NULL);
+			
+		if (pixbuf)
+			g_object_unref (pixbuf);
 	}
 
 	g_object_unref (data);
@@ -436,15 +462,6 @@ selection_func (GtkTreeSelection *selection,
 		return FALSE;
 	}
 
-	if (source_is_selected (selector, E_SOURCE (data))) {
-		clear_saved_primary_selection (selector);
-		g_object_unref (data);
-		
-		return TRUE;
-	}
-
-	e_source_selector_select_source (selector, E_SOURCE (data));
-
 	clear_saved_primary_selection (selector);
 	g_object_unref (data);
 
@@ -471,25 +488,21 @@ cell_toggled_callback (GtkCellRendererToggle *renderer,
 	}
 
 	gtk_tree_model_get (model, &iter, 0, &data, -1);
-	if (E_IS_SOURCE_GROUP (data)) {
-		gtk_tree_path_free (path);
-	} else {
+	if (!E_IS_SOURCE_GROUP (data)) {
 		source = E_SOURCE (data);
 
-		if (e_source_selector_peek_primary_selection (selector) != source) {
-			if (source_is_selected (selector, source))
-				unselect_source (selector, source);
-			else
-				select_source (selector, source);
-			
-			selector->priv->toggled_last = TRUE;
-			
-			gtk_tree_model_row_changed (model, path, &iter);
-			g_signal_emit (selector, signals[SELECTION_CHANGED], 0);
-			
-			gtk_tree_path_free (path);
-		}
+		if (source_is_selected (selector, source))
+			unselect_source (selector, source);
+		else
+			select_source (selector, source);
+		
+		selector->priv->toggled_last = TRUE;
+		
+		gtk_tree_model_row_changed (model, path, &iter);
+		g_signal_emit (selector, signals[SELECTION_CHANGED], 0);
 	}
+
+	gtk_tree_path_free (path);
 	
 	g_object_unref (data);	
 }
@@ -562,9 +575,11 @@ static gboolean
 selector_button_press_event (GtkWidget *widget, GdkEventButton *event, ESourceSelector *selector)
 {
 	ESourceSelectorPrivate *priv = selector->priv;
-	GtkWidget *menu;
 	GtkTreePath *path;
 	ESource *source = NULL;
+	gboolean res = FALSE;
+
+	priv->toggled_last = FALSE;
 	
 	/* only process right-clicks */
 	if (event->button != 3 || event->type != GDK_BUTTON_PRESS)
@@ -577,7 +592,8 @@ selector_button_press_event (GtkWidget *widget, GdkEventButton *event, ESourceSe
 		
 		if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->tree_store), &iter, path)) {
 			gtk_tree_model_get (GTK_TREE_MODEL (priv->tree_store), &iter, 0, &data, -1);
-			
+
+			/* TODO: we could still emit a popup event for this and let the callee decide? */
 			if (E_IS_SOURCE_GROUP (data)) {
 				g_object_unref (data);
 				
@@ -588,25 +604,21 @@ selector_button_press_event (GtkWidget *widget, GdkEventButton *event, ESourceSe
 		}
 	}
 
-	if (source) {
+	if (source)
 		e_source_selector_set_primary_selection (selector, source);
+
+	g_signal_emit(selector, signals[POPUP_EVENT], 0, source, event, &res);
+
+	if (source)
 		g_object_unref (source);
-	}
-	
-	/* create the menu */
-	menu = gtk_menu_new ();
-	g_signal_emit (G_OBJECT (selector), signals[FILL_POPUP_MENU], 0, GTK_MENU (menu));
 
-	/* popup the menu */
-	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, event->button, event->time);
-
-	return TRUE;
+	return res;
 }
 
 /* GObject methods.  */
 
 static void
-impl_dispose (GObject *object)
+e_source_selector_dispose (GObject *object)
 {
 	ESourceSelectorPrivate *priv = E_SOURCE_SELECTOR (object)->priv;
 
@@ -632,31 +644,38 @@ impl_dispose (GObject *object)
 
 	clear_saved_primary_selection (E_SOURCE_SELECTOR (object));
 
-	(* G_OBJECT_CLASS (parent_class)->dispose) (object);
+	(* G_OBJECT_CLASS (e_source_selector_parent_class)->dispose) (object);
 }
 
 static void
-impl_finalize (GObject *object)
+e_source_selector_finalize (GObject *object)
 {
 	ESourceSelectorPrivate *priv = E_SOURCE_SELECTOR (object)->priv;
 
 	g_free (priv);
 
-	(* G_OBJECT_CLASS (parent_class)->finalize) (object);
+	(* G_OBJECT_CLASS (e_source_selector_parent_class)->finalize) (object);
 }
 
 
 /* Initialization.  */
+static gboolean
+ess_bool_accumulator(GSignalInvocationHint *ihint, GValue *out, const GValue *in, void *data)
+{
+	gboolean val = g_value_get_boolean(in);
+
+	g_value_set_boolean(out, val);
+
+	return !val;
+}
 
 static void
-class_init (ESourceSelectorClass *class)
+e_source_selector_class_init (ESourceSelectorClass *class)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (class);
 
-	object_class->dispose  = impl_dispose;
-	object_class->finalize = impl_finalize;
-
-	parent_class = g_type_class_peek_parent (class);
+	object_class->dispose  = e_source_selector_dispose;
+	object_class->finalize = e_source_selector_finalize;
 
 	signals[SELECTION_CHANGED] = 
 		g_signal_new ("selection_changed",
@@ -664,7 +683,7 @@ class_init (ESourceSelectorClass *class)
 			      G_SIGNAL_RUN_LAST,
 			      G_STRUCT_OFFSET (ESourceSelectorClass, selection_changed),
 			      NULL, NULL,
-			      e_util_marshal_VOID__VOID,
+			      e_data_server_ui_marshal_VOID__VOID,
 			      G_TYPE_NONE, 0);
 
 	signals[PRIMARY_SELECTION_CHANGED] = 
@@ -673,20 +692,21 @@ class_init (ESourceSelectorClass *class)
 			      G_SIGNAL_RUN_LAST,
 			      G_STRUCT_OFFSET (ESourceSelectorClass, primary_selection_changed),
 			      NULL, NULL,
-			      e_util_marshal_VOID__VOID,
+			      e_data_server_ui_marshal_VOID__VOID,
 			      G_TYPE_NONE, 0);
-	signals[FILL_POPUP_MENU] =
-		g_signal_new ("fill_popup_menu",
+	signals[POPUP_EVENT] =
+		g_signal_new ("popup_event",
 			      G_OBJECT_CLASS_TYPE (object_class),
 			      G_SIGNAL_RUN_LAST,
-			      G_STRUCT_OFFSET (ESourceSelectorClass, fill_popup_menu),
-			      NULL, NULL,
-			      g_cclosure_marshal_VOID__OBJECT,
-			      G_TYPE_NONE, 1, G_TYPE_OBJECT);
+			      G_STRUCT_OFFSET (ESourceSelectorClass, popup_event),
+			      ess_bool_accumulator, NULL,
+			      e_data_server_ui_marshal_BOOLEAN__OBJECT_BOXED,
+			      G_TYPE_BOOLEAN, 2, G_TYPE_OBJECT,
+			      GDK_TYPE_EVENT|G_SIGNAL_TYPE_STATIC_SCOPE);
 }
 
 static void
-init (ESourceSelector *selector)
+e_source_selector_init (ESourceSelector *selector)
 {
 	ESourceSelectorPrivate *priv;
 	GtkTreeViewColumn *column;
@@ -701,6 +721,7 @@ init (ESourceSelector *selector)
 
 	priv->toggled_last = FALSE;
 	priv->checkboxes_shown = TRUE;
+	priv->select_new = FALSE;
 
 	priv->selected_sources = create_selected_sources_hash ();
 
@@ -710,6 +731,10 @@ init (ESourceSelector *selector)
 	column = gtk_tree_view_column_new ();
 	gtk_tree_view_append_column (GTK_TREE_VIEW (selector), column);
 
+	cell_renderer = gtk_cell_renderer_pixbuf_new ();
+	g_object_set (G_OBJECT (cell_renderer), "mode", GTK_CELL_RENDERER_MODE_ACTIVATABLE, NULL);
+	gtk_tree_view_column_pack_start (column, cell_renderer, FALSE);
+	gtk_tree_view_column_set_cell_data_func (column, cell_renderer, (GtkTreeCellDataFunc) pixbuf_cell_data_func, selector, NULL);
 	cell_renderer = gtk_cell_renderer_toggle_new ();
 	gtk_tree_view_column_pack_start (column, cell_renderer, FALSE);
 	gtk_tree_view_column_set_cell_data_func (column, cell_renderer, (GtkTreeCellDataFunc) toggle_cell_data_func, selector, NULL);
@@ -859,6 +884,21 @@ e_source_selector_selection_shown (ESourceSelector *selector)
 }
 
 /**
+ * e_source_selector_set_select_new:
+ * @selector: An ESourceSelector widget
+ * @state: A gboolean
+ *
+ * Set whether or not to select new sources added to @selector.
+ **/
+void
+e_source_selector_set_select_new (ESourceSelector *selector, gboolean state)
+{
+	g_return_if_fail (E_IS_SOURCE_SELECTOR (selector));
+
+	selector->priv->select_new = state;
+}
+
+/**
  * e_source_selector_select_source:
  * @selector: An ESourceSelector widget
  * @source: An ESource.
@@ -957,21 +997,33 @@ e_source_selector_source_is_selected (ESourceSelector *selector,
 ESource *
 e_source_selector_peek_primary_selection (ESourceSelector *selector)
 {
-	GtkTreeModel *model = GTK_TREE_MODEL (selector->priv->tree_store);
+	GtkTreeModel *model;
 	GtkTreeIter iter;
-	void *data;
+	gboolean have_iter = FALSE;
+	void *data = NULL;
+
+	g_return_val_if_fail (E_IS_SOURCE_SELECTOR (selector), NULL);
+
+	model = GTK_TREE_MODEL (selector->priv->tree_store);
 
 	if (selector->priv->saved_primary_selection) {
 		GtkTreePath *child_path;
 		
 		child_path = gtk_tree_row_reference_get_path (selector->priv->saved_primary_selection);
-		gtk_tree_model_get_iter (GTK_TREE_MODEL (selector->priv->tree_store), &iter, child_path);	
+		if (child_path) {
+			if (gtk_tree_model_get_iter (GTK_TREE_MODEL (selector->priv->tree_store), &iter, child_path))
+				have_iter = TRUE;
+			gtk_tree_path_free (child_path);
+		}
+	}
 
-		gtk_tree_path_free (child_path);
-	} else if (! gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (selector)), NULL, &iter))
+	if (!have_iter && ! gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (selector)), NULL, &iter))
 		return NULL;
 
 	gtk_tree_model_get (model, &iter, 0, &data, -1);
+	if (!data)
+		return NULL;
+
 	if (! E_IS_SOURCE (data)) {
 		g_object_unref (data);
 		
@@ -1042,5 +1094,3 @@ e_source_selector_set_primary_selection (ESourceSelector *selector, ESource *sou
 	}
 }
 
-
-E_MAKE_TYPE (e_source_selector, "ESourceSelector", ESourceSelector, class_init, init, PARENT_TYPE)

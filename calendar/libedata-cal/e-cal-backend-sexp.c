@@ -84,10 +84,9 @@ e_cal_backend_sexp_func_make_time (ESExp *esexp, int argc, ESExpResult **argv, v
 		return NULL;
 	}
 	str = argv[0]->value.string;
-	if (!str) {
+	if (!str || !*str) {
 		e_sexp_fatal_error (esexp, _("\"%s\" expects the first "
-					     "argument to be an ISO 8601 "
-					     "date/time string"),
+					     "argument to be a string"),
 				    "make-time");
 		return NULL;
 	}
@@ -305,6 +304,7 @@ func_occur_in_time_range (ESExp *esexp, int argc, ESExpResult **argv, void *data
 	SearchContext *ctx = data;
 	time_t start, end;
 	ESExpResult *result;
+	icaltimezone *default_zone;
 
 	/* Check argument types */
 
@@ -331,11 +331,15 @@ func_occur_in_time_range (ESExp *esexp, int argc, ESExpResult **argv, void *data
 	end = argv[1]->value.time;
 
 	/* See if the object occurs in the specified time range */
+	default_zone = e_cal_backend_internal_get_default_timezone (ctx->backend);
+	if (!default_zone)
+		default_zone = icaltimezone_get_utc_timezone ();
+
 	ctx->occurs = FALSE;
 	e_cal_recur_generate_instances (ctx->comp, start, end,
 					(ECalRecurInstanceFn) check_instance_time_range_cb,
 					ctx, resolve_tzid_cb, ctx,
-					e_cal_backend_internal_get_default_timezone (ctx->backend));
+					default_zone);
 
 	result = e_sexp_result_new (esexp, ESEXP_RES_BOOL);
 	result->value.bool = ctx->occurs;
@@ -529,6 +533,67 @@ func_has_alarms (ESExp *esexp, int argc, ESExpResult **argv, void *data)
 
 	result = e_sexp_result_new (esexp, ESEXP_RES_BOOL);
 	result->value.bool = e_cal_component_has_alarms (ctx->comp);
+
+	return result;
+}
+
+/* (has-alarms-in-range? START END)
+ *
+ * START - time_t, start of the time range
+ * END - time_t, end of the time range
+ *
+ * Returns: a boolean indicating whether the component has alarms in the given
+ * time range or not.
+ */
+static ESExpResult *
+func_has_alarms_in_range (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+{
+	time_t start, end;
+	ESExpResult *result;
+	icaltimezone *default_zone;
+	ECalComponentAlarms *alarms;
+	ECalComponentAlarmAction omit[] = {-1};
+	SearchContext *ctx = data;
+
+	/* Check argument types */
+
+	if (argc != 2) {
+		e_sexp_fatal_error (esexp, _("\"%s\" expects two arguments"),
+				    "has-alarms-in-range");
+		return NULL;
+	}
+
+	if (argv[0]->type != ESEXP_RES_TIME) {
+		e_sexp_fatal_error (esexp, _("\"%s\" expects the first "
+					     "argument to be a time_t"),
+				    "has-alarms-in-range");
+		return NULL;
+	}
+	start = argv[0]->value.time;
+
+	if (argv[1]->type != ESEXP_RES_TIME) {
+		e_sexp_fatal_error (esexp, _("\"%s\" expects the second "
+					     "argument to be a time_t"),
+				    "has-alarms-in-range");
+		return NULL;
+	}
+	end = argv[1]->value.time;
+
+	/* See if the object has alarms in the given time range */
+	default_zone = e_cal_backend_internal_get_default_timezone (ctx->backend);
+	if (!default_zone)
+		default_zone = icaltimezone_get_utc_timezone ();
+
+	alarms = e_cal_util_generate_alarms_for_comp (ctx->comp, start, end,
+						      omit, resolve_tzid_cb,
+						      ctx, default_zone);
+
+	result = e_sexp_result_new (esexp, ESEXP_RES_BOOL);
+	if (alarms) {
+		result->value.bool = TRUE;
+		e_cal_component_alarms_free (alarms);
+	} else
+		result->value.bool = FALSE;
 
 	return result;
 }
@@ -895,6 +960,7 @@ static struct {
 	{ "occur-in-time-range?", func_occur_in_time_range, 0 },
 	{ "contains?", func_contains, 0 },
 	{ "has-alarms?", func_has_alarms, 0 },
+	{ "has-alarms-in-range?", func_has_alarms_in_range, 0 },
 	{ "has-recurrences?", func_has_recurrences, 0 },
 	{ "has-categories?", func_has_categories, 0 },
 	{ "is-completed?", func_is_completed, 0 },

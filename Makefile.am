@@ -1,31 +1,34 @@
 AUTOMAKE_OPTIONS = 1.6
 DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
 
-SUBDIRS = libdb libedataserver servers addressbook calendar src docs po
-DIST_SUBDIRS= libedataserver servers addressbook calendar src docs po
+SUBDIRS = libdb libedataserver libedataserverui servers addressbook calendar src docs po
+DIST_SUBDIRS= libedataserver libedataserverui servers addressbook calendar src docs po
 
 changelogs =			\
 	ChangeLog
 
-pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = evolution-data-server-1.0.pc
+%-$(BASE_VERSION).pc: %.pc
+	 cp $< $@
 
-EXTRA_DIST = 			\
-	AUTHORS			\
-	$(changelogs)		\
-	README			\
-	HACKING			\
-	MAINTAINERS		\
-	TODO			\
-	NEWS			\
-	marshal.mk		\
-	intltool-merge.in	\
-	intltool-update.in	\
-	intltool-extract.in	\
-	$(pkgconfig_DATA:.pc=.pc.in) \
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = evolution-data-server-$(BASE_VERSION).pc
+
+EXTRA_DIST = 						\
+	AUTHORS						\
+	$(changelogs)					\
+	README						\
+	HACKING						\
+	MAINTAINERS					\
+	TODO						\
+	NEWS						\
+	marshal.mk					\
+	intltool-merge.in				\
+	intltool-update.in				\
+	intltool-extract.in				\
+	$(pkgconfig_DATA:-$(BASE_VERSION).pc=.pc.in) 	\
 	$(LIBDB_FILES)
 
-DISTCLEANFILES = intltool-extract intltool-merge intltool-update
+DISTCLEANFILES = intltool-extract intltool-merge intltool-update $(pkgconfig_DATA)
 distclean-local:
 	(cd libdb && $(MAKE) $(AM_MAKEFLAGS) distclean)
 

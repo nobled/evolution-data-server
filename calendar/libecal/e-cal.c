@@ -1,8 +1,10 @@
 /* Evolution calendar ecal
  *
  * Copyright (C) 2001 Ximian, Inc.
+ * Copyright (C) 2004 Novell, Inc.
  *
- * Author: Federico Mena-Quintero <federico@ximian.com>
+ * Authors: Federico Mena-Quintero <federico@ximian.com>
+ *          Rodrigo Moya <rodrigo@novell.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -27,6 +29,7 @@
 #include <bonobo-activation/bonobo-activation.h>
 #include <bonobo/bonobo-exception.h>
 #include <bonobo/bonobo-i18n.h>
+#include <bonobo/bonobo-main.h>
 #include <libgnome/gnome-util.h>
 
 #include <libedataserver/e-component-listener.h>
@@ -629,6 +632,7 @@ cal_objects_sent_cb (ECalListener *listener, ECalendarStatus status, GList *user
 {
 	ECal *ecal = data;
 	ECalendarOp *op;
+	GList *l;
 
 	op = e_calendar_get_op (ecal);
 
@@ -642,6 +646,9 @@ cal_objects_sent_cb (ECalListener *listener, ECalendarStatus status, GList *user
 	op->status = status;
 	op->list = g_list_copy (users);
 	op->string = g_strdup (object);
+
+	for (l = op->list; l; l = l->next)
+		l->data = g_strdup (l->data);
 
 	g_cond_signal (op->cond);
 
@@ -1016,13 +1023,11 @@ get_factories (const char *str_uri, GList **factories)
 		return FALSE;
 	}
 
-	query = g_strdup_printf ("repo_ids.has ('IDL:GNOME/Evolution/DataServer/CalFactory:" BASE_VERSION "')"
-				 " AND calendar:supported_protocols.has ('%s')", uri->protocol);
+	query = "repo_ids.has ('IDL:GNOME/Evolution/DataServer/CalFactory:" BASE_VERSION "')";
 
 	
 	servers = bonobo_activation_query (query, NULL, NULL);
 
-	g_free (query);
 	e_uri_free (uri);
 
 	if (!servers) {
@@ -1324,6 +1329,23 @@ fetch_corba_cal (ECal *ecal, ESource *source, ECalSourceType type)
 	return result;
 }
 
+/* one-time start up for libecal */
+static void
+e_cal_activate ()
+{
+	static GStaticMutex e_cal_lock = G_STATIC_MUTEX_INIT;
+	static gboolean activated = FALSE;
+	
+	g_static_mutex_lock (&e_cal_lock);
+	if (!activated) {
+		activated = TRUE;
+		
+		if (!bonobo_is_initialized ())
+			bonobo_init (NULL, NULL);
+	}
+	g_static_mutex_unlock (&e_cal_lock);
+}
+
 /**
  * e_cal_new:
  * @source: 
@@ -1339,7 +1361,9 @@ ECal *
 e_cal_new (ESource *source, ECalSourceType type)
 {
 	ECal *ecal;
-
+	
+	e_cal_activate ();
+	
 	ecal = g_object_new (E_TYPE_CAL, NULL);
 
 	if (!fetch_corba_cal (ecal, source, type)) {
@@ -1406,7 +1430,7 @@ e_cal_new_system_tasks (void)
 	char *uri;
 
 	uri = g_build_filename ("file://", g_get_home_dir (), ".evolution", "tasks", "local", "system", NULL);
-	ecal = e_cal_new_from_uri (uri, E_CAL_SOURCE_TYPE_EVENT);
+	ecal = e_cal_new_from_uri (uri, E_CAL_SOURCE_TYPE_TODO);
 	g_free (uri);
 	
 	return ecal;
@@ -1418,13 +1442,21 @@ e_cal_new_system_tasks (void)
  * @func: The authentication function
  * @data: User data to be used when calling the authentication function
  *
- * Associates the given authentication function with a calendar ecal. This
- * function will be called any time the calendar server needs a password
- * from the ecal. So, calendar ecals should provide such authentication
- * function, which, when called, should act accordingly (by showing a dialog
- * box, for example, to ask the user for the password).
+ * Sets the given authentication function on the calendar ecal. This
+ * function will be called any time the calendar server needs a
+ * password for an operation associated with the calendar and should
+ * be supplied before any calendar is opened.
  *
- * The authentication function must have the following form:
+ * When a calendar is opened asynchronously, the open function is
+ * processed in a concurrent thread.  This means that the
+ * authentication function will also be called from this thread.  As
+ * such, the authentication callback cannot directly call any
+ * functions that must be called from the main thread.  For example
+ * any Gtk+ related functions, which must be proxied synchronously to
+ * the main thread by the callback.
+ *
+ * The authentication function has the following signature
+ * (ECalAuthFunc):
  *	char * auth_func (ECal *ecal,
  *			  const gchar *prompt,
  *			  const gchar *key,
@@ -1458,6 +1490,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 
 	if (ecal->priv->current_op != NULL) {
 		g_mutex_unlock (ecal->priv->mutex);
+		*status = E_CALENDAR_STATUS_BUSY;
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_BUSY, error);
 	}
 
@@ -1477,6 +1510,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 			e_calendar_remove_op (ecal, our_op);
 			g_mutex_unlock (our_op->mutex);
 			e_calendar_free_op (our_op);
+			*status = E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED;
 			E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED, error);
 		}
 
@@ -1485,6 +1519,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 			e_calendar_remove_op (ecal, our_op);
 			g_mutex_unlock (our_op->mutex);
 			e_calendar_free_op (our_op);
+			*status = E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED;
 			E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED, error);
 		}
 
@@ -1498,6 +1533,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 			e_calendar_remove_op (ecal, our_op);
 			g_mutex_unlock (our_op->mutex);
 			e_calendar_free_op (our_op);
+			*status = E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED; 
 			E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED, error);
 		}
 
@@ -1581,27 +1617,10 @@ typedef struct {
 	gboolean exists;
 	gboolean result;
 	ECalendarStatus status;
-	ECalAuthFunc real_auth_func;
-	gpointer real_auth_user_data;
 	const char *auth_prompt;
 	const char *auth_key;
 	char *password;
-	GMutex *mutex;
-	GCond *cond;
 } ECalAsyncData;
-
-static gboolean
-async_auth_idle_cb (gpointer data)
-{
-	ECalAsyncData *ccad = data;
-
-	g_mutex_lock (ccad->mutex);
-	ccad->password = ccad->real_auth_func (ccad->ecal, ccad->auth_prompt, ccad->auth_key, ccad->real_auth_user_data);
-	g_cond_signal (ccad->cond);
-	g_mutex_unlock (ccad->mutex);
-
-	return FALSE;
-}
 
 static gboolean
 async_signal_idle_cb (gpointer data)
@@ -1622,39 +1641,11 @@ async_signal_idle_cb (gpointer data)
 	return FALSE;
 }
 
-static char *
-async_auth_func_cb (ECal *ecal, const char *prompt, const char *key, gpointer user_data)
-{
-	ECalAsyncData *ccad = user_data;
-	char * password;
-
-	ccad->auth_prompt = prompt;
-	ccad->auth_key = key;
-
-	g_idle_add ((GSourceFunc) async_auth_idle_cb, ccad);
-		
-	g_mutex_lock (ccad->mutex);
-	g_cond_wait (ccad->cond, ccad->mutex);
-	password = ccad->password;
-	ccad->password = NULL;
-	g_mutex_unlock (ccad->mutex);	
-
-	return password;
-}
-
 
 static gpointer
 open_async (gpointer data) 
 {
 	ECalAsyncData *ccad = data;
-
-	ccad->mutex = g_mutex_new ();
-	ccad->cond = g_cond_new ();
-
-	ccad->real_auth_func = ccad->ecal->priv->auth_func;
-	ccad->real_auth_user_data = ccad->ecal->priv->auth_user_data;
-	ccad->ecal->priv->auth_func = async_auth_func_cb;
-	ccad->ecal->priv->auth_user_data = ccad;
 
 	ccad->result = open_calendar (ccad->ecal, ccad->exists, NULL, &ccad->status);
 	g_idle_add ((GSourceFunc) async_signal_idle_cb, ccad);
@@ -1662,6 +1653,20 @@ open_async (gpointer data)
 	return GINT_TO_POINTER (ccad->result);
 }
 
+/**
+ * e_cal_open_async:
+ * @ecal: A calendar.
+ * @only_if_exists: If TRUE, then only open the calendar if it already
+ * exists.  If FALSE, then create a new calendar if it doesn't already
+ * exist.
+ * 
+ * Open the calendar asynchronously.  The calendar will emit the
+ * "cal_opened" signal when the operation has completed.
+ * 
+ * Because this operation runs in another thread, any authentication
+ * callback set on the calendar will be called from this other thread.
+ * See e_cal_set_auth_func() for details.
+ **/
 void
 e_cal_open_async (ECal *ecal, gboolean only_if_exists)
 {
@@ -2156,7 +2161,6 @@ load_static_capabilities (ECal *ecal, GError **error)
 	CORBA_Environment ev;
 	ECalendarStatus status;
 	ECalendarOp *our_op;
-	char *cap;
 	
 	priv = ecal->priv;
 
@@ -2890,26 +2894,18 @@ process_detached_instances (GList *instances, GList *detached_instances)
  * The callback function should do a g_object_ref() of the calendar component
  * it gets passed if it intends to keep it around.
  **/
-void
-e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
-			  ECalRecurInstanceFn cb, gpointer cb_data)
+static void
+generate_instances (ECal *ecal, time_t start, time_t end, const char *uid,
+		    ECalRecurInstanceFn cb, gpointer cb_data)
 {
-	ECalPrivate *priv;
 	GList *objects;
 	GList *instances, *detached_instances = NULL;
 	GList *l;
 	char *query;
 	char *iso_start, *iso_end;
-	
-	g_return_if_fail (ecal != NULL);
-	g_return_if_fail (E_IS_CAL (ecal));
+	ECalPrivate *priv;
 
 	priv = ecal->priv;
-	g_return_if_fail (priv->load_state == E_CAL_LOAD_LOADED);
-
-	g_return_if_fail (start != -1 && end != -1);
-	g_return_if_fail (start <= end);
-	g_return_if_fail (cb != NULL);
 
 	iso_start = isodate_from_time_t (start);
 	if (!iso_start)
@@ -2922,8 +2918,12 @@ e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 	}
 
 	/* Generate objects */
-	query = g_strdup_printf ("(occur-in-time-range? (make-time \"%s\") (make-time \"%s\"))",
-				 iso_start, iso_end);
+	if (uid && *uid)
+		query = g_strdup_printf ("(and (occur-in-time-range? (make-time \"%s\") (make-time \"%s\")) (uid? \"%s\"))",
+					 iso_start, iso_end, uid);
+	else
+		query = g_strdup_printf ("(occur-in-time-range? (make-time \"%s\") (make-time \"%s\"))",
+					 iso_start, iso_end);
 	g_free (iso_start);
 	g_free (iso_end);
 	if (!e_cal_get_object_list_as_comp (ecal, query, &objects, NULL)) {
@@ -2936,19 +2936,25 @@ e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 
 	for (l = objects; l; l = l->next) {
 		ECalComponent *comp;
+		icaltimezone *default_zone;
+
+		if (priv->default_zone)
+			default_zone = priv->default_zone;
+		else
+			default_zone = icaltimezone_get_utc_timezone ();
 
 		comp = l->data;
 		if (e_cal_component_is_instance (comp)) {
 			/* keep the detached instances apart */
 			e_cal_recur_generate_instances (comp, start, end, add_instance, &detached_instances,
 							e_cal_resolve_tzid_cb, ecal,
-							priv->default_zone);
+							default_zone);
 
 			g_object_unref (comp);
 		} else {
 			e_cal_recur_generate_instances (comp, start, end, add_instance, &instances,
 							e_cal_resolve_tzid_cb, ecal,
-							priv->default_zone);
+							default_zone);
 
 			g_object_unref (comp);
 		}
@@ -2994,6 +3000,111 @@ e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 	}
 
 	g_list_free (detached_instances);
+
+}
+
+/**
+ * e_cal_generate_instances:
+ * @ecal: A calendar ecal.
+ * @start: Start time for query.
+ * @end: End time for query.
+ * @cb: Callback for each generated instance.
+ * @cb_data: Closure data for the callback.
+ * 
+ * Does a combination of e_cal_get_object_list () and
+ * cal_recur_generate_instances().  
+ *
+ * The callback function should do a g_object_ref() of the calendar component
+ * it gets passed if it intends to keep it around.
+ **/
+void
+e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
+			  ECalRecurInstanceFn cb, gpointer cb_data)
+{
+	ECalPrivate *priv;
+	
+	g_return_if_fail (ecal != NULL);
+	g_return_if_fail (E_IS_CAL (ecal));
+
+	priv = ecal->priv;
+	g_return_if_fail (priv->load_state == E_CAL_LOAD_LOADED);
+
+	g_return_if_fail (start >= 0);
+	g_return_if_fail (end >= 0);
+	g_return_if_fail (cb != NULL);
+
+	generate_instances (ecal, start, end, NULL, cb, cb_data);
+}
+
+/**
+ * e_cal_generate_instances_for_object:
+ * @ecal: A calendar ecal.
+ * @icalcomp: Object to generate instances from.
+ * @start: Start time for query.
+ * @end: End time for query.
+ * @cb: Callback for each generated instance.
+ * @cb_data: Closure data for the callback.
+ *
+ * Does a combination of e_cal_get_object_list () and
+ * cal_recur_generate_instances(), like e_cal_generate_instances(), but
+ * for a single object.
+ *
+ * The callback function should do a g_object_ref() of the calendar component
+ * it gets passed if it intends to keep it around.
+ **/
+void
+e_cal_generate_instances_for_object (ECal *ecal, icalcomponent *icalcomp,
+				     time_t start, time_t end,
+				     ECalRecurInstanceFn cb, gpointer cb_data)
+{
+	ECalPrivate *priv;
+	ECalComponent *comp;
+	const char *uid, *rid;
+	gboolean result;
+	GList *instances = NULL;
+
+	g_return_if_fail (E_IS_CAL (ecal));
+	g_return_if_fail (start >= 0);
+	g_return_if_fail (end >= 0);
+	g_return_if_fail (cb != NULL);
+
+	priv = ecal->priv;
+
+	comp = e_cal_component_new ();
+	e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (icalcomp));
+
+	e_cal_component_get_uid (comp, &uid);
+	rid = e_cal_component_get_recurid_as_string (comp);
+
+	/* generate all instances in the given time range */
+	generate_instances (ecal, start, end, uid, add_instance, &instances);
+
+	/* now only return back the instances for the given object */
+	result = TRUE;
+	while (instances != NULL) {
+		struct comp_instance *ci;
+		const char *instance_rid;
+
+		ci = instances->data;
+
+		if (result) {
+			instance_rid = e_cal_component_get_recurid_as_string (ci->comp);
+
+			if (rid && *rid) {
+				if (instance_rid && *instance_rid && strcmp (rid, instance_rid) == 0)
+					result = (* cb) (ci->comp, ci->start, ci->end, cb_data);
+			} else
+				result = (* cb)  (ci->comp, ci->start, ci->end, cb_data);
+		}
+
+		/* remove instance from list */
+		instances = g_list_remove (instances, ci);
+		g_object_unref (ci->comp);
+		g_free (ci);
+	}
+
+	/* clean up */
+	g_object_unref (comp);
 }
 
 /**
@@ -3118,7 +3229,7 @@ e_cal_get_alarms_in_range (ECal *ecal, time_t start, time_t end)
 {
 	ECalPrivate *priv;
 	GSList *alarms;
-	char *sexp;
+	char *sexp, *iso_start, *iso_end;
 	GList *object_list = NULL;
 
 	g_return_val_if_fail (ecal != NULL, NULL);
@@ -3127,11 +3238,24 @@ e_cal_get_alarms_in_range (ECal *ecal, time_t start, time_t end)
 	priv = ecal->priv;
 	g_return_val_if_fail (priv->load_state == E_CAL_LOAD_LOADED, NULL);
 
-	g_return_val_if_fail (start != -1 && end != -1, NULL);
+	g_return_val_if_fail (start >= 0 && end >= 0, NULL);
 	g_return_val_if_fail (start <= end, NULL);
 
+	iso_start = isodate_from_time_t (start);
+	if (!iso_start)
+		return NULL;
+
+	iso_end = isodate_from_time_t (end);
+	if (!iso_end) {
+		g_free (iso_start);
+		return NULL;
+	}
+
 	/* build the query string */
-	sexp = g_strdup ("(has-alarms?)");
+	sexp = g_strdup_printf ("(has-alarms-in-range? (make-time \"%s\") (make-time \"%s\"))",
+				iso_start, iso_end);
+	g_free (iso_start);
+	g_free (iso_end);
 
 	/* execute the query on the server */
 	if (!e_cal_get_object_list (ecal, sexp, &object_list, NULL)) {
@@ -3204,7 +3328,7 @@ e_cal_get_alarms_for_object (ECal *ecal, const char *uid,
 	g_return_val_if_fail (priv->load_state == E_CAL_LOAD_LOADED, FALSE);
 
 	g_return_val_if_fail (uid != NULL, FALSE);
-	g_return_val_if_fail (start != -1 && end != -1, FALSE);
+	g_return_val_if_fail (start >= 0 && end >= 0, FALSE);
 	g_return_val_if_fail (start <= end, FALSE);
 	g_return_val_if_fail (alarms != NULL, FALSE);
 
@@ -3668,15 +3792,14 @@ e_cal_remove_object_with_mod (ECal *ecal, const char *uid,
  * e_cal_remove_object:
  * @ecal:  A calendar ecal.
  * @uid: Unique identifier of the calendar component to remove.
- * @error: 
+ * @error: Error placeholder.
  * 
  * 
  * Asks a calendar to remove a component.  If the server is able to remove the
  * component, all ecals will be notified and they will emit the "obj_removed"
  * signal.
  * 
- * Return value: an #ECalResult value indicating the result of the
- * operation.
+ * Return value: %TRUE if successful, %FALSE otherwise.
  **/
 gboolean
 e_cal_remove_object (ECal *ecal, const char *uid, GError **error)
@@ -3687,6 +3810,18 @@ e_cal_remove_object (ECal *ecal, const char *uid, GError **error)
 	return e_cal_remove_object_with_mod (ecal, uid, NULL, CALOBJ_MOD_ALL, error);
 }
 
+/**
+ * e_cal_receive_objects:
+ * @ecal:  A calendar ecal.
+ * @icalcomp: An icalcomponent.
+ * @error: Error placeholder.
+ *
+ * Makes the backend receive the set of iCalendar objects specified in the
+ * @icalcomp argument. This is used for iTIP confirmation/cancellation
+ * messages for scheduled meetings.
+ *
+ * Return value: %TRUE if successful, %FALSE otherwise.
+ */
 gboolean
 e_cal_receive_objects (ECal *ecal, icalcomponent *icalcomp, GError **error)
 {
@@ -4165,6 +4300,10 @@ e_cal_set_default_timezone (ECal *ecal, icaltimezone *zone, GError **error)
 
 	priv = ecal->priv;
 
+	/* Don't set the same timezone multiple times */
+	if (priv->default_zone == zone)
+		return FALSE;
+	
 	/* Make sure the server has the VTIMEZONE data. */
 	if (!e_cal_ensure_timezone_on_server (ecal, zone, error))
 		return FALSE;
@@ -4258,6 +4397,8 @@ e_cal_get_error_message (ECalendarStatus status)
 		return _("URI already loaded");
 	case E_CALENDAR_STATUS_PERMISSION_DENIED :
 		return _("Permission denied");
+	case E_CALENDAR_STATUS_UNKNOWN_USER :
+		return _("Unknown User");
 	case E_CALENDAR_STATUS_OBJECT_ID_ALREADY_EXISTS :
 		return _("Object ID already exists");
 	case E_CALENDAR_STATUS_PROTOCOL_NOT_SUPPORTED :

@@ -31,7 +31,7 @@
 #define PAS_ID_PREFIX "pas-id-"
 #define FILE_FLUSH_TIMEOUT 5000
 
-#define d(x)
+#define d(x) x
 
 static EBookBackendSyncClass *e_book_backend_vcf_parent_class;
 typedef struct _EBookBackendVCFBookView EBookBackendVCFBookView;
@@ -41,6 +41,7 @@ struct _EBookBackendVCFPrivate {
 	char       *filename;
 	GMutex     *mutex;
 	GHashTable *contacts;
+	GList      *contact_list;
 	gboolean    dirty;
 	int         flush_timeout_tag;
 };
@@ -62,10 +63,15 @@ insert_contact (EBookBackendVCF *vcf, char *vcard)
 	char *id;
 
 	id = e_contact_get (contact, E_CONTACT_UID);
-	if (id)
+	if (id) {
+		char *vcard = e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30);
+
+		vcf->priv->contact_list = g_list_prepend (vcf->priv->contact_list, vcard);
+
 		g_hash_table_insert (vcf->priv->contacts,
 				     id,
-				     e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30));
+				     vcf->priv->contact_list);
+	}
 }
 
 static void
@@ -104,16 +110,9 @@ load_file (EBookBackendVCF *vcf, int fd)
 	fclose (fp);
 }
 
-static void
-foreach_build_list (char *id, char *vcard_string, GList **list)
-{
-	*list = g_list_append (*list, vcard_string);
-}
-
 static gboolean
 save_file (EBookBackendVCF *vcf)
 {
-	GList *vcards = NULL;
 	GList *l;
 	char *new_path;
 	int fd, rv;
@@ -121,13 +120,12 @@ save_file (EBookBackendVCF *vcf)
 	g_warning ("EBookBackendVCF flushing file to disk");
 
 	g_mutex_lock (vcf->priv->mutex);
-	g_hash_table_foreach (vcf->priv->contacts, (GHFunc)foreach_build_list, &vcards);
 
 	new_path = g_strdup_printf ("%s.new", vcf->priv->filename);
 
 	fd = open (new_path, O_CREAT | O_TRUNC | O_WRONLY, 0666);
 
-	for (l = vcards; l; l = l->next) {
+	for (l = vcf->priv->contact_list; l; l = l->next) {
 		char *vcard_str = l->data;
 		int len = strlen (vcard_str);
 
@@ -157,7 +155,6 @@ save_file (EBookBackendVCF *vcf)
 		return FALSE;
 	}
 
-	g_list_free (vcards);
 	g_free (new_path);
 
 	vcf->priv->dirty = FALSE;
@@ -203,9 +200,10 @@ do_create(EBookBackendVCF  *bvcf,
 
 	contact = e_contact_new_from_vcard (vcard_req);
 	e_contact_set(contact, E_CONTACT_UID, id);
+	g_free (id);
 	vcard = e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30);
 
-	g_hash_table_insert (bvcf->priv->contacts, id, vcard);
+	insert_contact (bvcf, vcard);
 
 	if (dirty_the_file) {
 		bvcf->priv->dirty = TRUE;
@@ -223,6 +221,7 @@ do_create(EBookBackendVCF  *bvcf,
 static EBookBackendSyncStatus
 e_book_backend_vcf_create_contact (EBookBackendSync *backend,
 				   EDataBook *book,
+				   guint32 opid,
 				   const char *vcard,
 				   EContact **contact)
 {
@@ -241,43 +240,56 @@ e_book_backend_vcf_create_contact (EBookBackendSync *backend,
 
 static EBookBackendSyncStatus
 e_book_backend_vcf_remove_contacts (EBookBackendSync *backend,
-				    EDataBook    *book,
+				    EDataBook *book,
+				    guint32 opid,
 				    GList *id_list,
 				    GList **ids)
 {
 	/* FIXME: make this handle bulk deletes like the file backend does */
 	EBookBackendVCF *bvcf = E_BOOK_BACKEND_VCF (backend);
 	char *id = id_list->data;
+	GList *elem;
 	gboolean success;
+	char *real_id;
 
 	g_mutex_lock (bvcf->priv->mutex);
-	success = g_hash_table_remove (bvcf->priv->contacts, id);
-
+	success = g_hash_table_lookup_extended (bvcf->priv->contacts, id, (gpointer)&real_id, (gpointer)&elem);
 	if (!success) {
 		g_mutex_unlock (bvcf->priv->mutex);
 		return GNOME_Evolution_Addressbook_ContactNotFound;
 	}
-	else {
-		bvcf->priv->dirty = TRUE;
-		if (!bvcf->priv->flush_timeout_tag)
-			bvcf->priv->flush_timeout_tag = g_timeout_add (FILE_FLUSH_TIMEOUT,
-								       vcf_flush_file, bvcf);
+
+	success = g_hash_table_remove (bvcf->priv->contacts, real_id);
+	if (!success) {
 		g_mutex_unlock (bvcf->priv->mutex);
-
-		*ids = g_list_append (*ids, id);
-
-		return GNOME_Evolution_Addressbook_Success;
+		return GNOME_Evolution_Addressbook_ContactNotFound;
 	}
+
+	g_free (real_id);
+	g_free (elem->data);
+	bvcf->priv->contact_list = g_list_remove_link (bvcf->priv->contact_list, elem);
+
+	bvcf->priv->dirty = TRUE;
+	if (!bvcf->priv->flush_timeout_tag)
+		bvcf->priv->flush_timeout_tag = g_timeout_add (FILE_FLUSH_TIMEOUT,
+							       vcf_flush_file, bvcf);
+	g_mutex_unlock (bvcf->priv->mutex);
+
+	*ids = g_list_append (*ids, id);
+
+	return GNOME_Evolution_Addressbook_Success;
 }
 
 static EBookBackendSyncStatus
 e_book_backend_vcf_modify_contact (EBookBackendSync *backend,
 				   EDataBook *book,
+				   guint32 opid,
 				   const char *vcard,
 				   EContact **contact)
 {
 	EBookBackendVCF *bvcf = E_BOOK_BACKEND_VCF (backend);
-	char *old_id, *old_vcard_string;
+	char *old_id;
+	GList *elem;
 	const char *id;
 	gboolean success;
 
@@ -286,39 +298,38 @@ e_book_backend_vcf_modify_contact (EBookBackendSync *backend,
 	id = e_contact_get_const (*contact, E_CONTACT_UID);
 
 	g_mutex_lock (bvcf->priv->mutex);
-	success = g_hash_table_lookup_extended (bvcf->priv->contacts, id, (gpointer)&old_id, (gpointer)&old_vcard_string);
+	success = g_hash_table_lookup_extended (bvcf->priv->contacts, id, (gpointer)&old_id, (gpointer)&elem);
 
 	if (!success) {
 		g_mutex_unlock (bvcf->priv->mutex);
 		return GNOME_Evolution_Addressbook_ContactNotFound;
 	}
-	else {
-		g_hash_table_insert (bvcf->priv->contacts, old_id, g_strdup (vcard));
-		bvcf->priv->dirty = TRUE;
-		if (!bvcf->priv->flush_timeout_tag)
-			bvcf->priv->flush_timeout_tag = g_timeout_add (FILE_FLUSH_TIMEOUT,
-								       vcf_flush_file, bvcf);
-		g_mutex_unlock (bvcf->priv->mutex);
 
-		g_free (old_vcard_string);
+	g_free (elem->data);
+	elem->data = g_strdup (vcard);
+	bvcf->priv->dirty = TRUE;
+	if (!bvcf->priv->flush_timeout_tag)
+		bvcf->priv->flush_timeout_tag = g_timeout_add (FILE_FLUSH_TIMEOUT,
+							       vcf_flush_file, bvcf);
+	g_mutex_unlock (bvcf->priv->mutex);
 
-		return GNOME_Evolution_Addressbook_Success;
-	}
+	return GNOME_Evolution_Addressbook_Success;
 }
 
 static EBookBackendSyncStatus
 e_book_backend_vcf_get_contact (EBookBackendSync *backend,
-				EDataBook    *book,
+				EDataBook *book,
+				guint32 opid,
 				const char *id,
 				char **vcard)
 {
 	EBookBackendVCF *bvcf = E_BOOK_BACKEND_VCF (backend);
-	char *v;
+	GList *elem;
 
-	v = g_hash_table_lookup (bvcf->priv->contacts, id);
+	elem = g_hash_table_lookup (bvcf->priv->contacts, id);
 
-	if (v) {
-		*vcard = g_strdup (v);
+	if (elem) {
+		*vcard = g_strdup (elem->data);
 		return GNOME_Evolution_Addressbook_Success;
 	} else {
 		*vcard = g_strdup ("");
@@ -335,7 +346,7 @@ typedef struct {
 } GetContactListClosure;
 
 static void
-foreach_get_contact_compare (char *id, char *vcard_string, GetContactListClosure *closure)
+foreach_get_contact_compare (char *vcard_string, GetContactListClosure *closure)
 {
 	if ((!closure->search_needed) || e_book_backend_sexp_match_vcard  (closure->card_sexp, vcard_string)) {
 		closure->list = g_list_append (closure->list, g_strdup (vcard_string));
@@ -344,7 +355,8 @@ foreach_get_contact_compare (char *id, char *vcard_string, GetContactListClosure
 
 static EBookBackendSyncStatus
 e_book_backend_vcf_get_contact_list (EBookBackendSync *backend,
-				     EDataBook    *book,
+				     EDataBook *book,
+				     guint32 opid,
 				     const char *query,
 				     GList **contacts)
 {
@@ -357,7 +369,7 @@ e_book_backend_vcf_get_contact_list (EBookBackendSync *backend,
 	closure.card_sexp = e_book_backend_sexp_new (search);
 	closure.list = NULL;
 
-	g_hash_table_foreach (bvcf->priv->contacts, (GHFunc)foreach_get_contact_compare, &closure);
+	g_list_foreach (bvcf->priv->contact_list, (GFunc)foreach_get_contact_compare, &closure);
 
 	g_object_unref (closure.card_sexp);
 
@@ -366,10 +378,12 @@ e_book_backend_vcf_get_contact_list (EBookBackendSync *backend,
 }
 
 typedef struct {
-	GMutex *mutex;
-	gboolean stopped;
 	EBookBackendVCF *bvcf;
 	EDataBookView *view;
+	GMutex *mutex;
+	GCond *cond;
+	GThread *thread;
+	gboolean stopped;
 } VCFBackendSearchClosure;
 
 static void
@@ -377,17 +391,20 @@ closure_destroy (VCFBackendSearchClosure *closure)
 {
 	d(printf ("destroying search closure\n"));
 	g_mutex_free (closure->mutex);
+	g_cond_free (closure->cond);
 	g_free (closure);
 }
 
 static VCFBackendSearchClosure*
-init_closure (EDataBookView *book_view)
+init_closure (EDataBookView *book_view, EBookBackendVCF *bvcf)
 {
 	VCFBackendSearchClosure *closure = g_new (VCFBackendSearchClosure, 1);
 
-	closure->mutex = g_mutex_new();
+	closure->bvcf = bvcf;
 	closure->view = book_view;
-	closure->bvcf = E_BOOK_BACKEND_VCF (e_data_book_view_get_backend (book_view));
+	closure->mutex = g_mutex_new ();
+	closure->cond = g_cond_new ();
+	closure->thread = NULL;
 	closure->stopped = FALSE;
 
 	g_object_set_data_full (G_OBJECT (book_view), "EBookBackendVCF.BookView::closure",
@@ -399,63 +416,42 @@ init_closure (EDataBookView *book_view)
 static VCFBackendSearchClosure*
 get_closure (EDataBookView *book_view)
 {
-	return g_object_get_data (G_OBJECT (book_view), "EBookBackendFile.BookView::closure");
+	return g_object_get_data (G_OBJECT (book_view), "EBookBackendVCF.BookView::closure");
 }
 
-static void
-foreach_search_compare (char *id, char *vcard_string, VCFBackendSearchClosure *closure)
+static gpointer
+book_view_thread (gpointer data)
 {
-	EContact *contact;
-
-	/* we really need to stop the entire loop when stopped ==
-	   TRUE, but we can't loop over the hash table that way..
-	   lame.  so we just return here. */
-	if (closure->stopped)
-		return;
-
-	contact = e_contact_new_from_vcard (vcard_string);
-	e_data_book_view_notify_update (closure->view, contact);
-	g_object_unref (contact);
-}
-
-static void
-e_book_backend_vcf_start_book_view (EBookBackend  *backend,
-				    EDataBookView *book_view)
-{
-	VCFBackendSearchClosure *closure;
-	const char *query = e_data_book_view_get_card_query (book_view);
-
-	g_mutex_lock (e_data_book_view_get_mutex (book_view));
-
-	closure = get_closure (book_view);
-
-	if (closure) {
-		if (!closure->stopped) {
-			g_warning ("lost race with stop_book_view, but op->stopped != TRUE");
-		}
-		g_object_set_data (G_OBJECT (book_view), "EBookBackendVCF.BookView::closure", NULL);
-		g_mutex_unlock (e_data_book_view_get_mutex (book_view));
-		return;
-	}
-	else {
-		closure = init_closure (book_view);
-		closure->stopped = FALSE;
-	}
+	EDataBookView *book_view = data;
+	VCFBackendSearchClosure *closure = get_closure (book_view);
+	const char *query;
+	GList *l;
 
 	/* ref the book view because it'll be removed and unrefed
 	   when/if it's stopped */
 	bonobo_object_ref (book_view);
 
-	g_mutex_unlock (e_data_book_view_get_mutex (book_view));
+	query = e_data_book_view_get_card_query (book_view);
 
 	if ( ! strcmp (query, "(contains \"x-evolution-any-field\" \"\")"))
 		e_data_book_view_notify_status_message (book_view, _("Loading..."));
 	else
 		e_data_book_view_notify_status_message (book_view, _("Searching..."));
 
-	g_hash_table_foreach (closure->bvcf->priv->contacts,
-			      (GHFunc)foreach_search_compare,
-			      closure);
+	d(printf ("signalling parent thread\n"));
+	g_mutex_lock (closure->mutex);
+	g_cond_signal (closure->cond);
+	g_mutex_unlock (closure->mutex);
+
+	for (l = closure->bvcf->priv->contact_list; l; l = l->next) {
+		char *vcard_string = l->data;
+		EContact *contact = e_contact_new_from_vcard (vcard_string);
+		e_data_book_view_notify_update (closure->view, contact);
+		g_object_unref (contact);
+
+		if (closure->stopped)
+			break;
+	}
 
 	if (!closure->stopped)
 		e_data_book_view_notify_complete (closure->view, GNOME_Evolution_Addressbook_Success);
@@ -464,31 +460,46 @@ e_book_backend_vcf_start_book_view (EBookBackend  *backend,
 	bonobo_object_unref (book_view);
 
 	d(printf ("finished initial population of book view\n"));
+
+	return NULL;
+}
+
+
+static void
+e_book_backend_vcf_start_book_view (EBookBackend  *backend,
+				    EDataBookView *book_view)
+{
+	VCFBackendSearchClosure *closure = init_closure (book_view, E_BOOK_BACKEND_VCF (backend));
+
+	g_mutex_lock (closure->mutex);
+
+	d(printf ("starting book view thread\n"));
+	closure->thread = g_thread_create (book_view_thread, book_view, TRUE, NULL);
+
+	g_cond_wait (closure->cond, closure->mutex);
+
+	/* at this point we know the book view thread is actually running */
+	g_mutex_unlock (closure->mutex);
+	d(printf ("returning from start_book_view\n"));
+
 }
 
 static void
 e_book_backend_vcf_stop_book_view (EBookBackend  *backend,
 				   EDataBookView *book_view)
 {
-	VCFBackendSearchClosure *closure;
+	VCFBackendSearchClosure *closure = get_closure (book_view);
+	gboolean need_join = FALSE;
 
-	g_mutex_lock (e_data_book_view_get_mutex (book_view));
+	d(printf ("stopping query\n"));
+	g_mutex_lock (closure->mutex);
+	if (!closure->stopped)
+		need_join = TRUE;
+	closure->stopped = TRUE;
+	g_mutex_unlock (closure->mutex);
 
-	closure = get_closure (book_view);
-
-	if (closure) {
-		d(printf ("stopping running query!\n"));
-		g_mutex_lock (closure->mutex);
-		closure->stopped = TRUE;
-		g_mutex_unlock (closure->mutex);
-	}
-	else {
-		d(printf ("either the query is already finished or hasn't started yet (we won the race)\n"));
-		closure = init_closure (book_view);
-		closure->stopped = TRUE;
-	}
-
-	g_mutex_unlock (e_data_book_view_get_mutex (book_view));
+	if (need_join)
+		g_thread_join (closure->thread);
 }
 
 static char *
@@ -501,7 +512,8 @@ e_book_backend_vcf_extract_path_from_uri (const char *uri)
 
 static EBookBackendSyncStatus
 e_book_backend_vcf_authenticate_user (EBookBackendSync *backend,
-				      EDataBook    *book,
+				      EDataBook *book,
+				      guint32 opid,
 				      const char *user,
 				      const char *passwd,
 				      const char *auth_method)
@@ -511,7 +523,8 @@ e_book_backend_vcf_authenticate_user (EBookBackendSync *backend,
 
 static EBookBackendSyncStatus
 e_book_backend_vcf_get_supported_fields (EBookBackendSync *backend,
-					 EDataBook    *book,
+					 EDataBook *book,
+					 guint32 opid,
 					 GList **fields_out)
 {
 	GList *fields = NULL;
@@ -526,7 +539,9 @@ e_book_backend_vcf_get_supported_fields (EBookBackendSync *backend,
 	return GNOME_Evolution_Addressbook_Success;
 }
 
-#include <libedata-book/ximian-vcard.h>
+#ifdef CREATE_DEFAULT_VCARD
+# include <libedata-book/ximian-vcard.h>
+#endif
 
 static GNOME_Evolution_Addressbook_CallStatus
 e_book_backend_vcf_load_source (EBookBackend             *backend,
@@ -546,8 +561,7 @@ e_book_backend_vcf_load_source (EBookBackend             *backend,
 
 	fd = open (bvcf->priv->filename, O_RDWR);
 
-	bvcf->priv->contacts = g_hash_table_new_full (g_str_hash, g_str_equal,
-						      g_free, g_free);
+	bvcf->priv->contacts = g_hash_table_new (g_str_hash, g_str_equal);
 
 	if (fd != -1) {
 		writable = TRUE;
@@ -571,6 +585,7 @@ e_book_backend_vcf_load_source (EBookBackend             *backend,
 			fd = open (bvcf->priv->filename, O_CREAT, 0666);
 
 			if (fd != -1) {
+#ifdef CREATE_DEFAULT_VCARD
 				EContact *contact;
 
 				contact = do_create(bvcf, XIMIAN_VCARD, FALSE);
@@ -578,6 +593,7 @@ e_book_backend_vcf_load_source (EBookBackend             *backend,
 
 				/* XXX check errors here */
 				g_object_unref (contact);
+#endif
 
 				writable = TRUE;
 			}
@@ -603,7 +619,7 @@ e_book_backend_vcf_load_source (EBookBackend             *backend,
 static char *
 e_book_backend_vcf_get_static_capabilities (EBookBackend *backend)
 {
-	return g_strdup("local,do-initial-query");
+	return g_strdup("local,do-initial-query,contact-lists");
 }
 
 static GNOME_Evolution_Addressbook_CallStatus
@@ -662,7 +678,10 @@ e_book_backend_vcf_dispose (GObject *object)
 		if (bvcf->priv->dirty)
 			save_file (bvcf);
 
+		g_hash_table_foreach (bvcf->priv->contacts, (GHFunc)g_free, NULL);
 		g_hash_table_destroy (bvcf->priv->contacts);
+		g_list_foreach (bvcf->priv->contact_list, (GFunc)g_free, NULL);
+		g_list_free (bvcf->priv->contact_list);
 
 		g_free (bvcf->priv->filename);
 

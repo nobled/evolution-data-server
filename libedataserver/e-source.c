@@ -187,6 +187,23 @@ e_source_new  (const char *name,
 }
 
 ESource *
+e_source_new_with_absolute_uri (const char *name,
+				const char *absolute_uri)
+{
+	ESource *source;
+
+	g_return_val_if_fail (name != NULL, NULL);
+	g_return_val_if_fail (absolute_uri != NULL, NULL);
+
+	source = g_object_new (e_source_get_type (), NULL);
+	source->priv->uid = e_uid_new ();
+
+	e_source_set_name (source, name);
+	e_source_set_absolute_uri (source, absolute_uri);
+	return source;
+}
+
+ESource *
 e_source_new_from_xml_node (xmlNodePtr node)
 {
 	ESource *source;
@@ -297,6 +314,7 @@ e_source_update_from_xml_node (ESource *source,
 	if (source->priv->name == NULL
 	    || strcmp (name, source->priv->name) != 0
 	    || source->priv->relative_uri == NULL
+	    || relative_uri != NULL
 	    || strcmp (relative_uri, source->priv->relative_uri) != 0) {
 		g_free (source->priv->name);
 		source->priv->name = g_strdup (name);
@@ -387,8 +405,8 @@ e_source_uid_from_xml_node (xmlNodePtr node)
 	return retval;
 }
 
-static char *
-build_absolute_uri (ESource *source)
+char *
+e_source_build_absolute_uri (ESource *source)
 {
 	const gchar *base_uri_str;
 	gchar *uri_str;
@@ -428,11 +446,6 @@ e_source_set_group (ESource *source,
 	source->priv->group = group;
 	if (group != NULL) {
 		g_object_weak_ref (G_OBJECT (group), (GWeakNotify) group_weak_notify, source);
-
-		if (source->priv->absolute_uri)
-			g_free (source->priv->absolute_uri);
-
-		source->priv->absolute_uri = build_absolute_uri (source);
 	}
 
 	g_signal_emit (source, signals[CHANGED], 0);
@@ -470,6 +483,22 @@ e_source_set_relative_uri (ESource *source,
 
 	g_free (source->priv->relative_uri);
 	source->priv->relative_uri = g_strdup (relative_uri);
+
+	g_signal_emit (source, signals[CHANGED], 0);
+}
+
+void
+e_source_set_absolute_uri (ESource *source,
+			   const char *absolute_uri)
+{
+	g_return_if_fail (E_IS_SOURCE (source));
+
+	if (!!absolute_uri == !!source->priv->absolute_uri
+	    || (absolute_uri && source->priv->absolute_uri && !strcmp (source->priv->absolute_uri, absolute_uri)))
+		return;
+
+	g_free (source->priv->absolute_uri);
+	source->priv->absolute_uri = g_strdup (absolute_uri);
 
 	g_signal_emit (source, signals[CHANGED], 0);
 }
@@ -552,6 +581,14 @@ e_source_peek_relative_uri (ESource *source)
 	return source->priv->relative_uri;
 }
 
+const char *
+e_source_peek_absolute_uri (ESource *source)
+{
+	g_return_val_if_fail (E_IS_SOURCE (source), NULL);
+
+	return source->priv->absolute_uri;
+}
+
 gboolean
 e_source_get_readonly (ESource *source)
 {
@@ -599,8 +636,10 @@ e_source_get_uri (ESource *source)
 		g_warning ("e_source_get_uri () called on source with no absolute URI!");
 		return NULL;
 	}
-
-	return build_absolute_uri (source);
+	else if (source->priv->absolute_uri != NULL) /* source->priv->group != NULL */
+		return g_strdup (source->priv->absolute_uri);
+	else
+		return e_source_build_absolute_uri (source);
 }
 
 
@@ -623,6 +662,7 @@ dump_common_to_xml_node (ESource *source,
 	gboolean has_color;
 	guint32 color;
 	xmlNodePtr node;
+	const char *abs_uri = NULL, *relative_uri = NULL;
 
 	priv = source->priv;
 
@@ -633,7 +673,12 @@ dump_common_to_xml_node (ESource *source,
 
 	xmlSetProp (node, "uid", e_source_peek_uid (source));
 	xmlSetProp (node, "name", e_source_peek_name (source));
-	xmlSetProp (node, "relative_uri", e_source_peek_relative_uri (source));
+	abs_uri = e_source_peek_absolute_uri (source);
+	relative_uri = e_source_peek_relative_uri (source);
+	if (abs_uri)
+		xmlSetProp (node, "uri", abs_uri);
+	if (relative_uri)
+		xmlSetProp (node, "relative_uri", relative_uri);
 	
 	has_color = e_source_get_color (source, &color);
 	if (has_color) {
@@ -785,7 +830,7 @@ e_source_copy (ESource *source)
 	if (e_source_get_color (source, &color))
 		e_source_set_color (new_source, color);
 
-	new_source->priv->absolute_uri = e_source_get_uri (source);
+	new_source->priv->absolute_uri = g_strdup (e_source_peek_absolute_uri (source));
 
 	e_source_foreach_property (source, (GHFunc) copy_property, new_source);
 

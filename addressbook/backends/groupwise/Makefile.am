@@ -7,21 +7,25 @@ INCLUDES =						\
 	-I$(top_srcdir)/servers/groupwise               \
 	$(EVOLUTION_ADDRESSBOOK_CFLAGS)                \
 	$(SOUP_CFLAGS)	
-noinst_LTLIBRARIES = libebookbackendgroupwise.la
+extension_LTLIBRARIES = libebookbackendgroupwise.la
 
 libebookbackendgroupwise_la_SOURCES =			\
-	e-book-backend-groupwise.c				\
-	e-book-backend-groupwise.h
+	e-book-backend-groupwise.c			\
+	e-book-backend-groupwise.h			\
+	e-book-backend-groupwise-factory.c
 
 libebookbackendgroupwise_la_LIBADD =						\
-	$(top_builddir)/servers/groupwise/libegroupwise.la
+	$(top_builddir)/servers/groupwise/libegroupwise-1.2.la
 	$(SOUP_LIBS)
+
+libebookbackendgroupwise_la_LDFLAGS =		\
+	-avoid-version
 
 noinst_PROGRAMS = create-account
 create_account_SOURCES = create-account.c
 
-create_account_LDADD =  $(top_builddir)/addressbook/libedata-book/libedata-book.la      \
-        $(top_builddir)/libedataserver/libedataserver.la              \
-        $(top_builddir)/servers/groupwise/libegroupwise.la \
+create_account_LDADD =  $(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la      \
+        $(top_builddir)/libedataserver/libedataserver-1.2.la              \
+        $(top_builddir)/servers/groupwise/libegroupwise-1.2.la \
         $(E_DATA_SERVER_LIBS)
 

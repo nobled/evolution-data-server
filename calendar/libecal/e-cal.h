@@ -1,8 +1,10 @@
 /* Evolution calendar ecal
  *
  * Copyright (C) 2001 Ximian, Inc.
+ * Copyright (C) 2004 Novell, Inc.
  *
  * Authors: Federico Mena-Quintero <federico@ximian.com>
+ *          Rodrigo Moya <rodrigo@novell.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
