@@ -1,3 +1,13 @@
+2004-11-10 Sivaiah Nallagatla   <snallagatla@novell.com>
+
+	* backends/http/e-cal-backend-http.c 
+	(e_cal_backend_http_set_mode): When mode is switched 
+	from offline to online start time out handler to periodically
+	download the conetnets. Call e_cal_backend_notify only 
+	when backend is loaded 
+        (e_cal_backend_http_open) : cast the backend object using E_CAL_BACKEND
+	to avoid waring while passing it to e_cal_backend_notify_error 
+	
 2004-11-03 Chenthill Palanisamy <pchenthill@novell.com>
 	
 	* backends/http/e-cal-backend-http.c
