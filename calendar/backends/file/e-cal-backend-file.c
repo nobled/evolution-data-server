@@ -1670,10 +1670,56 @@ e_cal_backend_file_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 	return GNOME_Evolution_Calendar_Success;
 }
 
+typedef struct {
+	ECalBackendFile *cbfile;
+	ECalBackendFileObject *obj_data;
+	const char *rid;
+	CalObjModType mod;
+} RemoveRecurrenceData;
+
+static gboolean
+remove_object_instance_cb (gpointer key, gpointer value, gpointer user_data)
+{
+	time_t fromtt, instancett;
+	GSList *categories;
+	char *rid = key;
+	ECalComponent *instance = value;
+	RemoveRecurrenceData *rrdata = user_data;
+
+	fromtt = icaltime_as_timet (icaltime_from_string (rrdata->rid));
+	instancett = icaltime_as_timet (get_rid_icaltime (instance));
+
+	if (fromtt > 0 && instancett > 0) {
+		if ((rrdata->mod == CALOBJ_MOD_THISANDPRIOR && instancett <= fromtt) ||
+		    (rrdata->mod == CALOBJ_MOD_THISANDFUTURE && instancett >= fromtt)) {
+			/* remove the component from our data */
+			icalcomponent_remove_component (rrdata->cbfile->priv->icalcomp,
+							e_cal_component_get_icalcomponent (instance));
+			rrdata->cbfile->priv->comp = g_list_remove (rrdata->cbfile->priv->comp, instance);
+
+			rrdata->obj_data->recurrences_list = g_list_remove (rrdata->obj_data->recurrences_list, instance);
+
+			/* update the set of categories */
+			e_cal_component_get_categories_list (instance, &categories);
+			e_cal_backend_unref_categories (E_CAL_BACKEND (rrdata->cbfile), categories);
+			e_cal_component_free_categories_list (categories);
+
+			/* free memory */
+			g_free (rid);
+			g_object_unref (instance);
+
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 static ECalBackendSyncStatus
 e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const char *calobj, 
 				  CalObjModType mod, char **old_object)
 {
+	RemoveRecurrenceData rrdata;
 	ECalBackendFile *cbfile;
 	ECalBackendFilePrivate *priv;
 	icalcomponent *icalcomp;
@@ -1788,8 +1834,63 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		obj_data->recurrences_list = g_list_append (obj_data->recurrences_list, comp);
 		break;
 	case CALOBJ_MOD_THISANDPRIOR :
-		break;
 	case CALOBJ_MOD_THISANDFUTURE :
+		rid = e_cal_component_get_recurid_as_string (comp);
+		if (!rid || !*rid) {
+			g_object_unref (comp);
+			return GNOME_Evolution_Calendar_ObjectNotFound;
+		}
+
+		/* remove the component from our data, temporarily */
+		icalcomponent_remove_component (priv->icalcomp,
+						e_cal_component_get_icalcomponent (obj_data->full_object));
+		priv->comp = g_list_remove (priv->comp, obj_data->full_object);
+
+		/* now deal with the detached recurrence */
+		if (g_hash_table_lookup_extended (obj_data->recurrences, rid,
+						  &real_rid, &recurrence)) {
+			if (old_object)
+				*old_object = e_cal_component_get_as_string (recurrence);
+
+			/* remove the component from our data */
+			icalcomponent_remove_component (priv->icalcomp,
+							e_cal_component_get_icalcomponent (recurrence));
+			priv->comp = g_list_remove (priv->comp, recurrence);
+			g_hash_table_remove (obj_data->recurrences, rid);
+			obj_data->recurrences_list = g_list_remove (obj_data->recurrences_list, recurrence);
+
+			/* free memory */
+			g_free (real_rid);
+		} else {
+			if (old_object)
+				*old_object = e_cal_component_get_as_string (obj_data->full_object);
+		}
+
+		/* remove all affected recurrences */
+		e_cal_util_remove_instances (e_cal_component_get_icalcomponent (obj_data->full_object),
+					     icaltime_from_string (rid), mod);
+
+		rrdata.cbfile = cbfile;
+		rrdata.obj_data = obj_data;
+		rrdata.rid = rid;
+		rrdata.mod = mod;
+		g_hash_table_foreach_remove (obj_data->recurrences, (GHRFunc) remove_object_instance_cb, &rrdata);
+
+		/* add the modified object to the beginning of the list,
+		   so that it's always before any detached instance we
+		   might have */
+		icalcomponent_add_component (priv->icalcomp,
+					     e_cal_component_get_icalcomponent (obj_data->full_object));
+		priv->comp = g_list_prepend (priv->comp, obj_data->full_object);
+
+		/* add the new detached recurrence */
+		g_hash_table_insert (obj_data->recurrences, 
+				     g_strdup (e_cal_component_get_recurid_as_string (comp)),
+				     comp);
+		icalcomponent_add_component (priv->icalcomp,
+					     e_cal_component_get_icalcomponent (comp));
+		priv->comp = g_list_append (priv->comp, comp);
+		obj_data->recurrences_list = g_list_append (obj_data->recurrences_list, comp);
 		break;
 	case CALOBJ_MOD_ALL :
 		/* in this case, we blow away all recurrences, and start over
@@ -1854,51 +1955,6 @@ remove_instance (ECalBackendFile *cbfile, ECalBackendFileObject *obj_data, const
 	cbfile->priv->comp = g_list_prepend (cbfile->priv->comp, obj_data->full_object);
 }
 
-typedef struct {
-	ECalBackendFile *cbfile;
-	ECalBackendFileObject *obj_data;
-	const char *rid;
-	CalObjModType mod;
-} RemoveRecurrenceData;
-
-static gboolean
-remove_object_instance_cb (gpointer key, gpointer value, gpointer user_data)
-{
-	time_t fromtt, instancett;
-	GSList *categories;
-	char *rid = key;
-	ECalComponent *instance = value;
-	RemoveRecurrenceData *rrdata = user_data;
-
-	fromtt = icaltime_as_timet (icaltime_from_string (rrdata->rid));
-	instancett = icaltime_as_timet (get_rid_icaltime (instance));
-
-	if (fromtt > 0 && instancett > 0) {
-		if ((rrdata->mod == CALOBJ_MOD_THISANDPRIOR && instancett <= fromtt) ||
-		    (rrdata->mod == CALOBJ_MOD_THISANDFUTURE && instancett >= fromtt)) {
-			/* remove the component from our data */
-			icalcomponent_remove_component (rrdata->cbfile->priv->icalcomp,
-							e_cal_component_get_icalcomponent (instance));
-			rrdata->cbfile->priv->comp = g_list_remove (rrdata->cbfile->priv->comp, instance);
-
-			rrdata->obj_data->recurrences_list = g_list_remove (rrdata->obj_data->recurrences_list, instance);
-
-			/* update the set of categories */
-			e_cal_component_get_categories_list (instance, &categories);
-			e_cal_backend_unref_categories (E_CAL_BACKEND (rrdata->cbfile), categories);
-			e_cal_component_free_categories_list (categories);
-
-			/* free memory */
-			g_free (rid);
-			g_object_unref (instance);
-
-			return TRUE;
-		}
-	}
-
-	return FALSE;
-}
-
 /* Remove_object handler for the file backend */
 static ECalBackendSyncStatus
 e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
@@ -1910,7 +1966,6 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	ECalBackendFilePrivate *priv;
 	ECalBackendFileObject *obj_data;
 	ECalComponent *comp;
-	GSList *categories;
 	RemoveRecurrenceData rrdata;
 
 	cbfile = E_CAL_BACKEND_FILE (backend);
