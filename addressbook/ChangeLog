@@ -1,3 +1,10 @@
+2004-02-20 Sivaiah Nallagatla  <snallagatla@novell.com>
+	
+	* backends/Makefile.am : added groupwise to SUBDIRs
+	* backends/groupwise/Makefile.am
+	* backends/groupwise/e-book-backend-groupwise.[ch] : new 
+	groupwise address book backend class
+
 2004-02-06  Hans Petter Jansson  <hpj@ximian.com>
 
 	* libebook/e-address-western.c (e_address_western_extract_region):
