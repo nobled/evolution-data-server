@@ -506,6 +506,7 @@ connect_to_server (ECalBackendGroupwise *cbgw)
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
+			
 		} else {
 			e_cal_backend_notify_error (E_CAL_BACKEND (cbgw), _("Authentication failed"));
 			return GNOME_Evolution_Calendar_AuthenticationFailed;
