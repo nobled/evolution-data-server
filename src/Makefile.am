@@ -52,11 +52,6 @@ evolution_data_server_SOURCES = \
 evolution_data_server_LDADD =							\
 	$(top_builddir)/addressbook/libedata-book/libedata-book.la		\
 	$(top_builddir)/calendar/libedata-cal/libedata-cal.la			\
-	$(top_builddir)/calendar/backends/file/libecalbackendfile.la		\
-	$(top_builddir)/calendar/backends/groupwise/libecalbackendgroupwise.la	\
-	$(top_builddir)/calendar/backends/http/libecalbackendhttp.la		\
-	$(top_builddir)/addressbook/libebook/libebook.la			\
-	$(top_builddir)/calendar/backends/contacts/libecalbackendcontacts.la	\
 	$(E_DATA_SERVER_LIBS)
 
 install-evolution-data-servers:
@@ -78,7 +73,7 @@ EXTRA_DIST = 						\
 	$(idl_DATA)
 
 BUILT_SOURCES = $(IDL_GENERATED) $(server_DATA)
-CLEANFILES = $(BUILT_SOURCES) GNOME_Evolution_DataServer.server.in.in
+CLEANFILES = $(BUILT_SOURCES)
 
 install-exec-local: install-evolution-data-servers
 

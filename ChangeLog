@@ -1,3 +1,12 @@
+2004-07-22  Chris Toshok  <toshok@ximian.com>
+
+	* src/server.c (setup_cals): remove explicit backend registration
+	with a call to e_data_cal_factory_register_backends.
+
+	* src/Makefile.am (evolution_data_server_LDADD): remove the
+	calendar backends.
+	(CLEANFILES): remove GNOME_Evolution_DataServer.server.in.in.
+
 2004-07-11  Chris Toshok  <toshok@ximian.com>
 
 	* src/GNOME_Evolution_DataServer.server.in.in: add this
