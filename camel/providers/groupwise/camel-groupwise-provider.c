@@ -110,7 +110,7 @@ static CamelProvider groupwise_provider = {
 CamelServiceAuthType camel_groupwise_password_authtype = {
 	N_("Password"),
 	
-	N_("This option will connect to the IMAP server using a "
+	N_("This option will connect to the GroupWise server using a "
 	   "plaintext password."),
 	
 	"",
@@ -136,12 +136,13 @@ camel_provider_module_init(void)
 	CamelException ex = CAMEL_EXCEPTION_INITIALISER;
 
 	imap_provider =  camel_provider_get("imap://", &ex);
+//	imap_provider =  camel_provider_get("groupwise://", &ex);
 	groupwise_provider.url_hash = groupwise_url_hash;
 	groupwise_provider.url_equal = groupwise_url_equal;
 	groupwise_provider.auto_detect = groupwise_auto_detect_cb;
 	groupwise_provider.authtypes = g_list_prepend (groupwise_provider.authtypes, &camel_groupwise_password_authtype);
 	if (imap_provider != NULL) {
-		groupwise_provider.object_types[CAMEL_PROVIDER_STORE] =  imap_provider->object_types [CAMEL_PROVIDER_STORE];
+		groupwise_provider.object_types[CAMEL_PROVIDER_STORE] =  camel_groupwise_store_get_type() ;//imap_provider->object_types [CAMEL_PROVIDER_STORE];
 		camel_provider_register(&groupwise_provider);
 	} else {
 		camel_exception_clear(&ex);

@@ -133,6 +133,7 @@ CamelImapStoreSummary *
 camel_imap_store_summary_new (void)
 {
 	CamelImapStoreSummary *new = CAMEL_IMAP_STORE_SUMMARY ( camel_object_new (camel_imap_store_summary_get_type ()));
+	printf(" +++ Store summary New +++ \n") ;
 
 	return new;
 }

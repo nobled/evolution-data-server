@@ -90,7 +90,7 @@ static void
 camel_imap_summary_init (CamelImapSummary *obj)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)obj;
-
+	printf("|| SUMMARY INIT ||\n") ;
 	/* subclasses need to set the right instance data sizes */
 	s->message_info_size = sizeof(CamelImapMessageInfo);
 	s->content_info_size = sizeof(CamelImapMessageContentInfo);
@@ -113,6 +113,7 @@ camel_imap_summary_new (const char *filename)
 
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);
+	printf("||| Summary: filename : %s |||\n", filename) ;
 
 	if (camel_folder_summary_load (summary) == -1) {
 		camel_folder_summary_clear (summary);
@@ -126,7 +127,7 @@ static int
 summary_header_load (CamelFolderSummary *s, FILE *in)
 {
 	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY (s);
-
+	printf("|| header load ||\n") ;
 	if (camel_imap_summary_parent->summary_header_load (s, in) == -1)
 		return -1;
 
@@ -152,7 +153,7 @@ static int
 summary_header_save (CamelFolderSummary *s, FILE *out)
 {
 	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY(s);
-
+	printf("||| Header save |||\n") ;
 	if (camel_imap_summary_parent->summary_header_save (s, out) == -1)
 		return -1;
 
@@ -195,7 +196,7 @@ message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 
 static CamelMessageContentInfo *
 content_info_load (CamelFolderSummary *s, FILE *in)
-{
+{	                                       
 	if (fgetc (in))
 		return camel_imap_summary_parent->content_info_load (s, in);
 	else

@@ -1577,7 +1577,7 @@ imap_search_by_expression (CamelFolder *folder, const char *expression, CamelExc
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	GPtrArray *matches;
-
+	printf("|| Search By expressions |||\n") ;
 	/* we could get around this by creating a new search object each time,
 	   but i doubt its worth it since any long operation would lock the
 	   command channel too */
@@ -1596,7 +1596,7 @@ imap_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER(folder);
 	GPtrArray *matches;
-
+	printf("|| Search by UIDS |||\n") ;
 	if (uids->len == 0)
 		return g_ptr_array_new();
 
@@ -1968,7 +1968,7 @@ imap_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 	CamelMimeMessage *msg = NULL;
 	CamelStream *stream = NULL;
 	int retry;
-
+	printf("|||Get message|||\n") ;
 	mi = camel_folder_summary_uid (folder->summary, uid);
 	if (mi == NULL) {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,

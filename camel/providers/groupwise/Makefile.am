@@ -24,7 +24,16 @@ INCLUDES = -I.. \
 libcamelgroupwise_la_SOURCES = 			\
 	camel-groupwise-provider.c		\
 	camel-gw-listener.c 		\
-	camel-gw-listener.h		
+	camel-gw-listener.h		\
+	camel-groupwise-store.h 	\
+	camel-groupwise-store.c		\
+	camel-groupwise-folder.h	\
+	camel-groupwise-folder.c	\
+	camel-groupwise-summary.c	\
+	camel-groupwise-summary.h	\
+	camel-groupwise-store-summary.c \
+	camel-groupwise-store-summary.h
+
 libcamelgroupwise_la_LIBADD = $(CAMEL_GROUPWISE_LIBS)
 
 libcamelgroupwise_la_LDFLAGS = -avoid-version -module

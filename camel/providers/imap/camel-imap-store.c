@@ -2921,6 +2921,7 @@ get_folder_info_online (CamelStore *store, const char *top, guint32 flags, Camel
 	CamelFolderInfo *tree = NULL;
 	GPtrArray *folders;
 	
+	printf("||| Get folder Info online |||\n") ;
 	if (top == NULL)
 		top = "";
 

@@ -78,6 +78,7 @@ camel_gw_listener_class_init (CamelGwListenerClass *class)
 static void 
 camel_gw_listener_init (CamelGwListener *config_listener,  CamelGwListenerClass *class)
 {
+	printf("||| Camel GW Listener Init |||\n") ;
 	config_listener->priv = g_new0 (CamelGwListenerPrivate, 1);	
 }
 
