@@ -74,7 +74,6 @@ static CamelFolder *get_subfolder     (CamelFolder *folder,
 static CamelFolder *get_parent_folder (CamelFolder *folder);
 static CamelStore *get_parent_store   (CamelFolder *folder);
 
-
 static gint get_message_count (CamelFolder *folder);
 static gint get_unread_message_count (CamelFolder *folder);
 
@@ -83,7 +82,7 @@ static void expunge             (CamelFolder *folder,
 
 
 static void append_message (CamelFolder *folder, CamelMimeMessage *message,
-			    CamelException *ex);
+			    guint32 flags, CamelException *ex);
 
 
 static GPtrArray        *get_uids            (CamelFolder *folder);
@@ -92,8 +91,10 @@ static void              free_uids           (CamelFolder *folder,
 static GPtrArray        *get_summary         (CamelFolder *folder);
 static void              free_summary        (CamelFolder *folder,
 					      GPtrArray *array);
+
 static const gchar      *get_message_uid     (CamelFolder *folder,
 					      CamelMimeMessage *message);
+
 static CamelMimeMessage *get_message         (CamelFolder *folder,
 					      const gchar *uid,
 					      CamelException *ex);
@@ -152,7 +153,6 @@ camel_folder_class_init (CamelFolderClass *camel_folder_class)
 	camel_folder_class->set_message_flags = set_message_flags;
 	camel_folder_class->get_message_user_flag = get_message_user_flag;
 	camel_folder_class->set_message_user_flag = set_message_user_flag;
-	camel_folder_class->get_message_uid = get_message_uid;
 	camel_folder_class->get_message = get_message;
 	camel_folder_class->get_uids = get_uids;
 	camel_folder_class->free_uids = free_uids;
@@ -540,7 +540,7 @@ camel_folder_expunge (CamelFolder *folder, CamelException *ex)
 {
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 
-	return CF_CLASS (folder)->expunge (folder, ex);
+	CF_CLASS (folder)->expunge (folder, ex);
 }
 
 
@@ -591,7 +591,7 @@ camel_folder_get_unread_message_count (CamelFolder *folder)
 
 static void
 append_message (CamelFolder *folder, CamelMimeMessage *message,
-		CamelException *ex)
+		guint32 flags, CamelException *ex)
 {
 	g_warning ("CamelFolder::append_message not implemented for `%s'",
 		   camel_type_to_name (CAMEL_OBJECT_GET_TYPE (folder)));
@@ -610,11 +610,12 @@ append_message (CamelFolder *folder, CamelMimeMessage *message,
 void
 camel_folder_append_message (CamelFolder *folder,
 			     CamelMimeMessage *message,
+			     guint32 flags,
 			     CamelException *ex)
 {
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 
-	CF_CLASS (folder)->append_message (folder, message, ex);
+	CF_CLASS (folder)->append_message (folder, message, flags, ex);
 }
 
 
@@ -787,36 +788,6 @@ camel_folder_has_summary_capability (CamelFolder *folder)
 
 
 /* UIDs stuff */
-
-static const gchar *
-get_message_uid (CamelFolder *folder, CamelMimeMessage *message)
-{
-	g_warning ("CamelFolder::get_message_uid not implemented for `%s'",
-		   camel_type_to_name (CAMEL_OBJECT_GET_TYPE (folder)));
-	return NULL;
-}
-
-/**
- * camel_folder_get_message_uid:
- * @folder: Folder in which the UID must refer to
- * @message: Message object
- *
- * Return the UID of a message relatively to a folder.
- * A message can have different UID, each one corresponding
- * to a different folder, if the message is referenced in
- * several folders.
- *
- * Return value: The UID of the message in the folder
- **/
-const gchar *
-camel_folder_get_message_uid (CamelFolder *folder, CamelMimeMessage *message)
-{
-	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
-	g_return_val_if_fail (CAMEL_IS_MIME_MESSAGE (message), NULL);
-
-	return CF_CLASS (folder)->get_message_uid (folder, message);
-}
-
 
 static CamelMimeMessage *
 get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
@@ -1002,13 +973,15 @@ copy_message_to (CamelFolder *source, const char *uid, CamelFolder *dest,
 		 CamelException *ex)
 {
 	CamelMimeMessage *msg;
+	const CamelMessageInfo *info;
 
 	/* Default implementation. */
 	
 	msg = camel_folder_get_message (source, uid, ex);
 	if (!msg)
 		return;
-	camel_folder_append_message (dest, msg, ex);
+	info = camel_folder_get_message_info (source, uid);
+	camel_folder_append_message (dest, msg, info ? info->flags : 0, ex);
 	camel_object_unref (CAMEL_OBJECT (msg));
 	if (camel_exception_is_set (ex))
 		return;
@@ -1046,13 +1019,15 @@ move_message_to (CamelFolder *source, const char *uid, CamelFolder *dest,
 		 CamelException *ex)
 {
 	CamelMimeMessage *msg;
+	const CamelMessageInfo *info;
 
 	/* Default implementation. */
 	
 	msg = camel_folder_get_message (source, uid, ex);
 	if (!msg)
 		return;
-	camel_folder_append_message (dest, msg, ex);
+	info = camel_folder_get_message_info (source, uid);
+	camel_folder_append_message (dest, msg, info ? info->flags : 0, ex);
 	camel_object_unref (CAMEL_OBJECT (msg));
 	if (camel_exception_is_set (ex))
 		return;

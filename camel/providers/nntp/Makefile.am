@@ -1,7 +1,5 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = 
-
 libcamelnntpincludedir = $(includedir)/camel
 
 providerdir = $(pkglibdir)/camel-providers/$(VERSION)
@@ -31,14 +29,14 @@ libcamelnntp_la_LDFLAGS = -version-info 0:0:0
 
 EXTRA_DIST = libcamelnntp.urls
 
-noinst_PROGRAMS = test-newsrc
+#noinst_PROGRAMS = test-newsrc
 
-LDADD = \
-	$(top_builddir)/camel/libcamel.la 	\
-	$(top_builddir)/e-util/libeutil.la	\
-	$(top_builddir)/libibex/libibex.la 	\
-	$(GNOME_LIBDIR) 			\
-	$(GNOMEUI_LIBS) $(INTLLIBS) $(EXTRA_GNOME_LIBS)
+#LDADD = \
+	#$(top_builddir)/camel/libcamel.la 	\
+	#$(top_builddir)/e-util/libeutil.la	\
+	#$(top_builddir)/libibex/libibex.la 	\
+	#$(GNOME_LIBDIR) 			\
+	#$(GNOMEUI_LIBS) $(INTLLIBS) $(EXTRA_GNOME_LIBS)
 #	$(BONOBO_LIBS)				
 
-test_newsrc_LDADD = libcamelnntp.la $(LDADD)
+#test_newsrc_LDADD = libcamelnntp.la $(LDADD)

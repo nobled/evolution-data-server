@@ -509,55 +509,106 @@ int
 quoted_encode_close(unsigned char *in, int len, unsigned char *out, int *state, int *save)
 {
 	register unsigned char *outptr = out;
+	int last;
 
 	if (len>0)
 		outptr += quoted_encode_step(in, len, outptr, state, save);
+
+	last = *state;
+	if (last != -1) {
+		/* space/tab must be encoded if its the last character on
+		   the line */
+		if (is_qpsafe(last) && last!=' ' && last!=9) {
+			*outptr++ = last;
+		} else {
+			*outptr++ = '=';
+			*outptr++ = tohex[(last>>4) & 0xf];
+			*outptr++ = tohex[last & 0xf];
+		}
+	}
 
 	/* hmm, not sure if this should really be added here, we dont want
 	   to add it to the content, afterall ...? */
 	*outptr++ = '\n';
 
 	*save = 0;
-	*state = 0;
+	*state = -1;
 
 	return outptr-out;
 }
 
-/*
-  FIXME: does not handle trailing spaces/tabs before end of line
-*/
 int
-quoted_encode_step(unsigned char *in, int len, unsigned char *out, int *state, int *save)
+quoted_encode_step(unsigned char *in, int len, unsigned char *out, int *statep, int *save)
 {
 	register unsigned char *inptr, *outptr, *inend;
-	unsigned char c;
-	register int sofar = *state;
+	unsigned char c=0x100;
+	register int sofar = *save, /* keeps track of how many chars on a line */
+		last=*statep;	/* keeps track if last char to end was a space cr etc */
 
 	inptr = in;
 	inend = in+len;
 	outptr = out;
 	while (inptr<inend) {
 		c = *inptr++;
-		if (is_qpsafe(c)) {
-				/* check for soft line-break */
-			if ((++sofar)>74) {
-				*outptr++='=';
-				*outptr++='\n';
-				sofar = 1;
+		if (c=='\r') {
+			if (last != -1) {
+				*outptr++ = '=';
+				*outptr++ = tohex[(last>>4) & 0xf];
+				*outptr++ = tohex[last & 0xf];
+				sofar+=3;
 			}
-			*outptr++=c;
+			last = c;
+		} else if (c=='\n') {
+			if (last != -1 && last!='\r') {
+				*outptr++ = '=';
+				*outptr++ = tohex[(last>>4) & 0xf];
+				*outptr++ = tohex[last & 0xf];
+			}
+			*outptr++ = '\n';
+			sofar=0;
+			last = -1;
 		} else {
-			if ((++sofar)>72) {
-				*outptr++='=';
-				*outptr++='\n';
-				sofar = 3;
+			if (last != -1) {
+				if (is_qpsafe(last)) {
+					*outptr++ = last;
+					sofar++;
+				} else {
+					*outptr++ = '=';
+					*outptr++ = tohex[(last>>4) & 0xf];
+					*outptr++ = tohex[last & 0xf];
+					sofar+=3;
+				}
 			}
-			*outptr++ = '=';
-			*outptr++ = tohex[(c>>4) & 0xf];
-			*outptr++ = tohex[c & 0xf];
+			if (is_qpsafe(c)) {
+				if (sofar>74) {
+					*outptr++='=';
+					*outptr++='\n';
+					sofar = 0;
+				}
+				/* delay output of space */
+				if (c==' ' || c==0x09) {
+					last = c;
+				} else {
+					*outptr++=c;
+					sofar++;
+					last = -1;
+				}
+			} else {
+				if (sofar>72) {
+					*outptr++='=';
+					*outptr++='\n';
+					sofar = 3;
+				} else
+					sofar += 3;
+				*outptr++ = '=';
+				*outptr++ = tohex[(c>>4) & 0xf];
+				*outptr++ = tohex[c & 0xf];
+				last = -1;
+			}
 		}
 	}
-	*state = sofar;
+	*save = sofar;
+	*statep = last;
 	return outptr-out;
 }
 
@@ -1696,7 +1747,7 @@ header_references_decode(const char *in)
 	struct _header_references *head = NULL, *node;
 	char *id, *word;
 
-	if (in == NULL)
+	if (in == NULL || in[0] == '\0')
 		return NULL;
 
 	while (*inptr) {
@@ -1713,7 +1764,7 @@ header_references_decode(const char *in)
 			word = header_decode_word(&inptr);
 			if (word)
 				g_free (word);
-			else
+			else if (*inptr != '\0')
 				inptr++; /* Stupid mailer tricks */
 		}
 	}

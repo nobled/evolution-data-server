@@ -1,3 +1,284 @@
+2000-07-28  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_expunge): Make sure
+	the third word/token (whatever) is "EXPUNGE" and not something
+	else like "EXISTS" or "RECENT". When removing the message from
+	the summary also make sure to free that data to avoid leakage.
+	Also make sure to subtract 1 from the 'id' since IMAP starts
+	at 1 and our summary starts at 0 :-)
+
+2000-07-28  Jeffrey Stedfast  <fejj@helixcode.com>
+	
+	* providers/imap/camel-imap-store.c (camel_imap_status): Cleaned
+	up a bit, now uses imap_next_word()
+	(camel_imap_command_extended): Now uses imap_next_word(). When
+	checking for RECENT, allow the first digit of the recent-count
+	be between 0 and 9 inclusive instead of exclusive.
+
+	* providers/imap/camel-imap-folder.c (imap_expunge): Optimized.
+	No longer will it need to reload the summary as it now instead
+	removes the appropriate message summaries from the cache.
+	(camel_imap_folder_changed): If recent == 0 then return. If 
+	recent < 0 then just emit the folder_changed signal, don't reload
+	summaries.
+
+2000-07-28  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c
+	(imap_get_message_count_internal): Get message count when STATUS
+	is not available.
+	(imap_init): folder->has_search_capability is required for IMAP so
+	should always be set to TRUE (is currently being set to FALSE as
+	I've not yet implemented SEARCH support).
+	(camel_imap_folder_changed): Seem to have fixed my optimization
+	hack
+
+2000-07-28  Jon K Hellan  <hellan@acm.org>
+
+	* providers/imap/camel-imap-store.h (CamelImapServerLevel): New
+	enum.
+	(CamelImapStore): Added server_level and has_status_capability
+	members.
+
+	* providers/imap/camel-imap-store.c (imap_connect): Detect
+	IMAP4REV1, IMAP4 and STATUS in capability response.
+
+	* providers/imap/camel-imap-folder.c
+	(imap_get_message_count_internal): Use STATUS only if server
+	supports it. TODO: Get message count when STATUS not supported.
+	(imap_get_message, imap_get_summary_internal,
+	imap_get_message_info_internal): Handle IMAP4 as well.
+	(imap_protocol_get_summary_specifier): New function: Make a data
+	item specifier for the header lines we need, appropriate to the
+	server level.
+
+2000-07-27  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (camel_imap_folder_changed):
+	Fixed my routine to only fetch new headers, my IDs were off by 1
+	on the high end, so when it would fetch the last newly arrived
+	message it would fail and end up fetching all of the summaries
+	because of the corruption.
+
+2000-07-27  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* camel-url.c (camel_url_to_string): If the path doesn't begin
+	with a / and there is a host, prepend a / to the path.
+
+2000-07-27  Jeffrey Stedfast  <fejj@helixcode.com>
+	
+	* providers/imap/Makefile.am: Added camel-imap-utils.[c,h]
+	
+	* providers/imap/camel-imap-utils.[c,h]: Utilities for parsing
+	server responses for use in both camel-imap-store.c and
+	camel-imap-folder.c
+	
+	* providers/imap/camel-imap-folder.c (imap_get_summary_internal):
+	Free all the pointers in the headers array.
+	(imap_get_subfolder_names_internal): Updated to use
+	imap_parse_list_response
+	(imap_parse_subfolder_list): Removed in favor of
+	imap_parse_list_response
+
+	* providers/imap/camel-imap-store.c (camel_imap_command_extended):
+	Free all the pointers in the data array.
+	(imap_connect): Updated to use imap_parse_list_response and fixed
+	a leak
+	(folder_is_selectable): Updated.
+
+2000-07-27  Jeffrey Stedfast  <fejj@helixcode.com>
+	
+	* providers/imap/camel-imap-folder.c (imap_get_message_info): Now
+	uses a hash table for looking up message info rather than a linear
+	search :)
+
+2000-07-27  Peter Williams  <peterw@helixcode.com>
+
+	* providers/*/Makefile.am: Don't specify SUBDIRS =
+	[nothing]. Messes up distcheck.
+	
+2000-07-26  Peter Williams  <peterw@helixcode.com>
+	
+	* camel-mime-parser.c (folder_scan_init): Initialize
+	outbuf to be "" -- it's not guaranteed to be zeroed.
+	
+	* camel-mime-utils.c (header_references_decode): Return
+	if the header is NULL -> or "" <-. Don't do our stupid
+	mailer trick if we point to \0.
+
+2000-07-26  Dan Winship  <danw@helixcode.com>
+
+	* camel-movemail.c (movemail_external): routine to call an
+	external movemail program.
+	(camel_movemail): Nuke return value, use movemail_external when
+	available and useful, and don't delete "dest" on errors, since
+	it might have started non-empty.
+
+2000-07-26  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* camel-url.c (camel_url_to_string): Should now always prepend a '/'
+	before the path if it doesn't already exist.
+
+	* providers/imap/camel-imap-folder.c: Fixed a few compiler warnings
+
+2000-07-25  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_summary_free): Fixed the
+	real problem that Peter was running into.
+
+2000-07-25  Dan Winship  <danw@helixcode.com>
+
+	* camel-mime-message.c (write_to_stream): Don't add a Mime-Version
+	header to a message that already has one.
+
+	* camel-internet-address.c (internet_encode): Don't put <>s around
+	addresses with no name part.
+
+2000-07-25  Peter Williams  <peterw@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_expunge): Set 
+	imap_folder->summary to NULL after calling imap_summary_free,
+	so we don't get stuck with a junk summary pointer. Should
+	we free it at all?
+
+2000-07-25  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (camel_imap_folder_changed):
+	Optimized to try and get the new message headers without reloading
+	the entire summary from scratch.
+	(imap_get_summary_internal): Will now sync() before attempting to
+	reload the summary so that flags are set in the reloaded summary
+	as well.
+
+2000-07-24  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-store.c (get_folder): Updated to give
+	special attention to the root folder.
+
+	* providers/imap/camel-imap-folder.c
+	(imap_get_subfolder_names_internal): Updated to handle the root
+	folder
+	(imap_get_message_count_internal): return 0 if folder can't hold
+	messages
+	(camel_imap_folder_new): Change so that root folder gets special
+	attention and always gets can_hold_messages set to FALSE
+
+2000-07-24  Dan Winship  <danw@helixcode.com>
+
+	* camel-folder.c: Remove exceptions from a number of methods that
+	work on what ought to be static data: get_parent_folder,
+	get_parent_store, get_message_count, get_unread_message_count,
+	get_permanent_flags, get_message_flags, set_message_flags,
+	get_message_user_flag, set_message_user_flag, get_uids,
+	get_summary, get_subfolder_names. Turn camel_folder_delete_message
+	into a macro. (Mostly a pull-up from the camel-async branch.)
+
+	* providers/{imap,mbox,nntp,pop3,vee}: Update for CamelFolder
+	changes
+
+2000-07-24  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_message_info): Updated
+	to port easily to the new Camel API
+	(imap_init): Don't SELECT INBOX, we don't need to do that
+
+2000-07-24  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (camel_imap_folder_new): 
+	Initialize the summary and subfolder listing.
+	(imap_summary_free): Now takes a GPtrArray arg rather than a 
+	CamelImapFolder as it increases it's usefullness for free()'ing
+	temporary summaries.
+	(imap_get_message_count_internal): A new convenience function for
+	getting the actual message count on a server to be used by 
+	imap_get_summary_internal)
+	(imap_get_message_count): Since the Camel API is on the move again, 
+	the future version of this function will not be able to make a
+	call to the store, it must only access previously fetched data (thus 
+	the creation of the _internal function)
+	(imap_get_subfolder_names_internal): Again, because the future version
+	of imap_get_subfolder_names will not take an exception, we must rename
+	this function which will be called by camel_imap_folder_new()
+	(imap_get_subfolder_names): We now return the previously collected
+	subfolder listing that the _internal function fetched previously
+	(imap_get_summary_internal): Again, same idea as the previous _internal
+	functions...
+	(imap_get_summary): Again... now returns a previously aquired summary
+
+	* providers/imap/camel-imap-store.c (imap_noop): This will hopefully
+	prevent the imap store from disconnecting.
+	(imap_connect): Modified to add a gtk timeout event that will call
+	imap_noop() every 10 minutes (we may want to change this time value)
+	(imap_disconnect): Modified to remove the NOOP timeout event from the
+	store.
+	(camel_imap_command_extended): Commented out the code that would try
+	and detect if the store was disconnected and then reconnect if it was
+	needed.
+
+2000-07-24  Dan Winship  <danw@helixcode.com>
+
+	* camel-folder.[ch]: Remove camel_folder_get_message_uid, which
+	was not used, and not implemented by any provider.
+
+	* providers/nntp/camel-nntp-folder.c: Remove get_message_uid
+	non-implementation.
+
+	* camel-folder-pt-proxy.[ch], camel-arg-collector.c,
+	camel-marshal-utils.[ch]: Bye bye bye.
+
+	* Makefile.am: remove reference to camel-arg-collector.c
+
+2000-07-23  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-store.c (imap_disconnect): Made it a
+	little more forgiving. Also set current_folder to NULL as there is
+	no selected folder after a disconnect.
+	(stream_is_alive): Detects whether or not a socket is "alive"
+	(camel_imap_command_extended): Use stream_is_alive() to aid in the
+	detection of a disconnected state.
+
+2000-07-22  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-store.c (get_folder): Clear
+	CamelExceptions when appropriate (eg when folder is marked as
+	\NoSelect). Still needs some cleanup and perhaps Dan will have a
+	better way of doing this as this seems like a messy way of
+	handling this.
+
+	* providers/imap/camel-imap-folder.c (imap_get_uids): Took out
+	some debug statements as they are no longer needed.
+
+2000-07-21  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_subfolder_names):
+	Updated to not strip out subfolders that are marked as \NoSelect
+	because this will be correctly handled in store->get_folder from
+	now on.
+
+	* providers/imap/camel-imap-store.c (folder_is_selectable): New
+	convenience function for use in get_folder().
+	(parse_list_response): Now takes a char **flags argument which is
+	needed by folder_is_selectable().
+	(imap_connect): Updated to reflect changes to
+	parse_list_response().
+
+2000-07-21  Jeffrey Stedfast  <fejj@helixcode.com>
+	
+	* providers/imap/camel-imap-stream.c (stream_read): Updated with
+	some of the same fixes I've made to camel-imap-folder.c like
+	recalculating message part lengths.
+
+	* providers/imap/camel-imap-store.c (camel_imap_command_extended):
+	Rewrote the code to check for "* %d RECENT". Still needs to be
+	modified, but should no longer cause an infinite loop by detecting
+	mis-detecting RECENT messages.
+
+2000-07-20  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_summary):
+	(imap_get_message_info): Oops. Fix UID parser to allow 0 and 9 to
+	be in the range of valid UID chars.
+
 2000-07-20  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c (camel_object_unref): Add a new global mutex
@@ -11,6 +292,44 @@
 	one will think that it's a level 0 and try to lock the type_system
 	mutex.
 
+2000-07-19  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c: General cleanup working
+	towards getting Actions->Expunge working correctly.
+
+	* providers/imap/camel-imap-store.c
+	(cammel_imap_command_extended): Added code to look for "* %d
+	RECENT" and to emit the folder_changed signal if there are any
+	recent messages. Note: this is a hack and needs to be rewritten
+	badly.
+
+2000-07-19  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_summary): If the
+	folder's message count is not the same as the number of summaries,
+	free the old summary and create a new summary.
+
+2000-07-18  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c
+	(camel_imap_folder_class_init): Added in
+	imap_[g,s]et_message_user_flag() methods
+	(imap_get_message_info): Rewrote to use the more efficient way of
+	downloading summary information and also added a UID comparison so
+	that if the UID requested doesn't match the UID received, it
+	returns NULL.  FIXME: When the mailer gets NULL when it requested
+	message info, it seems that it displays a row for that message and
+	when you try and select the blank row, it segfaults.
+
+	* providers/imap/camel-imap-store.c (get_folder): Oops, this
+	should not be checking against "/", it should be checking against
+	dir_sep.
+
+	* providers/imap/camel-imap-folder.c (imap_parse_subfolder_line):
+	Updated to trim out the leading namespace.
+	(imap_get_subfolder_names): Let the subfolder parser trim the
+	namespace off the folder name.
+
 2000-07-17  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c (camel_type_lock_up): New function; the
@@ -20,6 +339,45 @@
 	but this we catch exceptions "better" (by deadlocking).
 	(camel_type_lock_down): Corresponding to above.
 	(all functions): s,G_LOCK,camel_type_lock_up, etc.
+
+2000-07-17  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-store.c (imap_disconnect): Send a
+	"LOGOUT" command.
+
+	* providers/imap/camel-imap-folder.c (imap_get_message): Hacks to
+	get IMAP code to work with CommunigatePro and MS Exchange (and any
+	other servers that send back a UID at the end of each FETCH inside
+	of the main body of the message part).
+	(imap_sync): Un-#if 0 the code that sets the flags on the IMAP
+	server for messages that have changed. Oops, don't mask with
+	DELETED to find out if the message has been answered ;-)
+	(imap_expunge): sync before expunging.
+
+2000-07-16  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-store.c: All SELECT calls now pass
+	a NULL folder argument to camel_imap_command_extended() since it's
+	not needed.
+	(imap_connect): Moved service_class->connect() to the point right
+	after a connection is established with the server rather than
+	waiting until the end of the function.
+	(camel_imap_command): Updated the documentation comment
+	(camel_imap_command_extended): Before sending a command, first
+	check to make sure we are connected; if we aren't, then reconnect.
+	Don't strncmp() command with "SELECT" as it's redundant.
+
+	* providers/imap/camel-imap-folder.c: All SELECT calls now pass
+	a NULL folder argument to camel_imap_command_extended() since it's
+	not needed. Also s/camel_imap_command/camel_imap_command_extended as
+	I will probably be doing away with camel_imap_command() or at least
+	only using it for LOGIN and similar commands where the server won't
+	notify us of any recent messages.
+
+2000-07-15  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (camel_imap_folder_new): 
+	One last fix to get rid of hard-coded "/" directory separators
 
 2000-07-14  Peter Williams  <peterw@helixcode.com>
 
@@ -46,6 +404,23 @@
 	(camel_object_unref): Don't free the classfuncs. Free the parents
 	list, which is changed to a GSList.
 
+2000-07-14  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* string-utils.c (string_unquote): New convenience function
+	to unquote a string if it's encapsulated by "'s
+	
+	* providers/imap/camel-imap-folder.c:
+	* providers/imap/camel-imap-store.c: Made the necessary changes
+	to stop using hard coded directory separators.
+
+2000-07-13  Dan Winship  <danw@helixcode.com>
+
+	* providers/mbox/camel-mbox-summary.c (camel_mbox_summary_load):
+	If the summary is for a smaller mbox, and rebuilding from the
+	last-known end position fails, try rebuilding from the beginning.
+	Deals with the case where the user edits the mbox and makes it
+	bigger, without adding new messages.
+
 2000-07-13  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c: Rewritten to not be based on GtkObject,
@@ -70,6 +445,206 @@
 	- s,gtk_type_class,camel_type_get_global_classfuncs,g
 	- don't chain finalize handlers; it will be done for you
 	
+2000-07-13  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c: 
+	* providers/imap/camel-imap-store.c: If a SELECT fails, set
+	imap_store->current_folder to NULL so a SELECT is forced before
+	any message/folder operations are requested. Also, because some
+	users don't use a namespace, make sure that if the url->path is 
+	"/" we don't use it when creating the folder_path.
+	(camel_imap_command[_extended]): Since we allow the passing of
+	a NULL folder which we can use to bypass a forced SELECT, no need
+	to check for the individual commands that don't require a folder
+	to be selected.
+
+2000-07-13  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c: 
+	* providers/imap/camel-imap-store.c: Updated to use CAMEL_IMAP_OK, 
+	CAMEL_IMAP_NO, CAMEL_IMAP_BAD, and CAMEL_IMAP_FAIL rather than the 
+	ones copied from the POP3 provider. 
+
+2000-07-13  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_summary): Oops.
+	If the number of messages in the folder is 0, don't fetch
+	summaries 1 thru 0, just return an empty summary.
+	(imap_copy_message_to): Fixed to use message UID and also send
+	the source folder as an arg to camel_imap_command rather than NULL.
+	(imap_move_message_to): Same.
+	(imap_init): If SELECT is successful, we need to set the current
+	folder to the one selected, this was causing problems with move/copy
+
+2000-07-13  Dan Winship  <danw@helixcode.com>
+
+	* camel-service.h: define a set of CAMEL_SERVICE_URL_ALLOW_* flags
+	parallel to the _NEED_* flags, and make the _NEED_* flags imply
+	the _ALLOW_* ones.
+
+	* providers/imap/camel-imap-store.c (camel_imap_store_init): imap
+	urls ALLOW_PATH
+
+2000-07-13  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_summary): New
+	and improved approach to fetching an entire folder summary
+	that should be much much faster than the old way as it gets
+	the entire folder summary in 1 shot rather than requesting
+	message by message. As with the last update, this version
+	also only fetches the minimum number of header fields.
+	(imap_get_summary): Oops, forgot to free the temp 
+	GPtrArray *headers
+
+2000-07-13  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_summary): Don't
+	fetch the entire RFC822 header, just fetch the fields we want.
+	(imap_get_message_info): Same.
+
+2000-07-13  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-mime-filter-basic.c (camel_mime_filter_basic_new_type):
+	Reset filter on setup.
+	(reset): When resetting qp encoding, set the state to -1, instead
+	of 0.
+
+	* camel-mime-utils.c (quoted_encode_step): Actually count the
+	characters output sofar (it never counted any).  Bunch of other
+	fixes.
+	(quoted_encode_close): Also flush out final character, if there's
+	one.
+
+2000-07-12  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	Chris forgot to add #include <e-util/e-util.h> to the source files
+	
+	* providers/imap/camel-imap-store.c (imap_connect): Fixed Peter's 
+	fix, we don't want to send a string to a %d.
+
+2000-07-12  Christopher James Lahey  <clahey@helixcode.com>
+
+	* camel-folder-search.c, providers/imap/camel-imap-store.c:
+	Changed from strstrcase to e_strstrcase.
+
+	* string-utils.c, string-utils.h: Removed strstrcase (in favor of
+	e_strstrcase in e-util/e-util.c.)
+
+2000-07-12  Chris Toshok  <toshok@helixcode.com>
+
+	* providers/nntp/camel-nntp-folder.c
+	(nntp_folder_set_message_flags): get the article num out of our
+	uid and mark it read in the newsrc.
+	(nntp_folder_get_message): get the message id out of the uid to
+	fetch the article.
+
+	* providers/nntp/camel-nntp-utils.c (get_XOVER_headers): the uid
+	is now <article-num>,<messageid>
+	(get_HEAD_headers): same.
+
+	* camel-mime-parser.c (folder_scan_step): go to HSCAN_MESSAGE
+	state when ct->subtype is "news" as well as "rfc822".  this makes
+	attachments of type "message/news" display properly.
+
+2000-07-12  Dan Winship  <danw@helixcode.com>
+
+	* camel-folder.c (camel_folder_free_deep,
+	camel_folder_free_shallow, camel_folder_free_nop): Useful default
+	implementations for free_{uids,subfolder_names,summary}.
+	(free_subfolder_names, free_uids): Make these g_warning-ing
+	default implementations.
+
+	* providers/*/camel-*-folder.c: Use the new functions where
+	appropriate, remove duplicated code.
+
+2000-07-12  Peter Williams  <peterw@helixcode.com>
+
+	* providers/imap/camel-imap-store.c (query_auth_types): Check for
+	NULL parameters when setting the exception so as to not crash on
+	Solaris (can't handle a %s passed NULL).
+	(imap_connect): Same.
+	
+2000-07-12  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/mbox/camel-mbox-folder.c (mbox_delete_message): Use
+	mbox_set_message_flags () instead of setting the flags by hand. This
+	fixes the problem of the "message_changed" signal not being emitted
+	at the correct time.
+
+	* providers/imap/camel-imap-folder.c: "folder_changed" signals should
+	pass a third argument (which is ignored).
+
+	* camel-folder.c: Undo gtk signal emits done in set_flags and 
+	expunge.
+	(move_message_to): 
+	(copy_message_to): Create info as a const CamelMessageInfo
+
+2000-07-12  Chris Toshok  <toshok@helixcode.com>
+
+	* providers/nntp/Makefile.am: don't add test-newsrc to the build
+	since it needs libcamel (which isn't built at the time test-newsrc
+	needs linking.)
+
+	* providers/nntp/camel-nntp-utils.c (get_HEAD_headers): fill in
+	MessageInfo->message_id.
+	(get_XOVER_headers): same.
+
+	* providers/nntp/camel-nntp-folder.c (nntp_folder_init): move
+	summary loading here.
+	(nntp_folder_sync): summary/newsrc changes should be stored here.
+	put a comment to that effect.
+	(nntp_folder_set_message_flags): don't save the newsrc here.
+	(nntp_folder_get_uids): use g_ptr_array_index instead of the
+	cast/addition.
+	(nntp_folder_get_summary): no need to check if we should generate
+	the summary here.  already done.
+	(nntp_folder_get_message_info): implement.
+
+	* providers/nntp/camel-nntp-store.c
+	(camel_nntp_store_get_toplevel_dir): use evolution_dir instead of
+	computing it ourselves.
+	(nntp_store_disconnect): call camel_nntp_newsrc_write.
+	(ensure_news_dir_exists): new function to create the news/<news
+	server> subdir.
+	(camel_nntp_store_class_init): hook up connect/disconnect and
+	finalize.
+	(nntp_store_connect): if ensure_news_dir_exists fails throw an
+	exception.
+
+2000-07-12  Peter Williams  <peterw@helixcode.com>
+
+	* camel-folder.c (camel_folder_set_message_flags): Emit a message_changed
+	signal once the flags are set on the message.
+	(camel_folder_set_user_flag): Ditto.
+	(camel_folder_expunge): Emit a folder_changed if no exception.
+
+2000-07-12  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* camel-stream.c: Use size_t and ssize_t for read/write methods
+	
+	* providers/imap/camel-imap-folder.c (imap_set_message_flags): 
+	Updated to emit the message_changed signal.
+	(imap_delete_message): Updated to use imap_set_message_flags ().
+	(imap_move_message_to): Updated to use imap_set_message_flags ()
+	and to emit the folder_changed signal on the destination folder.
+	(imap_copy_message_to): Updated to emit the folder_changed signal 
+	on the destination folder.
+	(imap_append_message): Updated to emit the folder_changed signal 
+	on the destination folder.
+
+2000-07-11  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* camel-folder.c (camel_folder_append_message): Now takes a
+	flags argument to specify the flags to be set on the message
+	since we might not necessarily want the flags to be wiped clean.
+	(move_message_to):
+	(copy_message_to): Updated to send a flags argument to 
+	append_message (); currently sends the original message's flags.
+
+	* providers/mbox/camel-mbox-folder.c (mbox_append_message): 
+	* providers/imap/camel-imap-folder.c (imap_append_message): 
+	Updated.
+
 2000-07-11  Dan Winship  <danw@helixcode.com>
 
 	* camel-folder.c: Remove exceptions from a number of methods
@@ -83,6 +658,12 @@
 	* providers/{mbox,pop3,vee}: Update for CamelFolder changes
 
 	* providers/Makefile.am: Disable imap and nntp for now
+
+2000-07-11  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_search_by_expression): 
+	This shouldn't return NULL, it should return g_ptr_array_new ()
+	so the mailer gets what it expects.
 
 2000-07-10  Jeffrey Stedfast  <fejj@helixcode.com>
 

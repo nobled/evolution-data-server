@@ -45,8 +45,11 @@ typedef struct {
 	CamelFolder parent_object;
 
 	CamelFolderSearch *search; /* used to run searches */
+
 	GPtrArray *summary;
-	gint count;
+	GHashTable *summary_hash;
+	
+	GPtrArray *lsub;
 } CamelImapFolder;
 
 
@@ -61,7 +64,8 @@ typedef struct {
 /* public methods */
 CamelFolder *camel_imap_folder_new (CamelStore *parent, char *folder_name,
 				    CamelException *ex);
-void camel_imap_folder_set_namespace (CamelFolder *folder, gchar *namespace);
+
+void camel_imap_folder_changed (CamelFolder *folder, gint recent, CamelException *ex);
 
 /* Standard Camel function */
 CamelType camel_imap_folder_get_type (void);

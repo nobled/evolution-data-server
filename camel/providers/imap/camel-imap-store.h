@@ -39,18 +39,28 @@ extern "C" {
 #define CAMEL_IMAP_STORE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_IMAP_STORE_TYPE, CamelImapStoreClass))
 #define IS_CAMEL_IMAP_STORE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_IMAP_STORE_TYPE))
 
+typedef enum {
+	IMAP_LEVEL_UNKNOWN,
+	IMAP_LEVEL_IMAP4,
+	IMAP_LEVEL_IMAP4REV1
+} CamelImapServerLevel;
+
 
 typedef struct {
 	CamelStore parent_object;	
-
+	
 	CamelFolder *current_folder;
 	CamelStream *istream, *ostream;
 	
 	guint32 command;
-
-	gboolean has_search_capability;
+	
+	CamelImapServerLevel server_level;
+	gboolean has_status_capability;
+	
+	gchar *dir_sep;
+	
+	guint timeout_id;
 } CamelImapStore;
-
 
 
 typedef struct {
@@ -65,7 +75,7 @@ void camel_imap_store_close (CamelImapStore *store, gboolean expunge, CamelExcep
 
 /* support functions */
 
-enum { CAMEL_IMAP_OK, CAMEL_IMAP_ERR, CAMEL_IMAP_FAIL };
+enum { CAMEL_IMAP_OK = 0, CAMEL_IMAP_NO, CAMEL_IMAP_BAD, CAMEL_IMAP_FAIL };
 
 gint camel_imap_command (CamelImapStore *store, CamelFolder *folder, char **ret, char *fmt, ...);
 gint camel_imap_command_extended (CamelImapStore *store, CamelFolder *folder, char **ret, char *fmt, ...);
@@ -80,5 +90,3 @@ const gchar *camel_imap_store_get_toplevel_dir (CamelImapStore *store);
 #endif /* __cplusplus */
 
 #endif /* CAMEL_IMAP_STORE_H */
-
-

@@ -65,7 +65,7 @@ static void mbox_init (CamelFolder *folder, CamelStore *parent_store,
 static void mbox_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
 static gint mbox_get_message_count (CamelFolder *folder);
 static gint mbox_get_unread_message_count (CamelFolder *folder);
-static void mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, CamelException *ex);
+static void mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, guint32 flags, CamelException *ex);
 static GPtrArray *mbox_get_uids (CamelFolder *folder);
 static GPtrArray *mbox_get_subfolder_names (CamelFolder *folder);
 static GPtrArray *mbox_get_summary (CamelFolder *folder);
@@ -103,6 +103,7 @@ camel_mbox_folder_class_init (CamelMboxFolderClass *camel_mbox_folder_class)
 	camel_folder_class->get_uids = mbox_get_uids;
 	camel_folder_class->free_uids = camel_folder_free_deep;
 	camel_folder_class->get_subfolder_names = mbox_get_subfolder_names;
+	camel_folder_class->free_subfolder_names = camel_folder_free_deep;
 	camel_folder_class->get_summary = mbox_get_summary;
 	camel_folder_class->free_summary = camel_folder_free_nop;
 	camel_folder_class->expunge = mbox_expunge;
@@ -284,7 +285,7 @@ mbox_get_unread_message_count (CamelFolder *folder)
 
 /* FIXME: this may need some tweaking for performance? */
 static void
-mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, CamelException *ex)
+mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, guint32 flags, CamelException *ex)
 {
 	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER (folder);
 	CamelStream *output_stream = NULL, *filter_stream = NULL;
@@ -317,7 +318,7 @@ mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, CamelExcept
 	/* assign a new x-evolution header/uid */
 	camel_medium_remove_header (CAMEL_MEDIUM (message), "X-Evolution");
 	uid = camel_folder_summary_next_uid (CAMEL_FOLDER_SUMMARY (mbox_folder->summary));
-	xev = g_strdup_printf ("%08x-0000", uid);
+	xev = g_strdup_printf ("%08x-%04x", uid, flags);
 	camel_medium_add_header (CAMEL_MEDIUM (message), "X-Evolution", xev);
 	g_free (xev);
 

@@ -7,6 +7,7 @@
  *  Bertrand Guiheneuf <bertrand@helixcode.com>
  *  Dan Winship <danw@helixcode.com>
  *  Tiago Antào <tiagoantao@bigfoot.com>
+ *  Jeffrey Stedfast <fejj@helixcode.com>
  *
  * Copyright 1999, 2000 Helix Code, Inc. (http://www.helixcode.com)
  *
@@ -43,7 +44,8 @@
  *
  *   protocol://user;AUTH=mech:password@host:port/path
  *
- * The protocol, followed by a ":" is required. If it is followed by * "//", there must be an "authority" containing at least a host,
+ * The protocol, followed by a ":" is required. If it is followed by * "//",
+ * there must be an "authority" containing at least a host,
  * which ends at the end of the string or at the next "/". If there
  * is an "@" in the authority, there must be a username before it,
  * and the host comes after it. The authmech, password, and port are
@@ -193,19 +195,20 @@ camel_url_to_string (CamelURL *url, gboolean show_passwd)
 	if (url->path)
 		path = camel_url_encode (url->path, FALSE, NULL);
 
-	return_result = g_strdup_printf ("%s:%s%s%s%s%s%s%s%s%s%s%s",
-				url->protocol,
-				host ? "//" : "",
-				user ? user : "",
-				authmech ? ";auth=" : "",
-				authmech ? authmech : "",
-				passwd ? ":" : "",
-				passwd ? passwd : "",
-				user ? "@" : "",
-				host ? host : "",
-				*port ? ":" : "",
-				port,
-				path ? path : "");
+	return_result = g_strdup_printf ("%s:%s%s%s%s%s%s%s%s%s%s%s%s",
+					 url->protocol,
+					 host ? "//" : "",
+					 user ? user : "",
+					 authmech ? ";auth=" : "",
+					 authmech ? authmech : "",
+					 passwd ? ":" : "",
+					 passwd ? passwd : "",
+					 user ? "@" : "",
+					 host ? host : "",
+					 *port ? ":" : "",
+					 port,
+					 path && host && *path != '/' ? "/" : "",
+					 path ? path : "");
 	g_free (user);
 	g_free (authmech);
 	g_free (passwd);

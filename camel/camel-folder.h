@@ -108,7 +108,8 @@ typedef struct {
 	gint   (*get_unread_message_count) (CamelFolder *folder);
 
 	void (*append_message)  (CamelFolder *folder, 
-				 CamelMimeMessage *message, 
+				 CamelMimeMessage *message,
+				 guint32 flags,
 				 CamelException *ex);
 	
 	guint32 (*get_permanent_flags) (CamelFolder *folder);
@@ -126,12 +127,13 @@ typedef struct {
 					   const char *name,
 					   gboolean value);
 
-	const gchar * (*get_message_uid)  (CamelFolder *folder, 
-					   CamelMimeMessage *message);
-
 	CamelMimeMessage * (*get_message)  (CamelFolder *folder, 
 					    const gchar *uid, 
 					    CamelException *ex);
+
+	void (*delete_message)  (CamelFolder *folder, 
+				 const gchar *uid, 
+				 CamelException *ex);
 
 	GPtrArray * (*get_uids)       (CamelFolder *folder);
 	void (*free_uids)             (CamelFolder *folder,
@@ -225,7 +227,8 @@ void		   camel_folder_set_message_user_flag  (CamelFolder *folder,
 
 /* message manipulation */
 void               camel_folder_append_message         (CamelFolder *folder, 
-							CamelMimeMessage *message, 
+							CamelMimeMessage *message,
+							guint32 flags,
 							CamelException *ex);
 
 
@@ -247,8 +250,6 @@ void               camel_folder_free_subfolder_names  (CamelFolder *folder,
 
 
 /* uid based access operations */
-const gchar *      camel_folder_get_message_uid       (CamelFolder *folder, 
-						       CamelMimeMessage *message);
 CamelMimeMessage * camel_folder_get_message           (CamelFolder *folder, 
 						       const gchar *uid, 
 						       CamelException *ex);
