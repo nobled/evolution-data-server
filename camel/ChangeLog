@@ -1,3 +1,9 @@
+2004-04-16  Not Zed  <NotZed@Ximian.com>
+
+	* camel-exception.c (camel_exception_set_extended): Add an
+	extended error description field to the exception.  This is a
+	little experimental.
+
 2004-04-14  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* providers/imap/camel-imap-store.c

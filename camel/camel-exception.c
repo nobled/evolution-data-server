@@ -233,6 +233,37 @@ camel_exception_setv (CamelException *ex,
 }
 
 /**
+ * camel_exception_set_extended:
+ * @ex: 
+ * @fmt: 
+ * 
+ * Set extended exception information.
+ **/
+void camel_exception_set_extended(CamelException *ex, const char *fmt, ...)
+{
+	va_list args;
+	char *old;
+
+	if (camel_debug("exception"))
+		printf("CamelException.set_extended(%p, '%s')\n", ex, fmt);
+	
+	if (!ex)
+		return;
+
+	CAMEL_EXCEPTION_LOCK(exception);
+	
+	old = ex->extended;
+	
+	va_start(args, fmt);
+	ex->extended = g_strdup_vprintf (fmt, args);
+	va_end (args);
+
+	g_free (old);
+
+	CAMEL_EXCEPTION_UNLOCK(exception);
+}
+
+/**
  * camel_exception_xfer: transfer an exception
  * @ex_dst: Destination exception object 
  * @ex_src: Source exception object
