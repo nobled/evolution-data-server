@@ -26,6 +26,10 @@
 #endif
 
 #include "camel-groupwise-transport.h"
+#include "camel-groupwise-store.h"
+
+#include "camel-i18n.h"
+
 #include <string.h>
 
 
@@ -33,7 +37,10 @@ static gboolean groupwise_send_to (CamelTransport *transport,
 				  CamelMimeMessage *message,
 				  CamelAddress *from,
 				  CamelAddress *recipients,
-				  CamelException *ex);
+				  CamelException *ex) ;
+
+static gboolean groupwise_connect (CamelService *service, CamelException *ex) ;
+static char *groupwise_transport_get_name (CamelService *service, gboolean brief) ;
 
 
 static CamelTransportClass *parent_class = NULL ;
@@ -45,10 +52,15 @@ camel_groupwise_transport_class_init (CamelGroupwiseTransportClass *camel_groupw
 {
 	CamelTransportClass *camel_transport_class =
 		CAMEL_TRANSPORT_CLASS (camel_groupwise_transport_class);
+
+	CamelServiceClass *camel_service_class =
+		CAMEL_SERVICE_CLASS (camel_groupwise_transport_class);
+	
+	camel_service_class->connect = groupwise_connect ;
+	camel_service_class->get_name = groupwise_transport_get_name ;
 	
 	/* virtual method overload */
-	camel_transport_class->send_to = groupwise_send_to;
-
+	camel_transport_class->send_to = groupwise_send_to ;
 }
 
 static void
@@ -77,12 +89,71 @@ camel_groupwise_transport_get_type (void)
 	return camel_groupwise_transport_type;
 }
 
+static char *groupwise_transport_get_name (CamelService *service, gboolean brief)
+{
+	if (brief)
+		return g_strdup_printf (_("Groupwise server %s"), service->url->host);
+	else {
+		return g_strdup_printf (_("Groupwise mail delivery via %s"),
+				service->url->host);
+	}
+}
+
+
+static gboolean
+groupwise_connect (CamelService *service, CamelException *ex)
+{
+	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (service) ;
+
+	g_print ("|||in groupwise connect ||\n") ;
+
+	return TRUE ;
+
+}
+
 
 static gboolean
 groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		  CamelAddress *from, CamelAddress *recipients,
 		  CamelException *ex)
 {
+	CamelMultipart *multipart ;
+	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (transport) ;
+	CamelService *service = CAMEL_SERVICE(transport) ;
+
+	CamelStore *store =  CAMEL_STORE (service) ;
 	
+	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (store);
+	CamelGroupwiseStorePrivate *priv = groupwise_store->priv;
+
+	
+	gboolean has_8bit_parts ;
+	EGwItem *item ;
+	EGwConnection *cnc = NULL;
+	EGwConnectionStatus status ;
+	
+	CamelInternetAddress *to_addr ;
+	CamelInternetAddress *cc_addr ;
+	CamelInternetAddress *bcc_addr ;
+
+	GSList *list ;
+	g_print ("||||||| Works Dude ||\n") ;
+
+	item = g_object_new (E_TYPE_GW_ITEM, NULL);
+
+	cnc = cnc_lookup (priv) ;
+	if (!cnc) {
+		g_print ("||| Eh!!! Failure |||\n") ;		
+	}
+	g_print ("|| SUbject : %s |||\n", camel_mime_message_get_subject (message)) ;
+	return FALSE ;
+
+	status = e_gw_connection_send_item (cnc, item, &list) ;
+	if (status != E_GW_CONNECTION_STATUS_OK) {
+		g_print (" Error Sending mail") ;
+		return FALSE ;
+	}
+	
+	g_object_unref (item) ;
 	return TRUE;
 }

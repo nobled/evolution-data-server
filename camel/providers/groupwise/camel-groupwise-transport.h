@@ -41,6 +41,7 @@ extern "C" {
 
 typedef struct {
 	CamelTransport parent_object;
+	gboolean connected ;
 
 } CamelGroupwiseTransport;
 

@@ -528,6 +528,7 @@ camel_groupwise_store_get_folder_info (CamelStore *store,
 	GPtrArray *folders;
 	GList *folder_list = NULL, *temp_list = NULL ;
 	const char *url, *top_folder;
+	char *temp_str ;
 	CamelFolderInfo *info ;
 
 	if (!E_IS_GW_CONNECTION( priv->cnc)) {
@@ -540,7 +541,13 @@ camel_groupwise_store_get_folder_info (CamelStore *store,
 		top_folder = "folders" ;
 	else {
 		printf ("\n================== LOOKING UP A HASH TABLE =========================== \n") ;
-		top_folder = g_hash_table_lookup (priv->name_hash, top) ;	
+		temp_str = strrchr (top, '/') ;
+		if (temp_str) {
+			temp_str++ ;
+			top_folder = g_hash_table_lookup (priv->name_hash, temp_str) ;	
+		} else
+			top_folder = g_hash_table_lookup (priv->name_hash, top) ;	
+
 	}
 
 	
@@ -655,6 +662,13 @@ camel_groupwise_store_get_folder_info (CamelStore *store,
 		
 	}
 	printf (" Returnning NOW") ;
+	if ( (top != NULL) && (folders->len == 0)) {
+		/*temp_str already contains the value if any*/
+		if (temp_str)
+			return gw_build_folder_info (groupwise_store, NULL, temp_str ) ;
+		else
+			return gw_build_folder_info (groupwise_store, NULL, top ) ;
+	}
 	return camel_folder_info_build (folders, NULL, '/', FALSE) ;
 }
 
@@ -666,7 +680,9 @@ CamelFolderInfo *camel_groupwise_create_folder(CamelStore *store,
 {
 	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (store);
 	CamelGroupwiseStorePrivate  *priv = groupwise_store->priv;
-	CamelFolderInfo *root ;
+	CamelFolderInfo *root = NULL ;
+
+	char *parent_id ;
 
 	int status;
 	/*GPtrArray *folders;
@@ -677,16 +693,22 @@ CamelFolderInfo *camel_groupwise_create_folder(CamelStore *store,
 	if(parent_name == NULL)
 		parent_name = "" ;
 
+	if (parent_name)
+		parent_id = g_hash_table_lookup (priv->name_hash, g_strdup(parent_name)) ;
+	else
+		parent_id = "" ;
+
+
 	if (!E_IS_GW_CONNECTION( priv->cnc)) {
 		if (!camel_groupwise_store_connect (CAMEL_SERVICE(store), ex)) {
 			camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_CANT_AUTHENTICATE, _("Authentication failed"));
 			return NULL;
 		}
 	 }
-	status = e_gw_connection_create_folder(priv->cnc,parent_name,folder_name) ;
+	status = e_gw_connection_create_folder(priv->cnc,parent_id,folder_name) ;
 
-	root = gw_build_folder_info(groupwise_store, parent_name,folder_name) ;
 	if (status == E_GW_CONNECTION_STATUS_OK) {
+		root = gw_build_folder_info(groupwise_store, parent_name,folder_name) ;
 		printf(">>> Folder Successfully created <<<\n") ;
 		camel_object_trigger_event (CAMEL_OBJECT (store), "folder_created", root);
 	}

@@ -237,6 +237,7 @@ static CamelMimeMessage
 
 	camel_object_unref (multipart) ;
 
+	g_object_unref (item) ;
 	
 	if (body)
 		g_free (body) ;
