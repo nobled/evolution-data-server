@@ -367,7 +367,7 @@ _e_cal_backend_modify_object (ECalBackend *backend, EDataCal *cal, const char *c
 	char *old_object = NULL;
 	
 	status = e_cal_backend_sync_modify_object (E_CAL_BACKEND_SYNC (backend), cal, 
-						 calobj, mod, &old_object);
+						   calobj, mod, &old_object);
 
 	e_data_cal_notify_object_modified (cal, status, old_object, calobj);
 }

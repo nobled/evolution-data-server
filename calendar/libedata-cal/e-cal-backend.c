@@ -1017,8 +1017,8 @@ match_query_and_notify (EDataCalView *query, const char *old_object, const char 
 	else if (old_match) {
 		icalcomponent *icalcomp;
 	
-		if (old_object) {
-			icalcomp = icalcomponent_new_from_string ((char *) old_object);
+		icalcomp = icalcomponent_new_from_string ((char *) old_object);
+		if (icalcomp) {
 			e_data_cal_view_notify_objects_removed_1 (query, icalcomponent_get_uid (icalcomp));
 			icalcomponent_free (icalcomp);
 		}
