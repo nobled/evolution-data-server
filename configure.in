@@ -1137,11 +1137,8 @@ extensiondir='${privlibdir}'/extensions
 AC_SUBST(extensiondir)
 
 dnl separate camel from e-d-s?  or should it be under the same spot?  same for now.
-camel_providerdir="${privlibdir}/camel/providers"
+camel_providerdir="${privlibdir}/camel-providers"
 AC_SUBST(camel_providerdir)
-
-privlibexecdir="${libexecdir}/evolution-data-server-$BASE_VERSION"
-AC_SUBST(privlibexecdir)
 
 dnl ************************
 dnl IDL/Component Versioning
@@ -1227,6 +1224,7 @@ camel/tests/misc/Makefile
 camel/tests/smime/Makefile
 camel/tests/stream/Makefile
 camel/camel.pc
+camel/camel-provider.pc
 libdb/Makefile
 libedataserver/Makefile
 libedataserver/libedataserver.pc
