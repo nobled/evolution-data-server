@@ -20,12 +20,12 @@
 typedef struct _EBookBackendGroupwisePrivate EBookBackendGroupwisePrivate;
                                                                                                                              
 typedef struct {
-  EBookBackend         parent_object;
-  EBookBackendGroupwisePrivate *priv;
+	EBookBackend         parent_object;
+	EBookBackendGroupwisePrivate *priv;
 } EBookBackendGroupwise;
                                                                                                                              
 typedef struct {
-  EBookBackendClass parent_class;
+	EBookBackendClass parent_class;
 } EBookBackendGroupwiseClass;
                                                                                                                              
 EBookBackend *e_book_backend_groupwise_new      (void);
