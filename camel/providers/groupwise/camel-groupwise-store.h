@@ -35,6 +35,9 @@ extern "C" {
 #include <camel/camel-disco-store.h>
 #include "camel-groupwise-store-summary.h"
 
+#include <e-gw-connection.h>
+#include <e-gw-container.h>
+
 #define CAMEL_GROUPWISE_STORE_TYPE     (camel_groupwise_store_get_type ())
 #define CAMEL_GROUPWISE_STORE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_GROUPWISE_STORE_TYPE, CamelGroupwiseStore))
 #define CAMEL_GROUPWISE_STORE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_GROUPWISE_STORE_TYPE, CamelGroupwiseStoreClass))
@@ -64,6 +67,11 @@ struct _CamelGroupwiseStoreClass {
 /* Standard Camel function */
 CamelType camel_groupwise_store_get_type (void);
 char * groupwise_get_name(CamelService *service, gboolean brief) ;
+
+/*IMplemented*/
+char *container_id_lookup (CamelGroupwiseStorePrivate *priv, const char *folder_name) ;
+EGwConnection *cnc_lookup (CamelGroupwiseStorePrivate *priv) ;
+
 
 #ifdef __cplusplus
 }

@@ -37,8 +37,12 @@
 #include "camel-groupwise-summary.h"
 #include "camel-i18n.h" 
 
+#include "sspm.h" 
+
 #include <e-gw-connection.h>
 #include <e-gw-item.h>
+
+#include <string.h>
 
 static CamelFolderClass *parent_class = NULL;
 
@@ -66,13 +70,30 @@ static CamelMimeMessage
 	CamelMimeMessage *msg = NULL ;
 	CamelGroupwiseFolder *gw_folder = CAMEL_GROUPWISE_FOLDER(folder) ;
 	CamelGroupwiseStore *gw_store = CAMEL_GROUPWISE_STORE(folder->parent_store) ;
+	CamelGroupwiseStorePrivate  *priv = gw_store->priv;
 	CamelMessageInfo *mi = NULL ;
 	CamelStream *stream = NULL ;
+	char *temp_name, *folder_name, *container_id, *body ;
+	CamelInternetAddress *from_addr, *to_addr ;
+	EGwItemOrganizer *org ;
 
 	EGwConnectionStatus status ;
+	EGwConnection *cnc ;
 	EGwItem *item ;
 
 	printf("\n|||| GET MESSAGE: %s |||\n",folder->name) ;
+	folder_name = g_strdup(folder->name) ;
+	temp_name = strchr (folder_name,'/') ;
+	if(temp_name == NULL) {
+		container_id =  g_strdup (container_id_lookup (priv,g_strdup(folder_name))) ;
+	}
+	else {
+		temp_name++ ;
+		container_id =  g_strdup (container_id_lookup (priv,g_strdup(temp_name))) ;
+	}
+
+
+	msg = camel_mime_message_new () ;
 
 	mi = camel_folder_summary_uid (folder->summary, uid);
 	if (mi == NULL) {
@@ -80,8 +101,40 @@ static CamelMimeMessage
 				_("Cannot get message: %s\n  %s"), uid, _("No such message"));
 		return NULL;
 	}
+	printf ("|| Now connecting to e-d-s |||\n") ;
 
-//	status = e_gw_connection_get_item (EGwConnection *cnc, const char *container, const char *id, EGwItem **item) ;
+	cnc = cnc_lookup (priv) ;
+	status = e_gw_connection_get_item (cnc, container_id, uid, "message", &item) ;
+	//status = e_gw_connection_get_item (cnc, container_id, uid, "message", &item) ;
+	if (status != E_GW_CONNECTION_STATUS_OK) {
+		 camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));
+		                 return NULL;
+	}
+
+	org = e_gw_item_get_organizer (item) ;
+	from_addr = camel_internet_address_new () ;
+	to_addr = camel_internet_address_new () ;
+	camel_internet_address_add (from_addr,org->display_name,org->email) ;
+	camel_internet_address_add (to_addr, e_gw_item_get_to (item), e_gw_item_get_to (item) ) ;
+	
+	camel_mime_message_set_subject (msg, e_gw_item_get_subject(item) ) ;
+	camel_mime_message_set_source (msg, e_gw_item_get_message(item) ) ;
+	camel_mime_message_set_date (msg,  e_gw_connection_format_date_string(e_gw_item_get_creation_date(item)), 0 ) ;
+	camel_mime_message_set_from (msg, from_addr) ;
+	
+	body = g_strdup (e_gw_item_get_message(item)) ;
+
+	stream = camel_stream_mem_new_with_buffer (body, strlen(body) ) ; 
+	
+	if (camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg),stream) == -1) {
+		printf ("|| NOT RIGHT!!!! \n") ;
+	}
+
+	printf ("||| MESSAGE:%d |||\n %s\n",strlen(body), body) ;
+
+	g_free (body) ;
+
+	return msg ;
 
 }
 
@@ -182,7 +235,7 @@ camel_gw_folder_new(CamelStore *store, const char *folder_dir, const char *folde
 
 	gw_folder = CAMEL_GROUPWISE_FOLDER (folder) ;
 
-
+	
 	return folder ;
 }
 
@@ -243,7 +296,9 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 	CamelGroupwiseStore *gw_store = CAMEL_GROUPWISE_STORE (folder->parent_store) ;
 	CamelGroupwiseFolder *gw_folder = CAMEL_GROUPWISE_FOLDER (folder) ;
 	CamelMessageInfo *info, *mi ;
-	int summary_count, first ;
+	int summary_count, first, seq ;
+	GPtrArray *msg ;
+	GList **temp_list = &item_list;
 	guint32 uidval ;
 
 	//CAMEL_SERVICE_ASSERT_LOCKED (gw_store, connect_lock);
@@ -260,21 +315,80 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 	} else
 		uidval = 0 ;
 
+	msg = g_ptr_array_new () ;
 	for ( ; item_list != NULL ; item_list = g_list_next (item_list) ) {
-		EGwItemOrganizer *item ;
-		EGwItem *item2 = (EGwItem *)item_list->data ;
-		EGwContainer* cnc = (EGwContainer *)item_list->data;
+		EGwItem *item = (EGwItem *)item_list->data ;
+		EGwItemType type ;
+		EGwItemOrganizer *org ;
+		char *date ;
+	/*	char *uid ;
 
-		item = e_gw_item_get_organizer (item_list->data) ; 
-		mi = camel_message_info_new () ;
+		uid = g_strdup(e_gw_item_get_id(item) ) ;
+		info = camel_folder_summary_uid (folder->summary, uid) ;
+		if (info) {
+			for (seq = 0; seq < camel_folder_summary_count (folder->summary); seq++) {
+				if (folder->summary->messages->pdata[seq] == info)
+					break;
+			}
+			g_warning("Message already present? %s", camel_message_info_uid(mi));
+			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
+					_("Unexpected server response: Identical UIDs provided for messages %d "),
+					seq + 1 );
 
-		camel_message_info_set_uid (mi,g_strdup(e_gw_item_get_id(item_list->data) ) ) ;
-		camel_message_info_set_subject (mi,g_strdup(e_gw_item_get_subject(item_list->data))) ;
-		camel_message_info_set_from (mi, g_strconcat(item->display_name,"<",item->email,">",NULL)) ;
-		camel_message_info_set_to (mi,g_strdup(e_gw_item_get_to (item_list->data))) ;
+			camel_folder_summary_info_free(folder->summary, info);
+			break;
+
+
+		}*/
+		//mi = camel_message_info_new () ;
+		mi = camel_message_info_new () ; camel_folder_summary_info_new (folder->summary) ;
+		if (mi->content == NULL) {
+			mi->content = camel_folder_summary_content_info_new (folder->summary);
+			mi->content->type = camel_content_type_new ("multipart", "mixed");
+		}
+
+		type = e_gw_item_get_item_type (item) ;
+
+		if (type == E_GW_ITEM_TYPE_MAIL) {
+			printf ("Its an e-mail\n") ;
+			
+		} else if (type == E_GW_ITEM_TYPE_APPOINTMENT) {
+			printf ("Its an appointment\n") ;
+
+		} else if (type == E_GW_ITEM_TYPE_TASK) {
+			printf ("Its a task\n") ;
+
+		} else if (type == E_GW_ITEM_TYPE_UNKNOWN) {
+			printf ("UNKNOWN ITEM...\n") ;
+			continue ;
+
+		}
 		
+		org = e_gw_item_get_organizer (item) ; 
+		if (org) {
+			camel_message_info_set_from (mi, g_strconcat(org->display_name,"<",org->email,">",NULL)) ;
+			camel_message_info_set_to (mi,g_strdup(e_gw_item_get_to (item))) ;
+		}
+		
+		date = e_gw_connection_format_date_string(e_gw_item_get_creation_date(item)) ;
+		mi->date_sent = mi->date_received = e_gw_connection_get_date_from_string (date) ;
+	/*	mi->date_sent = camel_header_decode_date(date,NULL) ;
+		mi->date_received = camel_header_decode_date(date,NULL) ;*/
+		camel_message_info_set_uid (mi,g_strdup(e_gw_item_get_id(item) ) ) ;
+		camel_message_info_set_subject (mi,g_strdup(e_gw_item_get_subject(item))) ;
+
+
 		camel_folder_summary_add (folder->summary, mi) ;
+		g_ptr_array_add (msg, mi) ;
+		g_free(date) ;
 	}
+
+/*	for (seq=0 ; seq<msg->len ; seq++) {
+		if ( (mi = msg->pdata[seq]) )
+			camel_folder_summary_info_free(folder->summary, mi);
+	} */
+	g_ptr_array_free (msg, TRUE) ;
+
 
 }
 

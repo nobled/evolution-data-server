@@ -34,6 +34,8 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include <camel/camel-folder.h>
+#include <camel/camel-mime-message.h>
+#include <camel/camel-internet-address.h>
 
 #define CAMEL_GROUPWISE_FOLDER_TYPE     (camel_groupwise_folder_get_type ())
 #define CAMEL_GROUPWISE_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_GROUPWISE_FOLDER_TYPE, CamelGroupwiseFolder))

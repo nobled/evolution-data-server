@@ -48,8 +48,6 @@
 #include "camel-types.h"
 #include "camel-folder.h" 
 
-#include <e-gw-connection.h>
-#include <e-gw-container.h>
 
 #define d(x) printf(x);
 
@@ -752,3 +750,15 @@ gw_forget_folder (CamelGroupwiseStore *gw_store, const char *folder_name, CamelE
 	camel_folder_info_free (fi) ;
 }
 
+
+char *
+container_id_lookup (CamelGroupwiseStorePrivate *priv, const char *folder_name)
+{
+	return g_hash_table_lookup (priv->name_hash,folder_name) ;
+}
+
+EGwConnection *
+cnc_lookup (CamelGroupwiseStorePrivate *priv)
+{
+	return priv->cnc ;
+}
