@@ -49,6 +49,7 @@
 
 #include "server-interface-check.h"
 #include "server-logging.h"
+#include "offline-listener.h"
 
 #define E_DATA_SERVER_INTERFACE_CHECK_OAF_ID "OAFIID:GNOME_Evolution_DataServer_InterfaceCheck"
 #define E_DATA_SERVER_LOGGING_OAF_ID "OAFIID:GNOME_Evolution_DataServer_Logging"
@@ -270,46 +271,6 @@ setup_interface_check (void)
 	return result == Bonobo_ACTIVATION_REG_SUCCESS;
 }
 
-static void 
-set_online_status (gboolean is_offline)
-{
-	if (is_offline) {
-		e_data_cal_factory_set_backend_mode (e_data_cal_factory, CAL_MODE_LOCAL);
-		e_data_book_factory_set_backend_mode (e_data_book_factory, CAL_MODE_LOCAL);
-
-	} else {
-		e_data_cal_factory_set_backend_mode (e_data_cal_factory, CAL_MODE_REMOTE);
-		e_data_book_factory_set_backend_mode (e_data_book_factory, CAL_MODE_REMOTE);
-	}
-
-}
-static void 
-online_status_changed (GConfClient *client, int cnxn_id, GConfEntry *entry, gpointer user_data)
-{
-	GConfValue *value;
-	gboolean offline;
-       
-	offline = FALSE;
-	value = gconf_entry_get_value (entry);
-	if (value)
-		offline = gconf_value_get_bool (value);
-	set_online_status (offline);
-	
-}
-static gboolean 
-setup_offline_listener (void)
-{
-	GConfClient* default_client;
-	GConfValue *value;
-
-	default_client = gconf_client_get_default ();
-	gconf_client_add_dir (default_client, "/apps/evolution/shell", GCONF_CLIENT_PRELOAD_RECURSIVE,NULL);
-	gconf_client_notify_add (default_client, "/apps/evolution/shell/start_offline", online_status_changed, NULL, NULL, NULL);
-	value = gconf_client_get (default_client, "/apps/evolution/shell/start_offline", NULL);
-	set_online_status (gconf_value_get_bool (value)); 
-	return TRUE;
-
-}
 
 #ifdef DEBUG_BACKENDS
 static void
@@ -324,7 +285,8 @@ int
 main (int argc, char **argv)
 {
 	gboolean did_books=FALSE, did_cals=FALSE;
-
+	OfflineListener *offline_listener = NULL;
+	
 	bindtextdomain (GETTEXT_PACKAGE, EVOLUTION_LOCALEDIR);
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
@@ -374,10 +336,9 @@ main (int argc, char **argv)
 		exit (EXIT_FAILURE);
 	}
 
-	if (!setup_offline_listener ()) {
-		exit (EXIT_FAILURE);
-	}
-		
+
+	offline_listener = offline_listener_new (e_data_book_factory, e_data_cal_factory);	
+	
 	if ( setup_logging ()) {
 			if ( setup_interface_check ()) {
 				g_message ("Server up and running");
@@ -388,6 +349,7 @@ main (int argc, char **argv)
 	} else
 		g_error (G_STRLOC "Cannot register DataServer::Logging object");
 
+	g_object_unref (offline_listener);
 	bonobo_object_unref (BONOBO_OBJECT (e_data_cal_factory));
 	e_data_cal_factory = NULL;
 
@@ -399,7 +361,7 @@ main (int argc, char **argv)
 
 	bonobo_object_unref (BONOBO_OBJECT (interface_check_iface));
 	interface_check_iface = NULL;
-
+	
 	gnome_vfs_shutdown ();
 
 	return 0;

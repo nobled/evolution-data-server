@@ -1,3 +1,12 @@
+2004-11-21  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* src/server.c : removed setup_offline_listener
+	online_status_changed , set_online_status. Now there
+	are moved to new offline-listeer.[ch] files 
+	
+	* src/Makefile.am : added new source file
+	offline-listener.c to _SOURCES 
+
 2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* src/server.c : 
