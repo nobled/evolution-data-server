@@ -1,5 +1,8 @@
 2004-04-21  Rodrigo Moya <rodrigo@ximian.com>
 
+	* libedata-cal/e-cal-backend.c (match_query_and_notify): only notify of
+	the removal of old_object if it's not NULL.
+
 	* libecal/e-cal.c (e_cal_set_default_timezone): update the internal
 	default_zone when successful.
 

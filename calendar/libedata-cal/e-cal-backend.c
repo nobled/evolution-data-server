@@ -1016,10 +1016,12 @@ match_query_and_notify (EDataCalView *query, const char *old_object, const char 
 		e_data_cal_view_notify_objects_added_1 (query, object);
 	else /* if (old_match) */ {
 		icalcomponent *icalcomp;
-		
-		icalcomp = icalcomponent_new_from_string ((char *) old_object);
-		e_data_cal_view_notify_objects_removed_1 (query, icalcomponent_get_uid (icalcomp));
-		icalcomponent_free (icalcomp);
+	
+		if (old_object) {
+			icalcomp = icalcomponent_new_from_string ((char *) old_object);
+			e_data_cal_view_notify_objects_removed_1 (query, icalcomponent_get_uid (icalcomp));
+			icalcomponent_free (icalcomp);
+		}
 	}
 }
 
