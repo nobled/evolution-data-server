@@ -1,3 +1,13 @@
+2004-11-22 Sivaiah Nallagalta <snallagalta@novell.com>
+
+	* providers/groupwise/camel-gw-listner.c 
+	(add_esource) (modify_esource) (add_addressbook_sources)
+	(modify_addressbook_sources) : set "0" as the offline_sync
+	property value instead of NULL incase offline sync is not checked
+
+	(account_changed) : update the sources even when there
+	is a change in offline_sync setting 
+
 2004-11-21 Sivaiah Nallagatla <snallagatla@novell.com>
 	
 	* providers/groupwise/camel-groupwise-provider.c : added 
@@ -153,6 +163,7 @@
 	Note the folder-info just subscribed.
 	(imap4_unsubscribe_folder): Unnote the folder-info.
 
+>>>>>>> 1.2298
 2004-11-04  Jeffrey Stedfast  <fejj@novell.com>
 
 	* providers/imap4/camel-imap4-engine.c: Added much in-line

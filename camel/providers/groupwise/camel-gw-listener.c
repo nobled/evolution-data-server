@@ -207,9 +207,8 @@ add_esource (const char *conf_key, const char *group_name,  const char *source_n
 	e_source_set_property (source, "port", camel_url_get_param (url, "soap_port"));
 	e_source_set_property (source, "auth-domain", "Groupwise");
 	e_source_set_property (source, "use_ssl", camel_url_get_param (url, "use_ssl"));
-	e_source_set_property (source, "offline_sync", offline_sync);
-		//	e_source_set_property (source, "offline_sync",  );
-	e_source_group_add_source (group, source, -1);
+	e_source_set_property (source, "offline_sync", offline_sync ? "1" : "0");
+       	e_source_group_add_source (group, source, -1);
 	e_source_list_sync (source_list, NULL);
 
 	if (!strcmp (conf_key, CALENDAR_SOURCES)) 
@@ -357,7 +356,7 @@ modify_esource (const char* conf_key, GwAccountInfo *old_account_info, const cha
 					e_source_set_property (source, "username", new_url->user);
 					e_source_set_property (source, "port", camel_url_get_param (new_url,"soap_port"));
 					e_source_set_property (source, "use_ssl",  camel_url_get_param (url, "soap_ssl"));
-					e_source_set_property (source, "offline_sync",  camel_url_get_param (url, "offline_sync"));
+					e_source_set_property (source, "offline_sync",  camel_url_get_param (url, "offline_sync") ? "1" : "0");
 					e_source_list_sync (list, NULL);
 					found_group = TRUE;
 					g_free (new_relative_uri);
@@ -551,7 +550,7 @@ add_addressbook_sources (EAccount *account)
 		e_source_set_property (source, "auth-domain", "Groupwise");
 		e_source_set_property (source, "port", soap_port);
 		e_source_set_property(source, "user", url->user);
-		e_source_set_property (source, "offline_sync", camel_url_get_param (url, "offline_sync"));
+		e_source_set_property (source, "offline_sync", camel_url_get_param (url, "offline_sync") ? "1" : "0");
 		if (!e_gw_container_get_is_writable (E_GW_CONTAINER(temp_list->data)))
 			e_source_set_property (source, "completion", "true");
 		if (e_gw_container_get_is_frequent_contacts (E_GW_CONTAINER(temp_list->data)))
@@ -639,6 +638,7 @@ modify_addressbook_sources ( EAccount *account, GwAccountInfo *existing_account_
 					source = E_SOURCE (sources->data);
 					e_source_set_property (source, "port", soap_port);
 					e_source_set_property (source, "use_ssl", use_ssl);
+					e_source_set_property (source, "offline_sync", camel_url_get_param (url, "offline_sync") ?"1" : "0");
 				}
 					
 				e_source_list_sync (list, NULL);
@@ -771,6 +771,7 @@ account_changed (EAccountList *account_listener, EAccount *account)
 	const char *old_use_ssl, *new_use_ssl;
 	gboolean old_ssl, new_ssl;
 	const char *old_poa_address, *new_poa_address;
+	const char *old_offline_sync, *new_offline_sync;
 	
 	is_gw_account = is_groupwise_account (account);
 	
@@ -807,6 +808,11 @@ account_changed (EAccountList *account_listener, EAccount *account)
 		old_poa_address = camel_url_get_param (old_url, "poa");
 		old_soap_port = camel_url_get_param (old_url, "soap_port");
 		old_use_ssl = camel_url_get_param (old_url, "soap_ssl");
+		old_offline_sync = camel_url_get_param (old_url, "offline_sync");
+		if(!old_offline_sync)
+			old_offline_sync = "0";
+
+
 		if (old_use_ssl)
 			old_ssl = TRUE;
 		new_url = camel_url_new (account->source->url, NULL);
@@ -823,7 +829,9 @@ account_changed (EAccountList *account_listener, EAccount *account)
 			new_use_ssl = "always";
 			new_ssl = TRUE;
 		}
-			
+		new_offline_sync = camel_url_get_param (new_url, "offline_sync");
+		if (!new_offline_sync)
+			new_offline_sync = "0";
 		if ((old_poa_address && strcmp (old_poa_address, new_poa_address))
 		   ||  (old_soap_port && strcmp (old_soap_port, new_soap_port)) 
 		   ||  strcmp (old_url->user, new_url->user) 
@@ -831,7 +839,7 @@ account_changed (EAccountList *account_listener, EAccount *account)
 			
 			account_removed (account_listener, account);
 			account_added (account_listener, account);
-		} else if (strcmp (existing_account_info->name, account->name)) {
+		} else if (strcmp (existing_account_info->name, account->name) || strcmp (old_offline_sync, new_offline_sync)) {
 			
 			modify_esource ("/apps/evolution/calendar/sources", existing_account_info, account->name, new_url);
 			modify_esource ("/apps/evolution/tasks/sources", existing_account_info, account->name,  new_url);
