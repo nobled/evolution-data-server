@@ -164,8 +164,9 @@ void        e_book_backend_notify_update              (EBookBackend           *b
 void        e_book_backend_notify_remove              (EBookBackend           *backend,
 						       const char             *id);
 void        e_book_backend_notify_complete            (EBookBackend           *backend);
-void        e_book_backend_notify_writable (EBookBackend *backend, gboolean is_writable);
-void        e_book_backend_notify_connection_status (EBookBackend *backend, gboolean is_online);
+void        e_book_backend_notify_writable            (EBookBackend *backend, gboolean is_writable);
+void        e_book_backend_notify_connection_status   (EBookBackend *backend, gboolean is_online);
+void        e_book_backend_notify_auth_required       (EBookBackend *backend);    
 GType       e_book_backend_get_type                 (void);
 
 

@@ -647,6 +647,23 @@ e_book_backend_notify_connection_status (EBookBackend *backend, gboolean is_onli
 
 
 }
+
+void
+e_book_backend_notify_auth_required (EBookBackend *backend)
+{
+	EBookBackendPrivate *priv;
+	GList *clients;
+	
+	priv = backend->priv;
+	g_mutex_lock (priv->clients_mutex);
+	
+	for (clients = priv->clients; clients != NULL; clients = g_list_next (clients))
+		e_data_book_report_auth_required (E_DATA_BOOK (clients->data));
+	g_mutex_unlock (priv->clients_mutex);
+
+
+}
+
 static void
 e_book_backend_init (EBookBackend *backend)
 {

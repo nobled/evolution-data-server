@@ -73,7 +73,8 @@ typedef enum {
 	/* Async events */
 	LinkStatusEvent,
 	WritableStatusEvent,
-	ProgressEvent,
+	AuthRequiredEvent,
+	ProgressEvent
 } EBookListenerOperation;
 
 struct _EBookListenerResponse {

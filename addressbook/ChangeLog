@@ -1,3 +1,38 @@
+2004-11-21 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* idl/Evolution-DataServer-Addressbook.idl : added notifyAuthRequired
+	api for backends to request password from clients . Added 
+	OfflineUnavailable error code
+
+	* libedata-book/e-data-book.[ch] : added new method
+	e_data_book_report_auth_required
+	
+	* libedata-book/e-book-backend.[ch] : added new method 
+	e_book_backend_notify_auth_required
+
+	* libedata-book/e-book-backend-cache.[ch] : added nw methods
+	e_book_backend_cache_set_populated and 
+	e_book_backend_cache_is_populated to set and get
+	a flag on cache to see whehter it is completely popluated
+	or not. new mehod e_book_backend_cache_search returns
+	the ids matchingg contacts
+
+	* backends/groupwise/e-book-backend-groupwise.c :
+	(build_summary) (update_summary) : removed.
+	(build_cache) (update_cache) : use these instead 
+	
+	* libebook/e-boo-listener.[ch] : new method  
+	 impl_BookListener_report_auth_required;
+	(e_book_listener_convert_status) : added OfflineUnavailable error handling
+	
+	* libebook/e-book-types.h : added error code E_BOOK_ERROR_OFFLINE_UNAVAILABLE
+
+	* libebook/e-book.[ch] :
+	 added new signal AUTH_REQUIRED 
+	(e_book_handle_response) : added handling for AuthRequiredEvent
+	(e_book_idle_auth_required) : new function to emit AUTH_REQUIRED signal 
+	on EBook clients 
+ 
 2004-11-06  Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* libebook/e-book.c (e_book_handle_response) : 

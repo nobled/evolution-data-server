@@ -44,9 +44,7 @@ struct _EBookBackendGroupwisePrivate {
 	GHashTable *categories_by_id;
 	GHashTable *categories_by_name;
 	gboolean is_writable;
-	char *summary_file_name;
-	EBookBackendSummary *summary;
-	gboolean is_summary_ready;
+	gboolean is_cache_ready;
 	char *use_ssl;
 	int mode;
 	EBookBackendCache *cache;
@@ -909,7 +907,7 @@ set_organization_in_gw_item (EGwItem *item, EContact *contact, EBookBackendGroup
 			fill_contact_from_gw_item (contact, org_item, egwb->priv->categories_by_id);
 			e_contact_set (contact, E_CONTACT_UID, id);
 			e_contact_set (contact, E_CONTACT_FULL_NAME, organization_name);
-			e_book_backend_summary_add_contact (egwb->priv->summary, contact);
+			e_book_backend_cache_add_contact (egwb->priv->cache, contact);
 			g_object_unref (contact);
 		}
 		g_object_unref (org_item);
@@ -1148,7 +1146,7 @@ e_book_backend_groupwise_create_contact (EBookBackend *backend,
 		if (status == E_GW_CONNECTION_STATUS_OK) {
 			e_contact_set (contact, E_CONTACT_UID, id);
 			g_free (id);
-			e_book_backend_summary_add_contact (egwb->priv->summary, contact);
+			e_book_backend_cache_add_contact (egwb->priv->cache, contact);
 			e_data_book_respond_create(book, opid, GNOME_Evolution_Addressbook_Success, contact);
 			
 		}
@@ -1190,7 +1188,7 @@ e_book_backend_groupwise_remove_contacts (EBookBackend *backend,
 			id = (char*) id_list->data;
 			e_gw_connection_remove_item (ebgw->priv->cnc, ebgw->priv->container_id, id);
 			deleted_ids =  g_list_append (deleted_ids, id);
-			e_book_backend_summary_remove_contact (ebgw->priv->summary, id);
+			e_book_backend_cache_remove_contact (ebgw->priv->cache, id);
 		}
 		e_data_book_respond_remove_contacts (book, opid,
 						     GNOME_Evolution_Addressbook_Success,  deleted_ids);
@@ -1328,8 +1326,8 @@ e_book_backend_groupwise_modify_contact (EBookBackend *backend,
 		status = e_gw_connection_modify_item (egwb->priv->cnc, id, new_item);
 		if (status == E_GW_CONNECTION_STATUS_OK) {
 			e_data_book_respond_modify (book, opid, GNOME_Evolution_Addressbook_Success, contact);
-			e_book_backend_summary_remove_contact (egwb->priv->summary, id);
-			e_book_backend_summary_add_contact (egwb->priv->summary, contact);
+			e_book_backend_cache_remove_contact (egwb->priv->cache, id);
+			e_book_backend_cache_add_contact (egwb->priv->cache, contact);
 		}
 		else 
 			e_data_book_respond_modify (book, opid, GNOME_Evolution_Addressbook_OtherError, NULL);
@@ -1818,16 +1816,18 @@ e_book_backend_groupwise_get_contact_list (EBookBackend *backend,
 		}
 		
 		status = E_GW_CONNECTION_STATUS_OK;
-		if (egwb->priv->is_summary_ready && e_book_backend_summary_is_summary_query (egwb->priv->summary, query)) {
+		if (egwb->priv->is_cache_ready ) {
 			
-			ids = e_book_backend_summary_search (egwb->priv->summary, query);
+			ids = e_book_backend_cache_search (egwb->priv->cache, query);
 			if (ids->len > 0) {
 				status = e_gw_connection_get_items_from_ids (egwb->priv->cnc, egwb->priv->container_id, "members", ids, &gw_items);
 				if (status == E_GW_CONNECTION_STATUS_INVALID_CONNECTION)
-					status = e_gw_connection_get_items_from_ids (egwb->priv->cnc, egwb->priv->container_id, "members", ids, &gw_items);
+				status = e_gw_connection_get_items_from_ids (egwb->priv->cnc, egwb->priv->container_id, "members", ids, &gw_items);
 			}
 			match_needed = FALSE;
 			g_ptr_array_free (ids, TRUE);
+			
+			
 		} else { 
 			if (strcmp (query, "(contains \"x-evolution-any-field\" \"\")") != 0)
 				filter = e_book_backend_groupwise_build_gw_filter (egwb, query, &is_auto_completion, NULL);
@@ -1936,6 +1936,10 @@ book_view_thread (gpointer data)
 	switch (gwb->priv->mode) {
 
 	case GNOME_Evolution_Addressbook_MODE_LOCAL :
+		if (!gwb->priv->cache) {
+			e_data_book_view_notify_complete (book_view, GNOME_Evolution_Addressbook_Success);
+			return NULL;
+		}
 		contacts = e_book_backend_cache_get_contacts (gwb->priv->cache, query);
 		temp_list = contacts;
 		for (; contacts != NULL; contacts = g_list_next(contacts)) {
@@ -1989,11 +1993,13 @@ book_view_thread (gpointer data)
 			return NULL; 
 		}
 		
-		e_data_book_view_notify_status_message (book_view, _("Searching..."));
+		
+		
+		else 
 		status =  E_GW_CONNECTION_STATUS_OK;
-		if (gwb->priv->is_summary_ready && e_book_backend_summary_is_summary_query (gwb->priv->summary, query)) {
-			
-			ids = e_book_backend_summary_search (gwb->priv->summary, query);
+		if (gwb->priv->is_cache_ready ) {
+			e_data_book_view_notify_status_message (book_view, _("Searching..."));
+			ids = e_book_backend_cache_search (gwb->priv->cache, query);
 			
 			if (ids->len > 0) {
 				
@@ -2002,8 +2008,13 @@ book_view_thread (gpointer data)
 					status = e_gw_connection_get_items_from_ids (gwb->priv->cnc, gwb->priv->container_id, view, ids, &gw_items);
 			}
 			g_ptr_array_free (ids, TRUE);
-		} else { 
 			
+		
+		} else { 
+			if (filter) 
+				e_data_book_view_notify_status_message (book_view, _("Searching..."));
+			else 
+				e_data_book_view_notify_status_message (book_view, _("Loading..."));
 			status = e_gw_connection_get_items (gwb->priv->cnc, gwb->priv->container_id, view, filter, &gw_items);
 			if (status == E_GW_CONNECTION_STATUS_INVALID_CONNECTION)
 				status = e_gw_connection_get_items (gwb->priv->cnc, gwb->priv->container_id, view, filter, &gw_items);
@@ -2090,16 +2101,25 @@ e_book_backend_groupwise_get_changes (EBookBackend *backend,
        
 }
 
-static gboolean 
-populate_cache (EBookBackendGroupwise *ebgw)
+
+
+#define CURSOR_ITEM_LIMIT 100
+
+static gpointer
+build_cache (EBookBackendGroupwise *ebgw)
 {
 	int status;
 	GList *gw_items = NULL;
 	EContact *contact;
+	
+	
+	EBookBackendGroupwisePrivate *priv = ebgw->priv;
+	
+	
 	status = e_gw_connection_get_items (ebgw->priv->cnc, ebgw->priv->container_id, "members", NULL, &gw_items);
 	if (status != E_GW_CONNECTION_STATUS_OK) 
 		return FALSE;
-
+	
 
 	for (; gw_items != NULL; gw_items = g_list_next(gw_items)) { 
 		contact = e_contact_new ();
@@ -2107,40 +2127,63 @@ populate_cache (EBookBackendGroupwise *ebgw)
 		e_book_backend_cache_add_contact (ebgw->priv->cache, contact);
 		g_object_unref(contact);
 		g_object_unref (gw_items->data);
-		
+			
 	}
+		
+	e_book_backend_cache_set_populated (priv->cache);
+	priv->is_cache_ready=TRUE;
+     	
 	g_list_free (gw_items);
-	return FALSE;
+
 	
 	
+	return NULL;
 }
 
-static gboolean
-build_summary (EBookBackendGroupwise *ebgw)
+/*FIXME using cursors for address book seems to be crashing server 
+till it gets fixed we will use get items. cursor implementation is below */
+/*
+static gpointer
+build_cache (EBookBackendGroupwise *ebgw)
 {
 	int status;
 	GList *gw_items = NULL;
 	EContact *contact;
-	status = e_gw_connection_get_items (ebgw->priv->cnc, ebgw->priv->container_id, "members", NULL, &gw_items);
+	int cursor;
+	gboolean done = FALSE;
+	EBookBackendGroupwisePrivate *priv = ebgw->priv;
+	
+	
+	status = e_gw_connection_create_cursor (priv->cnc, priv->container_id, "members", NULL, &cursor);
 	if (status != E_GW_CONNECTION_STATUS_OK) 
 		return FALSE;
+	while (!done) {
 
+		status = e_gw_connection_read_cursor (priv->cnc, priv->container_id, cursor, FALSE, CURSOR_ITEM_LIMIT, &gw_items);
 
-	for (; gw_items != NULL; gw_items = g_list_next(gw_items)) { 
-		contact = e_contact_new ();
-		fill_contact_from_gw_item (contact, E_GW_ITEM (gw_items->data), ebgw->priv->categories_by_id);
-		e_book_backend_summary_add_contact (ebgw->priv->summary, contact);
-		g_object_unref(contact);
-		g_object_unref (gw_items->data);
-		
+		for (; gw_items != NULL; gw_items = g_list_next(gw_items)) { 
+			contact = e_contact_new ();
+			fill_contact_from_gw_item (contact, E_GW_ITEM (gw_items->data), ebgw->priv->categories_by_id);
+			e_book_backend_cache_add_contact (ebgw->priv->cache, contact);
+			g_object_unref(contact);
+			g_object_unref (gw_items->data);
+			
+		}
+		if (!gw_items  || g_list_length (gw_items) == 0) {
+			e_book_backend_cache_set_populated (priv->cache);
+			done = TRUE;
+			priv->is_cache_ready=TRUE;
+		}
+	       	
+		g_list_free (gw_items);
 	}
-	ebgw->priv->is_summary_ready = TRUE;
-	g_list_free (gw_items);
-	return FALSE;
-}
+	
+	e_gw_connection_destroy_cursor (priv->cnc, priv->container_id, cursor);
+	return NULL;
+}*/
 
 static gboolean
-update_summary (EBookBackendGroupwise *ebgw)
+update_cache (EBookBackendGroupwise *ebgw)
 {
 	int status;
 	GList *gw_items = NULL;
@@ -2150,8 +2193,11 @@ update_summary (EBookBackendGroupwise *ebgw)
 	char time_string[25];
 	const struct tm *tm;
 	struct stat buf;
+	const char *cache_file_name;
 	
-	stat (ebgw->priv->summary_file_name, &buf);
+	cache_file_name = e_file_cache_get_filename (E_FILE_CACHE(ebgw->priv->cache));
+	
+	stat (cache_file_name, &buf);
 	mod_time = buf.st_mtime;
 	tm = gmtime (&mod_time);
 	strftime (time_string, 100, "%Y-%m-%dT%H:%M:%SZ", tm);
@@ -2167,19 +2213,19 @@ update_summary (EBookBackendGroupwise *ebgw)
 		contact = e_contact_new ();
 		fill_contact_from_gw_item (contact, E_GW_ITEM (gw_items->data), ebgw->priv->categories_by_id);
 		id =  e_contact_get_const (contact, E_CONTACT_UID);
-		if (e_book_backend_summary_check_contact (ebgw->priv->summary, id)) {
-			e_book_backend_summary_remove_contact (ebgw->priv->summary, id);
-			e_book_backend_summary_add_contact (ebgw->priv->summary, contact);
+		if (e_book_backend_cache_check_contact (ebgw->priv->cache, id)) {
+			e_book_backend_cache_remove_contact (ebgw->priv->cache, id);
+			e_book_backend_cache_add_contact (ebgw->priv->cache, contact);
 			
 		} else
-		    e_book_backend_summary_add_contact (ebgw->priv->summary, contact);
+		    e_book_backend_cache_add_contact (ebgw->priv->cache, contact);
 		
 		g_object_unref(contact);
 		g_object_unref (gw_items->data);
 		
 		    
 	}
-	ebgw->priv->is_summary_ready = TRUE;
+	ebgw->priv->is_cache_ready = TRUE;
 	g_object_unref (filter);
 	g_list_free (gw_items);
 	return FALSE;
@@ -2264,14 +2310,16 @@ e_book_backend_groupwise_authenticate_user (EBookBackend *backend,
 			e_data_book_respond_authenticate_user (book, opid, GNOME_Evolution_Addressbook_NoSuchBook);
 		}
 		
-		/*FIXME currently we always download   all the items and put into cache. We have to get only changes 
-		  and update the cache. We need a way to get a way to get only changes for contacts in soap interfce */
-  		g_idle_add ((GSourceFunc) populate_cache, ebgw);
-		if (priv->is_writable) { /* no summaries for system address book*/
-			if(e_book_backend_summary_load (priv->summary) == FALSE)
-				g_idle_add ((GSourceFunc)build_summary ,ebgw);  
-			else 
-				g_idle_add ((GSourceFunc)update_summary ,ebgw);
+	
+		if (e_book_backend_cache_is_populated (priv->cache)) {
+			if (priv->is_writable) 
+				g_thread_create ((GThreadFunc) update_cache, ebgw, FALSE, NULL);
+			
+		}
+		else { 
+			
+			g_thread_create ((GThreadFunc) build_cache, ebgw, FALSE, NULL);
+			
 		}
 		return;
 	default :
@@ -2323,9 +2371,15 @@ e_book_backend_groupwise_load_source (EBookBackend           *backend,
 	EUri *parsed_uri;
 	int i;
 	const char *use_ssl;
-
+	const char *offline;
+	
 	ebgw = E_BOOK_BACKEND_GROUPWISE (backend);
 	priv = ebgw->priv;
+	
+	offline = e_source_get_property (source, "offline_sync");
+	if (priv->mode ==  GNOME_Evolution_Addressbook_MODE_LOCAL && (!offline  || ! g_str_equal (offline, "1")) ) {
+		return GNOME_Evolution_Addressbook_OfflineUnavailable;
+	}
 	uri =  e_source_get_uri (source);
 	priv->original_uri = g_strdup (uri);
 	if(uri == NULL)
@@ -2355,6 +2409,12 @@ e_book_backend_groupwise_load_source (EBookBackend           *backend,
 	priv->book_name = book_name;
 	e_book_backend_set_is_loaded (E_BOOK_BACKEND (backend), TRUE);
 	e_book_backend_set_is_writable (E_BOOK_BACKEND(backend), FALSE);  
+	if (priv->mode == GNOME_Evolution_Addressbook_MODE_LOCAL) {
+		e_book_backend_notify_writable (backend, FALSE);
+		e_book_backend_notify_connection_status (backend, FALSE); 
+	}
+	else 
+		e_book_backend_notify_connection_status (backend, TRUE); 	
 	
 	for (i = 0; i < strlen (uri); i++) {
 		switch (uri[i]) {
@@ -2363,16 +2423,14 @@ e_book_backend_groupwise_load_source (EBookBackend           *backend,
 			uri[i] = '_';
 		}
 	}
-	priv->summary_file_name = g_build_filename (g_get_home_dir(), ".evolution/addressbook" , uri, priv->book_name, NULL);						 
+					 
 	g_free (uri);
 	e_uri_free (parsed_uri);
 
 	if (priv->mode == GNOME_Evolution_Addressbook_MODE_LOCAL) 
 		if (!e_book_backend_cache_exists (priv->original_uri))
-			return GNOME_Evolution_Addressbook_NoSuchBook;
+			return GNOME_Evolution_Addressbook_OfflineUnavailable;
 	
-	e_util_mkdir_hier (g_path_get_dirname (priv->summary_file_name), 0700);
-	priv->summary = e_book_backend_summary_new (priv->summary_file_name, 5000);
 	priv->cache = e_book_backend_cache_new (priv->original_uri);
 	return GNOME_Evolution_Addressbook_Success;
 
@@ -2444,10 +2502,15 @@ e_book_backend_groupwise_set_mode (EBookBackend *backend, int mode)
 		if (mode == GNOME_Evolution_Addressbook_MODE_LOCAL) {
 			e_book_backend_notify_writable (backend, FALSE);
 			e_book_backend_notify_connection_status (backend, FALSE);
+			if (bg->priv->cnc) {
+				g_object_unref (bg->priv->cnc);
+				bg->priv->cnc=NULL;
+			}
 		}
 		else if (mode == GNOME_Evolution_Addressbook_MODE_REMOTE) {
 			e_book_backend_notify_writable (backend, TRUE);
 			e_book_backend_notify_connection_status (backend, TRUE);
+			e_book_backend_notify_auth_required (backend);
 		}
 	}
 }
@@ -2503,16 +2566,7 @@ e_book_backend_groupwise_dispose (GObject *object)
 			g_hash_table_destroy (bgw->priv->categories_by_name);
 			bgw->priv->categories_by_name = NULL;
 		}
-		if (bgw->priv->summary_file_name) {
-			g_free (bgw->priv->summary_file_name);
-			bgw->priv->summary_file_name = NULL;
-		}
-		if (bgw->priv->summary) {
-			e_book_backend_summary_save(bgw->priv->summary);
-			g_object_unref (bgw->priv->summary);
-			bgw->priv->summary = NULL;
-		}
-		
+	
 		if (bgw->priv->cache) {
 			g_object_unref (bgw->priv->cache);
 		}
@@ -2569,7 +2623,7 @@ e_book_backend_groupwise_init (EBookBackendGroupwise *backend)
 	priv->categories_by_id = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 	priv->categories_by_name = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 	priv->is_writable = TRUE;
-	priv->is_summary_ready = FALSE;
+	priv->is_cache_ready = FALSE;
 	priv->use_ssl = NULL;
 	priv->cache=NULL;
 	priv->original_uri = NULL;

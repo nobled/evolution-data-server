@@ -331,7 +331,7 @@ e_book_backend_cache_get_contacts (EBookBackendCache *cache, const char *query)
 	GList *list = NULL;
 	EContact *contact;
         EBookBackendSExp *sexp = NULL;
-
+	const char *uid;
 	g_return_val_if_fail (E_IS_BOOK_BACKEND_CACHE (cache), NULL);
 	if (query) {
 		sexp = e_book_backend_sexp_new (query);
@@ -347,13 +347,32 @@ e_book_backend_cache_get_contacts (EBookBackendCache *cache, const char *query)
                 vcard_str = l->data;
                 if (vcard_str) {
                         contact = e_contact_new_from_vcard (vcard_str);
-                        if (contact && (query && e_book_backend_sexp_match_contact(sexp, contact)))
+			uid = e_contact_get_const (contact, E_CONTACT_UID);
+                        if (contact && uid && *uid &&(query && e_book_backend_sexp_match_contact(sexp, contact)))
 				list = g_list_append (list, contact);
                 }
                 
         }
 
         return list;
+}
+
+GPtrArray *
+e_book_backend_cache_search (EBookBackendCache *cache, const char *query)
+{
+	GList *matching_contacts, *temp;
+	GPtrArray *ptr_array;
+	
+	matching_contacts = e_book_backend_cache_get_contacts (cache, query);
+	ptr_array = g_ptr_array_new ();
+	
+	temp = matching_contacts;
+	for (; matching_contacts != NULL; matching_contacts = g_list_next (matching_contacts))
+		g_ptr_array_add (ptr_array, e_contact_get (matching_contacts->data, E_CONTACT_UID));
+		
+	return ptr_array;
+	
+
 }
 
 gboolean 
@@ -369,4 +388,21 @@ e_book_backend_cache_exists (const char *uri)
 	}
 	
 	return exists;
+}
+
+void
+e_book_backend_cache_set_populated (EBookBackendCache *cache)
+{
+  	g_return_if_fail (E_IS_BOOK_BACKEND_CACHE (cache));
+	e_file_cache_add_object (E_FILE_CACHE (cache), "populated", "TRUE");
+	
+}
+
+gboolean
+e_book_backend_cache_is_populated (EBookBackendCache *cache)
+{
+  	g_return_val_if_fail (E_IS_BOOK_BACKEND_CACHE (cache), NULL);
+	if (e_file_cache_get_object (E_FILE_CACHE (cache), "populated"))
+		return TRUE;
+	return FALSE;	
 }

@@ -44,7 +44,8 @@ module Addressbook {
 		TLSNotAvailable,
 		NoSuchBook,
 		BookRemoved,
-
+		OfflineUnavailable,
+		
 		/* These can be returned for successful searches, but
 		   indicate the result set was truncated */
 		SearchSizeLimitExceeded,
@@ -183,6 +184,7 @@ module Addressbook {
 
 		oneway void notifyWritable (in boolean writable);
 		oneway void notifyConnectionStatus (in boolean is_online);
+		oneway void notifyAuthRequired ();
 	};
 
 	interface BookFactory : Bonobo::Unknown {

@@ -676,6 +676,26 @@ e_data_book_report_connection_status (EDataBook   *book,
 	CORBA_exception_free (&ev);
 
 }
+
+void 
+e_data_book_report_auth_required (EDataBook *book)
+{
+
+	CORBA_Environment ev;
+
+	CORBA_exception_init (&ev);
+	
+	GNOME_Evolution_Addressbook_BookListener_notifyAuthRequired (
+			 book->priv->listener,  &ev);
+	
+	if (ev._major != CORBA_NO_EXCEPTION) {
+		g_warning ("e_data_book_report_auth_required: Exception "
+			   "responding to BookListener!\n");
+	}
+
+	CORBA_exception_free (&ev);
+
+}
 				      
 static void
 e_data_book_construct (EDataBook                *book,

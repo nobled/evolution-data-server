@@ -62,6 +62,7 @@ struct _EBookClass {
 	 */
 	void (* writable_status) (EBook *book, gboolean writable);
 	void (* connection_status) (EBook *book, gboolean connected);
+	void (* auth_required) (EBook *book);
 	void (* backend_died)    (EBook *book);
 
 	/* Padding for future expansion */
