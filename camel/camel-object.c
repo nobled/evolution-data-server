@@ -282,8 +282,8 @@ camel_type_register (CamelType parent, const char * name,
 	klass = g_hash_table_lookup(type_table, name);
 	if (klass != NULL) {
 		if (klass->klass_size != klass_size || klass->object_size != object_size
-		    || klass->class_init != class_init || klass->class_finalise != class_finalise
-		    || klass->object_init != object_init || klass->object_finalise != object_finalise) {
+		    || klass->klass_init != class_init || klass->klass_finalise != class_finalise
+		    || klass->init != object_init || klass->finalise != object_finalise) {
 			g_warning("camel_type_register: Trying to re-register class '%s'", name);
 			klass = NULL;
 		}

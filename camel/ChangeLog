@@ -1,3 +1,18 @@
+2002-04-15  Not Zed  <NotZed@Ximian.com>
+
+	* *.c: Fix callers for api changes to camel-object, mainly
+	declare_event->add_event, and classfuncs->klass, and a couple
+        of missing #include <config.h>'s
+
+	* camel-arg.[ch], Makefile.am: New support code for
+	camel_object_get/set arg.
+
+	* *.h: Fixed all uses of get_type to return a CamelType rather
+	than a guint (now a pointer).
+
+	* camel-object.[ch]: Major cleanup of object implementation.  Also
+	added a get/set interface, and some debugging options.
+
 2002-04-11  Not Zed  <NotZed@Ximian.com>
 
 	* providers/local/camel-spool-summary.c (spool_summary_sync_full):
