@@ -1,8 +1,8 @@
 2004-04-15  Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* backends/groupwise/e-book-backend-groupwise.c
-	(set_categories_in_gw_item): store only that part of id which is before
-	@' symbol
+	(set_categories_in_gw_item): store only that part of id which is before '@'
+	symbol
 
 2004-04-14  Chris Toshok  <toshok@ximian.com>
 
@@ -13,7 +13,7 @@
 2004-04-14  Chris Toshok  <toshok@ximian.com>
 
 	[ fixes part of bug #55776 ]
-
+	
 	* backends/ldap/e-book-backend-ldap.c
 	(e_book_backend_ldap_remove): new method, we need this or else
 	e-d-s exits when you try to remove an LDAP addressbook.

@@ -1465,6 +1465,12 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_BUSY, error);
 	}
 
+	/* start the open operation */
+	our_op = e_calendar_new_op (ecal);
+	g_mutex_lock (our_op->mutex);
+
+	g_mutex_unlock (priv->mutex);
+
 	/* see if the backend needs authentication */
 	if (e_source_get_property (priv->source, "auth")) {
 		char *prompt, *key;
@@ -1472,13 +1478,13 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 		priv->load_state = E_CAL_LOAD_AUTHENTICATING;
 
 		if (priv->auth_func == NULL) {
-			g_mutex_unlock (priv->mutex);
+			g_mutex_unlock (our_op->mutex);
 			E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED, error);
 		}
 
 		username = e_source_get_property (priv->source, "username");
 		if (!username) {
-			g_mutex_unlock (priv->mutex);
+			g_mutex_unlock (our_op->mutex);
 			E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED, error);
 		}
 
@@ -1489,18 +1495,13 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 
 		password = priv->auth_func (ecal, prompt, key, priv->auth_user_data);
 		if (!password) {
-			g_mutex_unlock (priv->mutex);
+			g_mutex_unlock (our_op->mutex);
 			E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_AUTHENTICATION_REQUIRED, error);
 		}
 
 		g_free (prompt);
 		g_free (key);
 	}
-
-	/* start the open operation */
-	our_op = e_calendar_new_op (ecal);
-
-	g_mutex_lock (our_op->mutex);
 
 	CORBA_exception_init (&ev);
 
@@ -1544,8 +1545,6 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 	else
 		priv->load_state = E_CAL_LOAD_NOT_LOADED;
 
-	g_mutex_unlock (ecal->priv->mutex);
-
 	E_CALENDAR_CHECK_STATUS (*status, error);
 }
 
@@ -1581,21 +1580,46 @@ typedef struct {
 	gboolean exists;
 	gboolean result;
 	ECalendarStatus status;
+	ECalAuthFunc real_auth_func;
+	gpointer real_auth_user_data;
+	const char *auth_prompt;
+	const char *auth_key;
+	char *password;
+	GMutex *mutex;
+	GCond *cond;
 } ECalAsyncData;
 
 static gboolean
-async_idle_cb (gpointer data)
+async_auth_idle_cb (gpointer data)
 {
 	ECalAsyncData *ccad = data;
 
-	ccad->result = open_calendar (ccad->ecal, ccad->exists, NULL, &ccad->status);
-	g_signal_emit (G_OBJECT (ccad->ecal), e_cal_signals[CAL_OPENED], 0, ccad->status);
-
-	/* free memory */
-	g_object_unref (ccad->ecal);
-	g_free (ccad);
+	g_mutex_lock (ccad->mutex);
+	ccad->password = ccad->read_auth_func (ccad->ecal, ccad->auth_prompt, ccad->auth_key, ccad->real_auth_user_data);
+	g_cond_signal (ccad->cond);
+	g_mutex_unlock (ccad->mutex);
 
 	return FALSE;
+}
+
+static char *
+async_auth_func_cb (ECal *ecal, const char *prompt, const char *key, gpointer user_data)
+{
+	ECalAsyncData *ccad = user_data;
+	char * password;
+
+	ccad->auth_prompt = prompt;
+	ccad->auth_key = key;
+
+	g_idle_add ((GSourceFunc) async_auth_idle_cb, ccad);
+
+	g_mutex_lock (ccad->mutex);
+	g_cond_wait (ccad->cond, ccad->mutex);
+	password = ccad->password;
+	ccad->password = NULL;
+	g_mutex_unlock (ccad->mutex);
+
+	return password;
 }
 
 static gpointer
@@ -1603,9 +1627,27 @@ open_async (gpointer data)
 {
 	ECalAsyncData *ccad = data;
 
-	g_idle_add ((GSourceFunc) async_idle_cb, ccad);
+	ccad->mutex = g_mutex_new ();
+	ccad->cond = g_cond_new ();
 
-	return GINT_TO_POINTER (ccad->result);
+	ccad->real_auth_func = ccad->ecal->priv->auth_func;
+	ccad->real_auth_user_data = ccad->ecal->priv->auth_user_data;
+	ccad->ecal->priv->auth_func = async_auth_func_cb;
+	ccad->ecal->priv->auth_user_data = ccad;
+
+	ccad->result = open_calendar (ccad->ecal, ccad->exists, NULL, &ccad->status);
+	g_signal_emit (G_OBJECT (ccad->ecal), e_cal_signals[CAL_OPENED], 0, ccad->status);
+
+	ccad->ecal->priv->auth_func = ccad->real_auth_func;
+	ccad->ecal->priv->auth_user_data = ccad->real_auth_user_data;
+	g_mutex_free (ccad->mutex);
+	g_cond_free (ccad->cond);
+
+	/* free memory */
+	g_object_unref (ccad->ecal);
+	g_free (ccad);
+
+	return GINT_TO_POINTER (ccad->result); 
 }
 
 void
@@ -1614,7 +1656,7 @@ e_cal_open_async (ECal *ecal, gboolean only_if_exists)
 	ECalAsyncData *ccad;
 	GThread *thread;
 	GError *error = NULL;
-	
+
 	g_return_if_fail (ecal != NULL);
 	g_return_if_fail (E_IS_CAL (ecal));
 
@@ -3853,11 +3895,7 @@ e_cal_add_timezone (ECal *ecal, icaltimezone *izone, GError **error)
 
 	e_return_error_if_fail (ecal && E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (izone, E_CALENDAR_STATUS_INVALID_ARG);
-	
-	icalcomp = icaltimezone_get_component (izone);
 
-	e_return_error_if_fail (icalcomp, FALSE);
-	
 	priv = ecal->priv;
 
 	g_mutex_lock (priv->mutex);
@@ -3877,6 +3915,25 @@ e_cal_add_timezone (ECal *ecal, icaltimezone *izone, GError **error)
 	g_mutex_lock (our_op->mutex);
 
 	g_mutex_unlock (priv->mutex);
+
+	/* Make sure we have a valid component - UTC doesn't, nor do
+	 * we really have to add it */
+	if (izone == icaltimezone_get_utc_timezone ()) {
+		e_calendar_remove_op (ecal, our_op);
+		g_mutex_unlock (our_op->mutex);
+		e_calendar_free_op (our_op);
+
+		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_OK, error);
+	}
+
+	icalcomp = icaltimezone_get_component (izone);
+	if (!icalcomp) {
+		e_calendar_remove_op (ecal, our_op);
+		g_mutex_unlock (our_op->mutex);
+		e_calendar_free_op (our_op);
+
+		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_INVALID_ARG, error);
+	}
 
 	/* convert icaltimezone into a string */
 	tzobj = icalcomponent_as_ical_string (icalcomp);
