@@ -1,3 +1,13 @@
+2004-10-15  Sivaiah Nallagatla  <snallagatla@novell.com>
+
+	* libedata-cal/e-data-cal-factory.[ch] : new fucntions
+	(e_data_cal_factory_set_backend_mode) : set online/offline mode on 
+	all the backends it has created. 
+	(set_backend_online_status) : function to set online/offline 
+	mode on a backend
+	(impl_CalFactory_getCal) : modified this function to 
+	set online/offline mode on the backend after creatng it
+ 
 2004-10-15  Chenthill Palanisamy <pchenthill@novell.com>
 	
 	Fixes #67031
