@@ -61,8 +61,9 @@ struct _CamelGroupwiseStorePrivate {
 	char *base_url ;
 	char *storage_path ;
 
-	GHashTable *id_hash ;
-	GHashTable *name_hash ;
+	GHashTable *id_hash ; //get names from ids
+	GHashTable *name_hash ;//get ids from names
+	GHashTable *parent_hash ;
 	EGwConnection *cnc;
 };
 
@@ -211,6 +212,8 @@ camel_groupwise_store_finalize (CamelObject *object)
 			g_hash_table_destroy (priv->id_hash);
 		if (priv->name_hash)	
 			g_hash_table_destroy (priv->name_hash) ;
+		if (priv->parent_hash)
+			g_hash_table_destroy (priv->parent_hash) ;
 	}
 
 }
@@ -307,6 +310,7 @@ camel_groupwise_store_construct (CamelService *service, CamelSession *session,
 	/*Hash Table*/	
 	priv->id_hash = g_hash_table_new (g_str_hash, g_str_equal) ;
 	priv->name_hash = g_hash_table_new (g_str_hash, g_str_equal) ;
+	priv->parent_hash = g_hash_table_new (g_str_hash, g_str_equal) ;
 
 	/*ssl*/
 	priv->use_ssl = g_strdup (camel_url_get_param (url, "soap_ssl"));
@@ -393,7 +397,7 @@ CamelFolder * camel_groupwise_get_folder( CamelStore *store,
 
 	camel_operation_start (NULL, _("Fetching summary information for new messages"));
 
-	status = e_gw_connection_get_items (priv->cnc, container_id, NULL, NULL, &list) ;
+	status = e_gw_connection_get_items (priv->cnc, container_id, "attachments", NULL, &list) ;
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Authentication failed"));
 		return NULL;
@@ -533,20 +537,22 @@ camel_groupwise_store_get_folder_info (CamelStore *store,
 		}
 	 }
 /*	if (top == NULL)
-		top = "";*/
+		top = "folders" ;*/
 
 	
 	status = e_gw_connection_get_container_list (priv->cnc, &folder_list);
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		/*FIX ME set the camel exception id*/
+		printf (" Returnning NULL") ;
 		return NULL;
 	}
 	status = e_gw_connection_get_container_list (priv->cnc, &temp_list);
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		/*FIX ME set the camel exception id*/
+		printf (" Returnning NULL") ;
 		return NULL;
 	}
-	//temp_list = folder_list ;
+//	*temp_list = &folder_list ;
 	
 	folders = g_ptr_array_new();
 	
@@ -557,16 +563,22 @@ camel_groupwise_store_get_folder_info (CamelStore *store,
 
 	/*Populate the hash table for finding the mapping from container id <-> folder name*/
 	for (;temp_list != NULL ; temp_list = g_list_next (temp_list) ) {
-		char *name, *id ;
+		char *name, *id, *parent ;
 		 name = e_gw_container_get_name (E_GW_CONTAINER (temp_list->data));
 		 id = e_gw_container_get_id(E_GW_CONTAINER(temp_list->data)) ;
+		 parent = e_gw_container_get_parent_id (E_GW_CONTAINER(temp_list->data)) ;
 		// printf("name : %s : id :  %s\n",name, id) ;
 
+		/*id_hash returns the name for a given container id*/
 		g_hash_table_insert (priv->id_hash, g_strdup(id), g_strdup(name)) ; 
+		/*name_hash returns the container id given the name */
 		g_hash_table_insert (priv->name_hash, g_strdup(name), g_strdup(id)) ;
+		/*parent_hash returns the parent container id, given an id*/
+		g_hash_table_insert (priv->parent_hash, g_strdup(id), g_strdup(parent)) ;
 
 		g_free (name) ;
 		g_free (id) ;
+		g_free (parent) ;
 	}
 
 	/*g_hash_table_foreach (priv->id_hash,print_entry,NULL) ;
@@ -614,6 +626,7 @@ camel_groupwise_store_get_folder_info (CamelStore *store,
 		fi = parent = par_name = NULL ;
 		
 	}
+	printf (" Returnning NOW") ;
 	return camel_folder_info_build (folders, NULL, '/', FALSE) ;
 }
 

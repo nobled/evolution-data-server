@@ -165,7 +165,8 @@ static CamelMimeMessage
 		camel_mime_message_set_recipients (msg, "Cc", cc_addr) ;
 		camel_mime_message_set_recipients (msg, "Bcc", bcc_addr) ;
 	}
-	camel_internet_address_add (from_addr,org->display_name,org->email) ;
+	if (org)
+		camel_internet_address_add (from_addr,org->display_name,org->email) ;
 	
 
 	/*Content and content-type*/
@@ -412,6 +413,7 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 	int summary_count, first, seq ;
 	GPtrArray *msg ;
 	GList **temp_list = &item_list;
+	GSList *attach_list ;
 	guint32 uidval ;
 
 	//CAMEL_SERVICE_ASSERT_LOCKED (gw_store, connect_lock);
@@ -434,7 +436,7 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 		EGwItem *item = (EGwItem *)item_list->data ;
 		EGwItemType type ;
 		EGwItemOrganizer *org ;
-		char *date ;
+		char *date = NULL, *temp_date = NULL ;
 	/*	char *uid ;
 
 		uid = g_strdup(e_gw_item_get_id(item) ) ;
@@ -464,32 +466,41 @@ gw_update_summary ( CamelFolder *folder, GList *item_list,CamelException *ex)
 		type = e_gw_item_get_item_type (item) ;
 
 		if (type == E_GW_ITEM_TYPE_MAIL) {
-			printf ("Its an e-mail\n") ;
+		//	printf ("Its an e-mail\n") ;
 			
 		} else if (type == E_GW_ITEM_TYPE_APPOINTMENT) {
-			printf ("Its an appointment\n") ;
-			continue ;
+		//	printf ("Its an appointment\n") ;
 
 		} else if (type == E_GW_ITEM_TYPE_TASK) {
-			printf ("Its a task\n") ;
-			continue ;
+		//	printf ("Its a task\n") ;
 
+		} else if (type == E_GW_ITEM_TYPE_CONTACT) {
+		//	printf ("Its a contact\n") ;
+			continue ;
+		
 		} else if (type == E_GW_ITEM_TYPE_UNKNOWN) {
 			printf ("UNKNOWN ITEM...\n") ;
 			continue ;
 
 		}
 		
+		attach_list = e_gw_item_get_attach_id_list (item) ;
+		if (attach_list) 
+			mi->flags |= CAMEL_MESSAGE_ATTACHMENTS;
+
 		org = e_gw_item_get_organizer (item) ; 
 		if (org) {
 			camel_message_info_set_from (mi, g_strconcat(org->display_name,"<",org->email,">",NULL)) ;
 			camel_message_info_set_to (mi,g_strdup(e_gw_item_get_to (item))) ;
 		}
 		
-		date = e_gw_connection_format_date_string(e_gw_item_get_creation_date(item)) ;
-		mi->date_sent = mi->date_received = e_gw_connection_get_date_from_string (date) ;
-	/*	mi->date_sent = camel_header_decode_date(date,NULL) ;
-		mi->date_received = camel_header_decode_date(date,NULL) ;*/
+		temp_date = e_gw_item_get_creation_date(item) ;
+		if (temp_date) {
+			date = e_gw_connection_format_date_string(temp_date) ;
+			mi->date_sent = mi->date_received = e_gw_connection_get_date_from_string (date) ;
+			/*	mi->date_sent = camel_header_decode_date(date,NULL) ;
+				mi->date_received = camel_header_decode_date(date,NULL) ;*/
+		}
 		camel_message_info_set_uid (mi,g_strdup(e_gw_item_get_id(item) ) ) ;
 		camel_message_info_set_subject (mi,g_strdup(e_gw_item_get_subject(item))) ;
 
