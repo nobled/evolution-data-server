@@ -363,7 +363,7 @@ imap4_sync_changes (CamelFolder *folder, GPtrArray *sync, CamelException *ex)
 		
 		for (j = 0; j < sync->len; j++) {
 			iinfo = (CamelIMAP4MessageInfo *) (info = sync->pdata[j]);
-			camel_imap4_flags_diff (&diff, iinfo->server_flags, info->flags);
+			camel_imap4_flags_diff (&diff, iinfo->server_flags, iinfo->info.flags);
 			if (diff.changed & imap4_flags[i].flag) {
 				if (diff.bits & imap4_flags[i].flag) {
 					g_ptr_array_add (on_set, info);
@@ -396,8 +396,8 @@ imap4_sync_changes (CamelFolder *folder, GPtrArray *sync, CamelException *ex)
 	
 	for (i = 0; i < sync->len; i++) {
 		iinfo = (CamelIMAP4MessageInfo *) (info = sync->pdata[i]);
-		info->flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
-		iinfo->server_flags = info->flags & folder->permanent_flags;
+		iinfo->info.flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
+		iinfo->server_flags = iinfo->info.flags & folder->permanent_flags;
 	}
 	
 	return 0;
@@ -426,8 +426,8 @@ imap4_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 	max = camel_folder_summary_count (folder->summary);
 	for (i = 0; i < max; i++) {
 		iinfo = (CamelIMAP4MessageInfo *) (info = camel_folder_summary_index (folder->summary, i));
-		if (info->flags & CAMEL_MESSAGE_FOLDER_FLAGGED) {
-			camel_imap4_flags_diff (&diff, iinfo->server_flags, info->flags);
+		if (iinfo->info.flags & CAMEL_MESSAGE_FOLDER_FLAGGED) {
+			camel_imap4_flags_diff (&diff, iinfo->server_flags, iinfo->info.flags);
 			diff.changed &= folder->permanent_flags;
 			
 			/* weed out flag changes that we can't sync to the server */
@@ -599,7 +599,7 @@ untagged_fetch (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, 
 			
 			if ((info = camel_folder_summary_index (summary, index - 1))) {
 				iinfo = (CamelIMAP4MessageInfo *) info;
-				info->flags = camel_imap4_merge_flags (iinfo->server_flags, info->flags, flags);
+				iinfo->info.flags = camel_imap4_merge_flags (iinfo->server_flags, iinfo->info.flags, flags);
 				iinfo->server_flags = flags;
 				
 				changes = camel_folder_change_info_new ();
@@ -719,6 +719,7 @@ imap4_append_message (CamelFolder *folder, CamelMimeMessage *message,
 	CamelIMAP4Engine *engine = ((CamelIMAP4Store *) folder->parent_store)->engine;
 	CamelSession *session = ((CamelService *) folder->parent_store)->session;
 	CamelIMAP4Summary *summary = (CamelIMAP4Summary *) folder->summary;
+	const CamelIMAP4MessageInfo *iinfo = (const CamelIMAP4MessageInfo *)info;
 	CamelIMAP4RespCode *resp;
 	CamelIMAP4Command *ic;
 	CamelFolderInfo *fi;
@@ -736,11 +737,11 @@ imap4_append_message (CamelFolder *folder, CamelMimeMessage *message,
 	CAMEL_SERVICE_LOCK (folder->parent_store, connect_lock);
 	
 	/* construct the option flags list */
-	if (info->flags & folder->permanent_flags) {
+	if (iinfo->info.flags & folder->permanent_flags) {
 		p = g_stpcpy (flags, " (");
 		
 		for (i = 0; i < G_N_ELEMENTS (imap4_flags); i++) {
-			if ((info->flags & imap4_flags[i].flag) & folder->permanent_flags) {
+			if ((iinfo->info.flags & imap4_flags[i].flag) & folder->permanent_flags) {
 				p = g_stpcpy (p, imap4_flags[i].name);
 				*p++ = ' ';
 			}
@@ -753,13 +754,13 @@ imap4_append_message (CamelFolder *folder, CamelMimeMessage *message,
 	}
 	
 	/* construct the optional date_time string */
-	if (info->date_received != (time_t) -1) {
+	if (iinfo->info.date_received != (time_t) -1) {
 		int tzone;
 		
 #ifdef HAVE_LOCALTIME_R
 		localtime_r (&info->date_received, &tm);
 #else
-		memcpy (&tm, localtime (&info->date_received), sizeof (tm));
+		memcpy (&tm, localtime (&iinfo->info.date_received), sizeof (tm));
 #endif
 		
 #if defined (HAVE_TM_GMTOFF)

@@ -1507,37 +1507,6 @@ summary_format_string (struct _camel_header_raw *h, const char *name, const char
 }
 
 /**
- * camel_folder_summary_info_new:
- * @s: 
- * 
- * Allocate a new camel message info, suitable for adding
- * to this summary.
- * 
- * Return value: 
- **/
-CamelMessageInfo *
-camel_folder_summary_info_new(CamelFolderSummary *s)
-{
-	CamelMessageInfo *mi;
-
-	CAMEL_SUMMARY_LOCK(s, alloc_lock);
-	if (s->message_info_chunks == NULL)
-		s->message_info_chunks = e_memchunk_new(32, s->message_info_size);
-	mi = e_memchunk_alloc(s->message_info_chunks);
-	CAMEL_SUMMARY_UNLOCK(s, alloc_lock);
-
-	memset(mi, 0, s->message_info_size);
-#ifdef DOEPOOLV
-	mi->strings = e_poolv_new (s->message_info_strings);
-#endif
-#ifdef DOESTRV
-	mi->strings = e_strv_new(s->message_info_strings);
-#endif
-	mi->refcount = 1;
-	return mi;
-}
-
-/**
  * camel_folder_summary_content_info_new:
  * @s: 
  * 
@@ -1616,11 +1585,17 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	else
 		mi->date_received = 0;
 
-	/* decode our references and in-reply-to headers */
 	msgid = camel_header_msgid_decode(camel_header_raw_find(&h, "message-id", NULL));
-	refs = camel_header_references_decode(camel_header_raw_find(&h, "references", NULL));
-	irt = camel_header_references_inreplyto_decode(camel_header_raw_find(&h, "in-reply-to", NULL));
-	if (msgid || refs || irt) {
+	if (msgid) {
+		md5_get_digest(msgid, strlen(msgid), digest);
+		memcpy(mi->message_id.id.hash, digest, sizeof(mi->message_id.id.hash));
+		g_free(msgid);
+	}
+	
+	/* decode our references and in-reply-to headers */
+	refs = camel_header_references_decode (camel_header_raw_find (&h, "references", NULL));
+	irt = camel_header_references_inreplyto_decode (camel_header_raw_find (&h, "in-reply-to", NULL));
+	if (refs || irt) {
 		if (irt) {
 			/* The References field is populated from the ``References'' and/or ``In-Reply-To''
 			   headers. If both headers exist, take the first thing in the In-Reply-To header
@@ -1633,20 +1608,12 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 		}
 		
 		count = camel_header_references_list_size(&refs);
-		if (msgid)
-			count++;
 		mi->references = g_malloc(sizeof(*mi->references) + ((count-1) * sizeof(mi->references->references[0])));
 		count = 0;
-		if (msgid) {
-			md5_get_digest(msgid, strlen(msgid), digest);
-			memcpy(mi->references->references[count].id.hash, digest, sizeof(CamelSummaryMessageID));
-			count++;
-			g_free(msgid);
-		}
 		scan = refs;
 		while (scan) {
 			md5_get_digest(scan->id, strlen(scan->id), digest);
-			memcpy(mi->references->references[count].id.hash, digest, sizeof(CamelSummaryMessageID));
+			memcpy(mi->references->references[count].id.hash, digest, sizeof(mi->message_id.id.hash));
 			count++;
 			scan = scan->next;
 		}
@@ -1664,7 +1631,6 @@ message_info_load(CamelFolderSummary *s, FILE *in)
 	guint count;
 	int i;
 	char *subject, *from, *to, *cc, *mlist, *uid;;
-	CamelSummaryMessageID msgid;
 
 	mi = (CamelMessageInfoBase *)camel_message_info_new(s);
 
@@ -1696,20 +1662,19 @@ message_info_load(CamelFolderSummary *s, FILE *in)
 
 	mi->content = NULL;
 
-	/* we save the messageid separately: historical */
-	camel_file_util_decode_fixed_int32(in, &msgid.id.part.hi);
-	camel_file_util_decode_fixed_int32(in, &msgid.id.part.lo);
+	camel_file_util_decode_fixed_int32(in, &mi->message_id.id.part.hi);
+	camel_file_util_decode_fixed_int32(in, &mi->message_id.id.part.lo);
 
 	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500)
 		goto error;
 
-	count++;
-	mi->references = g_malloc(sizeof(*mi->references) + ((count-1) * sizeof(mi->references->references[0])));
-	memcpy(&mi->references->references[0], &msgid, sizeof(msgid));
-	mi->references->size = count;
-	for (i=1;i<count;i++) {
-		camel_file_util_decode_fixed_int32(in, &mi->references->references[i].id.part.hi);
-		camel_file_util_decode_fixed_int32(in, &mi->references->references[i].id.part.lo);
+	if (count > 0) {
+		mi->references = g_malloc(sizeof(*mi->references) + ((count-1) * sizeof(mi->references->references[0])));
+		mi->references->size = count;
+		for (i=0;i<count;i++) {
+			camel_file_util_decode_fixed_int32(in, &mi->references->references[i].id.part.hi);
+			camel_file_util_decode_fixed_int32(in, &mi->references->references[i].id.part.lo);
+		}
 	}
 
 	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500)
@@ -1761,26 +1726,22 @@ message_info_save(CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 	camel_file_util_encode_uint32(out, mi->size);
 	camel_file_util_encode_time_t(out, mi->date_sent);
 	camel_file_util_encode_time_t(out, mi->date_received);
-	camel_file_util_encode_string(out, camel_message_info_subject(info));
-	camel_file_util_encode_string(out, camel_message_info_from(info));
-	camel_file_util_encode_string(out, camel_message_info_to(info));
-	camel_file_util_encode_string(out, camel_message_info_cc(info));
-	camel_file_util_encode_string(out, camel_message_info_mlist(info));
+	camel_file_util_encode_string(out, camel_message_info_subject(mi));
+	camel_file_util_encode_string(out, camel_message_info_from(mi));
+	camel_file_util_encode_string(out, camel_message_info_to(mi));
+	camel_file_util_encode_string(out, camel_message_info_cc(mi));
+	camel_file_util_encode_string(out, camel_message_info_mlist(mi));
 
-	/* The messageid is now the first 'references' entry, it used to be separate,
-	   and is still separate in the file */
-	if (mi->references
-	    && mi->references->size > 0) {
-		camel_file_util_encode_fixed_int32(out, mi->references->references[0].id.part.hi);
-		camel_file_util_encode_fixed_int32(out, mi->references->references[0].id.part.lo);
-		camel_file_util_encode_uint32(out, mi->references->size-1);
-		for (i=1;i<mi->references->size;i++) {
+	camel_file_util_encode_fixed_int32(out, mi->message_id.id.part.hi);
+	camel_file_util_encode_fixed_int32(out, mi->message_id.id.part.lo);
+
+	if (mi->references) {
+		camel_file_util_encode_uint32(out, mi->references->size);
+		for (i=0;i<mi->references->size;i++) {
 			camel_file_util_encode_fixed_int32(out, mi->references->references[i].id.part.hi);
 			camel_file_util_encode_fixed_int32(out, mi->references->references[i].id.part.lo);
 		}
 	} else {
-		camel_file_util_encode_fixed_int32(out, 0);
-		camel_file_util_encode_fixed_int32(out, 0);
 		camel_file_util_encode_uint32(out, 0);
 	}
 
@@ -2656,6 +2617,7 @@ message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
 	to->to = camel_pstring_strdup(from->to);
 	to->cc = camel_pstring_strdup(from->cc);
 	to->mlist = camel_pstring_strdup(from->mlist);
+	memcpy(&to->message_id, &from->message_id, sizeof(to->message_id));
 
 	if (from->references) {
 		int len = sizeof(*from->references) + ((from->references->size-1) * sizeof(from->references->references[0]));
@@ -2708,6 +2670,8 @@ info_ptr(const CamelMessageInfo *mi, int id)
 		return ((const CamelMessageInfoBase *)mi)->cc;
 	case CAMEL_MESSAGE_INFO_MLIST:
 		return ((const CamelMessageInfoBase *)mi)->mlist;
+	case CAMEL_MESSAGE_INFO_MESSAGE_ID:
+		return &((const CamelMessageInfoBase *)mi)->message_id;
 	case CAMEL_MESSAGE_INFO_REFERENCES:
 		return ((const CamelMessageInfoBase *)mi)->references;
 	case CAMEL_MESSAGE_INFO_USER_FLAGS:
@@ -2893,62 +2857,6 @@ gboolean camel_message_info_set_user_tag(CamelMessageInfo *mi, const char *id, c
 		return ((CamelFolderSummaryClass *)((CamelObject *)mi->summary)->klass)->info_set_user_tag(mi, id, val);
 	else
 		return info_set_user_tag(mi, id, val);
-}
-
-static pthread_mutex_t pstring_lock = PTHREAD_MUTEX_INITIALIZER;
-static GHashTable *pstring_table = NULL;
-
-char *camel_pstring_strdup(const char *s)
-{
-	char *p;
-	void *pcount;
-	int count;
-
-	if (s == NULL)
-		return NULL;
-	if (s[0] == 0)
-		return "";
-
-	pthread_mutex_lock(&pstring_lock);
-	if (pstring_table == NULL)
-		pstring_table = g_hash_table_new(g_str_hash, g_str_equal);
-
-	if (g_hash_table_lookup_extended(pstring_table, s, (void **)&p, &pcount)) {
-		count = GPOINTER_TO_INT(pcount)+1;
-		g_hash_table_insert(pstring_table, p, GINT_TO_POINTER(count));
-	} else {
-		p = g_strdup(s);
-		g_hash_table_insert(pstring_table, p, GINT_TO_POINTER(1));
-	}
-	pthread_mutex_unlock(&pstring_lock);
-
-	return p;
-}
-
-void camel_pstring_free(const char *s)
-{
-	char *p;
-	void *pcount;
-	int count;
-
-	if (pstring_table == NULL)
-		return;
-	if (s == NULL || s[0] == 0)
-		return;
-
-	pthread_mutex_lock(&pstring_lock);
-	if (g_hash_table_lookup_extended(pstring_table, s, (void **)&p, &pcount)) {
-		count = GPOINTER_TO_INT(pcount)-1;
-		if (count == 0) {
-			g_hash_table_remove(pstring_table, p);
-			g_free(p);
-		} else {
-			g_hash_table_insert(pstring_table, p, GINT_TO_POINTER(count));
-		}
-	} else {
-		g_warning("Trying to free string not allocated from the pool '%s'", s);
-	}
-	pthread_mutex_unlock(&pstring_lock);
 }
 
 void

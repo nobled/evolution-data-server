@@ -43,7 +43,7 @@ typedef struct _CamelIMAP4Summary CamelIMAP4Summary;
 typedef struct _CamelIMAP4SummaryClass CamelIMAP4SummaryClass;
 
 struct _CamelIMAP4MessageInfo {
-	CamelMessageInfoBase parent_info;
+	CamelMessageInfoBase info;
 	
 	guint32 server_flags;
 };

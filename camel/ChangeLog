@@ -1,3 +1,20 @@
+2004-11-11  Not Zed  <NotZed@Ximian.com>
+
+	* providers/imap4/*: Update for folder-summary api changes.
+
+	* providers/imap4/camel-imap4-store.c (imap4_build_folder_info):
+	clean up the logic for getting counts from the folder, we have
+	code to do this already.  Also always run it against the selected
+	folder, does'nt need to have FAST bit unset.
+
+	* camel-folder-summary.c (camel_folder_summary_info_new): removed.
+
+	* camel-string-utils.c (camel_pstring_strdup, camel_pstring_free):
+	pooled string allocators.  Oh so much easier than the poolv thing,
+	and these refcount too.
+
+	* camel-folder-summary.h: put message_id back into the summary.
+
 2004-11-08  Not Zed  <NotZed@Ximian.com>
 
 	* camel-folder.c (camel_folder_get_deleted_message_count): use
