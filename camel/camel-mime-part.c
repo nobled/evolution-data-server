@@ -238,6 +238,7 @@ process_header(CamelMedium *medium, const char *header_name, const char *header_
 		mime_part->content_id = header_contentid_decode (header_value);
 		break;
 	case HEADER_ENCODING:
+		/* FIXME: ignore this if we are a multipart or a message/rfc822 part */
 		text = header_token_decode (header_value);
 		mime_part->encoding = camel_mime_part_encoding_from_string (text);
 		g_free (text);
@@ -675,7 +676,7 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 		gboolean reencode = FALSE;
 		const char *filename;
 		
-		if (header_content_type_is (content->mime_type, "text", "*")) {
+		if (header_content_type_is (dw->mime_type, "text", "*")) {
 			content_charset = header_content_type_param (content->mime_type, "charset");
 			part_charset = header_content_type_param (dw->mime_type, "charset");
 			
@@ -685,10 +686,7 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 			}
 		}
 		
-		if (mp->encoding != content->encoding || part_charset != content_charset)
-			reencode = TRUE;
-		
-		if (reencode) {
+		if (mp->encoding != content->encoding) {
 			switch (mp->encoding) {
 			case CAMEL_MIME_PART_ENCODING_BASE64:
 				filter = (CamelMimeFilter *) camel_mime_filter_basic_new_type (CAMEL_MIME_FILTER_BASIC_BASE64_ENC);
@@ -709,7 +707,7 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 			}
 		}
 		
-		if (reencode && content_charset && part_charset && part_charset != content_charset)
+		if (content_charset && part_charset && part_charset != content_charset)
 			charenc = (CamelMimeFilter *) camel_mime_filter_charset_new_convert (content_charset, part_charset);
 		
 		if (filter || charenc) {
@@ -736,6 +734,8 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 			}
 			
 			stream = (CamelStream *)filter_stream;
+			
+			reencode = TRUE;
 		}
 		
 		if (reencode)
@@ -753,7 +753,7 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 		
 		total += count;
 		
-		if (mp->encoding == CAMEL_MIME_PART_ENCODING_UUENCODE) {
+		if (reencode && mp->encoding == CAMEL_MIME_PART_ENCODING_UUENCODE) {
 			count = camel_stream_write (ostream, "end\n", 4);
 			if (count == -1)
 				return -1;

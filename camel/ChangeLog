@@ -1,3 +1,15 @@
+2003-08-08  Jeffrey Stedfast  <fejj@ximian.com>
+
+	* camel-mime-filter-tohtml.c (html_convert): Rather than checking
+	*inptr == '\n', check inptr >= inend - this gets rid of an Invalid
+	Read report from valgrind.
+
+	* camel-mime-part.c (write_to_stream): Don't necessarily re-encode
+	just because the encodings differ. Need to look into making it so
+	that message/rfc822 and multipart parts ignore the
+	Content-Transfer-Encoding header and just keep their 'encoding'
+	bits set to DEFAULT.
+
 2003-08-05  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* providers/imap/camel-imap-folder.c (get_content): Updated.
