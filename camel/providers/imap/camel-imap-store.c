@@ -66,7 +66,7 @@ static char *get_name (CamelService *service, gboolean brief);
 static CamelFolder *get_folder (CamelStore *store, const char *folder_name, gboolean create,
 				CamelException *ex);
 static char *get_folder_name (CamelStore *store, const char *folder_name, CamelException *ex);
-/*static gboolean imap_noop (gpointer data);*/
+static gboolean imap_noop (gpointer data);
 /*static gboolean stream_is_alive (CamelStream *istream);*/
 static int camel_imap_status (char *cmdid, char *respbuf);
 
@@ -391,6 +391,9 @@ imap_connect (CamelService *service, CamelException *ex)
 	g_free (result);
 
 	/* Lets add a timeout so that we can hopefully prevent getting disconnected */
+	/* FIXME fast timeout */
+	store->timeout_id = camel_session_register_timeout (camel_service_get_session (service), 
+							    10 * 60 * 1000, imap_noop, service);
 	/*store->timeout_id = gtk_timeout_add (600000, imap_noop, store);*/
 	
 	return TRUE;
@@ -431,12 +434,11 @@ imap_disconnect (CamelService *service, CamelException *ex)
 
 	store->current_folder = NULL;
 
-	/*
-	 *if (store->timeout_id) {
-	 *	gtk_timeout_remove (store->timeout_id);
-	 *	store->timeout_id = 0;
-	 *}
-	 */
+	if (store->timeout_id) {
+		camel_session_remove_timeout (camel_service_get_session (CAMEL_SERVICE (store)),
+					      store->timeout_id);
+		store->timeout_id = 0;
+	}
 
 	return TRUE;
 }
@@ -607,7 +609,6 @@ get_folder_name (CamelStore *store, const char *folder_name, CamelException *ex)
 	return g_strdup (folder_name);
 }
 
-#if 0 /*FIXME: find a way to do this without GTK*/
 static gboolean
 imap_noop (gpointer data)
 {
@@ -621,7 +622,6 @@ imap_noop (gpointer data)
 
 	return TRUE;
 }
-#endif
 
 #if 0
 static gboolean

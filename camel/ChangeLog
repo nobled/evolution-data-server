@@ -1,3 +1,30 @@
+2000-08-08  Peter Williams  <peterw@helixcode.com>
+
+	* camel-provider.h: Remove some GTK stuff that I missed.
+
+	* providers/imap/camel-imap-store.c (imap_noop): Turn this
+	back on with the new timeout interface in CamelSession.
+
+	* camel-session.[ch] (camel_session_register_timeout): New
+	interface for Camel to register timeouts. Basically the
+	GTK timeout interface is copied. We do this because Camel isn't
+	allowed to use GTK anymore.
+	
+2000-08-07  Not Zed  <NotZed@HelixCode.com>
+
+	* providers/mh/camel-mh-folder.c (mh_append_message): Only retry
+	another uid if we had a name clash, otherwise fail.
+
+2000-08-07  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c
+	(imap_get_subfolder_names_internal): If we are trying to get a
+	subfolder listing of the root folder, always make sure INBOX is
+	there...
+
+	* providers/imap/camel-imap-utils.c (imap_parse_list_response): 
+	Check for NIL as a directory separator.
+
 2000-08-07  Peter Williams  <peterw@helixcode.com>
 
 	* providers/nntp/Makefile.am: Reorder the INCLUDES to pull
@@ -39,6 +66,13 @@
 	* camel-store.h: Include camel-object.h. Ettore said this wasn't
 	compiling.
 
+2000-08-04  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-url.c (camel_url_set_protocol): 
+	(camel_url_set_host): 
+	(camel_url_set_path): 
+	(camel_url_set_port): Url editing functions.
+
 2000-08-04  Dan Winship  <danw@helixcode.com>
 
 	* providers/pop3/camel-pop3-folder.c (pop3_set_message_flags): 
@@ -60,6 +94,24 @@
 
 	* providers/nntp/Makefile.am (INCLUDES): Add -I$(top_srcdir) to
 	pull in libibex/ibex.h
+
+2000-08-02  Not Zed  <NotZed@HelixCode.com>
+
+	* providers/mh/camel-mh-summary.c (camel_mh_summary_sync): Expunge
+	from the end, so the index isn't messed up when you remove a
+	message.
+
+	* providers/mh/camel-mh-folder.c (mh_append_message): Fix a bug
+	where it would never open an output file/uid.
+
+	* providers/mbox/camel-mbox-store.c (rename_folder):
+	Implementation for mbox as well.
+
+	* camel-store.c (camel_store_rename_folder): New method to rename folders.
+	(rename_folder): Default implementation.
+
+	* providers/mh/camel-mh-store.c (delete_folder): Implement this.
+	(rename_folder): Implement a rename operation.
 
 2000-08-02  Dan Winship  <danw@helixcode.com>
 

@@ -725,6 +725,7 @@ imap_get_subfolder_names_internal (CamelFolder *folder, CamelException *ex)
 	CamelStore *store = CAMEL_STORE (folder->parent_store);
 	CamelURL *url = CAMEL_SERVICE (store)->url;
 	GPtrArray *listing;
+	gboolean found_inbox = FALSE;
 	gint status;
 	gchar *result, *namespace, *dir_sep;
 
@@ -767,17 +768,17 @@ imap_get_subfolder_names_internal (CamelFolder *folder, CamelException *ex)
 		char *ptr = result;
 		
 		while (ptr && *ptr == '*') {
-			gchar *flags, *sep, *folder, *buf, *end;
+			gchar *flags, *sep, *dir, *buf, *end;
 			
 			for (end = ptr; *end && *end != '\n'; end++);
 			buf = g_strndup (ptr, (gint)(end - ptr));
 			ptr = end;
 			
-			if (!imap_parse_list_response (buf, namespace, &flags, &sep, &folder)) {
+			if (!imap_parse_list_response (buf, namespace, &flags, &sep, &dir)) {
 				g_free (buf);
 				g_free (flags);
 				g_free (sep);
-				g_free (folder);
+				g_free (dir);
 				
 				if (*ptr == '\n')
 					ptr++;
@@ -788,9 +789,12 @@ imap_get_subfolder_names_internal (CamelFolder *folder, CamelException *ex)
 			g_free (buf);
 			g_free (flags);
 			
-			d(fprintf (stderr, "adding folder: %s\n", folder));
-			
-			g_ptr_array_add (listing, folder);
+			if (*dir) {
+				d(fprintf (stderr, "adding folder: %s\n", dir));
+				if (!strcmp (dir, "INBOX"))
+					found_inbox = TRUE;
+				g_ptr_array_add (listing, dir);
+			}
 			
 			g_free (sep);
 			
@@ -798,9 +802,14 @@ imap_get_subfolder_names_internal (CamelFolder *folder, CamelException *ex)
 				ptr++;
 		}
 	}
+	
+	if (!strcmp (folder->name, namespace) && !found_inbox) {
+		g_ptr_array_add (listing, "INBOX");
+	}
+	
 	g_free (result);
 	g_free (namespace);
-
+	
 	imap_folder->lsub = listing;
 	
 	return listing;

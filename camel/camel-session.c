@@ -91,11 +91,15 @@ camel_session_get_type (void)
 
 
 CamelSession *
-camel_session_new (CamelAuthCallback authenticator)
+camel_session_new (CamelAuthCallback authenticator,
+		   CamelTimeoutRegisterCallback registrar,
+		   CamelTimeoutRemoveCallback remover)
 {
 	CamelSession *session = CAMEL_SESSION (camel_object_new (CAMEL_SESSION_TYPE));
 
 	session->authenticator = authenticator;
+	session->registrar = registrar;
+	session->remover = remover;
 	return session;
 }
 
@@ -290,4 +294,53 @@ camel_session_query_authenticator (CamelSession *session,
 {
 	return session->authenticator (mode, prompt, secret,
 				       service, item, ex);
+}
+
+/**
+ * camel_session_register_timeout: Register a timeout to be called
+ * periodically.
+ *
+ * @session: the CamelSession
+ * @interval: the number of milliseconds interval between calls
+ * @callback: the function to call
+ * @user_data: extra data to be passed to the callback
+ *
+ * This function will use the registrar callback provided upon
+ * camel_session_new to register the timeout. The callback will
+ * be called every @interval milliseconds until it returns @FALSE.
+ * It will be passed one argument, @user_data.
+ *
+ * Returns a nonzero handle that can be used with 
+ * camel_session_remove_timeout on success, and 0 on failure to 
+ * register the timeout.
+ **/
+
+guint
+camel_session_register_timeout (CamelSession *session,
+				guint32 interval,
+				CamelTimeoutCallback callback,
+				gpointer user_data)
+{
+	g_return_val_if_fail (CAMEL_IS_SESSION (session), FALSE);
+
+	return session->registrar (interval, callback, user_data);
+}
+
+/**
+ * camel_session_remove_timeout: Remove a previously registered
+ * timeout.
+ *
+ * @session: the CamelSession
+ * @handle: a value returned from camel_session_register_timeout
+ *
+ * This function will use the remover callback provided upon
+ * camel_session_new to remove the timeout.
+ *
+ * Returns TRUE on success and FALSE on failure.
+ **/
+
+gboolean camel_session_remove_timeout (CamelSession *session,
+				       guint handle)
+{
+	return session->remover (handle);
 }
