@@ -294,16 +294,26 @@ camel_folder_summary_count(CamelFolderSummary *s)
  * @i: 
  * 
  * Retrieve a summary item by index number.
+ *
+ * A referenced to the summary item is returned, which may be
+ * ref'd or free'd as appropriate.
  * 
  * Return value: The summary item, or NULL if the index @i is out
  * of range.
+ * It must be freed using camel_folder_summary_info_free().
  **/
 CamelMessageInfo *
 camel_folder_summary_index(CamelFolderSummary *s, int i)
 {
+	CamelMessageInfo *info = NULL;
+
 	if (i<s->messages->len)
-		return g_ptr_array_index(s->messages, i);
-	return NULL;
+		info = g_ptr_array_index(s->messages, i);
+
+	if (info)
+		info->refcount++;
+
+	return info;
 }
 
 /**
@@ -312,14 +322,23 @@ camel_folder_summary_index(CamelFolderSummary *s, int i)
  * @uid: 
  * 
  * Retrieve a summary item by uid.
+ *
+ * A referenced to the summary item is returned, which may be
+ * ref'd or free'd as appropriate.
  * 
  * Return value: The summary item, or NULL if the uid @uid
  * is not available.
+ * It must be freed using camel_folder_summary_info_free().
  **/
 CamelMessageInfo *
 camel_folder_summary_uid(CamelFolderSummary *s, const char *uid)
 {
-	return g_hash_table_lookup(s->messages_uid, uid);
+	CamelMessageInfo *info = g_hash_table_lookup(s->messages_uid, uid);
+
+	if (info)
+		info->refcount++;
+
+	return info;
 }
 
 /**
@@ -488,9 +507,9 @@ camel_folder_summary_save(CamelFolderSummary *s)
 
 	/* now write out each message ... */
 	/* FIXME: check returns */
-	count = camel_folder_summary_count(s);
+	count = s->messages->len;
 	for (i=0;i<count;i++) {
-		mi = camel_folder_summary_index(s, i);
+		mi = s->messages->pdata[i];
 		((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_save(s, out, mi);
 
 		if (s->build_content) {
@@ -731,7 +750,7 @@ perform_content_info_free(CamelFolderSummary *s, CamelMessageContentInfo *ci)
  * @s: 
  * @mi: 
  * 
- * Free the message info @mi, and all associated memory.
+ * Unref and potentially free the message info @mi, and all associated memory.
  **/
 void camel_folder_summary_info_free(CamelFolderSummary *s, CamelMessageInfo *mi)
 {
@@ -739,6 +758,11 @@ void camel_folder_summary_info_free(CamelFolderSummary *s, CamelMessageInfo *mi)
 
 	g_assert(mi);
 	g_assert(s);
+	g_assert(mi->refcount >= 1);
+
+	mi->refcount--;
+	if (mi->refcount > 0)
+		return;
 
 	ci = mi->content;
 
@@ -746,6 +770,22 @@ void camel_folder_summary_info_free(CamelFolderSummary *s, CamelMessageInfo *mi)
 	if (s->build_content && ci) {
 		perform_content_info_free(s, ci);
 	}
+}
+
+/**
+ * camel_folder_summary_info_ref:
+ * @s: 
+ * @mi: 
+ * 
+ * Add an extra reference to @mi.
+ **/
+void camel_folder_summary_info_ref(CamelFolderSummary *s, CamelMessageInfo *mi)
+{
+	g_assert(mi);
+	g_assert(s);
+	g_assert(mi->refcount >= 1);
+
+	mi->refcount++;
 }
 
 /**
@@ -774,8 +814,8 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	if (camel_folder_summary_count(s) == 0)
 		return;
 
-	for (i=0;i<camel_folder_summary_count(s);i++)
-		camel_folder_summary_info_free(s, camel_folder_summary_index(s, i));
+	for (i=0;i<s->messages->len;i++)
+		camel_folder_summary_info_free(s, s->messages->pdata[i]);
 
 	g_ptr_array_set_size(s->messages, 0);
 	g_hash_table_destroy(s->messages_uid);
@@ -825,11 +865,8 @@ void camel_folder_summary_remove_uid(CamelFolderSummary *s, const char *uid)
  **/
 void camel_folder_summary_remove_index(CamelFolderSummary *s, int index)
 {
-        CamelMessageInfo *oldinfo;
-
-	oldinfo = camel_folder_summary_index (s, index);
-	if (oldinfo)
-		camel_folder_summary_remove(s, oldinfo);
+	if (index < s->messages->len)
+		camel_folder_summary_remove(s, s->messages->pdata[index]);
 }
 
 /**
@@ -1437,6 +1474,7 @@ camel_folder_summary_info_new(CamelFolderSummary *s)
 #ifdef DOESTRV
 	mi->strings = e_strv_new(s->message_info_strings);
 #endif
+	mi->refcount = 1;
 	return mi;
 }
 
@@ -2212,14 +2250,25 @@ camel_message_info_new (void)
 {
 	CamelMessageInfo *info;
 	
-	info = g_new0 (CamelMessageInfo, 1);
+	info = g_malloc0(sizeof(*info));
 #ifdef DOESTRV
 	info->strings = e_strv_new (CAMEL_MESSAGE_INFO_LAST);
 #endif
-	
+	info->refcount = 1;
+
 	return info;
 }
 
+/**
+ * camel_message_info_ref:
+ * @info: 
+ * 
+ * Reference an info.
+ **/
+void camel_message_info_ref(CamelMessageInfo *info)
+{
+	info->refcount++;
+}
 
 /**
  * camel_message_info_new_from_header:
@@ -2238,20 +2287,13 @@ camel_message_info_new_from_header (struct _header_raw *header)
 	to = camel_folder_summary_format_address (header, "to");
 	cc = camel_folder_summary_format_address (header, "cc");
 	
-	info = g_new0 (CamelMessageInfo, 1);
-#ifdef DOESTRV
-	info->strings = e_strv_new (CAMEL_MESSAGE_INFO_LAST);
+	info = camel_message_info_new();
+
 	camel_message_info_set_subject (info, subject);
 	camel_message_info_set_from (info, from);
 	camel_message_info_set_to (info, to);
 	camel_message_info_set_cc (info, cc);
-#else
-	info->subject = subject;
-	info->from = from;
-	info->to = to;
-	info->cc = cc;
-#endif
-	
+
 	return info;
 }
 
@@ -2276,6 +2318,7 @@ camel_message_info_dup_to(const CamelMessageInfo *from, CamelMessageInfo *to)
 	to->size = from->size;
 	to->date_sent = from->date_sent;
 	to->date_received = from->date_received;
+	to->refcount = 1;
 
 	/* Copy strings */
 #ifdef DOESTRV
@@ -2325,7 +2368,7 @@ camel_message_info_dup_to(const CamelMessageInfo *from, CamelMessageInfo *to)
  * camel_message_info_free:
  * @mi: the message info
  *
- * Frees a CamelMessageInfo and its contents.
+ * Unref's and potentially frees a CamelMessageInfo and its contents.
  *
  * Can only be used to free CamelMessageInfo's created with
  * camel_message_info_dup_to.
@@ -2334,6 +2377,12 @@ camel_message_info_dup_to(const CamelMessageInfo *from, CamelMessageInfo *to)
 void
 camel_message_info_free(CamelMessageInfo *mi)
 {
+	g_return_if_fail(mi != NULL);
+
+	mi->refcount--;
+	if (mi->refcount > 0)
+		return;
+
 #ifdef DOESTRV
 	e_strv_destroy(mi->strings);
 #else
@@ -2468,7 +2517,9 @@ int main(int argc, char **argv)
 
 	printf("Printing summary\n");
 	for (i=0;i<camel_folder_summary_count(s);i++) {
-		message_info_dump(camel_folder_summary_index(s, i));
+		CamelMessageInfo *info = camel_folder_summary_index(s, i);
+		message_info_dump(info);
+		camel_folder_summary_info_free(info);
 	}
 
 	printf("Saivng summary\n");
@@ -2486,7 +2537,9 @@ int main(int argc, char **argv)
 
 		printf("Printing summary\n");
 		for (i=0;i<camel_folder_summary_count(n);i++) {
-			message_info_dump(camel_folder_summary_index(n, i));
+			CamelMessageInfo *info = camel_folder_summary_index(s, i);
+			message_info_dump(info);
+			camel_folder_summary_info_free(info);
 		}
 		camel_object_unref(n);		
 	}

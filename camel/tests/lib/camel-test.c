@@ -44,7 +44,9 @@ void camel_test_init(int argc, char **argv)
 
 	setup = 1;
 
+#ifndef ENABLE_THREADS
 	camel_init();
+#endif
 
 	/* yeah, we do need ot thread init, even though camel isn't compiled with enable threads */
 	g_thread_init(NULL);

@@ -404,6 +404,9 @@ void camel_folder_search_free_result(CamelFolderSearch *search, GPtrArray *resul
 	g_ptr_array_free(result, TRUE);
 }
 
+
+
+
 /* dummy function, returns false always, or an empty match array */
 static ESExpResult *
 search_dummy(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search)
@@ -639,6 +642,7 @@ match_message(CamelFolder *folder, const char *uid, regex_t *pattern)
 	CamelException *ex;
 
 	ex = camel_exception_new();
+#warning "FIXME: this deadlocks with threading"
 	msg = camel_folder_get_message(folder, uid, ex);
 	if (!camel_exception_is_set(ex) && msg!=NULL) {
 		truth = message_body_contains((CamelDataWrapper *)msg, pattern);

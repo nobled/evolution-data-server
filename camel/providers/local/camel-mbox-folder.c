@@ -327,6 +327,7 @@ retry:
 				     _("Cannot get message: %s from folder %s\n  %s"), uid, lf->folder_path,
 				     strerror(errno));
 		camel_local_folder_unlock(lf);
+		camel_folder_summary_info_free((CamelFolderSummary *)lf->summary, (CamelMessageInfo *)info);
 		return NULL;
 	}
 
@@ -345,6 +346,7 @@ retry:
 			  camel_mime_parser_state(parser));
 
 		camel_object_unref((CamelObject *)parser);
+		camel_folder_summary_info_free((CamelFolderSummary *)lf->summary, (CamelMessageInfo *)info);
 
 		if (!retried) {
 			retried = TRUE;
@@ -360,6 +362,8 @@ retry:
 		camel_local_folder_unlock(lf);
 		return NULL;
 	}
+
+	camel_folder_summary_info_free((CamelFolderSummary *)lf->summary, (CamelMessageInfo *)info);
 	
 	message = camel_mime_message_new();
 	if (camel_mime_part_construct_from_parser((CamelMimePart *)message, parser) == -1) {

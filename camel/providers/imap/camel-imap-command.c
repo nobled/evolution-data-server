@@ -56,6 +56,10 @@ static CamelImapResponse *imap_read_response (CamelImapStore *store,
  * As a special case, if @fmt is %NULL, it will just select @folder
  * and return the response from doing so.
  * 
+ * This function assumes you have an exclusive lock on the command
+ * channel/stream.  TODO: Perhaps it could have a recursive lock,
+ * to simplify when you only have a single-line command (not worth it).
+ *
  * Return value: %NULL if an error occurred (in which case @ex will
  * be set). Otherwise, a CamelImapResponse describing the server's
  * response, which the caller must free with camel_imap_response_free().
@@ -110,6 +114,8 @@ camel_imap_command (CamelImapStore *store, CamelFolder *folder,
  * This method is for sending continuing responses to the IMAP server
  * after camel_imap_command returns a CAMEL_IMAP_PLUS response.
  * 
+ * This function assumes you have an exclusive lock on the remote stream.
+ *
  * Return value: as for camel_imap_command()
  **/
 CamelImapResponse *

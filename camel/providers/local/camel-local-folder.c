@@ -66,7 +66,8 @@ static CamelMimeMessage *local_get_message(CamelFolder *folder, const gchar * ui
 #endif
 static void local_expunge(CamelFolder *folder, CamelException *ex);
 
-static const CamelMessageInfo *local_get_message_info(CamelFolder *folder, const char *uid);
+static CamelMessageInfo *local_get_message_info(CamelFolder *folder, const char *uid);
+static void local_free_message_info(CamelFolder *folder, CamelMessageInfo *info);
 
 static GPtrArray *local_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex);
 static void local_search_free(CamelFolder *folder, GPtrArray * result);
@@ -104,6 +105,7 @@ camel_local_folder_class_init(CamelLocalFolderClass * camel_local_folder_class)
 	camel_folder_class->search_free = local_search_free;
 
 	camel_folder_class->get_message_info = local_get_message_info;
+	camel_folder_class->free_message_info = local_free_message_info;
 
 	camel_folder_class->get_message_flags = local_get_message_flags;
 	camel_folder_class->set_message_flags = local_set_message_flags;
@@ -310,7 +312,8 @@ local_expunge(CamelFolder *folder, CamelException *ex)
 	d(printf("expunge\n"));
 
 	/* Just do a sync with expunge, serves the same purpose */
-	camel_folder_sync(folder, TRUE, ex);
+	/* call the callback directly, to avoid locking problems */
+	CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(folder))->sync(folder, TRUE, ex);
 }
 
 /*
@@ -367,7 +370,10 @@ local_get_uids(CamelFolder *folder)
 	for (i = 0; i < count; i++) {
 		CamelMessageInfo *info = camel_folder_summary_index(CAMEL_FOLDER_SUMMARY(local_folder->summary), i);
 
-		array->pdata[i] = g_strdup(camel_message_info_uid(info));
+		if (info) {
+			array->pdata[i] = g_strdup(camel_message_info_uid(info));
+			camel_folder_summary_info_free((CamelFolderSummary *)local_folder->summary, info);
+		}
 	}
 
 	return array;
@@ -378,16 +384,25 @@ local_get_summary(CamelFolder *folder)
 {
 	CamelLocalFolder *local_folder = CAMEL_LOCAL_FOLDER(folder);
 
+#warning "Should ref summary items"
+
 	return CAMEL_FOLDER_SUMMARY(local_folder->summary)->messages;
 }
 
 /* get a single message info, by uid */
-static const CamelMessageInfo *
+static CamelMessageInfo *
 local_get_message_info(CamelFolder *folder, const char *uid)
 {
 	CamelLocalFolder *local_folder = CAMEL_LOCAL_FOLDER(folder);
 
 	return camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(local_folder->summary), uid);
+}
+
+static void local_free_message_info(CamelFolder *folder, CamelMessageInfo *info)
+{
+	CamelLocalFolder *local_folder = CAMEL_LOCAL_FOLDER(folder);
+
+	camel_folder_summary_info_free(CAMEL_FOLDER_SUMMARY(local_folder->summary), info);
 }
 
 static GPtrArray *
@@ -424,11 +439,15 @@ local_get_message_flags(CamelFolder *folder, const char *uid)
 {
 	CamelMessageInfo *info;
 	CamelLocalFolder *mf = CAMEL_LOCAL_FOLDER(folder);
+	guint32 flags;
 
 	info = camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(mf->summary), uid);
 	g_return_val_if_fail(info != NULL, 0);
 
-	return info->flags;
+	flags = info->flags;
+	camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
+
+	return flags;
 }
 
 static void
@@ -442,11 +461,14 @@ local_set_message_flags(CamelFolder *folder, const char *uid, guint32 flags, gui
 	g_return_if_fail(info != NULL);
 
 	new = (info->flags & ~flags) | (set & flags);
-	if (new == info->flags)
+	if (new == info->flags) {
+		camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
 		return;
+	}
 
 	info->flags = new | CAMEL_MESSAGE_FOLDER_FLAGGED;
 	camel_folder_summary_touch(CAMEL_FOLDER_SUMMARY(mf->summary));
+	camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
 
 	camel_object_trigger_event(CAMEL_OBJECT(folder), "message_changed", (char *) uid);
 }
@@ -456,11 +478,15 @@ local_get_message_user_flag(CamelFolder *folder, const char *uid, const char *na
 {
 	CamelMessageInfo *info;
 	CamelLocalFolder *mf = CAMEL_LOCAL_FOLDER(folder);
+	gboolean ret;
 
 	info = camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(mf->summary), uid);
 	g_return_val_if_fail(info != NULL, FALSE);
 
-	return camel_flag_get(&info->user_flags, name);
+	ret = camel_flag_get(&info->user_flags, name);
+	camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
+
+	return ret;
 }
 
 static void
@@ -472,12 +498,12 @@ local_set_message_user_flag(CamelFolder *folder, const char *uid, const char *na
 	info = camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(mf->summary), uid);
 	g_return_if_fail(info != NULL);
 
-	if (!camel_flag_set(&info->user_flags, name, value))
-		return;
-
-	info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED|CAMEL_MESSAGE_FOLDER_XEVCHANGE;
-	camel_folder_summary_touch(CAMEL_FOLDER_SUMMARY(mf->summary));
-	camel_object_trigger_event(CAMEL_OBJECT(folder), "message_changed", (char *) uid);
+	if (camel_flag_set(&info->user_flags, name, value)) {
+		info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED|CAMEL_MESSAGE_FOLDER_XEVCHANGE;
+		camel_folder_summary_touch(CAMEL_FOLDER_SUMMARY(mf->summary));
+		camel_object_trigger_event(CAMEL_OBJECT(folder), "message_changed", (char *) uid);
+	}
+	camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
 }
 
 static const char *
@@ -485,11 +511,17 @@ local_get_message_user_tag(CamelFolder *folder, const char *uid, const char *nam
 {
 	CamelMessageInfo *info;
 	CamelLocalFolder *mf = CAMEL_LOCAL_FOLDER(folder);
+	const char *ret;
 
 	info = camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(mf->summary), uid);
 	g_return_val_if_fail(info != NULL, FALSE);
 
-	return camel_tag_get(&info->user_tags, name);
+#warning "Need to duplicate tag string"
+
+	ret = camel_tag_get(&info->user_tags, name);
+	camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
+
+	return ret;
 }
 
 static void
@@ -501,12 +533,12 @@ local_set_message_user_tag(CamelFolder *folder, const char *uid, const char *nam
 	info = camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(mf->summary), uid);
 	g_return_if_fail(info != NULL);
 
-	if (!camel_tag_set(&info->user_tags, name, value))
-		return;
-
-	info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED|CAMEL_MESSAGE_FOLDER_XEVCHANGE;
-	camel_folder_summary_touch(CAMEL_FOLDER_SUMMARY(mf->summary));
-	camel_object_trigger_event(CAMEL_OBJECT(folder), "message_changed", (char *) uid);
+	if (camel_tag_set(&info->user_tags, name, value)) {
+		info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED|CAMEL_MESSAGE_FOLDER_XEVCHANGE;
+		camel_folder_summary_touch(CAMEL_FOLDER_SUMMARY(mf->summary));
+		camel_object_trigger_event(CAMEL_OBJECT(folder), "message_changed", (char *) uid);
+	}
+	camel_folder_summary_info_free((CamelFolderSummary *)mf->summary, info);
 }
 
 

@@ -47,6 +47,8 @@
 #include "camel-url.h"
 #include "string-utils.h"
 
+#include "camel-imap-private.h"
+
 #define d(x) x
 
 /* Specified in RFC 2060 */
@@ -121,6 +123,10 @@ camel_imap_store_finalize (CamelObject *object)
 	g_hash_table_foreach_remove (imap_store->subscribed_folders,
 				     free_sub, NULL);
 	g_hash_table_destroy (imap_store->subscribed_folders);
+#ifdef ENABLE_THREADS
+	g_mutex_free(imap_store->priv->command_lock);
+#endif
+	g_free(imap_store->priv);
 }
 
 static void
@@ -139,6 +145,11 @@ camel_imap_store_init (gpointer object, gpointer klass)
 	
 	imap_store->connected = FALSE;
 	imap_store->subscribed_folders = g_hash_table_new (g_str_hash, g_str_equal);
+
+	imap_store->priv = g_malloc0(sizeof(*imap_store->priv));
+#ifdef ENABLE_THREADS
+	imap_store->priv->command_lock = g_mutex_new();
+#endif
 }
 
 CamelType
@@ -188,9 +199,15 @@ connect_to_server (CamelService *service, CamelException *ex)
 
 	store->command = 0;
 
+	/* Hrm, not sure if this is needed/right for this bit of the code
+	   since, we've presumably just connected, and are inside the
+	   remote_store:connect_lock already */
+	CAMEL_IMAP_STORE_LOCK(store, command_lock);
+
 	/* Read the greeting, if any. FIXME: deal with PREAUTH */
 	if (camel_remote_store_recv_line (CAMEL_REMOTE_STORE (service),
 					  &buf, ex) < 0) {
+		CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 		return FALSE;
 	}
 	g_free (buf);
@@ -199,6 +216,7 @@ connect_to_server (CamelService *service, CamelException *ex)
 	/* Find out the IMAP capabilities */
 	store->capabilities = 0;
 	response = camel_imap_command (store, NULL, ex, "CAPABILITY");
+	CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 	if (!response)
 		return FALSE;
 	result = camel_imap_response_extract (response, "CAPABILITY", ex);
@@ -351,10 +369,12 @@ imap_connect (CamelService *service, CamelException *ex)
 			}
 		}
 
+		CAMEL_IMAP_STORE_LOCK(store, command_lock);
 		response = camel_imap_command (store, NULL, ex,
 					       "LOGIN \"%s\" \"%s\"",
 					       service->url->user,
 					       service->url->passwd);
+		CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 		if (!response) {
 			errbuf = g_strdup_printf (_("Unable to authenticate "
 						    "to IMAP server.\n%s\n\n"),
@@ -380,6 +400,8 @@ imap_connect (CamelService *service, CamelException *ex)
 		namespace++;
 	else
 		namespace = "";
+
+	CAMEL_IMAP_STORE_LOCK(store, command_lock);
 	if (store->server_level >= IMAP_LEVEL_IMAP4REV1) {
 		/* This idiom means "tell me the hierarchy separator
 		 * for the given path, even if that path doesn't exist.
@@ -396,6 +418,8 @@ imap_connect (CamelService *service, CamelException *ex)
 					       "LIST \"\" \"%s\"",
 					       namespace);
 	}
+	CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
+
         if (!response)
 		return FALSE;
 
@@ -431,7 +455,11 @@ imap_disconnect (CamelService *service, gboolean clean, CamelException *ex)
 	
 	if (store->connected && clean) {
 		/* send the logout command */
+
+		/* NB: this lock probably isn't required */
+		CAMEL_IMAP_STORE_LOCK(store, command_lock);
 		response = camel_imap_command (store, NULL, ex, "LOGOUT");
+		CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 		camel_imap_response_free (response);
 	}
 	
@@ -440,6 +468,7 @@ imap_disconnect (CamelService *service, gboolean clean, CamelException *ex)
 	return CAMEL_SERVICE_CLASS (remote_store_class)->disconnect (service, clean, ex);
 }
 
+/* NOTE: Must have imap_store::command_lock before calling this */
 static gboolean
 imap_folder_exists (CamelImapStore *store, const char *folder_name,
 		    gboolean *selectable, char **short_name,
@@ -481,14 +510,16 @@ imap_folder_exists (CamelImapStore *store, const char *folder_name,
 	return TRUE;
 }
 
+/* NOTE: Must have imap_store::command_lock before calling this */
 static gboolean
 imap_create (CamelImapStore *store, const char *folder_name,
 	     CamelException *ex)
 {
 	CamelImapResponse *response;
 
-	response = camel_imap_command (store, NULL, ex, "CREATE \"%s\"",
-				       folder_name);
+	CAMEL_IMAP_STORE_LOCK(store, command_lock);
+	response = camel_imap_command (store, NULL, ex, "CREATE \"%s\"", folder_name);
+	CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 	camel_imap_response_free (response);
 
 	return !camel_exception_is_set (ex);
@@ -503,18 +534,19 @@ get_folder (CamelStore *store, const char *folder_name, guint32 flags,
 	char *short_name, *summary_file, *p;
 	gboolean selectable;
 
+	/* lock around the whole lot to check/create atomically */
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	if (!imap_folder_exists (imap_store, folder_name,
 				 &selectable, &short_name, ex)) {
-		if ((flags & CAMEL_STORE_FOLDER_CREATE) == 0)
+		if ((flags & CAMEL_STORE_FOLDER_CREATE) == 0
+		    || (!imap_create (imap_store, folder_name, ex))
+		    || (!imap_folder_exists (imap_store, folder_name,
+					     &selectable, &short_name, ex))) {
+			CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 			return NULL;
-
-		if (!imap_create (imap_store, folder_name, ex))
-			return NULL;
-
-		if (!imap_folder_exists (imap_store, folder_name,
-					 &selectable, &short_name, ex))
-			return NULL;
+		}
 	}
+	CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 
 	if (!selectable) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
@@ -621,8 +653,10 @@ get_folder_info (CamelStore *store, const char *top, gboolean fast,
 		else
 			name = "";
 	}
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	response = camel_imap_command (imap_store, NULL, ex,
 				       "LIST \"\" \"%s\"", name);
+	CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 	if (!response)
 		return FALSE;
 	list = camel_imap_response_extract (response, "LIST", ex);
@@ -642,10 +676,12 @@ get_folder_info (CamelStore *store, const char *top, gboolean fast,
 		pattern = g_strdup_printf ("%s%c", name, imap_store->dir_sep);
 	else
 		pattern = g_strdup (name);
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	response = camel_imap_command (imap_store, NULL, ex,
 				       "%s \"\" \"%s%c\"",
 				       subscribed_only ? "LSUB" : "LIST",
 				       pattern, recursive ? '*' : '%');
+	CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 	g_free (pattern);
 	if (!response)
 		return NULL;
@@ -694,10 +730,12 @@ get_folder_info (CamelStore *store, const char *top, gboolean fast,
 			if (!fi->url)
 				continue;
 
+			CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 			response = camel_imap_command (
 				imap_store, NULL, NULL,
 				"STATUS \"%s\" (MESSAGES UNSEEN)",
 				fi->full_name);
+			CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 			if (!response)
 				continue;
 			status = camel_imap_response_extract (
@@ -748,8 +786,10 @@ subscribe_folder (CamelStore *store, const char *folder_name,
 	CamelImapStore *imap_store = CAMEL_IMAP_STORE (store);
 	CamelImapResponse *response;
 
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	response = camel_imap_command (imap_store, NULL, ex,
 				       "SUBSCRIBE \"%s\"", folder_name);
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	if (response) {
 		g_hash_table_insert (imap_store->subscribed_folders,
 				     g_strdup (folder_name),
@@ -765,9 +805,11 @@ unsubscribe_folder (CamelStore *store, const char *folder_name,
 	CamelImapStore *imap_store = CAMEL_IMAP_STORE (store);
 	CamelImapResponse *response;
 	gpointer key, value;
-
+	
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	response = camel_imap_command (imap_store, NULL, ex,
 				       "UNSUBSCRIBE \"%s\"", folder_name);
+	CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 	if (response) {
 		g_hash_table_lookup_extended (imap_store->subscribed_folders,
 					      folder_name, &key, &value);
@@ -784,6 +826,8 @@ imap_keepalive (CamelRemoteStore *store)
 	CamelImapStore *imap_store = CAMEL_IMAP_STORE (store);
 	CamelImapResponse *response;
 
+	CAMEL_IMAP_STORE_LOCK(imap_store, command_lock);
 	response = camel_imap_command (imap_store, NULL, NULL, "NOOP");
+	CAMEL_IMAP_STORE_UNLOCK(imap_store, command_lock);
 	camel_imap_response_free (response);
 }

@@ -87,8 +87,11 @@ nntp_folder_get_message_flags (CamelFolder *folder, const char *uid)
 {
 	CamelNNTPFolder *nntp_folder = CAMEL_NNTP_FOLDER (folder);
 	CamelMessageInfo *info = camel_folder_summary_uid (nntp_folder->summary, uid);
+	guint32 flags;
 
-	return info->flags;
+	flags = info->flags;
+	camel_folder_summary_info_free(nntp_folder->summary, info);
+	return flags;
 }
 
 static void
@@ -99,9 +102,13 @@ nntp_folder_set_message_flags (CamelFolder *folder, const char *uid,
 	CamelMessageInfo *info = camel_folder_summary_uid (nntp_folder->summary, uid);
 	guint32 new;
 
+	g_return_if_fail(info != NULL);
+
 	new = (info->flags & ~flags) | (set & flags);
-	if (new == info->flags)
+	if (new == info->flags) {
+		camel_folder_summary_info_free(nntp_folder->summary, info);
 		return;
+	}
 
 	info->flags = new;
 	if (flags & set & CAMEL_MESSAGE_SEEN) {
@@ -115,6 +122,7 @@ nntp_folder_set_message_flags (CamelFolder *folder, const char *uid,
 						     article_num);
 	}
 
+	camel_folder_summary_info_free (nntp_folder->summary, info);
 	camel_folder_summary_touch (nntp_folder->summary);
 }
 
@@ -150,6 +158,9 @@ nntp_folder_get_message (CamelFolder *folder, const gchar *uid, CamelException *
 		g_warning ("weird nntp error %d\n", status);
 		return NULL;
 	}
+
+	/* this could probably done fairly easily with an nntp stream that
+	   returns eof after '.' */
 
 	/* XXX ick ick ick.  read the entire message into a buffer and
 	   then create a stream_mem for it. */
@@ -221,6 +232,7 @@ nntp_folder_get_uids (CamelFolder *folder)
 	for (i = 0; i < count; i++) {
 		message_info = camel_folder_summary_index (nntp_folder->summary, i);
 		out->pdata[i] = g_strdup (camel_message_info_uid(message_info));
+		camel_folder_summary_info_free(nntp_folder->summary, message_info);
 	}
 	
 	return out;
@@ -231,6 +243,7 @@ nntp_folder_get_summary (CamelFolder *folder)
 {
 	CamelNNTPFolder *nntp_folder = CAMEL_NNTP_FOLDER (folder);
 
+#warning "This must get a referenced copy of summary entries, not the base object"
 	return nntp_folder->summary->messages;
 }
 
@@ -241,12 +254,20 @@ nntp_folder_search_by_expression (CamelFolder *folder, const char *expression, C
 	return NULL;
 }
 
-static const CamelMessageInfo*
+static CamelMessageInfo*
 nntp_folder_get_message_info (CamelFolder *folder, const char *uid)
 {
 	CamelNNTPFolder *nntp_folder = CAMEL_NNTP_FOLDER (folder);
 
 	return camel_folder_summary_uid (nntp_folder->summary, uid);
+}
+
+static void
+nntp_folder_free_message_info (CamelFolder *folder, CamelMessageInfo *info)
+{
+	CamelNNTPFolder *nntp_folder = CAMEL_NNTP_FOLDER (folder);
+
+	camel_folder_summary_info_free (nntp_folder->summary, info);
 }
 
 static void           
@@ -278,6 +299,7 @@ camel_nntp_folder_class_init (CamelNNTPFolderClass *camel_nntp_folder_class)
 	camel_folder_class->free_summary = camel_folder_free_nop;
 	camel_folder_class->search_by_expression = nntp_folder_search_by_expression;
 	camel_folder_class->get_message_info = nntp_folder_get_message_info;
+	camel_folder_class->free_message_info = nntp_folder_free_message_info;
 }
 
 CamelType

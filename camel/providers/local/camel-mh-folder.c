@@ -184,6 +184,9 @@ static CamelMimeMessage *mh_get_message(CamelFolder * folder, const gchar * uid,
 		return NULL;
 	}
 
+	/* we only need it to check the message exists */
+	camel_folder_summary_info_free((CamelFolderSummary *)lf->summary, info);
+
 	name = g_strdup_printf("%s/%s", lf->folder_path, uid);
 	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0)) == NULL) {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID, _("Cannot get message: %s\n  %s"),

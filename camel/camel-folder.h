@@ -50,14 +50,14 @@ struct _CamelFolderChangeInfo {
 
 	GHashTable *uid_source;	/* used to create unique lists */
 	struct _EMemPool *uid_pool;	/* pool used to store copies of uid strings */
+	struct _CamelFolderChangeInfoPrivate *priv;
 };
 
 struct _CamelFolder
 {
 	CamelObject parent_object;
 
-	int frozen;
-	CamelFolderChangeInfo *changed_frozen; /* queues changed events */
+	struct _CamelFolderPrivate *priv;
 
 	char *name;
 	char *full_name;
@@ -66,6 +66,7 @@ struct _CamelFolder
 	guint32 permanent_flags;
 	gboolean has_summary_capability:1;
 	gboolean has_search_capability:1;
+
 };
 
 typedef struct {
@@ -137,7 +138,8 @@ typedef struct {
 
 	void (*search_free) (CamelFolder *folder, GPtrArray *result);
 
-	const CamelMessageInfo * (*get_message_info) (CamelFolder *, const char *uid);
+	CamelMessageInfo * (*get_message_info) (CamelFolder *, const char *uid);
+	void (*free_message_info) (CamelFolder *, CamelMessageInfo *);
 
 	void (*copy_message_to) (CamelFolder *source,
 				 const char *uid,
@@ -250,9 +252,10 @@ GPtrArray *	   camel_folder_search_by_expression  (CamelFolder *folder,
 void		   camel_folder_search_free	      (CamelFolder *folder, GPtrArray *);
 
 /* summary info */
-const CamelMessageInfo *camel_folder_get_message_info (CamelFolder *summary,
-						       const char *uid);
+CamelMessageInfo *camel_folder_get_message_info		(CamelFolder *folder, const char *uid);
+void		  camel_folder_free_message_info	(CamelFolder *folder, CamelMessageInfo *info);
 
+/* FIXME: copy-message-to is not required */
 void               camel_folder_copy_message_to       (CamelFolder *source,
 						       const char *uid,
 						       CamelFolder *dest,
@@ -263,9 +266,15 @@ void               camel_folder_move_message_to       (CamelFolder *source,
 						       CamelFolder *dest,
 						       CamelException *ex);
 
+/* stop/restart getting events */
 void               camel_folder_freeze                (CamelFolder *folder);
 void               camel_folder_thaw                  (CamelFolder *folder);
 
+#if 0
+/* lock/unlock at the thread level, NOTE: only used internally */
+void		   camel_folder_lock		      (CamelFolder *folder);
+void		   camel_folder_unlock		      (CamelFolder *folder);
+#endif
 
 /* For use by subclasses (for free_{uids,summary,subfolder_names}) */
 void camel_folder_free_nop     (CamelFolder *folder, GPtrArray *array);
