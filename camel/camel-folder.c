@@ -1209,18 +1209,18 @@ folder_changed (CamelObject *obj, gpointer event_data)
 	CamelFolderChangeInfo *changed = event_data;
 	gboolean ret = TRUE;
 
-	CAMEL_FOLDER_LOCK(folder, change_lock);
-
 	if (folder->priv->frozen) {
+		CAMEL_FOLDER_LOCK(folder, change_lock);
+
 		if (changed != NULL)
 			camel_folder_change_info_cat(folder->priv->changed_frozen, changed);
 		else
 			g_warning("Class %s is passing NULL to folder_changed event",
 				  camel_type_to_name (CAMEL_OBJECT_GET_TYPE (folder)));
 		ret = FALSE;
-	}
 
-	CAMEL_FOLDER_UNLOCK(folder, change_lock);
+		CAMEL_FOLDER_UNLOCK(folder, change_lock);
+	}
 
 	return ret;
 }
@@ -1231,14 +1231,14 @@ message_changed (CamelObject *obj, /*const char *uid*/gpointer event_data)
 	CamelFolder *folder = CAMEL_FOLDER (obj);
 	gboolean ret = TRUE;
 
-	CAMEL_FOLDER_LOCK(folder, change_lock);
-
 	if (folder->priv->frozen) {
+		CAMEL_FOLDER_LOCK(folder, change_lock);
+	
 		camel_folder_change_info_change_uid(folder->priv->changed_frozen, (char *)event_data);
 		ret = FALSE;
-	}
 
-	CAMEL_FOLDER_UNLOCK(folder, change_lock);
+		CAMEL_FOLDER_UNLOCK(folder, change_lock);
+	}
 
 	return ret;
 }

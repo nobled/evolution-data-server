@@ -1,3 +1,23 @@
+2000-12-20  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-folder.c (folder_changed): Change the locks to inside the
+	if.  Stops a deadloc,k and we dont need a lock to read a value.
+	(message_changed): Likewise.
+
+	* camel.c (camel_init): Blah, comment out g_thread_init, leave it
+	to the caller, since it can only ever be done once.
+
+	* camel-folder-thread.c (camel_folder_thread_messages_new): Ref
+	and save the folder in the thread return.  Also get the summary
+	once, and access that for the messageinfo's.  Added bonus that now
+	threads should come out in a similar order.  We need to do this so
+	that the messageinfo's dont get unref'd under us, and using the
+	summary directly simplifies memory management.
+	(camel_folder_thread_messages_destroy): Free the summary/unref the
+	folder.
+
+	* camel-folder-thread.h: Add a folder to CamelFolderThread struct.
+
 2000-12-19  Not Zed  <NotZed@HelixCode.com>
 
 	* providers/imap/camel-imap-utils.c (imap_translate_sexp): Unref

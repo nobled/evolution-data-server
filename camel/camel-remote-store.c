@@ -430,7 +430,7 @@ camel_remote_store_send_stream (CamelRemoteStore *store, CamelStream *stream, Ca
 	
 	ret = CRSC (store)->send_stream (store, stream, ex);
 
-	CAMEL_REMOTE_STORE_LOCK(store, stream_lock);
+	CAMEL_REMOTE_STORE_UNLOCK(store, stream_lock);
 
 	return ret;
 }
@@ -525,7 +525,7 @@ camel_remote_store_recv_line (CamelRemoteStore *store, char **dest,
 	
 	ret = CRSC (store)->recv_line (store, dest, ex);
 
-	CAMEL_REMOTE_STORE_LOCK(store, stream_lock);
+	CAMEL_REMOTE_STORE_UNLOCK(store, stream_lock);
 
 	return ret;
 }
