@@ -704,3 +704,4 @@ gw_rescan (CamelFolder *folder, int exists, CamelException *ex)
 
 	return ;
 }*/
+

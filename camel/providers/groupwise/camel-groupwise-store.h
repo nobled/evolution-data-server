@@ -52,6 +52,7 @@ struct _CamelGroupwiseStore {
 
 	struct _CamelGroupwiseStoreSummary *summary;
 
+	char *root_container ;
 	CamelGroupwiseStorePrivate *priv;
 	CamelFolder *current_folder ;
 
@@ -70,6 +71,7 @@ char * groupwise_get_name(CamelService *service, gboolean brief) ;
 /*IMplemented*/
 char *container_id_lookup (CamelGroupwiseStorePrivate *priv, const char *folder_name) ;
 EGwConnection *cnc_lookup (CamelGroupwiseStorePrivate *priv) ;
+const char *gw_get_path (CamelGroupwiseStore *gw_store, const char *folder_name) ;
 
 
 #ifdef __cplusplus
