@@ -2723,7 +2723,7 @@ e_book_handle_response (EBookListener *listener, EBookListenerResponse *resp, EB
 			book->priv->connection_idle_id = g_idle_add (e_book_idle_connection, book);
 		}
 		g_mutex_unlock (book->priv->mutex);
-
+		break;
 	default:
 		g_error ("EBook: Unknown response code %d!\n",
 			 resp->op);

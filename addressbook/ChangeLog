@@ -1,3 +1,8 @@
+2004-11-06  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* libebook/e-book.c (e_book_handle_response) : 
+	put a break statment in LinkStateEvent case 
+ 
 2004-10-31  Sivaiah Nallagatla <snalalgatla@novell.com>
 
 	* backends/groupwise/e-book-backend-groupwise.c 
