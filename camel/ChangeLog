@@ -1,3 +1,24 @@
+2000-08-03  Peter Williams  <peterw@helixcode.com>
+
+	* providers/nntp/Makefile.am (INCLUDES): Add -I$(top_srcdir) to
+	pull in libibex/ibex.h
+
+2000-08-02  Dan Winship  <danw@helixcode.com>
+
+	* providers/MH: Kill this. It doesn't have any code to do anything
+	the new mh provider doesn't do better.
+
+	* providers/Makefile.am: Remove reference to MH subdir, and
+	promote nntp to fully-supported status, since it does compile and
+	all.
+
+	* camel-mime-message.c (camel_mime_message_set_subject): Trim
+	trailing space from the subject. I've now seen replies from two
+	different people that tricked the threading code by (a) not having
+	References/In-Reply-To, and (b) adding an extra space to the end
+	of the subject line so the subject-based threading fails too. Who
+	writes these broken mailers anyway?
+
 2000-08-01  Jeffrey Stedfast  <fejj@helixcode.com>
 
 	* providers/smtp/camel-smtp-transport.c (smtp_helo): When forced
