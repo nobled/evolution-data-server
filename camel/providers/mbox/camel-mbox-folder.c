@@ -24,8 +24,7 @@
  * USA
  */
 
-
-#include <config.h> 
+#include <config.h>
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -65,7 +64,7 @@ static void mbox_init (CamelFolder *folder, CamelStore *parent_store,
 static void mbox_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
 static gint mbox_get_message_count (CamelFolder *folder);
 static gint mbox_get_unread_message_count (CamelFolder *folder);
-static void mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, guint32 flags, CamelException *ex);
+static void mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *info, CamelException *ex);
 static GPtrArray *mbox_get_uids (CamelFolder *folder);
 static GPtrArray *mbox_get_subfolder_names (CamelFolder *folder);
 static GPtrArray *mbox_get_summary (CamelFolder *folder);
@@ -76,6 +75,7 @@ static void mbox_expunge (CamelFolder *folder, CamelException *ex);
 static const CamelMessageInfo *mbox_get_message_info (CamelFolder *folder, const char *uid);
 
 static GPtrArray *mbox_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex);
+static void mbox_search_free(CamelFolder * folder, GPtrArray * result);
 
 static guint32 mbox_get_message_flags (CamelFolder *folder, const char *uid);
 static void mbox_set_message_flags (CamelFolder *folder, const char *uid, guint32 flags, guint32 set);
@@ -111,6 +111,7 @@ camel_mbox_folder_class_init (CamelMboxFolderClass *camel_mbox_folder_class)
 	camel_folder_class->get_message = mbox_get_message;
 
 	camel_folder_class->search_by_expression = mbox_search_by_expression;
+	camel_folder_class->search_free = mbox_search_free;
 
 	camel_folder_class->get_message_info = mbox_get_message_info;
 
@@ -285,15 +286,18 @@ mbox_get_unread_message_count (CamelFolder *folder)
 
 /* FIXME: this may need some tweaking for performance? */
 static void
-mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, guint32 flags, CamelException *ex)
+mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, 
+		     const CamelMessageInfo *info, CamelException *ex)
 {
 	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER (folder);
 	CamelStream *output_stream = NULL, *filter_stream = NULL;
 	CamelMimeFilter *filter_from = NULL;
+	CamelMessageInfo *newinfo;
 	struct stat st;
 	off_t seek = -1;
 	char *xev, last;
 	guint32 uid;
+	char *fromline = NULL;
 
 	if (stat (mbox_folder->folder_file_path, &st) != 0)
 		goto fail;
@@ -318,12 +322,17 @@ mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, guint32 fla
 	/* assign a new x-evolution header/uid */
 	camel_medium_remove_header (CAMEL_MEDIUM (message), "X-Evolution");
 	uid = camel_folder_summary_next_uid (CAMEL_FOLDER_SUMMARY (mbox_folder->summary));
-	xev = g_strdup_printf ("%08x-%04x", uid, flags);
+	/* important that the header matches exactly 00000000-0000 */
+	if (info)
+		xev = g_strdup_printf ("%08x-%04x", uid, info->flags & 0xFFFF);
+	else
+		xev = g_strdup_printf ("%08x-%04x", uid, 0);
 	camel_medium_add_header (CAMEL_MEDIUM (message), "X-Evolution", xev);
 	g_free (xev);
 
 	/* we must write this to the non-filtered stream ... */
-	if (camel_stream_write_string (output_stream, "From - \n") == -1)
+	fromline = camel_mbox_summary_build_from (CAMEL_MIME_PART (message)->headers);
+	if (camel_stream_write_string (output_stream, fromline) == -1)
 		goto fail;
 
 	/* and write the content to the filtering stream, that translated '\nFrom' into '\n>From' */
@@ -340,10 +349,32 @@ mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, guint32 fla
 	camel_object_unref (CAMEL_OBJECT (filter_from));
 	camel_object_unref (CAMEL_OBJECT (filter_stream));
 	camel_object_unref (CAMEL_OBJECT (output_stream));
+	g_free (fromline);
 
 	/* force a summary update - will only update from the new position, if it can */
-	if (camel_mbox_summary_update (mbox_folder->summary, seek) == 0)
+	if (camel_mbox_summary_update (mbox_folder->summary, seek) == 0) {
+		char uidstr[16];
+
+		sprintf (uidstr, "%u", uid);
+		newinfo = camel_folder_summary_uid (CAMEL_FOLDER_SUMMARY (mbox_folder->summary), uidstr);
+
+		if (info && newinfo) {
+			CamelFlag *flag = info->user_flags;
+			CamelTag *tag = info->user_tags;
+
+			while (flag) {
+				camel_flag_set (&(newinfo->user_flags), flag->name, TRUE);
+				flag = flag->next;
+			}
+
+			while (tag) {
+				camel_tag_set (&(newinfo->user_tags), tag->name, tag->value);
+				tag = tag->next;
+			}
+		}
 		camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", GINT_TO_POINTER(0));
+	}
+
 	return;
 
 fail:
@@ -365,6 +396,8 @@ fail:
 
 	if (filter_from)
 		camel_object_unref (CAMEL_OBJECT (filter_from));
+	
+	g_free (fromline);
 
 	/* make sure the file isn't munged by us */
 	if (seek != -1) {
@@ -415,7 +448,7 @@ mbox_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	int len;
 
 	/* get the message summary info */
-	info = (CamelMboxMessageInfo *)camel_folder_summary_uid (CAMEL_FOLDER_SUMMARY (mbox_folder->summary), uid);
+	info = (CamelMboxMessageInfo *) camel_folder_summary_uid(CAMEL_FOLDER_SUMMARY(mbox_folder->summary), uid);
 
 	if (info == NULL) {
 		errno = ENOENT;
@@ -509,6 +542,14 @@ mbox_search_by_expression (CamelFolder *folder, const char *expression, CamelExc
 	camel_folder_search_set_body_index (mbox_folder->search, mbox_folder->index);
 
 	return camel_folder_search_execute_expression (mbox_folder->search, expression, ex);
+}
+
+static void
+mbox_search_free(CamelFolder * folder, GPtrArray * result)
+{
+	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER(folder);
+
+	camel_folder_search_free_result(mbox_folder->search, result);
 }
 
 static guint32

@@ -1096,11 +1096,11 @@ retry:
 				 * a single space.
 				 */
 				if (*start == ' ' || *start == '\t') {
-					static char *space = " ";
 					do
 						start++;
 					while (*start == ' ' || *start == '\t');
-					header_append(s, space, space + 1);
+					start--;
+					*start = ' ';
 				}
 			}
 

@@ -329,12 +329,12 @@ summary_rebuild (CamelMboxSummary *mbs, off_t offset)
 }
 
 int
-camel_mbox_summary_update (CamelMboxSummary *mbs, off_t offset)
+camel_mbox_summary_update(CamelMboxSummary *mbs, off_t offset)
 {
 	int ret;
 
 	mbs->index_force = FALSE;
-	ret = summary_rebuild (mbs, offset);
+	ret = summary_rebuild(mbs, offset);
 
 #if 0
 #warning "Saving full summary and index after every summarisation is slow ..."
@@ -349,9 +349,9 @@ camel_mbox_summary_update (CamelMboxSummary *mbs, off_t offset)
 }
 
 int
-camel_mbox_summary_load (CamelMboxSummary *mbs, int forceindex)
+camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex)
 {
-	CamelFolderSummary *s = CAMEL_FOLDER_SUMMARY (mbs);
+	CamelFolderSummary *s = CAMEL_FOLDER_SUMMARY(mbs);
 	struct stat st;
 	int ret = 0;
 	off_t minstart;
@@ -359,15 +359,15 @@ camel_mbox_summary_load (CamelMboxSummary *mbs, int forceindex)
 	mbs->index_force = forceindex;
 
 	/* is the summary out of date? */
-	if (stat (mbs->folder_path, &st) == -1) {
-		camel_folder_summary_clear (s);
-		printf ("Cannot summarise folder: '%s': %s\n", mbs->folder_path, strerror(errno));
+	if (stat(mbs->folder_path, &st) == -1) {
+		camel_folder_summary_clear(s);
+		printf("Cannot summarise folder: '%s': %s\n", mbs->folder_path, strerror(errno));
 		return -1;
 	}
 
-	if (forceindex || camel_folder_summary_load (s) == -1) {
-		camel_folder_summary_clear (s);
-		ret = summary_rebuild (mbs, 0);
+	if (forceindex || camel_folder_summary_load(s) == -1) {
+		camel_folder_summary_clear(s);
+		ret = summary_rebuild(mbs, 0);
 	} else {
 		minstart = st.st_size;
 #if 0
@@ -375,10 +375,11 @@ camel_mbox_summary_load (CamelMboxSummary *mbs, int forceindex)
 		/* TODO: For this to work, it has to check that the message is
 		   indexable, and contains content ... maybe it cannot be done 
 		   properly? */
-		for (i=0;i<camel_folder_summary_count(s);i++) {
+		for (i = 0; i < camel_folder_summary_count(s); i++) {
 			CamelMessageInfo *mi = camel_folder_summary_index(s, i);
+
 			if (!ibex_contains_name(mbs->index, mi->uid)) {
-				minstart = ((CamelMboxMessageInfo *)mi)->frompos;
+				minstart = ((CamelMboxMessageInfo *) mi)->frompos;
 				printf("Found unindexed message: %s\n", mi->uid);
 				break;
 			}
@@ -388,28 +389,28 @@ camel_mbox_summary_load (CamelMboxSummary *mbs, int forceindex)
 		if (st.st_size == mbs->folder_size && st.st_mtime == s->time) {
 			if (minstart < st.st_size) {
 				/* FIXME: Only clear the messages and reindex from this point forward */
-				camel_folder_summary_clear (s);
-				ret = summary_rebuild (mbs, 0);
+				camel_folder_summary_clear(s);
+				ret = summary_rebuild(mbs, 0);
 			}
 		} else {
 			if (mbs->folder_size < st.st_size) {
 				if (minstart < mbs->folder_size) {
 					/* FIXME: only make it rebuild as necessary */
-					camel_folder_summary_clear (s);
-					ret = summary_rebuild (mbs, 0);
+					camel_folder_summary_clear(s);
+					ret = summary_rebuild(mbs, 0);
 				} else {
-					ret = summary_rebuild (mbs, mbs->folder_size);
+					ret = summary_rebuild(mbs, mbs->folder_size);
 					/* If that fails, it might be because a message was changed
 					 * rather than appended... so try again from the beginning.
 					 */
 					if (ret == -1) {
-						camel_folder_summary_clear (s);
-						ret = summary_rebuild (mbs, 0);
+						camel_folder_summary_clear(s);
+						ret = summary_rebuild(mbs, 0);
 					}
 				}
 			} else {
-				camel_folder_summary_clear (s);
-				ret = summary_rebuild (mbs, 0);
+				camel_folder_summary_clear(s);
+				ret = summary_rebuild(mbs, 0);
 			}
 		}
 	}
@@ -417,53 +418,53 @@ camel_mbox_summary_load (CamelMboxSummary *mbs, int forceindex)
 	if (ret != -1) {
 		mbs->folder_size = st.st_size;
 		s->time = st.st_mtime;
-		if (camel_folder_summary_save (s) == -1)
-			g_warning("Could not save summary: %s", strerror (errno));
+		if (camel_folder_summary_save(s) == -1)
+			g_warning("Could not save summary: %s", strerror(errno));
 		if (mbs->index)
-			ibex_save (mbs->index);
+			ibex_save(mbs->index);
 	}
 
 	return ret;
 }
 
 static int
-header_write (int fd, struct _header_raw *header, char *xevline)
+header_write(int fd, struct _header_raw *header, char *xevline)
 {
-        struct iovec iv[4];
-        int outlen = 0, len;
+	struct iovec iv[4];
+	int outlen = 0, len;
 
-        iv[1].iov_base = ":";
-        iv[1].iov_len = 1;
-        iv[3].iov_base = "\n";
-        iv[3].iov_len = 1;
+	iv[1].iov_base = ":";
+	iv[1].iov_len = 1;
+	iv[3].iov_base = "\n";
+	iv[3].iov_len = 1;
 
-        while (header) {
-		if (strcasecmp (header->name, "X-Evolution")) {
+	while (header) {
+		if (strcasecmp(header->name, "X-Evolution")) {
 			iv[0].iov_base = header->name;
 			iv[0].iov_len = strlen(header->name);
 			iv[2].iov_base = header->value;
 			iv[2].iov_len = strlen(header->value);
-		
+
 			do {
 				len = writev(fd, iv, 4);
 			} while (len == -1 && errno == EINTR);
-			
+
 			if (len == -1)
 				return -1;
 			outlen += len;
 		}
-                header = header->next;
-        }
+		header = header->next;
+	}
 
-        iv[0].iov_base = "X-Evolution: ";
-        iv[0].iov_len = strlen (iv[0].iov_base);
-        iv[1].iov_base = xevline;
-        iv[1].iov_len = strlen (xevline);
-        iv[2].iov_base = "\n\n";
-        iv[2].iov_len = 2;
+	iv[0].iov_base = "X-Evolution: ";
+	iv[0].iov_len = strlen(iv[0].iov_base);
+	iv[1].iov_base = xevline;
+	iv[1].iov_len = strlen(xevline);
+	iv[2].iov_base = "\n\n";
+	iv[2].iov_len = 2;
 
 	do {
-		len = writev (fd, iv, 3);
+		len = writev(fd, iv, 3);
 	} while (len == -1 && errno == EINTR);
 
 	if (len == -1)
@@ -471,66 +472,133 @@ header_write (int fd, struct _header_raw *header, char *xevline)
 
 	outlen += 1;
 
-	d(printf ("Wrote %d bytes of headers\n", outlen));
+	d(printf("Wrote %d bytes of headers\n", outlen));
 
-        return outlen;
+	return outlen;
 }
 
 static int
 copy_block(int fromfd, int tofd, off_t start, size_t bytes)
 {
-        char buffer[4096];
-        int written = 0;
+	char buffer[4096];
+	int written = 0;
 
-	d(printf ("writing %d bytes ... ", bytes));
+	d(printf("writing %d bytes ... ", bytes));
 
 	if (lseek(fromfd, start, SEEK_SET) != start)
 		return -1;
 
-        while (bytes > 0) {
-                int toread, towrite;
+	while (bytes > 0) {
+		int toread, towrite;
 
-                toread = bytes;
-                if (bytes > 4096)
-                        toread = 4096;
-                else
-                        toread = bytes;
+		toread = bytes;
+		if (bytes > 4096)
+			toread = 4096;
+		else
+			toread = bytes;
 		do {
-			towrite = read (fromfd, buffer, toread);
+			towrite = read(fromfd, buffer, toread);
 		} while (towrite == -1 && errno == EINTR);
 
 		if (towrite == -1)
 			return -1;
 
-                /* check for 'end of file' */
-                if (towrite == 0) {
-			d(printf ("end of file?\n"));
-                        break;
+		/* check for 'end of file' */
+		if (towrite == 0) {
+			d(printf("end of file?\n"));
+			break;
 		}
 
 		do {
-			toread = write (tofd, buffer, towrite);
+			toread = write(tofd, buffer, towrite);
 		} while (toread == -1 && errno == EINTR);
 
 		if (toread == -1)
 			return -1;
 
-                written += toread;
-                bytes -= toread;
-        }
+		written += toread;
+		bytes -= toread;
+	}
 
-        d(printf ("written %d bytes\n", written));
+	d(printf("written %d bytes\n", written));
 
-        return written;
+	return written;
+}
+
+static char *tz_months[] = {
+	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+static char *tz_days[] = {
+	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+};
+
+/* tries to build a From line, based on message headers */
+char *
+camel_mbox_summary_build_from(struct _header_raw *header)
+{
+	GString *out = g_string_new("From ");
+	char *ret;
+	const char *tmp;
+	time_t thetime;
+	int offset;
+	struct tm tm;
+
+	tmp = header_raw_find(&header, "Sender", NULL);
+	if (tmp == NULL)
+		tmp = header_raw_find(&header, "From", NULL);
+	if (tmp != NULL) {
+		struct _header_address *addr = header_address_decode(tmp);
+
+		tmp = NULL;
+		if (addr) {
+			if (addr->type == HEADER_ADDRESS_NAME) {
+				g_string_append(out, addr->v.addr);
+				tmp = "";
+			}
+			header_address_unref(addr);
+		}
+	}
+	if (tmp == NULL) {
+		g_string_append(out, "unknown@nodomain.now.au");
+	}
+
+	/* try use the received header to get the date */
+	tmp = header_raw_find(&header, "Received", NULL);
+	if (tmp) {
+		tmp = strrchr(tmp, ';');
+		if (tmp)
+			tmp++;
+	}
+
+	/* if there isn't one, try the Date field */
+	if (tmp == NULL)
+		tmp = header_raw_find(&header, "Date", NULL);
+
+	thetime = header_decode_date(tmp, &offset);
+
+	thetime += ((offset / 100) * (60 * 60)) + (offset % 100) * 60;
+
+	/* a pseudo, but still bogus attempt at thread safing the function */
+	memcpy(&tm, gmtime(&thetime), sizeof(tm));
+
+	g_string_sprintfa(out, " %s %s %d %02d:%02d:%02d %4d\n",
+			  tz_days[tm.tm_wday],
+			  tz_months[tm.tm_mon], tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_year + 1900);
+
+	ret = out->str;
+	g_string_free(out, FALSE);
+	return ret;
 }
 
 int
-camel_mbox_summary_sync (CamelMboxSummary *mbs, gboolean expunge, CamelException *ex)
+camel_mbox_summary_sync(CamelMboxSummary *mbs, gboolean expunge, CamelException *ex)
 {
 	CamelMimeParser *mp = NULL;
 	int i, count;
 	CamelMboxMessageInfo *info;
-	CamelFolderSummary *s = CAMEL_FOLDER_SUMMARY (mbs);
+	CamelFolderSummary *s = CAMEL_FOLDER_SUMMARY(mbs);
 	int fd = -1, fdout = -1;
 	off_t offset = 0;
 	char *tmpname = NULL;
@@ -540,6 +608,7 @@ camel_mbox_summary_sync (CamelMboxSummary *mbs, gboolean expunge, CamelException
 	guint32 uid, flags;
 	int quick = TRUE, work = FALSE;
 	struct stat st;
+	char *fromline;
 
 	/* make sure we're in sync */
 	count = camel_folder_summary_count (s);
@@ -673,7 +742,9 @@ camel_mbox_summary_sync (CamelMboxSummary *mbs, gboolean expunge, CamelException
 				}
 			} else {
 				frompos = lseek (fdout, 0, SEEK_CUR);
-				write (fdout, "From -\n", strlen("From -\n"));
+				fromline = camel_mbox_summary_build_from (camel_mime_parser_headers_raw (mp));
+				write (fdout, fromline, strlen(fromline));
+				g_free (fromline);
 				if (header_write (fdout, camel_mime_parser_headers_raw (mp), xevnew) == -1) {
 					d(printf ("Error writing to tmp mailbox\n"));
 					camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
