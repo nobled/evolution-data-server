@@ -724,7 +724,18 @@ e_cal_backend_groupwise_open (ECalBackendSync *backend, EDataCal *cal, gboolean 
 	cbgw->priv->read_only = FALSE;
 
 	if (priv->mode == CAL_MODE_LOCAL) {
+		ESource *source;
+		const char *display_contents = NULL;
+			
 		cbgw->priv->read_only = TRUE;				
+		source = e_cal_backend_get_source (E_CAL_BACKEND (cbgw));
+		display_contents = e_source_get_property (source, "offline_sync");
+		
+		if (!display_contents || !g_str_equal (display_contents, "1")) {
+			e_cal_backend_notify_error (E_CAL_BACKEND (cbgw), _("Repository is Offline"));
+			return GNOME_Evolution_Calendar_RepositoryOffline;
+		}
+
 		if (!priv->cache) {
 			priv->cache = e_cal_backend_cache_new (e_cal_backend_get_uri (E_CAL_BACKEND (cbgw)));
 			if (!priv->cache) {
