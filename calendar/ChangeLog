@@ -1,3 +1,28 @@
+2004-11-03 Chenthill Palanisamy <pchenthill@novell.com>
+	
+	* e_cal_backend_groupwise.c :
+	(in_offline): If calendar is in offline remove the connection
+	and the remove the timeout function if they are active, Mark the 
+	calendar to be read only.
+	(connect_to_server): This will be called through open method when 
+	the calendar changes from offline to online. In that case invoke the 
+	timeout functions.
+	(e_cal_backend_groupwise_finalize): Assign zero to the timeout id.
+	(e_cal_backend_groupwise_open): If the calendar is opened in offline 
+	mode, show the contents from the cache and mark the calendar as offline.
+	(e_cal_backend_groupwise_set_mode): Removed the connect_to_server function
+	call, it should be called through the open method since password is needed to 
+	create a new connection.
+	(e_cal_backend_groupwise_get_freebusy):
+	(e_cal_backend_groupwise_create_object):
+	(e_cal_backend_groupwise_modify_object):
+	(e_cal_backend_groupwise_remove_object):
+	(e_cal_backend_groupwise_receive_objects):
+	(e_cal_backend_groupwise_send_objects): If the Calendar is in Offline mode
+	remove the timeout function and the connection and return an error message.
+	(e_cal_backend_groupwise_init): Initialize the connection to NULL.
+	(get_deltas): IF the calendar is in offline mode, return False.
+	
 2004-10-15  Sivaiah Nallagatla  <snallagatla@novell.com>
 
 	* libedata-cal/e-data-cal-factory.[ch] : new fucntions
