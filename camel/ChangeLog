@@ -1,3 +1,8 @@
+2000-10-30  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-folder.c (camel_folder_change_info_add_update): Fixed the
+	changeset logic, which was completely wrong.
+
 2000-10-27  Not Zed  <NotZed@HelixCode.com>
 
 	* camel-mime-utils.c (quoted_encode_step): Removed is_blank() stuff.

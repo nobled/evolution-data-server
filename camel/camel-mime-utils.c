@@ -390,7 +390,7 @@ base64_encode_step(unsigned char *in, int len, unsigned char *out, int *state, i
 /**
  * base64_decode_step: decode a chunk of base64 encoded data
  * @in: input stream
- * @len: max length of data to decode ( normally strlen(in) ??)
+ * @len: max length of data to decode
  * @out: output stream
  * @state: holds the number of bits that are stored in @save
  * @save: leftover bits that have not yet been decoded

@@ -1174,8 +1174,12 @@ camel_folder_change_info_add_update(CamelFolderChangeInfo *info, const char *uid
 	char *key;
 	int value;
 
-	if (info->uid_source == NULL
-	    || !g_hash_table_lookup_extended(info->uid_source, uid, (void **)&key, (void **)&value)) {
+	if (info->uid_source == NULL) {
+		camel_folder_change_info_add_uid(info, uid);
+		return;
+	}
+
+	if (g_hash_table_lookup_extended(info->uid_source, uid, (void **)&key, (void **)&value)) {
 		g_hash_table_remove(info->uid_source, key);
 		g_free(key);
 	} else {
