@@ -1,3 +1,28 @@
+2004-10-31  Sivaiah Nallagatla <snalalgatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(e_book_backend_groupwise_class_init) : assingn the corresponding
+        function for new _mode virtual method.
+        (e_book_backend_groupwise_set_mode) : new function to set mode
+	(e_book_backend_groupwise_create_contact) 
+	(e_book_backend_groupwise_remove_contacts) 
+	(e_book_backend_groupwise_modify_contact ) : Added online/offline 
+	handling. When offline return repository offline 
+	error and when online do the stuff as usual 
+	(e_book_backend_groupwise_get_contact) : 
+	(e_book_backend_groupwise_get_contact_list) : 
+	(book_view_thread) : Added online /offline handling
+	When offline read the items from cache and do  not try to contact server
+	When offline read from server as usual 
+	(e_book_backend_groupwise_authenticate_user) : Added online/offline
+	handling. When in offline just return success and when online 
+	reeally auth to server
+	(e_book_backend_groupwise_load_source) : Store the original uri 
+	as it is present in incoming ESource in priv struct. We need it for creating 
+	cache file. Create and cache and summary files here
+	(populate_cache) : function to download the items from server 
+	and to populate cache 
+
 2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* backends/file/e-book-backend-file.c  
