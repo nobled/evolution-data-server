@@ -2844,6 +2844,7 @@ process_detached_instances (GList *instances, GList *detached_instances)
 						e_cal_component_set_icalcomponent (
 							comp,
 							icalcomponent_new_clone (e_cal_component_get_icalcomponent (cid->comp)));
+						e_cal_component_set_recurid (comp, &instance_recur_id);
 
 						/* replace the generated instances */
 						g_object_unref (ci->comp);
