@@ -1,3 +1,9 @@
+2004-11-02  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (camel_pstring_strdup)
+	(camel_pstring_free, message_info_free, message_info_clone):
+	'uniquify' the strings.
+
 2004-10-28  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* providers/imap4/camel-imap4-summary.c (envelope_decode_nstring):

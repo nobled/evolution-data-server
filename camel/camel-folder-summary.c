@@ -1799,11 +1799,11 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
 
 	g_free(mi->uid);
-	g_free(mi->subject);
-	g_free(mi->from);
-	g_free(mi->to);
-	g_free(mi->cc);
-	g_free(mi->mlist);
+	camel_pstring_free(mi->subject);
+	camel_pstring_free(mi->from);
+	camel_pstring_free(mi->to);
+	camel_pstring_free(mi->cc);
+	camel_pstring_free(mi->mlist);
 	g_free(mi->references);
 	camel_flag_list_free(&mi->user_flags);
 	camel_tag_list_free(&mi->user_tags);
@@ -2640,11 +2640,11 @@ message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
 
 	/* NB: We don't clone the uid */
 
-	to->subject = g_strdup(from->subject);
-	to->from = g_strdup(from->from);
-	to->to = g_strdup(from->to);
-	to->cc = g_strdup(from->cc);
-	to->mlist = g_strdup(from->mlist);
+	to->subject = camel_pstring_strdup(from->subject);
+	to->from = camel_pstring_strdup(from->from);
+	to->to = camel_pstring_strdup(from->to);
+	to->cc = camel_pstring_strdup(from->cc);
+	to->mlist = camel_pstring_strdup(from->mlist);
 
 	if (from->references) {
 		int len = sizeof(*from->references) + ((from->references->size-1) * sizeof(from->references->references[0]));
@@ -2882,6 +2882,55 @@ gboolean camel_message_info_set_user_tag(CamelMessageInfo *mi, const char *id, c
 		return ((CamelFolderSummaryClass *)((CamelObject *)mi->summary)->klass)->info_set_user_tag(mi, id, val);
 	else
 		return info_set_user_tag(mi, id, val);
+}
+
+static pthread_mutex_t pstring_lock = PTHREAD_MUTEX_INITIALIZER;
+static GHashTable *pstring_table = NULL;
+
+char *camel_pstring_strdup(const char *s)
+{
+	char *p;
+	void *pcount;
+	int count;
+
+	pthread_mutex_lock(&pstring_lock);
+	if (pstring_table == NULL)
+		pstring_table = g_hash_table_new(g_str_hash, g_str_equal);
+
+	if (g_hash_table_lookup_extended(pstring_table, s, (void **)&p, &pcount)) {
+		count = GPOINTER_TO_INT(pcount)+1;
+		g_hash_table_insert(pstring_table, p, GINT_TO_POINTER(count));
+	} else {
+		p = g_strdup(s);
+		g_hash_table_insert(pstring_table, p, GINT_TO_POINTER(1));
+	}
+	pthread_mutex_unlock(&pstring_lock);
+
+	return p;
+}
+
+void camel_pstring_free(const char *s)
+{
+	char *p;
+	void *pcount;
+	int count;
+
+	if (pstring_table == NULL)
+		return;
+
+	pthread_mutex_lock(&pstring_lock);
+	if (g_hash_table_lookup_extended(pstring_table, s, (void **)&p, &pcount)) {
+		count = GPOINTER_TO_INT(pcount)-1;
+		if (count == 0) {
+			g_hash_table_remove(pstring_table, p);
+			g_free(p);
+		} else {
+			g_hash_table_insert(pstring_table, p, GINT_TO_POINTER(count));
+		}
+	} else {
+		g_warning("Trying to free string not allocated from the pool '%s'", s);
+	}
+	pthread_mutex_unlock(&pstring_lock);
 }
 
 void

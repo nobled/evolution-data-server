@@ -388,6 +388,10 @@ gboolean camel_message_info_set_flags(CamelMessageInfo *mi, guint32 mask, guint3
 gboolean camel_message_info_set_user_flag(CamelMessageInfo *mi, const char *id, gboolean state);
 gboolean camel_message_info_set_user_tag(CamelMessageInfo *mi, const char *id, const char *val);
 
+/* experimental */
+char *camel_pstring_strdup(const char *s);
+void camel_pstring_free(const char *s);
+
 /* debugging functions */
 void camel_content_info_dump (CamelMessageContentInfo *ci, int depth);
 
