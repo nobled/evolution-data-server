@@ -1,3 +1,8 @@
+2004-03-09 Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* e-gw-filter[.ch] : new class to handle gw filters used to query item which meet 
+	a set of criteria 
+
 2004-02-20 Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* e-gw-container.[ch] (e_gw_container_get_is_writable)
