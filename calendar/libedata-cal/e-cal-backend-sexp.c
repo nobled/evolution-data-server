@@ -84,6 +84,13 @@ e_cal_backend_sexp_func_make_time (ESExp *esexp, int argc, ESExpResult **argv, v
 		return NULL;
 	}
 	str = argv[0]->value.string;
+	if (!str) {
+		e_sexp_fatal_error (esexp, _("\"%s\" expects the first "
+					     "argument to be an ISO 8601 "
+					     "date/time string"),
+				    "make-time");
+		return NULL;
+	}
 
 	t = time_from_isodate (str);
 	if (t == -1) {

@@ -1,3 +1,10 @@
+2004-04-21  Rodrigo Moya <rodrigo@ximian.com>
+
+	* libecal/e-cal.c (e_cal_generate_instances): check the dates are valid.
+
+	* libedata-cal/e-cal-backend-sexp.c (e_cal_backend_sexp_func_make_time):
+	ditto.
+
 2004-04-20  JP Rosevear  <jpr@ximian.com>
 
 	* libecal/e-cal.c (open_async): emit the open signal in an idle

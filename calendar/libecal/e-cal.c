@@ -2887,7 +2887,15 @@ e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 	g_return_if_fail (cb != NULL);
 
 	iso_start = isodate_from_time_t (start);
-	iso_end   = isodate_from_time_t (end);
+	if (!iso_start)
+		return;
+
+	iso_end = isodate_from_time_t (end);
+	if (!iso_end) {
+		g_free (iso_start);
+		return;
+	}
+
 	/* Generate objects */
 	query = g_strdup_printf ("(occur-in-time-range? (make-time \"%s\") (make-time \"%s\"))",
 				 iso_start, iso_end);
