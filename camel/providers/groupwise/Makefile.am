@@ -35,8 +35,8 @@ libcamelgroupwise_la_SOURCES = 			\
 	camel-groupwise-store-summary.h \
 	camel-groupwise-message-cache.c \
 	camel-groupwise-message-cache.h \
-	sspm.c				\
-	sspm.h
+	camel-groupwise-transport.c	\
+	camel-groupwise-transport.h
 
 libcamelgroupwise_la_LIBADD = $(CAMEL_GROUPWISE_LIBS)
 

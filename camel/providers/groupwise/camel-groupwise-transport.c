@@ -1,5 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
-/* camel-groupwise-transport.h : class for an groupwise transport */
+/* camel-groupwise-transport.c : class for an groupwise transport */
 
 /* 
  * Authors: Sivaiah Nallagatla <snallagatla@novell.com>
@@ -36,19 +36,25 @@ static gboolean groupwise_send_to (CamelTransport *transport,
 				  CamelException *ex);
 
 
+static CamelTransportClass *parent_class = NULL ;
+
+
+
 static void
 camel_groupwise_transport_class_init (CamelGroupwiseTransportClass *camel_groupwise_transport_class)
 {
 	CamelTransportClass *camel_transport_class =
 		CAMEL_TRANSPORT_CLASS (camel_groupwise_transport_class);
-
+	
 	/* virtual method overload */
 	camel_transport_class->send_to = groupwise_send_to;
+
 }
 
 static void
 camel_groupwise_transport_init (CamelTransport *transport)
 {
+	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (transport) ;
 }
 
 CamelType
