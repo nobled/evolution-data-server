@@ -617,7 +617,7 @@ camel_groupwise_folder_class_init (CamelGroupwiseFolderClass *camel_groupwise_fo
 	camel_folder_class->free_summary = groupwise_folder_free_summary ;*/
 	
 	camel_disco_folder_class->refresh_info_online = groupwise_refresh_info;
-	camel_disco_folder_class->sync_online = groupwise_sync_online;
+	//camel_disco_folder_class->sync_online = groupwise_sync_online;
 	camel_disco_folder_class->sync_offline = groupwise_sync_offline;
 	/* We don't sync flags at resync time: the online code will
 	 * deal with it eventually.
