@@ -116,12 +116,6 @@ CamelStream *         camel_stream_b64_new_with_input_stream      (CamelStream *
 void                  camel_stream_b64_set_mode                   (CamelStreamB64 *stream_b64,
 								   CamelStreamB64Mode mode);
 
-/* utility function that writes the whole de/en-coded
-   stream to an output stream */
-void                  camel_stream_b64_write_to_stream            (CamelStreamB64 *stream, 
-								   CamelStream *output_stream);
-
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

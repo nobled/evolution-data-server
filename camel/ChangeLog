@@ -1,5 +1,38 @@
 2000-04-08  NotZed  <NotZed@HelixCode.com>
 
+	* camel-mime-filter-basic.c (filter): Implement the base64
+	encoder.  Problem is, there is no way to know when to close it.
+	Close/Reset will have to provide the same args as filter, so it can
+	flush remaining data *sigh*
+
+	* camel-mime-utils.c (base64_encode_step): A rather complex base64
+	encoder, fast?
+	(base64_step_close): Companion function to finish off the base64
+	sequence.
+
+	* camel-mime-part.c (my_write_content_to_stream): Changed to use
+	camel_stream_write_to_stream().
+
+	* camel-stream.[ch] (camel_stream_write_to_stream): From
+	camel_stream_b64_write_to_stream().  Fixed some infinite loop
+	bugs with error conditions.
+
+	* camel-stream-b64.[ch] (camel_stream_b64_write_to_stream): Removed.
+	This has nothing to do with stream-b64, so i've moved it to
+	CamelStream.
+
+	* camel-mime-utils.h: Add a comment about refcounting
+	header_content_type struct.
+
+	* Makefile.am: Added camel-stream-filter*.[ch].
+
+	* camel-stream-filter.[ch]: Class to implement a generic
+	(multipass) filter ontop of a stream.  Only implements a read-only
+	stream.
+
+	* camel-mime-parser.c (camel_mime_parser_filter_add): Ref the
+	filter we just added.
+
 	* Makefile.am: Added camel-mime-filter*.[ch].
 
 	* camel-mime-filter-charset.[ch]: A filter to preform character set

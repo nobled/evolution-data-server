@@ -35,6 +35,7 @@
 
 #include "camel-mime-utils.h"
 
+#define d(x)
 #define d2(x)
 
 static char *base64_alphabet =
@@ -208,57 +209,111 @@ int main(int argc, char **argv)
 #endif
 
 
-
-#define BUFLEN 57
-
+/* call this when finished encoding everything, to
+   flush off the last little bit */
 int
-base64_encode(unsigned char *in, int len, unsigned char *out)
+base64_encode_close(unsigned char *out, int *state, int *save)
 {
-	unsigned char *realinend = in+len, *inend;
-	int count;
-	register unsigned char *inptr, *outptr, c1, c2, c3;
+	int c1, c2;
+	unsigned char *outptr = out;
+
+	c1 = ((char *)save)[1];
+	c2 = ((char *)save)[2];
+
+	switch (((char *)save)[0]) {
+	case 2:
+		outptr[2] = base64_alphabet [ ( (c2 &0x0f) << 2 ) ];
+		goto skip;
+	case 1:
+		outptr[2] = '=';
+	skip:
+		outptr[0] = base64_alphabet [ c1 >> 2 ];
+		outptr[1] = base64_alphabet [ c2 >> 4 | ( (c1&0x3) << 4 )];
+		outptr[3] = '=';
+		outptr += 4;
+		break;
+	}
+	*outptr++ = '\n';
+	return outptr-out;
+}
+
+/*
+  performs an 'encode step', only encodes blocks of 3 characters to the
+  output at a time, saves left-over state in state and save (initialise to
+  0 on first invocation).
+*/
+int
+base64_encode_step(unsigned char *in, int len, unsigned char *out, int *state, int *save)
+{
+	register unsigned char *inptr, *outptr;
+
+	if (len<=0)
+		return 0;
 
 	inptr = in;
 	outptr = out;
-	/* do it in blocks of 1 line of output */
-	while (in<realinend) {
-		if (len>BUFLEN)
-			count = BUFLEN;
-		else
-			count = len;
-		inptr = in;
-		inend = in+count-2;
 
-		in+=count;
-		len-=count;
+	d(printf("we have %d chars, and %d saved chars\n", len, ((char *)save)[0]));
+
+	if (len + ((char *)save)[0] > 2) {
+		unsigned char *inend = in+len-2;
+		register int c1, c2, c3;
+		register int already;
+
+		already = *state;
+
+		switch (((char *)save)[0]) {
+		case 1:	c1 = ((char *)save)[1];	goto skip1;
+		case 2:	c1 = ((char *)save)[1];
+			c2 = ((char *)save)[2];	goto skip2;
+		}
+		
+		/* yes, we jump into the loop, no i'm not going to change it, its beautiful! */
 		while (inptr < inend) {
 			c1 = *inptr++;
+		skip1:
 			c2 = *inptr++;
+		skip2:
 			c3 = *inptr++;
 			*outptr++ = base64_alphabet [ c1 >> 2 ];
 			*outptr++ = base64_alphabet [ c2 >> 4 | ( (c1&0x3) << 4 ) ];
 			*outptr++ = base64_alphabet [ ( (c2 &0x0f) << 2 ) | (c3 >> 6) ];
 			*outptr++ = base64_alphabet [ c3 & 0x3f ];
+			/* this is a bit ugly ... */
+			if ((++already)>=19) {
+				*outptr++='\n';
+				already = 0;
+			}
 		}
-                switch (inptr-inend) {
-                case 0:
-                        c1 = *inptr++;
-                        c2 = *inptr++;
-                        outptr[2] = base64_alphabet [ ( (c2 &0x0f) << 2 ) ];
-                        goto skip;
-                case 1:
-                        c1 = *inptr++;
-                        c2=0;
-                        outptr[2] = '=';
-                skip:
-                        outptr[0] = base64_alphabet [ c1 >> 2 ];
-                        outptr[1] = base64_alphabet [ c2 >> 4 | ( (c1&0x3) << 4 )];
-                        outptr[3] = '=';
-                        outptr += 4;
-                        break;
-                }
-		*outptr++ = '\n';
+
+		((char *)save)[0] = 0;
+		len = 2-(inptr-inend);
+		*state = already;
 	}
+
+	d(printf("state = %d, len = %d\n",
+		 (int)((char *)save)[0],
+		 len));
+
+	if (len>0) {
+		register char *saveout;
+
+		/* points to the slot for the next char to save */
+		saveout = & (((char *)save)[1]) + ((char *)save)[0];
+
+		/* len can only be 0 1 or 2 */
+		switch(len) {
+		case 2:	*saveout++ = *inptr++;
+		case 1:	*saveout++ = *inptr++;
+		}
+		((char *)save)[0]+=len;
+	}
+
+	d(printf("mode = %d\nc1 = %c\nc2 = %c\n",
+		 (int)((char *)save)[0],
+		 (int)((char *)save)[1],
+		 (int)((char *)save)[2]));
+
 	return outptr-out;
 }
 

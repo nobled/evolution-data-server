@@ -696,7 +696,7 @@ my_write_content_to_stream (CamelMimePart *mime_part, CamelStream *stream)
 		camel_stream_b64_set_mode (stream_b64, CAMEL_STREAM_B64_ENCODER);
 		
 		/*  ... and write it to the output stream in a blocking way */
-		camel_stream_b64_write_to_stream (stream_b64, stream);
+		camel_stream_write_to_stream (stream_b64, stream);
 		
 		/* now free the intermediate b64 stream */
 		gtk_object_unref (GTK_OBJECT (stream_b64));

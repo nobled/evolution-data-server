@@ -80,8 +80,10 @@ filter(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, s
 
 	switch(f->type) {
 	case CAMEL_MIME_FILTER_BASIC_BASE64_ENC:
-		g_warning("base64 encoding not implemented yet");
-		goto donothing;
+		/* wont go to more than 2x size (overly conservative) */
+		camel_mime_filter_set_size(mf, len*2, FALSE);
+		newlen = base64_encode_step(in, len, mf->outbuf, &f->state, &f->save);
+		break;
 	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
 		g_warning("quoted-printable encoding not implemented yet");
 		goto donothing;

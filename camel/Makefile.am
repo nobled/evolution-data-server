@@ -79,6 +79,7 @@ libcamel_la_SOURCES = 				\
 	camel-mime-filter-basic.c		\
 	camel-mime-filter-save.c		\
 	camel-mime-filter-charset.c		\
+	camel-stream-filter.c			\
 	$(pthread_SRC)
 
 libcamelinclude_HEADERS =			\
@@ -130,6 +131,7 @@ libcamelinclude_HEADERS =			\
 	camel-mime-filter-basic.h		\
 	camel-mime-filter-save.h		\
 	camel-mime-filter-charset.h		\
+	camel-stream-filter.h			\
 	$(pthread_HDR)
 
 libcamel_extra_sources =			\
