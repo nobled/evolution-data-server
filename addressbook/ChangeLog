@@ -1,4 +1,9 @@
 2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* libedata-book/Makefile.am : added e-book-backend-cache.c to 
+	SOURCES and e-book-backend-cache.h to HEADERS sections
+	
+2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* libedata-book/e-book-backend-cache.[ch] : A new class 
 	to cache contacts on local file system to use in offline
