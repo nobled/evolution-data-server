@@ -79,7 +79,7 @@ static void make_global_classfuncs( CamelTypeInfo *type_info );
 
 G_LOCK_DEFINE_STATIC (type_system);
 G_LOCK_DEFINE_STATIC (type_system_level);
-static guint32 type_system_locklevel = 0;
+static GPrivate *type_system_locklevel = NULL;
 
 static gboolean type_system_initialized = FALSE;
 static GHashTable *ctype_to_typeinfo = NULL;
@@ -88,14 +88,24 @@ static CamelType cur_max_type = CAMEL_INVALID_TYPE;
 
 /* ************************************************************************ */
 
+#define LOCK_VAL (GPOINTER_TO_INT (g_private_get (type_system_locklevel)))
+#define LOCK_SET( val ) g_private_set (type_system_locklevel, GINT_TO_POINTER (val))
+
 static void camel_type_lock_up (void)
 {
 	G_LOCK (type_system_level);
 
-	if (type_system_locklevel == 0)
-		G_LOCK (type_system);
+	if (type_system_locklevel == NULL)
+		type_system_locklevel = g_private_new (GINT_TO_POINTER (0));
 
-	type_system_locklevel++;
+	if (LOCK_VAL == 0) {
+		G_UNLOCK (type_system_level);
+		G_LOCK (type_system);
+		G_LOCK (type_system_level);
+	}
+
+	LOCK_SET (LOCK_VAL + 1);
+
 	G_UNLOCK (type_system_level);
 }
 
@@ -103,11 +113,16 @@ static void camel_type_lock_down (void)
 {
 	G_LOCK (type_system_level);
 
-	type_system_locklevel--;
+	if (type_system_locklevel == NULL) {
+		g_warning ("camel_type_lock_down: lock down before a lock up?");
+		type_system_locklevel = g_private_new (GINT_TO_POINTER (0));
+		return;
+	}
 
-	if (type_system_locklevel == 0)
+	LOCK_SET (LOCK_VAL - 1);
+
+	if (LOCK_VAL == 0)
 		G_UNLOCK (type_system);
-
 
 	G_UNLOCK (type_system_level);
 }

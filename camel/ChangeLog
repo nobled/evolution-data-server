@@ -1,3 +1,11 @@
+2000-07-19  Peter Williams  <peterw@helixcode.com>
+
+	* camel-object.c (camel_type_lock_up): Correct the recursiveness;
+	the locklevel is stored as a private, so each thread has its own
+	idea of the locklevel. Thus one thread can relock, but a different
+	one will think that it's a level 0 and try to lock the type_system
+	mutex.
+
 2000-07-17  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c (camel_type_lock_up): New function; the
