@@ -32,7 +32,9 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include <glib.h>
+#include <sys/types.h>
 #include <camel/camel-object.h>
+#include <camel/camel-mime-utils.h>
 
 #define CAMEL_DATA_WRAPPER_TYPE     (camel_data_wrapper_get_type ())
 #define CAMEL_DATA_WRAPPER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_DATA_WRAPPER_TYPE, CamelDataWrapper))
@@ -43,11 +45,12 @@ struct _CamelDataWrapper {
 	CamelObject parent_object;
 	struct _CamelDataWrapperPrivate *priv;
 	
+	CamelMimePartEncodingType encoding;
+	
 	CamelContentType *mime_type;
 	CamelStream *stream;
 	
 	unsigned int offline:1;
-	unsigned int rawtext:1;
 };
 
 typedef struct {
@@ -61,7 +64,10 @@ typedef struct {
 	void                (*set_mime_type_field)    (CamelDataWrapper *data_wrapper,
 						       CamelContentType *mime_type_field);
 	
-	int                 (*write_to_stream)        (CamelDataWrapper *data_wrapper,
+	ssize_t             (*write_to_stream)        (CamelDataWrapper *data_wrapper,
+						       CamelStream *stream);
+	
+	ssize_t             (*decode_to_stream)       (CamelDataWrapper *data_wrapper,
 						       CamelStream *stream);
 	
 	int                 (*construct_from_stream)  (CamelDataWrapper *data_wrapper,
@@ -75,8 +81,11 @@ CamelType camel_data_wrapper_get_type (void);
 
 /* public methods */
 CamelDataWrapper *camel_data_wrapper_new(void);
-int               camel_data_wrapper_write_to_stream        (CamelDataWrapper *data_wrapper,
+ssize_t           camel_data_wrapper_write_to_stream        (CamelDataWrapper *data_wrapper,
 							     CamelStream *stream);
+ssize_t           camel_data_wrapper_decode_to_stream       (CamelDataWrapper *data_wrapper,
+							     CamelStream *stream);
+
 void              camel_data_wrapper_set_mime_type          (CamelDataWrapper *data_wrapper,
 							     const char *mime_type);
 char             *camel_data_wrapper_get_mime_type          (CamelDataWrapper *data_wrapper);

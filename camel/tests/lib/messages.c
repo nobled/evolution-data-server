@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "messages.h"
 #include "camel-test.h"
@@ -120,6 +122,34 @@ test_message_read_file(const char *name)
 	return msg2;
 }
 
+static void
+hexdump (const unsigned char *in, int inlen)
+{
+	const unsigned char *inptr = in, *start = inptr;
+	const unsigned char *inend = in + inlen;
+	int octets;
+	
+	while (inptr < inend) {
+		octets = 0;
+		while (inptr < inend && octets < 16) {
+			printf ("%.2X ", *inptr++);
+			octets++;
+		}
+		
+		while (octets < 16) {
+			printf ("   ");
+			octets++;
+		}
+		
+		while (start < inptr) {
+			fputc (isprint ((int) *start) ? *start : '.', stdout);
+			start++;
+		}
+		
+		fputc ('\n', stdout);
+	}
+}
+
 int
 test_message_compare_content(CamelDataWrapper *dw, const char *text, int len)
 {
@@ -131,8 +161,16 @@ test_message_compare_content(CamelDataWrapper *dw, const char *text, int len)
 		return 0;
 
 	content = (CamelStreamMem *)camel_stream_mem_new();
-	camel_data_wrapper_write_to_stream(dw, (CamelStream *)content);
-
+	camel_data_wrapper_decode_to_stream(dw, (CamelStream *)content);
+	
+	if (content->buffer->len != len) {
+		printf ("original text:\n");
+		hexdump (text, len);
+		
+		printf ("new text:\n");
+		hexdump (content->buffer->data, content->buffer->len);
+	}
+	
 	check_msg(content->buffer->len == len, "buffer->len = %d, len = %d", content->buffer->len, len);
 	check_msg(memcmp(content->buffer->data, text, content->buffer->len) == 0, "len = %d", len);
 
