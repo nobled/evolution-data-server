@@ -2768,10 +2768,10 @@ add_instance (ECalComponent *comp, time_t start, time_t end, gpointer data)
 	ci = g_new (struct comp_instance, 1);
 
 	icalcomp = icalcomponent_new_clone (e_cal_component_get_icalcomponent (comp));
+	itt_start = icalcomponent_get_dtstart (icalcomp);
 
 	/* set the RECUR-ID for the instance */
 	if (!(icalcomponent_get_first_property (icalcomp, ICAL_RECURRENCEID_PROPERTY))) {
-		itt_start = icalcomponent_get_dtstart (icalcomp);
 		itt = icaltime_from_timet (start, itt_start.is_date);
 		icalcomponent_set_recurrenceid (icalcomp, itt);
 	}
@@ -2806,7 +2806,7 @@ static GList *
 process_detached_instances (GList *instances, GList *detached_instances)
 {
 	struct comp_instance *ci, *cid;
-	GList *dl, *instances_to_remove = NULL;
+	GList *dl;
 
 	for (dl = detached_instances; dl != NULL; dl = dl->next) {
 		GList *il;
@@ -2836,28 +2836,22 @@ process_detached_instances (GList *instances, GList *detached_instances)
 				} else {
 					cmp = icaltime_compare (*instance_recur_id.datetime.value,
 								*recur_id.datetime.value);
-					switch (recur_id.type) {
-					case E_CAL_COMPONENT_RANGE_THISPRIOR :
-						if (cmp <= 0)
-							instances_to_remove = g_list_prepend (instances_to_remove, ci);
-						break;
-					case E_CAL_COMPONENT_RANGE_THISFUTURE :
-						if (cmp >= 0)
-							instances_to_remove = g_list_prepend (instances_to_remove, ci);
-						break;
+					if ((recur_id.type == E_CAL_COMPONENT_RANGE_THISPRIOR && cmp <= 0) ||
+					    (recur_id.type == E_CAL_COMPONENT_RANGE_THISFUTURE && cmp >= 0)) {
+						ECalComponent *comp;
+
+						comp = e_cal_component_new ();
+						e_cal_component_set_icalcomponent (
+							comp,
+							icalcomponent_new_clone (e_cal_component_get_icalcomponent (cid->comp)));
+
+						/* replace the generated instances */
+						g_object_unref (ci->comp);
+						ci->comp = comp;
 					}
 				}
 			}
 		}
-	}
-
-	/* remove all duplicated instances */
-	for (dl = instances_to_remove; dl; dl = dl->next) {
-		ci = dl->data;
-
-		instances = g_list_remove (instances, ci);
-		g_object_unref (G_OBJECT (ci->comp));
-		g_free (ci);
 	}
 
 	return instances;
