@@ -32,31 +32,76 @@ extern "C" {
 #pragma }
 #endif /* __cplusplus }*/
 
-#include <gtk/gtk.h>
+#include <stdlib.h> /* size_t */
 #include <camel/camel-types.h>
+#include <glib.h>
 
-#define CAMEL_OBJECT_TYPE     (camel_object_get_type ())
-#define CAMEL_OBJECT(obj)     (GTK_CHECK_CAST((obj), CAMEL_OBJECT_TYPE, CamelObject))
-#define CAMEL_OBJECT_CLASS(k) (GTK_CHECK_CLASS_CAST ((k), CAMEL_OBJECT_TYPE, CamelObjectClass))
-#define CAMEL_IS_OBJECT(o)    (GTK_CHECK_TYPE((o), CAMEL_OBJECT_TYPE))
+#ifdef G_DISABLE_CHECKS
+#define CAMEL_CHECK_CAST( obj, ctype, ptype )         ((ptype *) obj)
+#define CAMEL_CHECK_CLASS_CAST( class, ctype, ptype ) ((ptype *) class)
+#define CAMEL_CHECK_TYPE( obj, ctype )                (TRUE)
+#define CAMEL_CHECK_CLASS_TYPE( class, ctype )        (TRUE)
+#else
+#define CAMEL_CHECK_CAST( obj, ctype, ptype )         ((ptype *) camel_object_check_cast( (CamelObject *)(obj), (CamelType)(ctype) ))
+#define CAMEL_CHECK_CLASS_CAST( class, ctype, ptype ) ((ptype *) camel_object_class_check_cast( (CamelObjectClass *)(class), (CamelType)(ctype) ))
+#define CAMEL_CHECK_TYPE( obj, ctype )                (camel_object_is_of_type( (CamelObject *)(obj), (CamelType)(ctype) ))
+#define CAMEL_CHECK_CLASS_TYPE( class, ctype )        (camel_object_class_is_of_type( (CamelObjectClass *)(class), (CamelType)(ctype) ))
+#endif
 
+#define CAMEL_INVALID_TYPE ((CamelType)0)
 
-struct _CamelObject
+#define CAMEL_OBJECT_TYPE        (camel_object_get_type ())
+#define CAMEL_OBJECT(obj)        (CAMEL_CHECK_CAST((obj), CAMEL_OBJECT_TYPE, CamelObject))
+#define CAMEL_OBJECT_CLASS(k)    (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_OBJECT_TYPE, CamelObjectClass))
+#define CAMEL_IS_OBJECT(o)       (CAMEL_CHECK_TYPE((o), CAMEL_OBJECT_TYPE))
+#define CAMEL_IS_OBJECT_CLASS(k) (CAMEL_CHECK_CLASS_TYPE(k), CAMEL_OBJECT_TYPE))
+
+#define CAMEL_OBJECT_GET_CLASS(o) ((CamelObjectClass *)(CAMEL_OBJECT(o))->classfuncs)
+
+typedef guint32 CamelType;
+						       
+typedef struct _CamelObjectShared {
+	guint32 magic;
+	CamelType type;
+} CamelObjectShared;
+
+typedef struct _CamelObject
 {
-	GtkObject parent_object;
+	CamelObjectShared s;
+	guint32 ref_count;
+	gpointer classfuncs;
+} CamelObject;
 
-};
-
-
-typedef struct {
-	GtkObjectClass parent_class;
-
+typedef struct _CamelObjectClass {
+	CamelObjectShared s;
 } CamelObjectClass;
 
+typedef void (*CamelObjectClassInitFunc)( CamelObjectClass * );
+typedef void (*CamelObjectClassFinalizeFunc)( CamelObjectClass * );
+typedef void (*CamelObjectInitFunc)( CamelObject * );
+typedef void (*CamelObjectFinalizeFunc)( CamelObject * );
 
-/* Standard Gtk function */
-GtkType camel_object_get_type (void);
+/* The type system .... it's pretty simple..... */
 
+void              camel_type_init( void );
+CamelType         camel_type_register( CamelType parent, const gchar *name,
+	size_t instance_size, size_t classfuncs_size,
+	CamelObjectClassInitFunc class_init,
+	CamelObjectClassFinalizeFunc class_finalize,
+	CamelObjectInitFunc instance_init,
+	CamelObjectFinalizeFunc instance_finalize );
+CamelObjectClass *camel_type_get_global_classfuncs( CamelType type );
+const gchar      *camel_type_to_name( CamelType type );
+
+CamelType         camel_object_get_type (void);
+CamelObject      *camel_object_new( CamelType type );
+void              camel_object_ref( CamelObject *obj );
+void              camel_object_unref( CamelObject *obj );
+CamelObject      *camel_object_check_cast( CamelObject *obj, CamelType ctype );
+CamelObjectClass *camel_object_class_check_cast( CamelObjectClass *class, CamelType ctype );
+gboolean          camel_object_is_of_type( CamelObject *obj, CamelType ctype );
+gboolean          camel_object_class_is_of_type( CamelObjectClass *class, CamelType ctype );
+gchar            *camel_object_describe( CamelObject *obj );
 
 #ifdef __cplusplus
 }
