@@ -1,3 +1,15 @@
+2001-11-09  Not Zed  <NotZed@Ximian.com>
+
+	* camel-stream.c (camel_stream_printf): If we have fopencookie(),
+	use that and vfprintf() instead of g_strdup_printf(), so we dont
+	need to copy strings around.
+
+2001-11-07  Jeffrey Stedfast  <fejj@ximian.com>
+
+	* camel-pgp-mime.c (camel_pgp_mime_part_decrypt): Add code to
+	kludge around any x-inline-pgp-hacks by prepending some content
+	headers to the decrypted data.
+
 2001-11-02  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* camel-data-wrapper.c (camel_data_wrapper_init): Initialize our

@@ -26,6 +26,13 @@
 #include <config.h>
 #endif
 
+#ifdef HAVE_FOPENCOOKIE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE (1)
+#endif
+#include <stdio.h>
+#endif
+
 #include <string.h>
 #include "camel-stream.h"
 
@@ -201,6 +208,42 @@ camel_stream_write_string (CamelStream *stream, const char *string)
 	return camel_stream_write (stream, string, strlen (string));
 }
 
+/* If we are using GNU libc we can take advantage of a neat stdio function
+   that lets us format strings directly to our stream without having to
+   go through that g_strdup_printf crap first (which is memory heavy) */
+
+#ifdef HAVE_FOPENCOOKIE
+static ssize_t cookie_read(void *cookie, char *buf, size_t len)
+{
+	/* Only using for printf() so we dont need read to work */
+	return -1;
+}
+
+static ssize_t cookie_write(void *cookie, const char *buf, size_t len)
+{
+	CamelStream *stream = cookie;
+
+	return camel_stream_write(stream, buf, len);
+}
+
+static int cookie_seek(void *cookie, off_t pos, int w)
+{
+	/* Only using for printf(), dont let seek work */
+	return -1;
+}
+
+static int cookie_close(void *cookie)
+{
+	/* noop */
+	return 0;
+}
+
+static cookie_io_functions_t cookie_iofunc = {
+	cookie_read, cookie_write, cookie_seek, cookie_close,
+};
+
+#endif /* HAVE_FOPENCOOKIE */
+
 /**
  * camel_stream_printf:
  * @stream: a stream object
@@ -215,19 +258,33 @@ camel_stream_printf (CamelStream *stream, const char *fmt, ... )
 {
 	va_list args;
 	char *string;
-	ssize_t ret;
+	ssize_t ret = -1;
+#ifdef HAVE_FOPENCOOKIE
+	FILE *fp;
+#endif
 
 	g_return_val_if_fail (CAMEL_IS_STREAM (stream), -1);
 
 	va_start (args, fmt);
-	string = g_strdup_vprintf (fmt, args);
-	va_end (args);
 
-	if (!string)
-		return -1;
+#ifdef HAVE_FOPENCOOKIE
+	/* Should we cache this and use this always? */
+	fp = fopencookie(stream, "w", cookie_iofunc);
+	if (fp) {
+		ret = vfprintf(fp, fmt, args);
+		fclose(fp);
+	} else {
+#endif
+		string = g_strdup_vprintf (fmt, args);
+		if (string) {
+			ret = camel_stream_write(stream, string, strlen(string));
+			g_free (string);
+		}
+#ifdef HAVE_FOPENCOOKIE
+	}
+#endif
+	va_end(args);
 
-	ret = camel_stream_write (stream, string, strlen (string));
-	g_free (string);
 	return ret;
 }
 
