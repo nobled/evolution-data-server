@@ -38,7 +38,7 @@ typedef struct _CamelMboxMessageContentInfo {
 } CamelMboxMessageContentInfo;
 
 typedef struct _CamelMboxMessageInfo {
-	CamelMessageInfo info;
+	CamelLocalMessageInfo info;
 
 	off_t frompos;
 } CamelMboxMessageInfo;

@@ -30,9 +30,9 @@
 #include "camel-exception.h"
 #include "camel-vee-folder.h"
 #include "camel-store.h"
-#include "camel-folder-summary.h"
 #include "camel-mime-message.h"
 #include "camel-folder-search.h"
+#include "camel-vee-summary.h"
 
 #include "camel-session.h"
 #include "camel-vee-store.h"	/* for open flags */
@@ -66,9 +66,6 @@ static void vee_transfer_messages_to(CamelFolder *source, GPtrArray *uids, Camel
 static GPtrArray *vee_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex);
 static GPtrArray *vee_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids, CamelException *ex);
 
-static gboolean vee_set_message_flags (CamelFolder *folder, const char *uid, guint32 flags, guint32 set);
-static void vee_set_message_user_flag (CamelFolder *folder, const char *uid, const char *name, gboolean value);
-static void vee_set_message_user_tag(CamelFolder *folder, const char *uid, const char *name, const char *value);
 static void vee_rename(CamelFolder *folder, const char *new);
 
 static void camel_vee_folder_class_init (CamelVeeFolderClass *klass);
@@ -121,10 +118,6 @@ camel_vee_folder_class_init (CamelVeeFolderClass *klass)
 
 	folder_class->search_by_expression = vee_search_by_expression;
 	folder_class->search_by_uids = vee_search_by_uids;
-
-	folder_class->set_message_flags = vee_set_message_flags;
-	folder_class->set_message_user_flag = vee_set_message_user_flag;
-	folder_class->set_message_user_tag = vee_set_message_user_tag;
 
 	folder_class->rename = vee_rename;
 
@@ -215,9 +208,7 @@ camel_vee_folder_construct (CamelVeeFolder *vf, CamelStore *parent_store, const 
 		tmp = vf->vname;
 	camel_folder_construct(folder, parent_store, vf->vname, tmp);
 
-	/* should CamelVeeMessageInfo be subclassable ..? */
-	folder->summary = camel_folder_summary_new();
-	folder->summary->message_info_size = sizeof(CamelVeeMessageInfo);
+	folder->summary = camel_vee_summary_new(folder);
 
 	if (CAMEL_IS_VEE_STORE(parent_store))
 		vf->parent_vee_store = (CamelVeeStore *)parent_store;
@@ -640,7 +631,7 @@ vee_get_message(CamelFolder *folder, const char *uid, CamelException *ex)
 	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
 	if (mi) {
 		msg =  camel_folder_get_message(mi->folder, camel_message_info_uid(mi)+8, ex);
-		camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)mi);
+		camel_message_info_free((CamelMessageInfo *)mi);
 	} else {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
 				     _("No such message %s in %s"), uid,
@@ -765,48 +756,6 @@ vee_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids,
 	return result;
 }
 
-static gboolean
-vee_set_message_flags(CamelFolder *folder, const char *uid, guint32 flags, guint32 set)
-{
-	CamelVeeMessageInfo *mi;
-	int res = FALSE;
-
-	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
-	if (mi) {
-		res = camel_folder_set_message_flags(mi->folder, camel_message_info_uid(mi) + 8, flags, set);
-		camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)mi);
-		res = res || ((CamelFolderClass *)camel_vee_folder_parent)->set_message_flags(folder, uid, flags, set);
-	}
-
-	return res;
-}
-
-static void
-vee_set_message_user_flag(CamelFolder *folder, const char *uid, const char *name, gboolean value)
-{
-	CamelVeeMessageInfo *mi;
-
-	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
-	if (mi) {
-		camel_folder_set_message_user_flag(mi->folder, camel_message_info_uid(mi) + 8, name, value);
-		camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)mi);
-		((CamelFolderClass *)camel_vee_folder_parent)->set_message_user_flag(folder, uid, name, value);
-	}
-}
-
-static void
-vee_set_message_user_tag(CamelFolder *folder, const char *uid, const char *name, const char *value)
-{
-	CamelVeeMessageInfo *mi;
-
-	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
-	if (mi) {
-		camel_folder_set_message_user_tag(mi->folder, camel_message_info_uid(mi) + 8, name, value);
-		camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)mi);
-		((CamelFolderClass *)camel_vee_folder_parent)->set_message_user_tag(folder, uid, name, value);
-	}
-}
-
 static void
 vee_append_message(CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *info, char **appended_uid, CamelException *ex)
 {
@@ -834,46 +783,6 @@ static void vee_rename(CamelFolder *folder, const char *new)
 
 /* must be called with summary_lock held */
 static CamelVeeMessageInfo *
-vee_folder_add_info(CamelVeeFolder *vf, CamelFolder *f, CamelMessageInfo *info, const char hash[8])
-{
-	CamelVeeMessageInfo *mi;
-	char *vuid;
-	const char *uid;
-	CamelFolder *folder = (CamelFolder *)vf;
-	CamelMessageInfo *dinfo;
-
-	uid = camel_message_info_uid(info);
-	vuid = alloca(strlen(uid)+9);
-	memcpy(vuid, hash, 8);
-	strcpy(vuid+8, uid);
-	dinfo = camel_folder_summary_uid(folder->summary, vuid);
-	if (dinfo) {
-		d(printf("w:clash, we already have '%s' in summary\n", vuid));
-		camel_folder_summary_info_free(folder->summary, dinfo);
-		return NULL;
-	}
-
-	d(printf("adding vuid %s to %s\n", vuid, vf->vname));
-
-	mi = (CamelVeeMessageInfo *)camel_folder_summary_info_new(folder->summary);
-	camel_message_info_dup_to(info, (CamelMessageInfo *)mi);
-#ifdef DOEPOOLV
-	mi->info.strings = e_poolv_set(mi->info.strings, CAMEL_MESSAGE_INFO_UID, vuid, FALSE);
-#elif defined (DOESTRV)
-	mi->info.strings = e_strv_set_ref(mi->info.strings, CAMEL_MESSAGE_INFO_UID, vuid);
-	mi->info.strings = e_strv_pack(mi->info.strings);
-#else	
-	g_free(mi->info.uid);
-	mi->info.uid = g_strdup(vuid);
-#endif
-	mi->folder = f;
-	camel_folder_summary_add(folder->summary, (CamelMessageInfo *)mi);
-
-	return mi;
-}
-
-/* must be called with summary_lock held */
-static CamelVeeMessageInfo *
 vee_folder_add_uid(CamelVeeFolder *vf, CamelFolder *f, const char *inuid, const char hash[8])
 {
 	CamelMessageInfo *info;
@@ -881,7 +790,7 @@ vee_folder_add_uid(CamelVeeFolder *vf, CamelFolder *f, const char *inuid, const 
 
 	info = camel_folder_get_message_info(f, inuid);
 	if (info) {
-		mi = vee_folder_add_info(vf, f, info, hash);
+		mi = camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, f, info, hash);
 		camel_folder_free_message_info(f, info);
 	}
 	return mi;
@@ -937,7 +846,7 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source, int killun)
 							start = last = i;
 						}
 					}
-					camel_folder_summary_info_free(((CamelFolder *)folder_unmatched)->summary, (CamelMessageInfo *)mi);
+					camel_message_info_free((CamelMessageInfo *)mi);
 				}
 			}
 			if (last != -1)
@@ -986,7 +895,7 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source, int killun)
 					}
 				}
 			}
-			camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)mi);
+			camel_message_info_free((CamelMessageInfo *)mi);
 		}
 	}
 
@@ -1046,7 +955,7 @@ unmatched_check_uid(char *uidin, void *value, struct _update_data *u)
 		if (mi) {
 			camel_folder_summary_remove(((CamelFolder *)u->folder_unmatched)->summary, (CamelMessageInfo *)mi);
 			camel_folder_change_info_remove_uid(u->folder_unmatched->changes, uid);
-			camel_folder_summary_info_free(((CamelFolder *)u->folder_unmatched)->summary, (CamelMessageInfo *)mi);
+			camel_message_info_free((CamelMessageInfo *)mi);
 		}
 	}
 }
@@ -1160,7 +1069,7 @@ vee_folder_build_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException 
 					g_hash_table_remove(matchhash, uid+8);
 				}
 			}
-			camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)mi);
+			camel_message_info_free((CamelMessageInfo *)mi);
 		}
 	}
 	if (last != -1)
@@ -1188,7 +1097,7 @@ vee_folder_build_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException 
 						g_hash_table_remove(allhash, uid+8);
 					}
 				}
-				camel_folder_summary_info_free(((CamelFolder *)folder_unmatched)->summary, (CamelMessageInfo *)mi);
+				camel_message_info_free((CamelMessageInfo *)mi);
 			}
 		}
 
@@ -1295,7 +1204,7 @@ folder_changed_remove_uid(CamelFolder *sub, const char *uid, const char hash[8],
 	if (vinfo) {
 		camel_folder_change_info_remove_uid(vf->changes, vuid);
 		camel_folder_summary_remove(folder->summary, (CamelMessageInfo *)vinfo);
-		camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)vinfo);
+		camel_message_info_free((CamelMessageInfo *)vinfo);
 	}
 
 	if ((vf->flags & CAMEL_STORE_FOLDER_PRIVATE) == 0 && !CAMEL_IS_VEE_FOLDER(sub) && folder_unmatched != NULL) {
@@ -1350,45 +1259,23 @@ folder_changed_change_uid(CamelFolder *sub, const char *uid, const char hash[8],
 		info = camel_folder_get_message_info(sub, uid);
 		if (info) {
 			if (vinfo) {
-				int changed = FALSE;
-
-				if (vinfo->info.flags != info->flags){
-					vinfo->info.flags = info->flags;
-					changed = TRUE;
-				}
-			
-				changed |= camel_flag_list_copy(&vinfo->info.user_flags, &info->user_flags);
-				changed |= camel_tag_list_copy(&vinfo->info.user_tags, &info->user_tags);
-				if (changed)
-					camel_folder_change_info_change_uid(vf->changes, vuid);
-
-				camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)vinfo);
+				camel_folder_change_info_change_uid(vf->changes, vuid);
+				camel_message_info_free((CamelMessageInfo *)vinfo);
 			}
 
 			if (uinfo) {
-				int changed = FALSE;
-
-				if (uinfo->info.flags != info->flags){
-					uinfo->info.flags = info->flags;
-					changed = TRUE;
-				}
-			
-				changed |= camel_flag_list_copy(&uinfo->info.user_flags, &info->user_flags);
-				changed |= camel_tag_list_copy(&uinfo->info.user_tags, &info->user_tags);
-				if (changed)
-					camel_folder_change_info_change_uid(folder_unmatched->changes, vuid);
-
-				camel_folder_summary_info_free(((CamelFolder *)folder_unmatched)->summary, (CamelMessageInfo *)uinfo);
+				camel_folder_change_info_change_uid(folder_unmatched->changes, vuid);
+				camel_message_info_free((CamelMessageInfo *)uinfo);
 			}
 
 			camel_folder_free_message_info(sub, info);
 		} else {
 			if (vinfo) {
 				folder_changed_remove_uid(sub, uid, hash, FALSE, vf);
-				camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)vinfo);
+				camel_message_info_free((CamelMessageInfo *)vinfo);
 			}
 			if (uinfo)
-				camel_folder_summary_info_free(((CamelFolder *)folder_unmatched)->summary, (CamelMessageInfo *)uinfo);
+				camel_message_info_free((CamelMessageInfo *)uinfo);
 		}
 	}
 }
@@ -1464,7 +1351,7 @@ folder_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 					g_ptr_array_add(newchanged, (char *)uid);
 				} else {
 					g_ptr_array_add(always_changed, (char *)uid);
-					camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)vinfo);
+					camel_message_info_free((CamelMessageInfo *)vinfo);
 				}
 			}
 			changed = newchanged;
@@ -1568,7 +1455,7 @@ folder_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 					dd(printf("  removing uid '%s' [did match]\n", uid));
 					folder_changed_remove_uid(sub, uid, hash, TRUE, vf);
 				}
-				camel_folder_summary_info_free(folder->summary, (CamelMessageInfo *)vinfo);
+				camel_message_info_free((CamelMessageInfo *)vinfo);
 			}
 		}
 		g_hash_table_destroy(matches_hash);
@@ -1709,7 +1596,7 @@ subfolder_renamed_update(CamelVeeFolder *vf, CamelFolder *sub, char hash[8])
 			}
 		}
 
-		camel_folder_summary_info_free(((CamelFolder *)vf)->summary, (CamelMessageInfo *)mi);
+		camel_message_info_free((CamelMessageInfo *)mi);
 	}
 
 	if (camel_folder_change_info_changed(vf->changes)) {

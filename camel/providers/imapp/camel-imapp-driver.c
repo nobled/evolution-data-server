@@ -332,7 +332,7 @@ imapp_write_flags(CamelIMAPPDriver *id, guint32 orset, gboolean on, CamelFolderS
 						ic = camel_imapp_engine_command_new(id->engine, "STORE", NULL, "UID STORE ");
 					flush = imapp_uidset_add(&ss, ic, camel_message_info_uid(info));				
 				}
-				camel_folder_summary_info_free(summary, (CamelMessageInfo *)info);
+				camel_message_info_free((CamelMessageInfo *)info);
 			}
 
 			if (i == count-1 && ic != NULL)
@@ -391,7 +391,7 @@ camel_imapp_driver_sync(CamelIMAPPDriver *id, gboolean expunge, CamelIMAPPFolder
 			off_orset |= ( flags ^ sflags ) & ~flags;
 			on_orset |= (flags ^ sflags) & flags;
 		}
-		camel_folder_summary_info_free(summary, (CamelMessageInfo *)info);
+		camel_message_info_free((CamelMessageInfo *)info);
 	}
 
 	if (on_orset || off_orset) {
@@ -407,7 +407,7 @@ camel_imapp_driver_sync(CamelIMAPPDriver *id, gboolean expunge, CamelIMAPPFolder
 			if (info == NULL)
 				continue;
 			info->server_flags = info->info.flags & CAMEL_IMAPP_SERVER_FLAGS;
-			camel_folder_summary_info_free(summary, (CamelMessageInfo *)info);
+			camel_message_info_free((CamelMessageInfo *)info);
 		}
 		camel_folder_summary_touch(summary);
 		/* could save summary here, incase of failure? */
@@ -656,7 +656,7 @@ driver_resp_expunge(CamelIMAPPEngine *ie, guint32 id, CamelIMAPPDriver *sdata)
 		if (info) {
 			printf("expunging msg %d\n", id);
 			camel_folder_summary_remove(summary, info);
-			camel_folder_summary_info_free(summary, info);
+			camel_message_info_free(info);
 			camel_folder_change_info_remove_uid(sdata->folder->changes, camel_message_info_uid(info));
 		} else {
 			printf("can not find msg %u from expunge\n", id);
@@ -695,7 +695,7 @@ driver_resp_fetch(CamelIMAPPEngine *ie, guint32 id, CamelIMAPPDriver *sdata)
 			/* we have a problem ... index mismatch */
 			printf("index mismatch, uid '%s' not at index '%u'\n",
 			       finfo->uid, id);
-			camel_folder_summary_info_free(summary, uinfo);
+			camel_message_info_free(uinfo);
 		}
 		/* pad out the summary till we have enough indexes */
 		for (i=camel_folder_summary_count(summary);i<id;i++) {
@@ -724,7 +724,7 @@ driver_resp_fetch(CamelIMAPPEngine *ie, guint32 id, CamelIMAPPDriver *sdata)
 
 				camel_folder_change_info_remove_uid(sdata->folder->changes, camel_message_info_uid(info));
 				camel_folder_summary_remove(summary, info);
-				camel_folder_summary_info_free(summary, info);
+				camel_message_info_free(info);
 				info = camel_folder_summary_index(summary, id-1);
 			}
 		} else {
@@ -770,7 +770,7 @@ driver_resp_fetch(CamelIMAPPEngine *ie, guint32 id, CamelIMAPPDriver *sdata)
 			}
 		}
 
-		camel_folder_summary_info_free(summary, info);
+		camel_message_info_free(info);
 	} else {
 		printf("dont know what to do with message\n");
 	}

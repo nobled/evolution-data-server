@@ -432,11 +432,11 @@ imap4_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 			
 			/* weed out flag changes that we can't sync to the server */
 			if (!diff.changed)
-				camel_folder_summary_info_free (folder->summary, info);
+				camel_message_info_free(info);
 			else
 				g_ptr_array_add (sync, info);
 		} else {
-			camel_folder_summary_info_free (folder->summary, info);
+			camel_message_info_free(info);
 		}
 	}
 	
@@ -444,7 +444,7 @@ imap4_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		retval = imap4_sync_changes (folder, sync, ex);
 		
 		for (i = 0; i < sync->len; i++)
-			camel_folder_summary_info_free (folder->summary, sync->pdata[i]);
+			camel_message_info_free(sync->pdata[i]);
 		
 		g_ptr_array_free (sync, TRUE);
 		
@@ -607,7 +607,7 @@ untagged_fetch (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, 
 				camel_object_trigger_event (engine->folder, "folder_changed", changes);
 				camel_folder_change_info_free (changes);
 				
-				camel_folder_summary_info_free (summary, info);
+				camel_message_info_free(info);
 			}
 		} else {
 			/* wtf? */
@@ -981,7 +981,7 @@ imap4_transfer_messages_to (CamelFolder *src, GPtrArray *uids, CamelFolder *dest
  done:
 	
 	for (i = 0; i < infos->len; i++)
-		camel_folder_summary_info_free (src->summary, infos->pdata[i]);
+		camel_message_info_free(infos->pdata[i]);
 	g_ptr_array_free (infos, TRUE);
 	
 	CAMEL_SERVICE_LOCK (src->parent_store, connect_lock);

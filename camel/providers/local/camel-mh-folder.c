@@ -205,7 +205,7 @@ static CamelMimeMessage *mh_get_message(CamelFolder * folder, const gchar * uid,
 	}
 
 	/* we only need it to check the message exists */
-	camel_folder_summary_info_free(folder->summary, info);
+	camel_message_info_free(info);
 
 	name = g_strdup_printf("%s/%s", lf->folder_path, uid);
 	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0)) == NULL) {

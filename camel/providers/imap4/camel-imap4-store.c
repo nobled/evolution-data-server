@@ -1114,7 +1114,7 @@ imap4_build_folder_info (CamelStore *store, const char *top, guint32 flags, GPtr
 					if ((info->flags & CAMEL_MESSAGE_SEEN) == 0)
 						fi->unread++;
 					
-					camel_folder_summary_info_free (folder->summary, info);
+					camel_message_info_free(info);
 				}
 			} else {
 				imap4_status (store, fi);

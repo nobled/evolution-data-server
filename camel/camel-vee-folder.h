@@ -1,8 +1,8 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ * Copyright (C) 2000 Ximian Inc.
  *
- *  Authors: Michael Zucchi <notzed@ximian.com>
+ * Authors: Michael Zucchi <notzed@ximian.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -30,6 +30,7 @@ extern "C" {
 
 #include <glib.h>
 #include <camel/camel-folder.h>
+#include <camel/camel-vee-summary.h>
 
 #define CAMEL_VEE_FOLDER(obj)         CAMEL_CHECK_CAST (obj, camel_vee_folder_get_type (), CamelVeeFolder)
 #define CAMEL_VEE_FOLDER_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_vee_folder_get_type (), CamelVeeFolderClass)
@@ -37,12 +38,6 @@ extern "C" {
 
 typedef struct _CamelVeeFolder      CamelVeeFolder;
 typedef struct _CamelVeeFolderClass CamelVeeFolderClass;
-
-/* our message info includes the parent folder */
-typedef struct _CamelVeeMessageInfo {
-	CamelMessageInfo info;
-	CamelFolder *folder;
-} CamelVeeMessageInfo;
 
 struct _CamelVeeFolder {
 	CamelFolder parent;
@@ -72,7 +67,7 @@ CamelType	      camel_vee_folder_get_type		(void);
 CamelFolder  *camel_vee_folder_new		(CamelStore *parent_store, const char *name, guint32 flags);
 void         camel_vee_folder_construct		(CamelVeeFolder *vf, CamelStore *parent_store, const char *name, guint32 flags);
 
-CamelFolder *camel_vee_folder_get_location(CamelVeeFolder *vf, const CamelVeeMessageInfo *vinfo, char **realuid);
+CamelFolder *camel_vee_folder_get_location(CamelVeeFolder *vf, const struct _CamelVeeMessageInfo *vinfo, char **realuid);
 
 void         camel_vee_folder_add_folder        (CamelVeeFolder *vf, CamelFolder *sub);
 void         camel_vee_folder_remove_folder     (CamelVeeFolder *vf, CamelFolder *sub);

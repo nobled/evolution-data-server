@@ -356,15 +356,17 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 				count = camel_folder_summary_count(folder->summary);
 				for (j=0; j<count; j++) {
 					if ((info = camel_folder_summary_index(folder->summary, j))) {
-						if (!(info->flags & CAMEL_MESSAGE_SEEN))
+						guint32 flags = camel_message_info_flags(info);
+
+						if (!(flags & CAMEL_MESSAGE_SEEN))
 							unread++;
-						if (info->flags & CAMEL_MESSAGE_DELETED)
+						if (flags & CAMEL_MESSAGE_DELETED)
 							deleted++;
-						if (info->flags & CAMEL_MESSAGE_JUNK)
+						if (flags & CAMEL_MESSAGE_JUNK)
 							junked++;
-						if ((info->flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
+						if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
 							visible++;
-						camel_folder_summary_info_free(folder->summary, info);
+						camel_message_info_free(info);
 					}
 				}
 			}
@@ -397,7 +399,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 			for (j=0; j<count; j++) {
 				if ((info = camel_folder_summary_index(folder->summary, j))) {
 					array->pdata[i] = g_strdup(camel_message_info_uid(info));
-					camel_folder_summary_info_free(folder->summary, info);
+					camel_message_info_free(info);
 				}
 			}
 			*arg->ca_ptr = array;
@@ -577,9 +579,11 @@ get_unread_message_count(CamelFolder *folder)
 		CamelMessageInfo *info = camel_folder_summary_index(folder->summary, i);
 
 		if (info) {
-			if (!(info->flags & CAMEL_MESSAGE_SEEN))
+			guint32 flags = camel_message_info_flags(info);
+
+			if (!(flags & CAMEL_MESSAGE_SEEN))
 				unread++;
-			camel_folder_summary_info_free(folder->summary, info);
+			camel_message_info_free(info);
 		}
 	}
 
@@ -615,13 +619,16 @@ get_deleted_message_count (CamelFolder *folder)
 	
 	count = camel_folder_summary_count (folder->summary);
 	for (i = 0; i < count; i++) {
+		guint32 flags;
+
 		if (!(info = camel_folder_summary_index (folder->summary, i)))
 			continue;
-		
-		if ((info->flags & CAMEL_MESSAGE_DELETED))
+
+		flags = camel_message_info_flags(info);
+		if ((flags & CAMEL_MESSAGE_DELETED))
 			deleted++;
 		
-		camel_folder_summary_info_free (folder->summary, info);
+		camel_message_info_free(info);
 	}
 	
 	return deleted;
@@ -720,8 +727,8 @@ get_message_flags(CamelFolder *folder, const char *uid)
 	if (info == NULL)
 		return 0;
 
-	flags = info->flags;
-	camel_folder_summary_info_free(folder->summary, info);
+	flags = camel_message_info_flags(info);
+	camel_message_info_free(info);
 
 	return flags;
 }
@@ -730,6 +737,8 @@ get_message_flags(CamelFolder *folder, const char *uid)
  * camel_folder_get_message_flags:
  * @folder: a CamelFolder
  * @uid: the UID of a message in @folder
+ *
+ * Deprecated: Use camel_folder_get_message_info instead.
  *
  * Return value: the CamelMessageFlags that are set on the indicated
  * message.
@@ -750,8 +759,7 @@ static gboolean
 set_message_flags(CamelFolder *folder, const char *uid, guint32 flags, guint32 set)
 {
 	CamelMessageInfo *info;
-	CamelFolderChangeInfo *changes;
-	guint32 old;
+	int res;
 
 	g_return_val_if_fail(folder->summary != NULL, FALSE);
 
@@ -759,25 +767,10 @@ set_message_flags(CamelFolder *folder, const char *uid, guint32 flags, guint32 s
 	if (info == NULL)
 		return FALSE;
 
-	old = info->flags;
-	info->flags = (old & ~flags) | (set & flags);
-	if (old != info->flags) {
-		info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
-		camel_folder_summary_touch(folder->summary);
-	}
+	res = camel_message_info_set_flags(info, flags, set);
+	camel_message_info_free(info);
 
-	camel_folder_summary_info_free(folder->summary, info);
-
-	/* app or vfolders don't need to be notified of system flag changes */
-	if ((old & ~CAMEL_MESSAGE_SYSTEM_MASK) == (info->flags & ~CAMEL_MESSAGE_SYSTEM_MASK))
-		return FALSE;
-
-	changes = camel_folder_change_info_new();
-	camel_folder_change_info_change_uid(changes, uid);
-	camel_object_trigger_event(folder, "folder_changed", changes);
-	camel_folder_change_info_free(changes);
-
-	return TRUE;
+	return res;
 }
 
 /**
@@ -793,6 +786,9 @@ set_message_flags(CamelFolder *folder, const char *uid, guint32 flags, guint32 s
  *
  * E.g. to set the deleted flag and clear the draft flag, use
  * set_message_flags(folder, uid, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_DRAFT, CAMEL_MESSAGE_DELETED);
+ *
+ * DEPRECATED: Use camel_message_info_set_flags on the message info directly
+ * (when it works)
  *
  * Return Value: TRUE if the flags were changed, false otherwise.
  **/
@@ -821,8 +817,8 @@ get_message_user_flag(CamelFolder *folder, const char *uid, const char *name)
 	if (info == NULL)
 		return FALSE;
 
-	ret = camel_flag_get(&info->user_flags, name);
-	camel_folder_summary_info_free(folder->summary, info);
+	ret = camel_message_info_user_flag(info, name);
+	camel_message_info_free(info);
 
 	return ret;
 }
@@ -833,7 +829,9 @@ get_message_user_flag(CamelFolder *folder, const char *uid, const char *name)
  * @uid: the UID of a message in @folder
  * @name: the name of a user flag
  *
- * Return value: whether or not the given user flag is set on the message.
+ * DEPRECATED: Use camel_message_info_get_user_flag on the message info directly
+ *
+ * * Return value: whether or not the given user flag is set on the message.
  **/
 gboolean
 camel_folder_get_message_user_flag (CamelFolder *folder, const char *uid,
@@ -859,16 +857,8 @@ set_message_user_flag(CamelFolder *folder, const char *uid, const char *name, gb
 	if (info == NULL)
 		return;
 
-	if (camel_flag_set(&info->user_flags, name, value)) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
-
-		info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
-		camel_folder_summary_touch(folder->summary);
-		camel_folder_change_info_change_uid(changes, uid);
-		camel_object_trigger_event (folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
-	}
-	camel_folder_summary_info_free(folder->summary, info);
+	camel_message_info_set_user_flag(info, name, value);
+	camel_message_info_free(info);
 }
 
 /**
@@ -877,6 +867,8 @@ set_message_user_flag(CamelFolder *folder, const char *uid, const char *name, gb
  * @uid: the UID of a message in @folder
  * @name: the name of the user flag to set
  * @value: the value to set it to
+ *
+ * DEPRECATED: Use camel_message_info_set_user_flag on the message info directly (when it works)
  *
  * Sets the user flag specified by @name to the value specified by @value
  * on the indicated message. (This may or may not persist after the
@@ -903,10 +895,8 @@ get_message_user_tag(CamelFolder *folder, const char *uid, const char *name)
 	if (info == NULL)
 		return NULL;
 
-	/* FIXME: Need to duplicate tag string */
-
-	ret = camel_tag_get(&info->user_tags, name);
-	camel_folder_summary_info_free(folder->summary, info);
+	ret = camel_message_info_user_tag(info, name);
+	camel_message_info_free(info);
 
 	return ret;
 }
@@ -916,6 +906,8 @@ get_message_user_tag(CamelFolder *folder, const char *uid, const char *name)
  * @folder: a CamelFolder
  * @uid: the UID of a message in @folder
  * @name: the name of a user tag
+ *
+ * DEPRECATED: Use camel_message_info_get_user_tag on the messageinfo directly.
  *
  * Return value: Returns the value of the user tag.
  **/
@@ -943,16 +935,8 @@ set_message_user_tag(CamelFolder *folder, const char *uid, const char *name, con
 	if (info == NULL)
 		return;
 
-	if (camel_tag_set(&info->user_tags, name, value)) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
-
-		info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
-		camel_folder_summary_touch(folder->summary);
-		camel_folder_change_info_change_uid(changes, uid);
-		camel_object_trigger_event (folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
-	}
-	camel_folder_summary_info_free(folder->summary, info);
+	camel_message_info_set_user_tag(info, name, value);
+	camel_message_info_free(info);
 }
 
 /**
@@ -961,6 +945,8 @@ set_message_user_tag(CamelFolder *folder, const char *uid, const char *name, con
  * @uid: the UID of a message in @folder
  * @name: the name of the user tag to set
  * @value: the value to set it to
+ *
+ * DEPRECATED: Use camel_message_info_set_user_tag on the messageinfo directly (when it works).
  *
  * Sets the user tag specified by @name to the value specified by @value
  * on the indicated message. (This may or may not persist after the
@@ -1011,7 +997,7 @@ free_message_info (CamelFolder *folder, CamelMessageInfo *info)
 {
 	g_return_if_fail(folder->summary != NULL);
 
-	camel_folder_summary_info_free(folder->summary, info);
+	camel_message_info_free(info);
 }
 
 /**
@@ -1035,7 +1021,7 @@ ref_message_info (CamelFolder *folder, CamelMessageInfo *info)
 {
 	g_return_if_fail(folder->summary != NULL);
 
-	camel_folder_summary_info_ref(folder->summary, info);
+	camel_message_info_ref(info);
 }
 
 /**
@@ -1043,6 +1029,8 @@ ref_message_info (CamelFolder *folder, CamelMessageInfo *info)
  * @folder: 
  * @info: 
  * 
+ * DEPRECATED: Use camel_message_info_ref directly.
+ *
  * Ref a CamelMessageInfo, previously obtained with get_message_info().
  **/
 void
@@ -1126,7 +1114,7 @@ get_uids(CamelFolder *folder)
 		
 		if (info) {
 			array->pdata[j++] = g_strdup (camel_message_info_uid (info));
-			camel_folder_summary_info_free(folder->summary, info);
+			camel_message_info_free(info);
 		}
 	}
 	
@@ -1376,15 +1364,13 @@ transfer_message_to (CamelFolder *source, const char *uid, CamelFolder *dest,
 	/* if its deleted we poke the flags, so we need to copy the messageinfo */
 	if ((source->folder_flags & CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY)
 	    && (minfo = camel_folder_get_message_info(source, uid))) {
-		info = camel_message_info_new();
-		camel_message_info_dup_to(minfo, info);
+		info = camel_message_info_clone(minfo);
 		camel_folder_free_message_info(source, minfo);
 	} else
-		info = camel_message_info_new_from_header (((CamelMimePart *)msg)->headers);
+		info = camel_message_info_new_from_header(NULL, ((CamelMimePart *)msg)->headers);
 	
 	/* we don't want to retain the deleted flag */
-	if (info && info->flags & CAMEL_MESSAGE_DELETED)
-		info->flags = info->flags & ~CAMEL_MESSAGE_DELETED;
+	camel_message_info_set_flags(info, CAMEL_MESSAGE_DELETED, 0);
 	
 	camel_folder_append_message (dest, msg, info, transferred_uid, ex);
 	camel_object_unref (msg);

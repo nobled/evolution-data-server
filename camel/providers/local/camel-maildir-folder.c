@@ -251,7 +251,7 @@ static CamelMimeMessage *maildir_get_message(CamelFolder * folder, const gchar *
 	/* what do we do if the message flags (and :info data) changes?  filename mismatch - need to recheck I guess */
 	name = g_strdup_printf("%s/cur/%s", lf->folder_path, camel_maildir_info_filename(mdi));
 
-	camel_folder_summary_info_free(folder->summary, info);
+	camel_message_info_free(info);
 
 	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0)) == NULL) {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,

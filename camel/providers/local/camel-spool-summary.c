@@ -318,10 +318,10 @@ spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, C
 	work = FALSE;
 	count = camel_folder_summary_count(s);
 	for (i=0;!work && i<count; i++) {
-		CamelMessageInfo *info = camel_folder_summary_index(s, i);
+		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
 		g_assert(info);
-		work = (info->flags & (CAMEL_MESSAGE_FOLDER_NOXEV)) != 0;
-		camel_folder_summary_info_free(s, info);
+		work = (info->info.info.flags & (CAMEL_MESSAGE_FOLDER_NOXEV)) != 0;
+		camel_message_info_free((CamelMessageInfo *)info);
 	}
 
 	/* if we do, then write out the headers using sync_full, etc */
