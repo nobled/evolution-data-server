@@ -37,6 +37,8 @@ extern "C" {
 #include <camel/camel-mime-message.h>
 #include <camel/camel-internet-address.h>
 
+#include "camel-groupwise-message-cache.h"
+
 #define CAMEL_GROUPWISE_FOLDER_TYPE     (camel_groupwise_folder_get_type ())
 #define CAMEL_GROUPWISE_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_GROUPWISE_FOLDER_TYPE, CamelGroupwiseFolder))
 #define CAMEL_GROUPWISE_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_GROUPWISE_FOLDER_TYPE, CamelGroupwiseFolderClass))
@@ -50,7 +52,7 @@ struct _CamelGroupwiseFolder {
 	struct _CamelGroupwiseFolderPrivate *priv;
 
 	CamelFolderSearch *search;
-//	CamelGroupwiseMessageCache *cache;
+	CamelGroupwiseMessageCache *cache;
 
 	unsigned int need_rescan:1;
 	unsigned int need_refresh:1;
