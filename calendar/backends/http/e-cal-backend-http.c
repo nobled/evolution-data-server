@@ -436,8 +436,13 @@ e_cal_backend_http_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 	if (!priv->cache) {
 		priv->cache = e_cal_backend_cache_new (e_cal_backend_get_uri (E_CAL_BACKEND (backend)));
 
-		/* FIXME: no need to set it online here when we implement the online/offline stuff correctly */
-		priv->mode = CAL_MODE_REMOTE;
+		if (!priv->cache) {
+			e_cal_backend_notify_error (E_CAL_BACKEND_HTTP (cbhttp), _("Could not create cache file"));
+			return GNOME_Evolution_Calendar_OtherError;	
+		}
+		if (priv->mode == CAL_MODE_LOCAL)
+			return GNOME_Evolution_Calendar_Success;
+
 		g_idle_add ((GSourceFunc) begin_retrieval_cb, cbhttp);
 	}
 
@@ -500,6 +505,13 @@ e_cal_backend_http_set_mode (ECalBackend *backend, CalMode mode)
 	cbhttp = E_CAL_BACKEND_HTTP (backend);
 	priv = cbhttp->priv;
 
+	if (set_mode == CAL_MODE_LOCAL) {
+		if (priv->reload_timeout_id) {
+			g_source_remove (priv->reload_timeout_id);
+			priv->reload_timeout_id = 0;
+		}
+	}
+				
 	switch (mode) {
 		case CAL_MODE_LOCAL:
 		case CAL_MODE_REMOTE:

@@ -1,6 +1,14 @@
 2004-11-03 Chenthill Palanisamy <pchenthill@novell.com>
 	
-	* e_cal_backend_groupwise.c :
+	* backends/http/e-cal-backend-http.c
+	(e_cal_backend_http_open): Do not connect to the url in 
+	offline, read only the contents from the cache.
+	(e_cal_backend_http_set_mode): If the calendar moves from
+	online to offline remove the timeout function.
+	
+2004-11-03 Chenthill Palanisamy <pchenthill@novell.com>
+	
+	* backends/groupwise/e-cal-backend-groupwise.c
 	(in_offline): If calendar is in offline remove the connection
 	and the remove the timeout function if they are active, Mark the 
 	calendar to be read only.
