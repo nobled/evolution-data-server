@@ -1,3 +1,8 @@
+2000-05-07    <notzed@helixcode.com>
+
+	* camel-mime-filter.c (filter_run): Oops, forgot to add the
+	backlen to the pre-buffer (*poof*).
+
 2000-05-07  NotZed  <NotZed@HelixCode.com>
 
 	* camel-mime-message.c (construct_from_parser): Allow
