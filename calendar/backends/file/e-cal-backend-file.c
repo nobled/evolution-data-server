@@ -1845,9 +1845,9 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 					     e_cal_component_get_icalcomponent (comp));
 		priv->comp = g_list_append (priv->comp, comp);
 		obj_data->recurrences_list = g_list_append (obj_data->recurrences_list, comp);
-		e_cal_backend_notify_object_created (
-			E_CAL_BACKEND (backend),
-			icalcomponent_as_ical_string (e_cal_component_get_icalcomponent (comp)));
+/* 		e_cal_backend_notify_object_created ( */
+/* 			E_CAL_BACKEND (backend), */
+/* 			icalcomponent_as_ical_string (e_cal_component_get_icalcomponent (comp))); */
 		break;
 	case CALOBJ_MOD_THISANDPRIOR :
 	case CALOBJ_MOD_THISANDFUTURE :
