@@ -1,3 +1,7 @@
+2004-02-20 Sivaiah Nallagatla <snallagatla@novell.com>
+	
+	* backends/groupwise/create-account.c : new file to create an acoount
+   
 2004-02-20 Sivaiah Nallagatla  <snallagatla@novell.com>
 	
 	* backends/Makefile.am : added groupwise to SUBDIRs
