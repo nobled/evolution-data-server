@@ -57,6 +57,7 @@ extern "C" {
 #define CAMEL_IS_OBJECT_CLASS(k) (CAMEL_CHECK_CLASS_TYPE(k), CAMEL_OBJECT_TYPE))
 
 #define CAMEL_OBJECT_GET_CLASS(o) ((CamelObjectClass *)(CAMEL_OBJECT(o))->classfuncs)
+#define CAMEL_OBJECT_GET_TYPE(o)  ((CamelType)(CAMEL_OBJECT(o))->s.type)
 
 typedef guint32 CamelType;
 						       

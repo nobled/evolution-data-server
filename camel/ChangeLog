@@ -1,3 +1,14 @@
+2000-07-14  Peter Williams  <peterw@helixcode.com>
+
+	* camel-object.c (make_global_classfuncs): Change to return
+	a CamelObjectClass. Change parents to a GSList and free it
+	when done.
+	(camel_object_new): Don't allocate a classfuncs for every object;
+	merely give it a reference to the global_classfuncs. Convert
+	parents to a GSList and free it when done.
+	(camel_object_unref): Don't free the classfuncs. Free the parents
+	list, which is changed to a GSList.
+
 2000-07-13  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c: Rewritten to not be based on GtkObject,
@@ -19,7 +30,7 @@
 	  type declaration.
 	- remove signals.
 	- instead of GTK_OBJECT(so)->klass, CAMEL_OBJECT_GET_CLASS(so)
-	- s,gtk_type_object,camel_type_get_global_classfuncs,g
+	- s,gtk_type_class,camel_type_get_global_classfuncs,g
 	- don't chain finalize handlers; it will be done for you
 	
 2000-07-11  Dan Winship  <danw@helixcode.com>

@@ -50,12 +50,9 @@ typedef struct _CamelTypeInfo {
 	GList *free_instances;
 
 	size_t classfuncs_size;
-	GMemChunk *classfuncs_chunk;
 	CamelObjectClassInitFunc class_init;
 	CamelObjectClassFinalizeFunc class_finalize;
-	GList *free_classfuncs;
-
-	gpointer global_classfuncs;
+	CamelObjectClass *global_classfuncs;
 } CamelTypeInfo;
 
 /* ************************************************************************ */
@@ -66,7 +63,7 @@ static void obj_class_init( CamelObjectClass *class );
 static void obj_class_finalize( CamelObjectClass *class );
 
 static gboolean shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj );
-static gpointer make_global_classfuncs( CamelTypeInfo *type_info );
+static CamelObjectClass *make_global_classfuncs( CamelTypeInfo *type_info );
 
 /* ************************************************************************ */
 
@@ -76,6 +73,8 @@ static gboolean type_system_initialized = FALSE;
 static GHashTable *ctype_to_typeinfo = NULL;
 static const CamelType camel_object_type = 1;
 static CamelType cur_max_type = CAMEL_INVALID_TYPE;
+
+/* ************************************************************************ */
 
 void camel_type_init( void )
 {
@@ -103,11 +102,9 @@ void camel_type_init( void )
 	obj_info->instance_finalize = obj_finalize;
 	obj_info->free_instances = NULL;
 
-	obj_info->classfuncs_size = sizeof( CamelObject );
-	obj_info->classfuncs_chunk = g_mem_chunk_create( CamelObjectClass, DEFAULT_PREALLOCS, G_ALLOC_ONLY );
+	obj_info->classfuncs_size = sizeof( CamelObjectClass );
 	obj_info->class_init = obj_class_init;
 	obj_info->class_finalize = obj_class_finalize;
-	obj_info->free_classfuncs = NULL;
 
 	g_hash_table_insert( ctype_to_typeinfo, GINT_TO_POINTER( CAMEL_INVALID_TYPE ), NULL );
 	g_hash_table_insert( ctype_to_typeinfo, GINT_TO_POINTER( camel_object_type ), obj_info );
@@ -185,14 +182,8 @@ CamelType camel_type_register( CamelType parent, const gchar *name,
 	obj_info->free_instances = NULL;
 
 	obj_info->classfuncs_size = classfuncs_size;
-	chunkname = g_strdup_printf( "chunk for classfuncs of Camel type `%s'", name );
-	obj_info->classfuncs_chunk = g_mem_chunk_new( chunkname, classfuncs_size, 
-						    classfuncs_size * DEFAULT_PREALLOCS,
-						    G_ALLOC_ONLY );
-	g_free( chunkname );
 	obj_info->class_init = class_init;
 	obj_info->class_finalize = class_finalize;
-	obj_info->free_classfuncs = NULL;
 
 	g_hash_table_insert( ctype_to_typeinfo, GINT_TO_POINTER( obj_info->self ), obj_info );
 
@@ -275,9 +266,9 @@ CamelType camel_object_get_type (void)
 CamelObject *camel_object_new( CamelType type )
 {
 	CamelTypeInfo *type_info;
-	GList *parents = NULL;
+	GSList *parents = NULL;
+	GSList *head = NULL;
 	CamelObject *instance;
-	CamelObjectClass *classfuncs;
 
 	g_return_val_if_fail( type != CAMEL_INVALID_TYPE, NULL );
 
@@ -306,24 +297,10 @@ CamelObject *camel_object_new( CamelType type )
 		instance = g_mem_chunk_alloc( type_info->instance_chunk );
 	}
 
-	/* Same with the classfuncs */
-
-	if( type_info->free_classfuncs ) {
-		GList *first;
-
-		first = g_list_first( type_info->free_classfuncs );
-		classfuncs = first->data;
-		type_info->free_classfuncs = g_list_remove_link( type_info->free_classfuncs, first );
-		g_list_free_1( first );
-	} else {
-		classfuncs = g_mem_chunk_alloc( type_info->classfuncs_chunk );
-	}
-
 	/* Init the instance and classfuncs a bit */
 
 	instance->s.type = type;
-	instance->classfuncs = classfuncs;
-	classfuncs->s.type = type;
+	instance->classfuncs = type_info->global_classfuncs;
 
 	/* Loop through the parents in simplest -> most complex order, initing the class and instance.
 	 *
@@ -332,19 +309,21 @@ CamelObject *camel_object_new( CamelType type )
 	 */
 
 	while( type_info ) {
-		parents = g_list_prepend( parents, type_info );
+		parents = g_slist_prepend( parents, type_info );
 		type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( type_info->parent ) );
 	}
+
+	head = parents;
 
 	for( ; parents && parents->data; parents = parents->next ) {
 		CamelTypeInfo *thisinfo;
 
 		thisinfo = parents->data;
-		if( thisinfo->class_init )
-			(thisinfo->class_init)( classfuncs );
 		if( thisinfo->instance_init )
 			(thisinfo->instance_init)( instance );
 	}
+
+	g_slist_free( head );
 
 	G_UNLOCK( type_system );
 	return instance;
@@ -361,8 +340,8 @@ void camel_object_unref( CamelObject *obj )
 {
 	CamelTypeInfo *type_info;
 	CamelTypeInfo *iter;
-	GList *parents = NULL;
-	CamelObjectClass *classfuncs;
+	GSList *parents = NULL;
+	GSList *head = NULL;
 
 	g_return_if_fail( CAMEL_IS_OBJECT( obj ) );
 
@@ -384,10 +363,6 @@ void camel_object_unref( CamelObject *obj )
 		return;
 	}
 
-	/* Save this important information */
-
-	classfuncs = CAMEL_OBJECT_CLASS( obj->classfuncs );
-
 	/* Loop through the parents in most complex -> simplest order, finalizing the class 
 	 * and instance.
 	 *
@@ -400,11 +375,12 @@ void camel_object_unref( CamelObject *obj )
 	iter = type_info;
 
 	while( iter ) {
-		parents = g_list_prepend( parents, iter );
+		parents = g_slist_prepend( parents, iter );
 		iter = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( iter->parent ) );
 	}
 
-	parents = g_list_reverse( parents );
+	parents = g_slist_reverse( parents );
+	head = parents;
 
 	for( ; parents && parents->data; parents = parents->next ) {
 		CamelTypeInfo *thisinfo;
@@ -412,9 +388,9 @@ void camel_object_unref( CamelObject *obj )
 		thisinfo = parents->data;
 		if( thisinfo->instance_finalize )
 			(thisinfo->instance_finalize)( obj );
-		if( thisinfo->class_finalize )
-			(thisinfo->class_finalize)( classfuncs );
 	}
+
+	g_slist_free( head );
 
 	/* A little bit of cleaning up.
 	 *
@@ -424,10 +400,9 @@ void camel_object_unref( CamelObject *obj )
 
 	obj->classfuncs = NULL;
 
-	/* Tuck away the pointers for use in a new object */
+	/* Tuck away the pointer for use in a new object */
 
 	type_info->free_instances = g_list_prepend( type_info->free_instances, obj );
-	type_info->free_classfuncs = g_list_prepend( type_info->free_classfuncs, obj );
 
 	G_UNLOCK( type_system );
 }
@@ -466,8 +441,6 @@ CamelObjectClass *camel_object_class_check_cast( CamelObjectClass *class, CamelT
 
 gchar *camel_object_describe( CamelObject *obj )
 {
-	CamelTypeInfo *type_info;
-
 	if( obj == NULL )
 		return g_strdup( "a NULL pointer" );
 
@@ -598,21 +571,24 @@ shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj )
 	return FALSE;
 }
 
-static gpointer make_global_classfuncs( CamelTypeInfo *type_info )
+static CamelObjectClass *make_global_classfuncs( CamelTypeInfo *type_info )
 {
 	CamelObjectClass *funcs;
-	GList *parents;
+	GSList *parents;
+	GSList *head;
 
 	g_assert( type_info );
 
-	funcs = g_mem_chunk_alloc( type_info->classfuncs_chunk );
+	funcs = g_malloc0( type_info->classfuncs_size );
 	funcs->s.type = type_info->self;
 
 	parents = NULL;
 	while( type_info ) {
-		parents = g_list_prepend( parents, type_info );
+		parents = g_slist_prepend( parents, type_info );
 		type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( type_info->parent ) );
 	}
+
+	head = parents;
 
 	for( ; parents && parents->data ; parents = parents->next ) {
 		CamelTypeInfo *thisinfo;
@@ -622,5 +598,6 @@ static gpointer make_global_classfuncs( CamelTypeInfo *type_info )
 			(thisinfo->class_init)( funcs );
 	}
 
+	g_slist_free( head );
 	return funcs;
 }
