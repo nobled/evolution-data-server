@@ -737,12 +737,11 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 		d(printf ("Trying to insert message with clashing uid (%s).  new uid re-assigned", camel_message_info_uid(info)));
 		g_free(info->uid);
 		uid = info->uid = camel_folder_summary_next_uid_string(s);
+		camel_message_info_set_flags(info, CAMEL_MESSAGE_FOLDER_FLAGGED, CAMEL_MESSAGE_FOLDER_FLAGGED);
 		CAMEL_SUMMARY_LOCK(s, summary_lock);
 	}
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-
-	camel_message_info_set_flags(info, CAMEL_MESSAGE_FOLDER_FLAGGED, CAMEL_MESSAGE_FOLDER_FLAGGED);
 
 	return 1;
 }
@@ -1594,11 +1593,17 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	if (ct)
 		camel_content_type_unref(ct);
 
-	mi->subject = subject;
-	mi->from = from;
-	mi->to = to;
-	mi->cc = cc;
-	mi->mlist = mlist;
+	mi->subject = camel_pstring_strdup(subject);
+	mi->from = camel_pstring_strdup(from);
+	mi->to = camel_pstring_strdup(to);
+	mi->cc = camel_pstring_strdup(cc);
+	mi->mlist = camel_pstring_strdup(mlist);
+
+	g_free(subject);
+	g_free(from);
+	g_free(to);
+	g_free(cc);
+	g_free(mlist);
 
 	mi->user_flags = NULL;
 	mi->user_tags = NULL;
@@ -1677,11 +1682,17 @@ message_info_load(CamelFolderSummary *s, FILE *in)
 	camel_file_util_decode_string(in, &mlist);
 
 	mi->uid = uid;
-	mi->subject = subject;
-	mi->from = from;
-	mi->to = to;
-	mi->cc = cc;
-	mi->mlist = mlist;
+	mi->subject = camel_pstring_strdup(subject);
+	mi->from = camel_pstring_strdup(from);
+	mi->to = camel_pstring_strdup(to);
+	mi->cc = camel_pstring_strdup(cc);
+	mi->mlist = camel_pstring_strdup(mlist);
+
+	g_free(subject);
+	g_free(from);
+	g_free(to);
+	g_free(cc);
+	g_free(mlist);
 
 	mi->content = NULL;
 
@@ -2893,6 +2904,11 @@ char *camel_pstring_strdup(const char *s)
 	void *pcount;
 	int count;
 
+	if (s == NULL)
+		return NULL;
+	if (s[0] == 0)
+		return "";
+
 	pthread_mutex_lock(&pstring_lock);
 	if (pstring_table == NULL)
 		pstring_table = g_hash_table_new(g_str_hash, g_str_equal);
@@ -2916,6 +2932,8 @@ void camel_pstring_free(const char *s)
 	int count;
 
 	if (pstring_table == NULL)
+		return;
+	if (s == NULL || s[0] == 0)
 		return;
 
 	pthread_mutex_lock(&pstring_lock);

@@ -97,14 +97,8 @@ vee_info_set_user_flag(CamelMessageInfo *mi, const char *name, gboolean value)
 {
 	int res = FALSE;
 
-	if (mi->uid
-	    && (res = camel_message_info_set_user_flag(((CamelVeeMessageInfo *)mi)->real, name, value))) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
-
-		camel_folder_change_info_change_uid(changes, camel_message_info_uid(mi));
-		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
-	}
+	if (mi->uid)
+		res = camel_message_info_set_user_flag(((CamelVeeMessageInfo *)mi)->real, name, value);
 
 	return res;
 }
@@ -114,15 +108,8 @@ vee_info_set_user_tag(CamelMessageInfo *mi, const char *name, const char *value)
 {
 	int res = FALSE;
 
-	if (mi->uid
-	    && (res = camel_message_info_set_user_tag(((CamelVeeMessageInfo *)mi)->real, name, value))) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
-
-		camel_folder_summary_touch(mi->summary);
-		camel_folder_change_info_change_uid(changes, camel_message_info_uid(mi));
-		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
-	}
+	if (mi->uid)
+		res = camel_message_info_set_user_tag(((CamelVeeMessageInfo *)mi)->real, name, value);
 
 	return res;
 }
@@ -132,15 +119,8 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 {
 	int res = FALSE;
 
-	if (mi->uid
-	    && (res = camel_message_info_set_flags(((CamelVeeMessageInfo *)mi)->real, flags, set))) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
-
-		camel_folder_summary_touch(mi->summary);
-		camel_folder_change_info_change_uid(changes, camel_message_info_uid(mi));
-		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
-	}
+	if (mi->uid)
+		res = camel_message_info_set_flags(((CamelVeeMessageInfo *)mi)->real, flags, set);
 
 	return res;
 }

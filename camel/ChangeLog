@@ -1,3 +1,17 @@
+2004-11-05  Not Zed  <NotZed@Ximian.com>
+
+	* camel-vee-summary.c (vee_info_set_flags): don't emit changed for
+	ourselves, let it filter through the changed handler, otherwise we
+	do it twice.
+	(vee_info_set_user_tag, vee_info_set_user_flag): same.
+
+	* camel-folder-summary.c (message_info_new_from_header): use the
+	string pool for allocations.
+	(message_info_load): same here.
+	(camel_pstring_strdup): noop for NULL or ""
+	(camel_pstring_free): same.
+	(summary_assign_uid): don't always assing the flagged bit, der.
+
 2004-11-02  Not Zed  <NotZed@Ximian.com>
 
 	* camel-folder-summary.c (camel_pstring_strdup)
