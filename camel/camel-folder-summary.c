@@ -52,7 +52,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* this lock is ONLY for the standalone messageinfo stuff */
 #define GLOBAL_INFO_LOCK(i) pthread_mutex_lock(&info_lock)
-#define GLOBAL_INFO_UNLOCK(i) pthread_mutex_lock(&info_lock)
+#define GLOBAL_INFO_UNLOCK(i) pthread_mutex_unlock(&info_lock)
 #else
 #define GLOBAL_INFO_LOCK(i) 
 #define GLOBAL_INFO_UNLOCK(i) 

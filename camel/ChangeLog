@@ -1,3 +1,8 @@
+2000-12-22  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-folder-summary.c (GLOBAL_INFO_UNLOCK): Doh, cut and paste
+	victim again, call unlock instead of lock!
+
 2000-12-21  Not Zed  <NotZed@HelixCode.com>
 
 	* tests/folder/Makefile.am (TESTS): reenabled the tests here.
