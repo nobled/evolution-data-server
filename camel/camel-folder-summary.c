@@ -269,8 +269,8 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 	for (i=0;i<count;i++) {
 		part = perform_content_info_load(s, in);
 		if (part) {
-			my_list_append((struct _node **)&ci->childs, (struct _node *)ci);
-			ci->parent = ci;
+			my_list_append((struct _node **)&ci->childs, (struct _node *)part);
+			part->parent = ci;
 		} else {
 			g_warning("Summary file format messed up?");
 		}
@@ -287,15 +287,21 @@ camel_folder_summary_load(CamelFolderSummary *s)
 
 	g_assert(s->summary_path);
 
+	printf("loading summary\n");
+
 	in = fopen(s->summary_path, "r");
 	if ( in == NULL ) {
 		return -1;
 	}
 
+	printf("loading header\n");
+
 	if ( ((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->summary_header_load(s, in) == -1) {
 		fclose(in);
 		return -1;
 	}
+
+	printf("loading content\n");
 
 	/* now read in each message ... */
 	/* FIXME: check returns */
@@ -308,10 +314,12 @@ camel_folder_summary_load(CamelFolderSummary *s)
 
 		camel_folder_summary_add(s, mi);
 	}
+	
+	if (fclose(in) == -1)
+		return -1;
 
-	fclose(in);
+	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
-	/* FIXME: check error return */
 	return 0;
 }
 
@@ -342,6 +350,13 @@ camel_folder_summary_save(CamelFolderSummary *s)
 
 	g_assert(s->summary_path);
 
+	printf("saving summary?\n");
+
+	if ((s->flags & CAMEL_SUMMARY_DIRTY) == 0) {
+		printf("nup\n");
+		return 0;
+	}
+
 	fd = open(s->summary_path, O_RDWR|O_CREAT, 0600);
 	if (fd == -1)
 		return -1;
@@ -350,6 +365,8 @@ camel_folder_summary_save(CamelFolderSummary *s)
 		close(fd);
 		return -1;
 	}
+
+	printf("saving header\n");
 
 	if ( ((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->summary_header_save(s, out) == -1) {
 		fclose(out);
@@ -367,7 +384,11 @@ camel_folder_summary_save(CamelFolderSummary *s)
 			perform_content_info_save(s, out, mi->content);
 		}
 	}
-	return fclose(out);
+	if (fclose(out) == -1)
+		return -1;
+
+	s->flags &= ~CAMEL_SUMMARY_DIRTY;
+	return 0;
 }
 
 void camel_folder_summary_add(CamelFolderSummary *s, CamelMessageInfo *info)
@@ -459,15 +480,23 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 {
 	int i;
 
+	if (camel_folder_summary_count(s) == 0)
+		return;
+
 	for (i=0;i<camel_folder_summary_count(s);i++) {
-		CamelMessageInfo *mi;
+		CamelMessageInfo *mi = camel_folder_summary_index(s, i);
 		CamelMessageContentInfo *ci = mi->content;
-		mi = camel_folder_summary_index(s, i);
+
 		((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->message_info_free(s, mi);		
 		if (s->build_content && ci) {
 			perform_content_info_free(s, ci);
 		}
 	}
+
+	g_ptr_array_set_size(s->messages, 0);
+	g_hash_table_destroy(s->messages_uid);
+	s->messages_uid = g_hash_table_new(g_str_hash, g_str_equal);
+	s->flags |= CAMEL_SUMMARY_DIRTY;
 }
 
 int
@@ -798,6 +827,7 @@ summary_header_save(CamelFolderSummary *s, FILE *out)
 	camel_folder_summary_encode_fixed_int32(out, s->flags);
 	camel_folder_summary_encode_fixed_int32(out, s->nextuid);
 	camel_folder_summary_encode_fixed_int32(out, s->time);
+	printf("saving time = %d\n", s->time);
 	return camel_folder_summary_encode_fixed_int32(out, camel_folder_summary_count(s));
 }
 

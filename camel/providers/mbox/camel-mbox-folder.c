@@ -207,27 +207,33 @@ static void
 mbox_open (CamelFolder *folder, CamelFolderOpenMode mode, CamelException *ex)
 {
 	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER (folder);
+	int forceindex;
+	struct stat st;
 
 	/* call parent class */
 	parent_class->open (folder, mode, ex);
 	if (camel_exception_get_id(ex))
 		return;
 
+	/* if we have no index file, force it */
+	forceindex = stat(mbox_folder->index_file_path, &st) == -1;
+
 	mbox_folder->index = ibex_open(mbox_folder->index_file_path, O_CREAT|O_RDWR, 0600);
 	if (mbox_folder->index == NULL) {
-		g_warning("Could not open/create index file: %s: indexing will not function",
+		/* yes, this isn't fatal at all */
+		g_warning("Could not open/create index file: %s: indexing not performed",
 			  strerror(errno));
 	}
 
+	/* no summary (disk or memory), and we're proverbially screwed */
 	mbox_folder->summary = camel_mbox_summary_new(mbox_folder->summary_file_path, mbox_folder->folder_file_path, mbox_folder->index);
-	if (mbox_folder->summary == NULL) {
+	if (mbox_folder->summary == NULL
+	    || camel_mbox_summary_load(mbox_folder->summary, forceindex) == -1) {
 		camel_exception_set (ex, 
 				     CAMEL_EXCEPTION_FOLDER_INVALID, /* FIXME: right error code */
 				     "Could not create summary");
 		return;
 	}
-	/* we need to use mbox summary load as it handles rebuilding the summary */
-	camel_mbox_summary_load(mbox_folder->summary);
 }
 
 static void

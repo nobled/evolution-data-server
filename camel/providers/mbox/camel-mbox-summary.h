@@ -63,6 +63,6 @@ guint		camel_mbox_summary_get_type	(void);
 CamelMboxSummary      *camel_mbox_summary_new	(const char *filename, const char *mbox_name, ibex *index);
 
 /* load/check the summary */
-int camel_mbox_summary_load(CamelMboxSummary *mbs);
+int camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex);
 
 #endif /* ! _CAMEL_MBOX_SUMMARY_H */

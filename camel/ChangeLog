@@ -1,3 +1,25 @@
+2000-05-07  NotZed  <NotZed@HelixCode.com>
+
+	* camel-mime-message.c (construct_from_parser): Allow
+	HSCAN_FROM_END to terminate the processing of a message.
+
+	* camel-folder-summary.c (perform_content_info_load): Ick, dont
+	try and append a node onto its own list.
+	(camel_folder_summary_clear): Actually clear the indexes after
+	we've removed the messages.
+	(camel_folder_summary_clear): Set dirty if it changes.
+	(camel_folder_summary_load): Clear dirty.
+	(camel_folder_summary_save): Only save if dirty.
+
+	* providers/mbox/camel-mbox-summary.c (summary_header_load): Oops,
+	remember to call that parent class first ...
+	(summary_header_save): Here too.
+	(camel_mbox_summary_load): Do more checking to verify the index
+	contents as well as teh summary contents, against the mbox
+	contents.
+	(camel_mbox_summary_load): Removed some fo that checking, it needs
+	more code to work reliably.
+
 2000-05-07    <notzed@helixcode.com>
 
 	* providers/mbox/camel-mbox-summary.c (camel_mbox_summary_load):

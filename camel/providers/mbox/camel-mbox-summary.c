@@ -149,12 +149,18 @@ static int summary_header_load(CamelFolderSummary *s, FILE *in)
 {
 	CamelMboxSummary *mbs = (CamelMboxSummary *)s;
 
+	if (((CamelFolderSummaryClass *)camel_mbox_summary_parent)->summary_header_load(s, in) == -1)
+		return -1;
+
 	return camel_folder_summary_decode_uint32(in, &mbs->folder_size);
 }
 
 static int summary_header_save(CamelFolderSummary *s, FILE *out)
 {
 	CamelMboxSummary *mbs = (CamelMboxSummary *)s;
+
+	if (((CamelFolderSummaryClass *)camel_mbox_summary_parent)->summary_header_save(s, out) == -1)
+		return -1;
 
 	return camel_folder_summary_encode_uint32(out, mbs->folder_size);
 }
@@ -216,10 +222,11 @@ static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *s, Ca
 		/* do we want to index this message as we add it, as well? */
 		if (mbs->index_force
 		    || (mi->flags & CAMEL_MESSAGE_FOLDER_FLAGGED) != 0
-		    || !ibex_contains_name(mbs->index, mi->uid))
+		    || !ibex_contains_name(mbs->index, mi->uid)) {
 			camel_folder_summary_set_index(s, mbs->index);
-		else
+		} else {
 			camel_folder_summary_set_index(s, NULL);
+		}
 	}
 	return mi;
 }
@@ -257,7 +264,7 @@ summary_rebuild(CamelMboxSummary *mbs, off_t offset)
 	int fd;
 	int ok = 0;
 
-	printf("(re)Building summary from %d\n", (int)offset);
+	printf("(re)Building summary from %d (%s)\n", (int)offset, mbs->folder_name);
 
 	fd = open(mbs->folder_name, O_RDONLY);
 	mp = camel_mime_parser_new();
@@ -301,16 +308,15 @@ summary_rebuild(CamelMboxSummary *mbs, off_t offset)
 }
 
 int
-camel_mbox_summary_load(CamelMboxSummary *mbs)
+camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
 	struct stat st;
 	int ret = 0;
+	off_t minstart;
+	int i;
 
-	if (camel_folder_summary_load(s) == -1) {
-		printf("No summary\n");
-		return summary_rebuild(mbs, 0);
-	}
+	mbs->index_force = forceindex;
 
 	/* is the summary out of date? */
 	if (stat(mbs->folder_name, &st) == -1) {
@@ -319,31 +325,58 @@ camel_mbox_summary_load(CamelMboxSummary *mbs)
 		return -1;
 	}
 
-	g_assert(sizeof(size_t) == sizeof(int));
-
-	printf("mbox size = %d, summary size = %d\n", st.st_size, mbs->folder_size);
-	printf("mbox date = %d, summary date = %d\n", st.st_mtime, s->time);
-
-	if (st.st_size != mbs->folder_size || st.st_mtime != s->time) {
-		if (mbs->folder_size < st.st_size) {
-			printf("Summary for smaller mbox\n");
-			ret = summary_rebuild(mbs, mbs->folder_size);
-		} else {
-			camel_folder_summary_clear(s);
-			printf("Summary for bigger mbox\n");
-			ret = summary_rebuild(mbs, 0);
+	if (forceindex || camel_folder_summary_load(s) == -1) {
+		ret = summary_rebuild(mbs, 0);
+	} else {
+		minstart = st.st_size;
+#if 0
+		/* find out the first unindexed message ... */
+		/* TODO: For this to work, it has to check that the message is
+		   indexable, and contains content ... maybe it cannot be done 
+		   properly? */
+		for (i=0;i<camel_folder_summary_count(s);i++) {
+			CamelMessageInfo *mi = camel_folder_summary_index(s, i);
+			if (!ibex_contains_name(mbs->index, mi->uid)) {
+				minstart = ((CamelMboxMessageInfo *)mi)->frompos;
+				printf("Found unindexed message: %s\n", mi->uid);
+				break;
+			}
 		}
-
-		printf("return = %d\n", ret);
-
-		if (ret != -1) {
-			mbs->folder_size = st.st_size;
-			s->time = st.st_mtime;
-			camel_folder_summary_save(s);
+#endif
+		/* is the summary uptodate? */
+		if (st.st_size == mbs->folder_size && st.st_mtime == s->time) {
+			printf("Summary time and date match mbox\n");
+			if (minstart < st.st_size) {
+				/* FIXME: Only clear the messages and reindex from this point forward */
+				camel_folder_summary_clear(s);
+				ret = summary_rebuild(mbs, 0);
+			}
+		} else {
+			if (mbs->folder_size < st.st_size) {
+				printf("Index is for a smaller mbox\n");
+				if (minstart < mbs->folder_size) {
+					/* FIXME: only make it rebuild as necessary */
+					camel_folder_summary_clear(s);
+					ret = summary_rebuild(mbs, 0);
+				} else {
+					ret = summary_rebuild(mbs, mbs->folder_size);
+				}
+			} else {
+				printf("index is for a bigger mbox\n");
+				camel_folder_summary_clear(s);
+				ret = summary_rebuild(mbs, 0);
+			}
 		}
 	}
 
-	/* presumably the summary is ok - message extraction will
-	   check this again anyway */
-	return 0;
+	if (ret != -1) {
+		mbs->folder_size = st.st_size;
+		s->time = st.st_mtime;
+		if (camel_folder_summary_save(s) == -1)
+			g_warning("Could not save summary: %s", strerror(errno));
+		if (mbs->index)
+			ibex_write(mbs->index);
+	}
+
+	return ret;
 }
