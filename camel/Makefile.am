@@ -16,6 +16,7 @@ INCLUDES = -I.. -I$(srcdir)/.. -I$(includedir)	\
 
 libcamel_la_SOURCES = 				\
 	camel.c					\
+	camel-async-handle.c			\
 	camel-data-wrapper.c			\
 	camel-exception.c			\
 	camel-folder.c				\
@@ -61,6 +62,7 @@ libcamel_la_SOURCES = 				\
 
 libcamelinclude_HEADERS =			\
 	camel.h					\
+	camel-async-handle.h			\
 	camel-data-wrapper.h			\
 	camel-exception.h			\
 	camel-folder.h				\
