@@ -48,7 +48,6 @@ typedef struct {
 	GList *list;
 	gboolean bool;
 	char *string;
-	icalcomponent *icalcomp;
 
 	ECalView *query;
 	ECalViewListener *listener;
@@ -642,10 +641,7 @@ cal_objects_sent_cb (ECalListener *listener, ECalendarStatus status, GList *user
 
 	op->status = status;
 	op->list = g_list_copy (users);
-	if (modified_icalcomp)
-		op->icalcomp = icalcomponent_new_clone (modified_icalcomp);
-	else
-		op->icalcomp = NULL;
+	op->string = g_strdup (object);
 
 	g_cond_signal (op->cond);
 
