@@ -1526,7 +1526,7 @@ receive_object (ECalBackendGroupwise *cbgw, EDataCal *cal, icalcomponent *icalco
 			g_free (comp);
 		}
 		else {
-			char *cache_comp = NULL, *temp;
+			char *cache_comp = NULL, *temp, *new_comp = NULL;
 			ECalComponent *cache_component;
 			
 			e_cal_component_commit_sequence (modif_comp);

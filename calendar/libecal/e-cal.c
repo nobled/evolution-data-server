@@ -1557,6 +1557,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 		e_calendar_remove_op (ecal, our_op);
 		g_mutex_unlock (our_op->mutex);
 		e_calendar_free_op (our_op);
+		g_mutex_unlock (ecal->priv->mutex);
 		
 		CORBA_exception_free (&ev);
 
@@ -2586,7 +2587,6 @@ e_cal_get_objects_for_uid (ECal *ecal, const char *uid, GList **objects, GError 
 					comp = e_cal_component_new ();
 					e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (subcomp));
 					*objects = g_list_append (*objects, comp);
-
 					subcomp = icalcomponent_get_next_component (icalcomp, kind_to_find);
 				}
 			}
@@ -3032,7 +3032,7 @@ static void
 generate_instances (ECal *ecal, time_t start, time_t end, const char *uid,
 		    ECalRecurInstanceFn cb, gpointer cb_data)
 {
-	GList *objects;
+	GList *objects = NULL;
 	GList *instances, *detached_instances = NULL;
 	GList *l;
 	char *query;

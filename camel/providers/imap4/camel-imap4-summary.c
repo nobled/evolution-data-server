@@ -44,6 +44,7 @@
 #include "camel-imap4-folder.h"
 #include "camel-imap4-stream.h"
 #include "camel-imap4-command.h"
+#include "camel-imap4-journal.h"
 #include "camel-imap4-utils.h"
 
 #include "camel-imap4-summary.h"
@@ -447,13 +448,13 @@ decode_envelope (CamelIMAP4Engine *engine, CamelMessageInfo *info, camel_imap4_t
 	/* subject */
 	if (envelope_decode_nstring (engine, &nstring, TRUE, ex) == -1)
 		goto exception;
-	iinfo->info.subject = camel_pstring_strdup(nstring);
+	iinfo->info.subject = camel_pstring_strdup (nstring);
 	g_free(nstring);
 	
 	/* from */
 	if (envelope_decode_addresses (engine, &nstring, ex) == -1)
 		goto exception;
-	iinfo->info.from = camel_pstring_strdup(nstring);
+	iinfo->info.from = camel_pstring_strdup (nstring);
 	g_free(nstring);
 	
 	/* sender */
@@ -469,13 +470,13 @@ decode_envelope (CamelIMAP4Engine *engine, CamelMessageInfo *info, camel_imap4_t
 	/* to */
 	if (envelope_decode_addresses (engine, &nstring, ex) == -1)
 		goto exception;
-	iinfo->info.to = camel_pstring_strdup(nstring);
+	iinfo->info.to = camel_pstring_strdup (nstring);
 	g_free(nstring);
 	
 	/* cc */
 	if (envelope_decode_addresses (engine, &nstring, ex) == -1)
 		goto exception;
-	iinfo->info.cc = camel_pstring_strdup(nstring);
+	iinfo->info.cc = camel_pstring_strdup (nstring);
 	g_free(nstring);
 	
 	/* bcc */
@@ -1251,6 +1252,9 @@ camel_imap4_summary_flush_updates (CamelFolderSummary *summary, CamelException *
 	int scount, id;
 	
 	g_return_val_if_fail (CAMEL_IS_IMAP4_SUMMARY (summary), -1);
+	
+	/* FIXME: what do we do if replaying the journal fails? */
+	camel_imap4_journal_replay (((CamelIMAP4Folder *) summary->folder)->journal, NULL);
 	
 	engine = ((CamelIMAP4Store *) summary->folder->parent_store)->engine;
 	scount = camel_folder_summary_count (summary);
