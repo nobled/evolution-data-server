@@ -1,3 +1,19 @@
+2004-04-21  Not Zed  <NotZed@Ximian.com>
+
+	* providers/nntp/camel-nntp-folder.c (camel_nntp_folder_new): set
+	the meta data file on nntp folders.
+
+	* camel-disco-folder.c (disco_refresh_info_online): implement
+	dummy virtual method.
+
+	* providers/nntp/camel-nntp-folder.c
+	(nntp_folder_refresh_info_online): implement.  Fixes #57280.
+
+2004-04-19  Jeffrey Stedfast  <fejj@ximian.com>
+
+	* providers/imap4/camel-imap4-folder.c (untagged_fetch): Fixed to
+	not expect ]'s as part of the BODY atom token.
+
 2004-04-16  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* camel-vee-store.c (change_folder): (flags & 0) will never be

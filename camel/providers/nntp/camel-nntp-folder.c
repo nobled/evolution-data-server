@@ -66,6 +66,34 @@ static CamelDiscoFolderClass *parent_class = NULL;
 #define CNNTPS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 static void
+nntp_folder_refresh_info_online (CamelFolder *folder, CamelException *ex)
+{
+	CamelNNTPStore *nntp_store;
+	CamelFolderChangeInfo *changes = NULL;
+	CamelNNTPFolder *nntp_folder;
+	
+	nntp_store = (CamelNNTPStore *) folder->parent_store;
+	nntp_folder = (CamelNNTPFolder *) folder;
+	
+	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
+	
+	if (camel_nntp_summary_check ((CamelNNTPSummary *) folder->summary, nntp_folder->changes, ex) != -1)
+		camel_folder_summary_save (folder->summary);
+	
+	if (camel_folder_change_info_changed(nntp_folder->changes)) {
+		changes = nntp_folder->changes;
+		nntp_folder->changes = camel_folder_change_info_new();
+	}
+	
+	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
+	
+	if (changes) {
+		camel_object_trigger_event ((CamelObject *) folder, "folder_changed", changes);
+		camel_folder_change_info_free (changes);
+	}
+}
+
+static void
 nntp_folder_sync_online (CamelFolder *folder, CamelException *ex)
 {
 	CamelNNTPStore *nntp_store;
@@ -505,6 +533,7 @@ nntp_folder_class_init (CamelNNTPFolderClass *camel_nntp_folder_class)
 	camel_disco_folder_class->transfer_online = nntp_folder_transfer_message;
 	camel_disco_folder_class->transfer_resyncing = nntp_folder_transfer_message;
 	camel_disco_folder_class->transfer_offline = nntp_folder_transfer_message;
+	camel_disco_folder_class->refresh_info_online = nntp_folder_refresh_info_online;
 	
 	camel_folder_class->set_message_flags = nntp_folder_set_message_flags;
 	camel_folder_class->get_message = nntp_folder_get_message;
@@ -602,6 +631,11 @@ camel_nntp_folder_new (CamelStore *parent, const char *folder_name, CamelExcepti
 	nntp_folder->storage_path = g_build_filename (root, folder->full_name, NULL);
 	g_free (root);
 	
+	root = g_strdup_printf ("%s.cmeta", nntp_folder->storage_path);
+	camel_object_set(nntp_folder, NULL, CAMEL_OBJECT_STATE_FILE, root, NULL);
+	camel_object_state_read(nntp_folder);
+	g_free(root);
+
 	folder->summary = (CamelFolderSummary *) camel_nntp_summary_new (nntp_folder);
 	camel_folder_summary_load (folder->summary);
 	
