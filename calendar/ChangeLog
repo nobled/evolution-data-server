@@ -1,3 +1,9 @@
+2004-04-12  Rodrigo Moya <rodrigo@ximian.com>
+
+	* backends/file/e-cal-backend-file.c (e_cal_backend_file_modify_object):
+	when CALOBJ_MOD_THIS is used on the full object, just replace that one.
+	Added missing code to add detached instances.
+
 2004-04-12  Sarfraaz Ahmed <asarfraaz@novell.com>
 
 	Fixes #56517

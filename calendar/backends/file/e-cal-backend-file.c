@@ -1725,8 +1725,22 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	case CALOBJ_MOD_THIS :
 		rid = e_cal_component_get_recurid_as_string (comp);
 		if (!rid || !*rid) {
-			g_object_unref (comp);
-			return GNOME_Evolution_Calendar_ObjectNotFound;
+			if (old_object)
+				*old_object = e_cal_component_get_as_string (obj_data->full_object);
+
+			/* replace only the full object */
+			icalcomponent_remove_component (priv->icalcomp,
+							e_cal_component_get_icalcomponent (obj_data->full_object));
+			priv->comp = g_list_remove (priv->comp, obj_data->full_object);
+
+			/* Add the new object */
+			g_object_unref (obj_data->full_object);
+			obj_data->full_object = comp;
+
+			icalcomponent_add_component (priv->icalcomp,
+						     e_cal_component_get_icalcomponent (obj_data->full_object));
+			priv->comp = g_list_prepend (priv->comp, obj_data->full_object);
+			break;
 		}
 
 		if (g_hash_table_lookup_extended (obj_data->recurrences, rid,
@@ -1768,6 +1782,9 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		g_hash_table_insert (obj_data->recurrences, 
 				     g_strdup (e_cal_component_get_recurid_as_string (comp)),
 				     comp);
+		icalcomponent_add_component (priv->icalcomp,
+					     e_cal_component_get_icalcomponent (comp));
+		priv->comp = g_list_append (priv->comp, comp);
 		obj_data->recurrences_list = g_list_append (obj_data->recurrences_list, comp);
 		break;
 	case CALOBJ_MOD_THISANDPRIOR :
