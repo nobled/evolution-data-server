@@ -1,3 +1,25 @@
+2000-10-16  Chris Toshok  <toshok@helixcode.com>
+
+	* camel-service.c (get_path): when using the construct (flags &
+	CAMEL_SERVICE_URL_NEED_*) make sure to do ((flags &
+	CAMEL_SERVICE_URL_NEED_*) == CAMEL_SERVICE_URL_NEED_*)
+	(check_url): same.
+
+2000-10-16  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-store.c (imap_disconnect): Only send
+	the LOGOUT command if the store is connected.
+	(imap_connect): Set the 'connected' state to TRUE when we
+	successfully connect.
+	(get_folder_info): if (!topfi), 'topfi' was allocated but then
+	'fi' was set. I think Dan meant to set topfi since fi is an
+	uninitialized value at this point.
+
+	* providers/imap/camel-imap-command.c (imap_read_response): Check
+	for the untagged BYE response and set the 'connected' state to
+	FALSE if we receive the BYE response. Return NULL if we get a BYE
+	response.
+
 2000-10-16  Dan Winship  <danw@helixcode.com>
 
 	* providers/imap/camel-imap-store.c (get_folder_info): Deal with
