@@ -37,6 +37,7 @@
 #include "camel-url.h"
 #include "camel-sasl.h"
 #include "camel-gw-listener.h"
+#include "camel-i18n.h"
 
 static void add_hash (guint *hash, char *s);
 static guint groupwise_url_hash (gconstpointer key);

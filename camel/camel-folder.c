@@ -33,14 +33,13 @@
 #include "camel-store.h"
 #include "camel-mime-message.h"
 #include "camel-debug.h"
-
 #include "e-util/e-memory.h"
 #include "camel-operation.h"
-
 #include "camel-session.h"
 #include "camel-filter-driver.h"
 #include "camel-private.h"
 #include "camel-vtrash-folder.h"
+#include "camel-i18n.h"
 
 #define d(x) 
 #define w(x)

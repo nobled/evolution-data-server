@@ -31,6 +31,7 @@
 #include "camel/camel-session.h"
 #include "camel/camel-url.h"
 #include "camel/camel-sasl.h"
+#include "camel/camel-i18n.h"
 
 #include "camel-imapp-store.h"
 

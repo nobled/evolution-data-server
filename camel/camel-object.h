@@ -39,9 +39,6 @@ extern "C" {
 #include <camel/camel-arg.h>
 #include <camel/camel-types.h>	/* this is a @##$@#SF stupid header */
 
-/* this crap shouldn't be here */
-#include <camel/camel-i18n.h>
-
 /* turn on so that camel_object_class_dump_tree() dumps object instances as well */
 #define CAMEL_OBJECT_TRACK_INSTANCES
 

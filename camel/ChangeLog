@@ -1,3 +1,14 @@
+2004-09-04  Not Zed  <NotZed@Ximian.com>
+
+	* providers/local/camel-mbox-summary.c (message_info_new): fix
+	cast issue.
+
+	* providers/pop3/camel-pop3-engine.c (get_capabilities): remove
+	some unused variables.
+
+	* camel-object.h: remove camel-i18n.h, fixed all c files where
+	appropriate.
+
 2004-08-25  Not Zed  <NotZed@Ximian.com>
 
 	* camel-list-utils.[ch]: Copied e_dlist* stuff to here, part of

@@ -30,6 +30,7 @@
 #include "camel-nntp-store.h"
 #include "camel-provider.h"
 #include "camel-session.h"
+#include "camel-i18n.h"
 
 static void add_hash (guint *hash, char *s);
 static guint nntp_url_hash (gconstpointer key);

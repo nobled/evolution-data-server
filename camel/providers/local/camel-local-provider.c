@@ -34,6 +34,7 @@
 #include "camel-mbox-store.h"
 #include "camel-maildir-store.h"
 #include "camel-spool-store.h"
+#include "camel-i18n.h"
 
 #define d(x)
 

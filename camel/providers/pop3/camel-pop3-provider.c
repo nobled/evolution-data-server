@@ -32,6 +32,7 @@
 #include "camel-session.h"
 #include "camel-url.h"
 #include "camel-sasl.h"
+#include "camel-i18n.h"
 
 CamelProviderConfEntry pop3_conf_entries[] = {
 	{ CAMEL_PROVIDER_CONF_SECTION_START, "storage", NULL,
