@@ -1,3 +1,8 @@
+2000-07-20  Peter Williams  <peterw@helixcode.com>
+
+	* camel-object.c (camel_object_unref): Add a new global mutex
+	'refcount' held when refcounting operations occur.
+
 2000-07-19  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c (camel_type_lock_up): Correct the recursiveness;

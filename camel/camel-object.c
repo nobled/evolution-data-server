@@ -81,6 +81,8 @@ G_LOCK_DEFINE_STATIC (type_system);
 G_LOCK_DEFINE_STATIC (type_system_level);
 static GPrivate *type_system_locklevel = NULL;
 
+G_LOCK_DEFINE_STATIC (refcount);
+
 static gboolean type_system_initialized = FALSE;
 static GHashTable *ctype_to_typeinfo = NULL;
 static const CamelType camel_object_type = 1;
@@ -401,7 +403,9 @@ void camel_object_ref( CamelObject *obj )
 {
 	g_return_if_fail( CAMEL_IS_OBJECT( obj ) );
 
+	G_LOCK (refcount);
 	obj->ref_count++;
+	G_UNLOCK (refcount);
 }
 
 void camel_object_unref( CamelObject *obj )
@@ -413,10 +417,15 @@ void camel_object_unref( CamelObject *obj )
 
 	g_return_if_fail( CAMEL_IS_OBJECT( obj ) );
 
+	G_LOCK (refcount);
 	obj->ref_count--;
 
-	if (obj->ref_count > 0)
+	if (obj->ref_count > 0) {
+		G_UNLOCK (refcount);
 		return;
+	}
+
+	G_UNLOCK (refcount);
 
 	/* Oh no! We want to emit a "finalized" event, but that function refs the object
 	 * because it's not supposed to get finalized in an event, but it is being finalized
