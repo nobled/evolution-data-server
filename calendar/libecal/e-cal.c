@@ -2797,7 +2797,6 @@ process_detached_instances (GList *instances, GList *detached_instances)
 /**
  * e_cal_generate_instances:
  * @ecal: A calendar ecal.
- * @type: Bitmask with types of objects to return.
  * @start: Start time for query.
  * @end: End time for query.
  * @cb: Callback for each generated instance.
@@ -2894,6 +2893,29 @@ e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 
 	g_list_foreach (detached_instances, (GFunc) g_object_unref, NULL);
 	g_list_free (detached_instances);
+}
+
+/**
+ * e_cal_generate_instances_for_object:
+ * @ecal: A calendar ecal.
+ * @icalcomp: Object to generate instances from.
+ * @start: Start time for query.
+ * @end: End time for query.
+ * @cb: Callback for each generated instance.
+ * @cb_data: Closure data for the callback.
+ * 
+ * Does a combination of e_cal_get_object_list () and
+ * cal_recur_generate_instances(), like e_cal_generate_instances(), but
+ * for a single object.
+ *
+ * The callback function should do a g_object_ref() of the calendar component
+ * it gets passed if it intends to keep it around.
+ **/
+void
+e_cal_generate_instances_for_object (ECal *ecal, icalcomponent *icalcomp,
+				     time_t start, time_t end,
+				     ECalRecurInstanceFn cb, gpointer cb_data)
+{
 }
 
 /* Builds a list of ECalComponentAlarms structures */

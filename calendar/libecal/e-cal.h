@@ -152,6 +152,9 @@ gboolean e_cal_get_free_busy (ECal *ecal, GList *users, time_t start, time_t end
 
 void e_cal_generate_instances (ECal *ecal, time_t start, time_t end,
 			       ECalRecurInstanceFn cb, gpointer cb_data);
+void e_cal_generate_instances_for_object (ECal *ecal, icalcomponent *icalcomp,
+					  time_t start, time_t end,
+					  ECalRecurInstanceFn cb, gpointer cb_data);
 
 GSList *e_cal_get_alarms_in_range (ECal *ecal, time_t start, time_t end);
 
