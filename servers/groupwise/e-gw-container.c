@@ -147,10 +147,6 @@ e_gw_container_set_from_soap_parameter (EGwContainer *container, SoupSoapParamet
 	g_return_val_if_fail (E_IS_GW_CONTAINER (container), FALSE);
 	g_return_val_if_fail (param != NULL, FALSE);
 
-	if (strcmp (soup_soap_parameter_get_name (param), "book") != 0) {
-		g_warning (G_STRLOC ": SOAP parameter is not a folder");
-		return FALSE;
-	}
 
 	/* retrieve the name */
 	subparam = soup_soap_parameter_get_first_child_by_name (param, "name");

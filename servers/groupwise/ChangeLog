@@ -1,4 +1,14 @@
 2004-03-09 Sivaiah Nallagatla <snallagatla@novell.com>
+	* Makefile.am : add the new sourcefies e-gw-filer[.ch] to SOURCES
+	* e-gw-item.[ch] : added apis to set and get changes and to append changes 
+	to soap message. Refactored some of the exisitn implements for appending contacts 
+	to soap mesage to use inappending changes also 
+	* e-gw-connection.[ch] : add e_gw_connection-modify_item api
+	for modifying the contact and removed unused e_gw_connection_remove_book
+	* e-gw-container.c : removed an unncessary check container type being folder
+	* e-gw-message.[ch] : added an api to add an elements with attribute value 
+
+2004-03-09 Sivaiah Nallagatla <snallagatla@novell.com>
 	
 	* e-gw-filter[.ch] : new class to handle gw filters used to query item which meet 
 	a set of criteria 

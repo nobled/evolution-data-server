@@ -88,6 +88,7 @@ time_t              e_gw_connection_get_date_from_string (const char *dtstring);
 
 EGwConnectionStatus e_gw_connection_create_item (EGwConnection *cnc, EGwItem *item, char** id);
 EGwConnectionStatus e_gw_connection_get_item (EGwConnection *cnc, const char *container, const char *id, EGwItem **item);
+EGwConnectionStatus e_gw_connection_modify_item (EGwConnection *cnc, const char *id, EGwItem *item);
 EGwConnectionStatus e_gw_connection_create_book (EGwConnection *cnc, char *book_name, char**id);
 EGwConnectionStatus e_gw_connection_remove_book (EGwConnection *cnc, char *book_uid);
 EGwConnectionStatus e_gw_connection_get_address_book_list (EGwConnection *cnc, GList **container_list);
