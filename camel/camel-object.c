@@ -64,6 +64,9 @@ typedef struct _CamelHookPair {
 
 /* ************************************************************************ */
 
+static void camel_type_lock_up (void);
+static void camel_type_lock_down (void);
+
 static void obj_init (CamelObject *obj);
 static void obj_finalize (CamelObject *obj);
 static void obj_class_init( CamelObjectClass *class );
@@ -74,7 +77,9 @@ static void make_global_classfuncs( CamelTypeInfo *type_info );
 
 /* ************************************************************************ */
 
-G_LOCK_DEFINE_STATIC( type_system );
+G_LOCK_DEFINE_STATIC (type_system);
+G_LOCK_DEFINE_STATIC (type_system_level);
+static guint32 type_system_locklevel = 0;
 
 static gboolean type_system_initialized = FALSE;
 static GHashTable *ctype_to_typeinfo = NULL;
@@ -83,15 +88,39 @@ static CamelType cur_max_type = CAMEL_INVALID_TYPE;
 
 /* ************************************************************************ */
 
+static void camel_type_lock_up (void)
+{
+	G_LOCK (type_system_level);
+
+	if (type_system_locklevel == 0)
+		G_LOCK (type_system);
+
+	type_system_locklevel++;
+	G_UNLOCK (type_system_level);
+}
+
+static void camel_type_lock_down (void)
+{
+	G_LOCK (type_system_level);
+
+	type_system_locklevel--;
+
+	if (type_system_locklevel == 0)
+		G_UNLOCK (type_system);
+
+
+	G_UNLOCK (type_system_level);
+}
+
 void camel_type_init( void )
 {
 	CamelTypeInfo *obj_info;
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 
 	if( type_system_initialized ) {
 		g_warning( "camel_type_init: type system already initialized." );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return;
 	}
 
@@ -121,7 +150,7 @@ void camel_type_init( void )
 
 	cur_max_type = camel_object_type;
 
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 }
 
 CamelType camel_type_register( CamelType parent, const gchar *name,
@@ -140,12 +169,12 @@ CamelType camel_type_register( CamelType parent, const gchar *name,
 	g_return_val_if_fail( instance_size, CAMEL_INVALID_TYPE );
 	g_return_val_if_fail( classfuncs_size, CAMEL_INVALID_TYPE );
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 
 	if( type_system_initialized == FALSE ) {
-		G_UNLOCK( type_system );
+		G_UNLOCK (type_system);
 		camel_type_init();
-		G_LOCK( type_system );
+		G_LOCK (type_system);
 	}
 
 	parent_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( parent ) );
@@ -153,21 +182,21 @@ CamelType camel_type_register( CamelType parent, const gchar *name,
 	if( parent_info == NULL ) {
 		g_warning( "camel_type_register: no such parent type %d of class `%s'",
 			   parent, name );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return CAMEL_INVALID_TYPE;
 	}
 
 	if( parent_info->instance_size > instance_size ) {
 		g_warning( "camel_type_register: instance of class `%s' would be smaller than parent `%s'",
 			   name, parent_info->name );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return CAMEL_INVALID_TYPE;
 	}
 
 	if( parent_info->classfuncs_size > classfuncs_size ) {
 		g_warning( "camel_type_register: classfuncs of class `%s' would be smaller than parent `%s'",
 			   name, parent_info->name );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return CAMEL_INVALID_TYPE;
 	}
 		
@@ -197,7 +226,7 @@ CamelType camel_type_register( CamelType parent, const gchar *name,
 	/* Sigh. Ugly. */
 	make_global_classfuncs( obj_info );
 
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 	return obj_info->self;
 }
 
@@ -207,9 +236,9 @@ CamelObjectClass *camel_type_get_global_classfuncs( CamelType type )
 
 	g_return_val_if_fail( type != CAMEL_INVALID_TYPE, NULL );
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 	type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( type ) );
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 
 	g_return_val_if_fail( type_info != NULL, NULL );
 
@@ -222,9 +251,9 @@ const gchar *camel_type_to_name( CamelType type )
 
 	g_return_val_if_fail( type != CAMEL_INVALID_TYPE, "(the invalid type)" );
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 	type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( type ) );
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 
 	g_return_val_if_fail( type_info != NULL, "(a bad type parameter was specified)" );
 
@@ -298,13 +327,13 @@ CamelObject *camel_object_new( CamelType type )
 
 	/* Look up the type */
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 
 	type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( type ) );
 
 	if( type_info == NULL ) {
 		g_warning( "camel_object_new: trying to create object of invalid type %d", type );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return NULL;
 	}
 
@@ -349,7 +378,7 @@ CamelObject *camel_object_new( CamelType type )
 
 	g_slist_free( head );
 
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 	return instance;
 }
 
@@ -405,14 +434,14 @@ void camel_object_unref( CamelObject *obj )
 
 	/* Destroy it! hahaha! */
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 
 	type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( obj->s.type ) );
 
 	if( type_info == NULL ) {
 		g_warning( "camel_object_unref: seemingly valid object has a bad type %d",
 			   obj->s.type );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return;
 	}
 
@@ -459,7 +488,7 @@ void camel_object_unref( CamelObject *obj )
 
 	type_info->free_instances = g_list_prepend( type_info->free_instances, obj );
 
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 }
 
 gboolean camel_object_is_of_type( CamelObject *obj, CamelType ctype )
@@ -759,7 +788,7 @@ shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj )
 		}
 	}
 
-	G_LOCK( type_system );
+	camel_type_lock_up();
 
 	type_info = g_hash_table_lookup( ctype_to_typeinfo, GINT_TO_POINTER( sh->type ) );
 
@@ -767,13 +796,13 @@ shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj )
 		g_warning( "shared_is_of_type: seemingly valid %s has "
 			   "bad type %d.",
 			   targtype, sh->type );
-		G_UNLOCK( type_system );
+		camel_type_lock_down();
 		return FALSE;
 	}
 
 	while( type_info ) {
 		if( type_info->self == ctype ) {
-			G_UNLOCK( type_system );
+			camel_type_lock_down();
 			return TRUE;
 		}
 
@@ -787,7 +816,7 @@ shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj )
 		   targtype,
 		   camel_type_to_name( ctype ) );
 
-	G_UNLOCK( type_system );
+	camel_type_lock_down();
 	return FALSE;
 }
 

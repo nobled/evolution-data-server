@@ -1,3 +1,13 @@
+2000-07-17  Peter Williams  <peterw@helixcode.com>
+
+	* camel-object.c (camel_type_lock_up): New function; the
+	Camel type_system lock is now fakey-recursive, being controlled
+	by a semaphore that goes up and down and is protected by another
+	lock. Theoretically all we need is the lock on the semaphore,
+	but this we catch exceptions "better" (by deadlocking).
+	(camel_type_lock_down): Corresponding to above.
+	(all functions): s,G_LOCK,camel_type_lock_up, etc.
+
 2000-07-14  Peter Williams  <peterw@helixcode.com>
 
 	* camel-object.c : Implement 'events', which are suspiciously
