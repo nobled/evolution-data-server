@@ -46,6 +46,12 @@ struct _header_raw {
 	int offset;		/* in file, if known */
 };
 
+typedef struct _CamelMimeDisposition {
+	char *disposition;
+	struct _header_param *params;
+	unsigned int refcount;
+} CamelMimeDisposition;
+
 struct _header_content_type *header_content_type_new(const char *type, const char *subtype);
 struct _header_content_type *header_content_type_decode(const char *in);
 void header_content_type_unref(struct _header_content_type *ct);
@@ -56,6 +62,10 @@ int header_content_type_is(struct _header_content_type *t, char *type, char *sub
 
 char *header_param(struct _header_param *p, char *name);
 struct _header_param *header_set_param(struct _header_param **l, const char *name, const char *value);
+
+CamelMimeDisposition *header_disposition_decode(const char *in);
+void header_disposition_ref(CamelMimeDisposition *);
+void header_disposition_unref(CamelMimeDisposition *);
 
 /* decode the contents of a content-encoding header */
 char *header_content_encoding_decode(const char *in);

@@ -863,6 +863,7 @@ folder_scan_init(void)
 	s->scan_from = FALSE;
 
 	s->filters = NULL;
+	s->filterid = 1;
 
 	s->parts = NULL;
 

@@ -50,6 +50,8 @@
 
 #include "camel-exception.h"
 
+#define d(x)
+
 static CamelFolderClass *parent_class=NULL;
 
 /* Returns the class for a CamelMboxFolder */
@@ -508,7 +510,6 @@ _delete (CamelFolder *folder, gboolean recurse, CamelException *ex)
 
 
 /* TODO: remove this */
-/* I mean, duh, even if it was to be kept, why not just trunc the file to 0 bytes? */
 gboolean
 _delete_messages (CamelFolder *folder, CamelException *ex)
 {
@@ -517,7 +518,6 @@ _delete_messages (CamelFolder *folder, CamelException *ex)
 	const gchar *folder_file_path;
 	gboolean folder_already_exists;
 	int creat_fd;
-
 	g_assert(folder!=NULL);
 	
 	/* in the case where the folder does not exist, 
@@ -706,15 +706,28 @@ _get_message_count (CamelFolder *folder, CamelException *ex)
 	return camel_mbox_summary_message_count(mbox_folder->summary);
 }
 
+/*
+  This is a lazy append.
+
+  Basically, messages are appended to the end of the mbox, and probably assigned
+  a new uid (they wont be if copying from a source folder which doesn't have
+  a uid - which wont happen with the current summariser).
+
+  Indexing/summarising happens when the mbox is next queried.
+
+  Should this set a flag up for subsequent updating??
+*/
 
 /* FIXME: this may need some tweaking for performance? */
 static void
 _append_message (CamelFolder *folder, CamelMimeMessage *message, CamelException *ex)
 {
-	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER (folder);
+	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER (folder), *source_folder;
 	CamelStream *output_stream;
 	struct stat st;
 	off_t seek;
+	char *xev;
+	guint32 uid;
 
 	CAMEL_LOG_FULL_DEBUG ("Entering CamelMboxFolder::append_message\n");
 
@@ -725,6 +738,58 @@ _append_message (CamelFolder *folder, CamelMimeMessage *message, CamelException 
 		return;
 	}
 
+	/* are we coming from an mbox folder?  then we can optimise somewhat ... */
+	if (message->folder && IS_CAMEL_MBOX_FOLDER(message->folder)) {
+		CamelMboxMessageInfo *info;
+		int sfd, dfd;
+		off_t pos;
+
+		/* FIXME: this is pretty ugly - we lookup the message info in the source folder, copy it,
+		   then go back and paste in its real uid. */
+		source_folder = (CamelMboxFolder *)message->folder;
+		info = camel_mbox_summary_uid(source_folder->summary, message->message_uid);
+
+		d(printf("Copying message directly from %s to %s\n", source_folder->folder_file_path, mbox_folder->folder_file_path));
+		d(printf("start = %d, xev = %d\n", ((CamelMboxMessageContentInfo *)info->info.content)->pos, info->xev_offset));
+
+		sfd = open(source_folder->folder_file_path, O_RDONLY);
+		dfd = open(mbox_folder->folder_file_path, O_RDWR|O_CREAT, 0600);
+		if (lseek(dfd, st.st_size, SEEK_SET) != st.st_size) {
+			camel_exception_setv (ex, 
+					      CAMEL_EXCEPTION_FOLDER_INSUFFICIENT_PERMISSION, /* FIXME: what code? */
+					      "Cannot append to mbox file: %s", strerror (errno));
+			close(sfd);
+			close(dfd);
+			return;
+		}
+		write(dfd, "From - \n", strlen("From - \n"));
+		camel_mbox_summary_copy_block
+			(sfd, dfd, ((CamelMboxMessageContentInfo *)info->info.content)->pos,
+			 ((CamelMboxMessageContentInfo *)info->info.content)->endpos - ((CamelMboxMessageContentInfo *)info->info.content)->pos);
+		if (info->xev_offset != -1) {
+			pos = st.st_size + (info->xev_offset - ((CamelMboxMessageContentInfo *)info->info.content)->pos) + strlen("From - \n");
+			d(printf("Inserting new uid at %d\n", (int)pos));
+			if (pos != lseek(dfd, pos, SEEK_SET)) {
+				ftruncate(dfd, st.st_size);
+				camel_exception_setv (ex, 
+						      CAMEL_EXCEPTION_FOLDER_INSUFFICIENT_PERMISSION, /* FIXME: what code? */
+						      "Cannot append to mbox file: %s", strerror (errno));
+				close(sfd);
+				close(dfd);
+				return;
+			}
+			uid = camel_mbox_summary_next_uid(mbox_folder->summary);
+			xev = g_strdup_printf("X-Evolution: %08x-%04x", uid, 0);
+			write(dfd, xev, strlen(xev)); /* FIXME: check return */
+			d(printf("header = %s\n", xev));
+			g_free(xev);
+		}
+		close(sfd);
+		close(dfd);
+		return;
+	}
+
+	/* its not an mbox folder, so lets do it the slow way ... */
 	output_stream = camel_stream_fs_new_with_name (mbox_folder->folder_file_path, CAMEL_STREAM_FS_WRITE);
 	if (output_stream == NULL) {
 		camel_exception_setv (ex, 
@@ -741,6 +806,14 @@ _append_message (CamelFolder *folder, CamelMimeMessage *message, CamelException 
 		gtk_object_unref ((GtkObject *)output_stream);
 		return;
 	}
+
+	/* assign a new x-evolution header */
+	/* FIXME: save flags? */
+	camel_medium_remove_header((CamelMedium *)message, "X-Evolution");
+	uid = camel_mbox_summary_next_uid(mbox_folder->summary);
+	xev = g_strdup_printf("%08x-%04x", uid, 0);
+	camel_medium_add_header((CamelMedium *)message, "X-Evolution", xev);
+	g_free(xev);
 
 	camel_stream_write_string (output_stream, "From - \n");
 	/* FIXME: does this return an error?   IT HAS TO FOR THIS TO BE RELIABLE */
@@ -818,7 +891,11 @@ _get_message_by_uid (CamelFolder *folder, const gchar *uid, CamelException *ex)
 								   ((CamelMboxMessageContentInfo *)info->info.content)->endpos);
 	message = camel_mime_message_new_with_session (camel_service_get_session (CAMEL_SERVICE (parent_store)));
 	camel_data_wrapper_set_input_stream (CAMEL_DATA_WRAPPER (message), message_stream);
-	
+
+	/* init other fields? */
+	message->folder = folder;
+	message->message_uid = g_strdup(uid);
+
 	CAMEL_LOG_FULL_DEBUG ("Leaving CamelMboxFolder::get_uid_list\n");	
 	return message;
 }

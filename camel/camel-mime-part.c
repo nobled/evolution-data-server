@@ -238,8 +238,6 @@ my_finalize (GtkObject *object)
 {
 	CamelMimePart *mime_part = CAMEL_MIME_PART (object);
 
-#warning do something for (mime_part->disposition) which should not be a GMimeContentField
-
 	CAMEL_LOG_FULL_DEBUG ("Entering CamelMimePart::finalize\n");
 
 	g_free (mime_part->description);
@@ -247,6 +245,7 @@ my_finalize (GtkObject *object)
 	g_free (mime_part->content_MD5);
 	string_list_free (mime_part->content_languages);
 	g_free (mime_part->filename);
+	header_disposition_unref(mime_part->disposition);
 	if (mime_part->header_lines) string_list_free (mime_part->header_lines);
 	
 	if (mime_part->content_type) gmime_content_field_unref (mime_part->content_type);
@@ -317,15 +316,8 @@ camel_mime_part_get_description (CamelMimePart *mime_part)
 static void
 my_set_disposition (CamelMimePart *mime_part, const gchar *disposition)
 {
-#warning Do not use MimeContentfield here !!!
-	
-	if (mime_part->disposition) {
-		g_free (mime_part->disposition->type);
-		g_free (mime_part->disposition);
-	}
-	
-	mime_part->disposition = g_new0 (GMimeContentField,1);
-	mime_part->disposition->type = g_strdup (disposition);
+	header_disposition_unref(mime_part->disposition);
+	mime_part->disposition = header_disposition_decode(disposition);
 }
 
 
@@ -344,7 +336,7 @@ static const gchar *
 my_get_disposition (CamelMimePart *mime_part)
 {
 	if (!mime_part->disposition) return NULL;
-	return (mime_part->disposition)->type;
+	return (mime_part->disposition)->disposition;
 }
 
 
@@ -740,7 +732,18 @@ my_write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 	CAMEL_LOG_FULL_DEBUG ( "Entering CamelMimePart::write_to_stream\n");
 	
 	CAMEL_LOG_FULL_DEBUG ( "CamelMimePart::write_to_stream writing content-disposition\n");
-	gmime_content_field_write_to_stream(mp->disposition, stream);
+	if (mp->disposition) {
+		struct _header_param *p;
+
+		camel_stream_write_strings(stream, "Content-Disposition: ", mp->disposition->disposition, NULL);
+		/* FIXME: use proper quoting rules here ... */
+		p = mp->disposition->params;
+		while (p) {
+			camel_stream_write_strings (stream, ";\n    ",  p->name, "= \"", p->value, "\"", NULL);
+			p = p->next;
+		}
+		camel_stream_write_string (stream, "\n");
+	}
 	CAMEL_LOG_FULL_DEBUG ( "CamelMimePart::write_to_stream writing content-transfer-encoding\n");
 	WHPT (stream, "Content-Transfer-Encoding",
 	      camel_mime_part_encoding_to_string (mp->encoding));

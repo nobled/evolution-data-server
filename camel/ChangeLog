@@ -1,3 +1,22 @@
+2000-04-20  NotZed  <NotZed@HelixCode.com>
+
+	* providers/mbox/camel-mbox-summary.c
+	(camel_mbox_summary_next_uid): Public function to get the next
+	uid, makes sure its saved to disk too.
+
+	* camel-mime-part.c (my_finalize): Fix disposition crap with a
+	real disposition.
+	(my_set_disposition): Likewise.
+	(my_get_disposition): And here.
+	(my_write_to_stream): And here, needs more cleanup.
+
+	* providers/mbox/camel-mbox-folder.c (_append_message): Assign a
+	new uid at this point.
+
+	* gmime-content-field.c (gmime_content_field_write_to_stream):
+	Make something up if we have an invalid/missing content type
+	(i.e. text/plain).
+
 2000-04-19  NotZed  <NotZed@HelixCode.com>
 
 	* providers/mbox/camel-mbox-folder.c (_delete): Fixed completely

@@ -48,9 +48,6 @@ GMimeContentField *
 gmime_content_field_new (const gchar *type, const gchar *subtype)
 {
 	GMimeContentField *ctf;
-	char *ct;
-
-	ct = g_strdup_printf("%s/%s", type, subtype);
 
 	ctf = g_new (GMimeContentField, 1);
 	ctf->content_type = header_content_type_new(type, subtype);
@@ -127,14 +124,14 @@ gmime_content_field_set_parameter (GMimeContentField *content_field, const gchar
 void
 gmime_content_field_write_to_stream (GMimeContentField *content_field, CamelStream *stream)
 {
+	struct _header_param *p;
+
 	if (!content_field) return;
 
 	g_assert (stream);
-	if (content_field->type) {
-		struct _header_param *p;
-
-		camel_stream_write_strings (stream, "Content-Type: ", content_field->content_type->type, content_field->content_type->subtype?"/":NULL,
-					    content_field->subtype, NULL);
+	if (content_field->content_type) {
+		camel_stream_write_strings (stream, "Content-Type: ", content_field->content_type->type?content_field->content_type->type:"text",
+					    "/", content_field->content_type->subtype?content_field->content_type->subtype:"plain", NULL);
 
 		/* print all parameters */
 		p = content_field->content_type->params;

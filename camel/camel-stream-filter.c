@@ -128,7 +128,7 @@ camel_stream_filter_init (CamelStreamFilter *obj)
 {
 	struct _CamelStreamFilterPrivate *p;
 	
-	p = _PRIVATE(obj) = g_malloc0(sizeof(_PRIVATE(obj)));
+	_PRIVATE(obj) = p = g_malloc0(sizeof(*p));
 	p->realbuffer = g_malloc(READ_SIZE + READ_PAD);
 	p->buffer = p->realbuffer + READ_PAD;
 }

@@ -242,8 +242,7 @@ decode_string (FILE *in)
 		} else if (len<= tokens_len) {
 			ret = g_strdup(tokens[len-1]);
 		} else {
-			printf("invalid token %d encountered?\n", len);
-			g_warning("Invalid token encountered");
+			g_warning("Invalid token encountered: %d", len);
 			ret = NULL;
 		}
 	} else if (len > 10240) {
@@ -343,7 +342,7 @@ body_part_new(CamelMimeParser *mp, CamelMboxMessageContentInfo *parent, int star
 }
 
 static CamelMboxMessageInfo *
-message_struct_new(CamelMimeParser *mp, CamelMboxMessageContentInfo *parent, int start, int body)
+message_struct_new(CamelMimeParser *mp, CamelMboxMessageContentInfo *parent, int start, int body, off_t xev_offset)
 {
 	CamelMboxMessageInfo *ms;
 
@@ -358,6 +357,7 @@ message_struct_new(CamelMimeParser *mp, CamelMboxMessageContentInfo *parent, int
 	ms->info.date_received = 0;
 
 	ms->info.content = (CamelMessageContentInfo *)body_part_new(mp, parent, start, body);
+	ms->xev_offset = xev_offset;
 	return ms;
 }
 
@@ -422,6 +422,9 @@ body_part_load(FILE *in)
 		d(printf(" %s = \"%s\"\n", name, value));
 		
 		header_content_type_set_param(ct, name, value);
+		/* FIXME: do this so we dont have to double alloc/free */
+		g_free(name);
+		g_free(value);
 	}
 
 	d(printf("got content-id\n"));
@@ -594,8 +597,8 @@ header_write(int fd, struct _header_raw *header, unsigned int uid, unsigned int 
 }
 
 /* returns -1 on error, else number of bytes written */
-static int
-copy_block(int fromfd, int tofd, off_t readpos, size_t bytes)
+int
+camel_mbox_summary_copy_block(int fromfd, int tofd, off_t readpos, size_t bytes)
 {
 	char buffer[4096];
 	int written = 0;
@@ -609,7 +612,7 @@ copy_block(int fromfd, int tofd, off_t readpos, size_t bytes)
 	if (newpos == -1 || newpos != readpos)
 		goto error;
 
-	printf("oldpos = %d;  copying %d from %d\n", (int)pos, (int)bytes, (int)readpos);
+	d(printf("oldpos = %d;  copying %d from %d\n", (int)pos, (int)bytes, (int)readpos));
 
 	while (bytes>0) {
 		int toread, towrite, donelen;
@@ -638,7 +641,7 @@ copy_block(int fromfd, int tofd, off_t readpos, size_t bytes)
 		bytes -= donelen;
 	}
 
-	printf("written %d bytes\n", written);
+	d(printf("written %d bytes\n", written));
 
 	newpos = lseek(fromfd, pos, SEEK_SET);
 	if (newpos == -1 || newpos != pos);
@@ -683,11 +686,13 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 	int eof;
 	int write_offset = 0;	/* how much does the dest differ from the source pos */
 	int old_offset = 0;
+
 	guint32 newuid;
+	off_t xevoffset = -1;
 
 	char *tmpname;
 
-	printf("indexing %s (%s)\n", s->folder_path, s->summary_path);
+	printf("indexing %s (%s) from %d\n", s->folder_path, s->summary_path, startoffset);
 
 	fd = open(s->folder_path, O_RDONLY);
 	if (fd==-1) {
@@ -723,14 +728,14 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 		switch(state) {
 		case HSCAN_FROM: /* starting a new message content */
 			/* save the current position */
-			printf("from = %d\n", (int)camel_mime_parser_tell(mp));
+			d(printf("from = %d\n", (int)camel_mime_parser_tell(mp)));
 			toplevel = FALSE;
 			from = camel_mime_parser_tell(mp);
 			break;
 
 		case HSCAN_FROM_END:
-			printf("from-end = %d\n", (int)camel_mime_parser_tell(mp));
-			printf("message from %d to %d\n", from_end, (int)camel_mime_parser_tell(mp));
+			d(printf("from-end = %d\n", (int)camel_mime_parser_tell(mp)));
+			d(printf("message from %d to %d\n", from_end, (int)camel_mime_parser_tell(mp)));
 			from_end = camel_mime_parser_tell(mp);
 			break;
 
@@ -740,16 +745,17 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 			newuid=~0;
 			if (!toplevel) {
 				char name[32];
-				int xevoffset;
 				unsigned int olduid, oldflags;
 				int headerlen;
+				int docopy = FALSE;
 
 				/* check for X-Evolution header ... if its there, nothing to do (skip content) */
 				xev = camel_mime_parser_header(mp, "x-evolution", &xevoffset);
 				if (xev) {
-					printf("An x-evolution header exists at: %d = %s\n", xevoffset + write_offset, xev);
+					d(printf("An x-evolution header exists at: %d = %s\n", xevoffset + write_offset, xev));
+					xevoffset = xevoffset + write_offset;
 					if (header_evolution_decode(xev, &olduid, &oldflags) != ~0) {
-						printf(" uid = %d = %x\n", olduid, olduid);
+						d(printf(" uid = %d = %x\n", olduid, olduid));
 						newuid = olduid;
 #if 0
 						while (camel_mime_parser_step(mp, &data, &datalen) != HSCAN_FROM_END)
@@ -763,12 +769,14 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 
 				toplevel = TRUE;
 
-				/* FIXME: only copy the data if the x-evolution header is being created/
-				   changed.  i.e. newuid != ~0 */
-
 				/* assign a new uid for this message */
 				if (newuid == ~0) {
 					newuid = s->nextuid++;
+					docopy = TRUE;
+				} else {
+					/* make sure we account for this uid when assigning uid's */
+					/* this really needs a pre-scan pass ... *sigh* */
+					camel_mbox_summary_set_uid(s, newuid);
 				}
 
 				/* setup index name for this uid */
@@ -780,26 +788,31 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 
 				d(printf("Message content starts at %d\n", camel_mime_parser_tell(mp)));
 				
-				/* now, copy over bits of mbox from last write, and insert the X-Evolution header (at the top of headers) */
-				copy_block(fd, fdout, last_write, from-last_write);
-				last_write = from;
+				if (docopy) {
+					/* now, copy over bits of mbox from last write, and insert the X-Evolution header (at the top of headers) */
+					/* if we already have a valid x-evolution header, use that, dont need to copy */
+					camel_mbox_summary_copy_block(fd, fdout, last_write, from-last_write);
+					last_write = from;
 
-				headerlen = header_write(fdout, camel_mime_parser_headers_raw(mp), newuid, 0);
-				sprintf(name, "X-Evolution: %08x-%04x\n\n", newuid, 0);
-				safe_write(fdout, name, strlen(name));
-				printf("new X-Evolution at %d\n", headerlen + from + write_offset);
-				old_offset = write_offset;
+					headerlen = header_write(fdout, camel_mime_parser_headers_raw(mp), newuid, 0);
+					sprintf(name, "X-Evolution: %08x-%04x\n\n", newuid, 0);
+					safe_write(fdout, name, strlen(name));
+					d(printf("new X-Evolution at %d\n", headerlen + from + write_offset));
+					xevoffset = headerlen + from + write_offset;
+					old_offset = write_offset;
 
-				write_offset += (headerlen - (camel_mime_parser_tell(mp)-from)) + strlen(name);
-				last_write = camel_mime_parser_tell(mp);
+					write_offset += (headerlen - (camel_mime_parser_tell(mp)-from)) + strlen(name);
+					last_write = camel_mime_parser_tell(mp);
+				}
 			} else {
 				old_offset = write_offset;
 			}
 
 			/* we only care about the rest for actual content parts */
+			/* TODO: Cleanup, this is a huge mess */
 			if (state != HSCAN_HEADER) {
 				if (message == NULL) {
-					message = message_struct_new(mp, parent, camel_mime_parser_tell_start_headers(mp)+old_offset, camel_mime_parser_tell(mp)+write_offset);
+					message = message_struct_new(mp, parent, camel_mime_parser_tell_start_headers(mp)+old_offset, camel_mime_parser_tell(mp)+write_offset, xevoffset);
 					parent = (CamelMboxMessageContentInfo *)message->info.content;
 					if (newuid != ~0) {
 						message->info.uid = g_strdup_printf("%u", newuid);
@@ -813,7 +826,7 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 			}
 
 			if (message == NULL) {
-				message = message_struct_new(mp, parent, camel_mime_parser_tell_start_headers(mp)+old_offset, camel_mime_parser_tell(mp)+write_offset);
+				message = message_struct_new(mp, parent, camel_mime_parser_tell_start_headers(mp)+old_offset, camel_mime_parser_tell(mp)+write_offset, xevoffset);
 				body = (CamelMboxMessageContentInfo *)message->info.content;
 				if (newuid != ~0) {
 					message->info.uid = g_strdup_printf("%u", newuid);
@@ -921,7 +934,7 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 	/* did we actually write anything out?   Then rename and be done with it. */
 	if (last_write>0) {
 		eof = camel_mime_parser_tell(mp);
-		copy_block(fd, fdout, last_write, eof-last_write);
+		camel_mbox_summary_copy_block(fd, fdout, last_write, eof-last_write);
 
 		if (close(fdout) == -1) {
 			perror("Could not close output file");
@@ -935,6 +948,7 @@ static int index_folder(CamelMboxSummary *s, int startoffset)
 		}
 	} else {
 		/* no, then dont bother touching the inbox */
+		printf("No written changes to mbox, removing tmp file\n");
 		close(fdout);
 		unlink(tmpname);
 	}
@@ -1016,9 +1030,38 @@ static void camel_mbox_summary_add(CamelMboxSummary *s, CamelMboxMessageInfo *in
 	if (info->info.uid == NULL) {
 		info->info.uid = g_strdup_printf("%u", s->nextuid++);
 	}
+	if (g_hash_table_lookup(s->message_uid, info->info.uid)) {
+		g_error("Trying to insert message with clashing uid's");
+	}
+	d(printf("adding %s\n", info->info.uid));
 	g_ptr_array_add(s->messages, info);
 	g_hash_table_insert(s->message_uid, info->info.uid, info);
 	s->dirty = TRUE;
+}
+
+static int summary_header_read(FILE *fp, guint32 *version, time_t *time, size_t *size, guint32 *nextuid)
+{
+	fseek(fp, 0, SEEK_SET);
+	*version = decode_fixed_int(fp);
+	*time = decode_fixed_int(fp);
+	*size = decode_fixed_int(fp);
+	*nextuid = decode_fixed_int(fp);
+	return ferror(fp);
+}
+
+static void
+summary_clear(CamelMboxSummary *s)
+{
+	int i;
+
+	for (i=0;i<s->messages->len;i++) {
+		message_struct_free(g_ptr_array_index(s->messages, i));
+	}
+	g_ptr_array_free(s->messages, TRUE);
+	g_hash_table_destroy(s->message_uid);
+
+	s->messages = g_ptr_array_new();
+	s->message_uid = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
 int camel_mbox_summary_load(CamelMboxSummary *s)
@@ -1028,27 +1071,16 @@ int camel_mbox_summary_load(CamelMboxSummary *s)
 	int i, total;
 	CamelMboxMessageInfo *info;
 
-	/* FIXMEl; blow away/reset tables */
+	summary_clear(s);
 
 	if ((fp = fopen(s->summary_path, "r")) == NULL) {
 		g_warning("Loading non-existant summary, generating summary for folder: %s: %s", s->summary_path, strerror(errno));
 		index_folder(s, 0);
 		camel_mbox_summary_save(s);
 	} else {
-		guint32 version;
-
-		version = decode_fixed_int(fp);
-
-		if (version != CAMEL_MBOX_SUMMARY_VERSION) {
-			g_warning("Summary version mismatch, reloading summary");
-			fclose(fp);
-			index_folder(s, 0);
-			camel_mbox_summary_save(s);
-			return 0;
-		}
-
-		s->time = decode_fixed_int(fp);
-		s->size = decode_fixed_int(fp);
+		guint32 version, nextuid;
+		time_t time;
+		size_t size;
 
 		if (stat(s->folder_path, &st) != 0) {
 			g_warning("Uh, no folder anyway, aborting");
@@ -1056,25 +1088,48 @@ int camel_mbox_summary_load(CamelMboxSummary *s)
 			return -1;
 		}
 
-		if (s->time != st.st_mtime || s->size != st.st_size) {
+		if (summary_header_read(fp, &version, &time, &size, &nextuid) != 0
+		    || version != CAMEL_MBOX_SUMMARY_VERSION) {
+			g_warning("Summary missing or version mismatch, reloading summary");
 			fclose(fp);
-			/* if its grown, then just index the new stuff */
-			if (s->size < st.st_size) {
-				g_warning("Indexing/summarizing from start position: %d", s->size);
-				index_folder(s, s->size);
-			} else {
-				g_warning("Folder changed/smaller, reindexing everything");
-				index_folder(s, 0);
-			}
+			index_folder(s, 0);
 			camel_mbox_summary_save(s);
 			return 0;
 		}
 
-		s->nextuid = decode_fixed_int(fp);
+		s->nextuid = MAX(s->nextuid, nextuid);
+		s->time = time;
+		s->size = size;
 		total = decode_fixed_int(fp);
+			
+		if (time != st.st_mtime || size != st.st_size) {
+			/* if its grown, then just index the new stuff, and load the rest from the summary */
+			if (size < st.st_size) {
+				g_warning("Indexing/summarizing from start position: %d", size);
+
+				d(printf("loading %d items from summary file\n", total));
+				for (i=0;i<total;i++) {
+					info = message_struct_load(fp);
+					if (info) {
+						camel_mbox_summary_add(s, info);
+					} else {
+						break;
+					}
+				}
+				fclose(fp);
+				s->dirty = FALSE;
+				index_folder(s, size); /* if it adds any, it'll dirtify it */
+				camel_mbox_summary_save(s);
+			} else {
+				g_warning("Folder changed/smaller, reindexing everything");
+				index_folder(s, 0);
+				camel_mbox_summary_save(s);
+				fclose(fp);
+			}
+			return 0;
+		}
 
 		printf("loading %d items from summary file\n", total);
-
 		for (i=0;i<total;i++) {
 			info = message_struct_load(fp);
 			if (info) {
@@ -1084,8 +1139,40 @@ int camel_mbox_summary_load(CamelMboxSummary *s)
 			}
 		}
 		fclose(fp);
+		s->dirty = FALSE;
 	}
 	return 0;
+}
+
+static int summary_header_write(FILE *fp, CamelMboxSummary *s)
+{
+	fseek(fp, 0, SEEK_SET);
+	encode_fixed_int(fp, CAMEL_MBOX_SUMMARY_VERSION);
+	encode_fixed_int(fp, s->time);
+	/* if we're dirty, then dont *really* save it ... */
+	if (s->dirty)
+		encode_fixed_int(fp, 0);
+	else
+		encode_fixed_int(fp, s->size);
+	encode_fixed_int(fp, s->nextuid);
+	fflush(fp);
+	return ferror(fp);
+}
+
+static int summary_header_save(CamelMboxSummary *s)
+{
+	int fd;
+	FILE *fp;
+
+	fd = open(s->summary_path, O_WRONLY|O_CREAT, 0600);
+	if (fd == -1)
+		return -1;
+	fp = fdopen(fd, "w");
+	if (fp == NULL)
+		return -1;
+
+	summary_header_write(fp, s);
+	return fclose(fp);
 }
 
 int camel_mbox_summary_save(CamelMboxSummary *s)
@@ -1093,34 +1180,37 @@ int camel_mbox_summary_save(CamelMboxSummary *s)
 	int i, fd;
 	FILE *fp;
 
+	printf("saving summary? %s\n", s->summary_path);
+
 	/* FIXME: error checking */
 	if (s->dirty) {
-		g_warning("Saving mbox summary");
-		fd = open(s->summary_path, O_WRONLY|O_CREAT|O_TRUNC, 0660);
+		printf("yes\n");
+		fd = open(s->summary_path, O_WRONLY|O_CREAT|O_TRUNC, 0600);
 		if (fd == -1)
 			return -1;
 		fp = fdopen(fd, "w");
 		if (fp == NULL)
 			return -1;
 
-		encode_fixed_int(fp, CAMEL_MBOX_SUMMARY_VERSION);
-		encode_fixed_int(fp, s->time);
-		encode_fixed_int(fp, s->size);
-		encode_fixed_int(fp, s->nextuid);
+		s->dirty = FALSE;
+
+		summary_header_write(fp, s);
 		encode_fixed_int(fp, s->messages->len);
+
+		printf("message count = %d\n", s->messages->len);
 
 		for (i=0;i<s->messages->len;i++) {
 			message_struct_save(fp, g_ptr_array_index(s->messages, i));
 		}
-		s->dirty = FALSE;
 		fclose(fp);
+	} else {
+		printf("no\n");
 	}
 	return 0;
 }
 
 CamelMboxMessageInfo *camel_mbox_summary_uid(CamelMboxSummary *s, const char *uid)
 {
-	printf("getting summary for uid %s\n", uid);
 	return g_hash_table_lookup(s->message_uid, uid);
 }
 
@@ -1132,6 +1222,23 @@ CamelMboxMessageInfo *camel_mbox_summary_index(CamelMboxSummary *s, int index)
 int camel_mbox_summary_message_count(CamelMboxSummary *s)
 {
 	return s->messages->len;
+}
+
+guint32 camel_mbox_summary_next_uid(CamelMboxSummary *s)
+{
+	guint32 uid = s->nextuid++;
+
+	summary_header_save(s);
+	return uid;
+}
+
+guint32 camel_mbox_summary_set_uid(CamelMboxSummary *s, guint32 uid)
+{
+	if (s->nextuid < uid) {
+		s->nextuid = uid;
+		summary_header_save(s);
+	}
+	return s->nextuid;
 }
 
 #if 0

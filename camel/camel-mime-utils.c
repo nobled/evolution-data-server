@@ -730,8 +730,6 @@ header_decode_text(char *in, int inlen)
 	char *encstart, *encend;
 	char *decword;
 
-	printf("encoded is '%s'\n", in);
-
 	out = g_string_new("");
 	while ( (encstart = strstr(inptr, "=?"))
 		&& (encend = strstr(encstart+2, "?=")) ) {
@@ -750,7 +748,6 @@ header_decode_text(char *in, int inlen)
 
 	inptr = out->str;
 	g_string_free(out, FALSE);
-	printf("decoded is: '%s'\n", inptr);
 	return inptr;
 }
 
@@ -985,6 +982,19 @@ header_content_type_is(struct _header_content_type *ct, char *type, char *subtyp
 		     || !strcasecmp("*", subtype))));
 }
 
+void
+header_param_list_free(struct _header_param *p)
+{
+	struct _header_param *n;
+
+	while (p) {
+		n = p->next;
+		g_free(p->name);
+		g_free(p->value);
+		g_free(p);
+		p = n;
+	}
+}
 
 struct _header_content_type *
 header_content_type_new(const char *type, const char *subtype)
@@ -1005,6 +1015,7 @@ header_content_type_ref(struct _header_content_type *ct)
 		ct->refcount++;
 }
 
+
 void
 header_content_type_unref(struct _header_content_type *ct)
 {
@@ -1012,14 +1023,7 @@ header_content_type_unref(struct _header_content_type *ct)
 
 	if (ct) {
 		if (ct->refcount <= 1) {
-			p = ct->params;
-			while (p) {
-				n = p->next;
-				g_free(p->name);
-				g_free(p->value);
-				g_free(p);
-				p = n;
-			}
+			header_param_list_free(ct->params);
 			g_free(ct->type);
 			g_free(ct->subtype);
 			g_free(ct);
@@ -1376,6 +1380,36 @@ header_mime_decode(const char *in)
 	d(printf("major = %d, minor = %d\n", major, minor));
 }
 
+struct _header_param *
+header_param_list_decode(const char **in)
+{
+	const char *inptr = *in;
+	struct _header_param *head = NULL, *tail = NULL;
+
+	header_decode_lwsp(&inptr);
+	while (*inptr == ';') {
+		char *param, *value;
+		struct _header_param *p;
+
+		inptr++;
+		/* invalid format? */
+		if (header_decode_param(&inptr, &param, &value) != 0)
+			break;
+
+		p = g_malloc(sizeof(*p));
+		p->name = param;
+		p->value = value;
+		p->next = NULL;
+		if (head == NULL)
+			head = p;
+		if (tail)
+			tail->next = p;
+		tail = p;
+		header_decode_lwsp(&inptr);
+	}
+	*in = inptr;
+	return head;
+}
 
 struct _header_content_type *
 header_content_type_decode(const char *in)
@@ -1398,31 +1432,12 @@ header_content_type_decode(const char *in)
 			g_warning("text type with no subtype, resorting to text/plain: %s", in);
 			subtype = g_strdup("plain");
 		}
-		if (subtype) {
-
-			t = header_content_type_new(type, subtype);
-
-			d(printf("content-type is %s / %s\n", type, subtype));
-			header_decode_lwsp(&inptr);
-			while (*inptr == ';') {
-				char *param, *value;
-				struct _header_param *p;
-
-				inptr++;
-				/* invalid format? */
-				if (header_decode_param(&inptr, &param, &value) != 0)
-					break;
-
-				p = g_malloc(sizeof(*p));
-				p->name = param;
-				p->value = value;
-				p->next = t->params;
-				t->params = p;
-			}
-		} else {
-			g_free(type);
-			d(printf("cannot find MIME subtype in header (1) '%s'", in));
+		if (subtype == NULL) {
+			g_warning("MIME type with no subtype: %s", in);
 		}
+
+		t = header_content_type_new(type, subtype);
+		t->params = header_param_list_decode(&inptr);
 	} else {
 		g_free(type);
 		d(printf("cannot find MIME type in header (2) '%s'", in));
@@ -1459,6 +1474,41 @@ header_content_encoding_decode(const char *in)
 	return NULL;
 }
 
+CamelMimeDisposition *header_disposition_decode(const char *in)
+{
+	CamelMimeDisposition *d = NULL;
+	const char *inptr = in;
+
+	if (in == NULL)
+		return NULL;
+
+	d = g_malloc(sizeof(*d));
+	d->refcount = 1;
+	d->disposition = header_decode_token(&inptr);
+	if (d->disposition == NULL)
+		g_warning("Empty disposition type");
+	d->params = header_param_list_decode(&inptr);
+	return d;
+}
+
+void header_disposition_ref(CamelMimeDisposition *d)
+{
+	if (d)
+		d->refcount++;
+}
+void header_disposition_unref(CamelMimeDisposition *d)
+{
+	if (d) {
+		if (d->refcount<=1) {
+			header_param_list_free(d->params);
+			g_free(d->disposition);
+			g_free(d);
+		} else {
+			d->refcount--;
+		}
+	}
+}
+
 /* hrm, is there a library for this shit? */
 static struct {
 	char *name;
@@ -1491,13 +1541,13 @@ header_format_date(time_t time, int offset)
 {
 	struct tm tm;
 
-	printf("offset = %d\n", offset);
+	d(printf("offset = %d\n", offset));
 
-	printf("converting date %s", ctime(&time));
+	d(printf("converting date %s", ctime(&time)));
 
 	time += ((offset / 100) * (60*60)) + (offset % 100)*60;
 
-	printf("converting date %s", ctime(&time));
+	d(printf("converting date %s", ctime(&time)));
 
 	memcpy(&tm, gmtime(&time), sizeof(tm));
 
@@ -1527,7 +1577,7 @@ header_decode_date(const char *in, int *saveoffset)
 		return 0;
 	}
 
-	printf("\ndecoding date '%s'\n", inptr);
+	d(printf("\ndecoding date '%s'\n", inptr));
 
 	memset(&tm, 0, sizeof(tm));
 
@@ -1536,13 +1586,13 @@ header_decode_date(const char *in, int *saveoffset)
 		char *day = header_decode_token(&inptr);
 		/* we dont really care about the day, its only for display */
 		if (day) {
-			printf("got day: %s\n", day);
+			d(printf("got day: %s\n", day));
 			g_free(day);
 			header_decode_lwsp(&inptr);
 			if (*inptr == ',')
 				inptr++;
 			else
-				printf("day not followed by ',', what gives?\n");
+				g_warning("day not followed by ','");
 		}
 	}
 	tm.tm_mday = header_decode_int(&inptr);
@@ -1577,10 +1627,10 @@ header_decode_date(const char *in, int *saveoffset)
 	    || *inptr == '-') {
 		offset = (*inptr++)=='-'?-1:1;
 		offset = offset * header_decode_int(&inptr);
-		printf("abs signed offset = %d\n", offset);
+		d(printf("abs signed offset = %d\n", offset));
 	} else if (isdigit(*inptr)) {
 		offset = header_decode_int(&inptr);
-		printf("abs offset = %d\n", offset);
+		d(printf("abs offset = %d\n", offset));
 	} else {
 		char *tz = header_decode_token(&inptr);
 
@@ -1599,7 +1649,7 @@ header_decode_date(const char *in, int *saveoffset)
 			int sign = (*inptr++)=='-'?-1:1;
 			offset = offset + (header_decode_int(&inptr)*sign);
 		}
-		printf("named offset = %d\n", offset);
+		d(printf("named offset = %d\n", offset));
 	}
 
 	/*	t -= ( (offset/100) * 60*60) + (offset % 100)*60 + timezone;*/
@@ -1608,14 +1658,19 @@ header_decode_date(const char *in, int *saveoffset)
 
 	/* t is now GMT of the time we want, but not offset by the timezone ... */
 
-	printf(" gmt normalized? = %s\n", ctime(&t));
+	d(printf(" gmt normalized? = %s\n", ctime(&t)));
 
 	/* this should convert the time to the GMT equiv time */
 	t -= ( (offset/100) * 60*60) + (offset % 100)*60;
 
-	printf(" gmt normalized for timezone? = %s\n", ctime(&t));
+	d(printf(" gmt normalized for timezone? = %s\n", ctime(&t)));
 
-	printf(" encoded again: %s\n", header_format_date(t, offset));
+	d({
+		char *tmp;
+		tmp = header_format_date(t, offset);
+		printf(" encoded again: %s\n", tmp);
+		g_free(tmp);
+	});
 
 	if (saveoffset)
 		*saveoffset = offset;
