@@ -1,3 +1,18 @@
+2000-05-08    <notzed@helixcode.com>
+
+	* camel-mime-part.c (write_to_stream): Free the filter stream when
+	done.
+
+	* camel-mime-parser.c (folder_seek): Make sure we add the \n
+	terminal when we seek as well (frob!).
+
+	* camel-mime-utils.c (header_decode_addrspec): Plug minor memleak.
+
+	* camel-mime-part.c (finalize): Free header tables once finished.
+
+	* camel-folder-summary.c (camel_folder_summary_remove): Dont try
+	to access info after its free'd.
+
 2000-05-07  NotZed  <NotZed@HelixCode.com>
 
 	* camel-mime-part.c (write_to_stream): Apply encoding to content

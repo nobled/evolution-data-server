@@ -1293,6 +1293,7 @@ header_decode_addrspec(const char **in)
 			word = header_decode_domain(&inptr);
 			if (word) {
 				addr = g_string_append(addr, word);
+				g_free(word);
 			} else {
 				w(g_warning("Invalid address, missing domain: %s", *in));
 			}

@@ -501,11 +501,13 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 
 void camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info)
 {
+	CamelMessageContentInfo *ci = info->content;
+
 	g_hash_table_remove(s->messages_uid, info->uid);
 	g_ptr_array_remove(s->messages, info);
 	((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->message_info_free(s, info);
-	if (s->build_content && info->content) {
-		perform_content_info_free(s, info->content);
+	if (s->build_content && ci) {
+		perform_content_info_free(s, ci);
 	}
 }
 

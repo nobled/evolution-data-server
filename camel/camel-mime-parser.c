@@ -47,9 +47,16 @@
 #define c(x)
 #define d(x)
 
+/*#define PURIFY*/
+
 #define MEMPOOL
 
 #define STRUCT_ALIGN 4
+
+#ifdef PURIFY
+int inend_id = -1,
+  inbuffer_id = -1;
+#endif
 
 #if 0
 extern int strdup_count;
@@ -328,7 +335,9 @@ static void
 finalise(GtkObject *o)
 {
 	struct _header_scan_state *s = _PRIVATE(o);
-
+#ifdef PURIFY
+	purify_watch_remove_all();
+#endif
 	folder_scan_close(s);
 
 	((GtkObjectClass *)camel_mime_parser_parent)->finalize (o);
@@ -805,7 +814,10 @@ folder_read(struct _header_scan_state *s)
 
 	if (s->inptr<s->inend-s->atleast)
 		return s->inend-s->inptr;
-
+#ifdef PURIFY
+	purify_watch_remove(inend_id);
+	purify_watch_remove(inbuffer_id);
+#endif
 	/* check for any remaning bytes (under the atleast limit( */
 	inoffset = s->inend - s->inptr;
 	if (inoffset>0) {
@@ -826,7 +838,10 @@ folder_read(struct _header_scan_state *s)
 	}
 
 	g_assert(s->inptr<=s->inend);
-
+#ifdef PURIFY
+	inend_id = purify_watch(&s->inend);
+	inbuffer_id = purify_watch_n(s->inend+1, SCAN_HEAD-1, "rw");
+#endif
 	r(printf("content = %d '%.*s'\n", s->inend - s->inptr,  s->inend - s->inptr, s->inptr));
 	/* set a sentinal, for the inner loops to check against */
 	s->inend[0] = '\n';
@@ -862,6 +877,10 @@ folder_seek(struct _header_scan_state *s, off_t offset, int whence)
 	} else {
 		newoffset = lseek(s->fd, offset, whence);
 	}
+#ifdef PURIFY
+	purify_watch_remove(inend_id);
+	purify_watch_remove(inbuffer_id);
+#endif
 	if (newoffset != -1) {
 		s->seek = newoffset;
 		s->inptr = s->inbuf;
@@ -870,11 +889,16 @@ folder_seek(struct _header_scan_state *s, off_t offset, int whence)
 			len = camel_stream_read(s->stream, s->inbuf, SCAN_BUF);
 		else
 			len = read(s->fd, s->inbuf, SCAN_BUF);
-		if (len>=0)
+		if (len>=0) {
 			s->inend = s->inbuf+len;
-		else
+			s->inend[0] = '\n';
+		} else
 			newoffset = -1;
 	}
+#ifdef PURIFY
+	inend_id = purify_watch(&s->inend);
+	inbuffer_id = purify_watch_n(s->inend+1, SCAN_HEAD-1, "rw");
+#endif
 	return newoffset;
 }
 

@@ -186,6 +186,8 @@ finalize (GtkObject *object)
 
 	if (mime_part->content_input_stream) gtk_object_unref (GTK_OBJECT (mime_part->content_input_stream));
 
+	header_raw_clear(&mime_part->headers);
+
 	GTK_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
@@ -509,7 +511,7 @@ write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 #define CAN_THIS_GO_ELSEWHERE
 #ifdef CAN_THIS_GO_ELSEWHERE
 		CamelMimeFilter *filter = NULL;
-		CamelStreamFilter *filter_stream;
+		CamelStreamFilter *filter_stream = NULL;
 
 		switch(mp->encoding) {
 		case CAMEL_MIME_PART_ENCODING_BASE64:
@@ -530,8 +532,12 @@ write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 
 #endif
 		if ( (count = camel_data_wrapper_write_to_stream(content, stream)) == -1 )
-			return -1;
-		total += count;
+			total = -1;
+		else
+			total += count;
+
+		if (filter_stream)
+			gtk_object_unref((GtkObject *)filter_stream);
 	} else {
 		g_warning("No content for medium, nothing to write");
 	}
