@@ -56,11 +56,13 @@ CamelProviderConfEntry groupwise_conf_entries[] = {
 	  N_("Check for new messages in all folders"), "1" },
 	{ CAMEL_PROVIDER_CONF_SECTION_END },
 
+	{ CAMEL_PROVIDER_CONF_SECTION_START, "general", NULL, N_("Options") },
 	{ CAMEL_PROVIDER_CONF_CHECKBOX, "filter", NULL,
 	  N_("Apply filters to new messages in Inbox on this server"), "0" },
 
 	{ CAMEL_PROVIDER_CONF_CHECKBOX, "offline_sync", NULL,
 	  N_("Automatically synchronize remote mail locally"), "0" },
+	{ CAMEL_PROVIDER_CONF_SECTION_END },
 
 	/* extra Groupwise  configuration settings */
 	{CAMEL_PROVIDER_CONF_SECTION_START, "soapport", NULL,
@@ -73,7 +75,6 @@ CamelProviderConfEntry groupwise_conf_entries[] = {
 	  NULL, "Groupwise" },
 	 	
 	{ CAMEL_PROVIDER_CONF_SECTION_END }, 
-
 
 	{ CAMEL_PROVIDER_CONF_END }
 };
