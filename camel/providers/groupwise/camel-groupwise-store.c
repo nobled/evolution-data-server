@@ -233,7 +233,6 @@ camel_groupwise_store_init (gpointer object, gpointer klass)
 	CamelGroupwiseStorePrivate *priv = g_new0 (CamelGroupwiseStorePrivate, 1);
 	
 	d("in groupwise store init\n");
-	printf("in groupwise store init\n");
 	priv->server_name = NULL;
 	priv->port = NULL;
 	priv->use_ssl = NULL;
@@ -573,7 +572,10 @@ groupwise_build_folder_info(CamelGroupwiseStore *gw_store, const char *parent_na
 
 	fi = g_malloc0(sizeof(*fi)) ;
 	if (parent_name)
-		fi->full_name = g_strconcat(parent_name,"/",g_strdup(folder_name), NULL) ;
+		if (strlen(parent_name) > 0)
+			fi->full_name = g_strconcat(parent_name,"/",g_strdup(folder_name), NULL) ;
+		else
+			fi->full_name = g_strdup (folder_name) ;
 	else	
 		fi->full_name = g_strdup(folder_name) ;
 	fi->unread = 0 ;
@@ -712,7 +714,7 @@ groupwise_get_folder_info_online (CamelStore *store,
 
 		parent = e_gw_container_get_parent_id (E_GW_CONTAINER (folder_list->data)) ;
 		printf (" Parent id: %s ||\n", parent) ;
-		par_name = g_hash_table_lookup (priv->id_hash, g_strdup(parent)) ;
+		par_name = g_hash_table_lookup (priv->id_hash, parent) ;
 		printf (" Parent Name : %s ||\n", par_name) ;
 
 		if (par_name != NULL) {
@@ -820,15 +822,15 @@ groupwise_get_folder_info_offline (CamelStore *store, const char *top,
 
 static CamelFolderInfo*
 groupwise_create_folder(CamelStore *store,
-				 	       const char *parent_name,
-					       const char *folder_name,
-					       CamelException *ex)
+		const char *parent_name,
+		const char *folder_name,
+		CamelException *ex)
 {
 	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (store);
 	CamelGroupwiseStorePrivate  *priv = groupwise_store->priv;
 	CamelFolderInfo *root = NULL ;
 
-	char *parent_id ;
+	char *parent_id , *child_container_id;
 
 	int status;
 	/*GPtrArray *folders;
@@ -840,7 +842,10 @@ groupwise_create_folder(CamelStore *store,
 		parent_name = "" ;
 
 	if (parent_name)
-		parent_id = g_hash_table_lookup (priv->name_hash, g_strdup(parent_name)) ;
+		if (strlen(parent_name) > 0)
+			parent_id = g_hash_table_lookup (priv->name_hash, g_strdup(parent_name)) ;
+		else
+			parent_id = "" ;
 	else
 		parent_id = "" ;
 
@@ -851,9 +856,14 @@ groupwise_create_folder(CamelStore *store,
 			return NULL;
 		}
 	}
-	status = e_gw_connection_create_folder(priv->cnc,parent_id,folder_name) ;
+	status = e_gw_connection_create_folder(priv->cnc,parent_id,folder_name, &child_container_id) ;
 	if (status == E_GW_CONNECTION_STATUS_OK) {
 		root = groupwise_build_folder_info(groupwise_store, parent_name,folder_name) ;
+
+		g_hash_table_insert (priv->id_hash, g_strdup(child_container_id), g_strdup(folder_name)) ; 
+		g_hash_table_insert (priv->name_hash, g_strdup(folder_name), g_strdup(child_container_id)) ;
+		g_hash_table_insert (priv->parent_hash, g_strdup(child_container_id), g_strdup(parent_id)) ;
+
 		printf(">>> Folder Successfully created <<<\n") ;
 		camel_object_trigger_event (CAMEL_OBJECT (store), "folder_created", root);
 	}
@@ -885,6 +895,15 @@ groupwise_delete_folder(CamelStore *store,
 	if (status == E_GW_CONNECTION_STATUS_OK) {
 		printf(" ||| Deleted Successfully : %s|||\n", folder_name) ;
 		groupwise_forget_folder(groupwise_store,folder_name,ex) ;
+		
+		g_hash_table_remove (priv->id_hash, container) ;
+		
+		if (name)
+			g_hash_table_remove (priv->name_hash, name) ;
+		else 
+			g_hash_table_remove (priv->name_hash, folder_name) ;
+		
+		g_hash_table_remove (priv->parent_hash, container) ;
 	}
 }
 						     

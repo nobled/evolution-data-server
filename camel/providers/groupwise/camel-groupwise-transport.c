@@ -29,6 +29,14 @@
 #include "camel-groupwise-store.h"
 
 #include "camel-i18n.h"
+#include "camel-session.h" 
+#include "camel-stream.h"
+#include "camel-stream-mem.h"
+#include "camel-medium.h"
+#include "camel-data-wrapper.h"
+#include "camel-mime-message.h"
+#include "camel-multipart.h"
+#include "camel-mime-utils.h"
 
 #include <string.h>
 
@@ -121,10 +129,10 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (transport) ;
 	CamelService *service = CAMEL_SERVICE(transport) ;
 
-	CamelStore *store =  CAMEL_STORE (service) ;
+	CamelStore *store =  NULL ;
 	
-	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (store);
-	CamelGroupwiseStorePrivate *priv = groupwise_store->priv;
+	CamelGroupwiseStore *groupwise_store = NULL;
+	CamelGroupwiseStorePrivate *priv = NULL;
 
 	
 	gboolean has_8bit_parts ;
@@ -135,19 +143,87 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	CamelInternetAddress *to_addr ;
 	CamelInternetAddress *cc_addr ;
 	CamelInternetAddress *bcc_addr ;
+	CamelDataWrapper *dw ;
+	CamelStream *stream ;
+	CamelMimePart *mime_part = CAMEL_MIME_PART(message) ;
+	
+	guint part_count ;
+	char buffer[23] = {0};
+	GSList *list = NULL ;
+	char *url = NULL ;
+	int i ;
 
-	GSList *list ;
-	g_print ("||||||| Works Dude ||\n") ;
+	url = camel_url_to_string (service->url,
+			(CAMEL_URL_HIDE_PASSWORD|
+			 CAMEL_URL_HIDE_PARAMS|
+			 CAMEL_URL_HIDE_AUTH) );
+	
+	g_print ("||||||| Works Dude :%s||\n", url) ;
 
-	item = g_object_new (E_TYPE_GW_ITEM, NULL);
+	/* Get a pointer to the store and the CNC. The idea is to get the session information,
+	 * so that we neednt make a connection again.
+	 */
+	store = camel_session_get_store (service->session, url, ex ) ;
+	if (!store) {
+		g_print ("ERROR: Could not get a pointer to the store") ;
+	}
+	groupwise_store = CAMEL_GROUPWISE_STORE (store) ;
+	priv = groupwise_store->priv ;
 
 	cnc = cnc_lookup (priv) ;
 	if (!cnc) {
 		g_print ("||| Eh!!! Failure |||\n") ;		
+		return FALSE ;
 	}
-	g_print ("|| SUbject : %s |||\n", camel_mime_message_get_subject (message)) ;
-	return FALSE ;
 
+	/*
+	 * Get the mime parts from CamelMimemessge 
+	 */
+	dw = camel_medium_get_content_object (CAMEL_MEDIUM (mime_part));
+	if(!dw) {
+		g_print ("ERROR: Could not get Datawrapper") ;
+		return FALSE ;
+	}
+
+	if (CAMEL_IS_MULTIPART (dw)) {
+		part_count = camel_multipart_get_number (CAMEL_MULTIPART(dw)) ;
+		g_print ("Multipart message : %d\n",part_count) ;
+		for (i=0 ; i<part_count ; i++) {
+			CamelMimePart *part = camel_multipart_get_part (CAMEL_MULTIPART(dw),i) ; 
+			CamelContentType *type  ;
+			
+			type = camel_mime_part_get_content_type(CAMEL_MULTIPART(dw)) ;
+		}
+
+	} else {
+		CamelContentType *type  ;
+		CamelStream *stream = camel_stream_mem_new () ;
+		int count, c1 ;
+		char *buff = NULL ;
+		
+		type = camel_data_wrapper_get_mime_type_field(dw) ;
+		g_print ("Does not contain multiple parts : %s\n",type->type) ;
+
+		count = camel_data_wrapper_decode_to_stream (dw, stream) ;
+
+
+	}
+
+	return TRUE ;
+	/*Populate the item structure to send it to the GW server*/
+	g_print ("|| SUbject : %s |||\n", camel_mime_message_get_subject (message)) ;
+	
+	item = e_gw_item_new_empty () ;
+
+	e_gw_item_set_item_type (item, E_GW_ITEM_TYPE_MAIL) ;
+	e_gw_item_set_subject (item, camel_mime_message_get_subject(message)) ;
+
+	
+	e_gw_item_set_message (item, buffer );
+
+
+	
+	/*Send item*/
 	status = e_gw_connection_send_item (cnc, item, &list) ;
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		g_print (" Error Sending mail") ;
@@ -157,3 +233,24 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	g_object_unref (item) ;
 	return TRUE;
 }
+	
+
+
+/**********************************
+	dw = camel_data_wrapper_new ();
+	stream = camel_stream_mem_new () ;
+
+	mime_part = (CamelMimePart *)message ;
+	dw = camel_medium_get_content_object (CAMEL_MEDIUM (mime_part)) ;
+
+	count = camel_data_wrapper_write_to_stream (dw, stream) ;
+		
+	camel_stream_read (stream, buffer, count) ;
+	if (!buffer) {
+		g_print ("Error: Could not get buffer\n") ;
+		return FALSE ;
+	}
+		
+	g_print ("Buffer : \n %s \n", buffer) ;
+
+	*********************************/
