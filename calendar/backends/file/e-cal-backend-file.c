@@ -1989,8 +1989,8 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		*object = NULL;
 		break;
 	case CALOBJ_MOD_THIS :
+		*old_object = e_cal_component_get_as_string (comp);
 		if (!rid || !*rid) {
-			*old_object = e_cal_component_get_as_string (comp);
 			remove_component (cbfile, comp);
 			*object = NULL;
 		} else {
@@ -2002,6 +2002,8 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	case CALOBJ_MOD_THISANDFUTURE :
 		if (!rid || !*rid)
 			return GNOME_Evolution_Calendar_ObjectNotFound;
+
+		*old_object = e_cal_component_get_as_string (comp);
 
 		/* remove the component from our data, temporarily */
 		icalcomponent_remove_component (priv->icalcomp,
