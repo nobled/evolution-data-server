@@ -1,3 +1,28 @@
+2000-12-21  Not Zed  <NotZed@HelixCode.com>
+
+	* camel-service.c (camel_service_init, finalise): changed
+	connect_lock to be recursive e_mutex.
+
+	* camel-remote-store.c (camel_remote_store_init, finalise): Changed
+	stream_lock to recursive e_mutex.
+
+	* camel-private.h (RemoteStorePrivate, ServicePrivate): Use
+	recursive mutexes for connect_lock & stream_lock.  Ick.  Because
+	of the imap code.
+
+	* providers/imap/camel-imap-private.h: Change the command_lock to
+	be an EMutex.
+
+	* providers/imap/camel-imap-store.c (connect_to_server): Removed
+	the command_lock stuff.  If we are just connected again, it should
+	be safe to assume we have exclusive access at this point without
+	it (and yes, removes a deadlock).
+	(imap_create): Remove a lock that wasn't even supposed to be
+	there.
+	(camel_imap_store_finalize, init): g_mutex->e_mutex(E_MUTEX_REC).
+	Use a recursive mutex since the imap code is multiply recursivly
+	calling some functions (sigh, it would be nice to fix this).
+
 2000-12-20  Not Zed  <NotZed@HelixCode.com>
 
 	* camel-folder.c (folder_changed): Change the locks to inside the

@@ -117,7 +117,7 @@ camel_remote_store_init (CamelObject *object)
 
 	remote_store->priv = g_malloc0(sizeof(*remote_store->priv));
 #ifdef ENABLE_THREADS
-	remote_store->priv->stream_lock = g_mutex_new();
+	remote_store->priv->stream_lock = e_mutex_new(E_MUTEX_REC);
 #endif
 }
 
@@ -127,7 +127,7 @@ camel_remote_store_finalise(CamelObject *object)
 	CamelRemoteStore *remote_store = CAMEL_REMOTE_STORE (object);
 
 #ifdef ENABLE_THREADS
-	g_mutex_free(remote_store->priv->stream_lock);
+	e_mutex_destroy(remote_store->priv->stream_lock);
 #endif
 	g_free(remote_store->priv);
 }

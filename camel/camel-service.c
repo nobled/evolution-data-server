@@ -72,7 +72,7 @@ camel_service_init (void *o, void *k)
 
 	service->priv = g_malloc0(sizeof(*service->priv));
 #ifdef ENABLE_THREADS
-	service->priv->connect_lock = g_mutex_new();
+	service->priv->connect_lock = e_mutex_new(E_MUTEX_REC);
 #endif
 }
 
@@ -100,7 +100,7 @@ camel_service_finalize (CamelObject *object)
 		camel_object_unref (CAMEL_OBJECT (camel_service->session));
 
 #ifdef ENABLE_THREADS
-	g_mutex_free(camel_service->priv->connect_lock);
+	e_mutex_destroy(camel_service->priv->connect_lock);
 #endif
 	g_free(camel_service->priv);
 }

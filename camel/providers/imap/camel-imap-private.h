@@ -35,18 +35,18 @@ extern "C" {
 #include "config.h"
 
 #ifdef ENABLE_THREADS
-#include <pthread.h>
+#include "e-util/e-msgport.h"
 #endif
 
 struct _CamelImapStorePrivate {
 #ifdef ENABLE_THREADS
-	GMutex *command_lock;	/* for locking the command stream for a complete operation */
+	EMutex *command_lock;	/* for locking the command stream for a complete operation */
 #endif
 };
 
 #ifdef ENABLE_THREADS
-#define CAMEL_IMAP_STORE_LOCK(f, l) (g_mutex_lock(((CamelImapStore *)f)->priv->l))
-#define CAMEL_IMAP_STORE_UNLOCK(f, l) (g_mutex_unlock(((CamelImapStore *)f)->priv->l))
+#define CAMEL_IMAP_STORE_LOCK(f, l) (e_mutex_lock(((CamelImapStore *)f)->priv->l))
+#define CAMEL_IMAP_STORE_UNLOCK(f, l) (e_mutex_unlock(((CamelImapStore *)f)->priv->l))
 #else
 #define CAMEL_IMAP_STORE_LOCK(f, l)
 #define CAMEL_IMAP_STORE_UNLOCK(f, l)

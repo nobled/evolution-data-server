@@ -36,6 +36,7 @@ extern "C" {
 
 #ifdef ENABLE_THREADS
 #include <pthread.h>
+#include "e-util/e-msgport.h"
 #endif
 
 struct _CamelFolderPrivate {
@@ -74,13 +75,13 @@ struct _CamelStorePrivate {
 
 struct _CamelServicePrivate {
 #ifdef ENABLE_THREADS
-	GMutex *connect_lock;	/* for locking connection operations */
+	EMutex *connect_lock;	/* for locking connection operations */
 #endif
 };
 
 #ifdef ENABLE_THREADS
-#define CAMEL_SERVICE_LOCK(f, l) (g_mutex_lock(((CamelService *)f)->priv->l))
-#define CAMEL_SERVICE_UNLOCK(f, l) (g_mutex_unlock(((CamelService *)f)->priv->l))
+#define CAMEL_SERVICE_LOCK(f, l) (e_mutex_lock(((CamelService *)f)->priv->l))
+#define CAMEL_SERVICE_UNLOCK(f, l) (e_mutex_unlock(((CamelService *)f)->priv->l))
 #else
 #define CAMEL_SERVICE_LOCK(f, l)
 #define CAMEL_SERVICE_UNLOCK(f, l)
@@ -103,13 +104,13 @@ struct _CamelSessionPrivate {
 
 struct _CamelRemoteStorePrivate {
 #ifdef ENABLE_THREADS
-	GMutex *stream_lock;	/* for locking stream operations */
+	EMutex *stream_lock;	/* for locking stream operations */
 #endif
 };
 
 #ifdef ENABLE_THREADS
-#define CAMEL_REMOTE_STORE_LOCK(f, l) (g_mutex_lock(((CamelRemoteStore *)f)->priv->l))
-#define CAMEL_REMOTE_STORE_UNLOCK(f, l) (g_mutex_unlock(((CamelRemoteStore *)f)->priv->l))
+#define CAMEL_REMOTE_STORE_LOCK(f, l) (e_mutex_lock(((CamelRemoteStore *)f)->priv->l))
+#define CAMEL_REMOTE_STORE_UNLOCK(f, l) (e_mutex_unlock(((CamelRemoteStore *)f)->priv->l))
 #else
 #define CAMEL_REMOTE_STORE_LOCK(f, l)
 #define CAMEL_REMOTE_STORE_UNLOCK(f, l)

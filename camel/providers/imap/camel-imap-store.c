@@ -124,7 +124,7 @@ camel_imap_store_finalize (CamelObject *object)
 				     free_sub, NULL);
 	g_hash_table_destroy (imap_store->subscribed_folders);
 #ifdef ENABLE_THREADS
-	g_mutex_free(imap_store->priv->command_lock);
+	e_mutex_destroy(imap_store->priv->command_lock);
 #endif
 	g_free(imap_store->priv);
 }
@@ -148,7 +148,7 @@ camel_imap_store_init (gpointer object, gpointer klass)
 
 	imap_store->priv = g_malloc0(sizeof(*imap_store->priv));
 #ifdef ENABLE_THREADS
-	imap_store->priv->command_lock = g_mutex_new();
+	imap_store->priv->command_lock = e_mutex_new(E_MUTEX_REC);
 #endif
 }
 
@@ -186,6 +186,7 @@ static struct {
 	{ NULL, 0 }
 };
 
+/* we have remote-store:connect_lock by now */
 static gboolean
 connect_to_server (CamelService *service, CamelException *ex)
 {
@@ -199,15 +200,9 @@ connect_to_server (CamelService *service, CamelException *ex)
 
 	store->command = 0;
 
-	/* Hrm, not sure if this is needed/right for this bit of the code
-	   since, we've presumably just connected, and are inside the
-	   remote_store:connect_lock already */
-	CAMEL_IMAP_STORE_LOCK(store, command_lock);
-
 	/* Read the greeting, if any. FIXME: deal with PREAUTH */
 	if (camel_remote_store_recv_line (CAMEL_REMOTE_STORE (service),
 					  &buf, ex) < 0) {
-		CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 		return FALSE;
 	}
 	g_free (buf);
@@ -216,7 +211,6 @@ connect_to_server (CamelService *service, CamelException *ex)
 	/* Find out the IMAP capabilities */
 	store->capabilities = 0;
 	response = camel_imap_command (store, NULL, ex, "CAPABILITY");
-	CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 	if (!response)
 		return FALSE;
 	result = camel_imap_response_extract (response, "CAPABILITY", ex);
@@ -517,9 +511,7 @@ imap_create (CamelImapStore *store, const char *folder_name,
 {
 	CamelImapResponse *response;
 
-	CAMEL_IMAP_STORE_LOCK(store, command_lock);
 	response = camel_imap_command (store, NULL, ex, "CREATE \"%s\"", folder_name);
-	CAMEL_IMAP_STORE_UNLOCK(store, command_lock);
 	camel_imap_response_free (response);
 
 	return !camel_exception_is_set (ex);
