@@ -403,38 +403,48 @@ add_component (ECalBackendFile *cbfile, ECalComponent *comp, gboolean add_to_top
 
 	priv = cbfile->priv;
 
-	if (e_cal_component_is_instance (comp)) { /* FIXME: more checks needed, to detect detached instances */
+	e_cal_component_get_uid (comp, &uid);
+	obj_data = g_hash_table_lookup (priv->comp_uid_hash, uid);
+
+	if (e_cal_component_is_instance (comp)) {
 		const char *rid;
 
-		e_cal_component_get_uid (comp, &uid);
-
-		obj_data = g_hash_table_lookup (priv->comp_uid_hash, uid);
-		if (!obj_data) {
-			g_warning (G_STRLOC ": Got an instance of a non-existing component");
-			return;
-		}
-
 		rid = e_cal_component_get_recurid_as_string (comp);
-		if (g_hash_table_lookup (obj_data->recurrences, rid)) {
-			g_warning (G_STRLOC ": Tried to adding an already existing recurrence");
-			return;
+		if (obj_data) {
+			if (g_hash_table_lookup (obj_data->recurrences, rid)) {
+				g_warning (G_STRLOC ": Tried to add an already existing recurrence");
+				return;
+			}
+		} else {
+			obj_data = g_new0 (ECalBackendFileObject, 1);
+			obj_data->full_object = NULL;
+			obj_data->recurrences = g_hash_table_new (g_str_hash, g_str_equal);
+
+			g_hash_table_insert (priv->comp_uid_hash, (gpointer) uid, obj_data);
 		}
 
 		g_hash_table_insert (obj_data->recurrences, g_strdup (rid), comp);
-		/* FIXME: sort the recurrences */
 		obj_data->recurrences_list = g_list_append (obj_data->recurrences_list, comp);
 	} else {
 		/* Ensure that the UID is unique; some broken implementations spit
 		 * components with duplicated UIDs.
 		 */
 		check_dup_uid (cbfile, comp);
-		e_cal_component_get_uid (comp, &uid);
 
-		obj_data = g_new0 (ECalBackendFileObject, 1);
-		obj_data->full_object = comp;
-		obj_data->recurrences = g_hash_table_new (g_str_hash, g_str_equal);
+		if (obj_data) {
+			if (obj_data->full_object) {
+				g_warning (G_STRLOC ": Tried to add an already existing object");
+				return;
+			}
 
-		g_hash_table_insert (priv->comp_uid_hash, (gpointer) uid, obj_data);
+			obj_data->full_object = comp;
+		} else {
+			obj_data = g_new0 (ECalBackendFileObject, 1);
+			obj_data->full_object = comp;
+			obj_data->recurrences = g_hash_table_new (g_str_hash, g_str_equal);
+
+			g_hash_table_insert (priv->comp_uid_hash, (gpointer) uid, obj_data);
+		}
 	}
 
 	priv->comp = g_list_prepend (priv->comp, comp);
