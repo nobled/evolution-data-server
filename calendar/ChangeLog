@@ -1,3 +1,8 @@
+2004-11-21 Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* idl/Evolution-DataServer-Calendar.idl : added 
+	new error code OfflineUnavailable 
+
 2004-11-16 Sivaiah Nallagatla <snallagatla@novell.com>
 
 	* idl/Evolution-DataServer-Calendar.idl : added a new method 
