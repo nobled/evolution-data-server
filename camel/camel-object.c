@@ -1330,6 +1330,55 @@ int camel_object_get(void *vo, CamelException *ex, ...)
 	return ret;
 }
 
+void *camel_object_get_ptr(void *vo, CamelException *ex, int tag)
+{
+	CamelObject *o = vo;
+	CamelArgGetV args;
+	CamelObjectClass *klass = o->klass;
+	int ret = 0;
+	void *val = NULL;
+
+	g_return_val_if_fail(CAMEL_IS_OBJECT(o), NULL);
+	g_return_val_if_fail((tag & CAMEL_ARG_TYPE) == CAMEL_ARG_OBJ
+			     || (tag & CAMEL_ARG_TYPE) == CAMEL_ARG_STR
+			     || (tag & CAMEL_ARG_TYPE) == CAMEL_ARG_PTR, 0);
+
+	/* woefully inefficient, *shrug */
+	args.argc = 1;
+	args.argv[0].tag = tag;
+	args.argv[0].ca_ptr = &val;
+
+	ret = klass->getv(o, ex, &args);
+	if (ret != 0)
+		return NULL;
+	else
+		return val;
+}
+
+int camel_object_get_int(void *vo, CamelException *ex, int tag)
+{
+	CamelObject *o = vo;
+	CamelArgGetV args;
+	CamelObjectClass *klass = o->klass;
+	int ret = 0;
+	int val = 0;
+
+	g_return_val_if_fail(CAMEL_IS_OBJECT(o), 0);
+	g_return_val_if_fail((tag & CAMEL_ARG_TYPE) == CAMEL_ARG_INT
+			     || (tag & CAMEL_ARG_TYPE) == CAMEL_ARG_BOO, 0);
+
+	/* woefully inefficient, *shrug */
+	args.argc = 1;
+	args.argv[0].tag = tag;
+	args.argv[0].ca_int = &val;
+
+	ret = klass->getv(o, ex, &args);
+	if (ret != 0)
+		return 0;
+	else
+		return val;
+}
+
 int camel_object_getv(void *vo, CamelException *ex, CamelArgGetV *args)
 {
 	g_return_val_if_fail(CAMEL_IS_OBJECT(vo), -1);

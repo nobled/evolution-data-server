@@ -1,3 +1,7 @@
+2004-07-07  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder.c: removed filter-rule.h  ugh.
+
 2004-07-02  Christian Neumair  <chris@gnome-de.org>
 
 	* camel-smime-context.c: s/Can't/Cannot/.

@@ -235,6 +235,10 @@ int camel_object_setv(void *obj, struct _CamelException *ex, CamelArgV *);
 int camel_object_get(void *obj, struct _CamelException *ex, ...);
 int camel_object_getv(void *obj, struct _CamelException *ex, CamelArgGetV *);
 
+/* not very efficient one-time calls */
+void *camel_object_get_ptr(void *vo, CamelException *ex, int tag);
+int camel_object_get_int(void *vo, CamelException *ex, int tag);
+
 /* meta-data for user-specific data */
 char *camel_object_meta_get(void *vo, const char * name);
 gboolean camel_object_meta_set(void *vo, const char * name, const char *value);
