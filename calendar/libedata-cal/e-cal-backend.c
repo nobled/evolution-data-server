@@ -824,7 +824,7 @@ e_cal_backend_modify_object (ECalBackend *backend, EDataCal *cal, const char *ca
 	if (CLASS (backend)->modify_object)
 		(* CLASS (backend)->modify_object) (backend, cal, calobj, mod);
 	else
-		e_data_cal_notify_object_removed (cal, GNOME_Evolution_Calendar_PermissionDenied, NULL, NULL);
+		e_data_cal_notify_object_removed (cal, GNOME_Evolution_Calendar_PermissionDenied, NULL, NULL, NULL);
 }
 
 /**

@@ -2245,11 +2245,19 @@ e_cal_backend_file_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 		case ICAL_METHOD_CANCEL:
 			if (cancel_received_object (cbfile, subcomp)) {
 				object = (char *) icalcomponent_as_ical_string (subcomp);
-				e_cal_backend_notify_object_removed (E_CAL_BACKEND (backend), uid, object);
+				old_comp = lookup_component (cbfile, uid);
+				if (old_comp)
+					old_object = e_cal_component_get_as_string (old_comp);
+				else
+					old_object = NULL;
+
+				e_cal_backend_notify_object_removed (E_CAL_BACKEND (backend), uid, old_object, object);
 
 				/* remove the component from the toplevel VCALENDAR */
 				icalcomponent_remove_component (toplevel_comp, subcomp);
 				icalcomponent_free (subcomp);
+
+				g_free (old_object);
 			}
 			break;
 		default:

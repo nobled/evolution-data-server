@@ -388,7 +388,7 @@ _e_cal_backend_remove_object (ECalBackend *backend, EDataCal *cal, const char *u
 			e_data_cal_notify_object_modified (cal, status, old_object, calobj);
 			g_free (calobj);
 		} else
-			e_data_cal_notify_object_removed (cal, status, uid, object);
+			e_data_cal_notify_object_removed (cal, status, uid, old_object, object);
 	} else
 		e_data_cal_notify_object_removed (cal, status, uid, old_object, object);
 
