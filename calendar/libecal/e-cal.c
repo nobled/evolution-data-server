@@ -2761,19 +2761,22 @@ add_instance (ECalComponent *comp, time_t start, time_t end, gpointer data)
 	GList **list;
 	struct comp_instance *ci;
 	struct icaltimetype itt, itt_start;
+	icalcomponent *icalcomp;
 
 	list = data;
 
 	ci = g_new (struct comp_instance, 1);
 
+	icalcomp = icalcomponent_new_clone (e_cal_component_get_icalcomponent (comp));
+
 	/* set the RECUR-ID for the instance */
-	itt_start = icalcomponent_get_dtstart (e_cal_component_get_icalcomponent (comp));
+	itt_start = icalcomponent_get_dtstart (icalcomp);
 	itt = icaltime_from_timet (start, itt_start.is_date);
-	icalcomponent_set_recurrenceid (e_cal_component_get_icalcomponent (comp), itt);
+	icalcomponent_set_recurrenceid (icalcomp, itt);
 
 	/* add the instance to the list */
-	ci->comp = comp;
-	g_object_ref (G_OBJECT (ci->comp));
+	ci->comp = e_cal_component_new ();
+	e_cal_component_set_icalcomponent (ci->comp, icalcomp);
 	
 	ci->start = start;
 	ci->end = end;

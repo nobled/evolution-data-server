@@ -798,7 +798,7 @@ check_instance (icalcomponent *comp, struct icaltime_span span, void *data)
  **/
 icalcomponent *
 e_cal_util_construct_instance (icalcomponent *icalcomp,
-			     struct icaltimetype rid)
+			       struct icaltimetype rid)
 {
 	struct instance_data instance;
 	struct icaltimetype start, end;
