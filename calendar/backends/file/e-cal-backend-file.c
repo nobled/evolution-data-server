@@ -1853,8 +1853,14 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	case CALOBJ_MOD_THISANDFUTURE :
 		rid = e_cal_component_get_recurid_as_string (comp);
 		if (!rid || !*rid) {
-			g_object_unref (comp);
-			return GNOME_Evolution_Calendar_ObjectNotFound;
+			if (old_object)
+				*old_object = e_cal_component_get_as_string (obj_data->full_object);
+
+			remove_component (cbfile, obj_data->full_object);
+
+			/* Add the new object */
+			add_component (cbfile, comp, TRUE);
+			break;
 		}
 
 		/* remove the component from our data, temporarily */
