@@ -1,3 +1,54 @@
+2002-03-20  Not Zed  <NotZed@Ximian.com>
+
+	** New body index implementation.
+
+	* camel-index*: Code for camel index, a new class to replace ibex.
+
+	* camel-block-file.[ch]: block-based and link based
+	filesystem-in-a-file classes.
+
+	* camel-partition-table.[ch]: An implementation of a partition
+	table (automatically extending on-disk hash-table using ideal
+	hash), and a key-table, a key<>name mapping table.  Used by
+	camelindex.
+
+	* providers/local/*, camel-folder-summary.[ch]: Changed to use
+	camel-index interface rather than ibex.
+
+2002-03-05  Not Zed  <NotZed@Ximian.com>
+
+	* providers/local/camel-maildir-summary.c (maildir_summary_check):
+	Do progress reporting of operations.
+	(maildir_summary_sync): Same here.
+
+2002-03-04  Not Zed  <NotZed@Ximian.com>
+
+	* providers/local/camel-spoold-store.c (scan_dir): Kill a warning
+	with a cast.
+
+	* providers/local/camel-*.c: Changed for ibex->camelindex.
+
+	* camel-folder-search.c (camel_folder_search_set_summary): Init
+	summary_hash to point to 'static' uid strings.
+	(search_body_contains): Use the static uid memory to return
+	results rather than the values from the index library.
+
+	* camel-folder-search.[ch]: Changed to use camelindex object.
+
+	* camel-folder-summary.c (summary_build_content_info_message):
+	Use a stream to index content, also filter html mail first.
+	(camel_folder_summary_info_new_from_message): Use a stream
+	filtered to index content.
+	(main): Removed the test main code.  Added headers for open call
+	(ibex must've had them before).
+
+	* camel-folder-summary.[ch]: Changed from ibex to CamelIndex.
+
+	* camel-mime-filter-index.c (camel_mime_filter_index_finalize):
+	Unref index.
+
+	* camel-mime-filter-index.[ch]: Changed from ibex to CamelIndex.
+
 2002-03-19  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* camel-mime-utils.c (header_encode_param): Fix this to work

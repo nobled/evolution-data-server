@@ -275,7 +275,14 @@ camel_folder_search_set_folder(CamelFolderSearch *search, CamelFolder *folder)
 void
 camel_folder_search_set_summary(CamelFolderSearch *search, GPtrArray *summary)
 {
+	int i;
+
 	search->summary = summary;
+	if (search->summary_hash)
+		g_hash_table_destroy(search->summary_hash);
+	search->summary_hash = g_hash_table_new(g_str_hash, g_str_equal);
+	for (i=0;i<summary->len;i++)
+		g_hash_table_insert(search->summary_hash, (char *)camel_message_info_uid(summary->pdata[i]), summary->pdata[i]);
 }
 
 /**
@@ -283,15 +290,19 @@ camel_folder_search_set_summary(CamelFolderSearch *search, GPtrArray *summary)
  * @search: 
  * @index: 
  * 
- * Set the index (ibex) representing the contents of all messages
+ * Set the index representing the contents of all messages
  * in this folder.  If this is not set, then the folder implementation
  * should sub-class the CamelFolderSearch and provide its own
  * body-contains function.
  **/
 void
-camel_folder_search_set_body_index(CamelFolderSearch *search, ibex *index)
+camel_folder_search_set_body_index(CamelFolderSearch *search, CamelIndex *index)
 {
+	if (search->body_index)
+		camel_object_unref((CamelObject *)search->body_index);
 	search->body_index = index;
+	if (index)
+		camel_object_ref((CamelObject *)index);
 }
 
 /**
@@ -732,7 +743,7 @@ static ESExpResult *
 search_body_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search)
 {
 	ESExpResult *r;
-	int i, j;
+	int i;
 	regex_t pattern;
 
 	if (search->current) {
@@ -743,8 +754,17 @@ search_body_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, Cam
 		} else if (search->body_index) {
 			for (i=0;i<argc && !truth;i++) {
 				if (argv[i]->type == ESEXP_RES_STRING) {
-					truth = ibex_find_name(search->body_index, (char *)camel_message_info_uid(search->current),
-							       argv[i]->value.string);
+					CamelIndexCursor *cic;
+					const char *cursor;
+
+					/* we need to look up each occurance separately and match against our uid */
+					cic = camel_index_find(search->body_index, argv[i]->value.string);
+					if (cic) {
+						while (!truth && (cursor = camel_index_cursor_next(cic))) {
+							truth = strcmp(cursor, camel_message_info_uid(search->current)) == 0;
+						}
+						camel_object_unref((CamelObject *)cic);
+					}
 				} else {
 					e_sexp_resultv_free(f, argc, argv);
 					e_sexp_fatal_error(f, _("Invalid type in body-contains, expecting string"));
@@ -772,33 +792,35 @@ search_body_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, Cam
 				g_ptr_array_add(r->value.ptrarray, (char *)camel_message_info_uid(info));
 			}
 		} else if (search->body_index) {
-			if (argc==1) {
-				/* common case */
-				r->value.ptrarray = ibex_find(search->body_index, argv[0]->value.string);
-			} else {
-				GHashTable *ht = g_hash_table_new(g_str_hash, g_str_equal);
-				GPtrArray *pa;
-				struct _glib_sux_donkeys lambdafoo;
+			GHashTable *ht = g_hash_table_new(g_str_hash, g_str_equal);
+			struct _glib_sux_donkeys lambdafoo;
 
-				/* this sux, perform an or operation on the result(s) of each word */
-				for (i=0;i<argc;i++) {
-					if (argv[i]->type == ESEXP_RES_STRING) {
-						pa = ibex_find(search->body_index, argv[i]->value.string);
-						for (j=0;j<pa->len;j++) {
-							g_hash_table_insert(ht, g_ptr_array_index(pa, j), (void *)1);
+			for (i=0;i<argc;i++) {
+				if (argv[i]->type == ESEXP_RES_STRING) {
+					CamelIndexCursor *cic;
+					const char *cursor;
+					CamelMessageInfo *mi;
+
+					cic = camel_index_find(search->body_index, argv[i]->value.string);
+					if (cic) {
+						while ((cursor = camel_index_cursor_next(cic))) {
+							/* we need to use the summary memory so it stays put till we're done */
+							mi = g_hash_table_lookup(search->summary_hash, cursor);
+							if (mi)
+								g_hash_table_insert(ht, (char *)camel_message_info_uid(mi), (void *)1);
 						}
-						g_ptr_array_free(pa, FALSE);
-					} else {
-						e_sexp_result_free(f, r);
-						e_sexp_resultv_free(f, argc, argv);
-						e_sexp_fatal_error(f, _("Invalid type in body-contains, expecting string"));
+						camel_object_unref((CamelObject *)cic);
 					}
+				} else {
+					e_sexp_result_free(f, r);
+					e_sexp_resultv_free(f, argc, argv);
+					e_sexp_fatal_error(f, _("Invalid type in body-contains, expecting string"));
 				}
-				lambdafoo.uids = g_ptr_array_new();
-				g_hash_table_foreach(ht, (GHFunc)g_lib_sux_htor, &lambdafoo);
-				r->value.ptrarray = lambdafoo.uids;
-				g_hash_table_destroy(ht);
 			}
+			lambdafoo.uids = g_ptr_array_new();
+			g_hash_table_foreach(ht, (GHFunc)g_lib_sux_htor, &lambdafoo);
+			r->value.ptrarray = lambdafoo.uids;
+			g_hash_table_destroy(ht);
 		} else if (search->folder) {
 			/* do a slow search */
 			r->value.ptrarray = g_ptr_array_new();
