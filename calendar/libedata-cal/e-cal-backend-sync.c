@@ -375,11 +375,11 @@ static void
 _e_cal_backend_remove_object (ECalBackend *backend, EDataCal *cal, const char *uid, const char *rid, CalObjModType mod)
 {
 	ECalBackendSyncStatus status;
-	char *object = NULL;
+	char *object = NULL, *old_object = NULL;
 	
-	status = e_cal_backend_sync_remove_object (E_CAL_BACKEND_SYNC (backend), cal, uid, rid, mod, &object);
+	status = e_cal_backend_sync_remove_object (E_CAL_BACKEND_SYNC (backend), cal, uid, rid, mod, &old_object);
 
-	e_data_cal_notify_object_removed (cal, status, uid, object);
+	e_data_cal_notify_object_removed (cal, status, uid, old_object, object);
 }
 
 static void

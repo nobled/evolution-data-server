@@ -1,5 +1,22 @@
 2004-04-05  Rodrigo Moya <rodrigo@ximian.com>
 
+	* libedata-cal/e-cal-backend.[ch] (e_cal_backend_notify_object_removed):
+	changed to contain also the new object, since we might have removed only
+	an instance, in which case, notify a modification, not a removal.
+	(e_cal_backend_notify_object_modified): splitted notification logic...
+	(match_query_and_notify): ...to here.
+
+	* libedata-cal/e-data-cal.[ch] (e_data_cal_notify_object_removed): added
+	'old_object' argument.
+
+	* libedata-cal/e-cal-backend-sync.c (_e_cal_backend_remove_object):
+	* backends/file/e-cal-backend-file.c (notify_removals_cb,
+	e_cal_backend_file_receive_objects):
+	* backends/contacts/e-cal-backend-contacts.c (contact_record_free):
+	adapted to changes in e_cal_backend_notify_object_removed.
+
+2004-04-05  Rodrigo Moya <rodrigo@ximian.com>
+
 	* backends/groupwise/e-cal-backend-groupwise.c
 	(e_cal_backend_groupwise_remove_object): Use correct types for
 	e_cal_backend_groupwise_get_object's return value.

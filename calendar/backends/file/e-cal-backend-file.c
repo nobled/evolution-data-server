@@ -674,7 +674,7 @@ notify_removals_cb (gpointer key, gpointer value, gpointer data)
 		if (!old_obj_str)
 			return;
 
-		e_cal_backend_notify_object_removed (context->backend, uid, old_obj_str);
+		e_cal_backend_notify_object_removed (context->backend, uid, old_obj_str, NULL);
 	}
 }
 
@@ -1885,8 +1885,8 @@ remove_object_instance_cb (gpointer key, gpointer value, gpointer user_data)
 /* Remove_object handler for the file backend */
 static ECalBackendSyncStatus
 e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
-				const char *uid, const char *rid,
-				CalObjModType mod, char **object)
+				  const char *uid, const char *rid,
+				  CalObjModType mod, char **object)
 {
 	ECalBackendFile *cbfile;
 	ECalBackendFilePrivate *priv;
@@ -1913,10 +1913,11 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		remove_component (cbfile, comp);
 		break;
 	case CALOBJ_MOD_THIS :
-		if (!rid || !*rid)
-			return GNOME_Evolution_Calendar_ObjectNotFound;
-
-		remove_instance (cbfile, obj_data, rid);
+		if (!rid || !*rid) {
+			*object = e_cal_component_get_as_string (comp);
+			remove_component (cbfile, comp);
+		} else
+			remove_instance (cbfile, obj_data, rid);
 		break;
 	case CALOBJ_MOD_THISANDPRIOR :
 	case CALOBJ_MOD_THISANDFUTURE :
@@ -2132,7 +2133,7 @@ e_cal_backend_file_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 		case ICAL_METHOD_CANCEL:
 			if (cancel_received_object (cbfile, subcomp)) {
 				calobj = (char *) icalcomponent_as_ical_string (subcomp);
-				e_cal_backend_notify_object_removed (E_CAL_BACKEND (backend), icalcomponent_get_uid (subcomp), calobj);
+				e_cal_backend_notify_object_removed (E_CAL_BACKEND (backend), icalcomponent_get_uid (subcomp), calobj, NULL);
 
 				/* remove the component from the toplevel VCALENDAR */
 				icalcomponent_remove_component (toplevel_comp, subcomp);

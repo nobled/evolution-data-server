@@ -1003,6 +1003,26 @@ e_cal_backend_notify_object_created (ECalBackend *backend, const char *calobj)
 	g_object_unref (queries);
 }
 
+static void
+match_query_and_notify (EDataCalView *query, const char *old_object, const char *object)
+{
+	gboolean old_match, new_match;
+
+	old_match = e_data_cal_view_object_matches (query, old_object);
+	new_match = e_data_cal_view_object_matches (query, object);
+	if (old_match && new_match)
+		e_data_cal_view_notify_objects_modified_1 (query, object);
+	else if (new_match)
+		e_data_cal_view_notify_objects_added_1 (query, object);
+	else /* if (old_match) */ {
+		icalcomponent *icalcomp;
+		
+		icalcomp = icalcomponent_new_from_string ((char *) old_object);
+		e_data_cal_view_notify_objects_removed_1 (query, icalcomponent_get_uid (icalcomp));
+		icalcomponent_free (icalcomp);
+	}
+}
+
 /**
  * e_cal_backend_notify_object_modified:
  * @backend: A calendar backend.
@@ -1017,13 +1037,12 @@ e_cal_backend_notify_object_created (ECalBackend *backend, const char *calobj)
  **/
 void
 e_cal_backend_notify_object_modified (ECalBackend *backend, 
-				    const char *old_object, const char *object)
+				      const char *old_object, const char *object)
 {
 	ECalBackendPrivate *priv;
 	EList *queries;
 	EIterator *iter;
 	EDataCalView *query;
-	gboolean old_match, new_match;
 
 	priv = backend->priv;
 
@@ -1037,23 +1056,9 @@ e_cal_backend_notify_object_modified (ECalBackend *backend,
 
 	while (e_iterator_is_valid (iter)) {
 		query = QUERY (e_iterator_get (iter));
-		
+
 		bonobo_object_ref (query);
-
-		old_match = e_data_cal_view_object_matches (query, old_object);
-		new_match = e_data_cal_view_object_matches (query, object);
-		if (old_match && new_match)
-			e_data_cal_view_notify_objects_modified_1 (query, object);
-		else if (new_match)
-			e_data_cal_view_notify_objects_added_1 (query, object);
-		else /* if (old_match) */ {
-			icalcomponent *comp;
-
-			comp = icalcomponent_new_from_string ((char *)old_object);
-			e_data_cal_view_notify_objects_removed_1 (query, icalcomponent_get_uid (comp));
-			icalcomponent_free (comp);
-		}
-
+		match_query_and_notify (query, old_object, object);
 		bonobo_object_unref (query);
 
 		e_iterator_next (iter);
@@ -1067,6 +1072,9 @@ e_cal_backend_notify_object_modified (ECalBackend *backend,
  * @backend: A calendar backend.
  * @uid: the UID of the removed object
  * @old_object: iCalendar representation of the removed object
+ * @new_object: iCalendar representation of the object after the removal. This
+ * only applies to recurrent appointments that had an instance removed. In that
+ * case, this function notifies a modification instead of a removal.
  *
  * Notifies each of the backend's listeners about a removed object.
  *
@@ -1076,7 +1084,7 @@ e_cal_backend_notify_object_modified (ECalBackend *backend,
  **/
 void
 e_cal_backend_notify_object_removed (ECalBackend *backend, const char *uid,
-				   const char *old_object)
+				     const char *old_object, const char *object)
 {
 	ECalBackendPrivate *priv;
 	EList *queries;
@@ -1086,7 +1094,7 @@ e_cal_backend_notify_object_removed (ECalBackend *backend, const char *uid,
 	priv = backend->priv;
 
 	if (priv->notification_proxy) {
-		e_cal_backend_notify_object_removed (priv->notification_proxy, uid, old_object);
+		e_cal_backend_notify_object_removed (priv->notification_proxy, uid, old_object, NULL);
 		return;
 	}
 
@@ -1097,8 +1105,15 @@ e_cal_backend_notify_object_removed (ECalBackend *backend, const char *uid,
 		query = QUERY (e_iterator_get (iter));
 
 		bonobo_object_ref (query);
-		if (e_data_cal_view_object_matches (query, old_object))
-			e_data_cal_view_notify_objects_removed_1 (query, uid);
+
+		if (object == NULL) {
+			/* if object == NULL, it means the object has been completely
+			   removed from the backend */
+			if (e_data_cal_view_object_matches (query, old_object))
+				e_data_cal_view_notify_objects_removed_1 (query, uid);
+		} else
+			match_query_and_notify (query, old_object, object);
+
 		bonobo_object_unref (query);
 
 		e_iterator_next (iter);
