@@ -22,16 +22,13 @@
  * USA
  */
 
-
 #ifndef CAMEL_SMTP_TRANSPORT_H
 #define CAMEL_SMTP_TRANSPORT_H 1
-
 
 #ifdef __cplusplus
 extern "C" {
 #pragma }
 #endif /* __cplusplus */
-
 
 #include "camel-transport.h"
 #include "camel-tcp-stream.h"
@@ -41,19 +38,12 @@ extern "C" {
 #define CAMEL_SMTP_TRANSPORT_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SMTP_TRANSPORT_TYPE, CamelSmtpTransportClass))
 #define CAMEL_IS_SMTP_TRANSPORT(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SMTP_TRANSPORT_TYPE))
 
-
 #define CAMEL_SMTP_TRANSPORT_IS_ESMTP               (1 << 0)
 #define CAMEL_SMTP_TRANSPORT_8BITMIME               (1 << 1)
 #define CAMEL_SMTP_TRANSPORT_ENHANCEDSTATUSCODES    (1 << 2)
 #define CAMEL_SMTP_TRANSPORT_STARTTLS               (1 << 3)
 
-#define CAMEL_SMTP_TRANSPORT_USE_SSL_ALWAYS         (1 << 4)
-#define CAMEL_SMTP_TRANSPORT_USE_SSL_WHEN_POSSIBLE  (1 << 5)
-
-#define CAMEL_SMTP_TRANSPORT_USE_SSL                (CAMEL_SMTP_TRANSPORT_USE_SSL_ALWAYS | \
-						     CAMEL_SMTP_TRANSPORT_USE_SSL_WHEN_POSSIBLE)
-
-#define CAMEL_SMTP_TRANSPORT_AUTH_EQUAL             (1 << 6)  /* set if we are using authtypes from a broken AUTH= */
+#define CAMEL_SMTP_TRANSPORT_AUTH_EQUAL             (1 << 4)  /* set if we are using authtypes from a broken AUTH= */
 
 typedef struct {
 	CamelTransport parent_object;
@@ -63,19 +53,16 @@ typedef struct {
 	guint32 flags;
 	
 	gboolean connected;
-	CamelTcpAddress *localaddr;
+	struct sockaddr *localaddr;
+	socklen_t localaddrlen;
 	
 	GHashTable *authtypes;
-	
 } CamelSmtpTransport;
-
-
 
 typedef struct {
 	CamelTransportClass parent_class;
 
 } CamelSmtpTransportClass;
-
 
 /* Standard Camel function */
 CamelType camel_smtp_transport_get_type (void);
@@ -85,5 +72,3 @@ CamelType camel_smtp_transport_get_type (void);
 #endif /* __cplusplus */
 
 #endif /* CAMEL_SMTP_TRANSPORT_H */
-
-

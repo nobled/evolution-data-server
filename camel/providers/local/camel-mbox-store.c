@@ -37,6 +37,7 @@
 #include "camel-text-index.h"
 #include "camel-exception.h"
 #include "camel-url.h"
+#include "camel-i18n.h"
 
 #define d(x) 
 
@@ -46,9 +47,6 @@ static CamelLocalStoreClass *parent_class = NULL;
 #define CMBOXS_CLASS(so) CAMEL_MBOX_STORE_CLASS(CAMEL_OBJECT_GET_CLASS(so))
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS(CAMEL_OBJECT_GET_CLASS(so))
 #define CMBOXF_CLASS(so) CAMEL_MBOX_FOLDER_CLASS(CAMEL_OBJECT_GET_CLASS(so))
-
-extern char *camel_mbox_folder_get_full_path(const char *toplevel_dir, const char *full_name);
-extern char *camel_mbox_folder_get_meta_path(const char *toplevel_dir, const char *full_name, const char *ext);
 
 static CamelFolder *get_folder(CamelStore *store, const char *folder_name, guint32 flags, CamelException *ex);
 static void delete_folder(CamelStore *store, const char *folder_name, CamelException *ex);
@@ -96,7 +94,7 @@ mbox_folder_name_to_path(CamelStore *store, const char *folder_name)
 {
 	const char *toplevel_dir = CAMEL_LOCAL_STORE(store)->toplevel_dir;
 	
-	return camel_mbox_folder_get_full_path(toplevel_dir, folder_name);
+	return camel_mbox_folder_get_full_path(NULL, toplevel_dir, folder_name);
 }
 
 static char *
@@ -104,7 +102,7 @@ mbox_folder_name_to_meta_path(CamelStore *store, const char *folder_name, const 
 {
 	const char *toplevel_dir = CAMEL_LOCAL_STORE(store)->toplevel_dir;
 	
-	return camel_mbox_folder_get_meta_path(toplevel_dir, folder_name, ext);
+	return camel_mbox_folder_get_meta_path(NULL, toplevel_dir, folder_name, ext);
 }
 
 static char *extensions[] = {
@@ -333,7 +331,6 @@ delete_folder(CamelStore *store, const char *folder_name, CamelException *ex)
 	fi->name = g_path_get_basename(folder_name);
 	fi->uri = g_strdup_printf("mbox:%s#%s",((CamelService *) store)->url->path, folder_name);
 	fi->unread = -1;
-	camel_folder_info_build_path(fi, '/');
 	
 	camel_object_trigger_event(store, "folder_deleted", fi);
 	
@@ -419,11 +416,11 @@ xrename(CamelStore *store, const char *old_name, const char *new_name, const cha
 	int err = 0;
 	
 	if (ext != NULL) {
-		oldpath = camel_mbox_folder_get_meta_path(toplevel_dir, old_name, ext);
-		newpath = camel_mbox_folder_get_meta_path(toplevel_dir, new_name, ext);
+		oldpath = camel_mbox_folder_get_meta_path(NULL, toplevel_dir, old_name, ext);
+		newpath = camel_mbox_folder_get_meta_path(NULL, toplevel_dir, new_name, ext);
 	} else {
-		oldpath = camel_mbox_folder_get_full_path(toplevel_dir, old_name);
-		newpath = camel_mbox_folder_get_full_path(toplevel_dir, new_name);
+		oldpath = camel_mbox_folder_get_full_path(NULL, toplevel_dir, old_name);
+		newpath = camel_mbox_folder_get_full_path(NULL, toplevel_dir, new_name);
 	}
 	
 	if (stat(oldpath, &st) == -1) {
@@ -618,8 +615,8 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 
 		/* This should be fast enough not to have to test for INFO_FAST */
 		root = camel_local_store_get_toplevel_dir((CamelLocalStore *)store);
-		path = camel_mbox_folder_get_meta_path(root, fi->full_name, ".ev-summary");
-		folderpath = camel_mbox_folder_get_full_path(root, fi->full_name);
+		path = camel_mbox_folder_get_meta_path(NULL, root, fi->full_name, ".ev-summary");
+		folderpath = camel_mbox_folder_get_full_path(NULL, root, fi->full_name);
 		
 		mbs = (CamelMboxSummary *)camel_mbox_summary_new(path, folderpath, NULL);
 		if (camel_folder_summary_header_load((CamelFolderSummary *)mbs) != -1) {
@@ -705,7 +702,6 @@ scan_dir(CamelStore *store, CamelURL *url, GHashTable *visited, CamelFolderInfo 
 			fi->uri = camel_url_to_string (url, 0);
 			fi->name = short_name;
 			fi->full_name = full_name;
-			fi->path = g_strdup_printf("/%s", full_name);
 			fi->unread = -1;
 			fi->total = -1;
 
@@ -815,7 +811,6 @@ get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExceptio
 	fi->full_name = g_strdup(top);
 	fi->unread = -1;
 	fi->total = -1;
-	fi->path = g_strdup_printf("/%s", top);
 	
 	subdir = g_strdup_printf("%s.sbd", path);
 	if (stat(subdir, &st) == 0) {

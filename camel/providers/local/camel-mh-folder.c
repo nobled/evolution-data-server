@@ -39,6 +39,7 @@
 #include "camel-data-wrapper.h"
 #include "camel-mime-message.h"
 #include "camel-exception.h"
+#include "camel-i18n.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
@@ -49,7 +50,7 @@ static CamelLocalFolderClass *parent_class = NULL;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 #define CMHS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
-static CamelLocalSummary *mh_create_summary(const char *path, const char *folder, CamelIndex *index);
+static CamelLocalSummary *mh_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index);
 
 static void mh_append_message(CamelFolder * folder, CamelMimeMessage * message, const CamelMessageInfo *info, char **appended_uid, CamelException * ex);
 static CamelMimeMessage *mh_get_message(CamelFolder * folder, const gchar * uid, CamelException * ex);
@@ -114,7 +115,7 @@ camel_mh_folder_new(CamelStore *parent_store, const char *full_name, guint32 fla
 	return folder;
 }
 
-static CamelLocalSummary *mh_create_summary(const char *path, const char *folder, CamelIndex *index)
+static CamelLocalSummary *mh_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index)
 {
 	return (CamelLocalSummary *)camel_mh_summary_new(path, folder, index);
 }
@@ -197,7 +198,9 @@ static CamelMimeMessage *mh_get_message(CamelFolder * folder, const gchar * uid,
 
 	/* get the message summary info */
 	if ((info = camel_folder_summary_uid(folder->summary, uid)) == NULL) {
-		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID, _("Cannot get message: %s\n  %s"), uid, _("No such message"));
+		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
+				     _("Cannot get message: %s from folder %s\n  %s"), uid, lf->folder_path,
+				     _("No such message"));
 		return NULL;
 	}
 
@@ -206,18 +209,18 @@ static CamelMimeMessage *mh_get_message(CamelFolder * folder, const gchar * uid,
 
 	name = g_strdup_printf("%s/%s", lf->folder_path, uid);
 	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0)) == NULL) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
-				      _("Cannot get message: %s\n  %s"),
-				      name, g_strerror (errno));
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
+				      _("Cannot get message: %s from folder %s\n  %s"), name, lf->folder_path,
+				      g_strerror (errno));
 		g_free(name);
 		return NULL;
 	}
 
 	message = camel_mime_message_new();
 	if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)message, message_stream) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
-				      _("Cannot get message: %s\n  %s"),
-				      name, _("Invalid message contents"));
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
+				      _("Cannot get message: %s from folder %s\n  %s"), name, lf->folder_path,
+				      _("Message construction failed."));
 		g_free(name);
 		camel_object_unref((CamelObject *)message_stream);
 		camel_object_unref((CamelObject *)message);

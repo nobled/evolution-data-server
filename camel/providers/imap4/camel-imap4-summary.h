@@ -60,7 +60,7 @@ struct _CamelIMAP4Summary {
 	guint32 uidvalidity;
 	
 	guint uidvalidity_changed:1;
-	guint exists_changed:1;
+	guint update_flags:1;
 };
 
 struct _CamelIMAP4SummaryClass {

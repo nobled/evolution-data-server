@@ -20,7 +20,6 @@
  *
  */
 
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -48,6 +47,7 @@
 #include "camel-stream-filter.h"
 #include "camel-mime-filter-from.h"
 #include "camel-exception.h"
+#include "camel-i18n.h"
 
 #include "camel-local-private.h"
 
@@ -73,8 +73,8 @@ static int local_setv(CamelObject *object, CamelException *ex, CamelArgV *args);
 static int local_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
 static void local_unlock(CamelLocalFolder *lf);
 
-static char *local_get_full_path(const char *toplevel_dir, const char *full_name);
-static char *local_get_meta_path(const char *toplevel_dir, const char *full_name, const char *ext);
+static char *local_get_full_path(CamelLocalFolder *lf, const char *toplevel_dir, const char *full_name);
+static char *local_get_meta_path(CamelLocalFolder *lf, const char *toplevel_dir, const char *full_name, const char *ext);
 
 static void local_refresh_info(CamelFolder *folder, CamelException *ex);
 
@@ -245,10 +245,10 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		lf->index_path = g_strdup_printf("%s.ibex", tmp);
 		statepath = g_strdup_printf("%s.cmeta", tmp);
 	} else {
-		lf->folder_path = CLOCALF_CLASS(lf)->get_full_path(root_dir_path, full_name);
-		lf->summary_path = CLOCALF_CLASS(lf)->get_meta_path(root_dir_path, full_name, ".ev-summary");
-		lf->index_path = CLOCALF_CLASS(lf)->get_meta_path(root_dir_path, full_name, ".ibex");
-		statepath = CLOCALF_CLASS(lf)->get_meta_path(root_dir_path, full_name, ".cmeta");
+		lf->folder_path = CLOCALF_CLASS(lf)->get_full_path(lf, root_dir_path, full_name);
+		lf->summary_path = CLOCALF_CLASS(lf)->get_meta_path(lf, root_dir_path, full_name, ".ev-summary");
+		lf->index_path = CLOCALF_CLASS(lf)->get_meta_path(lf, root_dir_path, full_name, ".ibex");
+		statepath = CLOCALF_CLASS(lf)->get_meta_path(lf, root_dir_path, full_name, ".cmeta");
 	}
 	camel_object_set(lf, NULL, CAMEL_OBJECT_STATE_FILE, statepath, NULL);
 	g_free(statepath);
@@ -299,9 +299,9 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		forceindex = FALSE;
 	}
 
-	folder->summary = (CamelFolderSummary *)CLOCALF_CLASS(lf)->create_summary(lf->summary_path, lf->folder_path, lf->index);
-	if (camel_local_summary_load((CamelLocalSummary *)folder->summary, forceindex, ex) == -1) {
-		camel_exception_clear(ex);
+	folder->summary = (CamelFolderSummary *)CLOCALF_CLASS(lf)->create_summary(lf, lf->summary_path, lf->folder_path, lf->index);
+	if (camel_local_summary_load((CamelLocalSummary *)folder->summary, forceindex, NULL) == -1) {
+		/* ? */
 	}
 	
 	/*if (camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex) == -1) {*/
@@ -310,22 +310,24 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		camel_object_unref (CAMEL_OBJECT (folder));
 		return NULL;
 	}
+
+	/* TODO: This probably shouldn't be here? */
+	if ((flags & CAMEL_STORE_FOLDER_CREATE) != 0) {
+		url = camel_url_copy (((CamelService *) parent_store)->url);
+		camel_url_set_fragment (url, full_name);
 	
-	url = camel_url_copy (((CamelService *) parent_store)->url);
-	camel_url_set_fragment (url, full_name);
+		fi = g_new0 (CamelFolderInfo, 1);
+		fi->full_name = g_strdup (full_name);
+		fi->name = g_strdup (name);
+		fi->uri = camel_url_to_string (url, 0);
+		fi->unread = camel_folder_get_unread_message_count(folder);
+		fi->flags = CAMEL_FOLDER_NOCHILDREN;
 	
-	fi = g_new0 (CamelFolderInfo, 1);
-	fi->full_name = g_strdup (full_name);
-	fi->name = g_strdup (name);
-	fi->uri = camel_url_to_string (url, 0);
-	fi->unread = camel_folder_get_unread_message_count(folder);
-	camel_folder_info_build_path(fi, '/');
-	fi->flags = CAMEL_FOLDER_NOCHILDREN;
+		camel_url_free (url);
 	
-	camel_url_free (url);
-	
-	camel_object_trigger_event(CAMEL_OBJECT (parent_store), "folder_created", fi);
-	camel_folder_info_free(fi);
+		camel_object_trigger_event(CAMEL_OBJECT (parent_store), "folder_created", fi);
+		camel_folder_info_free(fi);
+	}
 	
 	return lf;
 }
@@ -461,15 +463,15 @@ local_setv(CamelObject *object, CamelException *ex, CamelArgV *args)
 }
 
 static char *
-local_get_full_path (const char *toplevel_dir, const char *full_name)
+local_get_full_path(CamelLocalFolder *lf, const char *toplevel_dir, const char *full_name)
 {
-	return g_strdup_printf ("%s/%s", toplevel_dir, full_name);
+	return g_strdup_printf("%s/%s", toplevel_dir, full_name);
 }
 
 static char *
-local_get_meta_path (const char *toplevel_dir, const char *full_name, const char *ext)
+local_get_meta_path(CamelLocalFolder *lf, const char *toplevel_dir, const char *full_name, const char *ext)
 {
-	return g_strdup_printf ("%s/%s%s", toplevel_dir, full_name, ext);
+	return g_strdup_printf("%s/%s%s", toplevel_dir, full_name, ext);
 }
 
 static int
@@ -556,10 +558,10 @@ local_rename(CamelFolder *folder, const char *newname)
 	g_free(lf->summary_path);
 	g_free(lf->index_path);
 
-	lf->folder_path = CLOCALF_CLASS(lf)->get_full_path(lf->base_path, newname);
-	lf->summary_path = CLOCALF_CLASS(lf)->get_meta_path(lf->base_path, newname, ".ev-summary");
-	lf->index_path = CLOCALF_CLASS(lf)->get_meta_path(lf->base_path, newname, ".ibex");
-	statepath = CLOCALF_CLASS(lf)->get_meta_path(lf->base_path, newname, ".cmeta");
+	lf->folder_path = CLOCALF_CLASS(lf)->get_full_path(lf, lf->base_path, newname);
+	lf->summary_path = CLOCALF_CLASS(lf)->get_meta_path(lf, lf->base_path, newname, ".ev-summary");
+	lf->index_path = CLOCALF_CLASS(lf)->get_meta_path(lf, lf->base_path, newname, ".ibex");
+	statepath = CLOCALF_CLASS(lf)->get_meta_path(lf, lf->base_path, newname, ".cmeta");
 	camel_object_set(lf, NULL, CAMEL_OBJECT_STATE_FILE, statepath, NULL);
 	g_free(statepath);
 
@@ -575,10 +577,7 @@ static GPtrArray *
 local_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex)
 {
 	CamelLocalFolder *local_folder = CAMEL_LOCAL_FOLDER(folder);
-	GPtrArray *summary, *matches;
-
-	/* NOTE: could get away without the search lock by creating a new
-	   search object each time */
+	GPtrArray *matches;
 
 	CAMEL_LOCAL_FOLDER_LOCK(folder, search_lock);
 
@@ -587,14 +586,9 @@ local_search_by_expression(CamelFolder *folder, const char *expression, CamelExc
 
 	camel_folder_search_set_folder(local_folder->search, folder);
 	camel_folder_search_set_body_index(local_folder->search, local_folder->index);
-	summary = camel_folder_get_summary(folder);
-	camel_folder_search_set_summary(local_folder->search, summary);
-
-	matches = camel_folder_search_execute_expression(local_folder->search, expression, ex);
+	matches = camel_folder_search_search(local_folder->search, expression, NULL, ex);
 
 	CAMEL_LOCAL_FOLDER_UNLOCK(folder, search_lock);
-
-	camel_folder_free_summary(folder, summary);
 
 	return matches;
 }
@@ -603,23 +597,10 @@ static GPtrArray *
 local_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids, CamelException *ex)
 {
 	CamelLocalFolder *local_folder = CAMEL_LOCAL_FOLDER(folder);
-	GPtrArray *summary, *matches;
-	int i;
+	GPtrArray *matches;
 
-	/* NOTE: could get away without the search lock by creating a new
-	   search object each time */
-
-	summary = g_ptr_array_new();
-	for (i=0;i<uids->len;i++) {
-		CamelMessageInfo *info;
-
-		info = camel_folder_get_message_info(folder, uids->pdata[i]);
-		if (info)
-			g_ptr_array_add(summary, info);
-	}
-
-	if (summary->len == 0)
-		return summary;
+	if (uids->len == 0)
+		return g_ptr_array_new();
 
 	CAMEL_LOCAL_FOLDER_LOCK(folder, search_lock);
 
@@ -628,15 +609,9 @@ local_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uid
 
 	camel_folder_search_set_folder(local_folder->search, folder);
 	camel_folder_search_set_body_index(local_folder->search, local_folder->index);
-	camel_folder_search_set_summary(local_folder->search, summary);
-
-	matches = camel_folder_search_execute_expression(local_folder->search, expression, ex);
+	matches = camel_folder_search_search(local_folder->search, expression, uids, ex);
 
 	CAMEL_LOCAL_FOLDER_UNLOCK(folder, search_lock);
-
-	for (i=0;i<summary->len;i++)
-		camel_folder_free_message_info(folder, summary->pdata[i]);
-	g_ptr_array_free(summary, TRUE);
 
 	return matches;
 }

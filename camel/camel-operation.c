@@ -105,6 +105,17 @@ camel_operation_init(void)
 }
 
 /**
+ * camel_operation_shutdown:
+ *
+ * Cleans up internal variables.
+ **/
+void
+camel_operation_shutdown (void)
+{
+	pthread_key_delete (&operation_key);
+}
+
+/**
  * camel_operation_new:
  * @status: Callback for receiving status messages.  This will always
  * be called with an internal lock held.
@@ -323,7 +334,12 @@ camel_operation_uncancel(CamelOperation *cc)
 		cc = (CamelOperation *)pthread_getspecific(operation_key);
 
 	if (cc) {
+		CamelOperationMsg *msg;
+
 		LOCK();
+		while ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port)))
+			g_free(msg);
+
 		cc->flags &= ~CAMEL_OPERATION_CANCELLED;
 		UNLOCK();
 	}
@@ -395,7 +411,9 @@ camel_operation_cancel_check (CamelOperation *cc)
 		cancelled = TRUE;
 	} else if ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port))) {
 		d(printf("Got cancellation message\n"));
-		g_free(msg);
+		do {
+			g_free(msg);
+		} while ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port)));
 		cc->flags |= CAMEL_OPERATION_CANCELLED;
 		cancelled = TRUE;
 	} else

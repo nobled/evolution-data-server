@@ -38,10 +38,11 @@ void camel_imap4_flags_diff (flags_diff_t *diff, guint32 old, guint32 new);
 guint32 camel_imap4_flags_merge (flags_diff_t *diff, guint32 flags);
 guint32 camel_imap4_merge_flags (guint32 original, guint32 local, guint32 server);
 
-
 struct _CamelIMAP4Engine;
 struct _CamelIMAP4Command;
 struct _camel_imap4_token_t;
+
+int camel_imap4_get_uid_set (struct _CamelIMAP4Engine *engine, struct _CamelFolderSummary *summary, GPtrArray *infos, int cur, size_t linelen, char **set);
 
 void camel_imap4_utils_set_unexpected_token_error (CamelException *ex, struct _CamelIMAP4Engine *engine, struct _camel_imap4_token_t *token);
 
@@ -59,6 +60,32 @@ typedef struct {
 
 int camel_imap4_untagged_list (struct _CamelIMAP4Engine *engine, struct _CamelIMAP4Command *ic,
 			       guint32 index, struct _camel_imap4_token_t *token, CamelException *ex);
+
+
+enum {
+	CAMEL_IMAP4_STATUS_UNKNOWN,
+	CAMEL_IMAP4_STATUS_MESSAGES,
+	CAMEL_IMAP4_STATUS_RECENT,
+	CAMEL_IMAP4_STATUS_UIDNEXT,
+	CAMEL_IMAP4_STATUS_UIDVALIDITY,
+	CAMEL_IMAP4_STATUS_UNSEEN,
+};
+
+typedef struct _camel_imap4_status_attr {
+	struct _camel_imap4_status_attr *next;
+	guint32 type;
+	guint32 value;
+} camel_imap4_status_attr_t;
+
+typedef struct {
+	camel_imap4_status_attr_t *attr_list;
+	char *mailbox;
+} camel_imap4_status_t;
+
+void camel_imap4_status_free (camel_imap4_status_t *status);
+
+int camel_imap4_untagged_status (struct _CamelIMAP4Engine *engine, struct _CamelIMAP4Command *ic,
+				 guint32 index, struct _camel_imap4_token_t *token, CamelException *ex);
 
 #ifdef __cplusplus
 }

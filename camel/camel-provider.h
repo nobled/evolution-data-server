@@ -120,6 +120,7 @@ typedef enum {
 	CAMEL_PROVIDER_CONF_CHECKSPIN,
 	CAMEL_PROVIDER_CONF_ENTRY,
 	CAMEL_PROVIDER_CONF_LABEL,
+	CAMEL_PROVIDER_CONF_HIDDEN
 } CamelProviderConfType;
 
 typedef struct {
@@ -159,6 +160,9 @@ typedef struct {
 	
 	/* Flags describing the provider, flags describing its URLs */
 	int flags, url_flags;
+
+	/* The ConfEntry and AutoDetect functions will probably be
+	 * DEPRECATED in a future release */
 	
 	/* Extra configuration information */
 	CamelProviderConfEntry *extra_conf;

@@ -58,12 +58,14 @@ libcamel_la_SOURCES = 				\
 	camel-mime-filter-crlf.c		\
 	camel-mime-filter-enriched.c		\
 	camel-mime-filter-from.c		\
+	camel-mime-filter-gzip.c		\
 	camel-mime-filter-html.c		\
 	camel-mime-filter-tohtml.c		\
 	camel-mime-filter-index.c		\
 	camel-mime-filter-linewrap.c		\
 	camel-mime-filter-save.c		\
 	camel-mime-filter-windows.c		\
+	camel-mime-filter-yenc.c		\
 	camel-mime-filter.c			\
 	camel-mime-message.c			\
 	camel-mime-parser.c			\
@@ -74,6 +76,7 @@ libcamel_la_SOURCES = 				\
 	camel-multipart.c			\
 	camel-multipart-encrypted.c		\
 	camel-multipart-signed.c		\
+	camel-list-utils.c			\
 	camel-object.c				\
 	camel-operation.c			\
 	camel-partition-table.c			\
@@ -161,12 +164,14 @@ libcamelinclude_HEADERS =			\
 	camel-mime-filter-crlf.h		\
 	camel-mime-filter-enriched.h		\
 	camel-mime-filter-from.h		\
+	camel-mime-filter-gzip.h		\
 	camel-mime-filter-html.h		\
 	camel-mime-filter-tohtml.h		\
 	camel-mime-filter-index.h		\
 	camel-mime-filter-linewrap.h		\
 	camel-mime-filter-save.h		\
 	camel-mime-filter-windows.h		\
+	camel-mime-filter-yenc.h		\
 	camel-mime-filter.h			\
 	camel-mime-message.h			\
 	camel-mime-parser.h			\
@@ -177,6 +182,7 @@ libcamelinclude_HEADERS =			\
 	camel-multipart.h			\
 	camel-multipart-encrypted.h		\
 	camel-multipart-signed.h		\
+	camel-list-utils.h			\
 	camel-object.h				\
 	camel-operation.h			\
 	camel-partition-table.h			\

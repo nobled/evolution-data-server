@@ -21,7 +21,6 @@
  * USA
  */
 
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -50,6 +49,8 @@
 #include "camel/camel-multipart.h"
 #include "camel/camel-mime-part.h"
 #include "camel/camel-stream-buffer.h"
+#include "camel/camel-i18n.h"
+#include "camel/camel-private.h"
 
 #include "camel-nntp-summary.h"
 #include "camel-nntp-store.h"
@@ -65,27 +66,35 @@ static CamelDiscoFolderClass *parent_class = NULL;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 #define CNNTPS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
+void
+camel_nntp_folder_selected(CamelNNTPFolder *folder, char *line, CamelException *ex)
+{
+	camel_nntp_summary_check((CamelNNTPSummary *)((CamelFolder *)folder)->summary,
+				 (CamelNNTPStore *)((CamelFolder *)folder)->parent_store,
+				 line, folder->changes, ex);
+}
+
 static void
 nntp_folder_refresh_info_online (CamelFolder *folder, CamelException *ex)
 {
 	CamelNNTPStore *nntp_store;
 	CamelFolderChangeInfo *changes = NULL;
 	CamelNNTPFolder *nntp_folder;
-	
+	char *line;
+
 	nntp_store = (CamelNNTPStore *) folder->parent_store;
 	nntp_folder = (CamelNNTPFolder *) folder;
 	
-	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
-	
-	if (camel_nntp_summary_check ((CamelNNTPSummary *) folder->summary, nntp_folder->changes, ex) != -1)
-		camel_folder_summary_save (folder->summary);
-	
+	CAMEL_SERVICE_LOCK(nntp_store, connect_lock);
+
+	camel_nntp_command(nntp_store, ex, nntp_folder, &line, NULL);
+
 	if (camel_folder_change_info_changed(nntp_folder->changes)) {
 		changes = nntp_folder->changes;
 		nntp_folder->changes = camel_folder_change_info_new();
 	}
 	
-	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
+	CAMEL_SERVICE_UNLOCK(nntp_store, connect_lock);
 	
 	if (changes) {
 		camel_object_trigger_event ((CamelObject *) folder, "folder_changed", changes);
@@ -96,35 +105,17 @@ nntp_folder_refresh_info_online (CamelFolder *folder, CamelException *ex)
 static void
 nntp_folder_sync_online (CamelFolder *folder, CamelException *ex)
 {
-	CamelNNTPStore *nntp_store;
-	CamelFolderChangeInfo *changes = NULL;
-	CamelNNTPFolder *nntp_folder;
-	
-	nntp_store = (CamelNNTPStore *) folder->parent_store;
-	nntp_folder = (CamelNNTPFolder *) folder;
-	
-	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
-	
-	if (camel_nntp_summary_check ((CamelNNTPSummary *) folder->summary, nntp_folder->changes, ex) != -1)
-		camel_folder_summary_save (folder->summary);
-	
-	if (camel_folder_change_info_changed(nntp_folder->changes)) {
-		changes = nntp_folder->changes;
-		nntp_folder->changes = camel_folder_change_info_new();
-	}
-	
-	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-	
-	if (changes) {
-		camel_object_trigger_event ((CamelObject *) folder, "folder_changed", changes);
-		camel_folder_change_info_free (changes);
-	}
+	CAMEL_SERVICE_LOCK(folder->parent_store, connect_lock);
+	camel_folder_summary_save (folder->summary);
+	CAMEL_SERVICE_UNLOCK(folder->parent_store, connect_lock);
 }
 
 static void
 nntp_folder_sync_offline (CamelFolder *folder, CamelException *ex)
 {
+	CAMEL_SERVICE_LOCK(folder->parent_store, connect_lock);
 	camel_folder_summary_save (folder->summary);
+	CAMEL_SERVICE_UNLOCK(folder->parent_store, connect_lock);
 }
 
 static gboolean
@@ -134,20 +125,14 @@ nntp_folder_set_message_flags (CamelFolder *folder, const char *uid, guint32 fla
 }
 
 static CamelStream *
-nntp_folder_download_message (CamelNNTPFolder *nntp_folder, const char *msgid, CamelException *ex)
+nntp_folder_download_message (CamelNNTPFolder *nntp_folder, const char *id, const char *msgid, CamelException *ex)
 {
 	CamelNNTPStore *nntp_store = (CamelNNTPStore *) ((CamelFolder *) nntp_folder)->parent_store;
 	CamelStream *stream = NULL;
 	int ret;
 	char *line;
-	
-	if (camel_nntp_store_set_folder (nntp_store, (CamelFolder *) nntp_folder, nntp_folder->changes, ex) == -1)
-		return NULL;
-	
-	ret = camel_nntp_command (nntp_store, &line, "article %s", msgid);
-	if (ret == -1)
-		goto fail;
-	
+
+	ret = camel_nntp_command (nntp_store, ex, nntp_folder, &line, "article %s", id);
 	if (ret == 220) {
 		stream = camel_data_cache_add (nntp_store->cache, "cache", msgid, NULL);
 		if (stream) {
@@ -159,6 +144,10 @@ nntp_folder_download_message (CamelNNTPFolder *nntp_folder, const char *msgid, C
 			stream = (CamelStream *) nntp_store->stream;
 			camel_object_ref (stream);
 		}
+	} else if (ret == 423 || ret == 430) {
+		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID, _("Cannot get message %s: %s"), msgid, line);
+	} else if (ret != -1) {
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"), msgid, line);
 	}
 	
 	return stream;
@@ -178,27 +167,25 @@ nntp_folder_cache_message (CamelDiscoFolder *disco_folder, const char *uid, Came
 {
 	CamelNNTPStore *nntp_store = (CamelNNTPStore *)((CamelFolder *) disco_folder)->parent_store;
 	CamelStream *stream;
-	const char *msgid;
-	
-	if (!(msgid = strchr (uid, ','))) {
+	char *article, *msgid;
+
+	article = alloca(strlen(uid)+1);
+	strcpy(article, uid);
+	msgid = strchr(article, ',');
+	if (!msgid) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Internal error: uid in invalid format: %s"), uid);
 		return;
 	}
-	msgid++;
+	*msgid++ = 0;
 	
-	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
+	CAMEL_SERVICE_LOCK(nntp_store, connect_lock);
 	
-	stream = nntp_folder_download_message ((CamelNNTPFolder *) disco_folder, msgid, ex);
-	if (stream) {
+	stream = nntp_folder_download_message ((CamelNNTPFolder *) disco_folder, article, msgid, ex);
+	if (stream)
 		camel_object_unref (stream);
-	} else {
-		/* failed to download message! */
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-				      _("Could not get article %s from NNTP server"), uid);
-	}
-	
-	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
+
+	CAMEL_SERVICE_UNLOCK(nntp_store, connect_lock);
 }
 
 static CamelMimeMessage *
@@ -209,21 +196,22 @@ nntp_folder_get_message (CamelFolder *folder, const char *uid, CamelException *e
 	CamelFolderChangeInfo *changes;
 	CamelNNTPFolder *nntp_folder;
 	CamelStream *stream = NULL;
-	char *line = NULL;
-	const char *msgid;
-	
+	char *article, *msgid;
+
 	nntp_store = (CamelNNTPStore *) folder->parent_store;
 	nntp_folder = (CamelNNTPFolder *) folder;
 	
-	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
-	
-	msgid = strchr (uid, ',');
+	article = alloca(strlen(uid)+1);
+	strcpy(article, uid);
+	msgid = strchr (article, ',');
 	if (msgid == NULL) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Internal error: uid in invalid format: %s"), uid);
-		goto fail;
+		return NULL;
 	}
-	msgid++;
+	*msgid++ = 0;
+
+	CAMEL_SERVICE_LOCK(nntp_store, connect_lock);
 	
 	/* Lookup in cache, NEWS is global messageid's so use a global cache path */
 	stream = camel_data_cache_get (nntp_store->cache, "cache", msgid, NULL);
@@ -233,39 +221,24 @@ nntp_folder_get_message (CamelFolder *folder, const char *uid, CamelException *e
 					     _("This message is not currently available"));
 			goto fail;
 		}
-		
-		stream = nntp_folder_download_message (nntp_folder, msgid, ex);
+
+		stream = nntp_folder_download_message (nntp_folder, article, msgid, ex);
 		if (stream == NULL)
 			goto fail;
 	}
 	
-	if (stream) {
-		message = camel_mime_message_new ();
-		if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream) == -1)
-			goto error;
-		
-		CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-		
-		camel_object_unref (stream);
-		
-		return message;
+	message = camel_mime_message_new ();
+	if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream) == -1) {
+		if (errno == EINTR)
+			camel_exception_setv (ex, CAMEL_EXCEPTION_USER_CANCEL, _("User cancelled"));
+		else
+			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"), uid, g_strerror (errno));
+		camel_object_unref(message);
+		message = NULL;
 	}
-	
-	camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"), uid, line);
-	
- error:
-	if (errno == EINTR)
-		camel_exception_setv (ex, CAMEL_EXCEPTION_USER_CANCEL, _("User cancelled"));
-	else
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"), uid, g_strerror (errno));
-	
- fail:
-	if (message)
-		camel_object_unref (message);
-	
-	if (stream)
-		camel_object_unref (stream);
-	
+
+	camel_object_unref (stream);
+fail:
 	if (camel_folder_change_info_changed (nntp_folder->changes)) {
 		changes = nntp_folder->changes;
 		nntp_folder->changes = camel_folder_change_info_new ();
@@ -273,21 +246,21 @@ nntp_folder_get_message (CamelFolder *folder, const char *uid, CamelException *e
 		changes = NULL;
 	}
 	
-	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
+	CAMEL_SERVICE_UNLOCK(nntp_store, connect_lock);
 	
 	if (changes) {
 		camel_object_trigger_event ((CamelObject *) folder, "folder_changed", changes);
 		camel_folder_change_info_free (changes);
 	}
-	
-	return NULL;
+		
+	return message;
 }
 
 static GPtrArray*
 nntp_folder_search_by_expression (CamelFolder *folder, const char *expression, CamelException *ex)
 {
 	CamelNNTPFolder *nntp_folder = CAMEL_NNTP_FOLDER (folder);
-	GPtrArray *matches, *summary;
+	GPtrArray *matches;
 	
 	CAMEL_NNTP_FOLDER_LOCK(nntp_folder, search_lock);
 	
@@ -295,14 +268,9 @@ nntp_folder_search_by_expression (CamelFolder *folder, const char *expression, C
 		nntp_folder->search = camel_folder_search_new ();
 	
 	camel_folder_search_set_folder (nntp_folder->search, folder);
-	summary = camel_folder_get_summary (folder);
-	camel_folder_search_set_summary (nntp_folder->search, summary);
-	
-	matches = camel_folder_search_execute_expression (nntp_folder->search, expression, ex);
+	matches = camel_folder_search_search(nntp_folder->search, expression, NULL, ex);
 	
 	CAMEL_NNTP_FOLDER_UNLOCK(nntp_folder, search_lock);
-	
-	camel_folder_free_summary (folder, summary);
 	
 	return matches;
 }
@@ -311,22 +279,10 @@ static GPtrArray *
 nntp_folder_search_by_uids (CamelFolder *folder, const char *expression, GPtrArray *uids, CamelException *ex)
 {
 	CamelNNTPFolder *nntp_folder = (CamelNNTPFolder *) folder;
-	GPtrArray *summary, *matches;
-	int i;
-	
-	/* NOTE: could get away without the search lock by creating a new
-	   search object each time */
-	
-	summary = g_ptr_array_new ();
-	for (i = 0; i < uids->len; i++) {
-		CamelMessageInfo *info;
-		
-		if ((info = camel_folder_get_message_info (folder, uids->pdata[i])))
-			g_ptr_array_add (summary, info);
-	}
-	
-	if (summary->len == 0)
-		return summary;
+	GPtrArray *matches;
+
+	if (uids->len == 0)
+		return g_ptr_array_new();
 	
 	CAMEL_NNTP_FOLDER_LOCK(folder, search_lock);
 	
@@ -334,16 +290,9 @@ nntp_folder_search_by_uids (CamelFolder *folder, const char *expression, GPtrArr
 		nntp_folder->search = camel_folder_search_new ();
 	
 	camel_folder_search_set_folder (nntp_folder->search, folder);
-	camel_folder_search_set_summary (nntp_folder->search, summary);
-	
-	matches = camel_folder_search_execute_expression (nntp_folder->search, expression, ex);
+	matches = camel_folder_search_search(nntp_folder->search, expression, uids, ex);
 	
 	CAMEL_NNTP_FOLDER_UNLOCK(folder, search_lock);
-	
-	for (i = 0; i < summary->len; i++)
-		camel_folder_free_message_info (folder, summary->pdata[i]);
-	
-	g_ptr_array_free (summary, TRUE);
 	
 	return matches;
 }
@@ -368,33 +317,25 @@ nntp_folder_append_message_online (CamelFolder *folder, CamelMimeMessage *mime_m
 	int ret;
 	unsigned int u;
 	struct _camel_header_raw *header, *savedhdrs, *n, *tail;
-	unsigned char *line;
-	char *cmdbuf = NULL, *respbuf = NULL;
+	char *group, *line;
 	
-	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
+	CAMEL_SERVICE_LOCK(nntp_store, connect_lock);
 	
 	/* send 'POST' command */
-	ret = camel_nntp_command (nntp_store, (char **) &line, "post");
-	
+	ret = camel_nntp_command (nntp_store, ex, NULL, &line, "post");
 	if (ret != 340) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INSUFFICIENT_PERMISSION,
-		                      _("Posting not allowed by news server"));
-		CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
+		if (ret == 440)
+			camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INSUFFICIENT_PERMISSION,
+					      _("Posting failed: %s"), line);
+		else if (ret != -1)
+			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
+					      _("Posting failed: %s"), line);
+		CAMEL_SERVICE_UNLOCK(nntp_store, connect_lock);
 		return;
 	}
 	
-	/* send the 'Newsgroups: ' header */
-	cmdbuf = g_strdup_printf ("Newsgroups: %s\r\n", folder->full_name);
-	
-	if (camel_stream_write (stream, cmdbuf, strlen (cmdbuf)) == -1) {
-		g_free (cmdbuf);
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Failed to send newsgroups header: %s: message not posted"),
-				      g_strerror (errno));
-		CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-		return;
-	}
-	g_free (cmdbuf);
+	/* the 'Newsgroups: ' header */
+	group = g_strdup_printf ("Newsgroups: %s\r\n", folder->full_name);
 	
 	/* setup stream filtering */
 	crlffilter = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_ENCODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_DOTS);
@@ -422,47 +363,24 @@ nntp_folder_append_message_online (CamelFolder *folder, CamelMimeMessage *mime_m
 	}
 	
 	/* write the message */
-	ret = camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (mime_message), CAMEL_STREAM (filtered_stream));
-	
-	/* restore the mail headers */
-	header->next = savedhdrs;
-	
-	if (ret == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Error posting to newsgroup: %s: message not posted"),
-				      g_strerror (errno));
-		camel_object_unref (filtered_stream);
-		CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-		return;
-	}
-	
-	camel_stream_flush (CAMEL_STREAM (filtered_stream));
-	camel_object_unref (filtered_stream);
-	
-	/* terminate the message body */
-	if (camel_stream_write (stream, "\r\n.\r\n", 5) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Error posting to newsgroup: %s: message not posted"),
-				      g_strerror (errno));
-		CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-		return;
-	}
-	
-	if (camel_nntp_stream_line (nntp_store->stream, (unsigned char **) &respbuf, &u) == -1)
-		respbuf = NULL;
-	
-	if (!respbuf || strncmp (respbuf, "240", 3)) {
-		if (!respbuf)
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Error reading response to posted message: message not posted"));
+	if (camel_stream_write(stream, group, strlen(group)) == -1
+	    || camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (mime_message), CAMEL_STREAM (filtered_stream)) == -1
+	    || camel_stream_flush (CAMEL_STREAM (filtered_stream)) == -1
+	    || camel_stream_write (stream, "\r\n.\r\n", 5) == -1
+	    || (ret = camel_nntp_stream_line (nntp_store->stream, (unsigned char **)&line, &u)) == -1) {
+		if (errno == EINTR)
+			camel_exception_setv (ex, CAMEL_EXCEPTION_USER_CANCEL, _("User cancelled"));
 		else
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Error posting message: %s: message not posted"), respbuf);
-		CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-		return;
+			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Posting failed: %s"), g_strerror (errno));
+	} else if (atoi(line) != 240) {
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Posting failed: %s"), line);
 	}
-	
-	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
+
+	camel_object_unref (filtered_stream);
+	g_free(group);
+	header->next = savedhdrs;
+
+	CAMEL_SERVICE_UNLOCK(nntp_store, connect_lock);
 	
 	return;
 }
@@ -560,47 +478,6 @@ camel_nntp_folder_get_type (void)
 	return camel_nntp_folder_type;
 }
 
-
-/* not yet */
-/* Idea is we update in stages, but this requires a different xover command, etc */
-#ifdef ASYNC_SUMMARY
-struct _folder_check_msg {
-	CamelSessionThreadMsg msg;
-	CamelNNTPFolder *folder;
-};
-
-static void
-folder_check(CamelSession *session, CamelSessionThreadMsg *msg)
-{
-	struct _folder_check_msg *m = (struct _folder_check_msg *)msg;
-	CamelException *ex;
-	CamelNNTPStore *nntp_store;
-	
-	nntp_store = (CamelNNTPStore *) m->folder->parent.parent_store;
-	
-	CAMEL_NNTP_STORE_LOCK(nntp_store, command_lock);
-	
-	ex = camel_exception_new ();
-	camel_nntp_summary_check ((CamelNNTPSummary *) m->folder->parent.summary, m->folder->changes, ex);
-	camel_exception_free (ex);
-	
-	CAMEL_NNTP_STORE_UNLOCK(nntp_store, command_lock);
-}
-
-static void
-folder_check_free(CamelSession *session, CamelSessionThreadMsg *msg)
-{
-	struct _folder_check_msg *m = (struct _folder_check_msg *)msg;
-	
-	camel_object_unref (m->folder);
-}
-
-static CamelSessionThreadOps folder_check_ops = {
-	folder_check,
-	folder_check_free,
-};
-#endif
-
 CamelFolder *
 camel_nntp_folder_new (CamelStore *parent, const char *folder_name, CamelException *ex)
 {
@@ -608,9 +485,6 @@ camel_nntp_folder_new (CamelStore *parent, const char *folder_name, CamelExcepti
 	CamelNNTPFolder *nntp_folder;
 	char *root;
 	CamelService *service;
-#ifdef ASYNC_SUMMARY
-	struct _folder_check_msg *m;
-#endif
 	CamelStoreInfo *si;
 	gboolean subscribed = TRUE;
 	
@@ -636,7 +510,9 @@ camel_nntp_folder_new (CamelStore *parent, const char *folder_name, CamelExcepti
 	camel_object_state_read(nntp_folder);
 	g_free(root);
 
-	folder->summary = (CamelFolderSummary *) camel_nntp_summary_new (nntp_folder);
+	root = g_strdup_printf("%s.ev-summary", nntp_folder->storage_path);
+	folder->summary = (CamelFolderSummary *) camel_nntp_summary_new (root);
+	g_free(root);
 	camel_folder_summary_load (folder->summary);
 	
 	si = camel_store_summary_path ((CamelStoreSummary *) ((CamelNNTPStore*) parent)->summary, folder_name);
@@ -646,17 +522,11 @@ camel_nntp_folder_new (CamelStore *parent, const char *folder_name, CamelExcepti
 	}
 	
 	if (subscribed) {
-#ifdef ASYNC_SUMMARY
-		m = camel_session_thread_msg_new (service->session, &folder_check_ops, sizeof(*m));
-		m->folder = nntp_folder;
-		camel_object_ref (folder);
-		camel_session_thread_queue (service->session, &m->msg, 0);
-#else
-		if (camel_nntp_summary_check ((CamelNNTPSummary *) folder->summary, nntp_folder->changes, ex) == -1) {
+		camel_folder_refresh_info(folder, ex);
+		if (camel_exception_is_set(ex)) {
 			camel_object_unref (folder);
 			folder = NULL;
 		}
-#endif
         }
 	
 	return folder;

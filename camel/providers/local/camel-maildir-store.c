@@ -37,6 +37,7 @@
 #include "camel-url.h"
 #include "camel-private.h"
 #include "camel-maildir-summary.h"
+#include "camel-i18n.h"
 
 #define d(x)
 
@@ -50,6 +51,7 @@ static CamelLocalStoreClass *parent_class = NULL;
 static CamelFolder *get_folder(CamelStore * store, const char *folder_name, guint32 flags, CamelException * ex);
 static CamelFolder *get_inbox (CamelStore *store, CamelException *ex);
 static void delete_folder(CamelStore * store, const char *folder_name, CamelException * ex);
+static void maildir_rename_folder(CamelStore *store, const char *old, const char *new, CamelException *ex);
 
 static CamelFolderInfo * get_folder_info (CamelStore *store, const char *top, guint32 flags, CamelException *ex);
 
@@ -64,6 +66,7 @@ static void camel_maildir_store_class_init(CamelObjectClass * camel_maildir_stor
 	camel_store_class->get_folder = get_folder;
 	camel_store_class->get_inbox = get_inbox;
 	camel_store_class->delete_folder = delete_folder;
+	camel_store_class->rename_folder = maildir_rename_folder;
 
 	camel_store_class->get_folder_info = get_folder_info;
 	camel_store_class->free_folder_info = camel_store_free_folder_info_full;
@@ -222,20 +225,32 @@ static void delete_folder(CamelStore * store, const char *folder_name, CamelExce
 	g_free(new);
 }
 
-static CamelFolderInfo *camel_folder_info_new(const char *url, const char *full, const char *name)
+static void
+maildir_rename_folder(CamelStore *store, const char *old, const char *new, CamelException *ex)
+{
+	if (strcmp(old, ".") == 0) {
+		camel_exception_setv(ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
+				     _("Cannot rename folder: %s: Invalid operation"), _("Inbox"));
+		return;
+	}
+
+	((CamelStoreClass *)parent_class)->rename_folder(store, old, new, ex);
+}
+
+static CamelFolderInfo *camel_folder_info_new(CamelURL *url, const char *full, const char *name)
 {
 	CamelFolderInfo *fi;
 
 	fi = g_malloc0(sizeof(*fi));
-	fi->uri = g_strdup(url);
+	fi->uri = camel_url_to_string(url, 0);
 	fi->full_name = g_strdup(full);
-	fi->name = g_strdup(name);
+	if (!strcmp(full, ".")) {
+		fi->flags |= CAMEL_FOLDER_SYSTEM;
+		fi->name = g_strdup(_("Inbox"));
+	} else
+		fi->name = g_strdup(name);
 	fi->unread = -1;
 	fi->total = -1;
-	camel_folder_info_build_path(fi, '/');
-
-	if (!strcmp(full, "."))
-		fi->flags |= CAMEL_FOLDER_SYSTEM;
 
 	d(printf("Adding maildir info: '%s' '%s' '%s' '%s'\n", fi->path, fi->name, fi->full_name, fi->url));
 
@@ -248,6 +263,11 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	CamelFolder *folder;
 
 	folder = camel_object_bag_get(store->folders, fi->full_name);
+
+	if (folder == NULL
+	    && (flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
+		folder = camel_store_get_folder(store, fi->full_name, 0, NULL);
+
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
@@ -307,7 +327,7 @@ static int scan_dir(CamelStore *store, GHashTable *visited, CamelURL *url, const
 
 	camel_url_set_fragment(url, path);
 
-	fi = camel_folder_info_new(camel_url_to_string(url, 0), path, base);
+	fi = camel_folder_info_new(url, path, base);
 	fill_fi(store, fi, flags);
 
 	if (!(stat(tmp, &st) == 0 && S_ISDIR(st.st_mode)
@@ -416,7 +436,7 @@ get_folder_info (CamelStore *store, const char *top, guint32 flags, CamelExcepti
 	url = camel_url_new("maildir:", NULL);
 	camel_url_set_path(url, ((CamelService *)local_store)->url->path);
 
-	if (scan_dir(store, visited, url, top?top:".", flags, NULL, &fi, ex) == -1 && fi != NULL) {
+	if (scan_dir(store, visited, url, top == NULL || top[0] == 0?".":top, flags, NULL, &fi, ex) == -1 && fi != NULL) {
 		camel_store_free_folder_info_full(store, fi);
 		fi = NULL;
 	}

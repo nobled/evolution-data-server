@@ -27,6 +27,7 @@
 #include "camel-vee-folder.h"
 
 #include "camel-private.h"
+#include "camel-i18n.h"
 
 #include <string.h>
 
@@ -92,12 +93,27 @@ camel_vee_store_init (CamelVeeStore *obj)
 
 	/* we dont want a vtrash/vjunk on this one */
 	store->flags &= ~(CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK);	
+
+	/* Set up unmatched folder */
+	obj->unmatched_uids = g_hash_table_new (g_str_hash, g_str_equal);
+	obj->folder_unmatched = (CamelVeeFolder *)camel_object_new (camel_vee_folder_get_type ());
+	camel_vee_folder_construct (obj->folder_unmatched, store, CAMEL_UNMATCHED_NAME, CAMEL_STORE_FOLDER_PRIVATE);
+}
+
+static void
+cvs_free_unmatched(void *key, void *value, void *data)
+{
+	g_free(key);
 }
 
 static void
 camel_vee_store_finalise (CamelObject *obj)
 {
-	;
+	CamelVeeStore *vstore = (CamelVeeStore *)obj;
+
+	g_hash_table_foreach(vstore->unmatched_uids, cvs_free_unmatched, NULL);
+	g_hash_table_destroy(vstore->unmatched_uids);
+	camel_object_unref(vstore->folder_unmatched);
 }
 
 /**
@@ -149,7 +165,6 @@ change_folder(CamelStore *store, const char *name, guint32 flags, int count)
 	fi->flags = CAMEL_FOLDER_VIRTUAL;
 	if (!(flags & CHANGE_DELETE))
 		fi->flags |= CAMEL_FOLDER_NOCHILDREN;
-	camel_folder_info_build_path(fi, '/');
 	camel_object_trigger_event(store, (flags&CHANGE_DELETE)?"folder_deleted":"folder_created", fi);
 	camel_folder_info_free(fi);
 }
@@ -272,7 +287,6 @@ vee_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExce
 			info->name = g_strdup(((CamelFolder *)folder)->name);
 			info->unread = camel_folder_get_unread_message_count((CamelFolder *)folder);
 			info->flags = CAMEL_FOLDER_NOCHILDREN|CAMEL_FOLDER_VIRTUAL;
-			camel_folder_info_build_path(info, '/');
 			g_hash_table_insert(infos_hash, info->full_name, info);
 
 			if (res == NULL)
@@ -329,7 +343,6 @@ vee_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExce
 		info->name = g_strdup(_("Unmatched"));
 		info->unread = -1;
 		info->flags = CAMEL_FOLDER_NOCHILDREN|CAMEL_FOLDER_NOINFERIORS|CAMEL_FOLDER_SYSTEM|CAMEL_FOLDER_VIRTUAL;
-		camel_folder_info_build_path(info, '/');
 
 		if (res == NULL)
 			res = info;
@@ -381,7 +394,8 @@ vee_delete_folder(CamelStore *store, const char *folder_name, CamelException *ex
 static void
 vee_rename_folder(CamelStore *store, const char *old, const char *new, CamelException *ex)
 {
-	CamelFolder *folder;
+	CamelFolder *folder, *oldfolder;
+	char *p, *name;
 
 	d(printf("vee rename folder '%s' '%s'\n", old, new));
 
@@ -392,11 +406,32 @@ vee_rename_folder(CamelStore *store, const char *old, const char *new, CamelExce
 	}
 
 	/* See if it exists, for vfolders, all folders are in the folders hash */
-	folder = camel_object_bag_get(store->folders, old);
-	if (folder == NULL) {
+	oldfolder = camel_object_bag_get(store->folders, old);
+	if (oldfolder == NULL) {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
 				     _("Cannot rename folder: %s: No such folder"), old);
-	} else {
-		camel_object_unref(folder);
+		return;
 	}
+
+	/* Check that new parents exist, if not, create dummy ones */
+	name = alloca(strlen(new)+1);
+	strcpy(name, new);
+	p = name;
+	while ( (p = strchr(p, '/'))) {
+		*p = 0;
+
+		folder = camel_object_bag_reserve(store->folders, name);
+		if (folder == NULL) {
+			/* create a dummy vFolder for this, makes get_folder_info simpler */
+			folder = camel_vee_folder_new(store, name, ((CamelVeeFolder *)oldfolder)->flags);
+			camel_object_bag_add(store->folders, name, folder);
+			change_folder(store, name, CHANGE_ADD|CHANGE_NOSELECT, 0);
+			/* FIXME: this sort of leaks folder, nobody owns a ref to it but us */
+		} else {
+			camel_object_unref(folder);
+		}
+		*p++='/';
+	}
+
+	camel_object_unref(oldfolder);
 }

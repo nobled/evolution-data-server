@@ -55,7 +55,7 @@
 #include "camel-stream-mem.h"
 #include "camel-stream-fs.h"
 #include "camel-search-private.h"
-
+#include "camel-i18n.h"
 #include "camel-url.h"
 
 #define d(x)
@@ -667,6 +667,7 @@ camel_filter_search_match (CamelSession *session,
 	e_sexp_input_text (sexp, expression, strlen (expression));
 	if (e_sexp_parse (sexp) == -1) {
 		if (!camel_exception_is_set (ex))
+			/* A filter search is a search through your filters, ie. your filters is the corpus being searched thru. */
 			camel_exception_setv (ex, 1, _("Error executing filter search: %s: %s"),
 					      e_sexp_error (sexp), expression);
 		goto error;

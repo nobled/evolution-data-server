@@ -61,21 +61,21 @@ typedef enum {
 
 typedef enum {
 	CAMEL_IMAP4_LEVEL_UNKNOWN,
-	CAMEL_IMAP4_LEVEL_IMAP44,
-	CAMEL_IMAP4_LEVEL_IMAP44REV1
+	CAMEL_IMAP4_LEVEL_IMAP4,
+	CAMEL_IMAP4_LEVEL_IMAP4REV1
 } camel_imap4_level_t;
 
 enum {
-	CAMEL_IMAP4_CAPABILITY_IMAP44           = (1 << 0),
-	CAMEL_IMAP4_CAPABILITY_IMAP44REV1       = (1 << 1),
-	CAMEL_IMAP4_CAPABILITY_STATUS          = (1 << 2),
-	CAMEL_IMAP4_CAPABILITY_NAMESPACE       = (1 << 3),
-	CAMEL_IMAP4_CAPABILITY_UIDPLUS         = (1 << 4),
-	CAMEL_IMAP4_CAPABILITY_LITERALPLUS     = (1 << 5),
-	CAMEL_IMAP4_CAPABILITY_LOGINDISABLED   = (1 << 6),
-	CAMEL_IMAP4_CAPABILITY_STARTTLS        = (1 << 7),
-	CAMEL_IMAP4_CAPABILITY_useful_lsub     = (1 << 8),
-	CAMEL_IMAP4_CAPABILITY_utf8_search     = (1 << 9),
+	CAMEL_IMAP4_CAPABILITY_IMAP4            = (1 << 0),
+	CAMEL_IMAP4_CAPABILITY_IMAP4REV1        = (1 << 1),
+	CAMEL_IMAP4_CAPABILITY_STATUS           = (1 << 2),
+	CAMEL_IMAP4_CAPABILITY_NAMESPACE        = (1 << 3),
+	CAMEL_IMAP4_CAPABILITY_UIDPLUS          = (1 << 4),
+	CAMEL_IMAP4_CAPABILITY_LITERALPLUS      = (1 << 5),
+	CAMEL_IMAP4_CAPABILITY_LOGINDISABLED    = (1 << 6),
+	CAMEL_IMAP4_CAPABILITY_STARTTLS         = (1 << 7),
+	CAMEL_IMAP4_CAPABILITY_useful_lsub      = (1 << 8),
+	CAMEL_IMAP4_CAPABILITY_utf8_search      = (1 << 9),
 };
 
 typedef enum {
@@ -143,10 +143,16 @@ enum {
 	CAMEL_IMAP4_ENGINE_MAXLEN_TOKEN
 };
 
+typedef gboolean (* CamelIMAP4ReconnectFunc) (CamelIMAP4Engine *engine, CamelException *ex);
+
 struct _CamelIMAP4Engine {
 	CamelObject parent_object;
 	
+	CamelIMAP4ReconnectFunc reconnect;
+	gboolean reconnecting;
+	
 	CamelSession *session;
+	CamelService *service;
 	CamelURL *url;
 	
 	camel_imap4_engine_t state;
@@ -181,7 +187,7 @@ struct _CamelIMAP4EngineClass {
 
 CamelType camel_imap4_engine_get_type (void);
 
-CamelIMAP4Engine *camel_imap4_engine_new (CamelSession *session, CamelURL *url);
+CamelIMAP4Engine *camel_imap4_engine_new (CamelService *service, CamelIMAP4ReconnectFunc reconnect);
 
 /* returns 0 on success or -1 on error */
 int camel_imap4_engine_take_stream (CamelIMAP4Engine *engine, CamelStream *stream, CamelException *ex);
@@ -193,7 +199,8 @@ int camel_imap4_engine_select_folder (CamelIMAP4Engine *engine, CamelFolder *fol
 
 struct _CamelIMAP4Command *camel_imap4_engine_queue (CamelIMAP4Engine *engine, CamelFolder *folder,
 						     const char *format, ...);
-void camel_imap4_engine_prequeue (CamelIMAP4Engine *engine, struct _CamelIMAP4Command *ic);
+struct _CamelIMAP4Command *camel_imap4_engine_prequeue (CamelIMAP4Engine *engine, CamelFolder *folder,
+							const char *format, ...);
 
 void camel_imap4_engine_dequeue (CamelIMAP4Engine *engine, struct _CamelIMAP4Command *ic);
 

@@ -114,6 +114,7 @@ struct _camel_header_newsgroup {
 
 /* MUST be called before everything else */
 void camel_mime_utils_init(void);
+void camel_mime_utils_shutdown (void);
 
 /* Address lists */
 struct _camel_header_address *camel_header_address_new (void);
@@ -193,6 +194,9 @@ int camel_header_decode_int (const char **in);
 char *camel_header_decode_string (const char *in, const char *default_charset);
 char *camel_header_encode_string (const unsigned char *in);
 
+/* decode (text | comment) - a one-way op */
+char *camel_header_format_ctext (const char *in, const char *default_charset);
+
 /* encode a phrase, like the real name of an address */
 char *camel_header_encode_phrase (const unsigned char *in);
 
@@ -263,6 +267,7 @@ enum {
 	CAMEL_MIME_IS_QPSAFE	= 1<<6,
 	CAMEL_MIME_IS_ESAFE	= 1<<7,	/* encoded word safe */
 	CAMEL_MIME_IS_PSAFE	= 1<<8,	/* encoded word in phrase safe */
+	CAMEL_MIME_IS_ATTRCHAR  = 1<<9,	/* attribute-char safe (rfc2184) */
 };
 
 extern unsigned short camel_mime_special_table[256];
@@ -278,6 +283,7 @@ extern unsigned short camel_mime_special_table[256];
 #define camel_mime_is_qpsafe(x) ((camel_mime_special_table[(unsigned char)(x)] & CAMEL_MIME_IS_QPSAFE) != 0)
 #define camel_mime_is_especial(x) ((camel_mime_special_table[(unsigned char)(x)] & CAMEL_MIME_IS_ESPECIAL) != 0)
 #define camel_mime_is_psafe(x) ((camel_mime_special_table[(unsigned char)(x)] & CAMEL_MIME_IS_PSAFE) != 0)
+#define camel_mime_is_attrchar(x) ((camel_mime_special_table[(unsigned char)(x)] & CAMEL_MIME_IS_ATTRCHAR) != 0)
 
 #ifdef __cplusplus
 }

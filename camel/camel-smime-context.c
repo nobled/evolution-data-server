@@ -56,6 +56,7 @@
 
 #include "camel-smime-context.h"
 #include "camel-operation.h"
+#include "camel-i18n.h"
 
 #define d(x)
 
@@ -97,13 +98,13 @@ sm_get_passwd(PK11SlotInfo *info, PRBool retry, void *arg)
 
 	/* we got a password, but its asking again, the password we had was wrong */
 	if (context->priv->password_tries > 0) {
-		camel_session_forget_password(((CamelCipherContext *)context)->session, NULL, PK11_GetTokenName(info), NULL);
+		camel_session_forget_password(((CamelCipherContext *)context)->session, NULL, NULL, PK11_GetTokenName(info), NULL);
 		context->priv->password_tries = 0;
 	}
 
 	prompt = g_strdup_printf(_("Enter security pass-phrase for `%s'"), PK11_GetTokenName(info));
-	pass = camel_session_get_password(((CamelCipherContext *)context)->session, prompt,
-					  CAMEL_SESSION_PASSWORD_SECRET|CAMEL_SESSION_PASSWORD_STATIC, NULL, PK11_GetTokenName(info), ex);
+	pass = camel_session_get_password(((CamelCipherContext *)context)->session, NULL, NULL, prompt,
+					  PK11_GetTokenName(info), CAMEL_SESSION_PASSWORD_SECRET|CAMEL_SESSION_PASSWORD_STATIC, ex);
 	camel_exception_free(ex);
 	g_free(prompt);
 	if (pass) {
@@ -269,13 +270,13 @@ sm_signing_cmsmessage(CamelSMIMEContext *context, const char *nick, SECOidTag ha
 	}
 
 	if ((sigd = NSS_CMSSignedData_Create(cmsg)) == NULL) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS signedData"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS signed data"));
 		goto fail;
 	}
 
 	cinfo = NSS_CMSMessage_GetContentInfo(cmsg);
 	if (NSS_CMSContentInfo_SetContent_SignedData(cmsg, cinfo, sigd) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot attach CMS signedData"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot attach CMS signed data"));
 		goto fail;
 	}
 
@@ -288,19 +289,19 @@ sm_signing_cmsmessage(CamelSMIMEContext *context, const char *nick, SECOidTag ha
 
 	signerinfo = NSS_CMSSignerInfo_Create(cmsg, cert, hash);
 	if (signerinfo == NULL) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS SignerInfo"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS Signer information"));
 		goto fail;
 	}
 
 	/* we want the cert chain included for this one */
 	if (NSS_CMSSignerInfo_IncludeCerts(signerinfo, NSSCMSCM_CertChain, certUsageEmailSigner) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find cert chain"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find certificate chain"));
 		goto fail;
 	}
 
 	/* SMIME RFC says signing time should always be added */
 	if (NSS_CMSSignerInfo_AddSigningTime(signerinfo, PR_Now()) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add CMS SigningTime"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add CMS Signing time"));
 		goto fail;
 	}
 
@@ -322,7 +323,7 @@ sm_signing_cmsmessage(CamelSMIMEContext *context, const char *nick, SECOidTag ha
 				     p->certdb,
 				     p->encrypt_key,
 				     certUsageEmailRecipient, PR_FALSE, NULL)) == NULL) {
-				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Encryption cert for '%s' does not exist"), p->encrypt_key);
+				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Encryption certificate for '%s' does not exist"), p->encrypt_key);
 				goto fail;
 			}
 			enccert = ekpcert;
@@ -334,7 +335,7 @@ sm_signing_cmsmessage(CamelSMIMEContext *context, const char *nick, SECOidTag ha
 			if ((ekpcert = CERT_FindUserCertByUsage(
 				     p->certdb, (char *)nick,
 				     certUsageEmailRecipient, PR_FALSE, NULL)) == NULL) {
-				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Encryption cert for '%s' does not exist"), nick);
+				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Encryption certificate for '%s' does not exist"), nick);
 				goto fail;
 			}
 			enccert = ekpcert;
@@ -351,13 +352,13 @@ sm_signing_cmsmessage(CamelSMIMEContext *context, const char *nick, SECOidTag ha
 		}
 
 		if (ekpcert != NULL && NSS_CMSSignedData_AddCertificate(sigd, ekpcert) != SECSuccess) {
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add add encryption certificate"));
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add encryption certificate"));
 			goto fail;
 		}
 	}
 
 	if (NSS_CMSSignedData_AddSignerInfo(sigd, signerinfo) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add CMS SignerInfo"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add CMS Signer information"));
 		goto fail;
 	}
 
@@ -566,7 +567,7 @@ sm_verify_cmsg(CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *ex
 		case SEC_OID_PKCS7_SIGNED_DATA:
 			sigd = (NSSCMSSignedData *)NSS_CMSContentInfo_GetContent(cinfo);
 			if (sigd == NULL) {
-				camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("No signedData in signature"));
+				camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("No signed data in signature"));
 				goto fail;
 			}
 
@@ -609,8 +610,13 @@ sm_verify_cmsg(CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *ex
 				poolp = NULL;
 			}
 
-			/* import the certificates */
-			if (NSS_CMSSignedData_ImportCerts(sigd, p->certdb, certUsageEmailSigner, PR_FALSE) != SECSuccess) {
+			/* import all certificates present */
+			if (NSS_CMSSignedData_ImportCerts(sigd, p->certdb, certUsageEmailSigner, PR_TRUE) != SECSuccess) {
+				camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Certificate import failed"));
+				goto fail;
+			}
+
+			if (NSS_CMSSignedData_ImportCerts(sigd, p->certdb, certUsageEmailRecipient, PR_TRUE) != SECSuccess) {
 				camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Certificate import failed"));
 				goto fail;
 			}
@@ -618,17 +624,17 @@ sm_verify_cmsg(CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *ex
 			/* check for certs-only message */
 			nsigners = NSS_CMSSignedData_SignerInfoCount(sigd);
 			if (nsigners == 0) {
-				/* ?? Should we check other usages? */
-				NSS_CMSSignedData_ImportCerts(sigd, p->certdb, certUsageEmailSigner, PR_TRUE);
+                                                          
+				/* already imported certs above, not sure what usage we should use here or if this isn't handled above */
 				if (NSS_CMSSignedData_VerifyCertsOnly(sigd, p->certdb, certUsageEmailSigner) != SECSuccess) {
-					g_string_printf(description, _("Certficate only message, cannot verify certificates"));
+					g_string_printf(description, _("Certificate is the only message, cannot verify certificates"));
 				} else {
 					status = NSSCMSVS_GoodSignature;
-					g_string_printf(description, _("Certficate only message, certificates imported and verified"));
+					g_string_printf(description, _("Certificate is the only message, certificates imported and verified"));
 				}
 			} else {
 				if (!NSS_CMSSignedData_HasDigests(sigd)) {
-					camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't find signature digests"));
+					camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find signature digests"));
 					goto fail;
 				}
 
@@ -797,14 +803,14 @@ sm_encrypt(CamelCipherContext *context, const char *userid, GPtrArray *recipient
 	for (i=0;i<recipients->len;i++) {
 		recipient_certs[i] = CERT_FindCertByNicknameOrEmailAddr(p->certdb, recipients->pdata[i]);
 		if (recipient_certs[i] == NULL) {
-			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Can't find certificate for `%s'"), recipients->pdata[i]);
+			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find certificate for `%s'"), recipients->pdata[i]);
 			goto fail;
 		}
 	}
 
 	/* Find a common algorithm, probably 3DES anyway ... */
 	if (NSS_SMIMEUtil_FindBulkAlgForRecipients(recipient_certs, &bulkalgtag, &bulkkeysize) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't find common bulk encryption algorithm"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find common bulk encryption algorithm"));
 		goto fail;
 	}
 
@@ -813,7 +819,7 @@ sm_encrypt(CamelCipherContext *context, const char *userid, GPtrArray *recipient
 	slot = PK11_GetBestSlot(type, context);
 	if (slot == NULL) {
 		/* PORT_GetError(); ?? */
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't allocate slot for encryption bulk key"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot allocate slot for encryption bulk key"));
 		goto fail;
 	}
 
@@ -824,25 +830,25 @@ sm_encrypt(CamelCipherContext *context, const char *userid, GPtrArray *recipient
 	/* msg->envelopedData->data */
 	cmsg = NSS_CMSMessage_Create(NULL);
 	if (cmsg == NULL) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't create CMS Message"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS Message"));
 		goto fail;
 	}
 
 	envd = NSS_CMSEnvelopedData_Create(cmsg, bulkalgtag, bulkkeysize);
 	if (envd == NULL) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't create CMS EnvelopedData"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS Enveloped data"));
 		goto fail;
 	}
 
 	cinfo = NSS_CMSMessage_GetContentInfo(cmsg);
 	if (NSS_CMSContentInfo_SetContent_EnvelopedData(cmsg, cinfo, envd) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't attach CMS EnvelopedData"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot attach CMS Enveloped data"));
 		goto fail;
 	}
 
 	cinfo = NSS_CMSEnvelopedData_GetContentInfo(envd);
 	if (NSS_CMSContentInfo_SetContent_Data(cmsg, cinfo, NULL, PR_FALSE) != SECSuccess) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't attach CMS data object"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot attach CMS data object"));
 		goto fail;
 	}
 
@@ -851,12 +857,12 @@ sm_encrypt(CamelCipherContext *context, const char *userid, GPtrArray *recipient
 		NSSCMSRecipientInfo *ri = NSS_CMSRecipientInfo_Create(cmsg, recipient_certs[i]);
 
 		if (ri == NULL) {
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't create CMS RecipientInfo"));
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create CMS Recipient information"));
 			goto fail;
 		}
 
 		if (NSS_CMSEnvelopedData_AddRecipient(envd, ri) != SECSuccess) {
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't add CMS RecipientInfo"));
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot add CMS Recipient information"));
 			goto fail;
 		}
 	}
@@ -870,7 +876,7 @@ sm_encrypt(CamelCipherContext *context, const char *userid, GPtrArray *recipient
 				   sm_decrypt_key, bulkkey,
 				   NULL, NULL);
 	if (enc == NULL) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Can't create encoder context"));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create encoder context"));
 		goto fail;
 	}
 
@@ -949,6 +955,7 @@ sm_decrypt(CamelCipherContext *context, CamelMimePart *ipart, CamelMimePart *opa
 	   this api to do this ... */
 
 	ostream = camel_stream_mem_new();
+	camel_stream_mem_set_secure((CamelStreamMem *)ostream);
 
 	/* FIXME: stream this to the decoder incrementally */
 	istream = (CamelStreamMem *)camel_stream_mem_new();

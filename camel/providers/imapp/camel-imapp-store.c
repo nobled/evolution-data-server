@@ -48,6 +48,7 @@
 #ifdef HAVE_SSL
 #include "camel/camel-tcp-stream-ssl.h"
 #endif
+#include "camel/camel-i18n.h"
 
 #include "camel-imapp-store-summary.h"
 #include "camel-imapp-store.h"
@@ -189,29 +190,37 @@ connect_to_server (CamelService *service, int ssl_mode, int try_starttls)
 	CamelIMAPPStore *store = CAMEL_IMAPP_STORE (service);
 	CamelStream * volatile tcp_stream = NULL;
 	CamelIMAPPStream * volatile imap_stream = NULL;
-	struct hostent *h = NULL;
-	int ret, port;
+	int ret;
 	CamelException *ex;
 
 	ex = camel_exception_new();
 	CAMEL_TRY {
+		char *serv;
+		const char *port = NULL;
+		struct addrinfo *ai, hints = { 0 };
+
 		/* parent class connect initialization */
 		CAMEL_SERVICE_CLASS (parent_class)->connect (service, ex);
 		if (ex->id)
 			camel_exception_throw_ex(ex);
 
-		h = camel_service_gethost(service, ex);
-		if (ex->id)
-			camel_exception_throw_ex(ex);
-		
-		port = service->url->port ? service->url->port : IMAP_PORT;
-		
+		if (service->url->port) {
+			serv = g_alloca(16);
+			sprintf(serv, "%d", service->url->port);
+		} else {
+			serv = "imap";
+			port = "143";
+		}
+
 #ifdef HAVE_SSL	
 		if (camel_url_get_param (service->url, "use_ssl")) {
 			if (try_starttls)
 				tcp_stream = camel_tcp_stream_ssl_new_raw (service->session, service->url->host, STARTTLS_FLAGS);
 			else {
-				port = service->url->port ? service->url->port : 995;
+				if (service->url->port == 0) {
+					serv = "imaps";
+					port = "993";
+				}
 				tcp_stream = camel_tcp_stream_ssl_new (service->session, service->url->host, SSL_PORT_FLAGS);
 			}
 		} else {
@@ -220,16 +229,26 @@ connect_to_server (CamelService *service, int ssl_mode, int try_starttls)
 #else	
 		tcp_stream = camel_tcp_stream_raw_new ();
 #endif /* HAVE_SSL */
-		
-		ret = camel_tcp_stream_connect (CAMEL_TCP_STREAM (tcp_stream), h, port);
-		camel_free_host (h);
+
+		hints.ai_socktype = SOCK_STREAM;
+		ai = camel_getaddrinfo(service->url->host, serv, &hints, ex);
+		if (ex->id && ex->id != CAMEL_EXCEPTION_USER_CANCEL && port != NULL) {
+			camel_exception_clear(ex);
+			ai = camel_getaddrinfo(service->url->host, port, &hints, ex);
+		}
+
+		if (ex->id)
+			camel_exception_throw_ex(ex);
+	
+		ret = camel_tcp_stream_connect(CAMEL_TCP_STREAM(tcp_stream), ai);
+		camel_freeaddrinfo(ai);
 		if (ret == -1) {
 			if (errno == EINTR)
 				camel_exception_throw(CAMEL_EXCEPTION_USER_CANCEL, _("Connection cancelled"));
 			else
 				camel_exception_throw(CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-						      _("Could not connect to %s (port %d): %s"),
-						      service->url->host, port, strerror(errno));
+						      _("Could not connect to %s (port %s): %s"),
+						      service->url->host, serv, strerror(errno));
 		}
 
 		imap_stream = (CamelIMAPPStream *)camel_imapp_stream_new(tcp_stream);
@@ -346,8 +365,8 @@ store_get_pass(CamelIMAPPStore *store)
 					  ((CamelService *)store)->url->user,
 					  ((CamelService *)store)->url->host);
 		((CamelService *)store)->url->passwd = camel_session_get_password(camel_service_get_session((CamelService *)store),
-										  prompt, CAMEL_SESSION_PASSWORD_SECRET,
-										  (CamelService*)store, "password", &ex);
+										  (CamelService *)store, NULL,
+										  prompt, "password", CAMEL_SESSION_PASSWORD_SECRET, &ex);
 		g_free (prompt);
 		if (camel_exception_is_set(&ex))
 			camel_exception_throw_ex(&ex);
@@ -418,7 +437,7 @@ imap_connect (CamelService *service, CamelException *ex)
 				switch (e->id) {
 				case CAMEL_EXCEPTION_SERVICE_CANT_AUTHENTICATE:
 					store->login_error = g_strdup_printf("%s\n\n", e->desc);
-					camel_session_forget_password(service->session, service, "password", ex);
+					camel_session_forget_password(service->session, service, NULL, "password", ex);
 					camel_url_set_passwd(service->url, NULL);
 					break;
 				default:
@@ -543,7 +562,6 @@ folders_build_info(CamelURL *base, struct _list_info *li)
 	fi->uri = camel_url_to_string(base, CAMEL_URL_HIDE_ALL);
 	fi->name = g_strdup(name);
 	fi->full_name = full_name;
-	fi->path = g_strdup(path);
 	fi->unread = -1;
 	fi->total = -1;
 	fi->flags = li->flags;

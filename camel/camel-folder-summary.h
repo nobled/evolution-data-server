@@ -68,6 +68,7 @@ enum _CamelMessageFlags {
 	CAMEL_MESSAGE_ATTACHMENTS = 1<<5,
 	CAMEL_MESSAGE_ANSWERED_ALL = 1<<6,
 	CAMEL_MESSAGE_JUNK = 1<<7,
+	CAMEL_MESSAGE_SECURE = 1<<8,
 
 	/* following flags are for the folder, and are not really permanent flags */
 	CAMEL_MESSAGE_FOLDER_FLAGGED = 1<<16, /* for use by the folder implementation */
@@ -80,6 +81,8 @@ enum _CamelMessageFlags {
 					     to learn that message as junk/non junk */
 	CAMEL_MESSAGE_USER = 1<<31 /* supports user flags */
 };
+/* Changes to system flags will NOT trigger a folder changed event */
+#define CAMEL_MESSAGE_SYSTEM_MASK (0xffff << 16)
 
 typedef struct _CamelFlag {
 	struct _CamelFlag *next;

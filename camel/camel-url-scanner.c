@@ -25,10 +25,12 @@
 #include <config.h>
 #endif
 
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
 #include "e-util/e-trie.h"
+#include "camel-utf8.h"
 #include "camel-url-scanner.h"
 
 
@@ -75,29 +77,36 @@ camel_url_scanner_add (CamelUrlScanner *scanner, urlpattern_t *pattern)
 gboolean
 camel_url_scanner_scan (CamelUrlScanner *scanner, const char *in, size_t inlen, urlmatch_t *match)
 {
-	const char *pos, *inend;
+	const char *pos, *inptr, *inend;
 	urlpattern_t *pat;
 	int pattern;
 	
 	g_return_val_if_fail (scanner != NULL, FALSE);
 	g_return_val_if_fail (in != NULL, FALSE);
 	
-	if (!(pos = e_trie_search (scanner->trie, in, inlen, &pattern)))
-		return FALSE;
-	
-	pat = g_ptr_array_index (scanner->patterns, pattern);
-	
-	match->pattern = pat->pattern;
-	match->prefix = pat->prefix;
-	
+	inptr = in;
 	inend = in + inlen;
-	if (!pat->start (in, pos, inend, match))
-		return FALSE;
 	
-	if (!pat->end (in, pos, inend, match))
-		return FALSE;
+	do {
+		if (!(pos = e_trie_search (scanner->trie, inptr, inlen, &pattern)))
+			return FALSE;
+		
+		pat = g_ptr_array_index (scanner->patterns, pattern);
+		
+		match->pattern = pat->pattern;
+		match->prefix = pat->prefix;
+		
+		if (pat->start (in, pos, inend, match) && pat->end (in, pos, inend, match))
+			return TRUE;
+		
+		inptr = pos;
+		if (camel_utf8_getc_limit ((const unsigned char **) &inptr, inend) == 0xffff)
+			break;
+		
+		inlen = inend - inptr;
+	} while (inptr < inend);
 	
-	return TRUE;
+	return FALSE;
 }
 
 
@@ -324,35 +333,19 @@ gboolean
 camel_url_web_end (const char *in, const char *pos, const char *inend, urlmatch_t *match)
 {
 	register const char *inptr = pos;
-	int parts = 0, digits, port;
+	gboolean passwd = FALSE;
+	const char *save;
 	char close_brace;
+	int port;
 	
 	inptr += strlen (match->pattern);
 	
 	close_brace = url_stop_at_brace (in, match->um_so);
 	
 	/* find the end of the domain */
-	if (is_digit (*inptr)) {
-		/* domain-literal */
-		do {
-			digits = 0;
-			while (inptr < inend && is_digit (*inptr) && digits < 3) {
-				inptr++;
-				digits++;
-			}
-			
-			parts++;
-			
-			if (*inptr != '.' && parts != 4)
-				return FALSE;
-			else if (*inptr == '.')
-				inptr++;
-			
-		} while (parts < 4);
-	} else if (is_atom (*inptr)) {
+	if (is_atom (*inptr)) {
 		/* might be a domain or user@domain */
-		const char *save = inptr;
-		
+		save = inptr;
 		while (inptr < inend) {
 			if (!is_atom (*inptr))
 				break;
@@ -362,7 +355,7 @@ camel_url_web_end (const char *in, const char *pos, const char *inend, urlmatch_
 			while (inptr < inend && is_atom (*inptr))
 				inptr++;
 			
-			if (inptr < inend && *inptr == '.' && is_atom (inptr[1]))
+			if ((inptr + 1) < inend && *inptr == '.' && is_atom (inptr[1]))
 				inptr++;
 		}
 		
@@ -383,7 +376,7 @@ camel_url_web_end (const char *in, const char *pos, const char *inend, urlmatch_
 			while (inptr < inend && is_domain (*inptr))
 				inptr++;
 			
-			if (inptr < inend && *inptr == '.' && is_domain (inptr[1]))
+			if ((inptr + 1) < inend && *inptr == '.' && is_domain (inptr[1]))
 				inptr++;
 		}
 	} else {
@@ -392,15 +385,41 @@ camel_url_web_end (const char *in, const char *pos, const char *inend, urlmatch_
 	
 	if (inptr < inend) {
 		switch (*inptr) {
-		case ':': /* port notation */
+		case ':': /* we either have a port or a password */
 			inptr++;
-			port = 0;
 			
-			while (inptr < inend && is_digit (*inptr) && port < 65536)
-				port = (port * 10) + (*inptr++ - '0');
-			
-			if (port >= 65536)
-				inptr--;
+			if (is_digit (*inptr) || passwd) {
+				port = (*inptr++ - '0');
+				
+				while (inptr < inend && is_digit (*inptr) && port < 65536)
+					port = (port * 10) + (*inptr++ - '0');
+				
+				if (!passwd && (port >= 65536 || *inptr == '@')) {
+					if (inptr < inend) {
+						/* this must be a password? */
+						goto passwd;
+					}
+					
+					inptr--;
+				}
+			} else {
+			passwd:
+				passwd = TRUE;
+				save = inptr;
+				
+				while (inptr < inend && is_atom (*inptr))
+					inptr++;
+				
+				if ((inptr + 2) < inend) {
+					if (*inptr == '@') {
+						inptr++;
+						if (is_domain (*inptr))
+							goto domain;
+					}
+					
+					return FALSE;
+				}
+			}
 			
 			if (inptr >= inend || *inptr != '/')
 				break;

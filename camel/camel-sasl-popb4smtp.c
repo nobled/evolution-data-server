@@ -31,6 +31,7 @@
 #include "camel-sasl-popb4smtp.h"
 #include "camel-service.h"
 #include "camel-session.h"
+#include "camel-i18n.h"
 
 CamelServiceAuthType camel_sasl_popb4smtp_authtype = {
 	N_("POP before SMTP"),
@@ -100,7 +101,7 @@ popb4smtp_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 
 	sasl->authenticated = FALSE;
 
-	popuri = camel_session_get_password (session, _("POP Source URI"), 0, sasl->service, "popb4smtp_uri", ex);
+	popuri = camel_session_get_password (session, sasl->service, NULL, _("POP Source URI"), "popb4smtp_uri", 0, ex);
 
 	if (popuri == NULL) {
 		camel_exception_setv(ex, 1, _("POP Before SMTP auth using an unknown transport"));

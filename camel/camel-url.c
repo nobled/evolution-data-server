@@ -37,6 +37,7 @@
 #include "camel-mime-utils.h"
 #include "camel-object.h"
 #include "camel-string-utils.h"
+#include "camel-i18n.h"
 
 static void copy_param (GQuark key_id, gpointer data, gpointer user_data);
 static void output_param (GQuark key_id, gpointer data, gpointer user_data);
@@ -65,11 +66,13 @@ camel_url_new_with_base (CamelURL *base, const char *url_string)
 	 * FUNCTION, RUN tests/misc/url AFTERWARDS.
 	 */
 
-	/* Find fragment. */
+	/* Find fragment.  RFC 1808 2.4.1 */
 	end = hash = strchr (url_string, '#');
-	if (hash && hash[1]) {
-		url->fragment = g_strdup (hash + 1);
-		camel_url_decode (url->fragment);
+	if (hash) {
+		if (hash[1]) {
+			url->fragment = g_strdup (hash + 1);
+			camel_url_decode (url->fragment);
+		}
 	} else
 		end = url_string + strlen (url_string);
 
@@ -426,7 +429,10 @@ camel_url_set_port (CamelURL *url, int port)
 void
 camel_url_set_param (CamelURL *url, const char *name, const char *value)
 {
-	g_datalist_set_data_full (&url->params, name, value ? g_strdup (value) : NULL, g_free);
+	if (value)
+		g_datalist_set_data_full (&url->params, name, g_strdup(value), g_free);
+	else
+		g_datalist_remove_data(&url->params, name);
 }
 
 const char *

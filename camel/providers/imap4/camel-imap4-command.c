@@ -29,6 +29,7 @@
 #include <camel/camel-stream-null.h>
 #include <camel/camel-stream-filter.h>
 #include <camel/camel-mime-filter-crlf.h>
+#include <camel/camel-i18n.h>
 
 #include "camel-imap4-stream.h"
 #include "camel-imap4-engine.h"
@@ -197,6 +198,7 @@ camel_imap4_command_newv (CamelIMAP4Engine *engine, CamelIMAP4Folder *imap4_fold
 		if (ch == '%') {
 			CamelIMAP4Literal *literal;
 			CamelIMAP4Folder *folder;
+			char *function, **strv;
 			unsigned int u;
 			char *string;
 			size_t len;
@@ -262,6 +264,24 @@ camel_imap4_command_newv (CamelIMAP4Engine *engine, CamelIMAP4Folder *imap4_fold
 				
 				g_string_truncate (str, 0);
 				
+				break;
+			case 'V':
+				/* a string vector of arguments which may need to be quoted or made into literals */
+				function = str->str + str->len - 2;
+				while (*function != ' ')
+					function--;
+				function++;
+				
+				function = g_strdup (function);
+				
+				strv = va_arg (args, char **);
+				for (d = 0; strv[d]; d++) {
+					if (d > 0)
+						g_string_append (str, function);
+					imap4_command_append_string (engine, &tail, str, strv[d]);
+				}
+				
+				g_free (function);
 				break;
 			case 'S':
 				/* string which may need to be quoted or made into a literal */
@@ -494,7 +514,7 @@ camel_imap4_command_step (CamelIMAP4Command *ic)
 	if (ic->part == ic->parts) {
 		ic->tag = g_strdup_printf ("%c%.5u", engine->tagprefix, engine->tag++);
 		camel_stream_printf (engine->ostream, "%s ", ic->tag);
-		d(fprintf (stderr, "sending : %s ", ic->tag));
+		d(fprintf (stderr, "sending: %s ", ic->tag));
 	}
 	
 #if d(!)0
@@ -514,7 +534,7 @@ camel_imap4_command_step (CamelIMAP4Command *ic)
 				eoln++;
 			
 			if (sending)
-				fwrite ("sending : ", 1, 10, stderr);
+				fwrite ("sending: ", 1, 10, stderr);
 			fwrite (linebuf, 1, eoln - linebuf, stderr);
 			
 			linebuf = eoln + 1;
@@ -526,11 +546,19 @@ camel_imap4_command_step (CamelIMAP4Command *ic)
 	linebuf = ic->part->buffer;
 	len = ic->part->buflen;
 	
-	if ((nwritten = camel_stream_write (engine->ostream, linebuf, len)) == -1)
+	if ((nwritten = camel_stream_write (engine->ostream, linebuf, len)) == -1) {
+		camel_exception_setv (&ic->ex, CAMEL_EXCEPTION_SYSTEM,
+				      _("Failed sending command to IMAP server %s: %s"),
+				      engine->url->host, g_strerror (errno));
 		goto exception;
+	}
 	
-	if (camel_stream_flush (engine->ostream) == -1)
+	if (camel_stream_flush (engine->ostream) == -1) {
+		camel_exception_setv (&ic->ex, CAMEL_EXCEPTION_SYSTEM,
+				      _("Failed sending command to IMAP server %s: %s"),
+				      engine->url->host, g_strerror (errno));
 		goto exception;
+	}
 	
 	/* now we need to read the response(s) from the IMAP4 server */
 	

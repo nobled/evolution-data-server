@@ -37,6 +37,7 @@
 #include "camel-mime-message.h"
 #include "camel-operation.h"
 #include "camel-data-cache.h"
+#include "camel-i18n.h"
 
 #include <e-util/md5-utils.h>
 
@@ -497,7 +498,7 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 		}
 
 		if (camel_stream_read(stream, buffer, 1) != 1 || buffer[0] != '#') {
-			camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
+			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
 					     _("Cannot get message %s: %s"), uid, _("Unknown reason"));
 			goto done;
 		}

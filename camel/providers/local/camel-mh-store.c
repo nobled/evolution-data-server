@@ -34,6 +34,7 @@
 #include "camel-exception.h"
 #include "camel-url.h"
 #include "camel-private.h"
+#include "camel-i18n.h"
 
 #include <camel/camel-stream-fs.h>
 #include <camel/camel-stream-buffer.h>
@@ -298,6 +299,11 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	CamelFolder *folder;
 
 	folder = camel_object_bag_get(store->folders, fi->full_name);
+
+	if (folder == NULL
+	    && (flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
+		folder = camel_store_get_folder(store, fi->full_name, 0, NULL);
+
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
@@ -345,7 +351,6 @@ folder_info_new (CamelStore *store, CamelURL *url, const char *root, const char 
 	fi->uri = camel_url_to_string (url, 0);
 	fi->full_name = g_strdup(path);
 	fi->name = g_strdup(base?base+1:path);
-	camel_folder_info_build_path(fi, '/');
 	fill_fi(store, fi, flags);
 
 	d(printf("New folderinfo:\n '%s'\n '%s'\n '%s'\n", fi->full_name, fi->uri, fi->path));
