@@ -55,7 +55,6 @@ struct _CamelGroupwiseStore {
 	CamelGroupwiseStorePrivate *priv;
 	CamelFolder *current_folder ;
 
-	char *storage_path ;
 };
 
 

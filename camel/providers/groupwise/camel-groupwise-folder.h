@@ -33,7 +33,7 @@ extern "C" {
 #pragma }
 #endif /* __cplusplus */
 
-#include <camel/camel-folder.h>
+#include <camel/camel-disco-folder.h>
 #include <camel/camel-mime-message.h>
 #include <camel/camel-folder-summary.h>
 #include <camel/camel-internet-address.h>
@@ -50,7 +50,7 @@ extern "C" {
 typedef struct  _CamelGroupwiseFolder CamelGroupwiseFolder;
 typedef struct  _CamelGroupwiseFolderClass CamelGroupwiseFolderClass;
 struct _CamelGroupwiseFolder {
-	CamelFolder parent_object;
+	CamelDiscoFolder parent_object;
 
 	struct _CamelGroupwiseFolderPrivate *priv;
 
@@ -65,7 +65,7 @@ struct _CamelGroupwiseFolder {
 };
 
 struct _CamelGroupwiseFolderClass {
-	CamelFolderClass parent_class;
+	CamelDiscoFolderClass parent_class;
 
 	/* Virtual methods */	
 	

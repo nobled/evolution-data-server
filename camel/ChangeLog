@@ -1,3 +1,25 @@
+2004-11-27  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* providers/groupwise/camel-groupwise-store.h :
+	Remove the unused  storage_path variable from _CamelGroupwiseStore
+	structure
+
+	* providers/groupwise/camel-groupwise-store.c : Removed
+	camel_ from all private function names. Renamed connect,
+	get_folder_info _get_folder methods to connect_online etc.
+	Added new methods connect_offline, disconnect_online,
+	disconnect_offline, get_folder_info_offline,
+	get_folder_offline, hash_name and compare_name 
+
+	* providers/groupwise/camel-groupwise-folder.h : Changed 
+	the parent object and parent object class disco folder 
+
+	* providers/groupwise/camel-groupwise-folder.c :
+	(camel_groupwise_folder_new) : create a CamelFolderSearch Object 
+	Added new methods groupwise_expunge_uids_online, groupwise_sync_offline
+	groupwise_folder_search_by_expression
+
+
 2004-10-21  Jeffrey Stedfast  <fejj@novell.com>
 
 	* camel-sasl-gssapi.c: #include "camel-i18n.h"
