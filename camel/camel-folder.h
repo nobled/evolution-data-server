@@ -72,6 +72,7 @@ struct _CamelFolder
 	GList *permanent_flags;
 
 	GList *message_list;
+	GStaticMutex message_list_mutex;
 
 };
 
@@ -101,11 +102,14 @@ typedef struct {
 	CamelFolderOpenMode (*get_mode) (CamelFolder *folder);
 	GList *  (*list_subfolders) (CamelFolder *folder);
 	void  (*expunge) (CamelFolder *folder);
-	CamelMimeMessage * (*get_message) (CamelFolder *folder, gint number);
+	CamelMimeMessage *(*get_message) (CamelFolder *folder, gint number);
 	gint   (*get_message_count) (CamelFolder *folder);
 	gint   (*append_message) (CamelFolder *folder, CamelMimeMessage *message);
 	const GList * (*list_permanent_flags) (CamelFolder *folder);
 	void   (*copy_message_to) (CamelFolder *folder, CamelMimeMessage *message, CamelFolder *dest_folder);
+
+	/* signals */
+	void  (*new_message)     (CamelFolder *folder, CamelMimeMessage *message);
 
 } CamelFolderClass;
 
@@ -129,7 +133,7 @@ void camel_folder_set_name (CamelFolder *folder, const gchar *name);
 const gchar *camel_folder_get_name (CamelFolder *folder);
 /*  void camel_folder_set_full_name (CamelFolder *folder, const gchar *name); */
 const gchar *camel_folder_get_full_name (CamelFolder *folder);
-CamelMimeMessage *camel_folder_get_message (CamelFolder *folder, gint number);
+void camel_folder_get_message (CamelFolder *folder, gint number);
 gboolean camel_folder_exists (CamelFolder *folder);
 gint camel_folder_get_message_count (CamelFolder *folder);
 gint camel_folder_append_message (CamelFolder *folder, CamelMimeMessage *message);

@@ -425,7 +425,7 @@ _get_message (CamelFolder *folder, gint number)
 	
 	g_assert(folder);
 	
-	
+	sleep (1);
 	directory_path = mh_folder->directory_path;
 	if (!directory_path) return NULL;	
 	if (!camel_folder_exists (folder)) return NULL;

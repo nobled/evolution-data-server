@@ -25,6 +25,10 @@
 #include "camel-log.h"
 #include "string-utils.h"
 
+#if defined(G_THREADS_ENABLED) && defined(G_THREADS_IMPL_POSIX)
+#include <pthread.h>
+#endif
+
 static GtkObjectClass *parent_class=NULL;
 
 /* Returns the class for a CamelFolder */
@@ -59,12 +63,29 @@ static void _copy_message_to (CamelFolder *folder, CamelMimeMessage *message, Ca
 
 static void _finalize (GtkObject *object);
 
+
+enum {
+	NEW_MESSAGE,
+	LAST_SIGNAL
+};
+static guint camel_folder_signals [LAST_SIGNAL];
+
 static void
 camel_folder_class_init (CamelFolderClass *camel_folder_class)
 {
 	GtkObjectClass *gtk_object_class = GTK_OBJECT_CLASS (camel_folder_class);
 	
 	parent_class = gtk_type_class (gtk_object_get_type ());
+	
+	 camel_folder_signals [NEW_MESSAGE] =
+		gtk_signal_new ("new_message",
+				GTK_RUN_LAST,
+				gtk_object_class->type,
+				GTK_SIGNAL_OFFSET(CamelFolderClass, new_message),
+				gtk_marshal_NONE__POINTER,
+				GTK_TYPE_NONE, 1, GTK_TYPE_POINTER);
+
+	gtk_object_class_add_signals (gtk_object_class, camel_folder_signals, LAST_SIGNAL);
 	
 	/* virtual method definition */
 	camel_folder_class->init_with_store = _init_with_store;
@@ -167,6 +188,7 @@ _init_with_store (CamelFolder *folder, CamelStore *parent_store)
 	if (folder->parent_store) gtk_object_unref (GTK_OBJECT (folder->parent_store));
 	folder->parent_store = parent_store;
 	if (parent_store) gtk_object_ref (GTK_OBJECT (parent_store));
+	folder->message_list_mutex = (GStaticMutex)G_STATIC_MUTEX_INIT;
 }
 
 
@@ -839,7 +861,89 @@ _get_message (CamelFolder *folder, gint number)
 }
 
 
+typedef struct {
+	CamelFolder *folder;
+	CamelMimeMessage *message;
+	gint number;
+} FullMessageReference;
 
+/* 
+ * This routine is a proxy routine between the async_get_message()
+ * thread and the main gtk thread. We could not call gtk_signal_emit()
+ * in async_get_message() because callbacks routines woudl be executed
+ * the same thread, and gtk+ does not react very well in this case
+ */
+static gint 
+_async_notify_new_message (gpointer data)
+{
+	FullMessageReference *msg_ref = (FullMessageReference *)data;
+	if (msg_ref->message)
+		/* notify listeners there is a new message available */
+		gtk_signal_emit (GTK_OBJECT (msg_ref->folder), camel_folder_signals [NEW_MESSAGE], msg_ref->message);
+	g_free (msg_ref);
+	return FALSE;
+
+}
+static void
+_async_get_message (FullMessageReference *msg_ref)
+{
+	CamelMimeMessage *a_message;
+	CamelMimeMessage *new_message = NULL;
+	GList *message_node;
+	CamelFolder *folder = msg_ref->folder;
+	gint number = msg_ref->number;
+
+	CAMEL_LOG_FULL_DEBUG ("CamelFolder::async_get_message Looking for message nummber %d\n", number);
+
+	g_static_mutex_lock (&(folder->message_list_mutex));
+	message_node = folder->message_list;
+	/* look in folder message list if the 
+	 * if the message has not already been retreived */
+	
+	while ((!new_message) && message_node) {
+		a_message = CAMEL_MIME_MESSAGE (message_node->data);
+		
+		if (a_message) {
+			CAMEL_LOG_FULL_DEBUG ("CamelFolder::async_get_message "
+					      "found message number %d in the active list\n",
+					      a_message->message_number);
+			if (a_message->message_number == number) {
+				CAMEL_LOG_FULL_DEBUG ("CamelFolder::async_get_message message "
+						      "%d already retreived once: returning %pOK\n", 
+						      number, a_message);
+				new_message = a_message;
+			} 
+		} else {
+			CAMEL_LOG_WARNING ("CamelFolder::async_get_message "
+					   " problem in the active list, a message was NULL\n");
+		}
+		message_node = message_node->next;
+		
+		CAMEL_LOG_FULL_DEBUG ("CamelFolder::async_get_message message node = %p\n", message_node);
+	}
+	
+	if (!new_message) new_message = CF_CLASS (folder)->get_message (folder, number);
+	if (!new_message) {
+		g_free (msg_ref);
+		return;
+	}
+
+	/* if the message has not been already put in 
+	 * this folder active message list, put it in */
+	
+	if ((!folder->message_list) || (!g_list_find (folder->message_list, new_message)))
+	    folder->message_list = g_list_append (folder->message_list, new_message);
+
+	msg_ref->message = new_message;
+	/* we do not call gtk_signal_emit form here cause we 
+	   are not in the main thread */
+	gtk_idle_add (_async_notify_new_message, msg_ref);	
+	g_static_mutex_unlock (&(folder->message_list_mutex));
+	
+
+}
+
+typedef void * (*thread_call_func) (void *);
 
 /**
  * _get_message: return the message corresponding to that number in the folder
@@ -847,50 +951,29 @@ _get_message (CamelFolder *folder, gint number)
  * @number: the number of the message within the folder.
  * 
  * Return the message corresponding to that number within the folder.
- * 
- * Return value: A pointer on the corresponding message or NULL if no corresponding message exists
+ *
  **/
-CamelMimeMessage *
+void 
 camel_folder_get_message (CamelFolder *folder, gint number)
 {
-	CamelMimeMessage *a_message;
-	CamelMimeMessage *new_message = NULL;
-	GList *message_node;
+	FullMessageReference *msg_ref;
 	
-	message_node = folder->message_list;
-	CAMEL_LOG_FULL_DEBUG ("CamelFolder::get_message Looking for message nummber %d\n", number);
-	/* look in folder message list if the 
-	 * if the message has not already been retreived */
-	while ((!new_message) && message_node) {
-		a_message = CAMEL_MIME_MESSAGE (message_node->data);
-		
-		if (a_message) {
-			CAMEL_LOG_FULL_DEBUG ("CamelFolder::get_message "
-					      "found message number %d in the active list\n",
-					      a_message->message_number);
-			if (a_message->message_number == number) {
-				CAMEL_LOG_FULL_DEBUG ("CamelFolder::get_message message "
-						      "%d already retreived once: returning %pOK\n", 
-						      number, a_message);
-				new_message = a_message;
-			} 
-		} else {
-			CAMEL_LOG_WARNING ("CamelFolder::get_message "
-					   " problem in the active list, a message was NULL\n");
-		}
-		message_node = message_node->next;
-		
-		CAMEL_LOG_FULL_DEBUG ("CamelFolder::get_message message node = %p\n", message_node);
-	}
-	if (!new_message) new_message = CF_CLASS (folder)->get_message (folder, number);
-	if (!new_message) return NULL;
+#if defined(G_THREADS_ENABLED) && defined(G_THREADS_IMPL_POSIX)
+	pthread_t get_message_thread;
+	pthread_attr_t attr;
+#endif
 
-	/* if the message has not been already put in 
-	 * this folder active message list, put it in */
-	if ((!folder->message_list) || (!g_list_find (folder->message_list, new_message)))
-	    folder->message_list = g_list_append (folder->message_list, new_message);
 	
-	return new_message;
+	CAMEL_LOG_FULL_DEBUG ("CamelFolder::get_message Looking for message number %d\n", number);
+	msg_ref = g_new (FullMessageReference, 1);
+	msg_ref->folder = folder;
+	msg_ref->number = number;
+
+#if defined(G_THREADS_ENABLED) && defined(G_THREADS_IMPL_POSIX)	
+	pthread_create (&get_message_thread, NULL , (thread_call_func)_async_get_message, msg_ref);
+#else	
+	_async_get_message (msg_ref);
+#endif
 }
 
 
@@ -958,3 +1041,6 @@ camel_folder_copy_message_to (CamelFolder *folder, CamelMimeMessage *message, Ca
 {
 	CF_CLASS (folder)->copy_message_to (folder, message, dest_folder);;
 }
+
+
+

@@ -25,6 +25,10 @@
 gint
 camel_init()
 {
+	/* This routine may not be called by libs but, 
+	   we do not want camel users to have to deal with 
+	   threads */
+	if (!g_thread_supported()) g_thread_init (NULL);
 	return data_wrapper_repository_init ();
 	
 }
