@@ -2037,6 +2037,11 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 			remove_instance (cbfile, obj_data, rid);
 			*object = e_cal_component_get_as_string (obj_data->full_object);
 		}
+		*object = e_cal_component_get_as_string (comp);
+		if (!rid || !*rid)
+			remove_component (cbfile, comp);
+		else
+			remove_instance (cbfile, obj_data, rid);
 		break;
 	case CALOBJ_MOD_THISANDPRIOR :
 	case CALOBJ_MOD_THISANDFUTURE :

@@ -365,6 +365,7 @@ form_uri (ESource *source)
 	g_free (uri);
 	e_uri_free (parsed_uri);
 	return formed_uri;
+
 }
 
 static ECalBackendSyncStatus
