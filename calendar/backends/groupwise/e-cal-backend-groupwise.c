@@ -226,6 +226,7 @@ get_deltas (gpointer handle)
 		return TRUE;
 	}
 
+	e_file_cache_freeze_changes (E_FILE_CACHE (cache));
 	for (; item_list != NULL; item_list = g_slist_next(item_list)) {
 		EGwItem *item = E_GW_ITEM(item_list->data);
 		ECalComponent *comp = e_gw_item_to_cal_component (item, cbgw);
@@ -251,6 +252,7 @@ get_deltas (gpointer handle)
 		g_slist_free (item_list);
 		item_list = NULL;
 	}
+	e_file_cache_thaw_changes (E_FILE_CACHE (cache));
 
 	status = e_gw_connection_get_quick_messages (cnc, cbgw->priv->container_id,"recipients message recipientStatus  default", time_string, "Modified", "CalendarItem", NULL,  -1,  &item_list);
 	
@@ -259,6 +261,7 @@ get_deltas (gpointer handle)
 		return TRUE;
 	}
 
+	e_file_cache_freeze_changes (E_FILE_CACHE (cache));
 	for (; item_list != NULL; item_list = g_slist_next(item_list)) {
 		EGwItem *item = E_GW_ITEM(item_list->data);
 		ECalComponent *modified_comp, *cache_comp;
@@ -281,6 +284,7 @@ get_deltas (gpointer handle)
 		g_object_unref (item);
 		g_object_unref (modified_comp);
 	}
+	e_file_cache_thaw_changes (E_FILE_CACHE (cache));
 
 	if (item_list) {
 		g_slist_free (item_list);
@@ -304,7 +308,8 @@ get_deltas (gpointer handle)
 				g_slist_find_custom (cache_keys, l->data, (GCompareFunc) strcmp));
 		g_free (l->data);
 	}
-	
+
+	e_file_cache_freeze_changes (E_FILE_CACHE (cache));
 	for (l = cache_keys; l ; l = g_slist_next (l)) {
 		/* assumes rid is null - which works for now */
 		ECalComponent *comp = NULL;
@@ -322,6 +327,8 @@ get_deltas (gpointer handle)
 		}
 		g_object_unref (comp);
 	}
+	e_file_cache_thaw_changes (E_FILE_CACHE (cache));
+
 	if (item_list) {
 		g_slist_free (item_list);
 		item_list = NULL;
@@ -679,6 +686,7 @@ e_cal_backend_groupwise_get_static_capabilities (ECalBackendSync *backend, EData
 				  CAL_STATIC_CAPABILITY_NO_THISANDFUTURE "," \
 				  CAL_STATIC_CAPABILITY_NO_CONV_TO_ASSIGN_TASK "," \
 				  CAL_STATIC_CAPABILITY_NO_CONV_TO_RECUR "," \
+				  CAL_STATIC_CAPABILITY_REQ_SEND_OPTIONS "," \
 				  CAL_STATIC_CAPABILITY_SAVE_SCHEDULES);
 
 	return GNOME_Evolution_Calendar_Success;
@@ -1531,23 +1539,26 @@ receive_object (ECalBackendGroupwise *cbgw, EDataCal *cal, icalcomponent *icalco
 			}
 
 			e_cal_backend_cache_put_component (priv->cache, modif_comp);	
-			
+			e_cal_component_commit_sequence (modif_comp);
+			new_comp = e_cal_component_get_as_string (modif_comp);
+
 			if (cache_comp)
-				e_cal_backend_notify_object_modified (E_CAL_BACKEND (cbgw), cache_comp, e_cal_component_get_as_string (modif_comp));
+				e_cal_backend_notify_object_modified (E_CAL_BACKEND (cbgw), cache_comp, new_comp);
 			else
-				e_cal_backend_notify_object_created (E_CAL_BACKEND (cbgw), e_cal_component_get_as_string (modif_comp));
+				e_cal_backend_notify_object_created (E_CAL_BACKEND (cbgw), new_comp);
 				
 			g_free (cache_comp);
-			g_free (modif_comp);
+			g_free (new_comp);
 			g_free (temp);
-			g_free (cache_component);
 		}
-		
+		g_object_unref (comp);	
 		return GNOME_Evolution_Calendar_Success;
 	}
 
-	if (status == E_GW_CONNECTION_STATUS_INVALID_OBJECT)
+	if (status == E_GW_CONNECTION_STATUS_INVALID_OBJECT) {
+		g_object_unref (comp);
 		return  GNOME_Evolution_Calendar_InvalidObject;
+	}
 	return GNOME_Evolution_Calendar_OtherError;
 }
 
