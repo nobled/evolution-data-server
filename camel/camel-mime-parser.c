@@ -603,7 +603,8 @@ void camel_mime_parser_drop_step(CamelMimeParser *m)
  * camel_mime_parser_step:
  * @m: 
  * @databuffer: Pointer to accept a pointer to the data
- * associated with this step (if any).
+ * associated with this step (if any).  May be #NULL,
+ * in which case datalength is also ingored.
  * @datalength: Pointer to accept a pointer to the data
  * length associated with this step (if any).
  * 
@@ -628,14 +629,22 @@ camel_mime_parser_step(CamelMimeParser *m, char **databuffer, int *datalength)
 {
 	struct _header_scan_state *s = _PRIVATE(m);
 
-	d(printf("OLD STATE:  '%s' :\n", states[s->state]));
+	(printf("OLD STATE:  '%s' :\n", states[s->state]));
 
-	if (s->unstep <= 0)
+	if (s->unstep <= 0) {
+		char *dummy;
+		int dummylength;
+
+		if (databuffer == NULL) {
+			databuffer = &dummy;
+			datalength = &dummylength;
+		}
+			
 		folder_scan_step(s, databuffer, datalength);
-	else
+	} else
 		s->unstep--;
 
-	d(printf("NEW STATE:  '%s' :\n", states[s->state]));
+	(printf("NEW STATE:  '%s' :\n", states[s->state]));
 
 	return s->state;
 }
@@ -1086,6 +1095,8 @@ retry:
 				s->midline = FALSE;
 			}
 
+			g_assert(inptr<=s->inend);
+
 			header_append(s, start, inptr);
 
 			h(printf("outbuf[0] = %02x '%c' oubuf[1] = %02x '%c'\n",
@@ -1230,6 +1241,8 @@ retry:
 			} else {
 				s->midline = FALSE;
 			}
+
+			g_assert(inptr<=s->inend);
 		}
 
 		/* *sigh* so much for the beautiful simplicity of the code so far - here we

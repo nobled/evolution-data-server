@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "camel-folder-summary.h"
 
@@ -34,7 +35,11 @@
 #include <camel/camel-mime-filter-basic.h>
 #include "hash-table-utils.h"
 
-#define d(x)
+/* this should probably be conditional on it existing */
+#define USE_BSEARCH
+
+#define d(x) x
+#define io(x)			/* io debug */
 
 #if 0
 extern int strdup_count, malloc_count, free_count;
@@ -300,8 +305,10 @@ camel_folder_summary_load(CamelFolderSummary *s)
 		mi = ((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->message_info_load(s, in);
 
 		if (s->build_content) {
-			mi->content = content_info_load(s, in);
+			mi->content = perform_content_info_load(s, in);
 		}
+
+		camel_folder_summary_add(s, mi);
 	}
 
 	/* FIXME: check error return */
@@ -383,17 +390,19 @@ retry:
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 }
 
-void camel_folder_summary_add_from_header(CamelFolderSummary *s, struct _header_raw *h)
+CamelMessageInfo *camel_folder_summary_add_from_header(CamelFolderSummary *s, struct _header_raw *h)
 {
-	CamelMessageInfo *info;
+	CamelMessageInfo *info = NULL;
 
 	info = ((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->message_info_new(s, h);
 	camel_folder_summary_add(s, info);
+
+	return info;
 }
 
-void camel_folder_summary_add_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
+CamelMessageInfo *camel_folder_summary_add_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
 {
-	CamelMessageInfo *info;
+	CamelMessageInfo *info = NULL;
 	char *buffer;
 	int len;
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
@@ -428,12 +437,45 @@ void camel_folder_summary_add_from_parser(CamelFolderSummary *s, CamelMimeParser
 
 		camel_folder_summary_add(s, info);
 	}
+	return info;
+}
+
+static void
+perform_content_info_free(CamelFolderSummary *s, CamelMessageContentInfo *ci)
+{
+	CamelMessageContentInfo *pw, *pn;
+
+	pw = ci->childs;
+	((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->content_info_free(s, ci);
+	while (pw) {
+		pn = pw->next;
+		perform_content_info_free(s, pw);
+		pw = pn;
+	}
+}
+
+void
+camel_folder_summary_clear(CamelFolderSummary *s)
+{
+	int i;
+
+	for (i=0;i<camel_folder_summary_count(s);i++) {
+		CamelMessageInfo *mi;
+		CamelMessageContentInfo *ci = mi->content;
+		mi = camel_folder_summary_index(s, i);
+		((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->message_info_free(s, mi);		
+		if (s->build_content && ci) {
+			perform_content_info_free(s, ci);
+		}
+	}
 }
 
 int
 camel_folder_summary_encode_uint32(FILE *out, guint32 value)
 {
 	int i;
+
+	io(printf("Encoding int %u\n", value));
 
 	for (i=28;i>0;i-=7) {
 		if (value >= (1<<i)) {
@@ -460,6 +502,9 @@ camel_folder_summary_decode_uint32(FILE *in, guint32 *dest)
 		return 01;
 	}
 	*dest = value | (v&0x7f);
+
+	io(printf("Decoding int %u\n", *dest));
+
         return 0;
 }
 
@@ -511,10 +556,12 @@ static char * tokens[] = {
 	"octet-stream",
 	"parallel",
 	"plain",
+	"postscript",
 	"quoted-printable",
+	"related",
 	"rfc822",
 	"text",
-	"us-ascii",		/* 23 words */
+	"us-ascii",		/* 25 words */
 };
 
 #define tokens_len (sizeof(tokens)/sizeof(tokens[0]))
@@ -525,9 +572,20 @@ static char * tokens[] = {
     >=32 string, length = n-32
 */
 
+#ifdef USE_BSEARCH
+static int
+token_search_cmp(char *key, char **index)
+{
+	printf("comparing '%s' to '%s'\n", key, *index);
+	return strcmp(key, *index);
+}
+#endif
+
 int
 camel_folder_summary_encode_token(FILE *out, char *str)
 {
+	io(printf("Encoding token: '%s'\n", str));
+
 	if (str == NULL) {
 		return camel_folder_summary_encode_uint32(out, 0);
 	} else {
@@ -536,16 +594,23 @@ camel_folder_summary_encode_token(FILE *out, char *str)
 
 		if (len <= 16) {
 			char lower[32];
+			char **match;
 
 			for (i=0;i<len;i++)
 				lower[i] = tolower(str[i]);
 			lower[i] = 0;
+#ifdef USE_BSEARCH
+			match = bsearch(lower, tokens, tokens_len, sizeof(char *), token_search_cmp);
+			if (match)
+				token = match-tokens;
+#else
 			for (i=0;i<tokens_len;i++) {
 				if (!strcmp(tokens[i], lower)) {
 					token = i;
 					break;
 				}
 			}
+#endif
 		}
 		if (token != -1) {
 			return camel_folder_summary_encode_uint32(out, token+1);
@@ -564,8 +629,11 @@ camel_folder_summary_decode_token(FILE *in, char **str)
 {
 	char *ret;
 	int len;
+
+	io(printf("Decode token ...\n"));
 	
 	if (camel_folder_summary_decode_uint32(in, &len) == -1) {
+		g_warning("Could not decode token from file");
 		*str = NULL;
 		return -1;
 	}
@@ -595,6 +663,8 @@ camel_folder_summary_decode_token(FILE *in, char **str)
 		ret[len]=0;
 	}
 
+	io(printf("Token = '%s'\n", ret));
+
 	*str = ret;
 	return 0;
 }
@@ -603,6 +673,8 @@ int
 camel_folder_summary_encode_string(FILE *out, char *str)
 {
 	register int len;
+
+	io(printf("Encoding string: '%s'\n", str));
 
 	if (str == NULL)
 		return camel_folder_summary_encode_uint32(out, 0);
@@ -622,6 +694,8 @@ camel_folder_summary_decode_string(FILE *in, char **str)
 	int len;
 	register char *ret;
 
+	io(printf("Decode string ...\n", str));
+
 	if (camel_folder_summary_decode_uint32(in, &len) == -1) {
 		*str = NULL;
 		return -1;
@@ -630,6 +704,7 @@ camel_folder_summary_decode_string(FILE *in, char **str)
 	len--;
 	if (len < 0) {
 		*str = NULL;
+		io(printf("String = '%s'\n", *str));
 		return -1;
 	}
 
@@ -639,6 +714,8 @@ camel_folder_summary_decode_string(FILE *in, char **str)
 		*str = NULL;
 		return -1;
 	}
+
+	io(printf("String = '%s'\n", ret));
 
 	ret[len] = 0;
 	*str = ret;
@@ -689,6 +766,8 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 
 	fseek(in, 0, SEEK_SET);
 
+	io(printf("Loading header\n"));
+
 	if (camel_folder_summary_decode_fixed_int32(in, &version) == -1
 	    || camel_folder_summary_decode_fixed_int32(in, &flags) == -1
 	    || camel_folder_summary_decode_fixed_int32(in, &nextuid) == -1
@@ -712,6 +791,8 @@ static int
 summary_header_save(CamelFolderSummary *s, FILE *out)
 {
 	fseek(out, 0, SEEK_SET);
+
+	io(printf("Savining header\n"));
 
 	camel_folder_summary_encode_fixed_int32(out, s->version);
 	camel_folder_summary_encode_fixed_int32(out, s->flags);
@@ -779,6 +860,17 @@ summary_format_address(struct _header_raw *h, const char *name)
 	return ret;
 }
 
+static char *
+summary_format_string(struct _header_raw *h, const char *name)
+{
+	const char *text;
+
+	text = header_raw_find(&h, name, NULL);
+	while (isspace(*text))
+		text++;
+	return header_decode_string(text);
+}
+
 static CamelMessageInfo *
 message_info_new(CamelFolderSummary *s, struct _header_raw *h)
 {
@@ -786,7 +878,7 @@ message_info_new(CamelFolderSummary *s, struct _header_raw *h)
 
 	mi = g_malloc0(s->message_info_size);
 
-	mi->subject = header_decode_string(header_raw_find(&h, "subject", NULL));
+	mi->subject = summary_format_string(h, "subject");
 	mi->from = summary_format_address(h, "from");
 	mi->to = summary_format_address(h, "to");
 	mi->date_sent = header_decode_date(header_raw_find(&h, "date", NULL), NULL);
@@ -804,8 +896,9 @@ message_info_load(CamelFolderSummary *s, FILE *in)
 
 	mi = g_malloc0(s->message_info_size);
 
-	camel_folder_summary_decode_uint32(in, &tmp);
-	mi->uid = g_strdup_printf("%u", tmp);
+	io(printf("Loading message info\n"));
+
+	camel_folder_summary_decode_string(in, &mi->uid);
 	camel_folder_summary_decode_uint32(in, &mi->flags);
 	camel_folder_summary_decode_uint32(in, &mi->date_sent);	/* warnings, leave them here */
 	camel_folder_summary_decode_uint32(in, &mi->date_received);
@@ -821,7 +914,9 @@ message_info_load(CamelFolderSummary *s, FILE *in)
 static int
 message_info_save(CamelFolderSummary *s, FILE *out, CamelMessageInfo *mi)
 {
-	camel_folder_summary_encode_uint32(out, strtoul(mi->uid, NULL, 10));
+	io(printf("Saving message info\n"));
+
+	camel_folder_summary_encode_string(out, mi->uid);
 	camel_folder_summary_encode_uint32(out, mi->flags);
 	camel_folder_summary_encode_uint32(out, mi->date_sent);
 	camel_folder_summary_encode_uint32(out, mi->date_received);
@@ -866,7 +961,13 @@ content_info_load(CamelFolderSummary *s, FILE *in)
 	guint32 count, i;
 	struct _header_content_type *ct;
 
+	io(printf("Loading content info\n"));
+
 	ci = g_malloc0(s->content_info_size);
+
+	camel_folder_summary_decode_uint32(in, &ci->pos);
+	camel_folder_summary_decode_uint32(in, &ci->bodypos);
+	camel_folder_summary_decode_uint32(in, &ci->endpos);
 
 	camel_folder_summary_decode_token(in, &type);
 	camel_folder_summary_decode_token(in, &subtype);
@@ -898,6 +999,12 @@ content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *ci)
 {
 	struct _header_content_type *ct;
 	struct _header_param *hp;
+
+	io(printf("Saving content info\n"));
+
+	camel_folder_summary_encode_uint32(out, ci->pos);
+	camel_folder_summary_encode_uint32(out, ci->bodypos);
+	camel_folder_summary_encode_uint32(out, ci->endpos);
 
 	ct = ci->type;
 	if (ct) {
@@ -943,20 +1050,21 @@ summary_build_content_info(CamelFolderSummary *s, CamelMimeParser *mp)
 	char *buffer;
 	CamelMessageContentInfo *info = NULL;
 	struct _header_content_type *ct;
-	int start, body;
+	int body;
 	int enc_id = -1, chr_id = -1, idx_id = -1;
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
 	CamelMimeFilterCharset *mfc;
 	CamelMessageContentInfo *part;
 
+	d(printf("building content info\n"));
+
 	/* start of this part */
-	start = camel_mime_parser_tell(mp);
 	state = camel_mime_parser_step(mp, &buffer, &len);
 	body = camel_mime_parser_tell(mp);
 
 	info = ((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->content_info_new_from_parser(s, mp);
 
-	info->pos = start;
+	info->pos = camel_mime_parser_tell_start_headers(mp);
 	info->bodypos = body;
 
 	switch(state) {
@@ -966,17 +1074,23 @@ summary_build_content_info(CamelFolderSummary *s, CamelMimeParser *mp)
 		if (p->index && header_content_type_is(ct, "text", "*")) {
 			char *encoding;
 			const char *charset;
-				
+			
+			d(printf("generating index:\n"));
+			
 			encoding = header_content_encoding_decode(camel_mime_parser_header(mp, "content-transfer-encoding", NULL));
 			if (encoding) {
 				if (!strcasecmp(encoding, "base64")) {
+					d(printf(" decoding base64\n"));
 					if (p->filter_64 == NULL)
 						p->filter_64 = camel_mime_filter_basic_new_type(CAMEL_MIME_FILTER_BASIC_BASE64_DEC);
 					enc_id = camel_mime_parser_filter_add(mp, (CamelMimeFilter *)p->filter_64);
 				} else if (!strcasecmp(encoding, "quoted-printable")) {
+					d(printf(" decoding quoted-printable\n"));
 					if (p->filter_qp == NULL)
 						p->filter_qp = camel_mime_filter_basic_new_type(CAMEL_MIME_FILTER_BASIC_QP_DEC);
 					enc_id = camel_mime_parser_filter_add(mp, (CamelMimeFilter *)p->filter_qp);
+				} else {
+					d(printf(" ignoring encoding %s\n", encoding));
 				}
 				g_free(encoding);
 			}
@@ -985,7 +1099,7 @@ summary_build_content_info(CamelFolderSummary *s, CamelMimeParser *mp)
 			if (charset!=NULL
 			    && !(strcasecmp(charset, "us-ascii")==0
 				 || strcasecmp(charset, "utf-8")==0)) {
-				d(printf("Adding conversion filter from %s to utf-8\n", charset));
+				d(printf(" Adding conversion filter from %s to utf-8\n", charset));
 				mfc = g_hash_table_lookup(p->filter_charset, charset);
 				if (mfc == NULL) {
 					mfc = camel_mime_filter_charset_new_convert(charset, "utf-8");
@@ -1011,6 +1125,7 @@ summary_build_content_info(CamelFolderSummary *s, CamelMimeParser *mp)
 		camel_mime_parser_filter_remove(mp, idx_id);
 		break;
 	case HSCAN_MULTIPART:
+		d(printf("Summarising multipart\n"));
 		while (camel_mime_parser_step(mp, &buffer, &len) != HSCAN_MULTIPART_END) {
 			camel_mime_parser_unstep(mp);
 			part = summary_build_content_info(s, mp);
@@ -1023,6 +1138,7 @@ summary_build_content_info(CamelFolderSummary *s, CamelMimeParser *mp)
 		}
 		break;
 	case HSCAN_MESSAGE:
+		d(printf("Summarising message\n"));
 		part = summary_build_content_info(s, mp);
 		if (part) {
 			part->parent = info;
@@ -1040,10 +1156,54 @@ summary_build_content_info(CamelFolderSummary *s, CamelMimeParser *mp)
 
 	info->endpos = camel_mime_parser_tell(mp);
 
+	d(printf("finished building content info\n"));
+
 	return info;
 }
 
-#if 1
+static void
+content_info_dump(CamelMessageContentInfo *ci, int depth)
+{
+	char *p;
+
+	p = alloca(depth*4+1);
+	memset(p, ' ', depth*4);
+	p[depth*4] = 0;
+
+	if (ci == NULL) {
+		printf("%s<empty>\n", p);
+		return;
+	}
+
+	printf("%sconent-type: %s/%s\n", p, ci->type->type, ci->type->subtype);
+	printf("%sontent-transfer-encoding: %s\n", p, ci->encoding);
+	printf("%scontent-description: %s\n", p, ci->description);
+	printf("%sbytes: %d %d %d\n", p, (int)ci->pos, (int)ci->bodypos, (int)ci->endpos);
+	ci = ci->childs;
+	while (ci) {
+		content_info_dump(ci, depth+1);
+		ci = ci->next;
+	}
+}
+
+static void
+message_info_dump(CamelMessageInfo *mi)
+{
+	if (mi == NULL) {
+		printf("No message?\n");
+		return;
+	}
+
+	printf("Subject: %s\n", mi->subject);
+	printf("To: %s\n", mi->to);
+	printf("From: %s\n", mi->from);
+	printf("UID: %s\n", mi->uid);
+	printf("Flags: %04x\n", mi->flags & 0xffff);
+	content_info_dump(mi->content, 0);
+}
+
+
+#if 0
 int main(int argc, char **argv)
 {
 	CamelMimeParser *mp;
@@ -1051,6 +1211,7 @@ int main(int argc, char **argv)
 	CamelFolderSummary *s;
 	char *buffer;
 	int len;
+	int i;
 	ibex *index;
 
 	gtk_init(&argc, &argv);
@@ -1100,9 +1261,31 @@ int main(int argc, char **argv)
 		}
 	}
 
+	printf("Printing summary\n");
+	for (i=0;i<camel_folder_summary_count(s);i++) {
+		message_info_dump(camel_folder_summary_index(s, i));
+	}
+
 	printf("Saivng summary\n");
 	camel_folder_summary_set_filename(s, "index.summary");
 	camel_folder_summary_save(s);
+
+	{
+		CamelFolderSummary *n;
+
+		printf("\nLoading summary\n");
+		n = camel_folder_summary_new();
+		camel_folder_summary_set_build_content(n, TRUE);
+		camel_folder_summary_set_filename(n, "index.summary");
+		camel_folder_summary_load(n);
+
+		printf("Printing summary\n");
+		for (i=0;i<camel_folder_summary_count(n);i++) {
+			message_info_dump(camel_folder_summary_index(n, i));
+		}
+		gtk_object_unref(n);		
+	}
+
 
 	gtk_object_unref(mp);
 	gtk_object_unref(s);

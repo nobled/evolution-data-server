@@ -1,3 +1,28 @@
+2000-05-06  NotZed  <NotZed@HelixCode.com>
+
+	* camel-folder.h: Removed summary info from here, and include
+	camel-folder-summary.h as well.
+	
+	* camel-mime-parser.c (camel_mime_parser_step): Allow it to accept
+	a NULL databuffer.
+
+	* providers/mbox/camel-mbox-summary.c: Totally new file, now
+	subclasses camel-folder-summary.
+
+	* camel-folder-summary.c (message_info_load): Load the uid as a
+	string.
+	(message_info_save): And save too.
+	(camel_folder_summary_clear): New function, clears the contents of
+	the summary.
+
+	* providers/mbox/camel-mbox-folder.c: Fixes for	summary changes.
+	(mbox_get_message_by_uid): Completely redone.  Now cross-checks
+	the summary information to make sure we get a real message.
+	(mbox_append_message): Disabled the copy version of append for
+	now.
+	(mbox_expunge): Temporarily disabled the expunge function, until
+	it is put back in camel-mbox-summary.c
+
 2000-05-05  NotZed  <NotZed@HelixCode.com>
 
 	* camel-folder-summary.c: And same here ...
@@ -5,9 +30,16 @@
 	return -1 on error ..
 	(camel_folder_summary_decode_fixed_int32): Neither deos fread.
 	(camel_folder_summary_encode_token): Fix here too.
+	(summary_build_content_info): Use start-headers to get the pos of
+	the message, not parser_tell(), which might not be what we
+	expected because of parser_unstep().
+	(camel_folder_summary_encode_token): Use bserch() to tokenise the
+	values, rather than a linear search.
 
 	* camel-mime-utils.c: Defined out some memory profiling stuff I
 	left there by mistake.
+	(header_decode_mailbox): Dont try to append the word part of a
+	local address if we ran out of words.
 
 	* camel-mime-parser.c (folder_scan_content): Apply the fix from
 	the header scanner to here too.

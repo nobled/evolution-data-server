@@ -38,6 +38,7 @@ libcamel_la_SOURCES = 				\
 	camel-exception.c			\
 	camel-folder.c				\
 	camel-folder-search.c			\
+	camel-folder-summary.c			\
 	camel-medium.c				\
 	camel-marshal-utils.c			\
 	camel-mime-message.c			\
@@ -75,15 +76,13 @@ libcamel_la_SOURCES = 				\
 	camel-internet-address.c		\
 	$(pthread_SRC)
 
-#	camel-folder-summary.c			\
-#	camel-folder-summary.h			\
-
 libcamelinclude_HEADERS =			\
 	camel.h					\
 	camel-data-wrapper.h			\
 	camel-exception.h			\
 	camel-folder.h				\
 	camel-folder-search.h			\
+	camel-folder-summary.h			\
 	camel-marshal-utils.h			\
 	camel-medium.h				\
 	camel-mime-message.h			\
@@ -131,19 +130,19 @@ EXTRA_DIST =					\
 	$(libcamel_extra_sources)		\
 	README 
 
-noinst_PROGRAMS =				\
-	camel-folder-summary
+#noinst_PROGRAMS =				\
+#	camel-folder-summary
 
-camel_folder_summary_SOURCES = 			\
-	camel-folder-summary.c
+#camel_folder_summary_SOURCES = 			\
+#	camel-folder-summary.c
 
-camel_folder_summary_LDADD = 			\
-	../camel/libcamel.la			\
-	../e-util/libeutil.la			\
-	../libibex/libibex.la			\
-	$(GNOME_LIBDIR)				\
-	$(GNOMEUI_LIBS)				\
-	$(INTLLIBS)				\
-	$(PTHREAD_LIB)				\
-	$(EXTRA_GNOME_LIBS)
+#camel_folder_summary_LDADD = 			\
+#	../camel/libcamel.la			\
+#	../e-util/libeutil.la			\
+#	../libibex/libibex.la			\
+#	$(GNOME_LIBDIR)				\
+#	$(GNOMEUI_LIBS)				\
+#	$(INTLLIBS)				\
+#	$(PTHREAD_LIB)				\
+#	$(EXTRA_GNOME_LIBS)
 

@@ -1392,8 +1392,10 @@ header_decode_mailbox(const char **in)
 		inptr++;
 		g_free(pre);
 		pre = header_decode_word(&inptr);
-		addr = g_string_append_c(addr, '.');
-		addr = g_string_append(addr, pre);
+		if (pre) {
+			addr = g_string_append_c(addr, '.');
+			addr = g_string_append(addr, pre);
+		}
 		header_decode_lwsp(&inptr);
 	}
 	g_free(pre);
