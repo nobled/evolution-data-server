@@ -78,6 +78,12 @@ finalise(GtkObject *o)
 }
 
 static void
+complete(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, size_t *outlen, size_t *outprespace)
+{
+	/* default - do nothing */
+}
+
+static void
 camel_mime_filter_class_init (CamelMimeFilterClass *klass)
 {
 	GtkObjectClass *object_class = (GtkObjectClass *) klass;
@@ -85,6 +91,8 @@ camel_mime_filter_class_init (CamelMimeFilterClass *klass)
 	camel_mime_filter_parent = gtk_type_class (gtk_object_get_type ());
 
 	object_class->finalize = finalise;
+
+	klass->complete = complete;
 
 	gtk_object_class_add_signals (object_class, signals, LAST_SIGNAL);
 }
@@ -117,44 +125,61 @@ camel_mime_filter_new (void)
 	return new;
 }
 
+static void filter_run(CamelMimeFilter *f,
+		       char *in, size_t len, size_t prespace,
+		       char **out, size_t *outlen, size_t *outprespace,
+		       void (*filterfunc)(CamelMimeFilter *f,
+					  char *in, size_t len, size_t prespace,
+					  char **out, size_t *outlen, size_t *outprespace))
+{
+	struct _CamelMimeFilterPrivate *p;
+
+	/*
+	  here we take a performance hit, if the input buffer doesn't
+	  have the pre-space required.  We make a buffer that does ...
+	*/
+	if (prespace < f->backlen) {
+		int newlen = len+prespace;
+		p = _PRIVATE(f);
+		if (p->inlen < newlen) {
+			/* NOTE: g_realloc copies data, we dont need that (slower) */
+			g_free(p->inbuf);
+			p->inbuf = g_malloc(newlen+PRE_HEAD);
+			p->inlen = newlen+PRE_HEAD;
+		}
+		/* copy to end of structure */
+		memcpy(p->inbuf+p->inlen - len, in, len);
+		in = p->inbuf+p->inlen - len;
+		prespace = p->inlen - len;
+	}
+
+	/* preload any backed up data */
+	if (f->backlen > 0) {
+		memcpy(in-f->backlen, f->backbuf, f->backlen);
+		in -= f->backlen;
+		prespace -= f->backlen;
+		f->backlen = 0;
+	}
+	
+	filterfunc(f, in, len, prespace, out, outlen, outprespace);
+}
+
 void camel_mime_filter_filter(CamelMimeFilter *f,
 			      char *in, size_t len, size_t prespace,
 			      char **out, size_t *outlen, size_t *outprespace)
 {
-	struct _CamelMimeFilterPrivate *p;
-
-	if (FCLASS(f)->filter) {
-		/*
-		  here we take a performance hit, if the input buffer doesn't
-		  have the pre-space required.  We make a buffer that does ...
-		*/
-		if (prespace < f->backlen) {
-			int newlen = len+prespace;
-			p = _PRIVATE(f);
-			if (p->inlen < newlen) {
-				/* NOTE: g_realloc copies data, we dont need that (slower) */
-				g_free(p->inbuf);
-				p->inbuf = g_malloc(newlen+PRE_HEAD);
-				p->inlen = newlen+PRE_HEAD;
-			}
-			/* copy to end of structure */
-			memcpy(p->inbuf+p->inlen - len, in, len);
-			in = p->inbuf+p->inlen - len;
-			prespace = p->inlen - len;
-		}
-
-		/* preload any backed up data */
-		if (f->backlen > 0) {
-			memcpy(in-f->backlen, f->backbuf, f->backlen);
-			in -= f->backlen;
-			prespace -= f->backlen;
-			f->backlen = 0;
-		}
-
-		FCLASS(f)->filter(f, in, len, prespace, out, outlen, outprespace);
-	} else {
+	if (FCLASS(f)->filter)
+		filter_run(f, in, len, prespace, out, outlen, outprespace, FCLASS(f)->filter);
+	else
 		g_error("Filter function unplmenented in class");
-	}
+}
+
+void camel_mime_filter_complete(CamelMimeFilter *f,
+				char *in, size_t len, size_t prespace,
+				char **out, size_t *outlen, size_t *outprespace)
+{
+	if (FCLASS(f)->complete)
+		filter_run(f, in, len, prespace, out, outlen, outprespace, FCLASS(f)->complete);
 }
 
 void camel_mime_filter_reset(CamelMimeFilter *f)

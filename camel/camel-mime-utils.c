@@ -41,15 +41,20 @@
 static char *base64_alphabet =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+static unsigned char tohex[16] = {
+	'0', '1', '2', '3', '4', '5', '6', '7',
+	'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+};
+
 static unsigned char camel_mime_special_table[256] = {
-	  5,  5,  5,  5,  5,  5,  5,  5,  5, 39,  7,  5,  5, 39,  5,  5,
+	  5,  5,  5,  5,  5,  5,  5,  5,  5,167,  7,  5,  5, 39,  5,  5,
 	  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,
-	 50,  0, 12,  0,  0,  0,  0,  0, 12, 12,  0,  0, 12,  0,  8,  4,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 76, 12, 12,  4, 12,  4,
-	 12,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 44, 44, 44,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  5,
+	178,128,140,128,128,128,128,128,140,140,128,128,140,128,136,132,
+	128,128,128,128,128,128,128,128,128,128,204,140,140,  4,140,132,
+	140,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,
+	128,128,128,128,128,128,128,128,128,128,128,172,172,172,128,128,
+	128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,
+	128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,  5,
 	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
 	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
 	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -82,6 +87,10 @@ static unsigned char camel_mime_base64_rank[256] = {
 /*
   if any of these change, then the tables above should be regenerated
   by compiling this with -DBUILD_TABLE, and running.
+
+  gcc -o buildtable `glib-config --cflags --libs` -DBUILD_TABLE camel-mime-utils.c
+  ./buildtable
+
 */
 enum {
 	IS_CTRL		= 1<<0,
@@ -91,6 +100,7 @@ enum {
 	IS_SPACE	= 1<<4,
 	IS_DSPECIAL	= 1<<5,
 	IS_COLON	= 1<<6,	/* rather wasteful of space ... */
+	IS_QPSAFE	= 1<<7
 };
 
 #define is_ctrl(x) ((camel_mime_special_table[(unsigned char)(x)] & IS_CTRL) != 0)
@@ -101,6 +111,7 @@ enum {
 #define is_atom(x) ((camel_mime_special_table[(unsigned char)(x)] & (IS_SPECIAL|IS_SPACE|IS_CTRL)) == 0)
 #define is_dtext(x) ((camel_mime_special_table[(unsigned char)(x)] & IS_DSPECIAL) == 0)
 #define is_fieldname(x) ((camel_mime_special_table[(unsigned char)(x)] & (IS_CTRL|IS_SPACE|IS_COLON)) == 0)
+#define is_qpsafe(x) ((camel_mime_special_table[(unsigned char)(x)] & IS_QPSAFE) != 0)
 
 /* only needs to be run to rebuild the tables above */
 #ifdef BUILD_TABLE
@@ -155,6 +166,7 @@ header_decode_init(void)
 	header_init_bits(IS_TSPECIAL, IS_CTRL, 0, CHARS_TSPECIAL, sizeof(CHARS_TSPECIAL)-1);
 	header_init_bits(IS_SPECIAL, 0, 0, CHARS_SPECIAL, sizeof(CHARS_SPECIAL)-1);
 	header_init_bits(IS_DSPECIAL, 0, FALSE, CHARS_DSPECIAL, sizeof(CHARS_DSPECIAL)-1);
+	for (i=0;i<256;i++) if ((i>=33 && i<=60) || (i>=62 && i<=126) || i==32 || i==9) camel_mime_special_table[i] |= IS_QPSAFE;
 }
 
 void
@@ -212,10 +224,13 @@ int main(int argc, char **argv)
 /* call this when finished encoding everything, to
    flush off the last little bit */
 int
-base64_encode_close(unsigned char *out, int *state, int *save)
+base64_encode_close(unsigned char *in, int inlen, unsigned char *out, int *state, int *save)
 {
 	int c1, c2;
 	unsigned char *outptr = out;
+
+	if (inlen>0)
+		outptr += base64_encode_step(in, inlen, outptr, state, save);
 
 	c1 = ((char *)save)[1];
 	c2 = ((char *)save)[2];
@@ -234,6 +249,10 @@ base64_encode_close(unsigned char *out, int *state, int *save)
 		break;
 	}
 	*outptr++ = '\n';
+
+	*save = 0;
+	*state = 0;
+
 	return outptr-out;
 }
 
@@ -362,6 +381,62 @@ base64_decode_step(unsigned char *in, int len, unsigned char *out, int *state, u
 	}
 
 	/* if i!= 0 then there is a truncation error! */
+	return outptr-out;
+}
+
+int
+quoted_encode_close(unsigned char *in, int len, unsigned char *out, int *state, int *save)
+{
+	register unsigned char *outptr = out;
+
+	if (len>0)
+		outptr += quoted_encode_step(in, len, outptr, state, save);
+
+	/* hmm, not sure if this should really be added here, we dont want
+	   to add it to the content, afterall ...? */
+	*outptr++ = '\n';
+
+	*save = 0;
+	*state = 0;
+
+	return outptr-out;
+}
+
+/*
+  FIXME: does not handle trailing spaces/tabs before end of line
+*/
+int
+quoted_encode_step(unsigned char *in, int len, unsigned char *out, int *state, int *save)
+{
+	register unsigned char *inptr, *outptr, *inend;
+	unsigned char c;
+	register int sofar = *state;
+
+	inptr = in;
+	inend = in+len;
+	outptr = out;
+	while (inptr<inend) {
+		c = *inptr++;
+		if (is_qpsafe(c)) {
+				/* check for soft line-break */
+			if ((++sofar)>74) {
+				*outptr++='=';
+				*outptr++='\n';
+				sofar = 1;
+			}
+			*outptr++=c;
+		} else {
+			if ((++sofar)>72) {
+				*outptr++='=';
+				*outptr++='\n';
+				sofar = 3;
+			}
+			*outptr++ = '=';
+			*outptr++ = tohex[(c>>4) & 0xf];
+			*outptr++ = tohex[c & 0xf];
+		}
+	}
+	*state = sofar;
 	return outptr-out;
 }
 

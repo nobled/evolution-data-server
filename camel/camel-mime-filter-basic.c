@@ -71,6 +71,50 @@ reset(CamelMimeFilter *mf)
 	f->save = 0;
 }
 
+static void
+complete(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, size_t *outlen, size_t *outprespace)
+{
+	CamelMimeFilterBasic *f = (CamelMimeFilterBasic *)mf;
+	int newlen;
+
+	switch(f->type) {
+	case CAMEL_MIME_FILTER_BASIC_BASE64_ENC:
+		/* wont go to more than 2x size (overly conservative) */
+		camel_mime_filter_set_size(mf, len*2, FALSE);
+		newlen = base64_encode_close(in, len, mf->outbuf, &f->state, &f->save);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
+		/* FIXME: *3 is probably not quite enough ... */
+		camel_mime_filter_set_size(mf, len*3, FALSE);
+		newlen = quoted_encode_close(in, len, mf->outbuf, &f->state, &f->save);
+		break;
+	default:
+		g_warning("unknown type %d in CamelMimeFilterBasic", f->type);
+		goto donothing;
+
+	case CAMEL_MIME_FILTER_BASIC_BASE64_DEC:
+		/* output can't possibly exceed the input size */
+		camel_mime_filter_set_size(mf, len, FALSE);
+		newlen = base64_decode_step(in, len, mf->outbuf, &f->state, &f->save);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_QP_DEC:
+		/* output can't possibly exceed the input size */
+		camel_mime_filter_set_size(mf, len, FALSE);
+		newlen = quoted_decode_step(in, len, mf->outbuf, &f->state, &f->save);
+		break;
+	}
+
+	*out = mf->outbuf;
+	*outlen = newlen;
+	*outprespace = mf->outpre;
+
+	return;
+donothing:
+	*out = in;
+	*outlen = len;
+	*outprespace = prespace;
+}
+
 /* here we do all of the basic mime filtering */
 static void
 filter(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, size_t *outlen, size_t *outprespace)
@@ -85,8 +129,10 @@ filter(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, s
 		newlen = base64_encode_step(in, len, mf->outbuf, &f->state, &f->save);
 		break;
 	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
-		g_warning("quoted-printable encoding not implemented yet");
-		goto donothing;
+		/* FIXME: *3 is probably not quite enough ... */
+		camel_mime_filter_set_size(mf, len*3, FALSE);
+		newlen = quoted_encode_step(in, len, mf->outbuf, &f->state, &f->save);
+		break;
 	default:
 		g_warning("unknown type %d in CamelMimeFilterBasic", f->type);
 		goto donothing;
@@ -126,6 +172,7 @@ camel_mime_filter_basic_class_init (CamelMimeFilterBasicClass *klass)
 
 	filter_class->reset = reset;
 	filter_class->filter = filter;
+	filter_class->complete = complete;
 
 	gtk_object_class_add_signals (object_class, signals, LAST_SIGNAL);
 }

@@ -862,6 +862,8 @@ folder_scan_step(struct _header_scan_state *s, char **databuffer, int *datalengt
 	int type;
 	int state;
 	struct _header_content_type *ct = NULL;
+	struct _header_scan_filter *f;
+	size_t presize;
 
 /*	printf("\nSCAN PASS: state = %d '%s'\n", s->state, states[s->state]);*/
 
@@ -949,15 +951,15 @@ tail_recurse:
 
 	case HSCAN_BODY:
 		h = s->parts;
+		*datalength = 0;
+		presize = SCAN_HEAD;
+		f = s->filters;
+
 		do {
 			hb = folder_scan_content(s, &state, databuffer, datalength);
 			if (*datalength>0) {
-				struct _header_scan_filter *f;
-				size_t presize = SCAN_HEAD;
-
 				printf("Content raw: '%.*s'\n", *datalength, *databuffer);
 
-				f = s->filters;
 				while (f) {
 					camel_mime_filter_filter(f->filter, *databuffer, *datalength, presize,
 								 databuffer, datalength, &presize);
@@ -966,6 +968,15 @@ tail_recurse:
 				return;
 			}
 		} while (hb==h && *datalength>0);
+
+		/* check for any filter completion data */
+		while (f) {
+			camel_mime_filter_filter(f->filter, *databuffer, *datalength, presize,
+						 databuffer, datalength, &presize);
+			f = f->next;
+		}
+		if (*datalength > 0)
+			return;
 
 		s->state = HSCAN_BODY_END;
 		break;

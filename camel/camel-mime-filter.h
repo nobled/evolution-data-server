@@ -56,6 +56,9 @@ struct _CamelMimeFilterClass {
 	void (*filter)(CamelMimeFilter *f,
 		       char *in, size_t len, size_t prespace,
 		       char **out, size_t *outlen, size_t *outprespace);
+	void (*complete)(CamelMimeFilter *f,
+			 char *in, size_t len, size_t prespace,
+			 char **out, size_t *outlen, size_t *outprespace);
 	void (*reset)(CamelMimeFilter *f);
 };
 
@@ -65,6 +68,10 @@ CamelMimeFilter      *camel_mime_filter_new	(void);
 void camel_mime_filter_filter(CamelMimeFilter *f,
 			      char *in, size_t len, size_t prespace,
 			      char **out, size_t *outlen, size_t *outprespace);
+
+void camel_mime_filter_complete(CamelMimeFilter *f,
+				char *in, size_t len, size_t prespace,
+				char **out, size_t *outlen, size_t *outprespace);
 
 void camel_mime_filter_reset(CamelMimeFilter *f);
 

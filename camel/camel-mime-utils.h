@@ -57,9 +57,13 @@ void header_raw_clear(struct _header_raw **list);
 
 /* do incremental base64 decoding */
 int base64_decode_step(unsigned char *in, int len, unsigned char *out, int *state, unsigned int *save);
-int quoted_decode_step(unsigned char *in, int len, unsigned char *out, int *savestate, int *saveme);
 
 int base64_encode_step(unsigned char *in, int len, unsigned char *out, int *state, int *save);
-int base64_encode_close(unsigned char *out, int *state, int *save);
+int base64_encode_close(unsigned char *in, int inlen, unsigned char *out, int *state, int *save);
+
+int quoted_decode_step(unsigned char *in, int len, unsigned char *out, int *savestate, int *saveme);
+
+int quoted_encode_step(unsigned char *in, int len, unsigned char *out, int *state, int *save);
+int quoted_encode_close(unsigned char *in, int len, unsigned char *out, int *state, int *save);
 
 #endif /* ! _CAMEL_MIME_UTILS_H */

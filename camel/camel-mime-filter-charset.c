@@ -91,6 +91,58 @@ reset(CamelMimeFilter *mf)
 }
 
 static void
+complete(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, size_t *outlenptr, size_t *outprespace)
+{
+	CamelMimeFilterCharset *f = (CamelMimeFilterCharset *)mf;
+	int converted;
+	char *inbuf, *outbuf;
+	int inlen, outlen;
+
+	if (f->ic == (unicode_iconv_t) -1) {
+		goto donothing;
+	}
+
+	/* FIXME: there's probably a safer way to size this ...? */
+	/* We could always resize if we run out of room in outbuf (but it'd be nice not
+	   to have to) */
+	camel_mime_filter_set_size(mf, len*5, FALSE);
+	inbuf = in;
+	inlen = len;
+	outbuf = mf->outbuf;
+	outlen = mf->outsize;
+	if (inlen>0) {
+		converted = unicode_iconv(f->ic, &inbuf, &inlen, &outbuf, &outlen);
+		if (converted == -1) {
+			if (errno != EINVAL) {
+				g_warning("error occured converting: %s", strerror(errno));
+				goto donothing;
+			}
+		}
+
+		if (inlen>0) {
+			g_warning("Output lost in character conversion, invalid sequence encountered?");
+		}
+	}
+
+	/* this 'resets' the output stream, returning back to the initial
+	   shift state for multishift charactersets */
+	converted = unicode_iconv(f->ic, NULL, 0, &outbuf, &outlen);
+	if (converted == -1) {
+		g_warning("Conversion failed to complete: %s", strerror(errno));
+	}
+
+	*out = mf->outbuf;
+	*outlenptr = mf->outsize - outlen;
+	*outprespace = mf->outpre;
+	return;
+
+donothing:
+	*out = in;
+	*outlenptr = len;
+	*outprespace = prespace;
+}
+
+static void
 filter(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, size_t *outlenptr, size_t *outprespace)
 {
 	CamelMimeFilterCharset *f = (CamelMimeFilterCharset *)mf;
@@ -148,6 +200,7 @@ camel_mime_filter_charset_class_init (CamelMimeFilterCharsetClass *klass)
 
 	filter_class->reset = reset;
 	filter_class->filter = filter;
+	filter_class->complete = complete;
 
 	gtk_object_class_add_signals (object_class, signals, LAST_SIGNAL);
 }

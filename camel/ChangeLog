@@ -1,3 +1,28 @@
+2000-04-09  NotZed  <NotZed@HelixCode.com>
+
+	* camel-mime-filter-charset.c (complete): Implement the completion
+	function.
+
+	* camel-mime-parser.c (folder_scan_step): If we get to the end of
+	the body data, check any filters for outstanding completion data.
+
+	* camel-stream-filter.c (do_read): If we get to end of stream on
+	the source, then call the filtering completion function to see if
+	we have any more data to return.
+
+	* camel-mime-filter-basic.c (filter): Implement quoted printable
+	encoding and decoding filters.
+	(complete): And the complete function as well.
+
+	* camel-mime-utils.c (base64_encode_close): Also take an input
+	buffer, allow closing of filters.
+	(quoted_encode_step): First cut, simple quoted-printable encoder.
+	Doesn't handle trailing spaces/tabs on end of line properly yet.
+	(quoted_encode_close): Complete a quoted-encoding.
+	(is_qpsafe): New type check, for quoted-printable safe characters
+	(that do not need encoding).  Thats all bits used in the type
+	table!  Rebuilt the types table.
+
 2000-04-08  NotZed  <NotZed@HelixCode.com>
 
 	* camel-mime-filter-basic.c (filter): Implement the base64
