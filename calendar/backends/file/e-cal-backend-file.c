@@ -1886,7 +1886,8 @@ remove_object_instance_cb (gpointer key, gpointer value, gpointer user_data)
 static ECalBackendSyncStatus
 e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 				  const char *uid, const char *rid,
-				  CalObjModType mod, char **object)
+				  CalObjModType mod, char **old_object,
+				  char **object)
 {
 	ECalBackendFile *cbfile;
 	ECalBackendFilePrivate *priv;
@@ -1901,6 +1902,8 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	g_return_val_if_fail (priv->icalcomp != NULL, GNOME_Evolution_Calendar_NoSuchCal);
 	g_return_val_if_fail (uid != NULL, GNOME_Evolution_Calendar_ObjectNotFound);
 
+	*old_object = *object = NULL;
+
 	obj_data = g_hash_table_lookup (priv->comp_uid_hash, uid);
 	if (!obj_data)
 		return GNOME_Evolution_Calendar_ObjectNotFound;
@@ -1909,15 +1912,19 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 
 	switch (mod) {
 	case CALOBJ_MOD_ALL :
-		*object = e_cal_component_get_as_string (comp);
+		*old_object = e_cal_component_get_as_string (comp);
 		remove_component (cbfile, comp);
+		*object = NULL;
 		break;
 	case CALOBJ_MOD_THIS :
 		if (!rid || !*rid) {
-			*object = e_cal_component_get_as_string (comp);
+			*old_object = e_cal_component_get_as_string (comp);
 			remove_component (cbfile, comp);
-		} else
+			*object = NULL;
+		} else {
 			remove_instance (cbfile, obj_data, rid);
+			*object = e_cal_component_get_as_string (obj_data->full_object);
+		}
 		break;
 	case CALOBJ_MOD_THISANDPRIOR :
 	case CALOBJ_MOD_THISANDFUTURE :
@@ -1943,6 +1950,8 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		   so that it's always before any detached instance we
 		   might have */
 		priv->comp = g_list_prepend (priv->comp, comp);
+
+		*object = e_cal_component_get_as_string (obj_data->full_object);
 		break;
 	}
 

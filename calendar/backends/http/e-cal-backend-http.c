@@ -720,7 +720,8 @@ e_cal_backend_http_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 static ECalBackendSyncStatus
 e_cal_backend_http_remove_object (ECalBackendSync *backend, EDataCal *cal,
 				const char *uid, const char *rid,
-				CalObjModType mod, char **object)
+				CalObjModType mod, char **old_object,
+				char **object)
 {
 	ECalBackendHttp *cbhttp;
 	ECalBackendHttpPrivate *priv;
@@ -729,6 +730,8 @@ e_cal_backend_http_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	priv = cbhttp->priv;
 
 	g_return_val_if_fail (uid != NULL, GNOME_Evolution_Calendar_ObjectNotFound);
+
+	*old_object = *object = NULL;
 
 	return GNOME_Evolution_Calendar_PermissionDenied;
 }

@@ -1,3 +1,17 @@
+2004-04-07  Rodrigo Moya <rodrigo@ximian.com>
+
+	* libedata-cal/e-cal-backend-sync.[ch]: added "old_object" argument to
+	"remove_object_sync" virtual method.
+	(e_cal_backend_sync_remove_object): added new argument.
+	(_e_cal_backend_remove_object): pass correct number of arguments to
+	e_cal_backend_sync_remove_object.
+
+	* backends/file/e-cal-backend-file.c (e_cal_backend_file_remove_object):
+	* backends/groupwise/e-cal-backend-groupwise.c
+	(e_cal_backend_groupwise_remove_object):
+	* backends/http/e-cal-backend-http.c (e_cal_backend_http_remove_object):
+	adapted to changes in ECalBackendSync's "remove_object_sync" method.
+
 2004-04-05  Rodrigo Moya <rodrigo@ximian.com>
 
 	* libedata-cal/e-cal-backend.[ch] (e_cal_backend_notify_object_removed):
