@@ -1595,7 +1595,7 @@ async_auth_idle_cb (gpointer data)
 	ECalAsyncData *ccad = data;
 
 	g_mutex_lock (ccad->mutex);
-	ccad->password = ccad->read_auth_func (ccad->ecal, ccad->auth_prompt, ccad->auth_key, ccad->real_auth_user_data);
+	ccad->password = ccad->real_auth_func (ccad->ecal, ccad->auth_prompt, ccad->auth_key, ccad->real_auth_user_data);
 	g_cond_signal (ccad->cond);
 	g_mutex_unlock (ccad->mutex);
 
