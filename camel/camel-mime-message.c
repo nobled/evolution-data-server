@@ -122,8 +122,6 @@ camel_mime_message_init (gpointer object, gpointer klass)
 	CamelMimeMessage *mime_message = (CamelMimeMessage *)object;
 	int i;
 	
-	camel_data_wrapper_set_mime_type (CAMEL_DATA_WRAPPER (object), "message/rfc822");
-
 	mime_message->recipients =  g_hash_table_new (camel_strcase_hash, camel_strcase_equal);
 	for (i=0;recipient_names[i];i++) {
 		g_hash_table_insert(mime_message->recipients, recipient_names[i], camel_internet_address_new());
@@ -540,8 +538,8 @@ process_header (CamelMedium *medium, const char *header_name, const char *header
 		break;
 	case HEADER_SUBJECT:
 		g_free (message->subject);
-		if (((CamelMimePart *) message)->content_type) {
-			charset = header_content_type_param (((CamelMimePart *) message)->content_type, "charset");
+		if (((CamelDataWrapper *) message)->mime_type) {
+			charset = header_content_type_param (((CamelDataWrapper *) message)->mime_type, "charset");
 			charset = e_iconv_charset_name (charset);
 		} else
 			charset = NULL;
@@ -679,7 +677,7 @@ find_best_encoding (CamelMimePart *part, CamelBestencRequired required, CamelBes
 	unsigned int flags, callerflags;
 	CamelDataWrapper *content;
 	CamelStreamFilter *filter;
-	const char *charsetin;
+	const char *charsetin = NULL;
 	char *charset = NULL;
 	CamelStream *null;
 	int idb, idc = -1;
@@ -699,7 +697,7 @@ find_best_encoding (CamelMimePart *part, CamelBestencRequired required, CamelBes
 		return CAMEL_MIME_PART_ENCODING_DEFAULT;
 	}
 	
-	istext = header_content_type_is (part->content_type, "text", "*");
+	istext = header_content_type_is (((CamelDataWrapper *) part)->mime_type, "text", "*");
 	if (istext) {
 		flags = CAMEL_BESTENC_GET_CHARSET | CAMEL_BESTENC_GET_ENCODING;
 		enctype |= CAMEL_BESTENC_TEXT;
@@ -814,13 +812,13 @@ best_encoding (CamelMimeMessage *msg, CamelMimePart *part, void *datap)
 		camel_mime_part_set_encoding (part, encoding);
 		
 		if ((data->required & CAMEL_BESTENC_GET_CHARSET) != 0) {
-			if (header_content_type_is (part->content_type, "text", "*")) {
+			if (header_content_type_is (((CamelDataWrapper *) part)->mime_type, "text", "*")) {
 				char *newct;
 				
 				/* FIXME: ick, the part content_type interface needs fixing bigtime */
-				header_content_type_set_param (part->content_type, "charset",
+				header_content_type_set_param (((CamelDataWrapper *) part)->mime_type, "charset",
 							       charset ? charset : "us-ascii");
-				newct = header_content_type_format (part->content_type);
+				newct = header_content_type_format (((CamelDataWrapper *) part)->mime_type);
 				if (newct) {
 					d(printf("Setting content-type to %s\n", newct));
 					

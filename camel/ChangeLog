@@ -1,3 +1,32 @@
+2003-08-05  Jeffrey Stedfast  <fejj@ximian.com>
+
+	* providers/imap/camel-imap-folder.c (get_content): Updated.
+
+	* camel-mime-message.c (camel_mime_message_init): Don't override
+	the mime_type here.
+	(process_header): Updated to use CamelDataWrapper's mime_type
+	field.
+	(find_best_encoding): Same.
+	(best_encoding): Here too.
+
+	* camel-digest-folder.c (camel_digest_folder_new): Updated for
+	CamelMimePart::content_type change.
+
+	* camel-mime-part.c (camel_mime_part_init): Override our parent
+	class's default mime_type.
+	(camel_mime_part_finalize): Don't need to unref the content_type
+	anymore.
+	(process_header): Updated to use CamelDataWrapper's mime_type
+	field.
+	(camel_mime_part_set_filename): Same.
+	(camel_mime_part_get_filename): Same.
+	(camel_mime_part_get_content_type): Same.
+	(set_content_object): Here too.
+	(write_to_stream): Updated.
+	(construct_from_parser): Updated.
+
+	* camel-mime-part.h: Remove the content_type field.
+
 2003-07-31  Jeffrey Stedfast  <fejj@ximian.com>
 
 	* tests/lib/messages.c (test_message_compare_content): If the

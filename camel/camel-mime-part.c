@@ -72,8 +72,8 @@ static CamelMediumClass *parent_class=NULL;
 #define CMD_CLASS(so) CAMEL_MEDIUM_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 /* from CamelDataWrapper */
-static ssize_t         write_to_stream                 (CamelDataWrapper *data_wrapper, CamelStream *stream);
-static int	       construct_from_stream	       (CamelDataWrapper *dw, CamelStream *s);
+static ssize_t         write_to_stream                 (CamelDataWrapper *dw, CamelStream *stream);
+static int	       construct_from_stream	       (CamelDataWrapper *dw, CamelStream *stream);
 
 /* from CamelMedium */ 
 static void            add_header                      (CamelMedium *medium, const char *header_name, const void *header_value);
@@ -86,7 +86,7 @@ static void            free_headers                    (CamelMedium *medium, GAr
 static void            set_content_object              (CamelMedium *medium, CamelDataWrapper *content);
 
 /* from camel mime parser */
-static int             construct_from_parser           (CamelMimePart *, CamelMimeParser *);
+static int             construct_from_parser           (CamelMimePart *mime_part, CamelMimeParser *mp);
 
 /* forward references */
 static void set_disposition (CamelMimePart *mime_part, const char *disposition);
@@ -144,7 +144,7 @@ camel_mime_part_class_init (CamelMimePartClass *camel_mime_part_class)
 	camel_medium_class->get_headers               = get_headers;
 	camel_medium_class->free_headers              = free_headers;
 	camel_medium_class->set_content_object        = set_content_object;
-
+	
 	camel_data_wrapper_class->write_to_stream     = write_to_stream;
 	camel_data_wrapper_class->construct_from_stream= construct_from_stream;
 }
@@ -152,16 +152,19 @@ camel_mime_part_class_init (CamelMimePartClass *camel_mime_part_class)
 static void
 camel_mime_part_init (gpointer object, gpointer klass)
 {
-	CamelMimePart *camel_mime_part = CAMEL_MIME_PART (object);
+	CamelMimePart *mime_part = CAMEL_MIME_PART (object);
 	
-	camel_mime_part->content_type         = header_content_type_new ("text", "plain");
-	camel_mime_part->description          = NULL;
-	camel_mime_part->disposition          = NULL;
-	camel_mime_part->content_id           = NULL;
-	camel_mime_part->content_MD5          = NULL;
-	camel_mime_part->content_location     = NULL;
-	camel_mime_part->content_languages    = NULL;
-	camel_mime_part->encoding             = CAMEL_MIME_PART_ENCODING_DEFAULT;
+	if (((CamelDataWrapper *) mime_part)->mime_type)
+		header_content_type_unref (((CamelDataWrapper *) mime_part)->mime_type);
+	((CamelDataWrapper *) mime_part)->mime_type = header_content_type_new ("text", "plain");
+	
+	mime_part->description          = NULL;
+	mime_part->disposition          = NULL;
+	mime_part->content_id           = NULL;
+	mime_part->content_MD5          = NULL;
+	mime_part->content_location     = NULL;
+	mime_part->content_languages    = NULL;
+	mime_part->encoding             = CAMEL_MIME_PART_ENCODING_DEFAULT;
 }
 
 
@@ -177,9 +180,6 @@ camel_mime_part_finalize (CamelObject *object)
 	camel_string_list_free (mime_part->content_languages);
 	header_disposition_unref(mime_part->disposition);
 	
-	if (mime_part->content_type)
-		header_content_type_unref (mime_part->content_type);
-
 	header_raw_clear(&mime_part->headers);
 }
 
@@ -188,19 +188,20 @@ camel_mime_part_finalize (CamelObject *object)
 CamelType
 camel_mime_part_get_type (void)
 {
-	static CamelType camel_mime_part_type = CAMEL_INVALID_TYPE;
+	static CamelType type = CAMEL_INVALID_TYPE;
 	
-	if (camel_mime_part_type == CAMEL_INVALID_TYPE)	{
-		camel_mime_part_type = camel_type_register (CAMEL_MEDIUM_TYPE, "CamelMimePart",
-							    sizeof (CamelMimePart),
-							    sizeof (CamelMimePartClass),
-							    (CamelObjectClassInitFunc) camel_mime_part_class_init,
-							    NULL,
-							    (CamelObjectInitFunc) camel_mime_part_init,
-							    (CamelObjectFinalizeFunc) camel_mime_part_finalize);
+	if (type == CAMEL_INVALID_TYPE)	{
+		type = camel_type_register (CAMEL_MEDIUM_TYPE,
+					    "CamelMimePart",
+					    sizeof (CamelMimePart),
+					    sizeof (CamelMimePartClass),
+					    (CamelObjectClassInitFunc) camel_mime_part_class_init,
+					    NULL,
+					    (CamelObjectInitFunc) camel_mime_part_init,
+					    (CamelObjectFinalizeFunc) camel_mime_part_finalize);
 	}
 	
-	return camel_mime_part_type;
+	return type;
 }
 
 
@@ -222,8 +223,8 @@ process_header(CamelMedium *medium, const char *header_name, const char *header_
 	switch (header_type) {
 	case HEADER_DESCRIPTION: /* raw header->utf8 conversion */
 		g_free (mime_part->description);
-		if (mime_part->content_type) {
-			charset = header_content_type_param (mime_part->content_type, "charset");
+		if (((CamelDataWrapper *) mime_part)->mime_type) {
+			charset = header_content_type_param (((CamelDataWrapper *) mime_part)->mime_type, "charset");
 			charset = e_iconv_charset_name (charset);
 		} else
 			charset = NULL;
@@ -250,9 +251,9 @@ process_header(CamelMedium *medium, const char *header_name, const char *header_
 		mime_part->content_location = header_location_decode (header_value);
 		break;
 	case HEADER_CONTENT_TYPE:
-		if (mime_part->content_type)
-			header_content_type_unref (mime_part->content_type);
-		mime_part->content_type = header_content_type_decode (header_value);
+		if (((CamelDataWrapper *) mime_part)->mime_type)
+			header_content_type_unref (((CamelDataWrapper *) mime_part)->mime_type);
+		((CamelDataWrapper *) mime_part)->mime_type = header_content_type_decode (header_value);
 		break;
 	default:
 		return FALSE;
@@ -404,8 +405,8 @@ camel_mime_part_set_filename (CamelMimePart *mime_part, const char *filename)
 				 "Content-Disposition", str);
 	g_free(str);
 	
-	header_content_type_set_param (mime_part->content_type, "name", filename);
-	str = header_content_type_format (mime_part->content_type);
+	header_content_type_set_param (((CamelDataWrapper *) mime_part)->mime_type, "name", filename);
+	str = header_content_type_format (((CamelDataWrapper *) mime_part)->mime_type);
 	camel_medium_set_header (CAMEL_MEDIUM (mime_part), "Content-Type", str);
 	g_free (str);
 }
@@ -418,8 +419,8 @@ camel_mime_part_get_filename (CamelMimePart *mime_part)
 		if (name)
 			return name;
 	}
-
-	return header_content_type_param (mime_part->content_type, "name");
+	
+	return header_content_type_param (((CamelDataWrapper *) mime_part)->mime_type, "name");
 }
 
 
@@ -528,28 +529,25 @@ camel_mime_part_set_content_type (CamelMimePart *mime_part, const char *content_
 CamelContentType *
 camel_mime_part_get_content_type (CamelMimePart *mime_part)
 {
-	return mime_part->content_type;
+	return ((CamelDataWrapper *) mime_part)->mime_type;
 }
-
-/*********/
-
 
 
 static void
 set_content_object (CamelMedium *medium, CamelDataWrapper *content)
 {
-	CamelMimePart *mime_part = CAMEL_MIME_PART (medium);
-	CamelContentType *object_content_type;
-
+	CamelDataWrapper *mime_part = CAMEL_DATA_WRAPPER (medium);
+	CamelContentType *content_type;
+	
 	parent_class->set_content_object (medium, content);
-
-	object_content_type = camel_data_wrapper_get_mime_type_field (content);
-	if (mime_part->content_type != object_content_type) {
+	
+	content_type = camel_data_wrapper_get_mime_type_field (content);
+	if (mime_part->mime_type != content_type) {
 		char *txt;
-
-		txt = header_content_type_format (object_content_type);
+		
+		txt = header_content_type_format (content_type);
 		camel_medium_set_header (CAMEL_MEDIUM (mime_part), "Content-Type", txt);
-		g_free(txt);
+		g_free (txt);
 	}
 }
 
@@ -622,10 +620,10 @@ write_raw(CamelStream *stream, struct _header_raw *h)
 }
 
 static ssize_t
-write_to_stream(CamelDataWrapper *data_wrapper, CamelStream *stream)
+write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 {
-	CamelMimePart *mp = CAMEL_MIME_PART(data_wrapper);
-	CamelMedium *medium = CAMEL_MEDIUM(data_wrapper);
+	CamelMimePart *mp = CAMEL_MIME_PART (dw);
+	CamelMedium *medium = CAMEL_MEDIUM (dw);
 	CamelStream *ostream = stream;
 	CamelDataWrapper *content;
 	ssize_t total = 0;
@@ -679,7 +677,7 @@ write_to_stream(CamelDataWrapper *data_wrapper, CamelStream *stream)
 		
 		if (header_content_type_is (content->mime_type, "text", "*")) {
 			content_charset = header_content_type_param (content->mime_type, "charset");
-			part_charset = header_content_type_param (data_wrapper->mime_type, "charset");
+			part_charset = header_content_type_param (dw->mime_type, "charset");
 			
 			if (content_charset && part_charset) {
 				content_charset = e_iconv_charset_name (content_charset);
@@ -724,7 +722,7 @@ write_to_stream(CamelDataWrapper *data_wrapper, CamelStream *stream)
 			}
 			
 			/* we only re-do crlf on encoded blocks */
-			if (filter && header_content_type_is (mp->content_type, "text", "*")) {
+			if (filter && header_content_type_is (dw->mime_type, "text", "*")) {
 				CamelMimeFilter *crlf = camel_mime_filter_crlf_new(CAMEL_MIME_FILTER_CRLF_ENCODE,
 										   CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
 				
@@ -770,22 +768,23 @@ write_to_stream(CamelDataWrapper *data_wrapper, CamelStream *stream)
 
 /* mime_part */
 static int
-construct_from_parser(CamelMimePart *dw, CamelMimeParser *mp)
+construct_from_parser (CamelMimePart *mime_part, CamelMimeParser *mp)
 {
+	CamelDataWrapper *dw = (CamelDataWrapper *) mime_part;
 	struct _header_raw *headers;
 	const char *content;
 	char *buf;
 	size_t len;
 	int err;
-
+	
 	d(printf("mime_part::construct_from_parser()\n"));
-
+	
 	switch (camel_mime_parser_step(mp, &buf, &len)) {
 	case HSCAN_MESSAGE:
 		/* set the default type of a message always */
-		if (dw->content_type)
-			header_content_type_unref (dw->content_type);
-		dw->content_type = header_content_type_decode ("message/rfc822");
+		if (dw->mime_type)
+			header_content_type_unref (dw->mime_type);
+		dw->mime_type = header_content_type_decode ("message/rfc822");
 	case HSCAN_HEADER:
 	case HSCAN_MULTIPART:
 		/* we have the headers, build them into 'us' */
@@ -805,7 +804,7 @@ construct_from_parser(CamelMimePart *dw, CamelMimeParser *mp)
 			headers = headers->next;
 		}
 
-		camel_mime_part_construct_content_from_parser(dw, mp);
+		camel_mime_part_construct_content_from_parser (mime_part, mp);
 		break;
 	default:
 		g_warning("Invalid state encountered???: %d", camel_mime_parser_state(mp));

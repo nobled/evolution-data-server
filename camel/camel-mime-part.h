@@ -45,8 +45,7 @@ extern "C" {
 /* Do not change these values directly, you would regret it one day */
 struct _CamelMimePart {
 	CamelMedium parent_object;
-
-	CamelContentType *content_type;
+	
 	struct _header_raw *headers; /* mime headers */
 	
 	/* All fields here are -** PRIVATE **- */
