@@ -629,7 +629,7 @@ camel_mime_parser_step(CamelMimeParser *m, char **databuffer, int *datalength)
 {
 	struct _header_scan_state *s = _PRIVATE(m);
 
-	(printf("OLD STATE:  '%s' :\n", states[s->state]));
+	d(printf("OLD STATE:  '%s' :\n", states[s->state]));
 
 	if (s->unstep <= 0) {
 		char *dummy;
@@ -644,7 +644,7 @@ camel_mime_parser_step(CamelMimeParser *m, char **databuffer, int *datalength)
 	} else
 		s->unstep--;
 
-	(printf("NEW STATE:  '%s' :\n", states[s->state]));
+	d(printf("NEW STATE:  '%s' :\n", states[s->state]));
 
 	return s->state;
 }

@@ -38,7 +38,7 @@
 /* this should probably be conditional on it existing */
 #define USE_BSEARCH
 
-#define d(x) x
+#define d(x)
 #define io(x)			/* io debug */
 
 #if 0
@@ -212,8 +212,6 @@ void camel_folder_summary_set_index(CamelFolderSummary *s, ibex *index)
 {
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
 
-	if (p->index)
-		ibex_write(p->index);
 	p->index = index;
 }
 
@@ -310,6 +308,8 @@ camel_folder_summary_load(CamelFolderSummary *s)
 
 		camel_folder_summary_add(s, mi);
 	}
+
+	fclose(in);
 
 	/* FIXME: check error return */
 	return 0;
@@ -576,7 +576,7 @@ static char * tokens[] = {
 static int
 token_search_cmp(char *key, char **index)
 {
-	printf("comparing '%s' to '%s'\n", key, *index);
+	d(printf("comparing '%s' to '%s'\n", key, *index));
 	return strcmp(key, *index);
 }
 #endif
@@ -866,9 +866,13 @@ summary_format_string(struct _header_raw *h, const char *name)
 	const char *text;
 
 	text = header_raw_find(&h, name, NULL);
-	while (isspace(*text))
-		text++;
-	return header_decode_string(text);
+	if (text) {
+		while (isspace(*text))
+			text++;
+		return header_decode_string(text);
+	} else {
+		return NULL;
+	}
 }
 
 static CamelMessageInfo *

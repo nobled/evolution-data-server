@@ -1,3 +1,16 @@
+2000-05-07    <notzed@helixcode.com>
+
+	* providers/mbox/camel-mbox-summary.c (camel_mbox_summary_load):
+	Set the size and mtime of the mbox we indexed once done.
+
+	* camel-folder-summary.c (camel_folder_summary_set_index): Dont
+	write the index if it changes - let the claler fix it (uh, kind of
+	impacts performance).
+	(camel_folder_summary_load): close in.
+
+	* camel-folder-summary.c (summary_format_string): Check header
+	exists before trying to strip its leading spaces.
+
 2000-05-06  NotZed  <NotZed@HelixCode.com>
 
 	* camel-folder.h: Removed summary info from here, and include

@@ -27,7 +27,7 @@
 #include <errno.h>
 #include <string.h>
 
-#define io(x) x
+#define io(x)
 
 #define CAMEL_MBOX_SUMMARY_VERSION (0x1000)
 
@@ -305,6 +305,7 @@ camel_mbox_summary_load(CamelMboxSummary *mbs)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
 	struct stat st;
+	int ret = 0;
 
 	if (camel_folder_summary_load(s) == -1) {
 		printf("No summary\n");
@@ -318,14 +319,27 @@ camel_mbox_summary_load(CamelMboxSummary *mbs)
 		return -1;
 	}
 
+	g_assert(sizeof(size_t) == sizeof(int));
+
+	printf("mbox size = %d, summary size = %d\n", st.st_size, mbs->folder_size);
+	printf("mbox date = %d, summary date = %d\n", st.st_mtime, s->time);
+
 	if (st.st_size != mbs->folder_size || st.st_mtime != s->time) {
 		if (mbs->folder_size < st.st_size) {
 			printf("Summary for smaller mbox\n");
-			return summary_rebuild(mbs, mbs->folder_size);
+			ret = summary_rebuild(mbs, mbs->folder_size);
 		} else {
 			camel_folder_summary_clear(s);
 			printf("Summary for bigger mbox\n");
-			return summary_rebuild(mbs, 0);
+			ret = summary_rebuild(mbs, 0);
+		}
+
+		printf("return = %d\n", ret);
+
+		if (ret != -1) {
+			mbs->folder_size = st.st_size;
+			s->time = st.st_mtime;
+			camel_folder_summary_save(s);
 		}
 	}
 
