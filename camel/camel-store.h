@@ -34,6 +34,7 @@ extern "C" {
 #pragma }
 #endif /* __cplusplus }*/
 
+#include <camel/camel-object.h>
 #include <camel/camel-service.h>
 
 #define CAMEL_STORE_TYPE     (camel_store_get_type ())
