@@ -3479,6 +3479,22 @@ e_book_backend_ldap_get_static_capabilities (EBookBackend *backend)
 	return g_strdup("net,anon-access");
 }
 
+static void 
+e_book_backend_ldap_set_mode (EBookBackend *backend, int mode)
+{
+
+	if (e_book_backend_is_loaded (backend)) {
+		if (mode == GNOME_Evolution_Addressbook_MODE_LOCAL) {
+			e_book_backend_notify_writable (backend, FALSE);
+			e_book_backend_notify_connection_status (backend, FALSE);
+		}
+		else if (mode == GNOME_Evolution_Addressbook_MODE_REMOTE) {
+			e_book_backend_notify_writable (backend, TRUE);
+			e_book_backend_notify_connection_status (backend, TRUE);
+		}
+	}
+
+}
 static gboolean
 e_book_backend_ldap_construct (EBookBackendLDAP *backend)
 {
@@ -3593,7 +3609,8 @@ e_book_backend_ldap_class_init (EBookBackendLDAPClass *klass)
 	parent_class->get_supported_fields    = e_book_backend_ldap_get_supported_fields;
 	parent_class->get_supported_auth_methods = e_book_backend_ldap_get_supported_auth_methods;
 	parent_class->cancel_operation	      = e_book_backend_ldap_cancel_operation;
-
+	parent_class->set_mode                = e_book_backend_ldap_set_mode;
+	
 	object_class->dispose = e_book_backend_ldap_dispose;
 }
 

@@ -1,4 +1,15 @@
 2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/file/e-book-backend-file.c  
+	(e_book_backend_file_class_init) : assingn the corresponding
+	function for new _mode virtual method. 
+	(e_book_backend_file_set_mode) : new function to set mode
+	. After setting mode it notifies all the clients 
+	about any changes in the connection status and writable status
+	* backends/vcf/e-book-backend-vcf.c : ditto 
+	* backends/ldap/e-book-bakcend-ldap.c : ditto
+  
+2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
 	
 	* libedata-book/e-book-backend.[ch] : new functions 
 	(e_book_backend_set_mode) : a virtual method 
