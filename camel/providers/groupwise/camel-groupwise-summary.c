@@ -185,7 +185,6 @@ gw_message_info_load (CamelFolderSummary *s, FILE *in)
 	CamelMessageInfo *info ;
 	CamelGroupwiseMessageInfo *gw_info ;
 
-	printf("|| Message Info Load ||\n") ;
 
 	info = camel_groupwise_summary_parent->message_info_load(s,in) ;
 	if (info) {
@@ -216,7 +215,6 @@ gw_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 static CamelMessageContentInfo *
 gw_content_info_load (CamelFolderSummary *s, FILE *in)
 {       
-	printf(" || Content Info load ||\n") ;
 	if (fgetc (in))
 		return camel_groupwise_summary_parent->content_info_load (s, in);
 	else

@@ -12,10 +12,12 @@ INCLUDES = -I.. \
 	-I$(top_srcdir)/e-util				\
 	-I$(top_srcdir)					\
 	-I$(top_srcdir)/camel/providers/imap		\
-	-I$(top_srcdir)/camel/providers/smtp		\
-	$(EVOLUTION_CALENDAR_CFLAGS)                  \
+	-I$(top_srcdir)/libedataserver			\
+	-I$(top_srcdir)/servers/groupwise		\
+	$(EVOLUTION_CALENDAR_CFLAGS)                    \
 	$(CAMEL_GROUPWISE_CFLAGS)			\
 	$(GNOME_INCLUDEDIR)				\
+	$(SOUP_CFLAGS)					\
 	$(E_UTIL_CFLAGS)				\
 	$(GTK_INCLUDEDIR)				\
 	-DCAMEL_PROVIDERDIR=\"$(camel_providerdir)\"	\
@@ -23,8 +25,6 @@ INCLUDES = -I.. \
 
 libcamelgroupwise_la_SOURCES = 			\
 	camel-groupwise-provider.c		\
-	camel-gw-listener.c 		\
-	camel-gw-listener.h		\
 	camel-groupwise-store.h 	\
 	camel-groupwise-store.c		\
 	camel-groupwise-folder.h	\
@@ -38,7 +38,10 @@ libcamelgroupwise_la_SOURCES = 			\
 	camel-groupwise-transport.c	\
 	camel-groupwise-transport.h
 
-libcamelgroupwise_la_LIBADD = $(CAMEL_GROUPWISE_LIBS)
+libcamelgroupwise_la_LIBADD = 						\
+	$(top_builddir)/servers/groupwise/libegroupwise-1.2.la		\
+	$(top_builddir)/libedataserver/libedataserver-1.2.la		\
+	$(SOUP_LIBS)
 
 libcamelgroupwise_la_LDFLAGS = -avoid-version -module
 

@@ -74,7 +74,7 @@ camel_groupwise_transport_class_init (CamelGroupwiseTransportClass *camel_groupw
 static void
 camel_groupwise_transport_init (CamelTransport *transport)
 {
-	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (transport) ;
+	return ;
 }
 
 CamelType
@@ -111,10 +111,6 @@ static char *groupwise_transport_get_name (CamelService *service, gboolean brief
 static gboolean
 groupwise_connect (CamelService *service, CamelException *ex)
 {
-	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (service) ;
-
-	g_print ("|||in groupwise connect ||\n") ;
-
 	return TRUE ;
 
 }
@@ -125,34 +121,31 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		  CamelAddress *from, CamelAddress *recipients,
 		  CamelException *ex)
 {
-	CamelMultipart *multipart ;
-	CamelGroupwiseTransport *gw_transport = CAMEL_GROUPWISE_TRANSPORT (transport) ;
 	CamelService *service = CAMEL_SERVICE(transport) ;
 
 	CamelStore *store =  NULL ;
 	
 	CamelGroupwiseStore *groupwise_store = NULL;
 	CamelGroupwiseStorePrivate *priv = NULL;
-
 	
-	gboolean has_8bit_parts ;
+	CamelStreamMem *content ;
+	
 	EGwItem *item ;
 	EGwConnection *cnc = NULL;
 	EGwConnectionStatus status ;
+	EGwItemRecipient *recipient ;
 	
-	CamelInternetAddress *to_addr ;
-	CamelInternetAddress *cc_addr ;
-	CamelInternetAddress *bcc_addr ;
+	int total_add ;
+
 	CamelDataWrapper *dw ;
-	CamelStream *stream ;
 	CamelMimePart *mime_part = CAMEL_MIME_PART(message) ;
 	
 	guint part_count ;
-	char buffer[23] = {0};
-	GSList *list = NULL ;
+	GSList *list = NULL, *recipient_list = NULL ;
 	char *url = NULL ;
 	int i ;
 
+	item = e_gw_item_new_empty () ;
 	url = camel_url_to_string (service->url,
 			(CAMEL_URL_HIDE_PASSWORD|
 			 CAMEL_URL_HIDE_PARAMS|
@@ -185,11 +178,13 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		return FALSE ;
 	}
 
+	content = (CamelStreamMem *)camel_stream_mem_new();
+	camel_data_wrapper_decode_to_stream(dw, (CamelStream *)content);
+
 	if (CAMEL_IS_MULTIPART (dw)) {
 		part_count = camel_multipart_get_number (CAMEL_MULTIPART(dw)) ;
 		g_print ("Multipart message : %d\n",part_count) ;
 		for (i=0 ; i<part_count ; i++) {
-			CamelMimePart *part = camel_multipart_get_part (CAMEL_MULTIPART(dw),i) ; 
 			CamelContentType *type  ;
 			
 			type = camel_mime_part_get_content_type(CAMEL_MULTIPART(dw)) ;
@@ -198,8 +193,7 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	} else {
 		CamelContentType *type  ;
 		CamelStream *stream = camel_stream_mem_new () ;
-		int count, c1 ;
-		char *buff = NULL ;
+		int count ;
 		
 		type = camel_data_wrapper_get_mime_type_field(dw) ;
 		g_print ("Does not contain multiple parts : %s\n",type->type) ;
@@ -209,17 +203,30 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 
 	}
 
-	return TRUE ;
 	/*Populate the item structure to send it to the GW server*/
 	g_print ("|| SUbject : %s |||\n", camel_mime_message_get_subject (message)) ;
-	
-	item = e_gw_item_new_empty () ;
+	total_add = camel_address_length (recipients) ;
+	for (i=0 ; i<total_add ; i++) {
+		const char *name = NULL, *addr = NULL ;
+		if(camel_internet_address_get ((CamelInternetAddress *)recipients, i , &name, &addr )) {
+			
+			recipient = g_new0 (EGwItemRecipient, 1);
+		
+			recipient->email = g_strdup (addr) ;
+			recipient->display_name = g_strdup (name) ;
+			recipient->type = E_GW_ITEM_RECIPIENT_TO;
+			recipient->status = E_GW_ITEM_STAT_NONE ;
+			recipient_list= g_slist_append (recipient_list, recipient) ;	
+		}
+	}
+
+	e_gw_item_set_recipient_list (item, recipient_list) ;
 
 	e_gw_item_set_item_type (item, E_GW_ITEM_TYPE_MAIL) ;
 	e_gw_item_set_subject (item, camel_mime_message_get_subject(message)) ;
 
 	
-	e_gw_item_set_message (item, buffer );
+	e_gw_item_set_message (item, content->buffer->data);
 
 
 	
@@ -231,6 +238,8 @@ groupwise_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	}
 	
 	g_object_unref (item) ;
+	g_slist_free (list) ;
+	g_slist_free (recipient_list) ;
 	return TRUE;
 }
 	

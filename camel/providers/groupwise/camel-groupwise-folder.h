@@ -4,6 +4,7 @@
 /* 
  * Authors:
  *   Sivaiah Nallagatla <snallagatla@novell.com>
+ *   parthasarathi susarla <sparthasarathi@novell.com>OP
  *  
  *
  * Copyright (C) 2004, Novell, Inc.
@@ -41,6 +42,7 @@ extern "C" {
 #include <camel/camel-multipart.h>
 
 #include "camel-groupwise-message-cache.h"
+#include "camel-groupwise-summary.h"
 
 #define CAMEL_GROUPWISE_FOLDER_TYPE     (camel_groupwise_folder_get_type ())
 #define CAMEL_GROUPWISE_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_GROUPWISE_FOLDER_TYPE, CamelGroupwiseFolder))

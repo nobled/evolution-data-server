@@ -3,7 +3,7 @@
 
 /*
  * Author:
- *	parthasarathi susarla <sparthasrathi@novell.com
+ *	parthasarathi susarla <sparthasrathi@novell.com>
  *
  *	Based on the IMAP message cache implementation by Dan Winship <danw@ximian.com>
  *

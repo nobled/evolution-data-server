@@ -34,8 +34,8 @@
 
 #include "camel-file-utils.h"
 
-#include "e-util/md5-utils.h"
-#include "e-util/e-memory.h"
+#include "libedataserver/md5-utils.h"
+#include "libedataserver/e-memory.h"
 
 #include "camel-private.h"
 #include "camel-utf8.h"
@@ -47,12 +47,6 @@
 static int summary_header_load(CamelStoreSummary *, FILE *);
 static int summary_header_save(CamelStoreSummary *, FILE *);
 
-static CamelStoreInfo * store_info_load(CamelStoreSummary *, FILE *);
-static int               store_info_save(CamelStoreSummary *, FILE *, CamelStoreInfo *);
-static void              store_info_free(CamelStoreSummary *, CamelStoreInfo *);
-
-static const char *store_info_string(CamelStoreSummary *, const CamelStoreInfo *, int);
-static void store_info_set_string(CamelStoreSummary *, CamelStoreInfo *, int, const char *);
 
 static void camel_groupwise_store_summary_class_init (CamelGroupwiseStoreSummaryClass *klass);
 static void camel_groupwise_store_summary_init       (CamelGroupwiseStoreSummary *obj);
@@ -110,7 +104,6 @@ CamelGroupwiseStoreSummary *
 camel_groupwise_store_summary_new (void)
 {
 	CamelGroupwiseStoreSummary *new = CAMEL_GW_STORE_SUMMARY ( camel_object_new (camel_groupwise_store_summary_get_type ()));
-	printf(" +++ Store summary New +++ \n") ;
 
 	return new;
 }
@@ -119,14 +112,14 @@ camel_groupwise_store_summary_new (void)
 static int
 summary_header_load(CamelStoreSummary *s, FILE *in)
 {
-	printf("|| Summary header load ||\n") ;
+	return 0 ;
 }
 
 
 static int
 summary_header_save(CamelStoreSummary *s, FILE *out)
 {
-	printf("|| Summary header save||\n") ;
+	return 0 ;
 }
 
 
