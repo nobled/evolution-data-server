@@ -1,3 +1,12 @@
+2004-09-06  Not Zed  <NotZed@Ximian.com>
+
+	* camel-search-private.c (utf8_get): remove this, and make the
+	code use camel_utf8_getc instead.  Quite a bit faster esp if
+	optimising with inlines.
+
+	* camel-object.c (check_magic_fail): change the check_magic code
+	to mostly run from a macro, its worth it.
+
 2004-09-04  Not Zed  <NotZed@Ximian.com>
 
 	* providers/local/camel-mbox-summary.c (message_info_new): fix
