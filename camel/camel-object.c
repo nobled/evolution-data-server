@@ -36,6 +36,8 @@
 
 #define BAST_CASTARD 1 /* Define to return NULL when casts fail */
 
+#define NULL_PREP_VALUE ((gpointer)make_global_classfuncs) /* See camel_object_class_declare_event */
+
 /* ** Quickie type system ************************************************* */
 
 typedef struct _CamelTypeInfo {
@@ -55,6 +57,11 @@ typedef struct _CamelTypeInfo {
 	CamelObjectClass *global_classfuncs;
 } CamelTypeInfo;
 
+typedef struct _CamelHookPair {
+	CamelObjectEventHookFunc func;
+	gpointer user_data;
+} CamelHookPair;
+
 /* ************************************************************************ */
 
 static void obj_init (CamelObject *obj);
@@ -63,7 +70,7 @@ static void obj_class_init( CamelObjectClass *class );
 static void obj_class_finalize( CamelObjectClass *class );
 
 static gboolean shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj );
-static CamelObjectClass *make_global_classfuncs( CamelTypeInfo *type_info );
+static void make_global_classfuncs( CamelTypeInfo *type_info );
 
 /* ************************************************************************ */
 
@@ -110,7 +117,7 @@ void camel_type_init( void )
 	g_hash_table_insert( ctype_to_typeinfo, GINT_TO_POINTER( camel_object_type ), obj_info );
 
 	/* Sigh. Ugly */
-	obj_info->global_classfuncs = make_global_classfuncs( obj_info );
+	make_global_classfuncs( obj_info );
 
 	cur_max_type = camel_object_type;
 
@@ -188,7 +195,7 @@ CamelType camel_type_register( CamelType parent, const gchar *name,
 	g_hash_table_insert( ctype_to_typeinfo, GINT_TO_POINTER( obj_info->self ), obj_info );
 
 	/* Sigh. Ugly. */
-	obj_info->global_classfuncs = make_global_classfuncs( obj_info );
+	make_global_classfuncs( obj_info );
 
 	G_UNLOCK( type_system );
 	return obj_info->self;
@@ -231,28 +238,45 @@ obj_init (CamelObject *obj)
 {
 	obj->s.magic = CAMEL_OBJECT_MAGIC_VALUE;
 	obj->ref_count = 1;
+	obj->event_to_hooklist = NULL;
+	obj->in_event = 0;
 }
 
 static void
 obj_finalize (CamelObject *obj)
 {
-	g_return_if_fail( obj->s.magic == CAMEL_OBJECT_MAGIC_VALUE );
-	g_return_if_fail( obj->ref_count == 0 );
+	g_return_if_fail (obj->s.magic == CAMEL_OBJECT_MAGIC_VALUE);
+	g_return_if_fail (obj->ref_count == 0);
+	g_return_if_fail (obj->in_event == 0);
 
 	obj->s.magic = CAMEL_OBJECT_FINALIZED_VALUE;
+
+	if (obj->event_to_hooklist) {
+		g_hash_table_foreach (obj->event_to_hooklist, (GHFunc) g_free, NULL);
+		g_hash_table_destroy (obj->event_to_hooklist);
+		obj->event_to_hooklist = NULL;
+	}
 }
 
 static void 
 obj_class_init( CamelObjectClass *class )
 {
 	class->s.magic = CAMEL_OBJECT_CLASS_MAGIC_VALUE;
+
+	camel_object_class_declare_event (class, "finalize", NULL);
 }
 
-static void obj_class_finalize( CamelObjectClass *class )
+static void obj_class_finalize (CamelObjectClass *class)
 {
-	g_return_if_fail( class->s.magic == CAMEL_OBJECT_CLASS_MAGIC_VALUE );
+	g_return_if_fail (class->s.magic == CAMEL_OBJECT_CLASS_MAGIC_VALUE);
 	
 	class->s.magic = CAMEL_OBJECT_CLASS_FINALIZED_VALUE;
+
+	if (class->event_to_preplist) {
+		g_hash_table_foreach (class->event_to_preplist, (GHFunc) g_free, NULL);
+		g_hash_table_destroy (class->event_to_preplist);
+		class->event_to_preplist = NULL;
+	}
 }
 
 CamelType camel_object_get_type (void)
@@ -347,8 +371,37 @@ void camel_object_unref( CamelObject *obj )
 
 	obj->ref_count--;
 
-	if( obj->ref_count != 0 )
+	if (obj->ref_count > 0)
 		return;
+
+	/* Oh no! We want to emit a "finalized" event, but that function refs the object
+	 * because it's not supposed to get finalized in an event, but it is being finalized
+	 * right now, and AAUGH AAUGH AUGH AUGH!
+	 *
+	 * So we don't call camel_object_trigger_event. We do it ourselves. We even know
+	 * that CamelObject doesn't provide a prep for the finalized event, so we plunge
+	 * right in and call our hooks.
+	 *
+	 * And there was much rejoicing.
+	 */
+
+#define hooklist parents /*cough*/
+
+	if (obj->event_to_hooklist) {
+		CamelHookPair *pair;
+
+		hooklist = g_hash_table_lookup (obj->event_to_hooklist, "finalize");
+
+		while (hooklist && hooklist->data) {
+			pair = hooklist->data;
+			(pair->func) (obj, NULL, pair->user_data);
+			hooklist = hooklist->next;
+		}
+	}
+
+	hooklist = NULL; /* Don't mess with this line */
+
+#undef hooklist
 
 	/* Destroy it! hahaha! */
 
@@ -465,6 +518,123 @@ gchar *camel_object_describe( CamelObject *obj )
 	return g_strdup( "not a CamelObject" );
 }
 
+/* This is likely to be called in the class_init callback,
+ * and the type will likely be somewhat uninitialized. 
+ * Is this a problem? We'll see....
+ */
+void camel_object_class_declare_event (CamelObjectClass *class, const gchar *name, CamelObjectEventPrepFunc prep)
+{
+	g_return_if_fail (CAMEL_IS_OBJECT_CLASS (class));
+	g_return_if_fail (name);
+
+	if (class->event_to_preplist == NULL)
+		class->event_to_preplist = g_hash_table_new (g_str_hash, g_str_equal);
+	else if (g_hash_table_lookup (class->event_to_preplist, name) != NULL) {
+		g_warning ("camel_object_class_declare_event: event `%s' already declared for `%s'",
+			   name, camel_type_to_name (class->s.type));
+		return;
+	}
+
+	/* AIEEEEEEEEEEEEEEEEEEEEEE
+	 *
+	 * I feel so naughty. Since it's valid to declare an event and not
+	 * provide a hook, it should be valid to insert a NULL value into
+	 * the table. However, then our lookup in trigger_event would be
+	 * ambiguous, not telling us whether the event is undefined or whether
+	 * it merely has no hook.
+	 *
+	 * So we create an 'NULL prep' value that != NULL... specifically, it
+	 * equals the address of one of our static functions , because that
+	 * can't possibly be your hook.
+	 *
+	 * Just don't forget to check for the 'evil value' and it'll work,
+	 * I promise.
+	 */
+
+	if (prep == NULL)
+		prep = NULL_PREP_VALUE;
+
+	g_hash_table_insert (class->event_to_preplist, g_strdup (name), prep);
+}
+
+void camel_object_hook_event (CamelObject *obj, const gchar *name, CamelObjectEventHookFunc hook, gpointer user_data)
+{
+	GSList *hooklist;
+	CamelHookPair *pair;
+
+	g_return_if_fail (CAMEL_IS_OBJECT (obj));
+	g_return_if_fail (name);
+	g_return_if_fail (hook);
+
+	if (obj->event_to_hooklist == NULL)
+		obj->event_to_hooklist = g_hash_table_new (g_str_hash, g_str_equal);
+
+	pair = g_new (CamelHookPair, 1);
+	pair->func = hook;
+	pair->user_data = user_data;
+
+	hooklist = g_hash_table_lookup (obj->event_to_hooklist, name);
+	hooklist = g_slist_prepend (hooklist, pair);
+	g_hash_table_insert (obj->event_to_hooklist, g_strdup (name), hooklist);
+}
+
+void camel_object_trigger_event (CamelObject *obj, const gchar *name, gpointer event_data)
+{
+	GSList *hooklist;
+	CamelHookPair *pair;
+	CamelObjectEventPrepFunc prep;
+
+	g_return_if_fail (CAMEL_IS_OBJECT (obj));
+	g_return_if_fail (name);
+
+	if (obj->in_event) {
+		g_warning ("camel_object_trigger_event: trying to trigger `%s' in class "
+			   "`%s' while already triggering another event",
+			   name, camel_type_to_name (obj->s.type));
+		return;
+	}
+
+	if (obj->classfuncs->event_to_preplist == NULL) {
+		g_warning ("camel_object_trigger_event: trying to trigger `%s' in class "
+			   "`%s' with no defined events.",
+			   name, camel_type_to_name (obj->s.type));
+		return;
+	}
+
+	prep = g_hash_table_lookup (obj->classfuncs->event_to_preplist, name);
+
+	if (prep == NULL) {
+		g_warning ("camel_object_trigger_event: trying to trigger undefined "
+			   "event `%s' in class `%s'.",
+			   name, camel_type_to_name (obj->s.type));
+		return;
+	}
+
+	/* Ref so that it can't get destroyed in the event, which would
+	 * be Bad. And it's a valid ref anyway...
+	 */
+
+	camel_object_ref (obj);
+	obj->in_event = 1;
+
+	if( (prep != NULL_PREP_VALUE && !prep (obj, event_data)) || obj->event_to_hooklist == NULL) {
+		obj->in_event = 0;
+		camel_object_unref (obj);
+		return;
+	}
+
+	hooklist = g_hash_table_lookup (obj->event_to_hooklist, name);
+
+	while (hooklist && hooklist->data) {
+		pair = hooklist->data;
+		(pair->func) (obj, event_data, pair->user_data);
+		hooklist = hooklist->next;
+	}
+
+	obj->in_event = 0;
+	camel_object_unref (obj);
+}
+
 /* ** Static helpers ****************************************************** */
 
 static gboolean
@@ -571,7 +741,7 @@ shared_is_of_type( CamelObjectShared *sh, CamelType ctype, gboolean is_obj )
 	return FALSE;
 }
 
-static CamelObjectClass *make_global_classfuncs( CamelTypeInfo *type_info )
+static void make_global_classfuncs( CamelTypeInfo *type_info )
 {
 	CamelObjectClass *funcs;
 	GSList *parents;
@@ -581,6 +751,8 @@ static CamelObjectClass *make_global_classfuncs( CamelTypeInfo *type_info )
 
 	funcs = g_malloc0( type_info->classfuncs_size );
 	funcs->s.type = type_info->self;
+
+	type_info->global_classfuncs = funcs;
 
 	parents = NULL;
 	while( type_info ) {
@@ -599,5 +771,4 @@ static CamelObjectClass *make_global_classfuncs( CamelTypeInfo *type_info )
 	}
 
 	g_slist_free( head );
-	return funcs;
 }

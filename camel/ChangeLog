@@ -1,5 +1,19 @@
 2000-07-14  Peter Williams  <peterw@helixcode.com>
 
+	* camel-object.c : Implement 'events', which are suspiciously
+	like signals except without all the marshalling baggage, and
+	with quasi-thread-safety.
+	(camel_object_class_declare_event): New func.
+	(camel_object_hook_event): Ditto.
+	(camel_object_trigger_event): Ditto.
+	(obj_class_init): Declare the "finalize" event.
+	(obj_class_finalize): Free the hashtable of events->preps
+	(obj_finalize): Free the hashtable of events->hooklists
+	(camel_object_unref): Trigger the finalize event (ourselves,
+	to prevent massively unpleasant looping things.)
+	
+2000-07-14  Peter Williams  <peterw@helixcode.com>
+	
 	* camel-object.c (make_global_classfuncs): Change to return
 	a CamelObjectClass. Change parents to a GSList and free it
 	when done.
