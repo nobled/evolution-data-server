@@ -1,3 +1,16 @@
+2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* src/server.c : 
+	(setup_offline_listener) :
+	(online_status_changed) :
+	(set_online_status) : added three functions to listen
+	to /apps/evolution/shell/start_offline key and sets the online/offline
+	mode on calendar and adress book factories. This is a tempory 
+	code to test. We needd to implemet a listner which listens to a desktop wide online/offline
+	setting.
+	(main) : cal setup_offline_listener
+	
+
 2004-10-21  Rodrigo Moya <rodrigo@novell.com>
 
 	* libedataserverui/Makefile.am:
