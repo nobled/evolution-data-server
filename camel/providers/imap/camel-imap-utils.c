@@ -20,16 +20,25 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <iconv.h>
+#include <errno.h>
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 #include "camel-imap-utils.h"
 #include "camel-imap-summary.h"
 #include "camel-imap-store.h"
 #include "camel-folder.h"
+#include "camel-utf8.h"
 
 #define d(x) x
 
@@ -357,13 +366,16 @@ imap_parse_list_response (CamelImapStore *store, const char *buf, int *flags, ch
 		astring = imap_parse_astring (&word, &len);
 		if (!astring)
 			return FALSE;
-		
+
+		*folder = astring;
+#if 0
 		mailbox = imap_mailbox_decode (astring, strlen (astring));
 		g_free (astring);
 		if (!mailbox)
 			return FALSE;
 		
 		*folder = mailbox;
+#endif
 	}
 	
 	return TRUE;
@@ -1099,263 +1111,26 @@ imap_concat (CamelImapStore *imap_store, const char *prefix, const char *suffix)
 		return g_strdup_printf ("%s%c%s", prefix, imap_store->dir_sep, suffix);
 }
 
-#define UTF8_TO_UTF7_LEN(len)  ((len * 3) + 8)
-#define UTF7_TO_UTF8_LEN(len)  (len)
-
-enum {
-	MODE_USASCII,
-	MODE_AMPERSAND,
-	MODE_MODUTF7
-};
-
-#define is_usascii(c)  (((c) >= 0x20 && (c) <= 0x25) || ((c) >= 0x27 && (c) <= 0x7e))
-#define encode_mode(c) (is_usascii (c) ? MODE_USASCII : (c) == '&' ? MODE_AMPERSAND : MODE_MODUTF7)
-
 char *
-imap_mailbox_encode (const unsigned char *in, size_t inlen)
+imap_mailbox_encode (const unsigned char *in, size_t len)
 {
-	const unsigned char *start, *inptr, *inend;
-	unsigned char *mailbox, *m, *mend;
-	size_t inleft, outleft, conv;
-	char *inbuf, *outbuf;
-	iconv_t cd;
-	int mode;
-	
-	cd = (iconv_t) -1;
-	m = mailbox = g_malloc (UTF8_TO_UTF7_LEN (inlen) + 1);
-	mend = mailbox + UTF8_TO_UTF7_LEN (inlen);
-	
-	start = inptr = in;
-	inend = in + inlen;
-	mode = MODE_USASCII;
-	
-	while (inptr < inend) {
-		int new_mode;
-		
-		new_mode = encode_mode (*inptr);
-		
-		if (new_mode != mode) {
-			switch (mode) {
-			case MODE_USASCII:
-				memcpy (m, start, inptr - start);
-				m += (inptr - start);
-				break;
-			case MODE_AMPERSAND:
-				while (start < inptr) {
-					*m++ = '&';
-					*m++ = '-';
-					start++;
-				}
-				break;
-			case MODE_MODUTF7:
-				inbuf = (char *) start;
-				inleft = inptr - start;
-				outbuf = (char *) m;
-				outleft = mend - m;
-				
-				if (cd == (iconv_t) -1)
-					cd = iconv_open ("UTF-7", "UTF-8");
-				
-				conv = iconv (cd, &inbuf, &inleft, &outbuf, &outleft);
-				if (conv == (size_t) -1) {
-					g_warning ("error converting mailbox to UTF-7!");
-				}
-				iconv (cd, NULL, NULL, &outbuf, &outleft);
-				
-				/* shift into modified UTF-7 mode (overwrite UTF-7's '+' shift)... */
-				*m++ = '&';
-				
-				while (m < (unsigned char *) outbuf) {
-					/* replace '/' with ',' */
-					if (*m == '/')
-						*m = ',';
-					
-					m++;
-				}
-				
-				break;
-			}
-			
-			mode = new_mode;
-			start = inptr;
-		}
-		
-		inptr++;
-	}
-	
-	switch (mode) {
-	case MODE_USASCII:
-		memcpy (m, start, inptr - start);
-		m += (inptr - start);
-		break;
-	case MODE_AMPERSAND:
-		while (start < inptr) {
-			*m++ = '&';
-			*m++ = '-';
-			start++;
-		}
-		break;
-	case MODE_MODUTF7:
-		inbuf = (char *) start;
-		inleft = inptr - start;
-		outbuf = (char *) m;
-		outleft = mend - m;
-		
-		if (cd == (iconv_t) -1)
-			cd = iconv_open ("UTF-7", "UTF-8");
-		
-		conv = iconv (cd, &inbuf, &inleft, &outbuf, &outleft);
-		if (conv == (size_t) -1) {
-			g_warning ("error converting mailbox to UTF-7!");
-		}
-		iconv (cd, NULL, NULL, &outbuf, &outleft);
-		
-		/* shift into modified UTF-7 mode (overwrite UTF-7's '+' shift)... */
-		*m++ = '&';
-		
-		while (m < (unsigned char *) outbuf) {
-			/* replace '/' with ',' */
-			if (*m == '/')
-				*m = ',';
-			
-			m++;
-		}
-		
-		break;
-	}
-	
-	*m = '\0';
-	
-	if (cd != (iconv_t) -1)
-		iconv_close (cd);
-	
-	return mailbox;
+	char *buf;
+
+	buf = alloca(len+1);
+	memcpy(buf, in, len);
+	buf[len] = 0;
+
+	return camel_utf8_utf7(buf);
 }
 
-
 char *
-imap_mailbox_decode (const unsigned char *in, size_t inlen)
+imap_mailbox_decode (const unsigned char *in, size_t len)
 {
-	const unsigned char *start, *inptr, *inend;
-	unsigned char *mailbox, *m, *mend;
-	unsigned char mode_switch;
-	iconv_t cd;
-	
-	cd = (iconv_t) -1;
-	m = mailbox = g_malloc (UTF7_TO_UTF8_LEN (inlen) + 1);
-	mend = mailbox + UTF7_TO_UTF8_LEN (inlen);
-	
-	start = inptr = in;
-	inend = in + inlen;
-	mode_switch = '&';
-	
-	while (inptr < inend) {
-		if (*inptr == mode_switch) {
-			if (mode_switch == '&') {
-				/* mode switch from US-ASCII to UTF-7 */
-				mode_switch = '-';
-				memcpy (m, start, inptr - start);
-				m += (inptr - start);
-				start = inptr;
-			} else if (mode_switch == '-') {
-				/* mode switch from UTF-7 to US-ASCII or an ampersand (&) */
-				mode_switch = '&';
-				start++;
-				if (start == inptr) {
-					/* we had the sequence "&-" which becomes "&" when decoded */
-					*m++ = '&';
-				} else {
-					char *buffer, *inbuf, *outbuf;
-					size_t buflen, outleft, conv;
-					
-					buflen = (inptr - start) + 2;
-					inbuf = buffer = alloca (buflen);
-					*inbuf++ = '+';
-					while (start < inptr) {
-						*inbuf++ = *start == ',' ? '/' : *start;
-						start++;
-					}
-					*inbuf = '-';
-					
-					inbuf = buffer;
-					outbuf = (char *) m;
-					outleft = mend - m;
-					
-					if (cd == (iconv_t) -1)
-						cd = iconv_open ("UTF-8", "UTF-7");
-					
-					conv = iconv (cd, &inbuf, &buflen, &outbuf, &outleft);
-					if (conv == (size_t) -1) {
-						g_warning ("error decoding mailbox: %.*s", inlen, in);
-					}
-					iconv (cd, NULL, NULL, NULL, NULL);
-					
-					m = (unsigned char *) outbuf;
-				}
-				
-				/* point to the char after the '-' */
-				start = inptr + 1;
-			}
-		}
-		
-		inptr++;
-	}
-	
-	if (*inptr == mode_switch) {
-		if (mode_switch == '&') {
-			/* the remaining text is US-ASCII */
-			memcpy (m, start, inptr - start);
-			m += (inptr - start);
-			start = inptr;
-		} else if (mode_switch == '-') {
-			/* We've got encoded UTF-7 or else an ampersand */
-			start++;
-			if (start == inptr) {
-				/* we had the sequence "&-" which becomes "&" when decoded */
-				*m++ = '&';
-			} else {
-				char *buffer, *inbuf, *outbuf;
-				size_t buflen, outleft, conv;
-				
-				buflen = (inptr - start) + 2;
-				inbuf = buffer = alloca (buflen);
-				*inbuf++ = '+';
-				while (start < inptr) {
-					*inbuf++ = *start == ',' ? '/' : *start;
-					start++;
-				}
-				*inbuf = '-';
-				
-				inbuf = buffer;
-				outbuf = (char *) m;
-				outleft = mend - m;
-				
-				if (cd == (iconv_t) -1)
-					cd = iconv_open ("UTF-8", "UTF-7");
-				
-				conv = iconv (cd, &inbuf, &buflen, &outbuf, &outleft);
-				if (conv == (size_t) -1) {
-					g_warning ("error decoding mailbox: %.*s", inlen, in);
-				}
-				iconv (cd, NULL, NULL, NULL, NULL);
-				
-				m = (unsigned char *) outbuf;
-			}
-		}
-	} else {
-		if (mode_switch == '-') {
-			/* illegal encoded mailbox... */
-			g_warning ("illegal mailbox name encountered: %.*s", inlen, in);
-		}
-		
-		memcpy (m, start, inptr - start);
-		m += (inptr - start);
-	}
-	
-	*m = '\0';
-	
-	if (cd != (iconv_t) -1)
-		iconv_close (cd);
-	
-	return mailbox;
+	char *buf;
+
+	buf = alloca(len+1);
+	memcpy(buf, in, len);
+	buf[len] = 0;
+
+	return camel_utf7_utf8(buf);
 }

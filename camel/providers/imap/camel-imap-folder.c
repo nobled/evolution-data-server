@@ -1138,7 +1138,7 @@ do_append (CamelFolder *folder, CamelMimeMessage *message,
 	camel_object_unref (CAMEL_OBJECT (crlf_filter));
 	camel_object_unref (CAMEL_OBJECT (memstream));
 	
-	response = camel_imap_command (store, NULL, ex, "APPEND %F%s%s {%d}",
+	response = camel_imap_command (store, NULL, ex, "APPEND %S%s%s {%d}",
 				       folder->full_name, flagstr ? " " : "",
 				       flagstr ? flagstr : "", ba->len);
 	g_free (flagstr);
@@ -1390,7 +1390,7 @@ do_copy (CamelFolder *source, GPtrArray *uids,
 	while (uid < uids->len && !camel_exception_is_set (ex)) {
 		uidset = imap_uid_array_to_set (source->summary, uids, uid, UID_SET_LIMIT, &uid);
 		
-		response = camel_imap_command (store, source, ex, "UID COPY %s %F",
+		response = camel_imap_command (store, source, ex, "UID COPY %s %S",
 					       uidset, destination->full_name);
 		
 		g_free (uidset);

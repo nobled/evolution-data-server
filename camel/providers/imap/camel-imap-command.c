@@ -102,7 +102,7 @@ camel_imap_command (CamelImapStore *store, CamelFolder *folder,
 		}
 		store->current_folder = folder;
 		camel_object_ref (CAMEL_OBJECT (folder));
-		cmd = imap_command_strdup_printf (store, "SELECT %F",
+		cmd = imap_command_strdup_printf (store, "SELECT %S",
 						  folder->full_name);
 	}
 	

@@ -103,6 +103,8 @@ struct _CamelImapStore {
 	
 	CamelStream *istream;
 	CamelStream *ostream;
+
+	struct _CamelImapStoreSummary *summary;
 	
 	/* Information about the command channel / connection status */
 	gboolean connected;
