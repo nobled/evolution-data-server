@@ -1100,7 +1100,7 @@ e_cal_backend_notify_object_removed (ECalBackend *backend, const char *uid,
 	priv = backend->priv;
 
 	if (priv->notification_proxy) {
-		e_cal_backend_notify_object_removed (priv->notification_proxy, uid, old_object, NULL);
+		e_cal_backend_notify_object_removed (priv->notification_proxy, uid, old_object, object);
 		return;
 	}
 
