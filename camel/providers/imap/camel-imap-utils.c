@@ -501,8 +501,9 @@ imap_translate_sexp (const char *expression)
 	e_sexp_parse (sexp);
 	
 	r = e_sexp_eval (sexp);
-	
-	gtk_object_unref (GTK_OBJECT (sexp));
+
+	e_sexp_unref(sexp);
+
 	e_sexp_result_free (r);
 	
 	if (list->next) {

@@ -987,11 +987,9 @@ camel_folder_search_by_expression (CamelFolder *folder, const char *expression,
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
 	g_return_val_if_fail (folder->has_search_capability, NULL);
 
-	CAMEL_FOLDER_LOCK(folder, lock);
+	/* NOTE: that it is upto the callee to lock */
 
 	ret = CF_CLASS (folder)->search_by_expression (folder, expression, ex);
-
-	CAMEL_FOLDER_UNLOCK(folder, lock);
 
 	return ret;
 }
@@ -1019,12 +1017,8 @@ camel_folder_search_free (CamelFolder *folder, GPtrArray *result)
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 	g_return_if_fail (folder->has_search_capability);
 
-	/* TODO: probably not required at all */
-	CAMEL_FOLDER_LOCK(folder, lock);
-
+	/* NOTE: upto the callee to lock */
 	CF_CLASS (folder)->search_free (folder, result);
-
-	CAMEL_FOLDER_UNLOCK(folder, lock);
 }
 
 

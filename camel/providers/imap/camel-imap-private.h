@@ -46,7 +46,7 @@ struct _CamelImapStorePrivate {
 
 #ifdef ENABLE_THREADS
 #define CAMEL_IMAP_STORE_LOCK(f, l) (g_mutex_lock(((CamelImapStore *)f)->priv->l))
-#define CAMEL_IMAP_STORE_UNLOCK(f, l) (g_mutex_lock(((CamelImapStore *)f)->priv->l))
+#define CAMEL_IMAP_STORE_UNLOCK(f, l) (g_mutex_unlock(((CamelImapStore *)f)->priv->l))
 #else
 #define CAMEL_IMAP_STORE_LOCK(f, l)
 #define CAMEL_IMAP_STORE_UNLOCK(f, l)

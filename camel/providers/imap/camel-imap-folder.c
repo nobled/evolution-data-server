@@ -86,6 +86,7 @@ static void imap_move_message_to (CamelFolder *source, const char *uid,
 /* summary info */
 static GPtrArray *imap_get_uids (CamelFolder *folder);
 static GPtrArray *imap_get_summary (CamelFolder *folder);
+static void imap_free_summary(CamelFolder *folder, GPtrArray *summary);
 static CamelMessageInfo *imap_get_message_info (CamelFolder *folder, const char *uid);
 static void imap_free_message_info (CamelFolder *folder, CamelMessageInfo *info);
 
@@ -129,6 +130,7 @@ camel_imap_folder_class_init (CamelImapFolderClass *camel_imap_folder_class)
 	camel_folder_class->move_message_to = imap_move_message_to;
 	
 	camel_folder_class->get_summary = imap_get_summary;
+	camel_folder_class->free_summary = imap_free_summary;
 	camel_folder_class->get_message_info = imap_get_message_info;
 	camel_folder_class->free_message_info = imap_free_message_info;
 	camel_folder_class->free_summary = camel_folder_free_nop;
@@ -766,10 +768,27 @@ static GPtrArray *
 imap_get_summary (CamelFolder *folder)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
+	GPtrArray *res = g_ptr_array_new();
+	int i, count;
 
-#warning "Need to ref message info's for get_summary"
+	count = camel_folder_summary_count((CamelFolderSummary *)imap_folder->summary);
+	g_ptr_array_set_size(res, count);
+	for (i=0;i<count;i++)
+		res->pdata[i] = camel_folder_summary_index((CamelFolderSummary *)imap_folder->summary, i);
 
-	return imap_folder->summary->messages;
+	return res;
+}
+
+static void
+imap_free_summary(CamelFolder *folder, GPtrArray *summary)
+{
+	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER(folder);
+	int i;
+	
+	for (i=0;i<summary->len;i++)
+		camel_folder_summary_info_free((CamelFolderSummary *)imap_folder->summary, summary->pdata[i]);
+
+	g_ptr_array_free(summary, TRUE);
 }
 
 /* get a single message info, by uid */

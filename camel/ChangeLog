@@ -1,9 +1,46 @@
 2000-12-19  Not Zed  <NotZed@HelixCode.com>
 
+	* providers/imap/camel-imap-utils.c (imap_translate_sexp): Unref
+	using e_sexp_unref, since it is no longer an object.
+
+	* tests/lib/camel-test.c: Added a global lock, and made it
+	thread-aware.
+
+	* camel-exception.c: Add a global lock.  Not sure its really
+	needed here, but it doesn't really hurt.
+	(camel_exception_clear): Lock around access.
+	(camel_exception_set): Same.
+	(camel_exception_setv): "
+	(camel_exception_xfer): "
+
+	* providers/local/Makefile.am (noinst_HEADERS): Added, for
+	camel-local-private.h
+
+	* camel-folder.c (camel_folder_search_by_expression): Removed
+	locking here, now upto the implementing class to lock.
+	(camel_folder_search_free): Removed the folder lock here too, for
+	consistency really, and the locking probably wasn't needed.
+
+	* providers/local/camel-local-folder.c (local_get_summary):
+	Changed to copy/ref the summary items.
+	(local_free_summary): Unref the summary items/free the array.
+	(local_get_unread_message_count): Free info lookups.
+	(local_search_by_expression): Perform more fine-grained locking,
+	and dont lock the whole folder while searching, just the search
+	object.  Dum de dum, it *would* be possible to not even have to
+	lock the search, by using our own copy of the search object each
+	time.  Could be investigated.
+	(local_init): Init priaate data/lock.
+	(local_finalize): Free private data/lock.
+	(local_search_free): Also lock around the search object, because
+	it accesses global data inside.
+
 	* README.mt: Some info about the mt code development.
 
 	* camel-folder-search.c (match_message): Put in a warning, this
 	plain deadlocks so far, but i'm going to bed now.
+	(camel_folder_search_finalize): Use e_sexp_unref() since its no
+	longer an object.
 
 	* camel-session.c (camel_session_init): Init private data/lock.
 	(camel_session_finalise): Free private data/lock.
@@ -39,12 +76,15 @@
 	(imap_get_message): "
 	(imap_update_summary): "
 	(imap_search_by_expression): ", also minor logic cleanup.
+	(imap_get_summary): Copy/ref the summary items.
+	(imap_free_summary): And free it now too.
 
 	* providers/imap/camel-imap-auth.c (imap_try_kerberos_v4_auth):
 	Lock the command stream for the command session.
 
 	* providers/imap/camel-imap-private.h: Private (locking info)
 	stuff for imap provider.
+	(CAMEL_IMAP_STORE_UNLOCK): Fix to call unlock, rather than lock!
 
 	* camel-service.c (camel_service_query_auth_types): Lock also for
 	the connection here, incase the service needs to connect.

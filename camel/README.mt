@@ -21,9 +21,9 @@ camel_folder::get_message_info				done
 camel_folder_summary::uid				done
 camel_folder_summary::index				done
 camel_folder::get_summary
-	Needs to ref each summary item it points to.
+	Needs to ref each summary item it points to.	done
 camel_folder::free_summary
-	Needs to unref each summary item it points to.
+	Needs to unref each summary item it points to.	done
 camel_folder_get_message_tag
 	needs to copy the tag return
 camel_maildir_summary filename string
@@ -42,7 +42,7 @@ non-threaded applications.
 A per-folder lock which governs access to the folder
 	summary, the folder file or
 	communications socket, etc.			done
-Locking for exceptions.
+Locking for exceptions.					done
 Per store locks for internal stuff.			done
 Per-service locks for various internal lists and
 	caches						done
@@ -50,6 +50,7 @@ Per-service locks for various internal lists and
 3. Further fine-grained locking where it can be done/is worthwhile.
 
 A per-index lock for libibex				done
+Locking for the search object
 Internal lock for the folder_summary itself
 	So that searching can be detatched from other
 	folder operations, etc.
@@ -128,3 +129,16 @@ Added mutex for camel-session, most operations.
 
 Running the tests finds at least 1 deadlock so far.  Need to
 work on that.
+
+Fixed get_summary to ref/unref its items.
+
+Removed the global folder lock from the toplevel
+camel_folder_search(), each implementation must now handle locking.
+
+Fixed the local-folder implementation of searching.  imap-folder
+searching should already be mt-safe through the command lock.
+
+Fixed imap summary to ref/unref too.
+
+Built some test cases, and expanded the test framework library to
+handle multiple threads.  It works!

@@ -43,6 +43,7 @@ extern "C" {
 
 typedef struct {
 	CamelFolder parent_object;
+	struct _CamelLocalFolderPrivate *priv;
 
 	guint32 flags;		/* open mode flags */
 

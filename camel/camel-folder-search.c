@@ -118,9 +118,8 @@ camel_folder_search_finalize (CamelObject *obj)
 	CamelFolderSearch *search = (CamelFolderSearch *)obj;
 	struct _CamelFolderSearchPrivate *p = _PRIVATE(obj);
 
-	/* yeah, this is a gtk object */
 	if (search->sexp)
-		gtk_object_unref((GtkObject *)search->sexp);
+		e_sexp_unref(search->sexp);
 
 	g_free(search->last_search);
 	g_hash_table_foreach(p->mempool_hash, free_mempool, obj);
@@ -642,7 +641,6 @@ match_message(CamelFolder *folder, const char *uid, regex_t *pattern)
 	CamelException *ex;
 
 	ex = camel_exception_new();
-#warning "FIXME: this deadlocks with threading"
 	msg = camel_folder_get_message(folder, uid, ex);
 	if (!camel_exception_is_set(ex) && msg!=NULL) {
 		truth = message_body_contains((CamelDataWrapper *)msg, pattern);

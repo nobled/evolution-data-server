@@ -1,9 +1,9 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
-/* camel-folder.h: Abstract class for an email folder */
-
-/* 
- * Author: 
- *  Bertrand Guiheneuf <bertrand@helixcode.com>
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+ *
+ * camel-folder.h: Abstract class for an email folder
+ *
+ * Authors: Bertrand Guiheneuf <bertrand@helixcode.com>
+ *	    Michael Zucchi <notzed@helixcode.com>
  *
  * Copyright 1999, 2000 Helix Code, Inc. (http://www.helixcode.com)
  *
@@ -22,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
  * USA
  */
-
 
 #ifndef CAMEL_FOLDER_H
 #define CAMEL_FOLDER_H 1
