@@ -1,3 +1,10 @@
+2000-04-19  NotZed  <NotZed@HelixCode.com>
+
+	* providers/mbox/camel-mbox-folder.c (_delete): Fixed completely
+	broken switch() syntax, only compiled because errno is a macro on
+	some systems.
+	(_list_subfolders): Likewise.
+
 2000-04-18  NotZed  <NotZed@HelixCode.com>
 
 	* camel-mime-parser.c (folder_scan_init): init stream to null.

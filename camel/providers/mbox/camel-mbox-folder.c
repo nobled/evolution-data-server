@@ -451,7 +451,7 @@ _delete (CamelFolder *folder, gboolean recurse, CamelException *ex)
 	CAMEL_LOG_FULL_DEBUG ("CamelMboxFolder::delete removing directory %s\n", folder_dir_path);
 	rmdir_error = rmdir (folder_dir_path);
 	if (rmdir_error == -1) 
-		switch errno { 
+		switch (errno) { 
 		case EACCES :
 			camel_exception_set (ex, 
 					     CAMEL_EXCEPTION_FOLDER_INSUFFICIENT_PERMISSION,
@@ -475,7 +475,7 @@ _delete (CamelFolder *folder, gboolean recurse, CamelException *ex)
 	/* physically delete the file */
 	unlink_error = unlink (folder_dir_path);
 	if (unlink_error == -1) 
-		switch errno { 
+		switch (errno) { 
 		case EACCES :
 		case EPERM :
 		case EROFS :
@@ -667,7 +667,7 @@ _list_subfolders (CamelFolder *folder, CamelException *ex)
 	
 
 	/* io exception handling */
-		switch errno { 
+		switch (errno) { 
 		case EACCES :
 			
 			camel_exception_setv (ex, 
