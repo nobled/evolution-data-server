@@ -1,3 +1,12 @@
+2004-04-23  Rodrigo Moya <rodrigo@ximian.com>
+
+	* libedata-cal/e-cal-backend-sexp.c (e_cal_backend_sexp_match_comp):
+	check arguments before using them.
+
+	* backends/file/e-cal-backend-file.c (match_object_sexp): check values.
+	(e_cal_backend_file_modify_object): set the recurrence ID on the detached
+	instances.
+
 2004-04-22  Rodrigo Moya <rodrigo@ximian.com>
 
 	* backends/file/e-cal-backend-file.c (e_cal_backend_file_remove_object):
