@@ -57,7 +57,7 @@ static void handle_image                (CamelFormatter *formatter,
 				         CamelDataWrapper *wrapper);
 static void handle_vcard                (CamelFormatter *formatter,
 				         CamelDataWrapper *wrapper);
-static void handle_mime_message         (CamelFormatter *formatter,
+static void handle_mime_part            (CamelFormatter *formatter,
 			                 CamelDataWrapper *wrapper);
 static void handle_multipart_mixed      (CamelFormatter *formatter,
 				         CamelDataWrapper *wrapper);
@@ -145,6 +145,10 @@ void camel_formatter_wrapper_to_html (CamelFormatter* formatter,
 				      CamelStream* stream_out)
 {
 	CamelFormatterPrivate* fmt = formatter->priv;
+	gchar *mimetype_whole =
+		g_strdup_printf ("%s/%s",
+				 data_wrapper->mime_type->type,
+				 data_wrapper->mime_type->subtype);
 
 	g_print ("camel_formatter_wrapper_to_html: entered\n");
 	g_assert (formatter && data_wrapper && stream_out);
@@ -157,9 +161,12 @@ void camel_formatter_wrapper_to_html (CamelFormatter* formatter,
 	call_handler_function (
 		formatter,
 		data_wrapper,
-		"message/rfc822",
-		"message");
+		mimetype_whole,
+		data_wrapper->mime_type->type);
+	
 	camel_stream_write_string (fmt->stream, "\n</body></html>\n");
+
+	g_free (mimetype_whole);
 }
 
 
@@ -573,6 +580,16 @@ handle_text_plain (CamelFormatter *formatter, CamelDataWrapper *wrapper)
 	camel_stream_write_string (formatter->priv->stream,
 				   "\n<!-- text/plain below -->\n");
 
+	if (strstr (wrapper->mime_type->subtype, "richtext") == 0) {
+
+		camel_stream_write_string (
+			formatter->priv->stream,
+			"<center><b>Warning: the following richtext may not");
+		camel_stream_write_string (
+			formatter->priv->stream,
+			" be formatted correctly. </b></center><br>");
+	}
+	
 	/* If there's any text, write it to the stream */
 	if (simple_data_wrapper->byte_array->len != 0) {
 
@@ -664,23 +681,23 @@ handle_vcard (CamelFormatter *formatter, CamelDataWrapper *wrapper)
 }
 
 static void
-handle_mime_message (CamelFormatter *formatter,
-		     CamelDataWrapper *wrapper)
+handle_mime_part (CamelFormatter *formatter,
+		  CamelDataWrapper *wrapper)
 {
-	CamelMimeMessage* mime_message; 
+	CamelMimePart* mime_part; 
 	CamelDataWrapper* message_contents; 
 
 	g_assert (formatter);
 	g_assert (wrapper);
-	g_assert (CAMEL_IS_MIME_MESSAGE (wrapper));
+	g_assert (CAMEL_IS_MIME_PART (wrapper));
 	
-	mime_message = CAMEL_MIME_MESSAGE (wrapper);
+	mime_part = CAMEL_MIME_PART (wrapper);
 	message_contents =
-		camel_medium_get_content_object (CAMEL_MEDIUM (mime_message));
+		camel_medium_get_content_object (CAMEL_MEDIUM (mime_part));
 	
 	g_assert (message_contents);
 	
-	debug ("handle_mime_message: entered\n");
+	debug ("handle_mime_part: entered\n");
 	camel_stream_write_string (formatter->priv->stream,
 				   "\n<!-- mime message below -->\n");
 	
@@ -689,14 +706,14 @@ handle_mime_message (CamelFormatter *formatter,
 
 	/* dispatch the correct handler function for the mime type */
 	call_handler_function (formatter, message_contents,
-			       MIME_TYPE_WHOLE (mime_message),
-			       MIME_TYPE_MAIN (mime_message));
+			       MIME_TYPE_WHOLE (mime_part),
+			       MIME_TYPE_MAIN (mime_part));
 	
 	/* close up the table we opened */
 //	camel_stream_write_string (formatter->priv->stream,
 //				   "\n\n</td></tr></table>\n\n");
 	
-	debug ("handle_mime_message: exiting\n");
+	debug ("handle_mime_part: exiting\n");
 }
 
 
@@ -906,14 +923,19 @@ camel_formatter_class_init (CamelFormatterClass *camel_formatter_class)
 
 	/* hook up mime types to functions that handle them */
 	ADD_HANDLER ("text/plain", handle_text_plain);
+	ADD_HANDLER ("text/richtext", handle_text_plain);	
 	ADD_HANDLER ("text/html", handle_text_html);
 	ADD_HANDLER ("multipart/alternative", handle_multipart_alternative);
 	ADD_HANDLER ("multipart/related", handle_multipart_related);
 	ADD_HANDLER ("multipart/mixed", handle_multipart_mixed);	
-	ADD_HANDLER ("message/rfc822", handle_mime_message);
+	ADD_HANDLER ("message/rfc822", handle_mime_part);
 	ADD_HANDLER ("image/", handle_image);
 	ADD_HANDLER ("vcard/", handle_vcard);			
 
+	/* body parts don't have mime parts per se, so camel
+	   sticks on the following one */
+	ADD_HANDLER ("mime/body-part", handle_mime_part);
+	
         /* virtual method overload */
 	gtk_object_class->finalize = _finalize;
 }
