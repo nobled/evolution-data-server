@@ -1,5 +1,11 @@
 2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
 
+	* libedata-book/e-book-backend-cache.[ch] : A new class 
+	to cache contacts on local file system to use in offline
+	mode. Based on e-file-cache.
+
+2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
+
 	* libedata-book/e-book-backend-sexp.c : Remove E_CONTACT_UID 
 	from the list of feilds we search in. 
 	Fixes #42165 
