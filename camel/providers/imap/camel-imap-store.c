@@ -103,7 +103,7 @@ camel_imap_store_init (gpointer object, gpointer klass)
 			      CAMEL_SERVICE_URL_ALLOW_PATH);
 
 	store->folders = g_hash_table_new (g_str_hash, g_str_equal);
-	CAMEL_IMAP_STORE (store)->dir_sep = NULL;
+	CAMEL_IMAP_STORE (store)->dir_sep = g_strdup ("/"); /*default*/
 	CAMEL_IMAP_STORE (store)->current_folder = NULL;
 	CAMEL_IMAP_STORE (store)->timeout_id = 0;
 }
@@ -462,6 +462,8 @@ imap_folder_exists (CamelFolder *folder)
 	
 	dir_sep = CAMEL_IMAP_STORE (folder->parent_store)->dir_sep;
 	
+	g_return_val_if_fail (dir_sep, FALSE);
+
 	if (url && url->path && *(url->path + 1) && strcmp (folder->full_name, "INBOX"))
 		folder_path = g_strdup_printf ("%s%s%s", url->path + 1, dir_sep, folder->full_name);
 	else
@@ -506,6 +508,8 @@ imap_create (CamelFolder *folder, CamelException *ex)
         /* create the directory for the subfolder */
 	dir_sep = CAMEL_IMAP_STORE (folder->parent_store)->dir_sep;
 	
+	g_return_val_if_fail (dir_sep, FALSE);
+
 	if (url && url->path && *(url->path + 1) && strcmp (folder->full_name, "INBOX"))
 		folder_path = g_strdup_printf ("%s%s%s", url->path + 1, dir_sep, folder->full_name);
 	else
@@ -577,7 +581,7 @@ get_folder (CamelStore *store, const char *folder_name, gboolean create, CamelEx
 	dir_sep = CAMEL_IMAP_STORE (store)->dir_sep;
 	
 	/* if we're trying to get the top-level dir, we really want the namespace */
-	if (!strcmp (folder_name, dir_sep))
+	if (!dir_sep || !strcmp (folder_name, dir_sep))
 		folder_path = g_strdup (url->path + 1);
 	else
 		folder_path = g_strdup (folder_name);
