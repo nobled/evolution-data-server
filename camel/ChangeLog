@@ -1,3 +1,8 @@
+2004-08-25  Not Zed  <NotZed@Ximian.com>
+
+	* camel-list-utils.[ch]: Copied e_dlist* stuff to here, part of
+	removing e-util dependency on camel.
+
 2004-08-05  Not Zed  <NotZed@Ximian.com>
 
 	* providers/local/camel-local-provider.c: same.
