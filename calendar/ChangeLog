@@ -12,6 +12,14 @@
 	* backends/http/e-cal-backend-http.c (e_cal_backend_http_remove_object):
 	adapted to changes in ECalBackendSync's "remove_object_sync" method.
 
+2004-04-06  Harish K <kharish@novell.com>
+
+	Fixes #55169
+	
+	* backends/groupwise/e-cal-backend-groupwise-utils.c
+	(e_gw_connection_get_freebusy_info) : Use icalproperty
+	to add free/busy data to ECalComponent.
+
 2004-04-05  Rodrigo Moya <rodrigo@ximian.com>
 
 	* libedata-cal/e-cal-backend.[ch] (e_cal_backend_notify_object_removed):
