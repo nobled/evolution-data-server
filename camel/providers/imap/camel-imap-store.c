@@ -130,7 +130,7 @@ static void
 finalize (CamelObject *object)
 {
 	CamelException ex;
-
+	
 	camel_exception_init (&ex);
 	imap_disconnect (CAMEL_SERVICE (object), &ex);
 	camel_exception_clear (&ex);
@@ -138,10 +138,10 @@ finalize (CamelObject *object)
 
 static CamelServiceAuthType password_authtype = {
 	"Password",
-
+	
 	"This option will connect to the IMAP server using a "
 	"plaintext password.",
-
+	
 	"",
 	TRUE
 };
@@ -152,26 +152,25 @@ try_connect (CamelService *service, CamelException *ex)
 	struct hostent *h;
 	struct sockaddr_in sin;
 	gint fd;
-
+	
 	h = camel_service_gethost (service, ex);
 	if (!h)
 		return FALSE;
-
+	
 	sin.sin_family = h->h_addrtype;
 	sin.sin_port = htons (service->url->port ? service->url->port : IMAP_PORT);
 	memcpy (&sin.sin_addr, h->h_addr, sizeof (sin.sin_addr));
-
+	
 	fd = socket (h->h_addrtype, SOCK_STREAM, 0);
-	if (fd == -1 || connect (fd, (struct sockaddr *)&sin, sizeof (sin)) == -1) {
-
+	if (fd == -1 || connect (fd, (struct sockaddr *)&sin, sizeof (sin)) == -1) {	
 		/* We don't want to set a CamelException here */
-
+		
 		if (fd > -1)
 			close (fd);
-
+		
 		return FALSE;
 	}
-
+	
 	close (fd);
 	return TRUE;
 }
@@ -181,24 +180,23 @@ query_auth_types (CamelService *service, CamelException *ex)
 {
 	GList *ret = NULL;
 	gboolean passwd = TRUE;
-
-
+	
 	if (service->url) {
 		passwd = try_connect (service, ex);
 		if (camel_exception_get_id (ex) != CAMEL_EXCEPTION_NONE)
 			return NULL;
 	}
-
+	
 	if (passwd)
 		ret = g_list_append (ret, &password_authtype);
-
+	
 	if (!ret) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-				      "Could not connect to IMAP server on "
-				      "%s.", service->url->host ? service->url->host : 
+				      "Could not connect to IMAP server on %s.",
+				      service->url->host ? service->url->host : 
 				      "(unknown host)");
 	}				      
-
+	
 	return ret;
 }
 
@@ -746,15 +744,19 @@ camel_imap_command (CamelImapStore *store, CamelFolder *folder, char **ret, char
 	
 	status = camel_imap_status (cmdid, respbuf);
 	g_free (cmdid);
-	
+
 	if (ret) {
-		if (status != CAMEL_IMAP_FAIL) {
-			*ret = strchr (respbuf, ' ');
-			if (*ret)
-				*ret = g_strdup (*ret + 1);
-		} else
+		if (status != CAMEL_IMAP_FAIL && respbuf) {
+			char *word;
+			
+			word = imap_next_word (respbuf); /* word should now point to NO or BAD */
+			
+			*ret = g_strdup (imap_next_word (word));
+		} else {
 			*ret = NULL;
+		}
 	}
+
 	g_free (respbuf);
 	
 	return status;
@@ -798,8 +800,8 @@ camel_imap_command_extended (CamelImapStore *store, CamelFolder *folder, char **
 	GPtrArray *data;
 	va_list app;
 	int i;
-
-#if 0
+	
+#if 0   
 	/* First make sure we're connected... */
 	if (!service->connected || !stream_is_alive (store->istream)) {
 		CamelException *ex;
@@ -817,7 +819,7 @@ camel_imap_command_extended (CamelImapStore *store, CamelFolder *folder, char **
 		
 		camel_exception_free (ex);
 	}
-#endif
+#endif  
 	
 	if (folder && store->current_folder != folder && strncmp (fmt, "CREATE", 6)) {
 		/* We need to select the correct mailbox first */
@@ -882,7 +884,7 @@ camel_imap_command_extended (CamelImapStore *store, CamelFolder *folder, char **
 				imap_disconnect (service, ex);
 				camel_exception_free (ex);
 		        }
-#endif
+#endif  
 			break;
 		}
 		
@@ -934,10 +936,15 @@ camel_imap_command_extended (CamelImapStore *store, CamelFolder *folder, char **
 		}
 		*p = '\0';
 	} else {
-		if (status != CAMEL_IMAP_FAIL && respbuf)
-		        *ret = g_strdup (imap_next_word (respbuf));
-		else
+		if (status != CAMEL_IMAP_FAIL && respbuf) {
+			char *word;
+
+			word = imap_next_word (respbuf); /* word should now point to NO or BAD */
+			
+			*ret = g_strdup (imap_next_word (word));
+		} else {
 			*ret = NULL;
+		}
 	}
 	
 	for (i = 0; i < data->len; i++)

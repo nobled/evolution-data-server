@@ -1,3 +1,49 @@
+2000-08-01  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/smtp/camel-smtp-transport.c (smtp_helo): When forced
+	to use the IP, place it in square brackets.
+
+	* providers/imap/camel-imap-utils.c (imap_translate_sexp): New and
+	improved sexp parser. An honest try at using e-sexp is wrapped in
+	a #ifdef at the bottom of the file but is currently not used
+
+	* providers/imap/camel-imap-folder.c (imap_search_by_expression):
+	We want to do a UID SEARCH so we get UIDs back instead of sequence
+	numbers
+
+2000-08-01  Not Zed  <NotZed@HelixCode.com>
+
+	* providers/mh: New mh provider implementation.
+
+	* providers/Makefile.am (SUBDIRS): Added mh provider.
+
+2000-07-31  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-folder.c (imap_get_message_info_internal): 
+	Some IMAP servers don't wrap the UID in ()'s so don't depend on that
+	(imap_get_summary_internal): Same
+
+	* providers/imap/camel-imap-utils.c (free_sexp_node): Oops, forgot to
+	free node->function - not good.
+
+2000-07-31  Peter Williams  <peterw@helixcode.com>
+
+	* providers/vee/camel-vee-folder.c (vee_search_by_expression): Add
+	a NULL to the matches pointer array so that g_strfreev knows where
+	the end is.
+
+2000-07-31  Jeffrey Stedfast  <fejj@helixcode.com>
+
+	* providers/imap/camel-imap-utils.c (imap_translate_sexp): New
+	convenience function to translate a Camel sexp into the equivalent
+	IMAP sexp.
+
+	* providers/imap/camel-imap-store.c: More places now use
+	imap_next_word
+
+	* providers/imap/camel-imap-folder.c (imap_search_by_expression):
+	Implemented initial version (this may or may not work quite right)
+
 2000-07-28  Jeffrey Stedfast  <fejj@helixcode.com>
 
 	* providers/imap/camel-imap-folder.c (imap_expunge): Make sure
@@ -52,6 +98,19 @@
 	item specifier for the header lines we need, appropriate to the
 	server level.
 
+2000-07-27  Peter Williams <peterw@helixcode.com>
+
+	* camel-mime-utils.c (header_decode_lwsp): More
+	checks for end of string.
+
+	* providers/imap/camel-imap-store.c:
+	(imap_command_extended): Free the elements of our
+	array (huge mem leak)
+
+	* providers/imap/camel-imap-folder.c:
+	(summary_get_internal): Same as above.
+	
+
 2000-07-27  Jeffrey Stedfast  <fejj@helixcode.com>
 
 	* providers/imap/camel-imap-folder.c (camel_imap_folder_changed):
@@ -105,7 +164,9 @@
 	* camel-mime-utils.c (header_references_decode): Return
 	if the header is NULL -> or "" <-. Don't do our stupid
 	mailer trick if we point to \0.
-
+	(header_decode_quoted_string): Don't rip past end of 
+	string!
+	
 2000-07-26  Dan Winship  <danw@helixcode.com>
 
 	* camel-movemail.c (movemail_external): routine to call an
