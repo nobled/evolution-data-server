@@ -1,5 +1,9 @@
 2000-05-07  NotZed  <NotZed@HelixCode.com>
 
+	* providers/mbox/camel-mbox-summary.c (camel_mbox_summary_load):
+	Use ibex_save() to save the ibex.  Makes a big difference to
+	startup times for very large mailboxes.
+
 	* providers/mbox/camel-mbox-folder.c (mbox_get_message_by_uid):
 	Dont unref the stream, because of the broken(tm) ref model of gtk
 	widget that for some odd reason is being perpetuated in camel.	

@@ -372,10 +372,13 @@ camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex)
 	if (ret != -1) {
 		mbs->folder_size = st.st_size;
 		s->time = st.st_mtime;
+		printf("saving summary\n");
 		if (camel_folder_summary_save(s) == -1)
 			g_warning("Could not save summary: %s", strerror(errno));
+		printf("summary saved\n");
 		if (mbs->index)
-			ibex_write(mbs->index);
+			ibex_save(mbs->index);
+		printf("ibex saved\n");
 	}
 
 	return ret;
