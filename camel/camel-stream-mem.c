@@ -147,7 +147,7 @@ camel_stream_mem_finalize (CamelObject *object)
 
 	/* Will be called automagically in the Camel Type System!
 	 * Wheeee!
-	 * GTK_OBJECT_CLASS (parent_class)->finalize (object);
+	 * G_TK_OBJECT_CLASS (parent_class)->finalize (object);
 	 */
 }
 

@@ -52,7 +52,7 @@
 
 #define d(x) x
 
-#define CF_CLASS(o) (CAMEL_FOLDER_CLASS (GTK_OBJECT (o)->klass))
+#define CF_CLASS(o) (CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(o)))
 
 static CamelFolderClass *parent_class = NULL;
 
@@ -81,7 +81,7 @@ static const CamelMessageInfo *imap_get_message_info (CamelFolder *folder, const
 
 static GPtrArray *imap_search_by_expression (CamelFolder *folder, const char *expression, CamelException *ex);
 
-static void imap_finalize (GtkObject *object);
+static void imap_finalize (CamelObject *object);
 
 /* flag methods */
 static guint32  imap_get_permanent_flags (CamelFolder *folder, CamelException *ex);
@@ -97,9 +97,8 @@ static void
 camel_imap_folder_class_init (CamelImapFolderClass *camel_imap_folder_class)
 {
 	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS (camel_imap_folder_class);
-	GtkObjectClass *gtk_object_class = GTK_OBJECT_CLASS (camel_folder_class);
 
-	parent_class = gtk_type_class (camel_folder_get_type ());
+	parent_class = CAMEL_FOLDER_CLASS(camel_type_get_global_classfuncs (camel_folder_get_type ()));
 		
 	/* virtual method definition */
 
@@ -115,7 +114,7 @@ camel_imap_folder_class_init (CamelImapFolderClass *camel_imap_folder_class)
 	camel_folder_class->get_unread_message_count = imap_get_unread_message_count;
 	camel_folder_class->get_message = imap_get_message;
 	camel_folder_class->append_message = imap_append_message;
-	camel_folder_class->delete_message = imap_delete_message;
+	/*camel_folder_class->delete_message = imap_delete_message;*/
 	camel_folder_class->copy_message_to = imap_copy_message_to;
 	camel_folder_class->move_message_to = imap_move_message_to;
 	
@@ -130,8 +129,6 @@ camel_imap_folder_class_init (CamelImapFolderClass *camel_imap_folder_class)
 	camel_folder_class->set_message_flags = imap_set_message_flags;
 	/*camel_folder_class->get_message_user_flags = imap_get_message_user_flags;*/
 	/*camel_folder_class->set_message_user_flags = imap_set_message_user_flags;*/
-
-	gtk_object_class->finalize = imap_finalize;	
 }
 
 static void
@@ -149,25 +146,19 @@ camel_imap_folder_init (gpointer object, gpointer klass)
 	imap_folder->count = -1;
 }
 
-GtkType
+CamelType
 camel_imap_folder_get_type (void)
 {
-	static GtkType camel_imap_folder_type = 0;
+	static CamelType camel_imap_folder_type = CAMEL_INVALID_TYPE;
 	
-	if (!camel_imap_folder_type)	{
-		GtkTypeInfo camel_imap_folder_info =	
-		{
-			"CamelImapFolder",
-			sizeof (CamelImapFolder),
-			sizeof (CamelImapFolderClass),
-			(GtkClassInitFunc) camel_imap_folder_class_init,
-			(GtkObjectInitFunc) camel_imap_folder_init,
-				/* reserved_1 */ NULL,
-				/* reserved_2 */ NULL,
-			(GtkClassInitFunc) NULL,
-		};
-		
-		camel_imap_folder_type = gtk_type_unique (CAMEL_FOLDER_TYPE, &camel_imap_folder_info);
+	if (camel_imap_folder_type == CAMEL_INVALID_TYPE)	{
+		camel_imap_folder_type = camel_type_register (CAMEL_FOLDER_TYPE, "CamelImapFolder",
+							      sizeof (CamelImapFolder),
+							      sizeof (CamelImapFolderClass),
+							      (CamelObjectClassInitFunc) camel_imap_folder_class_init,
+							      NULL,
+							      (CamelObjectInitFunc) camel_imap_folder_init,
+							      (CamelObjectFinalizeFunc) imap_finalize);
 	}
 	
 	return camel_imap_folder_type;
@@ -176,7 +167,7 @@ camel_imap_folder_get_type (void)
 CamelFolder *
 camel_imap_folder_new (CamelStore *parent, char *folder_name, CamelException *ex)
 {
-	CamelFolder *folder = CAMEL_FOLDER (gtk_object_new (camel_imap_folder_get_type (), NULL));
+	CamelFolder *folder = CAMEL_FOLDER (camel_object_new (camel_imap_folder_get_type ()));
 	
 	CF_CLASS (folder)->init (folder, parent, NULL, folder_name, "/", FALSE, ex);
 
@@ -184,14 +175,12 @@ camel_imap_folder_new (CamelStore *parent, char *folder_name, CamelException *ex
 }
 
 static void           
-imap_finalize (GtkObject *object)
+imap_finalize (CamelObject *object)
 {
 	/* TODO: do we need to do more here? */
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (object);
 	CamelMessageInfo *info;
 	gint i, max;
-
-	GTK_OBJECT_CLASS (parent_class)->finalize (object);
 
 	g_return_if_fail (imap_folder->summary != NULL);
 	
@@ -893,8 +882,8 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	camel_stream_filter_remove (f_stream, id);
 	camel_stream_close (CAMEL_STREAM (f_stream));
 #endif
-	gtk_object_unref (GTK_OBJECT (msgstream));
-	/*gtk_object_unref (GTK_OBJECT (f_stream));*/
+	camel_object_unref (CAMEL_OBJECT (msgstream));
+	/*camel_object_unref (CAMEL_OBJECT (f_stream));*/
 
 	d(fprintf (stderr, "*** We're returning... ***\n"));
 	
@@ -920,7 +909,7 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	/* Temp hack - basically we read in the entire message instead of getting a part as it's needed */
 	msgstream = camel_stream_mem_new ();
 	camel_stream_write_to_stream (CAMEL_STREAM (imap_stream), msgstream);
-	gtk_object_unref (GTK_OBJECT (imap_stream));
+	camel_object_unref (CAMEL_OBJECT (imap_stream));
 	
 	f_stream = camel_stream_filter_new_with_stream (msgstream);
 	filter = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_DECODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_DOTS);
@@ -934,13 +923,13 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	
 	camel_stream_filter_remove (f_stream, id);
 	camel_stream_close (CAMEL_STREAM (f_stream));
-	gtk_object_unref (GTK_OBJECT (msgstream));
-	gtk_object_unref (GTK_OBJECT (f_stream));
+	camel_object_unref (CAMEL_OBJECT (msgstream));
+	camel_object_unref (CAMEL_OBJECT (f_stream));
 	
 	/*camel_data_wrapper_set_mime_type (cdw, "text/plain");*/
 
 	/*camel_medium_set_content_object (CAMEL_MEDIUM (msg), CAMEL_DATA_WRAPPER (cdw));*/
-	/*gtk_object_unref (GTK_OBJECT (cdw));*/
+	/*camel_object_unref (CAMEL_OBJECT (cdw));*/
 	
 	return msg;
 #endif

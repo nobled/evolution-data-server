@@ -318,7 +318,7 @@ CamelObject *camel_object_new( CamelType type )
 		type_info->free_instances = g_list_remove_link( type_info->free_instances, first );
 		g_list_free_1( first );
 	} else {
-		instance = g_mem_chunk_alloc( type_info->instance_chunk );
+		instance = g_mem_chunk_alloc0( type_info->instance_chunk );
 	}
 
 	/* Init the instance and classfuncs a bit */
@@ -451,7 +451,9 @@ void camel_object_unref( CamelObject *obj )
 	 * is check_cast'ed somewhere.
 	 */
 
-	obj->classfuncs = NULL;
+	memset( obj, 0, type_info->instance_size );
+	obj->s.type = type_info->self;
+	obj->s.magic = CAMEL_OBJECT_FINALIZED_VALUE;
 
 	/* Tuck away the pointer for use in a new object */
 
@@ -576,6 +578,54 @@ void camel_object_hook_event (CamelObject *obj, const gchar *name, CamelObjectEv
 	hooklist = g_hash_table_lookup (obj->event_to_hooklist, name);
 	hooklist = g_slist_prepend (hooklist, pair);
 	g_hash_table_insert (obj->event_to_hooklist, g_strdup (name), hooklist);
+}
+
+void camel_object_unhook_event (CamelObject *obj, const gchar *name, CamelObjectEventHookFunc hook, gpointer user_data)
+{
+	GSList *hooklist;
+	GSList *head;
+
+	g_return_if_fail (CAMEL_IS_OBJECT (obj));
+	g_return_if_fail (name);
+	g_return_if_fail (hook);
+
+	if (obj->event_to_hooklist == NULL) {
+		g_warning ("camel_object_unhook_event: trying to unhook `%s' from an instance "
+			   "of `%s' with no hooks attached", 
+			   name, 
+			   camel_type_to_name (obj->s.type));
+		return;
+	}
+
+	hooklist = g_hash_table_lookup (obj->event_to_hooklist, name);
+
+        if (hooklist == NULL) {
+		g_warning ("camel_object_unhook_event: trying to unhook `%s' from an instance "
+			   "of `%s' with no hooks attached to that event.",
+			   name,
+			   camel_type_to_name (obj->s.type));
+		return;
+	}
+
+	head = hooklist;
+
+	while (hooklist) {
+		CamelHookPair *pair = (CamelHookPair *) hooklist->data;
+
+		if (pair->func == hook && pair->user_data == user_data) {
+			g_free (hooklist->data);
+			head = g_slist_remove_link (head, hooklist);
+			g_slist_free_1 (hooklist);
+			g_hash_table_insert (obj->event_to_hooklist, name, head);
+			return;
+		}
+
+		hooklist = hooklist->next;
+	}
+
+	g_warning ("camel_object_unhook_event: cannot find hook/data pair %p/%p in an "
+		   "instance of `%s' attached to `%s'",
+		   hook, user_data, camel_type_to_name (obj->s.type), name);
 }
 
 void camel_object_trigger_event (CamelObject *obj, const gchar *name, gpointer event_data)

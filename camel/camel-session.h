@@ -38,9 +38,9 @@ extern "C" {
 #include <camel/camel-provider.h>
 
 #define CAMEL_SESSION_TYPE     (camel_session_get_type ())
-#define CAMEL_SESSION(obj)     (GTK_CHECK_CAST((obj), CAMEL_SESSION_TYPE, CamelSession))
-#define CAMEL_SESSION_CLASS(k) (GTK_CHECK_CLASS_CAST ((k), CAMEL_SESSION_TYPE, CamelSessionClass))
-#define CAMEL_IS_SESSION(o)    (GTK_CHECK_TYPE((o), CAMEL_SESSION_TYPE))
+#define CAMEL_SESSION(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SESSION_TYPE, CamelSession))
+#define CAMEL_SESSION_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SESSION_TYPE, CamelSessionClass))
+#define CAMEL_IS_SESSION(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SESSION_TYPE))
 
 
 typedef enum {
@@ -69,8 +69,8 @@ typedef struct {
 
 /* public methods */
 
-/* Standard Gtk function */
-GtkType camel_session_get_type (void);
+/* Standard Camel function */
+CamelType camel_session_get_type (void);
 
 
 CamelSession *  camel_session_new                     (CamelAuthCallback

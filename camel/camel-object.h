@@ -113,6 +113,7 @@ gboolean          camel_object_class_is_of_type( CamelObjectClass *class, CamelT
 gchar            *camel_object_describe( CamelObject *obj );
 void              camel_object_class_declare_event (CamelObjectClass *class, const gchar *name, CamelObjectEventPrepFunc prep);
 void              camel_object_hook_event (CamelObject *obj, const gchar *name, CamelObjectEventHookFunc hook, gpointer user_data);
+void              camel_object_unhook_event (CamelObject *obj, const gchar *name, CamelObjectEventHookFunc hook, gpointer user_data);
 void              camel_object_trigger_event (CamelObject *obj, const gchar *name, gpointer event_data);
 
 #ifdef __cplusplus

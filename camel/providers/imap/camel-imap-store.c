@@ -54,7 +54,7 @@
 
 static CamelServiceClass *service_class = NULL;
 
-static void finalize (GtkObject *object);
+static void finalize (CamelObject *object);
 static gboolean imap_create (CamelFolder *folder, CamelException *ex);
 static gboolean imap_connect (CamelService *service, CamelException *ex);
 static gboolean imap_disconnect (CamelService *service, CamelException *ex);
@@ -70,18 +70,14 @@ static void
 camel_imap_store_class_init (CamelImapStoreClass *camel_imap_store_class)
 {
 	/* virtual method overload */
-	GtkObjectClass *object_class =
-		GTK_OBJECT_CLASS (camel_imap_store_class);
 	CamelServiceClass *camel_service_class =
 		CAMEL_SERVICE_CLASS (camel_imap_store_class);
 	CamelStoreClass *camel_store_class =
 		CAMEL_STORE_CLASS (camel_imap_store_class);
 	
-	service_class = gtk_type_class (camel_service_get_type ());
+	service_class = CAMEL_SERVICE_CLASS(camel_type_get_global_classfuncs (camel_service_get_type ()));
 
 	/* virtual method overload */
-	object_class->finalize = finalize;
-
 	camel_service_class->connect = imap_connect;
 	camel_service_class->disconnect = imap_disconnect;
 	camel_service_class->query_auth_types = query_auth_types;
@@ -103,32 +99,26 @@ camel_imap_store_init (gpointer object, gpointer klass)
 	store->folders = g_hash_table_new (g_str_hash, g_str_equal);
 }
 
-GtkType
+CamelType
 camel_imap_store_get_type (void)
 {
-	static GtkType camel_imap_store_type = 0;
+	static CamelType camel_imap_store_type = CAMEL_INVALID_TYPE;
 	
-	if (!camel_imap_store_type)	{
-		GtkTypeInfo camel_imap_store_info =	
-		{
-			"CamelImapStore",
-			sizeof (CamelImapStore),
-			sizeof (CamelImapStoreClass),
-			(GtkClassInitFunc) camel_imap_store_class_init,
-			(GtkObjectInitFunc) camel_imap_store_init,
-				/* reserved_1 */ NULL,
-				/* reserved_2 */ NULL,
-			(GtkClassInitFunc) NULL,
-		};
-		
-		camel_imap_store_type = gtk_type_unique (CAMEL_STORE_TYPE, &camel_imap_store_info);
+	if (camel_imap_store_type == CAMEL_INVALID_TYPE)	{
+		camel_imap_store_type = camel_type_register (CAMEL_STORE_TYPE, "CamelImapStore",
+							     sizeof (CamelImapStore),
+							     sizeof (CamelImapStoreClass),
+							     (CamelObjectClassInitFunc) camel_imap_store_class_init,
+							     NULL,
+							     (CamelObjectInitFunc) camel_imap_store_init,
+							     (CamelObjectFinalizeFunc) finalize);
 	}
 	
 	return camel_imap_store_type;
 }
 
 static void
-finalize (GtkObject *object)
+finalize (CamelObject *object)
 {
 	CamelException ex;
 
@@ -356,8 +346,8 @@ imap_disconnect (CamelService *service, CamelException *ex)
 	if (!service_class->disconnect (service, ex))
 		return FALSE;
 
-	gtk_object_unref (GTK_OBJECT (store->ostream));
-	gtk_object_unref (GTK_OBJECT (store->istream));
+	camel_object_unref (CAMEL_OBJECT (store->ostream));
+	camel_object_unref (CAMEL_OBJECT (store->istream));
 	store->ostream = NULL;
 	store->istream = NULL;
 

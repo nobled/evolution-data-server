@@ -52,9 +52,9 @@
 static CamelFolderClass *parent_class=NULL;
 
 /* Returns the class for a CamelMboxFolder */
-#define CMBOXF_CLASS(so) CAMEL_MBOX_FOLDER_CLASS (GTK_OBJECT(so)->klass)
-#define CF_CLASS(so) CAMEL_FOLDER_CLASS (GTK_OBJECT(so)->klass)
-#define CMBOXS_CLASS(so) CAMEL_STORE_CLASS (GTK_OBJECT(so)->klass)
+#define CMBOXF_CLASS(so) CAMEL_MBOX_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+#define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+#define CMBOXS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 
 static void mbox_init (CamelFolder *folder, CamelStore *parent_store,
@@ -83,15 +83,14 @@ static gboolean mbox_get_message_user_flag (CamelFolder *folder, const char *uid
 static void mbox_set_message_user_flag (CamelFolder *folder, const char *uid, const char *name, gboolean value);
 
 
-static void mbox_finalize (GtkObject *object);
+static void mbox_finalize (CamelObject *object);
 
 static void
 camel_mbox_folder_class_init (CamelMboxFolderClass *camel_mbox_folder_class)
 {
 	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS (camel_mbox_folder_class);
-	GtkObjectClass *gtk_object_class = GTK_OBJECT_CLASS (camel_folder_class);
 
-	parent_class = gtk_type_class (camel_folder_get_type ());
+	parent_class = CAMEL_FOLDER_CLASS(camel_type_get_global_classfuncs (camel_folder_get_type ()));
 		
 	/* virtual method definition */
 
@@ -118,13 +117,10 @@ camel_mbox_folder_class_init (CamelMboxFolderClass *camel_mbox_folder_class)
 	camel_folder_class->set_message_flags = mbox_set_message_flags;
 	camel_folder_class->get_message_user_flag = mbox_get_message_user_flag;
 	camel_folder_class->set_message_user_flag = mbox_set_message_user_flag;
-
-	gtk_object_class->finalize = mbox_finalize;
-	
 }
 
 static void           
-mbox_finalize (GtkObject *object)
+mbox_finalize (CamelObject *object)
 {
 	CamelMboxFolder *mbox_folder = CAMEL_MBOX_FOLDER (object);
 
@@ -133,28 +129,21 @@ mbox_finalize (GtkObject *object)
 	g_free (mbox_folder->folder_dir_path);
 	g_free (mbox_folder->index_file_path);
 
-	GTK_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
-GtkType
+CamelType
 camel_mbox_folder_get_type (void)
 {
-	static GtkType camel_mbox_folder_type = 0;
+	static CamelType camel_mbox_folder_type = CAMEL_INVALID_TYPE;
 	
-	if (!camel_mbox_folder_type)	{
-		GtkTypeInfo camel_mbox_folder_info =	
-		{
-			"CamelMboxFolder",
-			sizeof (CamelMboxFolder),
-			sizeof (CamelMboxFolderClass),
-			(GtkClassInitFunc) camel_mbox_folder_class_init,
-			(GtkObjectInitFunc) NULL,
-				/* reserved_1 */ NULL,
-				/* reserved_2 */ NULL,
-			(GtkClassInitFunc) NULL,
-		};
-		
-		camel_mbox_folder_type = gtk_type_unique (CAMEL_FOLDER_TYPE, &camel_mbox_folder_info);
+	if (camel_mbox_folder_type == CAMEL_INVALID_TYPE)	{
+		camel_mbox_folder_type = camel_type_register (CAMEL_FOLDER_TYPE, "CamelMboxFolder",
+							      sizeof (CamelMboxFolder),
+							      sizeof (CamelMboxFolderClass),
+							      (CamelObjectClassInitFunc) camel_mbox_folder_class_init,
+							      NULL,
+							      (CamelObjectInitFunc) NULL,
+							      (CamelObjectFinalizeFunc) mbox_finalize);
 	}
 	
 	return camel_mbox_folder_type;
@@ -255,7 +244,7 @@ mbox_expunge (CamelFolder *folder, CamelException *ex)
 	camel_mbox_summary_sync (mbox->summary, TRUE, ex);
 
 	/* TODO: check it actually changed */
-	gtk_signal_emit_by_name (GTK_OBJECT (folder), "folder_changed", 0);
+	camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", GINT_TO_POINTER(0));
 }
 
 static gint
@@ -347,13 +336,13 @@ mbox_append_message (CamelFolder *folder, CamelMimeMessage *message, CamelExcept
 		goto fail;
 
 	/* filter stream ref's the output stream itself, so we need to unref it too */
-	gtk_object_unref (GTK_OBJECT (filter_from));
-	gtk_object_unref (GTK_OBJECT (filter_stream));
-	gtk_object_unref (GTK_OBJECT (output_stream));
+	camel_object_unref (CAMEL_OBJECT (filter_from));
+	camel_object_unref (CAMEL_OBJECT (filter_stream));
+	camel_object_unref (CAMEL_OBJECT (output_stream));
 
 	/* force a summary update - will only update from the new position, if it can */
 	if (camel_mbox_summary_update (mbox_folder->summary, seek) == 0)
-		gtk_signal_emit_by_name (GTK_OBJECT (folder), "folder_changed", 0);
+		camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", GINT_TO_POINTER(0));
 	return;
 
 fail:
@@ -368,13 +357,13 @@ fail:
 	}
 	if (filter_stream) {
 		/*camel_stream_close (filter_stream);*/
-		gtk_object_unref (GTK_OBJECT (filter_stream));
+		camel_object_unref (CAMEL_OBJECT (filter_stream));
 	}
 	if (output_stream)
-		gtk_object_unref (GTK_OBJECT (output_stream));
+		camel_object_unref (CAMEL_OBJECT (output_stream));
 
 	if (filter_from)
-		gtk_object_unref (GTK_OBJECT (filter_from));
+		camel_object_unref (CAMEL_OBJECT (filter_from));
 
 	/* make sure the file isn't munged by us */
 	if (seek != -1) {
@@ -444,7 +433,7 @@ mbox_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	/* we use a parser to verify the message is correct, and in the correct position */
 	parser = camel_mime_parser_new ();
 	camel_mime_parser_init_with_stream (parser, message_stream);
-	gtk_object_unref (GTK_OBJECT (message_stream));
+	camel_object_unref (CAMEL_OBJECT (message_stream));
 	camel_mime_parser_scan_from (parser, TRUE);
 
 	camel_mime_parser_seek (parser, info->frompos, SEEK_SET);
@@ -466,7 +455,7 @@ mbox_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 		g_warning ("Construction failed");
 		goto fail;
 	}
-	gtk_object_unref (GTK_OBJECT (parser));
+	camel_object_unref (CAMEL_OBJECT (parser));
 
 	return message;
 
@@ -476,9 +465,9 @@ fail:
 			      g_strerror(errno));
 
 	if (parser)
-		gtk_object_unref (GTK_OBJECT (parser));
+		camel_object_unref (CAMEL_OBJECT (parser));
 	if (message)
-		gtk_object_unref (GTK_OBJECT (message));
+		camel_object_unref (CAMEL_OBJECT (message));
 
 	return NULL;
 }
@@ -547,7 +536,7 @@ mbox_set_message_flags (CamelFolder *folder, const char *uid, guint32 flags,
 		CAMEL_MESSAGE_FOLDER_FLAGGED;
 	camel_folder_summary_touch (CAMEL_FOLDER_SUMMARY (mf->summary));
 
-	gtk_signal_emit_by_name (GTK_OBJECT (folder), "message_changed", uid);
+	camel_object_trigger_event (CAMEL_OBJECT (folder), "message_changed", uid);
 }
 
 static gboolean
@@ -576,5 +565,5 @@ mbox_set_message_user_flag (CamelFolder *folder, const char *uid,
 	camel_flag_set (&info->user_flags, name, value);
 	info->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
 	camel_folder_summary_touch (CAMEL_FOLDER_SUMMARY (mf->summary));
-	gtk_signal_emit_by_name (GTK_OBJECT (folder), "message_changed", uid);
+	camel_object_trigger_event (CAMEL_OBJECT (folder), "message_changed", uid);
 }

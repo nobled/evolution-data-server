@@ -51,33 +51,23 @@ static int		  message_info_save (CamelFolderSummary *, FILE *, CamelMessageInfo 
 
 static void camel_mbox_summary_class_init (CamelMboxSummaryClass *klass);
 static void camel_mbox_summary_init       (CamelMboxSummary *obj);
-static void camel_mbox_summary_finalise   (GtkObject *obj);
+static void camel_mbox_summary_finalise   (CamelObject *obj);
 
 static CamelFolderSummaryClass *camel_mbox_summary_parent;
 
-enum SIGNALS {
-	LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
-
-guint
+CamelType
 camel_mbox_summary_get_type (void)
 {
-	static guint type = 0;
+	static CamelType type = CAMEL_INVALID_TYPE;
 	
-	if (!type) {
-		GtkTypeInfo type_info = {
-			"CamelMboxSummary",
-			sizeof (CamelMboxSummary),
-			sizeof (CamelMboxSummaryClass),
-			(GtkClassInitFunc) camel_mbox_summary_class_init,
-			(GtkObjectInitFunc) camel_mbox_summary_init,
-			(GtkArgSetFunc) NULL,
-			(GtkArgGetFunc) NULL
-		};
-		
-		type = gtk_type_unique (camel_folder_summary_get_type (), &type_info);
+	if (type == CAMEL_INVALID_TYPE) {
+		type = camel_type_register (camel_folder_summary_get_type (), "CamelMboxSummary",
+					    sizeof (CamelMboxSummary),
+					    sizeof (CamelMboxSummaryClass),
+					    (CamelObjectClassInitFunc) camel_mbox_summary_class_init,
+					    NULL,
+					    (CamelObjectInitFunc) camel_mbox_summary_init,
+					    (CamelObjectFinalizeFunc) camel_mbox_summary_finalise);
 	}
 	
 	return type;
@@ -86,12 +76,9 @@ camel_mbox_summary_get_type (void)
 static void
 camel_mbox_summary_class_init (CamelMboxSummaryClass *klass)
 {
-	GtkObjectClass *object_class = (GtkObjectClass *) klass;
 	CamelFolderSummaryClass *sklass = (CamelFolderSummaryClass *) klass;
 	
-	camel_mbox_summary_parent = gtk_type_class (camel_folder_summary_get_type ());
-
-	object_class->finalize = camel_mbox_summary_finalise;
+	camel_mbox_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS(camel_type_get_global_classfuncs (camel_folder_summary_get_type ()));
 
 	sklass->summary_header_load = summary_header_load;
 	sklass->summary_header_save = summary_header_save;
@@ -101,8 +88,6 @@ camel_mbox_summary_class_init (CamelMboxSummaryClass *klass)
 	sklass->message_info_load = message_info_load;
 	sklass->message_info_save = message_info_save;
 	/*sklass->message_info_free = message_info_free;*/
-
-	gtk_object_class_add_signals (object_class, signals, LAST_SIGNAL);
 }
 
 static void
@@ -122,13 +107,11 @@ camel_mbox_summary_init (CamelMboxSummary *obj)
 }
 
 static void
-camel_mbox_summary_finalise (GtkObject *obj)
+camel_mbox_summary_finalise (CamelObject *obj)
 {
 	CamelMboxSummary *mbs = CAMEL_MBOX_SUMMARY (obj);
 
 	g_free (mbs->folder_path);
-
-	((GtkObjectClass *)(camel_mbox_summary_parent))->finalize(GTK_OBJECT (obj));
 }
 
 /**
@@ -141,7 +124,7 @@ camel_mbox_summary_finalise (GtkObject *obj)
 CamelMboxSummary *
 camel_mbox_summary_new (const char *filename, const char *mbox_name, ibex *index)
 {
-	CamelMboxSummary *new = CAMEL_MBOX_SUMMARY (gtk_type_new (camel_mbox_summary_get_type ()));
+	CamelMboxSummary *new = CAMEL_MBOX_SUMMARY (camel_object_new (camel_mbox_summary_get_type ()));
 	
 	if (new) {
 		/* ?? */
@@ -311,7 +294,7 @@ summary_rebuild (CamelMboxSummary *mbs, off_t offset)
 				camel_mime_parser_unstep (mp);
 			}
 		} else {
-			gtk_object_unref (GTK_OBJECT (mp));
+			camel_object_unref (CAMEL_OBJECT (mp));
 			/* end of file - no content? */
 			return -1;
 		}
@@ -330,7 +313,7 @@ summary_rebuild (CamelMboxSummary *mbs, off_t offset)
 		g_assert (camel_mime_parser_step (mp, NULL, NULL) == HSCAN_FROM_END);
 	}
 
-	gtk_object_unref (GTK_OBJECT (mp));
+	camel_object_unref (CAMEL_OBJECT (mp));
 	
 	/* update the file size/mtime in the summary */
 	if (ok != -1) {
@@ -791,7 +774,7 @@ camel_mbox_summary_sync (CamelMboxSummary *mbs, gboolean expunge, CamelException
 	mbs->folder_size = st.st_size;
 	camel_folder_summary_save (s);
 
-	gtk_object_unref (GTK_OBJECT (mp));
+	camel_object_unref (CAMEL_OBJECT (mp));
 	
 	return 0;
  error:
@@ -806,7 +789,7 @@ camel_mbox_summary_sync (CamelMboxSummary *mbs, gboolean expunge, CamelException
 	if (tmpname)
 		unlink (tmpname);
 	if (mp)
-		gtk_object_unref (GTK_OBJECT (mp));
+		camel_object_unref (CAMEL_OBJECT (mp));
 
 	return -1;
 }

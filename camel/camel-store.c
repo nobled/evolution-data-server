@@ -32,7 +32,7 @@
 static CamelServiceClass *parent_class = NULL;
 
 /* Returns the class for a CamelStore */
-#define CS_CLASS(so) CAMEL_STORE_CLASS (GTK_OBJECT(so)->klass)
+#define CS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 static CamelFolder *get_folder (CamelStore *store, const char *folder_name,
 				gboolean create, CamelException *ex);
@@ -49,15 +49,10 @@ static void cache_folder (CamelStore *store, const char *folder_name,
 			  CamelFolder *folder);
 static void uncache_folder (CamelStore *store, CamelFolder *folder);
 
-static void finalize (GtkObject *object);
-
 static void
 camel_store_class_init (CamelStoreClass *camel_store_class)
 {
-	GtkObjectClass *gtk_object_class =
-		GTK_OBJECT_CLASS (camel_store_class);
-
-	parent_class = gtk_type_class (camel_service_get_type ());
+	parent_class = CAMEL_SERVICE_CLASS (camel_type_get_global_classfuncs (camel_service_get_type ()));
 
 	/* virtual method definition */
 	camel_store_class->get_folder = get_folder;
@@ -68,9 +63,6 @@ camel_store_class_init (CamelStoreClass *camel_store_class)
 	camel_store_class->lookup_folder = lookup_folder;
 	camel_store_class->cache_folder = cache_folder;
 	camel_store_class->uncache_folder = uncache_folder;
-
-	/* virtual method override */
-	gtk_object_class->finalize = finalize;
 }
 
 static void
@@ -81,33 +73,8 @@ camel_store_init (void *o, void *k)
 	store->folders = g_hash_table_new (g_str_hash, g_str_equal);
 }
 
-GtkType
-camel_store_get_type (void)
-{
-	static GtkType camel_store_type = 0;
-
-	if (!camel_store_type) {
-		GtkTypeInfo camel_store_info =
-		{
-			"CamelStore",
-			sizeof (CamelStore),
-			sizeof (CamelStoreClass),
-			(GtkClassInitFunc) camel_store_class_init,
-			(GtkObjectInitFunc) camel_store_init,
-				/* reserved_1 */ NULL,
-				/* reserved_2 */ NULL,
-			(GtkClassInitFunc) NULL,
-		};
-
-		camel_store_type = gtk_type_unique (CAMEL_SERVICE_TYPE, &camel_store_info);
-	}
-
-	return camel_store_type;
-}
-
-
 static void
-finalize (GtkObject *object)
+camel_store_finalize (CamelObject *object)
 {
 	CamelStore *store = CAMEL_STORE (object);
 
@@ -122,12 +89,31 @@ finalize (GtkObject *object)
 }
 
 
+CamelType
+camel_store_get_type (void)
+{
+	static CamelType camel_store_type = CAMEL_INVALID_TYPE;
+
+	if (camel_store_type == CAMEL_INVALID_TYPE) {
+		camel_store_type = camel_type_register (CAMEL_SERVICE_TYPE, "CamelStore",
+							sizeof (CamelStore),
+							sizeof (CamelStoreClass),
+							(CamelObjectClassInitFunc) camel_store_class_init,
+							NULL,
+							(CamelObjectInitFunc) camel_store_init,
+							(CamelObjectFinalizeFunc) camel_store_finalize );
+	}
+
+	return camel_store_type;
+}
+
+
 static CamelFolder *
 get_folder (CamelStore *store, const char *folder_name,
 	    gboolean create, CamelException *ex)
 {
 	g_warning ("CamelStore::get_folder not implemented for `%s'",
-		   gtk_type_name (GTK_OBJECT_TYPE (store)));
+		   camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store)));
 	return NULL;
 }
 
@@ -135,7 +121,7 @@ static void
 delete_folder (CamelStore *store, const char *folder_name, CamelException *ex)
 {
 	g_warning ("CamelStore::delete_folder not implemented for `%s'",
-		   gtk_type_name (GTK_OBJECT_TYPE (store)));
+		   camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store)));
 }
 
 
@@ -151,7 +137,7 @@ get_folder_name (CamelStore *store, const char *folder_name,
 		 CamelException *ex)
 {
 	g_warning ("CamelStore::get_folder_name not implemented for `%s'",
-		   gtk_type_name (GTK_OBJECT_TYPE (store)));
+		   camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store)));
 	return NULL;
 }
 
@@ -173,10 +159,15 @@ lookup_folder (CamelStore *store, const char *folder_name)
 	if (store->folders) {
 		CamelFolder *folder = g_hash_table_lookup (store->folders, folder_name);
 		if (folder)
-			gtk_object_ref(GTK_OBJECT(folder));
+			camel_object_ref(CAMEL_OBJECT(folder));
 		return folder;
 	}
 	return NULL;
+}
+
+static void folder_finalize (CamelObject *folder, gpointer event_data, gpointer user_data)
+{
+	CS_CLASS (user_data)->uncache_folder (CAMEL_STORE(user_data), CAMEL_FOLDER(folder));
 }
 
 static void
@@ -190,9 +181,16 @@ cache_folder (CamelStore *store, const char *folder_name, CamelFolder *folder)
 			   folder_name);
 	}
 	g_hash_table_insert (store->folders, g_strdup (folder_name), folder);
-	gtk_signal_connect_object (GTK_OBJECT (folder), "destroy",
-				   GTK_SIGNAL_FUNC (CS_CLASS (store)->uncache_folder),
-				   GTK_OBJECT (store));
+
+	camel_object_hook_event (CAMEL_OBJECT (folder), "finalize", folder_finalize, store);
+
+	/*
+	 * gt_k so as not to get caught by my little gt_k cleanliness detector.
+	 *
+	 * gt_k_signal_connect_object (CAMEL_OBJECT (folder), "destroy",
+	 *			   GT_K_SIGNAL_FUNC (CS_CLASS (store)->uncache_folder),
+	 *			   CAMEL_OBJECT (store));
+	 */
 }
 
 static gboolean

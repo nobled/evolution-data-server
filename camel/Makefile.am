@@ -7,16 +7,15 @@ providerdir = $(libdir)/evolution/camel-providers/$(VERSION)
 
 lib_LTLIBRARIES = libcamel.la
 
-INCLUDES = -I.. -I$(srcdir)/.. -I$(includedir)	\
-	-I$(top_srcdir)/intl			\
-	$(GTK_INCLUDEDIR)			\
-	$(UNICODE_CFLAGS)			\
+INCLUDES = -I.. -I$(srcdir)/.. -I$(includedir)	 \
+	-I$(top_srcdir)/intl			 \
+	$(GLIB_CFLAGS)				 \
+	$(UNICODE_CFLAGS)			 \
 	-DCAMEL_PROVIDERDIR=\""$(providerdir)"\" \
 	-DG_LOG_DOMAIN=\"camel\"
 
 libcamel_la_SOURCES = 				\
 	camel.c					\
-	camel-async-handle.c			\
 	camel-data-wrapper.c			\
 	camel-exception.c			\
 	camel-folder.c				\
@@ -62,7 +61,6 @@ libcamel_la_SOURCES = 				\
 
 libcamelinclude_HEADERS =			\
 	camel.h					\
-	camel-async-handle.h			\
 	camel-data-wrapper.h			\
 	camel-exception.h			\
 	camel-folder.h				\
