@@ -4166,6 +4166,13 @@ e_cal_set_default_timezone (ECal *ecal, icaltimezone *zone, GError **error)
 
 	status = our_op->status;
 
+	/* set the default timezone internally if successful */
+	if (our_op->status == E_CALENDAR_STATUS_OK) {
+		g_mutex_lock (priv->mutex);
+		priv->default_zone = zone;
+		g_mutex_unlock (priv->mutex);
+	}
+
 	e_calendar_remove_op (ecal, our_op);
 	g_mutex_unlock (our_op->mutex);
 	e_calendar_free_op (our_op);
