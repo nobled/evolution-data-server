@@ -28,6 +28,7 @@
 #include <libsoup/soup-soap-message.h>
 #include "e-gw-container.h"
 #include "e-gw-item.h"
+#include "e-gw-filter.h"
 
 G_BEGIN_DECLS
 
@@ -72,7 +73,7 @@ EGwConnectionStatus e_gw_connection_get_container_list (EGwConnection *cnc, GLis
 void                e_gw_connection_free_container_list (GList *container_list);
 char               *e_gw_connection_get_container_id (EGwConnection *cnc, const char *name);
 EGwConnectionStatus e_gw_connection_get_items (EGwConnection *cnc, const char *container,
-					       const char *filter, GList **list);
+					       EGwFilter *filter, GList **list);
 EGwConnectionStatus e_gw_connection_get_deltas ( EGwConnection *cnc, GSList **adds, GSList **deletes, GSList **updates);
 EGwConnectionStatus e_gw_connection_send_item (EGwConnection *cnc, EGwItem *item);
 EGwConnectionStatus e_gw_connection_remove_item (EGwConnection *cnc, const char *container, const char *id);
