@@ -71,8 +71,6 @@ static const char *get_message_user_tag(CamelFolder *folder, const char *uid, co
 static void set_message_user_tag(CamelFolder *folder, const char *uid, const char *name, const char *value);
 
 static int get_message_count(CamelFolder *folder);
-static int get_unread_message_count(CamelFolder *folder);
-static int get_deleted_message_count(CamelFolder *folder);
 
 static void expunge             (CamelFolder *folder,
 				 CamelException *ex);
@@ -130,8 +128,6 @@ camel_folder_class_init (CamelFolderClass *camel_folder_class)
 	camel_folder_class->get_parent_store = get_parent_store;
 	camel_folder_class->expunge = expunge;
 	camel_folder_class->get_message_count = get_message_count;
-	camel_folder_class->get_unread_message_count = get_unread_message_count;
-	camel_folder_class->get_deleted_message_count = get_deleted_message_count;
 	camel_folder_class->append_message = append_message;
 	camel_folder_class->get_permanent_flags = get_permanent_flags;
 	camel_folder_class->get_message_flags = get_message_flags;
@@ -358,7 +354,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 					if ((info = camel_folder_summary_index(folder->summary, j))) {
 						guint32 flags = camel_message_info_flags(info);
 
-						if (!(flags & CAMEL_MESSAGE_SEEN))
+						if ((flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
 							unread++;
 						if (flags & CAMEL_MESSAGE_DELETED)
 							deleted++;
@@ -567,71 +563,24 @@ camel_folder_get_message_count (CamelFolder *folder)
 	return ret;
 }
 
-static int
-get_unread_message_count(CamelFolder *folder)
-{
-	int i, count, unread=0;
-
-	g_return_val_if_fail(folder->summary != NULL, -1);
-
-	count = camel_folder_summary_count(folder->summary);
-	for (i=0; i<count; i++) {
-		CamelMessageInfo *info = camel_folder_summary_index(folder->summary, i);
-
-		if (info) {
-			guint32 flags = camel_message_info_flags(info);
-
-			if (!(flags & CAMEL_MESSAGE_SEEN))
-				unread++;
-			camel_message_info_free(info);
-		}
-	}
-
-	return unread;
-}
-
 /**
  * camel_folder_unread_get_message_count:
  * @folder: A CamelFolder object
+ *
+ * DEPRECATED, use camel_object_get instead.
  *
  * Return value: the number of unread messages in the folder, or -1 if unknown.
  **/
 int
 camel_folder_get_unread_message_count (CamelFolder *folder)
 {
-	int ret;
+	int count = -1;
 
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), -1);
 	
-	ret = CF_CLASS (folder)->get_unread_message_count (folder);
+	camel_object_get(folder, NULL, CAMEL_FOLDER_UNREAD, &count, 0);
 
-	return ret;
-}
-
-
-static int
-get_deleted_message_count (CamelFolder *folder)
-{
-	int i, count, deleted = 0;
-	CamelMessageInfo *info;
-	
-	g_return_val_if_fail (folder->summary != NULL, -1);
-	
-	count = camel_folder_summary_count (folder->summary);
-	for (i = 0; i < count; i++) {
-		guint32 flags;
-
-		if (!(info = camel_folder_summary_index (folder->summary, i)))
-			continue;
-
-		flags = camel_message_info_flags(info);
-		if ((flags & CAMEL_MESSAGE_DELETED))
-			deleted++;
-		
-		camel_message_info_free(info);
-	}
-	
-	return deleted;
+	return count;
 }
 
 /**
@@ -643,11 +592,14 @@ get_deleted_message_count (CamelFolder *folder)
 int
 camel_folder_get_deleted_message_count (CamelFolder *folder)
 {
-	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), -1);
-	
-	return CF_CLASS (folder)->get_deleted_message_count (folder);
-}
+	int count = -1;
 
+	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), -1);
+
+	camel_object_get(folder, NULL, CAMEL_FOLDER_DELETED, &count, 0);
+
+	return count;
+}
 
 static void
 append_message (CamelFolder *folder, CamelMimeMessage *message,

@@ -198,7 +198,7 @@ camel_vee_summary_new(CamelFolder *parent)
 }
 
 CamelVeeMessageInfo *
-camel_vee_summary_add(CamelVeeSummary *s, CamelFolder *f, CamelMessageInfo *info, const char hash[8])
+camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char hash[8])
 {
 	CamelVeeMessageInfo *mi;
 	char *vuid;

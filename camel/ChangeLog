@@ -1,3 +1,43 @@
+2004-11-08  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder.c (camel_folder_get_deleted_message_count): use
+	getv method to get the deleted count.
+	(get_deleted_message_count): removed.
+
+	* camel-vtrash-folder.c (vtrash_getv): override the unread count
+	to ignore junked or deleted.
+
+	* camel-folder.c (folder_getv): ignore junked and deleted in the
+	unread count.
+
+	* camel-vee-folder.c (camel_vee_folder_finalise): changed the
+	logic slightly not to call internal functions directly.
+	(vee_delete): implement, remove all our folders when we're
+	deleted, to give unmatched at least a snowflakes chance in hell of
+	working.
+
+	* camel-vtrash-folder.c (vtrash_search_by_expression)
+	(vtrash_search_by_uids, vtrash_folder_changed, vtrash_add_folder)
+	(vtrash_remove_folder, vtrash_rebuild_folder): implement
+	vtrash-optimised versions.  Much faster.
+
+	* camel-vee-folder.c (camel_vee_folder_set_folders): don't rebuild
+	the folder.
+	(camel_vee_folder_add_folder): track folders here, but invoke
+	virtual method to let subclasses know about it.
+	(camel_vee_folder_remove_folder): similar.
+	(vee_search_by_uids): free the folder_uids array with TRUE,
+	plugging memory leak.
+
+2004-11-06  Not Zed  <NotZed@Ximian.com>
+
+	* camel-vee-folder.c: Removed vname, use Folder->full_name
+	instead.  Make add_folder/remove_folder/set_expression/set_folders
+	virtual methods.
+	(vee_add_folder): virtual implementation.
+
+	* camel-vee-summary.c (camel_vee_summary_add): remove folder arg.
+
 2004-11-05  Not Zed  <NotZed@Ximian.com>
 
 	* camel-vee-summary.c (vee_info_set_flags): don't emit changed for

@@ -56,7 +56,7 @@ struct _CamelVeeSummaryClass {
 CamelType               camel_vee_summary_get_type     (void);
 CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *parent);
 
-CamelVeeMessageInfo * camel_vee_summary_add(CamelVeeSummary *s, struct _CamelFolder *f, CamelMessageInfo *info, const char hash[8]);
+CamelVeeMessageInfo * camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char hash[8]);
 
 #endif /* ! _CAMEL_VEE_SUMMARY_H */
 
