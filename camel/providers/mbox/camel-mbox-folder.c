@@ -268,24 +268,19 @@ mbox_close (CamelFolder *folder, gboolean expunge, CamelException *ex)
 	}
 }
 
-
 static void
 mbox_expunge (CamelFolder *folder, CamelException *ex)
 {
-#if 0
 	CamelMboxFolder *mbox = (CamelMboxFolder *)folder;
 
 	if (camel_mbox_summary_expunge(mbox->summary) == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID, /* FIXME: right error code */
 				      "Could not expunge: %s", strerror(errno));
 	}
-#endif
-	g_warning("Expunge currently not working");
 
 	/* TODO: check it actually changed */
 	gtk_signal_emit_by_name((GtkObject *)folder, "folder_changed", 0);
 }
-
 
 /* FIXME: clean up this snot */
 static gboolean

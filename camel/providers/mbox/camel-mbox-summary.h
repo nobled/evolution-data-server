@@ -33,6 +33,12 @@
 typedef struct _CamelMboxSummary      CamelMboxSummary;
 typedef struct _CamelMboxSummaryClass CamelMboxSummaryClass;
 
+/* extra summary flags */
+enum {
+	CAMEL_MESSAGE_FOLDER_NOXEV = 1<<16,
+/*	CAMEL_MESSAGE_FOLDER_FLAGGED = 1<<17,*/
+};
+
 typedef struct _CamelMboxMessageContentInfo {
 	CamelMessageContentInfo info;
 } CamelMboxMessageContentInfo;
@@ -48,7 +54,7 @@ struct _CamelMboxSummary {
 
 	struct _CamelMboxSummaryPrivate *priv;
 
-	char *folder_name;	/* name of matching folder */
+	char *folder_path;	/* name of matching folder */
 	size_t folder_size;	/* size of the mbox file, last sync */
 
 	ibex *index;
@@ -64,5 +70,7 @@ CamelMboxSummary      *camel_mbox_summary_new	(const char *filename, const char 
 
 /* load/check the summary */
 int camel_mbox_summary_load(CamelMboxSummary *mbs, int forceindex);
+/* perform a folder expunge */
+int camel_mbox_summary_expunge(CamelMboxSummary *mbs);
 
 #endif /* ! _CAMEL_MBOX_SUMMARY_H */

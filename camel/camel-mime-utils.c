@@ -2276,12 +2276,13 @@ void header_address_list_append(struct _header_address **l, struct _header_addre
 void header_address_list_clear(struct _header_address **l)
 {
 	struct _header_address *a, *n;
-	a = (struct _header_address *)l;
-	while (a && a->next) {
+	a = *l;
+	while (a) {
 		n = a->next;
-		a = n->next;
-		header_address_unref(n);
+		header_address_unref(a);
+		a = n;
 	}
+	*l = NULL;
 }
 
 static void

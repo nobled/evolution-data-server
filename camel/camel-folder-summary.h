@@ -153,7 +153,8 @@ void camel_folder_summary_add(CamelFolderSummary *, CamelMessageInfo *info);
 CamelMessageInfo *camel_folder_summary_add_from_header(CamelFolderSummary *, struct _header_raw *);
 CamelMessageInfo *camel_folder_summary_add_from_parser(CamelFolderSummary *, CamelMimeParser *);
 
-/* removes a summary item, fixes offsets? */
+/* removes a summary item, doesn't fix content offsets */
+void camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info);
 void camel_folder_summary_remove_uid(CamelFolderSummary *s, const char *uid);
 /* remove all items */
 void camel_folder_summary_clear(CamelFolderSummary *s);

@@ -1,12 +1,28 @@
 2000-05-07  NotZed  <NotZed@HelixCode.com>
 
+	* camel-mime-parser.c (camel_mime_parser_header_remove): New
+	function to remove the parser's raw header, rather than
+	manipulating the header directly (wich doesn't work with
+	mempools).
+
+	* camel-mime-utils.c (header_address_list_clear): Fixed some
+	broken(tm) logic, which would leak entries on multivalued lists.
+
 	* providers/mbox/camel-mbox-summary.c (camel_mbox_summary_load):
 	Use ibex_save() to save the ibex.  Makes a big difference to
 	startup times for very large mailboxes.
+	(camel_mbox_summary_expunge): Dum de dum, reimplemented.  Designed
+	to be much more robust, and to stop immediately if anything awry
+	happens.
+	(copy_block): Utility function to copy n bytes from one fd to
+	another.
+	(header_write): Utility function to write out raw headers to an
+	fd.
 
 	* providers/mbox/camel-mbox-folder.c (mbox_get_message_by_uid):
 	Dont unref the stream, because of the broken(tm) ref model of gtk
 	widget that for some odd reason is being perpetuated in camel.	
+	(mbox_expunge): Reenable expunge again.
 
 2000-05-07    <notzed@helixcode.com>
 

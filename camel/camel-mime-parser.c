@@ -33,6 +33,7 @@
 #include <unicode.h>
 
 #include <regex.h>
+#include <ctype.h>
 
 #include <glib.h>
 #include "camel-mime-parser.h"
@@ -166,6 +167,7 @@ void mempool_free(MemPool *pool)
 		g_free(pool);
 	}
 }
+
 #endif
 
 
@@ -266,6 +268,9 @@ static struct _header_scan_stack *folder_scan_header(struct _header_scan_state *
 static int folder_scan_skip_line(struct _header_scan_state *s);
 static off_t folder_seek(struct _header_scan_state *s, off_t offset, int whence);
 static off_t folder_tell(struct _header_scan_state *s);
+#ifdef MEMPOOL
+static void header_append_mempool(struct _header_scan_state *s, struct _header_scan_stack *h, char *header, int offset);
+#endif
 
 static void camel_mime_parser_class_init (CamelMimeParserClass *klass);
 static void camel_mime_parser_init       (CamelMimeParser *obj);
@@ -464,7 +469,7 @@ camel_mime_parser_header(CamelMimeParser *m, const char *name, int *offset)
  * until the next call to parser_step(), or parser_drop_step().
  * 
  * Return value: The raw headers, or NULL if there are no headers
- * defined for the current part or state.
+ * defined for the current part or state.  These are READ ONLY.
  **/
 struct _header_raw *
 camel_mime_parser_headers_raw(CamelMimeParser *m)

@@ -366,7 +366,7 @@ camel_folder_summary_save(CamelFolderSummary *s)
 		return -1;
 	}
 
-	printf("saving header\n");
+	io(printf("saving header\n"));
 
 	if ( ((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->summary_header_save(s, out) == -1) {
 		fclose(out);
@@ -497,6 +497,27 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	g_hash_table_destroy(s->messages_uid);
 	s->messages_uid = g_hash_table_new(g_str_hash, g_str_equal);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
+}
+
+void camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info)
+{
+	g_hash_table_remove(s->messages_uid, info->uid);
+	g_ptr_array_remove(s->messages, info);
+	((CamelFolderSummaryClass *)((GtkObject *)s)->klass)->message_info_free(s, info);
+	if (s->build_content && info->content) {
+		perform_content_info_free(s, info->content);
+	}
+}
+
+void camel_folder_summary_remove_uid(CamelFolderSummary *s, const char *uid)
+{
+        CamelMessageInfo *oldinfo;
+        char *olduid;
+
+        if (g_hash_table_lookup_extended(s->messages_uid, uid, (void *)&olduid, (void *)&oldinfo)) {
+		camel_folder_summary_remove(s, oldinfo);
+		g_free(olduid);
+        }
 }
 
 int
@@ -827,7 +848,6 @@ summary_header_save(CamelFolderSummary *s, FILE *out)
 	camel_folder_summary_encode_fixed_int32(out, s->flags);
 	camel_folder_summary_encode_fixed_int32(out, s->nextuid);
 	camel_folder_summary_encode_fixed_int32(out, s->time);
-	printf("saving time = %d\n", s->time);
 	return camel_folder_summary_encode_fixed_int32(out, camel_folder_summary_count(s));
 }
 
@@ -925,7 +945,6 @@ message_info_new(CamelFolderSummary *s, struct _header_raw *h)
 static CamelMessageInfo *
 message_info_load(CamelFolderSummary *s, FILE *in)
 {
-	guint32 tmp;
 	CamelMessageInfo *mi;
 
 	mi = g_malloc0(s->message_info_size);
