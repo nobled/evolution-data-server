@@ -342,9 +342,7 @@ imap_connect (CamelService *service, CamelException *ex)
 				      "Unknown error");
 	}
 
-	/* FIXME: parse for capabilities here. */
-	d(fprintf (stderr, "%s\n", result));
-
+	/* parse for capabilities here. */
 	if (e_strstrcase (result, "IMAP4REV1"))
 		store->server_level = IMAP_LEVEL_IMAP4REV1;
 	else if (e_strstrcase (result, "IMAP4"))
@@ -358,7 +356,7 @@ imap_connect (CamelService *service, CamelException *ex)
 		store->has_status_capability = FALSE;
 	
 	g_free (result);
-
+	
 	/* We now need to find out which directory separator this daemon uses */
 	status = camel_imap_command_extended (store, NULL, &result, "LIST \"\" \"\"");
 	
@@ -385,7 +383,11 @@ imap_connect (CamelService *service, CamelException *ex)
 		g_free (sep);
 		g_free (folder);
 	}
-
+	
+	/* default directory separator */
+	if (!store->dir_sep)
+		store->dir_sep = g_strdup ("/");
+	
 	g_free (result);
 
 	/* Lets add a timeout so that we can hopefully prevent getting disconnected */
@@ -400,10 +402,10 @@ imap_disconnect (CamelService *service, CamelException *ex)
 	CamelImapStore *store = CAMEL_IMAP_STORE (service);
 	char *result;
 	int status;
-
+	
 	if (!service->connected)
 		return TRUE;
-
+	
 	/* send the logout command */
 	status = camel_imap_command_extended (CAMEL_IMAP_STORE (service), NULL, &result, "LOGOUT");
 	if (status != CAMEL_IMAP_OK) {
@@ -443,7 +445,7 @@ const gchar *
 camel_imap_store_get_toplevel_dir (CamelImapStore *store)
 {
 	CamelURL *url = CAMEL_SERVICE (store)->url;
-
+	
 	g_assert (url != NULL);
 	return url->path;
 }
@@ -455,18 +457,17 @@ imap_folder_exists (CamelFolder *folder)
 	CamelURL *url = CAMEL_SERVICE (store)->url;
 	gchar *result, *folder_path, *dir_sep;
 	gint status;
-
+	
 	dir_sep = CAMEL_IMAP_STORE (folder->parent_store)->dir_sep;
 	
 	if (url && url->path && *(url->path + 1) && strcmp (folder->full_name, "INBOX"))
 		folder_path = g_strdup_printf ("%s%s%s", url->path + 1, dir_sep, folder->full_name);
 	else
 		folder_path = g_strdup (folder->full_name);
-
-	d(fprintf (stderr, "doing an EXAMINE...\n"));
+	
 	status = camel_imap_command_extended (CAMEL_IMAP_STORE (folder->parent_store), NULL,
 					      &result, "EXAMINE %s", folder_path);
-
+	
 	if (status != CAMEL_IMAP_OK) {
 		g_free (result);
 		g_free (folder_path);
@@ -474,7 +475,7 @@ imap_folder_exists (CamelFolder *folder)
 	}
 	g_free (folder_path);
 	g_free (result);
-
+	
 	return TRUE;
 }
 
@@ -485,7 +486,7 @@ imap_create (CamelFolder *folder, CamelException *ex)
 	CamelURL *url = CAMEL_SERVICE (store)->url;
 	gchar *result, *folder_path, *dir_sep;
 	gint status;
-
+	
 	g_return_val_if_fail (folder != NULL, FALSE);
 	
 	if (!(folder->full_name || folder->name)) {
@@ -493,10 +494,10 @@ imap_create (CamelFolder *folder, CamelException *ex)
 				     "invalid folder path. Use set_name ?");
 		return FALSE;
 	}
-
+	
 	if (!strcmp (folder->full_name, "INBOX"))
 		return TRUE;
-
+	
 	if (imap_folder_exists (folder))
 		return TRUE;
 	
@@ -510,7 +511,7 @@ imap_create (CamelFolder *folder, CamelException *ex)
 	
 	status = camel_imap_command_extended (CAMEL_IMAP_STORE (folder->parent_store), NULL,
 					      &result, "CREATE %s", folder_path);
-
+	
 	if (status != CAMEL_IMAP_OK) {
 		CamelService *service = CAMEL_SERVICE (folder->parent_store);
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
@@ -524,7 +525,7 @@ imap_create (CamelFolder *folder, CamelException *ex)
 	}
 	g_free (folder_path);
 	g_free (result);
-
+	
 	return TRUE;
 }
 
@@ -572,17 +573,19 @@ get_folder (CamelStore *store, const char *folder_name, gboolean create, CamelEx
 	g_return_val_if_fail (folder_name != NULL, NULL);
 	
 	dir_sep = CAMEL_IMAP_STORE (store)->dir_sep;
-
-	if (dir_sep && !strcmp (folder_name, dir_sep))
+	
+	/* if we're trying to get the top-level dir, we really want the namespace */
+	if (!strcmp (folder_name, dir_sep))
 		folder_path = g_strdup (url->path + 1);
 	else
 		folder_path = g_strdup (folder_name);
-
+	
 	new_folder = camel_imap_folder_new (store, folder_path, ex);
-
+	
+	/* this is the top-level dir, we already know it exists - it has to! */
 	if (!strcmp (folder_name, dir_sep))
 		return new_folder;
-
+	
 	if (create && !imap_create (new_folder, ex)) {
 		if (!folder_is_selectable (store, folder_path)) {
 			camel_exception_clear (ex);
