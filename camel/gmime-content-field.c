@@ -29,7 +29,7 @@
 #include "string-utils.h"
 #include "camel-log.h"
 #include <string.h>
-#include "hash-table-utils.h"
+#include "camel-mime-utils.h"
 
 /**
  * gmime_content_field_new: Creates a new GMimeContentField object
@@ -48,23 +48,17 @@ GMimeContentField *
 gmime_content_field_new (const gchar *type, const gchar *subtype)
 {
 	GMimeContentField *ctf;
+	char *ct;
+
+	ct = g_strdup_printf("%s/%s", type, subtype);
 
 	ctf = g_new (GMimeContentField, 1);
-	ctf->type = g_strdup (type);
-	ctf->subtype = g_strdup (subtype);
-	ctf->parameters = g_hash_table_new (g_strcase_hash, g_strcase_equal);
+	ctf->content_type = header_content_type_new(type, subtype);
+	ctf->type = ctf->content_type->type;
+	ctf->subtype = ctf->content_type->subtype;
 	ctf->ref = 1;
-
 	return ctf;
 } 
-
-
-static void
-_free_parameter (gpointer name, gpointer value, gpointer user_data)
-{
-	g_free (name);
-	g_free (value);
-}
 
 /**
  * gmime_content_field_free: free a GMimeContentField object
@@ -81,10 +75,7 @@ gmime_content_field_free (GMimeContentField *content_field)
 
 	g_assert (content_field->ref <= 0);
 
-	g_hash_table_foreach (content_field->parameters, _free_parameter, NULL);
-	g_free (content_field->type);
-	g_free (content_field->subtype);
-	g_hash_table_destroy (content_field->parameters);
+	header_content_type_free(content_field->content_type);
 	g_free (content_field);
 }
 
@@ -140,47 +131,7 @@ gmime_content_field_unref (GMimeContentField *content_field)
 void 
 gmime_content_field_set_parameter (GMimeContentField *content_field, const gchar *attribute, const gchar *value)
 {
-	gboolean attribute_exists;
-	gchar *old_attribute;
-	gchar *old_value;
-	CAMEL_LOG_FULL_DEBUG ("GMimeContentField:: Entering set_parameter\n");
-	CAMEL_LOG_FULL_DEBUG ("GMimeContentField:: set_parameter content_field=%p name=%s, value=%s\n", content_field, attribute, value);
-	attribute_exists = g_hash_table_lookup_extended (content_field->parameters, 
-							 attribute, 
-							 (gpointer *) &old_attribute,
-							 (gpointer *) &old_value);
-	/** CHECK THAT : is normal to free pointers before insertion ? **/
-	if (attribute_exists) {
-		g_hash_table_remove(content_field->parameters, attribute);
-		g_free (old_value);
-		g_free (old_attribute);
-	} 
-		
-	g_hash_table_insert (content_field->parameters, g_strdup (attribute), g_strdup (value));
-	CAMEL_LOG_FULL_DEBUG ("GMimeContentField:: Leaving set_parameter\n");
-}
-
-
-/**
- * _print_parameter: print a parameter/value pair to a stream as described in RFC 2045
- * @name: name of the parameter
- * @value: value of the parameter
- * @user_data: CamelStream object to write the text to.
- * 
- * 
- **/
-static void
-_print_parameter (gpointer name, gpointer value, gpointer user_data)
-{
-	CamelStream *stream = (CamelStream *)user_data;
-	
-	camel_stream_write_strings (stream, 
-				    "; \n    ", 
-				    (gchar *)name, 
-				    "=", 
-				    (gchar *)value,
-				    NULL);
-	
+	header_content_type_set_param(content_field->content_type, attribute, value);
 }
 
 /**
@@ -197,14 +148,19 @@ gmime_content_field_write_to_stream (GMimeContentField *content_field, CamelStre
 
 	g_assert (stream);
 	if (content_field->type) {
-		camel_stream_write_strings (stream, "Content-Type: ", content_field->type, NULL);
-		if (content_field->subtype) {
-			camel_stream_write_strings (stream, "/", content_field->subtype, NULL);
-		}
+		struct _header_param *p;
+
+		camel_stream_write_strings (stream, "Content-Type: ", content_field->content_type->type, content_field->content_type->subtype?"/":NULL,
+					    content_field->subtype, NULL);
+
 		/* print all parameters */
-		g_hash_table_foreach (content_field->parameters, _print_parameter, stream);
+		p = content_field->content_type->params;
+		while (p) {
+			camel_stream_write_strings (stream, ";\n    ",  p->name, "= \"", p->value, "\"", NULL);
+			p = p->next;
+		}
 		camel_stream_write_string (stream, "\n");
-	} else CAMEL_LOG_FULL_DEBUG ("GMimeContentField::write_to_stream no mime type found\n");
+	}
 }
 
 /**
@@ -223,21 +179,13 @@ gmime_content_field_get_mime_type (GMimeContentField *content_field)
 {
 	gchar *mime_type;
 
-	if (!content_field->type) return NULL;
+	if (!content_field->content_type->type) return NULL;
 
-	if (content_field->subtype) 
-		mime_type = g_strdup_printf ("%s/%s", content_field->type, content_field->subtype);
+	if (content_field->content_type->subtype) 
+		mime_type = g_strdup_printf ("%s/%s", content_field->content_type->type, content_field->content_type->subtype);
 	else 
-		mime_type = g_strdup (content_field->type);
+		mime_type = g_strdup (content_field->content_type->type);
 	return mime_type;
-}
-
-static void
-___debug_print_parameter (gpointer name, gpointer value, gpointer user_data)
-{
-	
-	printf ("****** parameter \"%s\"=\"%s\"\n", (gchar *)name, (gchar *)value);
-	
 }
 
 /**
@@ -256,26 +204,10 @@ ___debug_print_parameter (gpointer name, gpointer value, gpointer user_data)
 const gchar *
 gmime_content_field_get_parameter (GMimeContentField *content_field, const gchar *name)
 {
-	const gchar *parameter;
-	const gchar *old_name;
-	gboolean parameter_exists;
-
-	CAMEL_LOG_FULL_DEBUG ("Entering GMimeContentField::get_parameter content_field =%p\n", content_field);
-	g_assert (content_field->parameters);
+	g_assert (content_field);
 	g_assert (name);
-	CAMEL_LOG_FULL_DEBUG ("GMimeContentField::get_parameter looking for parameter \"%s\"\n", name);
-	/* parameter = (const gchar *)g_hash_table_lookup (content_field->parameters, name); */
-	parameter_exists = g_hash_table_lookup_extended (content_field->parameters, 
-							 name, 
-							 (gpointer *) &old_name,
-							 (gpointer *) &parameter);
-	if (!parameter_exists) {
-		CAMEL_LOG_FULL_DEBUG ("GMimeContentField::get_parameter, parameter not found\n");
-		g_hash_table_foreach (content_field->parameters, ___debug_print_parameter, NULL);
-		return NULL;
-	}
-	CAMEL_LOG_FULL_DEBUG ("Leaving GMimeContentField::get_parameter\n");
-	return parameter;
+
+	return header_content_type_param(content_field->content_type, name);
 }
 
 
@@ -295,90 +227,40 @@ gmime_content_field_get_parameter (GMimeContentField *content_field, const gchar
 void
 gmime_content_field_construct_from_string (GMimeContentField *content_field, const gchar *string)
 {
-	gint first, len;
-	gint i=0;
-	gchar *type, *subtype;
-	gchar *param_name, *param_value;
-	gboolean param_end;
-	
-	CAMEL_LOG_TRACE ( "GMimeContentField::construct_from_string, entering\n");
+	struct _header_content_type *new;
+
 	g_assert (string);
 	g_assert (content_field);
- 
-	g_free (content_field->type);	
-	g_free (content_field->subtype);
-	
-	
-	first = 0;
-	len = strlen (string);
-	if (!len) { 
-		CAMEL_LOG_FULL_DEBUG ( "GMimeContentField::construct_from_string, leaving\n");
-		return;
-	}
-	CAMEL_LOG_FULL_DEBUG ("GMimeContentField::construct_from_string, All checks done\n");
-	CAMEL_LOG_FULL_DEBUG ("GMimeContentField::construct_from_string the complete header is\n"
-			      "-------------------\n%s\n-------------------\n", string);
-	/* find the type */
-	while ( (i<len) && (!strchr ("/;", string[i])) ) i++;
-	
-	if (i == 0) { 
-		CAMEL_LOG_FULL_DEBUG ( "GMimeContentField::construct_from_string, leaving\n");
-		return;
-	}
-	
-	type = g_strndup (string, i);
-	string_trim (type, " \t\"", STRING_TRIM_STRIP_TRAILING | STRING_TRIM_STRIP_LEADING);
-	content_field->type = type;
-	CAMEL_LOG_TRACE ( "GMimeContentField::construct_from_string, Found mime type : \"%s\"\n", type); 
-	if (i >= len-1) {
-		content_field->subtype = NULL;
-		
-		CAMEL_LOG_FULL_DEBUG ( "GMimeContentField::construct_from_string  only found the type leaving\n");
-		return;			
-	}
-	
-	first = i+1;
-	/* find the subtype, if any */
-	if (string[i++] == '/') {
-		while ( (i<len) && (string[i] != ';') ) i++;
-		if (i != first) {
-			subtype = g_strndup (string+first, i-first);
-			string_trim (subtype, " \t\"", STRING_TRIM_STRIP_TRAILING | STRING_TRIM_STRIP_LEADING);
-			content_field->subtype = subtype;
-			CAMEL_LOG_TRACE ( "GMimeContentField::construct_from_string, Found mime subtype: \"%s\"\n", subtype);
-			if (i >= len-1) { 
-				CAMEL_LOG_FULL_DEBUG ( "GMimeContentField::construct_from_string found the subtype but no parameter, leaving\n");
-				return;
-			}
-		}
- 	}
-	first = i+1;
 
-	/* parse parameters list */
-	param_end = FALSE;
-	do {
-		while ( (i<len) && (string[i] != '=') ) i++;
-		if ((i == len) || (i==first)) param_end = TRUE;
-		else {
-			/* we have found parameter name */
-			param_name = g_strndup (string+first, i-first);
-			string_trim (param_name, " \"", STRING_TRIM_STRIP_TRAILING | STRING_TRIM_STRIP_LEADING);
-			i++;
-			first = i;
-			/* Let's find parameter value */
-			while ( (i<len) && (string[i] != ';') ) i++;
-			if (i != first) param_value = g_strndup (string+first, i-first);
-			else param_value = g_strdup ("");
-			CAMEL_LOG_TRACE ( "GMimeContentField::construct_from_string, Found mime parameter \"%s\"=\"%s\"\n", param_name, param_value);
-			string_trim (param_value, " \t\"", STRING_TRIM_STRIP_TRAILING | STRING_TRIM_STRIP_LEADING);
-			gmime_content_field_set_parameter (content_field, param_name, param_value);
-			g_free (param_name);
-			g_free (param_value);
-			i++;
-			first = i;
-		}
-	} while ((!param_end) && (first < len));
+	new = header_content_type_decode(string);
+	if (content_field->content_type)
+		header_content_type_free(content_field->content_type);
 
+	if (new == NULL) {
+		new = header_content_type_new(NULL, NULL);
+		g_warning("Cannot parse content-type string: %s", string);
+	}
+	content_field->content_type = new;
 
+	content_field->type = new->type;
+	content_field->subtype = new->subtype;
 }
 
+/**
+ * gmime_content_field_is_type:
+ * @content_field: An initialised GMimeContentField.
+ * @type: MIME Major type name.
+ * @subtype: MIME subtype.
+ * 
+ * Returns true if the content_field is of the type @type and subtype @subtype.
+ * If @subtype is the special wildcard "*", then it will match any type.
+ *
+ * If the @content_field is empty, then it will match "text/plain", or "text/ *".
+ * 
+ * Return value: 
+ **/
+int
+gmime_content_field_is_type (GMimeContentField *content_field, const char *type, const char *subtype)
+{
+	return header_content_type_is(content_field->content_type, type, subtype);
+}

@@ -41,6 +41,7 @@
 #define r(x)
 #define h(x)
 #define c(x)
+#define d(x)
 
 #define SCAN_BUF 4096		/* size of read buffer */
 #define SCAN_HEAD 128		/* headroom guaranteed to be before each read buffer */
@@ -75,6 +76,8 @@ struct _header_scan_state {
 
 	int midline;		/* are we mid-line interrupted? */
 	int scan_from;		/* do we care about From lines? */
+
+	int header_start;	/* start of last header, or -1 */
 
 	struct _header_scan_stack *top_part;	/* top of message header */
 	int top_start;		/* offset of start */
@@ -247,7 +250,7 @@ camel_mime_parser_filter_remove(CamelMimeParser *m, int id)
 	struct _header_scan_filter *f, *old;
 	
 	f = (struct _header_scan_filter *)&s->filters;
-	while (f->next) {
+	while (f && f->next) {
 		old = f->next;
 		if (old->id == id) {
 			gtk_object_unref((GtkObject *)old->filter);
@@ -261,14 +264,24 @@ camel_mime_parser_filter_remove(CamelMimeParser *m, int id)
 }
 
 const char *
-camel_mime_parser_header(CamelMimeParser *m, const char *name)
+camel_mime_parser_header(CamelMimeParser *m, const char *name, int *offset)
 {
 	struct _header_scan_state *s = _PRIVATE(m);
 
 	if (s->parts &&
 	    s->parts->headers) {
-		return header_raw_find(&s->parts->headers, name);
+		return header_raw_find(&s->parts->headers, name, offset);
 	}
+	return NULL;
+}
+
+struct _header_raw *
+camel_mime_parser_headers_raw(CamelMimeParser *m)
+{
+	struct _header_scan_state *s = _PRIVATE(m);
+
+	if (s->parts)
+		return s->parts->headers;
 	return NULL;
 }
 
@@ -286,6 +299,13 @@ camel_mime_parser_init_with_stream(CamelMimeParser *m, CamelStream *stream)
 	struct _header_scan_state *s = _PRIVATE(m);
 
 	return folder_scan_init_with_stream(s, stream);
+}
+
+void
+camel_mime_parser_scan_from(CamelMimeParser *m, int scan_from)
+{
+	struct _header_scan_state *s = _PRIVATE(m);
+	s->scan_from = scan_from;
 }
 
 struct _header_content_type *
@@ -500,7 +520,7 @@ folder_scan_header(struct _header_scan_state *s, int *lastone)
 	struct _header_scan_stack *part, *overpart = s->parts;
 	struct _header_scan_stack *h;
 
-	printf("scanning first bit\n");
+	h(printf("scanning first bit\n"));
 
 	h = g_malloc0(sizeof(*h));
 
@@ -527,6 +547,7 @@ retry:
 		start = inptr;
 
 		while (inptr<=inend) {
+			register int c=-1;
 			/*printf("  '%.20s'\n", inptr);*/
 
 			if (!s->midline
@@ -538,7 +559,7 @@ retry:
 			}
 
 			/* goto next line */
-			while (inptr<=inend && (*inptr++)!='\n')
+			while (inptr<=inend && (c = *inptr++)!='\n')
 				;
 
 			/* allocate/append - this wont get executed unless we have *huge* headers,
@@ -559,7 +580,14 @@ retry:
 				s->outptr += headerlen;
 			}
 
-			if (inptr>inend) {
+			h(printf("outbuf[0] = %02x '%c' oubuf[1] = %02x '%c'\n",
+				 s->outbuf[0], isprint(s->outbuf[0])?s->outbuf[0]:'.',
+				 s->outbuf[1], isprint(s->outbuf[1])?s->outbuf[1]:'.'));
+
+			if (s->header_start == -1)
+				s->header_start = (start-s->inbuf) + s->seek;
+
+			if (c!='\n') {
 				s->midline = TRUE;
 			} else {
 				if (!(inptr[0] == ' ' || inptr[0] == '\t')) {
@@ -570,13 +598,16 @@ retry:
 
 					s->outptr[0] = 0;
 
-					header_raw_append_parse(&h->headers, s->outbuf);
+					d(printf("header %.10s at %d\n", s->outbuf, s->header_start));
+
+					header_raw_append_parse(&h->headers, s->outbuf, s->header_start);
 					if (inptr[0]=='\n'
 					    || (inptr[0] == '\r' && inptr[1]=='\n')) {
 						inptr++;
 						goto header_done;
 					}
 					s->outptr = s->outbuf;
+					s->header_start = -1;
 				}
 				s->midline = FALSE;
 				start = inptr;
@@ -628,12 +659,15 @@ header_truncated:
 	}
 	s->outptr[0] = 0;
 
+	if (s->header_start == -1)
+		s->header_start = (start-s->inbuf) + s->seek;
+
 	if (s->outbuf[0] == '\n'
 	    || (s->outbuf[0] == '\r' && s->outbuf[1]=='\n')) {
 		goto header_done;
 	}
 
-	header_raw_append_parse(&h->headers, s->outbuf);
+	header_raw_append_parse(&h->headers, s->outbuf, s->header_start);
 
 header_done:
 	part = s->parts;
@@ -642,7 +676,7 @@ header_done:
 normal_exit:
 	s->inptr = inptr;
 	s->atleast = atleast;
-
+	s->header_start = -1;
 	return h;
 }
 
@@ -802,6 +836,8 @@ folder_scan_init(void)
 
 	s->seek = 0;		/* current character position in file of the last read block */
 
+	s->header_start = -1;
+
 	s->midline = FALSE;
 	s->scan_from = FALSE;
 
@@ -868,7 +904,7 @@ folder_scan_step(struct _header_scan_state *s, char **databuffer, int *datalengt
 /*	printf("\nSCAN PASS: state = %d '%s'\n", s->state, states[s->state]);*/
 
 tail_recurse:
-	{
+	d({
 		printf("\nSCAN STACK:\n");
 		printf("  '%s' :\n", states[s->state]);
 		hb = s->parts;
@@ -877,7 +913,7 @@ tail_recurse:
 			hb = hb->parent;
 		}
 		printf("\n");
-	}
+	});
 
 	switch (s->state) {
 
@@ -896,7 +932,7 @@ tail_recurse:
 			} while (hb==h && *datalength>0);
 			
 			if (*datalength==0 && hb==h) {
-				printf("found 'From '\n");
+				d(printf("found 'From '\n"));
 				folder_scan_skip_line(s);
 				h->savestate = HSCAN_INITIAL;
 				s->state = HSCAN_FROM;
@@ -920,19 +956,18 @@ tail_recurse:
 		/* FIXME: should this check for MIME-Version: 1.0 as well? */
 
 		type = HSCAN_HEADER;
-		if ( (content = header_raw_find(&h->headers, "Content-Type"))
+		if ( (content = header_raw_find(&h->headers, "Content-Type", NULL))
 		     && (ct = header_content_type_decode(content))) {
 			if (!strcasecmp(ct->type, "multipart")) {
 				bound = header_content_type_param(ct, "boundary");
 				if (bound) {
-					printf("multipart, boundary = %s\n", bound);
+					d(printf("multipart, boundary = %s\n", bound));
 					h->boundarylen = strlen(bound)+2;
 					h->boundary = g_malloc(h->boundarylen+3);
 					sprintf(h->boundary, "--%s--", bound);
 					type = HSCAN_MULTIPART;
 				} else {
-					printf("Protocol error, multipart/* with no boundary\n");
-					printf("treating as plain text\n");
+					g_warning("Multipart with no boundary, treating as text/plain");
 				}
 			} else if (!strcasecmp(ct->type, "message")) {
 				if (!strcasecmp(ct->subtype, "rfc822")
@@ -958,7 +993,7 @@ tail_recurse:
 		do {
 			hb = folder_scan_content(s, &state, databuffer, datalength);
 			if (*datalength>0) {
-				printf("Content raw: '%.*s'\n", *datalength, *databuffer);
+				d(printf("Content raw: '%.*s'\n", *datalength, *databuffer));
 
 				while (f) {
 					camel_mime_filter_filter(f->filter, *databuffer, *datalength, presize,
@@ -987,12 +1022,12 @@ tail_recurse:
 			do {
 				hb = folder_scan_content(s, &state, databuffer, datalength);
 				if (*datalength>0) {
-					/* needs a state to return this shit??? */
-					printf("Multipart Content: '%.*s'\n", *datalength, *databuffer);
+					/* FIXME: needs a state to return this shit??? */
+					d(printf("Multipart Content: '%.*s'\n", *datalength, *databuffer));
 				}
 			} while (hb==h && *datalength>0);
 			if (*datalength==0 && hb==h) {
-				printf("got boundary: %s\n", hb->boundary);
+				d(printf("got boundary: %s\n", hb->boundary));
 				folder_scan_skip_line(s);
 				if (!state) {
 					s->state = HSCAN_FROM;
@@ -1028,7 +1063,7 @@ tail_recurse:
 		return;
 
 	default:
-		printf("invalid state\n");
+		g_warning("Invalid state in camel-mime-parser: %d", s->state);
 		break;
 	}
 

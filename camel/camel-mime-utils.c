@@ -457,7 +457,7 @@ quoted_decode_step(unsigned char *in, int len, unsigned char *out, int *savestat
 	inend = in+len;
 	outptr = out;
 
-	printf("decoding text '%.*s'\n", len, in);
+	d(printf("quoted-printable, decoding text '%.*s'\n", len, in));
 
 	state = *savestate;
 	save = *saveme;
@@ -550,7 +550,7 @@ quoted_decode(unsigned char *in, int len, unsigned char *out)
 	inend = in+len;
 	outptr = out;
 
-	printf("decoding text '%.*s'\n", len, in);
+	d(printf("decoding text '%.*s'\n", len, in));
 
 	inptr = in;
 	while (inptr<inend) {
@@ -643,12 +643,12 @@ rfc2047_decode_word(char *in, int len)
 	int inlen, outlen;
 	iconv_t ic;
 
-	printf("decoding '%.*s'\n", len, in);
+	d(printf("decoding '%.*s'\n", len, in));
 
 	/* just make sure we're not passed shit */
 	if (len<7
 	    || !(in[0]=='=' && in[1]=='?' && in[len-1]=='=' && in[len-2]=='?')) {
-		printf("invalid\n");
+		d(printf("invalid\n"));
 		return NULL;
 	}
 
@@ -697,7 +697,7 @@ rfc2047_decode_word(char *in, int len)
 	free(outbase);
 	free(decword);
 
-	printf("decoded '%s'\n", decoded);
+	d(printf("decoded '%s'\n", decoded));
 
 	return decoded;
 }
@@ -763,7 +763,7 @@ header_decode_string(char *in)
 
 /* these are all internal parser functions */
 
-static char *
+char *
 header_decode_token(const char **in)
 {
 	const char *inptr = *in;
@@ -858,10 +858,10 @@ header_decode_value(const char **in)
 
 	header_decode_lwsp(&inptr);
 	if (*inptr == '"') {
-		printf("decoding quoted string\n");
+		d(printf("decoding quoted string\n"));
 		return header_decode_quoted_string(in);
 	} else if (is_ttoken(*inptr)) {
-		printf("decoding token\n");
+		d(printf("decoding token\n"));
 		/* this may not have the right specials for all params? */
 		return header_decode_token(in);
 	}
@@ -919,10 +919,80 @@ header_param(struct _header_param *p, char *name)
 	return NULL;
 }
 
-char *
-header_content_type_param(struct _header_content_type *t, char *name)
+struct _header_param *
+header_set_param(struct _header_param **l, const char *name, const char *value)
 {
+	struct _header_param *p = (struct _header_param *)l, *pn;
+
+	while (p->next) {
+		pn = p->next;
+		if (!strcasecmp(pn->name, name)) {
+			g_free(pn->value);
+			pn->value = g_strdup(value);
+			return pn;
+		}
+		p = pn;
+	}
+
+	pn = g_malloc(sizeof(*pn));
+	pn->next = 0;
+	pn->name = g_strdup(name);
+	pn->value = g_strdup(value);
+	p->next = pn;
+
+	return pn;
+}
+
+const char *
+header_content_type_param(struct _header_content_type *t, const char *name)
+{
+	if (t==NULL)
+		return NULL;
 	return header_param(t->params, name);
+}
+
+void header_content_type_set_param(struct _header_content_type *t, const char *name, const char *value)
+{
+	header_set_param(&t->params, name, value);
+}
+
+/**
+ * header_content_type_is:
+ * @ct: A content type specifier, or #NULL.
+ * @type: A type to check against.
+ * @subtype: A subtype to check against, or "*" to match any subtype.
+ * 
+ * Returns #TRUE if the content type @ct is of type @type/@subtype.
+ * The subtype of "*" will match any subtype.  If @ct is #NULL, then
+ * it will match the type "text/plain".
+ * 
+ * Return value: #TRUE or #FALSE depending on the matching of the type.
+ **/
+int
+header_content_type_is(struct _header_content_type *ct, char *type, char *subtype)
+{
+	/* no type == text/plain or text/"*" */
+	if (ct==NULL) {
+		return (!strcasecmp(type, "text")
+			&& (!strcasecmp(subtype, "plain")
+			    || !strcasecmp(subtype, "*")));
+	}
+
+	return ((!strcasecmp(ct->type, type)
+		 && (!strcasecmp(ct->subtype, subtype)
+		     || !strcasecmp("*", subtype))));
+}
+
+
+struct _header_content_type *
+header_content_type_new(const char *type, const char *subtype)
+{
+	struct _header_content_type *t = g_malloc(sizeof(*t));
+
+	t->type = type;
+	t->subtype = subtype;
+	t->params = NULL;
+	return t;
 }
 
 void
@@ -1144,7 +1214,7 @@ header_decode_mailbox(const char **in)
 
 	*in = inptr;
 
-	printf("got mailbox: %s\n", addr->str);
+	d(printf("got mailbox: %s\n", addr->str));
 }
 
 /* FIXME: what does this return? */
@@ -1164,7 +1234,7 @@ header_decode_address(const char **in)
 	}
 	header_decode_lwsp(&inptr);
 	if (*inptr == ':') {
-		printf("group detected: %s\n", group->str);
+		d(printf("group detected: %s\n", group->str));
 		/* that was a group spec, scan mailbox's */
 		inptr++;
 		/* FIXME: check rfc 2047 encodings of words, here or above in the loop */
@@ -1207,7 +1277,7 @@ header_msgid_decode(const char *in)
 	const char *inptr = in;
 	char *msgid = NULL;
 
-	printf("decoding Message-ID: '%s'\n", in);
+	d(printf("decoding Message-ID: '%s'\n", in));
 
 	if (in == NULL)
 		return NULL;
@@ -1232,7 +1302,7 @@ header_msgid_decode(const char *in)
 	}
 
 	if (msgid) {
-		printf("Got message id: %s\n", msgid);
+		d(printf("Got message id: %s\n", msgid));
 	}
 	return msgid;
 }
@@ -1242,7 +1312,7 @@ header_to_decode(const char *in)
 {
 	const char *inptr = in, *last;
 
-	printf("decoding To: '%s'\n", in);
+	d(printf("decoding To: '%s'\n", in));
 
 	if (in == NULL)
 		return NULL;
@@ -1272,7 +1342,7 @@ header_mime_decode(const char *in)
 	const char *inptr = in;
 	int major=-1, minor=-1;
 
-	printf("decoding MIME-Version: '%s'\n", in);
+	d(printf("decoding MIME-Version: '%s'\n", in));
 
 	if (in == NULL)
 		return NULL;
@@ -1289,7 +1359,7 @@ header_mime_decode(const char *in)
 		}
 	}
 
-	printf("major = %d, minor = %d\n", major, minor);
+	d(printf("major = %d, minor = %d\n", major, minor));
 }
 
 
@@ -1315,11 +1385,10 @@ header_content_type_decode(const char *in)
 			subtype = g_strdup("plain");
 		}
 		if (subtype) {
-			t = g_malloc(sizeof(*t));
-			t->type = type;
-			t->subtype = subtype;
-			t->params = NULL;
-			printf("content-type is %s / %s\n", type, subtype);
+
+			t = header_content_type_new(type, subtype);
+
+			d(printf("content-type is %s / %s\n", type, subtype));
 			header_decode_lwsp(&inptr);
 			while (*inptr == ';') {
 				char *param, *value;
@@ -1338,11 +1407,11 @@ header_content_type_decode(const char *in)
 			}
 		} else {
 			g_free(type);
-			printf("cannot find MIME subtype in header (1) '%s'", in);
+			d(printf("cannot find MIME subtype in header (1) '%s'", in));
 		}
 	} else {
 		g_free(type);
-		printf("cannot find MIME type in header (2) '%s'", in);
+		d(printf("cannot find MIME type in header (2) '%s'", in));
 	}
 	return t;
 }
@@ -1371,7 +1440,9 @@ header_content_type_dump(struct _header_content_type *ct)
 char *
 header_content_encoding_decode(const char *in)
 {
-	return header_decode_token(&in);
+	if (in)
+		return header_decode_token(&in);
+	return NULL;
 }
 
 /* hrm, is there a library for this shit? */
@@ -1553,7 +1624,7 @@ check_header(struct _header_raw *h)
 #endif
 
 void
-header_raw_append_parse(struct _header_raw **list, const char *header)
+header_raw_append_parse(struct _header_raw **list, const char *header, int offset)
 {
 	register const char *in;
 	int fieldlen;
@@ -1573,20 +1644,22 @@ header_raw_append_parse(struct _header_raw **list, const char *header)
 	name = alloca(fieldlen+1);
 	memcpy(name, header, fieldlen);
 	name[fieldlen] = 0;
-	header_raw_append(list, name, in);
+
+	header_raw_append(list, name, in, offset);
 }
 
 void
-header_raw_append(struct _header_raw **list, const char *name, const char *value)
+header_raw_append(struct _header_raw **list, const char *name, const char *value, int offset)
 {
 	struct _header_raw *l, *n;
 
-	printf("Header: %s: %s\n", name, value);
+	d(printf("Header: %s: %s\n", name, value));
 
 	n = g_malloc(sizeof(*n));
 	n->next = NULL;
 	n->name = g_strdup(name);
 	n->value = g_strdup(value);
+	n->offset = offset;
 #ifdef CHECKS
 	check_header(n);
 #endif
@@ -1597,6 +1670,7 @@ header_raw_append(struct _header_raw **list, const char *name, const char *value
 	l->next = n;
 
 	/* debug */
+#if 0
 	if (!strcasecmp(name, "To")) {
 		printf("- Decoding To\n");
 		header_to_decode(value);
@@ -1607,9 +1681,10 @@ header_raw_append(struct _header_raw **list, const char *name, const char *value
 		printf("- Decoding mime version\n");
 		header_mime_decode(value);
 	}
+#endif
 }
 
-struct _header_raw *
+static struct _header_raw *
 header_raw_find_node(struct _header_raw **list, const char *name)
 {
 	struct _header_raw *l;
@@ -1624,14 +1699,16 @@ header_raw_find_node(struct _header_raw **list, const char *name)
 }
 
 const char *
-header_raw_find(struct _header_raw **list, const char *name)
+header_raw_find(struct _header_raw **list, const char *name, int *offset)
 {
 	struct _header_raw *l;
 
 	l = header_raw_find_node(list, name);
-	if (l)
+	if (l) {
+		if (offset)
+			*offset = l->offset;
 		return l->value;
-	else
+	} else
 		return NULL;
 }
 
@@ -1664,10 +1741,10 @@ header_raw_remove(struct _header_raw **list, const char *name)
 }
 
 void
-header_raw_replace(struct _header_raw **list, const char *name, const char *value)
+header_raw_replace(struct _header_raw **list, const char *name, const char *value, int offset)
 {
 	header_raw_remove(list, name);
-	header_raw_append(list, name, value);
+	header_raw_append(list, name, value, offset);
 }
 
 void

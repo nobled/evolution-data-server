@@ -40,22 +40,34 @@ struct _header_raw {
 	struct _header_raw *next;
 	char *name;
 	char *value;
+	int offset;		/* in file, if known */
 };
 
+struct _header_content_type *header_content_type_new(const char *type, const char *subtype);
 struct _header_content_type *header_content_type_decode(const char *in);
 void header_content_type_free(struct _header_content_type *ct);
+const char *header_content_type_param(struct _header_content_type *t, const char *name);
+void header_content_type_set_param(struct _header_content_type *t, const char *name, const char *value);
+int header_content_type_is(struct _header_content_type *t, char *type, char *subtype);
+
 char *header_param(struct _header_param *p, char *name);
-char *header_content_type_param(struct _header_content_type *t, char *name);
+struct _header_param *header_set_param(struct _header_param **l, const char *name, const char *value);
+
+/* decode the contents of a content-encoding header */
+char *header_content_encoding_decode(const char *in);
 
 /* working with lists of headers */
-void header_raw_append(struct _header_raw **list, const char *name, const char *value);
-void header_raw_append_parse(struct _header_raw **list, const char *header);
-const char *header_raw_find(struct _header_raw **list, const char *name);
-void header_raw_replace(struct _header_raw **list, const char *name, const char *value);
+void header_raw_append(struct _header_raw **list, const char *name, const char *value, int offset);
+void header_raw_append_parse(struct _header_raw **list, const char *header, int offset);
+const char *header_raw_find(struct _header_raw **list, const char *name, int *ofset);
+void header_raw_replace(struct _header_raw **list, const char *name, const char *value, int offset);
 void header_raw_remove(struct _header_raw **list, const char *name);
 void header_raw_clear(struct _header_raw **list);
 
-/* do incremental base64 decoding */
+/* raw header parsing functions */
+char *header_decode_token(const char **in);
+
+/* do incremental base64/quoted-printable (de/en)coding */
 int base64_decode_step(unsigned char *in, int len, unsigned char *out, int *state, unsigned int *save);
 
 int base64_encode_step(unsigned char *in, int len, unsigned char *out, int *state, int *save);

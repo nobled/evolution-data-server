@@ -79,6 +79,9 @@ CamelMimeParser      *camel_mime_parser_new	(void);
 int		camel_mime_parser_init_with_fd(CamelMimeParser *, int fd);
 int		camel_mime_parser_init_with_stream(CamelMimeParser *m, CamelStream *stream);
 
+/* scan 'From' separators? */
+void camel_mime_parser_scan_from(CamelMimeParser *, int);
+
 /* normal interface */
 enum _header_state camel_mime_parser_step(CamelMimeParser *, char **, int *);
 
@@ -86,7 +89,9 @@ enum _header_state camel_mime_parser_step(CamelMimeParser *, char **, int *);
 struct _header_content_type *camel_mime_parser_content_type(CamelMimeParser *);
 
 /* get a raw header by name */
-const char *camel_mime_parser_header(CamelMimeParser *, const char *);
+const char *camel_mime_parser_header(CamelMimeParser *, const char *, int *offset);
+/* get all raw headers */
+struct _header_raw *camel_mime_parser_headers_raw(CamelMimeParser *);
 
 /* add a processing filter for body contents */
 int camel_mime_parser_filter_add(CamelMimeParser *, CamelMimeFilter *);

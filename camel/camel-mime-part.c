@@ -40,9 +40,9 @@
 #include "hash-table-utils.h"
 #include "camel-stream-mem.h"
 #include "camel-mime-part-utils.h"
-#include "gmime-base64.h"
 #include "camel-seekable-substream.h"
-#include "camel-stream-b64.h"
+#include "camel-stream-filter.h"
+#include "camel-mime-filter-basic.h"
 
 
 typedef enum {
@@ -611,6 +611,7 @@ my_get_content_object (CamelMedium *medium)
 	CamelMimePart *mime_part = CAMEL_MIME_PART (medium);
 	CamelStream *stream;
 	CamelStream *decoded_stream;
+	CamelMimeFilter *mf = NULL;
 
 	CAMEL_LOG_FULL_DEBUG ("CamelMimePart::get_content_object entering\n");
 
@@ -623,14 +624,21 @@ my_get_content_object (CamelMedium *medium)
 		case CAMEL_MIME_PART_ENCODING_DEFAULT:
 		case CAMEL_MIME_PART_ENCODING_7BIT:
 		case CAMEL_MIME_PART_ENCODING_8BIT:
+			break;
+
 		case CAMEL_MIME_PART_ENCODING_QUOTEDPRINTABLE:
+			mf = (CamelMimeFilter *)camel_mime_filter_basic_new_type(CAMEL_MIME_FILTER_BASIC_QP_DEC);
 			break;
 
 		case CAMEL_MIME_PART_ENCODING_BASE64:
-			decoded_stream = camel_stream_b64_new_with_input_stream (stream);
-			camel_stream_b64_set_mode (CAMEL_STREAM_B64 (decoded_stream), 
-						   CAMEL_STREAM_B64_DECODER);
+			mf = (CamelMimeFilter *)camel_mime_filter_basic_new_type(CAMEL_MIME_FILTER_BASIC_BASE64_DEC);
 			break;
+		}
+
+		if (mf) {
+			decoded_stream = (CamelStream *)camel_stream_filter_new_with_stream (stream);
+			camel_stream_filter_add((CamelStreamFilter *)decoded_stream, mf);
+			gtk_object_unref((GtkObject *)mf);
 		}
 
 		camel_mime_part_construct_content_from_stream (mime_part, decoded_stream);
@@ -664,8 +672,8 @@ my_write_content_to_stream (CamelMimePart *mime_part, CamelStream *stream)
 {
 	CamelMedium *medium;
 	CamelStream *wrapper_stream;
-	CamelStreamB64 *stream_b64;
-
+	CamelStream *stream_encode;
+	CamelMimeFilter *mf = NULL;
 	CamelDataWrapper *content;
 
 	CAMEL_LOG_FULL_DEBUG ( "Entering CamelMimePart::_write_content_to_stream\n");
@@ -688,24 +696,32 @@ my_write_content_to_stream (CamelMimePart *mime_part, CamelStream *stream)
 	case CAMEL_MIME_PART_ENCODING_8BIT:
 		camel_data_wrapper_write_to_stream (content, stream);
 		break;
+	case CAMEL_MIME_PART_ENCODING_QUOTEDPRINTABLE:
+		mf = (CamelMimeFilter *)camel_mime_filter_basic_new_type(CAMEL_MIME_FILTER_BASIC_QP_ENC);
+		break;
 	case CAMEL_MIME_PART_ENCODING_BASE64:
-		/* encode the data wrapper output stream in base 64 ... */
-		wrapper_stream = camel_data_wrapper_get_output_stream (content);
-		camel_stream_reset (wrapper_stream);
-		stream_b64 = CAMEL_STREAM_B64 (camel_stream_b64_new_with_input_stream (wrapper_stream));
-		camel_stream_b64_set_mode (stream_b64, CAMEL_STREAM_B64_ENCODER);
-		
-		/*  ... and write it to the output stream in a blocking way */
-		camel_stream_write_to_stream (stream_b64, stream);
-		
-		/* now free the intermediate b64 stream */
-		gtk_object_unref (GTK_OBJECT (stream_b64));
+		mf = (CamelMimeFilter *)camel_mime_filter_basic_new_type(CAMEL_MIME_FILTER_BASIC_BASE64_ENC);
 		break;
 	default:
 		camel_data_wrapper_write_to_stream (content, stream);
 		g_warning ("Encoding type `%s' not supported.",
 			   camel_mime_part_encoding_to_string
 			   (mime_part->encoding));
+	}
+
+	if (mf) {
+		/* encode the data wrapper output stream in the filtered encoding */
+		wrapper_stream = camel_data_wrapper_get_output_stream (content);
+		camel_stream_reset (wrapper_stream);
+		stream_encode = camel_stream_filter_new_with_stream (wrapper_stream);
+		camel_stream_filter_add((CamelStreamFilter *)stream_encode, mf);
+
+		/*  ... and write it to the output stream in a blocking way */
+		camel_stream_write_to_stream (stream_encode, stream);
+		
+		/* now free the intermediate b64 stream */
+		gtk_object_unref (GTK_OBJECT (stream_encode));
+		gtk_object_unref((GtkObject *)mf);
 	}
 
 	CAMEL_LOG_FULL_DEBUG ( "Leaving CamelMimePart::_write_content_to_stream\n");
@@ -910,9 +926,6 @@ my_get_output_stream (CamelDataWrapper *data_wrapper)
 		return input_stream;
 		
 	case CAMEL_MIME_PART_ENCODING_BASE64:
-		output_stream = camel_stream_b64_new_with_input_stream (input_stream);
-		camel_stream_b64_set_mode (CAMEL_STREAM_B64 (output_stream), 
-					   CAMEL_STREAM_B64_ENCODER);
 		return output_stream;
 
 	case CAMEL_MIME_PART_ENCODING_QUOTEDPRINTABLE:

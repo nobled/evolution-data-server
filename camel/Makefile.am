@@ -59,14 +59,12 @@ libcamel_la_SOURCES = 				\
 	camel-session.c				\
 	camel-store.c				\
 	camel-stream.c				\
-	camel-stream-b64.c			\
 	camel-stream-buffer.c			\
 	camel-stream-fs.c			\
 	camel-stream-mem.c			\
 	camel-transport.c			\
 	camel-url.c				\
 	data-wrapper-repository.c		\
-	gmime-base64.c				\
 	gmime-content-field.c			\
 	gmime-utils.c				\
 	gstring-util.c				\
@@ -79,6 +77,7 @@ libcamel_la_SOURCES = 				\
 	camel-mime-filter-basic.c		\
 	camel-mime-filter-save.c		\
 	camel-mime-filter-charset.c		\
+	camel-mime-filter-index.c		\
 	camel-stream-filter.c			\
 	$(pthread_SRC)
 
@@ -110,14 +109,12 @@ libcamelinclude_HEADERS =			\
 	camel-session.h				\
 	camel-store.h				\
 	camel-stream.h				\
-	camel-stream-b64.h			\
 	camel-stream-buffer.h			\
 	camel-stream-fs.h			\
 	camel-stream-mem.h			\
 	camel-transport.h			\
 	camel-url.h				\
 	data-wrapper-repository.h		\
-	gmime-base64.h				\
 	gmime-content-field.h			\
 	gmime-utils.h				\
 	gstring-util.h				\
@@ -131,6 +128,7 @@ libcamelinclude_HEADERS =			\
 	camel-mime-filter-basic.h		\
 	camel-mime-filter-save.h		\
 	camel-mime-filter-charset.h		\
+	camel-mime-filter-index.h		\
 	camel-stream-filter.h			\
 	$(pthread_HDR)
 

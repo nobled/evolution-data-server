@@ -88,10 +88,6 @@ complete(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out,
 		camel_mime_filter_set_size(mf, len*3, FALSE);
 		newlen = quoted_encode_close(in, len, mf->outbuf, &f->state, &f->save);
 		break;
-	default:
-		g_warning("unknown type %d in CamelMimeFilterBasic", f->type);
-		goto donothing;
-
 	case CAMEL_MIME_FILTER_BASIC_BASE64_DEC:
 		/* output can't possibly exceed the input size */
 		camel_mime_filter_set_size(mf, len, FALSE);
@@ -102,6 +98,9 @@ complete(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out,
 		camel_mime_filter_set_size(mf, len, FALSE);
 		newlen = quoted_decode_step(in, len, mf->outbuf, &f->state, &f->save);
 		break;
+	default:
+		g_warning("unknown type %d in CamelMimeFilterBasic", f->type);
+		goto donothing;
 	}
 
 	*out = mf->outbuf;
@@ -133,10 +132,6 @@ filter(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, s
 		camel_mime_filter_set_size(mf, len*3, FALSE);
 		newlen = quoted_encode_step(in, len, mf->outbuf, &f->state, &f->save);
 		break;
-	default:
-		g_warning("unknown type %d in CamelMimeFilterBasic", f->type);
-		goto donothing;
-
 	case CAMEL_MIME_FILTER_BASIC_BASE64_DEC:
 		/* output can't possibly exceed the input size */
 		camel_mime_filter_set_size(mf, len, FALSE);
@@ -147,6 +142,9 @@ filter(CamelMimeFilter *mf, char *in, size_t len, size_t prespace, char **out, s
 		camel_mime_filter_set_size(mf, len, FALSE);
 		newlen = quoted_decode_step(in, len, mf->outbuf, &f->state, &f->save);
 		break;
+	default:
+		g_warning("unknown type %d in CamelMimeFilterBasic", f->type);
+		goto donothing;
 	}
 
 	*out = mf->outbuf;
