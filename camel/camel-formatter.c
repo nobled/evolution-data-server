@@ -38,9 +38,6 @@
  *     camel_formatter_mime_message_to_html()
  *                 |
  *                 V
- *         handle_mime_message()
- *                 |
- *                 V
  *        call_handler_function()
  *
  * Then, 'call_handler_function' acts as a dispatcher, using a
@@ -156,15 +153,20 @@ void camel_formatter_wrapper_to_html (CamelFormatter* formatter,
 	/* give the root CamelDataWrapper and the stream to the formatter */
 	initialize_camel_formatter (formatter, data_wrapper, stream_out);
 	
-	/* write everything to the stream */
-	camel_stream_write_string (fmt->stream, "<html><body>\n");
-	call_handler_function (
-		formatter,
-		data_wrapper,
-		mimetype_whole,
-		data_wrapper->mime_type->type);
+	if (stream_out) {
+		
+		/* write everything to the stream */
+		camel_stream_write_string (
+			fmt->stream, "<html><body bgcolor=\"white\">\n");
+		call_handler_function (
+			formatter,
+			data_wrapper,
+			mimetype_whole,
+			data_wrapper->mime_type->type);
+		
+		camel_stream_write_string (fmt->stream, "\n</body></html>\n");
+	}
 	
-	camel_stream_write_string (fmt->stream, "\n</body></html>\n");
 
 	g_free (mimetype_whole);
 }
@@ -189,7 +191,12 @@ camel_formatter_mime_message_to_html (CamelFormatter* formatter,
 {
 	g_print ("camel_formatter_mime_message_to_html: entered\n");
 
-	g_assert (formatter && mime_message && body_stream);
+	g_assert (formatter != NULL);
+	g_assert (CAMEL_IS_FORMATTER (formatter));
+	g_assert (mime_message != NULL);
+	g_assert (CAMEL_IS_MIME_MESSAGE (mime_message));
+	
+	g_assert (header_stream || body_stream);
 
 	/* give the root CamelDataWrapper and the stream to the
            formatter */
@@ -197,14 +204,16 @@ camel_formatter_mime_message_to_html (CamelFormatter* formatter,
 				    CAMEL_DATA_WRAPPER (mime_message),
 				    body_stream);
 	
-	/* Write the contents of the mime message to the stream */
-	camel_stream_write_string (body_stream, "<html><body>\n");
-	call_handler_function (
-		formatter,
-		CAMEL_DATA_WRAPPER (mime_message),
-		"message/rfc822",
-		"message");
-	camel_stream_write_string (body_stream, "\n</body></html>\n");	
+	if (body_stream) {
+		/* Write the contents of the mime message to the stream */
+		camel_stream_write_string (body_stream, "<html><body>\n");
+		call_handler_function (
+			formatter,
+			CAMEL_DATA_WRAPPER (mime_message),
+			"message/rfc822",
+			"message");
+		camel_stream_write_string (body_stream, "\n</body></html>\n");
+	}
 	
 	/* write the subj:, to:, from: etc. fields out as html to the
            header stream */
@@ -434,7 +443,7 @@ text_to_html (const guchar *input,
 
 static void
 write_field_to_stream (const gchar* description, const gchar* value,
-		       CamelStream *stream)
+		       CamelStream *stream, gboolean as_table_row)
 {
 	gchar *s;
 	guint ev_length;
@@ -447,8 +456,12 @@ write_field_to_stream (const gchar* description, const gchar* value,
 	
 	g_assert (description && value);
 	
-	s = g_strdup_printf ("<b>%s</b>: %s<br>\n",
-			      description, encoded_value);
+	s = g_strdup_printf ("%s<b>%s</b>%s%s%s\n",
+			     as_table_row?"<tr><td>":"",
+			     description,
+			     as_table_row?"</td><td>":" ",
+			     encoded_value,
+			     as_table_row?"</td></tr>":"<br>");
 
 	camel_stream_write_string (stream, s);
 	g_free (encoded_value);
@@ -459,7 +472,8 @@ write_field_to_stream (const gchar* description, const gchar* value,
 static void
 write_recipients_to_stream (const gchar* recipient_type,
 			    const GList* recipients,
-			    CamelStream* stream)
+			    CamelStream* stream,
+			    gboolean as_table_row)
 {
 	/* list of recipients, like "elvis@graceland; bart@springfield" */
 	gchar *recipients_string = NULL;
@@ -478,10 +492,10 @@ write_recipients_to_stream (const gchar* recipient_type,
 		
 		recipients = recipients->next;
 	}
-	write_field_to_stream (recipient_type, recipients_string, stream);
+	write_field_to_stream (recipient_type, recipients_string, stream,
+			       as_table_row);
 
 	g_free (recipients_string);
-	camel_stream_write_string (stream, "<br><br>\n");	
 }
 
 
@@ -495,23 +509,25 @@ write_header_info_to_stream (CamelMimeMessage* mime_message,
 
 	g_assert (mime_message && stream);
 
+	camel_stream_write_string (stream, "<table>");
+	
 	/* A few fields will probably be available from the mime_message;
 	   for each one that's available, write it to the output stream
 	   with a helper function, 'write_field_to_stream'. */
 	if ((s = (gchar*)camel_mime_message_get_subject (mime_message))) {
-		write_field_to_stream ("Subject: ", s, stream);
+		write_field_to_stream ("Subject: ", s, stream, TRUE);
 	}
 
 	if ((s = (gchar*)camel_mime_message_get_from (mime_message))) {
-		write_field_to_stream ("From: ", s, stream);
+		write_field_to_stream ("From: ", s, stream, TRUE);
 	}
 
 	if ((s = (gchar*)camel_mime_message_get_received_date (mime_message))) {
-		write_field_to_stream ("Received Date: ", s, stream);
+		write_field_to_stream ("Received Date: ", s, stream, TRUE);
 	}
 
 	if ((s = (gchar*)camel_mime_message_get_sent_date (mime_message))) {
-		write_field_to_stream ("Sent Date: ", s, stream);
+		write_field_to_stream ("Sent Date: ", s, stream, TRUE);
 	}		
  
 	/* Fill out the "To:" recipients line */
@@ -519,19 +535,21 @@ write_header_info_to_stream (CamelMimeMessage* mime_message,
 		mime_message, CAMEL_RECIPIENT_TYPE_TO);
 	
 	if (recipients)
-		write_recipients_to_stream ("To:", recipients, stream);
+		write_recipients_to_stream ("To:", recipients, stream, TRUE);
 
 	/* Fill out the "CC:" recipients line */
 	recipients = camel_mime_message_get_recipients (
 		mime_message, CAMEL_RECIPIENT_TYPE_CC);
 	if (recipients)
-		write_recipients_to_stream ("CC:", recipients, stream);	
+		write_recipients_to_stream ("CC:", recipients, stream, TRUE);	
 
 	/* Fill out the "BCC:" recipients line */
 	recipients = camel_mime_message_get_recipients (
 		mime_message, CAMEL_RECIPIENT_TYPE_BCC);	
 	if (recipients)
-		write_recipients_to_stream ("BCC:", recipients, stream);
+		write_recipients_to_stream ("BCC:", recipients, stream, TRUE);
+
+	camel_stream_write_string (stream, "</table>");	
 }
 
 /* case-insensitive string comparison */
@@ -580,14 +598,14 @@ handle_text_plain (CamelFormatter *formatter, CamelDataWrapper *wrapper)
 	camel_stream_write_string (formatter->priv->stream,
 				   "\n<!-- text/plain below -->\n");
 
-	if (strstr (wrapper->mime_type->subtype, "richtext") == 0) {
+	if (strcmp (wrapper->mime_type->subtype, "richtext") == 0) {
 
 		camel_stream_write_string (
 			formatter->priv->stream,
-			"<center><b>Warning: the following richtext may not");
+			"<center><b><table bgcolor=\"b0b0ff\" cellpadding=3><tr><td>Warning: the following richtext may not");
 		camel_stream_write_string (
 			formatter->priv->stream,
-			" be formatted correctly. </b></center><br>");
+			" be formatted correctly. </b></td></tr></table></center><br>");
 	}
 	
 	/* If there's any text, write it to the stream */
@@ -975,9 +993,3 @@ camel_formatter_get_type (void)
 	
 	return camel_formatter_type;
 }
-
-
-
-
-
-
