@@ -37,6 +37,7 @@ extern "C" {
 #include "camel-folder.h"
 //#include "camel-groupwise-folder.h"
 #include <camel/camel-folder-search.h>
+#include <camel/camel-folder-summary.h>
 
 #define CAMEL_GW_MESSAGE_CACHE_TYPE     (camel_groupwise_message_cache_get_type ())
 #define CAMEL_GW_MESSAGE_CACHE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_GW_MESSAGE_CACHE_TYPE, CamelGroupwiseFolder))

@@ -35,8 +35,10 @@ extern "C" {
 
 #include <camel/camel-folder.h>
 #include <camel/camel-mime-message.h>
+#include <camel/camel-folder-summary.h>
 #include <camel/camel-internet-address.h>
 #include <camel/camel-data-cache.h>
+#include <camel/camel-multipart.h>
 
 #include "camel-groupwise-message-cache.h"
 
