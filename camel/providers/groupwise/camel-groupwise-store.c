@@ -391,15 +391,18 @@ CamelFolder * camel_groupwise_get_folder( CamelStore *store,
 		container_id = 	g_strdup (g_hash_table_lookup (priv->name_hash, g_strdup(temp_str))) ;
 	}
 	printf("|| Container id: %s ||\n",container_id) ;
-	
-/*	status = e_gw_connection_get_items (priv->cnc, container_id, NULL, NULL, &list) ;
+
+	camel_operation_start (NULL, _("Fetching summary information for new messages"));
+
+	status = e_gw_connection_get_items (priv->cnc, container_id, NULL, NULL, &list) ;
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Authentication failed"));
 		return NULL;
-	}*/
+	}
 	storage_path = g_strdup_printf("%s/folders", priv->storage_path);
         folder_dir = e_path_to_physical (storage_path, folder_name);
 	g_free(storage_path) ;
+	
 	
 	folder = camel_gw_folder_new(store,folder_dir,folder_name,ex) ;
 	if(folder) {
@@ -409,13 +412,17 @@ CamelFolder * camel_groupwise_get_folder( CamelStore *store,
 		gw_store->current_folder = folder ;
 		camel_object_ref (folder) ;
 		camel_exception_init (&local_ex) ;
+		
 		/*gw_folder_selected() ;*/
 		
+		gw_update_summary (folder, list,  ex) ;
+
 		count = camel_folder_summary_count (folder->summary) ;
 		printf(" |||| COUNT : %d ||||\n", count) ;
 		/*gw_rescan() ;*/
 		camel_folder_summary_save(folder->summary) ;
 	}
+	camel_operation_end (NULL);
 	return folder ;
 }
 
