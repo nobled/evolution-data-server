@@ -948,7 +948,6 @@ mbox_get_message_by_uid (CamelFolder *folder, const gchar *uid, CamelException *
 	gtk_signal_connect((GtkObject *)message, "message_changed", message_changed, folder);
 
 	gtk_object_unref((GtkObject *)parser);
-	gtk_object_unref((GtkObject *)message_stream);
 
 	return message;
 

@@ -1,3 +1,9 @@
+2000-05-07  NotZed  <NotZed@HelixCode.com>
+
+	* providers/mbox/camel-mbox-folder.c (mbox_get_message_by_uid):
+	Dont unref the stream, because of the broken(tm) ref model of gtk
+	widget that for some odd reason is being perpetuated in camel.	
+
 2000-05-07    <notzed@helixcode.com>
 
 	* camel-mime-filter.c (filter_run): Oops, forgot to add the
