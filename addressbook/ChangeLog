@@ -1,3 +1,10 @@
+2004-10-31  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* libedata-book/e-book-backend-cache.[ch] : 
+	added new functions e_book_backend_check_contact 
+	and e_book_backend_cache_exists 
+
+
 2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
 	
 	* libedata-book/Makefile.am : added e-book-backend-cache.c to 

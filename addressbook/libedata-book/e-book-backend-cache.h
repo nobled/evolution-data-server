@@ -52,7 +52,9 @@ gboolean e_book_backend_cache_add_contact (EBookBackendCache *cache,
 					   EContact *contact);
 gboolean e_book_backend_cache_remove_contact (EBookBackendCache *cache,
 					      const char *uid);
+gboolean e_book_backend_check_contact (EBookBackendCache *cache, const char *uid);
 GList * e_book_backend_cache_get_contacts (EBookBackendCache *cache, const char *query);
+gboolean e_book_backend_cache_exists (const char *uid);
 
 G_END_DECLS
 

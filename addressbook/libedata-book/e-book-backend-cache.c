@@ -1,5 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
-/* A class to cache addr book conents on local file system
+/* A class to cache address  book conents on local file system
  *
  * Copyright (C) 2004 Novell, Inc.
  *
@@ -305,6 +305,23 @@ e_book_backend_cache_remove_contact (EBookBackendCache *cache,
 
 	return retval;
 }
+gboolean 
+e_book_backend_cache_check_contact (EBookBackendCache *cache, const char *uid)
+{
+
+	gboolean retval;
+	EBookBackendCachePrivate *priv;
+
+	g_return_val_if_fail (E_IS_BOOK_BACKEND_CACHE (cache), FALSE);
+	g_return_val_if_fail (uid != NULL, FALSE);
+
+	priv = cache->priv;
+
+	retval = FALSE;
+	if (e_file_cache_get_object (E_FILE_CACHE (cache), uid)) 
+		retval = TRUE;
+	return retval;
+}
 
 GList *
 e_book_backend_cache_get_contacts (EBookBackendCache *cache, const char *query)
@@ -339,3 +356,17 @@ e_book_backend_cache_get_contacts (EBookBackendCache *cache, const char *query)
         return list;
 }
 
+gboolean 
+e_book_backend_cache_exists (const char *uri)
+{
+	char *file_name;
+	gboolean exists = FALSE;
+	file_name = get_filename_from_uri (uri);
+	
+	if (file_name && g_file_test (file_name, G_FILE_TEST_EXISTS)) {
+		exists = TRUE;
+		g_free (file_name);
+	}
+	
+	return exists;
+}
