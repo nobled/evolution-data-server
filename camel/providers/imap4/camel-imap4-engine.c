@@ -115,22 +115,6 @@ camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *klass)
 }
 
 static void
-imap4_namespace_clear (CamelIMAP4Namespace **namespace)
-{
-	CamelIMAP4Namespace *node, *next;
-	
-	node = *namespace;
-	while (node != NULL) {
-		next = node->next;
-		g_free (node->path);
-		g_free (node);
-		node = next;
-	}
-	
-	*namespace = NULL;
-}
-
-static void
 camel_imap4_engine_finalize (CamelObject *object)
 {
 	CamelIMAP4Engine *engine = (CamelIMAP4Engine *) object;
@@ -145,9 +129,9 @@ camel_imap4_engine_finalize (CamelObject *object)
 	g_hash_table_foreach (engine->authtypes, (GHFunc) g_free, NULL);
 	g_hash_table_destroy (engine->authtypes);
 	
-	imap4_namespace_clear (&engine->namespaces.personal);
-	imap4_namespace_clear (&engine->namespaces.other);
-	imap4_namespace_clear (&engine->namespaces.shared);
+	camel_imap4_namespace_clear (&engine->namespaces.personal);
+	camel_imap4_namespace_clear (&engine->namespaces.other);
+	camel_imap4_namespace_clear (&engine->namespaces.shared);
 	
 	if (engine->folder)
 		camel_object_unref (engine->folder);
@@ -350,6 +334,16 @@ camel_imap4_engine_namespace (CamelIMAP4Engine *engine, CamelException *ex)
 }
 
 
+/**
+ * camel_imap4_engine_select_folder:
+ * @engine: IMAP4 engine
+ * @folder: folder to select
+ * @ex: exception
+ *
+ * Convenience function to select @folder.
+ *
+ * Returns 0 on success or -1 on fail.
+ **/
 int
 camel_imap4_engine_select_folder (CamelIMAP4Engine *engine, CamelFolder *folder, CamelException *ex)
 {
@@ -441,11 +435,15 @@ static struct {
 	{ "IMAP4",         CAMEL_IMAP4_CAPABILITY_IMAP4         },
 	{ "IMAP4REV1",     CAMEL_IMAP4_CAPABILITY_IMAP4REV1     },
 	{ "STATUS",        CAMEL_IMAP4_CAPABILITY_STATUS        },
-	{ "NAMESPACE",     CAMEL_IMAP4_CAPABILITY_NAMESPACE     },
-	{ "UIDPLUS",       CAMEL_IMAP4_CAPABILITY_UIDPLUS       },
-	{ "LITERAL+",      CAMEL_IMAP4_CAPABILITY_LITERALPLUS   },
+	{ "NAMESPACE",     CAMEL_IMAP4_CAPABILITY_NAMESPACE     }, /* rfc2342 */
+	{ "UIDPLUS",       CAMEL_IMAP4_CAPABILITY_UIDPLUS       }, /* rfc2359 */
+	{ "LITERAL+",      CAMEL_IMAP4_CAPABILITY_LITERALPLUS   }, /* rfc2088 */
 	{ "LOGINDISABLED", CAMEL_IMAP4_CAPABILITY_LOGINDISABLED },
 	{ "STARTTLS",      CAMEL_IMAP4_CAPABILITY_STARTTLS      },
+	{ "QUOTA",         CAMEL_IMAP4_CAPABILITY_QUOTA         }, /* rfc2087 */
+	{ "ACL",           CAMEL_IMAP4_CAPABILITY_ACL           }, /* rfc2086 */
+	{ "IDLE",          CAMEL_IMAP4_CAPABILITY_IDLE          }, /* rfc2177 */
+	{ "MULTIAPPEND",   CAMEL_IMAP4_CAPABILITY_MULTIAPPEND   }, /* rfc3502 */
 	{ NULL,            0                                    }
 };
 
@@ -471,14 +469,14 @@ engine_parse_capability (CamelIMAP4Engine *engine, int sentinel, CamelException 
 		return -1;
 	
 	while (token.token == CAMEL_IMAP4_TOKEN_ATOM) {
-		if (!strncasecmp ("AUTH=", token.v.atom, 5)) {
+		if (!g_ascii_strncasecmp ("AUTH=", token.v.atom, 5)) {
 			CamelServiceAuthType *auth;
 			
 			if ((auth = camel_sasl_authtype (token.v.atom + 5)) != NULL)
 				g_hash_table_insert (engine->authtypes, g_strdup (token.v.atom + 5), auth);
 		} else {
 			for (i = 0; imap4_capabilities[i].name; i++) {
-				if (!strcasecmp (imap4_capabilities[i].name, token.v.atom))
+				if (!g_ascii_strcasecmp (imap4_capabilities[i].name, token.v.atom))
 					engine->capa |= imap4_capabilities[i].flag;
 			}
 		}
@@ -565,9 +563,9 @@ engine_parse_namespace (CamelIMAP4Engine *engine, CamelException *ex)
 	camel_imap4_token_t token;
 	int i, n = 0;
 	
-	imap4_namespace_clear (&engine->namespaces.personal);
-	imap4_namespace_clear (&engine->namespaces.other);
-	imap4_namespace_clear (&engine->namespaces.shared);
+	camel_imap4_namespace_clear (&engine->namespaces.personal);
+	camel_imap4_namespace_clear (&engine->namespaces.other);
+	camel_imap4_namespace_clear (&engine->namespaces.shared);
 	
 	if (camel_imap4_engine_next_token (engine, &token, ex) == -1)
 		return -1;
@@ -606,8 +604,19 @@ engine_parse_namespace (CamelIMAP4Engine *engine, CamelException *ex)
 					goto exception;
 				}
 				
-				if (token.token != CAMEL_IMAP4_TOKEN_QSTRING || strlen (token.v.qstring) > 1) {
-					d(fprintf (stderr, "Expected to find a qstring token as second element in NAMESPACE pair\n"));
+				switch (token.token) {
+				case CAMEL_IMAP4_TOKEN_NIL:
+					node->sep = '\0';
+					break;
+				case CAMEL_IMAP4_TOKEN_QSTRING:
+					if (strlen (token.v.qstring) == 1) {
+						node->sep = *token.v.qstring;
+						break;
+					} else {
+						/* invalid, fall thru */
+					}
+				default:
+					d(fprintf (stderr, "Expected to find a nil or a valid qstring token as second element in NAMESPACE pair\n"));
 					camel_imap4_utils_set_unexpected_token_error (ex, engine, &token);
 					g_free (node->path);
 					g_free (node);
@@ -615,7 +624,6 @@ engine_parse_namespace (CamelIMAP4Engine *engine, CamelException *ex)
 					goto exception;
 				}
 				
-				node->sep = *token.v.qstring;
 				tail->next = node;
 				tail = node;
 				
@@ -674,7 +682,7 @@ engine_parse_namespace (CamelIMAP4Engine *engine, CamelException *ex)
  exception:
 	
 	for (i = 0; i <= n; i++)
-		imap4_namespace_clear (&namespaces[i]);
+		camel_imap4_namespace_clear (&namespaces[i]);
 	
 	return -1;
 }
@@ -715,6 +723,15 @@ static struct {
 };
 
 
+/**
+ * camel_imap4_engine_parse_resp_code:
+ * @engine: IMAP4 engine
+ * @ex: exception
+ *
+ * Parses a RESP-CODE
+ *
+ * Returns 0 on success or -1 on fail.
+ **/
 int
 camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex)
 {
@@ -883,26 +900,34 @@ camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex
 		if (camel_imap4_engine_next_token (engine, &token, ex) == -1)
 			return -1;
 		
-		if (token.token != CAMEL_IMAP4_TOKEN_ATOM) {
-			d(fprintf (stderr, "Expected an atom token as the second argument to the COPYUID RESP-CODE\n"));
+		if (token.token != CAMEL_IMAP4_TOKEN_ATOM && token.token != CAMEL_IMAP4_TOKEN_NUMBER) {
+			d(fprintf (stderr, "Expected an atom or numeric token as the second argument to the COPYUID RESP-CODE\n"));
 			camel_imap4_utils_set_unexpected_token_error (ex, engine, &token);
 			goto exception;
 		}
 		
-		if (resp != NULL)
-			resp->v.copyuid.srcset = g_strdup (token.v.atom);
+		if (resp != NULL) {
+			if (token.token == CAMEL_IMAP4_TOKEN_NUMBER)
+				resp->v.copyuid.srcset = g_strdup_printf ("%u", token.v.number);
+			else
+				resp->v.copyuid.srcset = g_strdup (token.v.atom);
+		}
 		
 		if (camel_imap4_engine_next_token (engine, &token, ex) == -1)
 			return -1;
 		
-		if (token.token != CAMEL_IMAP4_TOKEN_ATOM) {
-			d(fprintf (stderr, "Expected an atom token as the third argument to the APPENDUID RESP-CODE\n"));
+		if (token.token != CAMEL_IMAP4_TOKEN_ATOM && token.token != CAMEL_IMAP4_TOKEN_NUMBER) {
+			d(fprintf (stderr, "Expected an atom or numeric token as the third argument to the APPENDUID RESP-CODE\n"));
 			camel_imap4_utils_set_unexpected_token_error (ex, engine, &token);
 			goto exception;
 		}
 		
-		if (resp != NULL)
-			resp->v.copyuid.destset = g_strdup (token.v.atom);
+		if (resp != NULL) {
+			if (token.token == CAMEL_IMAP4_TOKEN_NUMBER)
+				resp->v.copyuid.destset = g_strdup_printf ("%u", token.v.number);
+			else
+				resp->v.copyuid.destset = g_strdup (token.v.atom);
+		}
 		
 		break;
 	default:
@@ -961,8 +986,17 @@ camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex
 }
 
 
-
-/* returns -1 on error, or one of CAMEL_IMAP4_UNTAGGED_[OK,NO,BAD,PREAUTH,HANDLED] on success */
+/**
+ * camel_imap4_engine_handle_untagged_1:
+ * @engine: IMAP4 engine
+ * @token: IMAP4 token
+ * @ex: exception
+ *
+ * Handles a single untagged response
+ *
+ * Returns -1 on error or one of
+ * CAMEL_IMAP4_UNTAGGED_[OK,NO,BAD,PREAUTH,HANDLED] on success
+ **/
 int
 camel_imap4_engine_handle_untagged_1 (CamelIMAP4Engine *engine, camel_imap4_token_t *token, CamelException *ex)
 {
@@ -1115,6 +1149,13 @@ camel_imap4_engine_handle_untagged_1 (CamelIMAP4Engine *engine, camel_imap4_toke
 }
 
 
+/**
+ * camel_imap4_engine_handle_untagged:
+ * @engine: IMAP4 engine
+ * @ex: exception
+ *
+ * Handle a stream of untagged responses.
+ **/
 void
 camel_imap4_engine_handle_untagged (CamelIMAP4Engine *engine, CamelException *ex)
 {
@@ -1212,6 +1253,7 @@ engine_state_change (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
 	
 	return retval;
 }
+
 
 /**
  * camel_imap4_engine_iterate:
@@ -1379,6 +1421,13 @@ camel_imap4_engine_prequeue (CamelIMAP4Engine *engine, CamelFolder *folder, cons
 }
 
 
+/**
+ * camel_imap4_engine_dequeue:
+ * @engine: IMAP4 engine
+ * @ic: IMAP4 command
+ *
+ * Removes @ic from the processing queue.
+ **/
 void
 camel_imap4_engine_dequeue (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
 {
@@ -1395,6 +1444,18 @@ camel_imap4_engine_dequeue (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
 }
 
 
+/**
+ * camel_imap4_engine_next_token:
+ * @engine: IMAP4 engine
+ * @token: IMAP4 token
+ * @ex: exception
+ *
+ * Wraps camel_imap4_stream_next_token() to set an exception on
+ * failure and updates the engine state to DISCONNECTED if the stream
+ * gets disconencted.
+ *
+ * Returns 0 on success or -1 on fail.
+ **/
 int
 camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *token, CamelException *ex)
 {
@@ -1412,6 +1473,15 @@ camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *to
 }
 
 
+/**
+ * camel_imap4_engine_eat_line:
+ * @engine: IMAP4 engine
+ * @ex: exception
+ *
+ * Gobbles up the remainder of the response line.
+ *
+ * Returns 0 on success or -1 on fail
+ **/
 int
 camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
 {
@@ -1444,6 +1514,19 @@ camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
 }
 
 
+/**
+ * camel_imap4_engine_line:
+ * @engine: IMAP4 engine
+ * @line: line pointer
+ * @len: length pointer
+ * @ex: exception
+ *
+ * Reads in a single line of input from the IMAP4 server and updates
+ * @line to point to the line buffer. @len is set to the length of the
+ * line buffer. @line must be free'd using g_free().
+ *
+ * Returns 0 on success or -1 on fail
+ **/
 int
 camel_imap4_engine_line (CamelIMAP4Engine *engine, unsigned char **line, size_t *len, CamelException *ex)
 {
@@ -1486,6 +1569,20 @@ camel_imap4_engine_line (CamelIMAP4Engine *engine, unsigned char **line, size_t 
 }
 
 
+/**
+ * camel_imap4_engine_literal:
+ * @engine: IMAP4 engine
+ * @literal: literal pointer
+ * @len: len pointer
+ * @ex: exception
+ *
+ * Reads in an entire literal string and updates @literal to point to
+ * it. @len is set to the length of the literal. @literal will also
+ * conveniently be terminated with a nul-byte. @literal must be free'd
+ * using g_free().
+ *
+ * Returns 0 on success or -1 on fail.
+ **/
 int
 camel_imap4_engine_literal (CamelIMAP4Engine *engine, unsigned char **literal, size_t *len, CamelException *ex)
 {
@@ -1529,6 +1626,55 @@ camel_imap4_engine_literal (CamelIMAP4Engine *engine, unsigned char **literal, s
 }
 
 
+/**
+ * camel_imap4_engine_nstring:
+ * @engine: IMAP4 engine
+ * @nstring: nstring pointer
+ * @ex: exception
+ *
+ * Reads in an nstring (NIL, atom, qstring or literal) and updates
+ * @nstring to point to it. @nstring must be free'd using g_free().
+ *
+ * Returns 0 on success or -1 on fail.
+ **/
+int
+camel_imap4_engine_nstring (CamelIMAP4Engine *engine, unsigned char **nstring, CamelException *ex)
+{
+	camel_imap4_token_t token;
+	size_t n;
+	
+	if (camel_imap4_engine_next_token (engine, &token, ex) == -1)
+		return -1;
+	
+	switch (token.token) {
+	case CAMEL_IMAP4_TOKEN_NIL:
+		*nstring = NULL;
+		break;
+	case CAMEL_IMAP4_TOKEN_ATOM:
+		*nstring = g_strdup (token.v.atom);
+		break;
+	case CAMEL_IMAP4_TOKEN_QSTRING:
+		*nstring = g_strdup (token.v.qstring);
+		break;
+	case CAMEL_IMAP4_TOKEN_LITERAL:
+		if (camel_imap4_engine_literal (engine, nstring, &n, ex) == -1)
+			return -1;
+		break;
+	default:
+		camel_imap4_utils_set_unexpected_token_error (ex, engine, &token);
+		return -1;
+	}
+	
+	return 0;
+}
+
+
+/**
+ * camel_imap4_resp_code_free:
+ * @rcode: RESP-CODE
+ *
+ * Free's the RESP-CODE
+ **/
 void
 camel_imap4_resp_code_free (CamelIMAP4RespCode *rcode)
 {

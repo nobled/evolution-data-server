@@ -1,3 +1,112 @@
+2004-12-05  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c 
+	(e_book_backend_groupwise_modify_contact) 
+	(e_book_backend_groupwise_get_contact) : use the 
+	changed prototype of e_gw_connection-get_item 
+
+2004-11-28  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* libebook/e-book.[ch] :
+	(e_book_get_required_fields) 
+	(e_book_async_get_required_fields) 
+	(do_get_required_fields)
+	(e_book_response_get_required_fields)
+	(e_book_response_get_required_fields): new methods 
+	to required fields defined by backends
+	(e_book_handle_response) : added handling for
+	GetRequiredFieldsResponse case
+
+	* libebook/e-book-listener.[ch]
+	Added GetRequiredFieldsResponse to book listener
+	operations
+	(impl_BookListener_respond_get_required_fields):
+	new method for required fields
+	(e_book_listener_class_init) : init notifyRequiredFields
+	with corresponding implementation method
+
+	* idl/Evolution-DataServer-Addressbook.idl : added getRequiredFields
+	and notifyRequiredFields to book and book listener interfaces
+
+	* libedatabook/e-data-book.[ch] : 
+	(impl_GNOME_Evolution_Addressbook_Book_getRequiredFields)
+	(e_data_book_respond_get_required_fields) : new methods for required 
+	fields handling 
+	(e_data_book_class_init) : init notifyRequiredFields
+        with corresponding implementation method
+
+	* libedatabook/e-book-backend.[ch] : 
+	(e_book_backend_get_required_fields) : new methods 
+	for required fields handling.
+	
+	* libedatabook/e-book-backend-sync.[ch] : 
+	(e_book_backend_sync_get_required_fields)
+	(_e_book_backend_get_required_fields) : ditto
+	(e_book_backend_sync_class_init) : init the new get_required_fields
+	method 
+
+	* backends/file/e-book-backend-file.c :
+	(e_book_backend_file_get_required_fields) : get_required_fields
+	implementation
+	(e_book_backend_file_class_init) : init get_requires_method
+
+	* backends/vcf/e-book-backend-vcf.c :
+	(e_book_backend_vcf_get_required_fields)
+	(e_book_backend_vcf_class_init) :ditto
+
+	* backends/ldap/e-book-backend-ldap.c :
+	(e_book_backend_ldap_get_required_fields)
+	(e_book_backend_ldap_class_init) : ditto
+
+	* backends/groupwise/e-book-backend-groupwise.c :
+	(e_book_backend_groupwise_get_required_fields)
+	(e_book_backend_groupwise_class_init) :ditto
+	
+
+	
+2004-10-30  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c (
+	e_book_backend_groupwise_get_contact_list) : move e_book_backend_sexp_match_contact
+	inside if(match_needed) sp that contact won't be returned
+	where match is needed but contact does not match the criteria 
+
+2004-10-29  Diego Gonzalez <diego@pemas.net>
+
+	 * backends/file/e-book-backend-file.c (e_book_backend_file_modify_contact):
+ 	 don't crash if the UID of the contact being commited is NULL.
+
+2004-10-29  Diego Gonzalez <diego@pemas.net>
+
+	  * libebook/e-book.c (do_commit_contact): when doing a e_book_commit_contact,
+  	  several times, the first time that this funcion was called with the
+ 	  sync flag it cleared the UID of the contact, in the next operation the
+ 	  server would crash due to the UID being null. This fixes the client side
+  	  and seems to work without a glitch.
+
+  	  I just removed the e_contact_set as it seems (from visual inspection of
+  	  e_contact_set) that this operation doesn't cause any call in the backend,
+  	  and thus it will not force the previous operation to be completed.
+
+2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* libedata-book/e-book-backend-sexp.c : Remove E_CONTACT_UID 
+	from the list of feilds we search in. 
+	Fixes #42165 
+
+2004-10-25  JP Rosevear  <jpr@novell.com>
+
+	From Anders Carlsson <andersca@gnome.org>
+	
+	* libedata-book/e-book-backend-factory.c
+	(e_book_backend_factory_get_type): allocate the right size for the
+	class
+
+2004-10-24  Nat Friedman  <nat@novell.com>
+
+	* libedata-book/e-book-backend-sexp.c (compare_im_groupwise): Make
+	GroupWise IM names searchable.
+
 2004-10-14  Rodney Dawes  <dobey@novell.com>
 
 	* backends/*/Makefile.am: Add -avoid-version to LDFLAGS for all

@@ -1,8 +1,8 @@
 AUTOMAKE_OPTIONS = 1.6
 DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
 
-SUBDIRS = libdb libedataserver libedataserverui servers addressbook calendar src docs po
-DIST_SUBDIRS= libedataserver libedataserverui servers addressbook calendar src docs po
+SUBDIRS = libdb libedataserver camel servers addressbook calendar libedataserverui src docs po
+DIST_SUBDIRS= libedataserver camel servers addressbook calendar libedataserverui src docs po
 
 changelogs =			\
 	ChangeLog
@@ -22,6 +22,7 @@ EXTRA_DIST = 						\
 	TODO						\
 	NEWS						\
 	marshal.mk					\
+	iconv-detect.c					\
 	intltool-merge.in				\
 	intltool-update.in				\
 	intltool-extract.in				\

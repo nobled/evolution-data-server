@@ -36,7 +36,7 @@
 #endif
 
 #include "camel-operation.h"
-#include "e-util/e-msgport.h"
+#include "libedataserver/e-msgport.h"
 
 #define d(x)
 
@@ -112,7 +112,7 @@ camel_operation_init(void)
 void
 camel_operation_shutdown (void)
 {
-	pthread_key_delete (&operation_key);
+	pthread_key_delete (operation_key);
 }
 
 /**

@@ -23,6 +23,8 @@
 
 #include <glib.h>
 
+#include <camel/camel-exception.h>
+
 #ifdef __cplusplus
 extern "C" {
 #pragma }
@@ -40,7 +42,19 @@ guint32 camel_imap4_merge_flags (guint32 original, guint32 local, guint32 server
 
 struct _CamelIMAP4Engine;
 struct _CamelIMAP4Command;
+struct _CamelFolderSummary;
 struct _camel_imap4_token_t;
+struct _CamelIMAP4StoreSummary;
+struct _CamelIMAP4NamespaceList;
+struct _CamelIMAP4Namespace;
+
+void camel_imap4_namespace_clear (struct _CamelIMAP4Namespace **ns);
+struct _CamelIMAP4NamespaceList *camel_imap4_namespace_list_copy (const struct _CamelIMAP4NamespaceList *nsl);
+void camel_imap4_namespace_list_free (struct _CamelIMAP4NamespaceList *nsl);
+
+char camel_imap4_get_path_delim (struct _CamelIMAP4StoreSummary *s, const char *full_name);
+
+int camel_imap4_get_uid_set (struct _CamelIMAP4Engine *engine, struct _CamelFolderSummary *summary, GPtrArray *infos, int cur, size_t linelen, char **set);
 
 char camel_imap4_get_path_delim (struct _CamelIMAP4Engine *engine, const char *full_name);
 

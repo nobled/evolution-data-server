@@ -1,7 +1,5 @@
 ## Process this file with automake to produce Makefile.in
 
-libcamelimap4includedir = $(privincludedir)/camel
-
 camel_provider_LTLIBRARIES = libcamelimap4.la
 camel_provider_DATA = libcamelimap4.urls
 
@@ -30,6 +28,8 @@ libcamelimap4_la_SOURCES = 			\
 	camel-imap4-specials.h			\
 	camel-imap4-store.c			\
 	camel-imap4-store.h			\
+	camel-imap4-store-summary.c		\
+	camel-imap4-store-summary.h		\
 	camel-imap4-stream.c			\
 	camel-imap4-stream.h			\
 	camel-imap4-summary.c			\

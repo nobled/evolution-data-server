@@ -5,6 +5,7 @@ INCLUDES =						\
 	-I$(top_srcdir)/intl			 	\
 	-I$(top_srcdir)/e-util			 	\
 	-I$(top_srcdir)/camel				\
+	-DCAMEL_BUILD_DIR=\"$(top_builddir)/camel\"	\
 	$(CAMEL_CFLAGS)
 
 check_LIBRARIES = libcameltest.a
@@ -19,4 +20,6 @@ libcameltest_a_SOURCES = \
 	address-data.h
 
 libcameltest_a_LIBADD =				\
-	$(top_builddir)/e-util/libeutil.la
+	$(top_builddir)/camel/libcamel.la		\
+	$(top_builddir)/libedataserver/libedataserver-${BASE_VERSION}.la
+

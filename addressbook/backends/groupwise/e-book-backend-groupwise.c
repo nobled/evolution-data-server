@@ -1262,7 +1262,7 @@ e_book_backend_groupwise_modify_contact (EBookBackend *backend,
 	
 	id = e_contact_get (contact, E_CONTACT_UID);
 	old_item = NULL;
-	status = e_gw_connection_get_item (egwb->priv->cnc, egwb->priv->container_id, id,  &old_item);
+	status = e_gw_connection_get_item (egwb->priv->cnc, egwb->priv->container_id, id, NULL, &old_item);
 
 	if (old_item == NULL) {
 		e_data_book_respond_modify (book, opid, GNOME_Evolution_Addressbook_ContactNotFound, NULL);
@@ -1320,7 +1320,7 @@ e_book_backend_groupwise_get_contact (EBookBackend *backend,
 		e_data_book_respond_get_contact (book, opid, GNOME_Evolution_Addressbook_OtherError, NULL);
 		return;
 	}
-  	status = e_gw_connection_get_item (gwb->priv->cnc, gwb->priv->container_id, id,  &item);
+  	status = e_gw_connection_get_item (gwb->priv->cnc, gwb->priv->container_id, id, NULL, &item);
 	if (status == E_GW_CONNECTION_STATUS_OK) {
 		if (item) {
 			contact = e_contact_new ();
@@ -1768,8 +1768,10 @@ e_book_backend_groupwise_get_contact_list (EBookBackend *backend,
 	for (; gw_items != NULL; gw_items = g_list_next(gw_items)) { 
 		contact = e_contact_new ();
 		fill_contact_from_gw_item (contact, E_GW_ITEM (gw_items->data), egwb->priv->categories_by_id);
-		if (match_needed &&  e_book_backend_sexp_match_contact (card_sexp, contact))
-			vcard_list = g_list_append (vcard_list, e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30));
+		if (match_needed) {  
+			if (e_book_backend_sexp_match_contact (card_sexp, contact))
+				vcard_list = g_list_append (vcard_list, e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30));
+		}
 		else 
 			vcard_list = g_list_append (vcard_list, e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30));
 		g_object_unref (contact);
@@ -2125,6 +2127,22 @@ e_book_backend_groupwise_authenticate_user (EBookBackend *backend,
 }
 
 static void
+e_book_backend_groupwise_get_required_fields (EBookBackend *backend,
+					       EDataBook    *book,
+					       guint32       opid)
+{
+	GList *fields = NULL;
+	int i;
+  
+	fields = g_list_append (fields , e_contact_field_name (E_CONTACT_FILE_AS));
+	e_data_book_respond_get_supported_fields (book, opid,
+						  GNOME_Evolution_Addressbook_Success,
+						  fields);
+	g_list_free (fields);
+ 
+}
+
+static void
 e_book_backend_groupwise_get_supported_fields (EBookBackend *backend,
 					       EDataBook    *book,
 					       guint32       opid)
@@ -2145,7 +2163,7 @@ e_book_backend_groupwise_get_supported_fields (EBookBackend *backend,
 	e_data_book_respond_get_supported_fields (book, opid,
 						  GNOME_Evolution_Addressbook_Success,
 						  fields);
- 
+	g_list_free (fields);
 }
 
 static GNOME_Evolution_Addressbook_CallStatus
@@ -2360,6 +2378,7 @@ e_book_backend_groupwise_class_init (EBookBackendGroupwiseClass *klass)
 	parent_class->stop_book_view          = e_book_backend_groupwise_stop_book_view;
 	parent_class->get_changes             = e_book_backend_groupwise_get_changes;
 	parent_class->authenticate_user       = e_book_backend_groupwise_authenticate_user;
+	parent_class->get_required_fields     = e_book_backend_groupwise_get_required_fields;
 	parent_class->get_supported_fields    = e_book_backend_groupwise_get_supported_fields;
 	parent_class->get_supported_auth_methods = e_book_backend_groupwise_get_supported_auth_methods;
 	parent_class->cancel_operation        = e_book_backend_groupwise_cancel_operation;

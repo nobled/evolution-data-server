@@ -42,9 +42,8 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-#include <e-util/e-sexp.h>
-
-#include <gal/util/e-iconv.h>
+#include <libedataserver/e-sexp.h>
+#include <libedataserver/e-iconv.h>
 
 #include "camel-mime-message.h"
 #include "camel-provider.h"
@@ -152,7 +151,7 @@ check_header (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMess
 		CamelContentType *ct;
 		const char *charset = NULL;
 		
-		if (strcasecmp(name, "x-camel-mlist") == 0) {
+		if (g_ascii_strcasecmp(name, "x-camel-mlist") == 0) {
 			header = camel_message_info_mlist(fms->info);
 			type = CAMEL_SEARCH_TYPE_MLIST;
 		} else {
@@ -160,7 +159,7 @@ check_header (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMess
 			
 			header = camel_medium_get_header (CAMEL_MEDIUM (message), argv[0]->value.string);
 			/* FIXME: what about Resent-To, Resent-Cc and Resent-From? */
-			if (strcasecmp("to", name) == 0 || strcasecmp("cc", name) == 0 || strcasecmp("from", name) == 0)
+			if (g_ascii_strcasecmp("to", name) == 0 || g_ascii_strcasecmp("cc", name) == 0 || g_ascii_strcasecmp("from", name) == 0)
 				type = CAMEL_SEARCH_TYPE_ADDRESS_ENCODED;
 			else {
 				ct = camel_mime_part_get_content_type (CAMEL_MIME_PART (message));
@@ -365,7 +364,7 @@ user_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMessage
 	/* performs an OR of all words */
 	for (i = 0; i < argc && !truth; i++) {
 		if (argv[i]->type == ESEXP_RES_STRING
-		    && camel_flag_get (&fms->info->user_flags, argv[i]->value.string)) {
+		    && camel_message_info_user_flag(fms->info, argv[i]->value.string)) {
 			truth = TRUE;
 			break;
 		}
@@ -386,7 +385,7 @@ system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMessa
 		e_sexp_fatal_error(f, _("Invalid arguments to (system-flag)"));
 	
 	r = e_sexp_result_new (f, ESEXP_RES_BOOL);
-	r->value.bool = camel_system_flag_get (fms->info->flags, argv[0]->value.string);
+	r->value.bool = camel_system_flag_get (camel_message_info_flags(fms->info), argv[0]->value.string);
 	
 	return r;
 }
@@ -400,7 +399,7 @@ user_tag (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMessageS
 	if (argc != 1 || argv[0]->type != ESEXP_RES_STRING)
 		e_sexp_fatal_error(f, _("Invalid arguments to (user-tag)"));
 	
-	tag = camel_tag_get (&fms->info->user_tags, argv[0]->value.string);
+	tag = camel_message_info_user_tag(fms->info, argv[0]->value.string);
 	
 	r = e_sexp_result_new (f, ESEXP_RES_STRING);
 	r->value.string = g_strdup (tag ? tag : "");
@@ -491,7 +490,7 @@ get_size (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMessageS
 	ESExpResult *r;
 	
 	r = e_sexp_result_new(f, ESEXP_RES_INT);
-	r->value.number = fms->info->size / 1024;
+	r->value.number = camel_message_info_size(fms->info) / 1024;
 
 	return r;
 }

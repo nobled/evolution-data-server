@@ -1,3 +1,57 @@
+2004-12-05  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* e-gw-connection.[ch] : (e_gw_connection_get_item) :
+	Added view argument to the prototype and use it in function
+
+	(e_gw_connection_get_container_list) : added parent
+	argument to the protoype and used that in function
+	(e_gw_connection_get_container_id) : call get_container_list
+	with new prototype 
+
+	(e_gw_connection_get_attachmenent) :
+	(e_gw_connection_create_folder) :
+	(e_gw_connection_add_item) : new methods 
+
+	* e-gw-item.[ch] : (e_gw_item_set_to)
+	(e_gw_item_get_to) 
+	(e_gw_item_get_msg_content_type)
+	(e_gw_item_get_item_status) 
+	(e_gw_item_get_attach_id_list) :  
+	(free_attach) : new methods 
+	(e_gw_item_new_from_soap_parameter) : added reading 
+	mail related fields 
+	(e_gw_item_append_to_soap_message) : added appending mail related fields
+
+	Added new item status types and new item type Mail
+
+	* e-gw-container.[ch] : (e_gw_container_get_parent_id)
+	(e_gw_container_set_parent_id)
+	(e_gw_container_is_root) : new methods 
+	(e_gw_container_set_from_soap_parameter) : read parent id 
+
+ 
+2004-11-21  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* doc/gw-soap-methods.xsd 
+	* doc/gw-soap-types.xsd : checked in new schema files
+	which has shared folder notifacaton changes and updateFrequentContacts
+	send option 
+ 
+	 
+2004-11-18  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* e-gw-connection.c (e_gw_connection_new) : change 
+	the "UserInfo" element to "userinfo"
+	part of the fix for #69624
+
+	
+2004-10-26  Sivaiah Nallagatla <snallagatla@novell.com>
+
+	* e-gw-message.c (e_gw_message_new_with_header) :
+	add keep-alive http header so that we don't make 
+	a new  connection for each http request
+	
+	
 2004-10-15  Chenthill Palanisamy <pchenthill@novell.com>
 
 	Fixes #67031

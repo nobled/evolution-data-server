@@ -1,3 +1,117 @@
+2004-12-07  Rodrigo Moya <rodrigo@novell.com>
+
+	Fixes #70267
+
+	* libedataserver/e-file-cache.[ch] (e_file_cache_freeze_changes,
+	e_file_cache_thaw_changes): new functions to disable temporarily
+	writes to disk.
+	(e_file_cache_init): initialize new private members.
+	(e_file_cache_add_object, e_file_cache_remove_object): mark the
+	cache file as dirty when we are frozen.
+
+2004-12-06  Rodney Dawes  <dobey@novell.com>
+
+	* Makefile.am (EXTRA_DIST): Add iconv-detect.c
+
+2004-12-06  Jeffrey Stedfast  <fejj@novell.com>
+
+	* configure.in (E_DATA_SERVER_DEPS): Fixed to include $mozilla_nspr
+
+	* libedataserver/Makefile.am: Don't need to have NSS_CFLAGS or
+	NSS_LIBS here - they are included in E_DATA_SERVER_[CFLAGS,LIBS]
+
+2004-12-03  Rodney Dawes  <dobey@novell.com>
+
+	* configure.in: Remove the commented out OpenSSL block
+	Don't do pkg-config --exists for mozilla, just try to use the
+	PKG_CONFIG() macro, and set have_nss="no" if it fails
+
+	* libedataserver/Makefile.am: Add NSS_CFLAGS and NSS_LIBS for the
+	e-msgport code that needs it
+
+2004-12-03  Jeffrey Stedfast  <fejj@novell.com>
+
+	* configure.in: Display configuration info after configure runs
+	(S/MIME, SSL, Kerberos, etc)
+
+2004-12-03  Not Zed  <NotZed@Ximian.com>
+
+	* libedataserver/Makefile.am (libedataserver_1_2_la_LIBADD): add
+	iconv_libs to the library list.
+
+2004-12-01  Hans Petter Jansson  <hpj@novell.com>
+
+	* Makefile.am: Build libedataserverui after non-UI libraries that it
+	may depend on.
+
+2004-11-28  JP Rosevear  <jpr@novell.com>
+
+	* configure.in: bump version, libtool numbers
+
+2004-11-25  Harish Krishnaswamy  <kharish@novell.com>
+
+	* libedataserverui/e-source-selector.[ch]:
+	(selector_button_press_event): if rt-clicked on a source 
+	group, set it as primary on the selector and emit a popup event.
+	(e_source_selector_get_primary_source_group): accessor for 
+	primary source group.
+
+2004-11-16  Not Zed  <NotZed@Ximian.com>
+
+	* Makefile.am (DIST_SUBDIRS, SUBDIRS): Added camel.
+
+	* configure.in: Added more camel required config checks.  Build
+	the camel makefiles.  Not sure if this should be in its own
+	configure.in.
+
+2004-11-15  Not Zed  <NotZed@Ximian.com>
+
+	* libedataserver/e-util.c: include config.h.
+
+	* libedataserver/e-sexp.c: updated from evolution/e-util.
+
+	* libedataserver/e-memory.c: updated from evolution/e-util.
+
+	* iconv-detect.c: added iconv format checker.
+
+	* configure.in: add stftime checks and iconv charset format checks.
+
+	* libedataserver/e-util.c (e_strftime): copied from gal/e-util.h.
+
+	* libedataserver/e-time-utils.c (parse_with_strptime): reove
+	e-utf8 depenedncy.
+
+	* libedataserver/e-iconv.[ch]: Moved from gal/util.
+
+	* libedataserver/e-trie.[ch]: Moved from evolution/e-util.
+	* libedataserver/e-msgport.[ch]: Moved from evolution/e-util.
+	* libedataserver/e-time-utils.[ch]: Moved from evolution/e-util.
+
+2004-11-05  Rodrigo Moya <rodrigo@novell.com>
+
+	* configure.in: use evolution-data-server-$BASE_VERSION as the
+	GETTEXT_PACKAGE.
+
+2004-11-03  Ryan Skadberg  <skadz@stigmata.org>
+
+	Fixes #69056
+	
+	* configure.in: Fix GETTEXT_PACKAGE to be 1.2 to match EDS version.
+
+2004-11-02  JP Rosevear  <jpr@novell.com>
+
+	Fixes #68737
+	
+	* configure.in: require libbonobo >= 2.4.2
+
+2004-11-01  Hans Petter Jansson  <hpj@novell.com>
+
+	* libdb/dbinc/mutex.h: Remove duplicated x86-64 mutex definition.
+
+2004-10-27  JP Rosevear  <jpr@novell.com>
+
+	* src/server.c: include just include signal.h for portability
+
 2004-10-21  Rodrigo Moya <rodrigo@novell.com>
 
 	* libedataserverui/Makefile.am:

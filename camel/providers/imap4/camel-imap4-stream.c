@@ -533,6 +533,10 @@ camel_imap4_stream_next_token (CamelIMAP4Stream *stream, camel_imap4_token_t *to
 					goto refill;
 				}
 				
+				/* handle the \* case */
+				if ((inptr - start) == 1 && *inptr == '*')
+					inptr++;
+				
 				if ((inptr - start) > 1) {
 					token_save (stream, start, inptr - start);
 					
@@ -627,8 +631,10 @@ camel_imap4_stream_line (CamelIMAP4Stream *stream, unsigned char **line, size_t 
 	g_return_val_if_fail (line != NULL, -1);
 	g_return_val_if_fail (len != NULL, -1);
 	
-	if ((stream->inend - stream->inptr) < 3) {
-		/* keep our buffer full to the optimal size */
+	inptr = stream->inptr;
+	inend = stream->inend;
+	
+	if (inptr == inend || ((inend - inptr) < 2 && *inptr != '\n')) {
 		if (imap4_fill (stream) == -1 && stream->inptr == stream->inend)
 			return -1;
 	}
@@ -642,15 +648,16 @@ camel_imap4_stream_line (CamelIMAP4Stream *stream, unsigned char **line, size_t 
 		inptr++;
 	
 	*len = (inptr - stream->inptr);
+	
+	if (inptr > stream->inptr && inptr[-1] == '\r')
+		inptr[-1] = '\0';
+	
 	if (inptr < inend) {
 		/* got the eoln */
-		if (inptr > stream->inptr && inptr[-1] == '\r')
-			inptr[-1] = '\0';
-		else
-			inptr[0] = '\0';
+		inptr[0] = '\0';
+		*len += 1;
 		
 		stream->inptr = inptr + 1;
-		*len += 1;
 		
 		return 0;
 	}
@@ -706,6 +713,8 @@ camel_imap4_stream_literal (CamelIMAP4Stream *stream, unsigned char **literal, s
 	*len = nread = inend - inptr;
 	
 	stream->literal -= nread;
+	stream->inptr += nread;
+	
 	if (stream->literal == 0) {
 		stream->mode = CAMEL_IMAP4_STREAM_MODE_TOKEN;
 		stream->eol = TRUE;
