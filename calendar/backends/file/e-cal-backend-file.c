@@ -1816,12 +1816,7 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 			char *old, *new;
 
 			old = e_cal_component_get_as_string (obj_data->full_object);
-
-			e_cal_util_remove_instances (e_cal_component_get_icalcomponent (obj_data->full_object),
-						     get_rid_icaltime (comp),
-						     mod);
-
-			new = e_cal_component_get_as_string (obj_data->full_object);
+			new = e_cal_component_get_as_string (comp);
 
 			e_cal_backend_notify_object_modified (E_CAL_BACKEND (backend), old, new);
 
