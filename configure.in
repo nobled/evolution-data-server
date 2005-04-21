@@ -1152,6 +1152,51 @@ dnl ***********
 AC_PATH_PROG(GCONFTOOL, gconftool-2, no)
 AM_GCONF_SOURCE_2
 
+dnl ********
+dnl Kerberos
+dnl ********
+AC_ARG_WITH(krb5, [  --with-krb5=DIR      Location of Kerberos 5 installation], with_krb5="$withval", with_krb5="/usr")
+AC_ARG_WITH(krb5-libs, [  --with-krb5-libs=DIR Location of Kerberos 5 libraries], with_krb5_libs="$withval", with_krb5_libs="$with_krb5/lib")
+AC_ARG_WITH(krb5-includes, [  --with-krb5-includes=DIR Location of Kerberos 5 headers], with_krb5_includes="$withval", with_krb5_includes="")
+
+
+mitlibs="-lkrb5 -lk5crypto -lcom_err -lgssapi_krb5"
+heimlibs="-lkrb5 -lcrypto -lasn1 -lcom_err -lroken -lgssapi"
+AC_CACHE_CHECK([for Kerberos 5], ac_cv_lib_kerberos5,
+[
+	LDFLAGS_save="$LDFLAGS"
+	LDFLAGS="$LDFLAGS -L$with_krb5_libs $mitlibs"
+	AC_TRY_LINK_FUNC(krb5_init_context, ac_cv_lib_kerberos5="$mitlibs",
+	[
+		LDFLAGS="$LDFLAGS_save -L$with_krb5_libs $heimlibs"
+		AC_TRY_LINK_FUNC(krb5_init_context, ac_cv_lib_kerberos5="$heimlibs", ac_cv_lib_kerberos5="no")
+	])
+	LDFLAGS="$LDFLAGS_save"
+])
+if test "$ac_cv_lib_kerberos5" = "no"; then
+	AC_MSG_ERROR(Could not find krb5. Install krb5 or heimdal packages.)
+fi
+
+if test "$ac_cv_lib_kerberos5" = "$mitlibs"; then
+	AC_DEFINE(HAVE_MIT_KRB5,1,[Define if you have MIT Krb5])
+	if test -z "$with_krb5_includes"; then
+		KRB5_CFLAGS="-I$with_krb5/include"
+	else
+		KRB5_CFLAGS="-I$with_krb5_includes"
+	fi
+  else
+	AC_DEFINE(HAVE_HEIMDAL_KRB5,1,[Define if you have Heimdal])
+	if test -z "$with_krb5_includes"; then
+		KRB5_CFLAGS="-I$with_krb5/include/heimdal"
+	else
+		KRB5_CFLAGS="-I$with_krb5_includes"
+	fi
+  fi
+	
+KRB5_LIBS="-L$with_krb5_libs $ac_cv_lib_kerberos5"
+AC_SUBST(KRB5_CFLAGS)
+AC_SUBST(KRB5_LIBS)
+
 dnl *************
 dnl Gtk Doc stuff
 dnl *************
@@ -1194,6 +1239,7 @@ calendar/libedata-cal/libedata-cal.pc
 calendar/backends/Makefile
 calendar/backends/file/Makefile
 calendar/backends/groupwise/Makefile
+calendar/backends/exchange/Makefile
 calendar/backends/http/Makefile
 calendar/backends/contacts/Makefile
 calendar/backends/weather/Makefile
@@ -1228,6 +1274,11 @@ libedataserverui/libedataserverui.pc
 servers/Makefile
 servers/groupwise/Makefile
 servers/groupwise/libegroupwise.pc 
+servers/exchange/Makefile
+servers/exchange/xntlm/Makefile
+servers/exchange/lib/Makefile
+servers/exchange/storage/Makefile
+servers/exchange/libexchange-storage.pc 
 src/Makefile
 docs/Makefile
 docs/reference/Makefile

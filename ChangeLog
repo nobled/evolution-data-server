@@ -1,3 +1,9 @@
+2005-04-21  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	* configure.in : Added the check for kerberos, needed by exchange
+	* servers/Makefile.am : Added exchange subdir
+	* calendar/backends/Makefile.am : similar.
+
 2005-04-20  Ross Burton  <ross@burtonini.com>
 
 	* libedataserver/e-data-server-module.c:

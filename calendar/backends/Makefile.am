@@ -1,1 +1,1 @@
-SUBDIRS = file groupwise http contacts weather
+SUBDIRS = file groupwise exchange http contacts weather
