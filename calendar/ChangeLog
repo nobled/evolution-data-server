@@ -1,3 +1,8 @@
+2005-04-21  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	* backends/exchange : Added a new directory and moved the exchange
+	calendar code here.
+
 2005-04-19  Philip Van Hoof  <pvanhoof@gnome.org>
 
 	* libecal/e-cal.c: Function prototype (compiler fix)
