@@ -1,0 +1,88 @@
+INCLUDES =							\
+	-DG_LOG_DOMAIN=\"evolution-exchange-storage\"		\
+	-DPREFIX=\"$(prefix)\"					\
+	-DSYSCONFDIR=\""$(sysconfdir)"\" 			\
+	-DDATADIR=\""$(datadir)"\"	 			\
+	-DLIBDIR=\""$(datadir)"\"	 			\
+	-DCONNECTOR_GLADEDIR=\""$(gladedir)"\"			\
+	-DCONNECTOR_IMAGESDIR=\""$(imagesdir)"\"		\
+	-DCONNECTOR_UIDIR=\""$(uidir)"\"			\
+	-DCONNECTOR_LOCALEDIR=\""$(localedir)\""		\
+	$(KRB5_CFLAGS)						\
+	$(LDAP_CFLAGS)						\
+	$(SOUP_CFLAGS)						\
+	$(E_DATA_SERVER_CFLAGS)					\
+	$(E_DATA_SERVER_UI_CFLAGS)					\
+	-I$(top_srcdir)						\
+	-I$(top_srcdir)/servers/exchange/lib					\
+	-I$(top_srcdir)/servers/exchange/xntlm					
+
+lib_LTLIBRARIES =				\
+	libexchange-storage-1.2.la
+
+libexchange_storage_1_2_la_SOURCES =				\
+	e-folder.c						\
+	e-folder.h						\
+	e-folder-exchange.c					\
+	e-folder-exchange.h					\
+	e-folder-tree.c						\
+	e-folder-tree.h						\
+	e-folder-type-registry.c				\
+	e-folder-type-registry.h				\
+	e-storage.c						\
+	e-storage.h						\
+	exchange-account.c					\
+	exchange-account.h					\
+	exchange-component.c					\
+	exchange-component.h					\
+	exchange-config-listener.c				\
+	exchange-config-listener.h				\
+	exchange-folder-size.c					\
+	exchange-folder-size.h					\
+	exchange-hierarchy-favorites.c				\
+	exchange-hierarchy-favorites.h				\
+	exchange-hierarchy-foreign.c				\
+	exchange-hierarchy-foreign.h				\
+	exchange-hierarchy-gal.c				\
+	exchange-hierarchy-gal.h				\
+	exchange-hierarchy-somedav.c				\
+	exchange-hierarchy-somedav.h				\
+	exchange-hierarchy-webdav.c				\
+	exchange-hierarchy-webdav.h				\
+	exchange-hierarchy.c					\
+	exchange-hierarchy.h					\
+	exchange-storage.c					\
+	exchange-storage.h					\
+	exchange-types.h					
+
+libexchange_storage_1_2_la_LIBADD =					\
+	$(E_DATA_SERVER_LIBS)					\
+	$(E_DATA_SERVER_UI_LIBS)					\
+	$(SOUP_LIBS)
+
+libexchange_storage_1_2_la_LDFLAGS =				\
+	$(top_builddir)/servers/exchange/lib/libexchange.la			\
+	$(top_builddir)/servers/exchange/xntlm/libxntlm.la			
+	-version-info 1:2:0
+
+#imagesdir = $(CONNECTOR_DATADIR)/images
+#images_DATA =				\
+#	connector.png			\
+#	connector-mini.png		\
+#	exchange-delegates-48.png	\
+#	exchange-oof-48.png
+
+#gladedir   = $(CONNECTOR_DATADIR)/glade
+#glade_DATA =					\
+	#exchange-autoconfig-wizard.glade	\
+	#exchange-change-password.glade		\
+	#exchange-delegates.glade		\
+	#exchange-oof.glade			\
+	#exchange-permissions-dialog.glade	\
+	#exchange-folder-tree.glade		\
+	#exchange-passwd-expiry.glade
+
+#uidir   = $(CONNECTOR_DATADIR)/ui
+#ui_DATA = ximian-connector.xml
+
+#EXTRA_DIST =				

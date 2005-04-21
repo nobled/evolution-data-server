@@ -1,5 +1,10 @@
 2005-04-21  Sarfraaz Ahmed <asarfraaz@novell.com>
 
+	* servers/exchange : Added a new directory and moved the server
+	connection code here from exchange.
+
+2005-04-21  Sarfraaz Ahmed <asarfraaz@novell.com>
+
 	* configure.in : Added the check for kerberos, needed by exchange
 	* servers/Makefile.am : Added exchange subdir
 	* calendar/backends/Makefile.am : similar.
