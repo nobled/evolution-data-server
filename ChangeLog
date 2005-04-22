@@ -1,3 +1,8 @@
+2005-04-22 Vivek Jain <jvivek@novell.com>
+	
+	* calendar/backends/exchange/Makefile.am : 
+	  Include LDAP_CFLAGS
+	
 2005-04-21  Sarfraaz Ahmed <asarfraaz@novell.com>
 
 	* servers/exchange : Added a new directory and moved the server

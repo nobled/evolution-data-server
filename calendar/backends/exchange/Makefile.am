@@ -16,6 +16,7 @@ INCLUDES =                                                      \
 	-I$(top_builddir)/servers/exchange/xntlm		\
 	-I$(top_builddir)/servers/exchange/storage		\
 	$(EVOLUTION_CALENDAR_CFLAGS)			\
+	$(LDAP_CFLAGS)					\
 	$(E_DATA_SERVER_UI_CFLAGS)			\
 	$(SOUP_CFLAGS)					\
 	$(DEBUG_CFLAGS)
