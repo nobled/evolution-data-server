@@ -60,7 +60,7 @@ CamelProviderConfEntry groupwise_conf_entries[] = {
 	  N_("Check new messages for Junk contents"), "0" },
 	{ CAMEL_PROVIDER_CONF_CHECKBOX, "filter_junk_inbox", "filter_junk",
 	  N_("Only check for Junk messages in the INBOX folder"), "0" },
-	{ CAMEL_PROVIDER_CONF_CHECKBOX, "offline_sync", NULL,
+	{ CAMEL_PROVIDER_CONF_CHECKBOX, "sync_offline", NULL,
 	  N_("Automatically synchronize account locally"), "0" },
 	{ CAMEL_PROVIDER_CONF_SECTION_END },
 
@@ -89,7 +89,7 @@ static CamelProvider groupwise_provider = {
 	"mail",
 
 	CAMEL_PROVIDER_IS_REMOTE | CAMEL_PROVIDER_IS_SOURCE |
-	CAMEL_PROVIDER_IS_STORAGE | CAMEL_PROVIDER_SUPPORTS_SSL,
+	CAMEL_PROVIDER_IS_STORAGE | CAMEL_PROVIDER_SUPPORTS_SSL | CAMEL_PROVIDER_DISABLE_SENT_FOLDER,
 
 	CAMEL_URL_NEED_USER | CAMEL_URL_NEED_HOST | CAMEL_URL_ALLOW_AUTH,
 

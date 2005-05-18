@@ -65,6 +65,18 @@ libexchange_storage_1_2_la_LDFLAGS =				\
 	$(top_builddir)/servers/exchange/xntlm/libxntlm.la			
 	-version-info 1:2:0
 
+libexchange_storageincludedir = $(privincludedir)/exchange
+
+libexchange_storageinclude_HEADERS = \
+	e-folder.h						\
+	e-storage.h						\
+	exchange-account.h					\
+	exchange-component.h					\
+	exchange-config-listener.h				\
+	exchange-folder-size.h					\
+	exchange-hierarchy.h					\
+	exchange-types.h					
+
 #imagesdir = $(CONNECTOR_DATADIR)/images
 #images_DATA =				\
 #	connector.png			\
@@ -85,4 +97,15 @@ libexchange_storage_1_2_la_LDFLAGS =				\
 #uidir   = $(CONNECTOR_DATADIR)/ui
 #ui_DATA = ximian-connector.xml
 
+%-$(API_VERSION).pc: %.pc
+	 cp $< $@
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libexchange-storage-$(API_VERSION).pc
+
+EXTRA_DIST = $(pkgconfig_DATA:-$(API_VERSION).pc=.pc.in)
+
+DISTCLEANFILES = $(pkgconfig_DATA)
+
 #EXTRA_DIST =				
+

@@ -1,3 +1,18 @@
+2005-05-18 Veerapuram Varadhan <vvaradhan@novell.com>
+
+	* servers/exchange/storage/Makefile.am : Install headers.
+	Install .pc file.
+	* servers/exchange/storage/libexchange-storage.pc.in: Moved from 
+	servers/exchange.	
+	* servers/exchange/lib/Makefile.am : Similar
+	* calendar/backends/Makefile.am : Removed the exchange calendar. This
+	need not be moved to e-d-s now.
+	* camel/camel-provider.h : Back ported the changes from HEAD to solve
+	build break
+	* camel/providers/groupwise/camel-groupwise-provider.c : Similar
+	* configure.in : Bump the version to 1.4.0.
+	Moved libexchange-storage.pc to storage directory.
+	
 2005-04-22 Vivek Jain <jvivek@novell.com>
 	
 	* calendar/backends/exchange/Makefile.am : 
