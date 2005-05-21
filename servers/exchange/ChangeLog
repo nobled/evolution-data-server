@@ -1,0 +1,4 @@
+2005-05-21  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	* lib/Makefile.am : Install e2k-global-catalog.h and e2k-utils.h
+	Also added this new ChangeLog file
