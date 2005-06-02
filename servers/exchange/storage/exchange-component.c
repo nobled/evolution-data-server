@@ -34,47 +34,46 @@
 
 #include "exchange-account.h"
 #include "exchange-config-listener.h"
+#include "exchange-constants.h"
 #include "exchange-hierarchy-gal.h"
 //#include "exchange-oof.h"
 #include "exchange-storage.h"
 #include "e-folder-exchange.h"
 
-//#include "mail-stub-listener.h"
-//#include "mail-stub-exchange.h"
-
-//#include "xc-backend-view.h"
+#include "mail-stub-listener.h"
+#include "mail-stub-exchange.h"
 
 //#include "exchange-migrate.h" 
 
 #define d(x)
 
-#define PARENT_TYPE bonobo_object_get_type ()
-static BonoboObjectClass *parent_class = NULL;
+static GObjectClass *parent_class = NULL;
 static gboolean idle_do_interactive (gpointer user_data);
+//static ExchangeComponent *global_exchange_component = NULL;
+static GHashTable *global_component_hash = NULL;
 
-struct ExchangeComponentPrivate {
-	GdkNativeWindow xid;
-
-	EFolderTypeRegistry *folder_type_registry;
+struct _ExchangeComponentPrivate {
 
 	ExchangeConfigListener *config_listener;
 	//ExchangeOfflineListener *offline_listener;
-	GSList *accounts;
 
-	GSList *views;
+	char *uri;
+	char *username;
+	char *password;
+	GSList *accounts;
 };
 
 
 typedef struct {
 	ExchangeAccount *account;
-//	MailStubListener *msl;
+	MailStubListener *msl;
 } ExchangeComponentAccount;
 
 static void
 free_account (ExchangeComponentAccount *baccount)
 {
 	g_object_unref (baccount->account);
-	// SURF :g_object_unref (baccount->msl);
+	g_object_unref (baccount->msl);
 	g_free (baccount);
 }
 
@@ -83,11 +82,6 @@ dispose (GObject *object)
 {
 	ExchangeComponentPrivate *priv = EXCHANGE_COMPONENT (object)->priv;
 	GSList *p;
-
-	if (priv->folder_type_registry) {
-		g_object_unref (priv->folder_type_registry);
-		priv->folder_type_registry = NULL;
-	}
 
 	if (priv->config_listener) {
 		g_object_unref (priv->config_listener);
@@ -101,12 +95,6 @@ dispose (GObject *object)
 		priv->accounts = NULL;
 	}
 
-	if (priv->views) {
-		for (p = priv->views; p; p = p->next)
-			g_object_unref (p->data);
-		g_slist_free (priv->views);
-		priv->views = NULL;
-	}
 #if 0 
 SURF :
 	if (priv->offline_listener) {
@@ -122,131 +110,7 @@ finalize (GObject *object)
 {
 	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
-#if 0 
-SURF :
-static void
-impl_createControls (PortableServer_Servant servant,
-		     Bonobo_Control *sidebar_control,
-		     Bonobo_Control *view_control,
-		     Bonobo_Control *statusbar_control,
-		     CORBA_Environment *ev)
-{
-	ExchangeComponent *component = EXCHANGE_COMPONENT (bonobo_object_from_servant (servant));
-	ExchangeComponentPrivate *priv = component->priv;
-	XCBackendView *view;
-	BonoboControl *control = NULL;
 
-	d(printf("createControls...\n"));
-
-	view = xc_backend_view_new (priv->config_listener,
-				    priv->folder_type_registry);
-	if (view)
-		priv->views = g_slist_append (priv->views, control);
-
-	control = xc_backend_view_get_sidebar (view);
-	*sidebar_control =
-		CORBA_Object_duplicate (BONOBO_OBJREF (control), ev);
-
-	control = xc_backend_view_get_statusbar (view);
-	*statusbar_control =
-		CORBA_Object_duplicate (BONOBO_OBJREF (control), ev);
-
-	control = xc_backend_view_get_view (view);
-	*view_control =
-		CORBA_Object_duplicate (BONOBO_OBJREF (control), ev);
-}
-
-static void
-impl_upgradeFromVersion (PortableServer_Servant servant,
-			 const CORBA_short major,
-			 const CORBA_short minor,
-			 const CORBA_short revision,
-			 CORBA_Environment *ev)
-{
-	ExchangeComponent *component = EXCHANGE_COMPONENT (bonobo_object_from_servant (servant));
-	ExchangeAccount *account;
-	const gchar *base_directory=NULL;
-
-	d(printf("upgradeFromVersion %d %d %d\n", major, minor, revision));
-
-	account = exchange_component_get_account_for_uri (component, NULL);
-	if (account) {
-		base_directory = g_build_filename (g_get_home_dir (),
-						   ".evolution",
-						   "exchange",
-						   account->account_filename,
-						   NULL);
-
-		exchange_migrate(major, minor, revision, 
-				 base_directory, account->account_filename);
-	}
-}
-
-static CORBA_boolean
-impl_requestQuit (PortableServer_Servant servant,
-		  CORBA_Environment *ev)
-{
-	d(printf("requestQuit\n"));
-
-	/* FIXME */
-	return TRUE;
-}
-
-/* This returns %TRUE all the time, so if set as an idle callback it
-   effectively causes each and every nested glib mainloop to be quit.  */
-static gboolean
-idle_quit (gpointer user_data)
-{
-	bonobo_main_quit ();
-	return TRUE;
-}
-
-static CORBA_boolean
-impl_quit (PortableServer_Servant servant,
-	   CORBA_Environment *ev)
-{
-	d(printf("quit\n"));
-
-	g_timeout_add (500, idle_quit, NULL);
-	return TRUE;
-}
-
-static gboolean
-idle_do_interactive (gpointer user_data)
-{
-	ExchangeComponent *component = user_data;
-	ExchangeComponentPrivate *priv = component->priv;
-	ExchangeComponentAccount *baccount;
-	GSList *acc;
-
-	for (acc = priv->accounts; acc; acc = acc->next) {
-		baccount = acc->data;
-		if (exchange_component_is_interactive (component))
-			exchange_oof_init (baccount->account, priv->xid);
-	}
-	return FALSE;
-}
-
-static void
-impl_interactive (PortableServer_Servant servant,
-		  const CORBA_boolean now_interactive,
-		  const CORBA_unsigned_long new_view_xid,
-		  CORBA_Environment *ev)
-{
-	ExchangeComponent *component = EXCHANGE_COMPONENT (bonobo_object_from_servant (servant));
-	ExchangeComponentPrivate *priv = component->priv;
-
-	d(printf("interactive? %s, xid %lu\n", now_interactive ? "yes" : "no", new_view_xid));
-
-	if (now_interactive) {
-		priv->xid = new_view_xid;
-		g_idle_add (idle_do_interactive, component);
-	} else
-		priv->xid = 0;
-}
-#endif
-#if 0 
-SURF :
 static void
 new_connection (MailStubListener *listener, int cmd_fd, int status_fd,
 		ExchangeComponentAccount *baccount)
@@ -272,7 +136,6 @@ new_connection (MailStubListener *listener, int cmd_fd, int status_fd,
 end:
 	g_object_unref (account);
 }
-#endif
 
 static void
 config_listener_account_created (ExchangeConfigListener *config_listener,
@@ -290,12 +153,10 @@ config_listener_account_created (ExchangeConfigListener *config_listener,
 	path = g_strdup_printf ("/tmp/.exchange-%s/%s",
 				g_get_user_name (),
 				account->account_filename);
-/* SURF :
 	baccount->msl = mail_stub_listener_new (path);
 	g_signal_connect (baccount->msl, "new_connection",
 			  G_CALLBACK (new_connection), baccount);
 	g_free (path);
-*/
 
 	priv->accounts = g_slist_prepend (priv->accounts, baccount);
 /* SURF :
@@ -324,6 +185,8 @@ config_listener_account_removed (ExchangeConfigListener *config_listener,
 	}
 }
 
+#if 0
+SURF :
 
 static struct {
 	char *type, *display_name, *icon;
@@ -360,26 +223,17 @@ setup_folder_type_registry (ExchangeComponent *component)
 						      0, NULL);
 	}
 }
+#endif
 
 static void
 exchange_component_class_init (ExchangeComponentClass *klass)
 {
-	// SURF : POA_GNOME_Evolution_Component__epv *epv = &klass->epv;
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
 	parent_class = g_type_class_peek_parent (klass);
 
 	object_class->dispose = dispose;
 	object_class->finalize = finalize;
-#if 0
-SURF :
-	epv->createControls     = impl_createControls;
-	epv->upgradeFromVersion = impl_upgradeFromVersion;
-	epv->requestQuit        = impl_requestQuit;
-	epv->quit               = impl_quit;
-	epv->interactive        = impl_interactive;
-#endif
-
 }
 
 static void
@@ -389,7 +243,7 @@ exchange_component_init (ExchangeComponent *component)
 
 	priv = component->priv = g_new0 (ExchangeComponentPrivate, 1);
 
-	setup_folder_type_registry (component);
+// SURF :	setup_folder_type_registry (component);
 
        	priv->config_listener = exchange_config_listener_new ();
 	g_signal_connect (priv->config_listener, "exchange_account_created",
@@ -400,8 +254,6 @@ exchange_component_init (ExchangeComponent *component)
 			  component);
 
 }
-
-// SURF : BONOBO_TYPE_FUNC_FULL (ExchangeComponent, GNOME_Evolution_Component, PARENT_TYPE, exchange_component)
 
 #if 0 
 SURF: 
@@ -418,12 +270,47 @@ exchange_component_set_offline_listener (ExchangeComponent *component,
 }
 #endif
 
+/* SURF : Tried out something here.
+ExchangeComponent *
+exchange_component_new (const char *uri, const char *user, const char *passwd)
+{
+	ExchangeComponent *excom;
+	char *hash_key;
+
+	hash_key = g_strdup_printf ("%s:%s@%s", user ? user : "", 
+					passwd ? passwd : "", 
+					uri);
+
+	if (global_component_hash) {
+		excom = g_hash_table_lookup (global_component_hash, hash_key);
+		if (EXCHANGE_IS_COMPONENT (excom)) {
+			g_object_ref (excom);
+			goto end;
+		}
+	}
+	
+	excom = g_object_new (EXCHANGE_TYPE_COMPONENT, NULL);
+	excom->priv->uri = g_strdup (uri);
+	excom->priv->username = g_strdup (user);
+	excom->priv->password = g_strdup (passwd);
+
+	if (!global_component_hash)
+		global_component_hash = g_hash_table_new (g_str_hash, 
+							g_str_equal);
+	
+	g_hash_table_insert (global_component_hash, hash_key, excom);
+
+end :
+	g_free (hash_key);
+	//global_exchange_component = excom;
+	return excom;
+}
+*/
 ExchangeComponent *
 exchange_component_new (void)
 {
 	return g_object_new (EXCHANGE_TYPE_COMPONENT, NULL);
 }
-
 
 ExchangeAccount *
 exchange_component_get_account_for_uri (ExchangeComponent *component,
@@ -447,6 +334,12 @@ exchange_component_get_account_for_uri (ExchangeComponent *component,
 	return NULL;
 }
 
+
+void
+exchange_component_is_offline (ExchangeComponent *component, int *state)
+{
+	return TRUE;
+}
 #if 0
  SURF :
 void
@@ -457,10 +350,5 @@ exchange_component_is_offline (ExchangeComponent *component, int *state)
 	exchange_is_offline (component->priv->offline_listener, state);
 }
 #endif
-gboolean
-exchange_component_is_interactive (ExchangeComponent *component)
-{
-	return component->priv->xid != 0;
-}
 
 G_DEFINE_TYPE (ExchangeComponent, exchange_component, G_TYPE_OBJECT)

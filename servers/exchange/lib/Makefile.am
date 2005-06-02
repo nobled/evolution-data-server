@@ -122,16 +122,21 @@ libexchangeincludedir = $(privincludedir)/exchange
 libexchangeinclude_HEADERS = \
 	e2k-autoconfig.h					\
 	e2k-context.h						\
+	e2k-freebusy.h						\
 	e2k-global-catalog.h					\
 	e2k-http-utils.h					\
+	e2k-marshal.h						\
 	e2k-operation.h						\
 	e2k-properties.h					\
+	e2k-propnames.h						\
 	e2k-restriction.h					\
 	e2k-result.h						\
 	e2k-security-descriptor.h				\
 	e2k-types.h						\
+	e2k-uri.h						\
 	e2k-utils.h						\
-	e2k-xml-utils.h						
+	e2k-xml-utils.h						\
+	mapi.h
 
 EXTRA_DIST =							\
 	e2k-marshal.list					\

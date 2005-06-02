@@ -27,11 +27,12 @@
 
 #include "exchange-account.h"
 //#include "exchange-change-password.h"
-#include "exchange-component.h"
+//#include "exchange-component.h"
 #include "exchange-hierarchy-webdav.h"
 #include "exchange-hierarchy-favorites.h"
 #include "exchange-hierarchy-foreign.h"
 #include "exchange-hierarchy-gal.h"
+#include "exchange-constants.h"
 #include "e-folder-exchange.h"
 #include "e2k-autoconfig.h"
 #include "e2k-encoding-utils.h"
@@ -1760,6 +1761,7 @@ exchange_account_get_folder (ExchangeAccount *account,
 			     const char *path_or_uri)
 {
 	g_return_val_if_fail (EXCHANGE_IS_ACCOUNT (account), NULL);
+	printf ("path or uri : %s\n", path_or_uri);
 	
 	return g_hash_table_lookup (account->priv->folders, path_or_uri);
 }
@@ -1814,6 +1816,15 @@ exchange_account_get_folders (ExchangeAccount *account)
 
 	return folders;
 }	
+
+char *
+exchange_account_get_username (ExchangeAccount *account)
+{
+	g_return_val_if_fail (EXCHANGE_IS_ACCOUNT (account), 
+				EXCHANGE_ACCOUNT_FOLDER_GENERIC_ERROR);
+	
+	return account->priv->username;
+}
 
 /**
  * exchange_account_new:

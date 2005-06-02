@@ -10,7 +10,6 @@
 #include "e2k-global-catalog.h"
 #include "e2k-security-descriptor.h"
 #include "e-folder.h"
-//#include "exchange-offline-listener.h"
 #include <libedataserver/e-account-list.h>
 
 #ifdef __cplusplus
@@ -51,12 +50,13 @@ struct _ExchangeAccountClass {
 	void (*removed_folder) (ExchangeAccount *, EFolder *);
 };
 
+#if 0
 enum {
 	UNSUPPORTED_MODE = 0,
         OFFLINE_MODE,
         ONLINE_MODE
 };
-
+#endif
 
 GType                  exchange_account_get_type             (void);
 ExchangeAccount       *exchange_account_new                  (EAccountList                   *account_list,
@@ -135,6 +135,8 @@ ExchangeAccountFolderResult exchange_account_add_favorite            (ExchangeAc
 								      EFolder         *folder);
 ExchangeAccountFolderResult exchange_account_remove_favorite         (ExchangeAccount *account,
 								      EFolder         *folder);
+
+char * exchange_account_get_username (ExchangeAccount *account);
 
 #ifdef __cplusplus
 }

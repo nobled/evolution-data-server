@@ -27,6 +27,7 @@
 
 #include "exchange-hierarchy-favorites.h"
 #include "exchange-account.h"
+#include "exchange-constants.h"
 #include "e-folder-exchange.h"
 #include "e2k-propnames.h"
 #include "e2k-uri.h"
@@ -177,7 +178,6 @@ remove_folder (ExchangeHierarchy *hier, EFolder *folder)
 		EXCHANGE_HIERARCHY_FAVORITES (hier);
 	const char *folder_uri, *shortcut_uri;
 	E2kHTTPStatus status;
-	ESourceList *cal_source_list, *task_source_list, *cont_source_list;
 	const char *folder_type, *physical_uri;
 
 	folder_uri = e_folder_exchange_get_internal_uri (folder);
@@ -200,31 +200,19 @@ remove_folder (ExchangeHierarchy *hier, EFolder *folder)
 	physical_uri = e_folder_get_physical_uri (folder);
 
 	if (strcmp (folder_type, "calendar") == 0) {
-		cal_source_list = e_source_list_new_for_gconf (
-					gconf_client_get_default (),
-					CONF_KEY_CAL);
-		remove_esource (hier->account, EXCHANGE_CALENDAR_FOLDER, 
-				physical_uri, &cal_source_list, FALSE);
-		e_source_list_sync (cal_source_list, NULL);
-		g_object_unref (cal_source_list);
+		remove_folder_esource (hier->account,
+				       EXCHANGE_CALENDAR_FOLDER,
+				       physical_uri);
 	}
 	else if (strcmp (folder_type, "tasks") == 0) {
-		task_source_list = e_source_list_new_for_gconf (
-					gconf_client_get_default (),
-					CONF_KEY_TASKS);
-		remove_esource (hier->account, EXCHANGE_TASKS_FOLDER, 
-				physical_uri, &task_source_list, FALSE);
-		e_source_list_sync (task_source_list, NULL);
-		g_object_unref (task_source_list);
+		remove_folder_esource (hier->account,
+				       EXCHANGE_TASKS_FOLDER,
+				       physical_uri);
 	}
 	else if (strcmp (folder_type, "contacts") == 0) {
-		cont_source_list = e_source_list_new_for_gconf (
-					gconf_client_get_default (),
-					CONF_KEY_CONTACTS);
-		remove_esource (hier->account, EXCHANGE_CONTACTS_FOLDER, 
-				physical_uri, &cont_source_list, FALSE);
-		e_source_list_sync (cont_source_list, NULL);
-		g_object_unref (cont_source_list);
+		remove_folder_esource (hier->account,
+				       EXCHANGE_CONTACTS_FOLDER,
+				       physical_uri);
 	}
 	
 	return exchange_hierarchy_webdav_status_to_folder_result (status);

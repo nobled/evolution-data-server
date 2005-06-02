@@ -1,3 +1,24 @@
+2005-06-02  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	* libexchange-storage.pc.in : Moved it from exchange to 
+	exchange/storage
+	* lib/Makefile.am : Added a few more header files that had to be 
+	installed.
+	* storage/Makefile.am : Similar
+	* storage/e-folder-exchange.c : Merged the changes from HEAD.
+	* storage/e-folder.c : Added marshalling code.
+	* storage/e-storage.c : Similar
+	* storage/exchange-account.c (exchange_account_get_username): Added new
+	* storage/exchange-account.h : Similar
+	* storage/exchange-component.[ch] : Removed from Makefile.am. Should be
+	removing these files from the repository.
+	* storage/exchange-config-listener.[ch] : Merged the changed from HEAD.
+	* storage/exchange-hierarchy-favorites.c : Similar
+	* storage/exchange-hierarchy-foreign.c : Similar
+	* storage/exchange-hierarchy-gal.c : Similar
+	* storage/exchange-hierarchy-webdav.c : Similar
+	* storage/exchange-constants.h : Added a new file.
+
 2005-05-21  Sarfraaz Ahmed <asarfraaz@novell.com>
 
 	* lib/Makefile.am : Install e2k-global-catalog.h and e2k-utils.h

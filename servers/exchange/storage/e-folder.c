@@ -25,11 +25,11 @@
 #endif
 
 #include "e-folder.h"
-// SURF : #include "e-shell-marshal.h"
+#include "e-shell-marshal.h"
 
 #include <string.h>
 #include <glib.h>
-// SURF : #include <gal/util/e-util.h>
+#include <libedataserver/e-util.h>
 
 #define PARENT_TYPE G_TYPE_OBJECT
 static GObjectClass *parent_class = NULL;
@@ -113,8 +113,6 @@ e_folder_class_init (EFolderClass *klass)
 	object_class->finalize = impl_finalize;
 
 	klass->accept_drop = accept_drop;
-#if 0
-SURF :
 	signals[CHANGED] = g_signal_new ("changed",
 					 G_OBJECT_CLASS_TYPE (object_class),
 					 G_SIGNAL_RUN_FIRST,
@@ -130,7 +128,6 @@ SURF :
 					      NULL, NULL,
 					      e_shell_marshal_NONE__NONE,
 					      G_TYPE_NONE, 0);
-#endif
 }
 
 static void

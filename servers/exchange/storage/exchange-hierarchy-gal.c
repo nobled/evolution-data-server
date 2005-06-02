@@ -45,7 +45,6 @@ exchange_hierarchy_gal_new (ExchangeAccount *account,
 {
 	ExchangeHierarchy *hier;
 	EFolder *toplevel;
-	ESourceList *cont_source_list;
 
 	g_return_val_if_fail (EXCHANGE_IS_ACCOUNT (account), NULL);
 	g_return_val_if_fail (hierarchy_name != NULL, NULL);
@@ -61,13 +60,8 @@ exchange_hierarchy_gal_new (ExchangeAccount *account,
 				      EXCHANGE_HIERARCHY_GAL, toplevel,
 				      NULL, NULL, NULL);
 	/* Add ESource */
-	cont_source_list = e_source_list_new_for_gconf (
-						gconf_client_get_default (),
-						CONF_KEY_CONTACTS);
-	add_esource (hier->account, EXCHANGE_CONTACTS_FOLDER, hierarchy_name, 
-		    physical_uri_prefix, &cont_source_list);
-	e_source_list_sync (cont_source_list, NULL);
-	g_object_unref (cont_source_list);	
+	add_folder_esource (hier->account, EXCHANGE_CONTACTS_FOLDER, 
+		     	    hierarchy_name, physical_uri_prefix);
 	
 	g_object_unref (toplevel);
 

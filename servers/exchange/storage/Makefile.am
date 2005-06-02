@@ -12,15 +12,16 @@ INCLUDES =							\
 	$(LDAP_CFLAGS)						\
 	$(SOUP_CFLAGS)						\
 	$(E_DATA_SERVER_CFLAGS)					\
-	$(E_DATA_SERVER_UI_CFLAGS)					\
+	$(E_DATA_SERVER_UI_CFLAGS)				\
 	-I$(top_srcdir)						\
-	-I$(top_srcdir)/servers/exchange/lib					\
+	-I$(top_srcdir)/servers/exchange/lib			\
 	-I$(top_srcdir)/servers/exchange/xntlm					
 
 lib_LTLIBRARIES =				\
 	libexchange-storage-1.2.la
 
 libexchange_storage_1_2_la_SOURCES =				\
+	$(MARSHAL_GENERATED)					\
 	e-folder.c						\
 	e-folder.h						\
 	e-folder-exchange.c					\
@@ -33,8 +34,6 @@ libexchange_storage_1_2_la_SOURCES =				\
 	e-storage.h						\
 	exchange-account.c					\
 	exchange-account.h					\
-	exchange-component.c					\
-	exchange-component.h					\
 	exchange-config-listener.c				\
 	exchange-config-listener.h				\
 	exchange-folder-size.c					\
@@ -55,13 +54,31 @@ libexchange_storage_1_2_la_SOURCES =				\
 	exchange-storage.h					\
 	exchange-types.h					
 
-libexchange_storage_1_2_la_LIBADD =					\
+e-shell-marshal.h: e-shell-marshal.list
+	( @GLIB_GENMARSHAL@ --prefix=e_shell_marshal $(srcdir)/e-shell-marshal.list --header > e-shell-marshal.h.tmp \
+	&& mv e-shell-marshal.h.tmp e-shell-marshal.h ) \
+	|| ( rm -f e-shell-marshal.h.tmp && exit 1 )
+
+e-shell-marshal.c: e-shell-marshal.h
+	( (echo '#include "e-shell-marshal.h"'; @GLIB_GENMARSHAL@ --prefix=e_shell_marshal $(srcdir)/e-shell-marshal.list --body) > e-shell-marshal.c.tmp \
+	&& mv e-shell-marshal.c.tmp e-shell-marshal.c ) \
+	|| ( rm -f e-shell-marshal.c.tmp && exit 1 )
+
+MARSHAL_GENERATED = e-shell-marshal.c e-shell-marshal.h
+
+BUILT_SOURCES = $(MARSHAL_GENERATED)
+CLEANFILES = $(MARSHAL_GENERATED)
+NODIST_FILES = $(MARSHAL_GENERATED)
+
+libexchange_storage_1_2_la_LIBADD =				\
 	$(E_DATA_SERVER_LIBS)					\
-	$(E_DATA_SERVER_UI_LIBS)					\
+	$(E_DATA_SERVER_UI_LIBS)				\
+	$(KRB5_LIBS)						\
+	$(LDAP_LIBS)						\
 	$(SOUP_LIBS)
 
 libexchange_storage_1_2_la_LDFLAGS =				\
-	$(top_builddir)/servers/exchange/lib/libexchange.la			\
+	$(top_builddir)/servers/exchange/lib/libexchange.la	\
 	$(top_builddir)/servers/exchange/xntlm/libxntlm.la			
 	-version-info 1:2:0
 
@@ -69,12 +86,13 @@ libexchange_storageincludedir = $(privincludedir)/exchange
 
 libexchange_storageinclude_HEADERS = \
 	e-folder.h						\
+	e-folder-exchange.h					\
 	e-storage.h						\
 	exchange-account.h					\
-	exchange-component.h					\
 	exchange-config-listener.h				\
 	exchange-folder-size.h					\
 	exchange-hierarchy.h					\
+	exchange-storage.h					\
 	exchange-types.h					
 
 #imagesdir = $(CONNECTOR_DATADIR)/images

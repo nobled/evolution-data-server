@@ -27,10 +27,10 @@
 #include "e-storage.h"
 
 #include "e-folder-tree.h"
-// SURF : #include "e-shell-marshal.h"
+#include "e-shell-marshal.h"
 
 #include <glib/gi18n-lib.h>
-// SURF : #include <gal/util/e-util.h>
+#include <libedataserver/e-util.h>
 
 #include <string.h>
 
@@ -277,8 +277,6 @@ e_storage_class_init (EStorageClass *class)
 
 	class->async_discover_shared_folder  = impl_async_discover_shared_folder;
 	class->async_remove_shared_folder    = impl_async_remove_shared_folder;
-#if 0
-SURF :
 	signals[NEW_FOLDER] =
 		g_signal_new ("new_folder",
 			      G_OBJECT_CLASS_TYPE (object_class),
@@ -306,7 +304,6 @@ SURF :
 			      e_shell_marshal_NONE__STRING,
 			      G_TYPE_NONE, 1,
 			      G_TYPE_STRING);
-#endif
 }
 
 static void
@@ -674,7 +671,7 @@ remove_subfolders_except (EStorage *storage, const char *path, const char *excep
 		if (!except || strcmp (folder_path, except) != 0)
 			e_storage_removed_folder (storage, folder_path);
 	}
-	// SURF : e_free_string_list (subfolders);
+	e_free_string_list (subfolders);
 	for (f = subfolders; f != NULL; f = f->next)
 		g_free (f->data);
 
