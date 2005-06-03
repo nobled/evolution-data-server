@@ -1,3 +1,7 @@
+2005-06-03  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	* storage/e-shell-marshal.list : New file
+
 2005-06-02  Sarfraaz Ahmed <asarfraaz@novell.com>
 
 	* libexchange-storage.pc.in : Moved it from exchange to 
