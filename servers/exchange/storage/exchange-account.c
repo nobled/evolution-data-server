@@ -30,9 +30,9 @@
 //#include "exchange-component.h"
 #include "exchange-hierarchy-webdav.h"
 #include "exchange-hierarchy-favorites.h"
-#include "exchange-hierarchy-foreign.h"
+// SURF :#include "exchange-hierarchy-foreign.h"
 #include "exchange-hierarchy-gal.h"
-#include "exchange-constants.h"
+//#include "exchange-constants.h"
 #include "e-folder-exchange.h"
 #include "e2k-autoconfig.h"
 #include "e2k-encoding-utils.h"
@@ -592,11 +592,14 @@ get_hierarchy_for (ExchangeAccount *account, E2kGlobalCatalogEntry *entry)
 	internal_uri_prefix = exchange_account_get_foreign_uri (account, entry,
 								NULL);
 
+#if 0
+SURF : This should move to plugins.
 	hier = exchange_hierarchy_foreign_new (account, hierarchy_name,
 					       physical_uri_prefix,
 					       internal_uri_prefix,
 					       entry->display_name,
 					       entry->email, source);
+#endif
 	g_free (hierarchy_name);
 	g_free (physical_uri_prefix);
 	g_free (internal_uri_prefix);
@@ -632,7 +635,8 @@ exchange_account_discover_shared_folder (ExchangeAccount *account,
 	hier = g_hash_table_lookup (account->priv->foreign_hierarchies, email);
 	if (hier) {
 		g_free (email);
-		return exchange_hierarchy_foreign_add_folder (hier, folder_name, folder);
+		// SURF : return exchange_hierarchy_foreign_add_folder (hier, folder_name, folder);
+		return EXCHANGE_ACCOUNT_FOLDER_OK;
 	}
 
 	dd.user = user;
@@ -665,7 +669,8 @@ exchange_account_discover_shared_folder (ExchangeAccount *account,
 	}
 
 	hier = get_hierarchy_for (account, entry);
-	return exchange_hierarchy_foreign_add_folder (hier, folder_name, folder);
+	// SURF : return exchange_hierarchy_foreign_add_folder (hier, folder_name, folder);
+	return EXCHANGE_ACCOUNT_FOLDER_OK;
 }
 
 void
@@ -714,9 +719,11 @@ exchange_account_remove_shared_folder (ExchangeAccount *account,
 
 	if (!get_folder (account, path, &folder, &hier))
 		return EXCHANGE_ACCOUNT_FOLDER_DOES_NOT_EXIST;
-
+#if 0
+SURF :
 	if (!EXCHANGE_IS_HIERARCHY_FOREIGN (hier))
 		return EXCHANGE_ACCOUNT_FOLDER_UNSUPPORTED_OPERATION;
+#endif
 
 	return exchange_hierarchy_remove_folder (hier, folder);
 }
@@ -1175,7 +1182,8 @@ void
 exchange_account_is_offline (ExchangeAccount *account, int *state)
 {
 	// SURF : Dummy
-}	*state = ONLINE_MODE;
+	*state = ONLINE_MODE;
+}
 
 // SURF : Picked this from gal/util/e-util.c
 /* This only makes a filename safe for usage as a filename.  It still may have shell meta-characters in it. */
@@ -1272,6 +1280,8 @@ setup_account_hierarchies (ExchangeAccount *account)
 	g_free (phys_uri_prefix);
 
 	/* Other users' folders */
+#if 0
+SURF :
 	d = opendir (account->storage_dir);
 	if (d) {
 		while ((dent = readdir (d))) {
@@ -1288,6 +1298,7 @@ setup_account_hierarchies (ExchangeAccount *account)
 		}
 		closedir (d);
 	}
+#endif
 
 	/* Scan the personal and favorite folders so we can resolve references
 	 * to the Calendar, Contacts, etc even if the tree isn't

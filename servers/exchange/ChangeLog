@@ -1,3 +1,18 @@
+2005-06-07  Sarfraaz Ahmed <asarfraaz@novell.com>
+
+	* storage/Makefile.am : Removed references to config-listener and 
+	foreign-hierarchy 
+	* storage/e-folder-exchange.c : Removed references to e_source here.
+	* storage/e-storage.c : Removed from e-d-s and moved back to exchange.
+	* storage/exchange-account.c : Removed references to foreign hierarchy.
+	* storage/exchange-account.h : Added constants.h
+	* storage/exchange-constants.h : Avoided re-inclusion
+	* storage/exchange-hierarchy-favorites.c : Removed esource references.
+	* storage/exchange-hierarchy-gal.c : Removed esource references
+	* storage/exchange-hierarchy-webdav.c : Removed references to foreign 
+	hierarchy.
+	* storage/exchange-types.h : Similar
+
 2005-06-03  Sarfraaz Ahmed <asarfraaz@novell.com>
 
 	* storage/e-shell-marshal.list : New file

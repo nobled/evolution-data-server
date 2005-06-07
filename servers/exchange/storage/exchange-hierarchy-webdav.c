@@ -28,14 +28,14 @@
 
 #include "exchange-hierarchy-webdav.h"
 #include "exchange-account.h"
-#include "exchange-constants.h"
+//#include "exchange-constants.h"
 #include "e-folder-exchange.h"
 #include "e2k-context.h"
 #include "e2k-propnames.h"
 #include "e2k-restriction.h"
 #include "e2k-uri.h"
 #include "e2k-utils.h"
-#include "exchange-config-listener.h"
+//#include "exchange-config-listener.h"
 #include "exchange-folder-size.h"
 
 #include <libedataserverui/e-passwords.h>
@@ -463,7 +463,8 @@ xfer_folder (ExchangeHierarchy *hier, EFolder *source,
 	}
 
 	/* Remove the ESource of the source folder, in case of rename/move */
-
+#if 0
+SURF :
 	if ((hier->type == EXCHANGE_HIERARCHY_PERSONAL || 
 	     hier->type == EXCHANGE_HIERARCHY_FAVORITES) && remove_source && 
 	     ret_code == EXCHANGE_ACCOUNT_FOLDER_OK) {
@@ -487,6 +488,7 @@ xfer_folder (ExchangeHierarchy *hier, EFolder *source,
 					       physical_uri);
 		}
 	}
+#endif
 	if (physical_uri)
 		g_free (physical_uri);
 	return ret_code;

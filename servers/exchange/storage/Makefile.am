@@ -34,14 +34,10 @@ libexchange_storage_1_2_la_SOURCES =				\
 	e-storage.h						\
 	exchange-account.c					\
 	exchange-account.h					\
-	exchange-config-listener.c				\
-	exchange-config-listener.h				\
 	exchange-folder-size.c					\
 	exchange-folder-size.h					\
 	exchange-hierarchy-favorites.c				\
 	exchange-hierarchy-favorites.h				\
-	exchange-hierarchy-foreign.c				\
-	exchange-hierarchy-foreign.h				\
 	exchange-hierarchy-gal.c				\
 	exchange-hierarchy-gal.h				\
 	exchange-hierarchy-somedav.c				\
@@ -50,8 +46,6 @@ libexchange_storage_1_2_la_SOURCES =				\
 	exchange-hierarchy-webdav.h				\
 	exchange-hierarchy.c					\
 	exchange-hierarchy.h					\
-	exchange-storage.c					\
-	exchange-storage.h					\
 	exchange-types.h					
 
 e-shell-marshal.h: e-shell-marshal.list
@@ -89,10 +83,9 @@ libexchange_storageinclude_HEADERS = \
 	e-folder-exchange.h					\
 	e-storage.h						\
 	exchange-account.h					\
-	exchange-config-listener.h				\
+	exchange-constants.h					\
 	exchange-folder-size.h					\
 	exchange-hierarchy.h					\
-	exchange-storage.h					\
 	exchange-types.h					
 
 #imagesdir = $(CONNECTOR_DATADIR)/images

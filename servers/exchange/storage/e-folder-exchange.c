@@ -26,7 +26,7 @@
 #include "exchange-hierarchy.h"
 #include "e2k-uri.h"
 #include "e2k-path.h"
-#include "exchange-config-listener.h"
+//#include "exchange-config-listener.h"
 
 #include <libedataserver/e-util.h>
 #include <libedataserver/e-xml-hash-utils.h>
@@ -38,6 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 struct _EFolderExchangePrivate {
 	ExchangeHierarchy *hier;
@@ -183,6 +185,8 @@ e_folder_exchange_new (ExchangeHierarchy *hier, const char *name,
 	efe->priv->path = e2k_uri_path (e_folder_get_physical_uri (ef));
 	efe->priv->outlook_class = g_strdup (outlook_class);
 
+#if 0
+SURF :
 	/* Add ESources */
 	if (hier->type == EXCHANGE_HIERARCHY_PERSONAL || 
 	    hier->type == EXCHANGE_HIERARCHY_FAVORITES) {
@@ -209,7 +213,7 @@ e_folder_exchange_new (ExchangeHierarchy *hier, const char *name,
 				     	    physical_uri);
 		}
 	}
-	
+#endif	
 	return ef;
 }
 
@@ -485,6 +489,23 @@ e_folder_exchange_save_to_file (EFolder *folder, const char *filename)
 		unlink (filename);
 
 	return status == 0;
+}
+
+/* Taken this from the old GAL code */
+static xmlNode *
+e_xml_get_child_by_name (const xmlNode *parent, const xmlChar *child_name)
+{
+	xmlNode *child;
+
+	g_return_val_if_fail (parent != NULL, NULL);
+	g_return_val_if_fail (child_name != NULL, NULL);
+
+	for (child = parent->xmlChildrenNode; child != NULL; child = child->next) {
+		if (xmlStrcmp (child->name, child_name) == 0) {
+			return child;
+		}	
+	}
+	return NULL;
 }
 
 /**
@@ -913,7 +934,8 @@ e_folder_exchange_delete (EFolder *folder, E2kOperation *op)
 	const char *folder_type, *physical_uri;
 
 	g_return_val_if_fail (E_IS_FOLDER_EXCHANGE (folder), E2K_HTTP_MALFORMED);
-
+#if 0
+SURF :
 	/* remove ESources */
 	hier = e_folder_exchange_get_hierarchy (folder); 
 
@@ -941,7 +963,7 @@ e_folder_exchange_delete (EFolder *folder, E2kOperation *op)
 					       physical_uri);
 		}
 	}
-
+#endif
 	return e2k_context_delete (E_FOLDER_EXCHANGE_CONTEXT (folder), op,
 				   E_FOLDER_EXCHANGE_URI (folder));
 }

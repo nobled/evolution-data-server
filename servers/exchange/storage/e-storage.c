@@ -671,7 +671,7 @@ remove_subfolders_except (EStorage *storage, const char *path, const char *excep
 		if (!except || strcmp (folder_path, except) != 0)
 			e_storage_removed_folder (storage, folder_path);
 	}
-	e_free_string_list (subfolders);
+	// SURF : e_free_string_list (subfolders);
 	for (f = subfolders; f != NULL; f = f->next)
 		g_free (f->data);
 

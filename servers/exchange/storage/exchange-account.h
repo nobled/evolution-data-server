@@ -4,7 +4,8 @@
 #ifndef __EXCHANGE_ACCOUNT_H__
 #define __EXCHANGE_ACCOUNT_H__
 
-#include "exchange-types.h"
+#include <exchange-types.h>
+#include <exchange-constants.h>
 #include "e2k-autoconfig.h"
 #include "e2k-context.h"
 #include "e2k-global-catalog.h"
