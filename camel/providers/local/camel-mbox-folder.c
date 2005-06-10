@@ -182,6 +182,10 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 #if 0
 	char *xev;
 #endif
+
+	camel_exception_setv(ex, 1, "unimplemented");
+	return;
+
 	/* If we can't lock, dont do anything */
 	if (camel_local_folder_lock(lf, CAMEL_LOCK_WRITE, ex) == -1)
 		return;
@@ -244,7 +248,7 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	/* the stat really shouldn't fail, we just wrote to it */
 	if (stat(lf->folder_path, &st) == 0) {
 		mbs->folder_size = st.st_size;
-		((CamelFolderSummary *)mbs)->time = st.st_mtime;
+		mbs->time = st.st_mtime;
 	}
 
 	/* unlock as soon as we can */
@@ -288,12 +292,12 @@ fail_write:
 	}
 	
 	/* remove the summary info so we are not out-of-sync with the mbox */
-	camel_folder_summary_remove_uid (CAMEL_FOLDER_SUMMARY (mbs), camel_message_info_uid (mi));
+	camel_folder_summary_remove(CAMEL_FOLDER_SUMMARY (mbs), mi);
 	
 	/* and tell the summary its uptodate */
 	if (stat(lf->folder_path, &st) == 0) {
 		mbs->folder_size = st.st_size;
-		((CamelFolderSummary *)mbs)->time = st.st_mtime;
+		mbs->time = st.st_mtime;
 	}
 	
 fail:
@@ -332,7 +336,7 @@ mbox_get_message(CamelFolder *folder, const gchar * uid, CamelException *ex)
 	
 retry:
 	/* get the message summary info */
-	info = (CamelMboxMessageInfo *) camel_folder_summary_uid(folder->summary, uid);
+	info = (CamelMboxMessageInfo *) camel_folder_summary_get(folder->summary, uid);
 
 	if (info == NULL) {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,

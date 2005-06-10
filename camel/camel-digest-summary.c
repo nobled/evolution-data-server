@@ -67,13 +67,6 @@ static void
 camel_digest_summary_init (CamelDigestSummary *summary)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *) summary;
-	
-	/* subclasses need to set the right instance data sizes */
-	s->message_info_size = sizeof (CamelMessageInfo);
-	s->content_info_size = sizeof (CamelMessageContentInfo);
-	
-	/* and a unique file version */
-	s->version += CAMEL_DIGEST_SUMMARY_VERSION;
 }
 
 static void

@@ -18,6 +18,7 @@ camellibexec_PROGRAMS =	camel-lock-helper-1.2 camel-index-control-1.2
 lib_LTLIBRARIES = libcamel-1.2.la libcamel-provider-1.2.la
 
 INCLUDES = -I.. -I$(srcdir)/.. 			 	\
+	-I$(top_srcdir)/libdb/dist					\
 	-I$(top_srcdir)/intl			 	\
 	-DCAMEL_LIBEXECDIR=\""$(camellibexecdir)"\"	\
 	-DCAMEL_PROVIDERDIR=\""$(camel_providerdir)"\" 	\
@@ -26,9 +27,6 @@ INCLUDES = -I.. -I$(srcdir)/.. 			 	\
 
 libcamel_provider_1_2_la_SOURCES = 		\
 	camel-cipher-context.c			\
-	camel-digest-folder.c			\
-	camel-digest-store.c			\
-	camel-digest-summary.c			\
 	camel-disco-diary.c			\
 	camel-disco-folder.c			\
 	camel-disco-store.c			\
@@ -36,6 +34,7 @@ libcamel_provider_1_2_la_SOURCES = 		\
 	camel-filter-search.c			\
 	camel-folder-search.c			\
 	camel-folder-summary.c			\
+	camel-folder-summary-disk.c		\
 	camel-folder-thread.c			\
 	camel-folder.c				\
 	camel-gpg-context.c			\
@@ -45,6 +44,7 @@ libcamel_provider_1_2_la_SOURCES = 		\
 	camel-offline-journal.c			\
 	camel-offline-store.c			\
 	camel-provider.c			\
+	camel-record.c				\
 	camel-sasl-anonymous.c			\
 	camel-sasl-cram-md5.c			\
 	camel-sasl-digest-md5.c			\
@@ -72,11 +72,12 @@ libcamel_provider_1_2_la_SOURCES = 		\
 	camel-vee-summary.c			\
 	camel-vtrash-folder.c
 
+#	camel-digest-folder.c			\
+#	camel-digest-store.c			\
+#	camel-digest-summary.c
+
 libcamel_providerinclude_HEADERS =			\
 	camel-cipher-context.h			\
-	camel-digest-folder.h			\
-	camel-digest-store.h			\
-	camel-digest-summary.h			\
 	camel-disco-diary.h			\
 	camel-disco-folder.h			\
 	camel-disco-store.h			\
@@ -84,6 +85,7 @@ libcamel_providerinclude_HEADERS =			\
 	camel-filter-search.h			\
 	camel-folder-search.h			\
 	camel-folder-summary.h			\
+	camel-folder-summary-disk.h		\
 	camel-folder-thread.h			\
 	camel-folder.h				\
 	camel-gpg-context.h			\
@@ -93,6 +95,7 @@ libcamel_providerinclude_HEADERS =			\
 	camel-offline-journal.h			\
 	camel-offline-store.h			\
 	camel-provider.h			\
+	camel-record.h				\
 	camel-sasl-anonymous.h			\
 	camel-sasl-cram-md5.h			\
 	camel-sasl-digest-md5.h			\
@@ -118,11 +121,16 @@ libcamel_providerinclude_HEADERS =			\
 	camel-vee-summary.h			\
 	camel-vtrash-folder.h
 
+#	camel-digest-folder.h			\
+#	camel-digest-store.h			\
+#	camel-digest-summary.h
+
 libcamel_provider_1_2_la_LDFLAGS = -version-info $(LIBCAMEL_CURRENT):$(LIBCAMEL_REVISION):$(LIBCAMEL_AGE)
 
 libcamel_provider_1_2_la_LIBADD =			\
 	$(top_builddir)/libedataserver/libedataserver-${API_VERSION}.la 	\
 	libcamel-1.2.la				\
+	$(top_builddir)/libdb/dist/libdb-4.1.la
 	$(CAMEL_LIBS)
 
 libcamel_1_2_la_SOURCES = 				\

@@ -245,40 +245,38 @@ offline_folder_setv (CamelObject *object, CamelException *ex, CamelArgV *args)
 static void
 offline_folder_downsync (CamelOfflineFolder *offline, const char *expression, CamelException *ex)
 {
-	CamelFolder *folder = (CamelFolder *) offline;
+	CamelFolder *folder = (CamelFolder *)offline;
 	CamelMimeMessage *message;
-	GPtrArray *uids;
-	int i;
-	
+	const GPtrArray *mis;
+	CamelMessageIterator *iter;
+	int i, total, count=0;
+
 	camel_operation_start (NULL, _("Syncing messages in folder '%s' to disk"), folder->full_name);
-	
-	if (expression)
-		uids = camel_folder_search_by_expression (folder, expression, ex);
-	else
-		uids = camel_folder_get_uids (folder);
-	
-	if (!uids) {
-		camel_operation_end (NULL);
-		return;
+
+	iter = camel_folder_search(folder, expression, NULL, ex);
+	if (iter == NULL)
+		goto fail;
+
+	camel_object_get(folder, NULL, CAMEL_FOLDER_TOTAL, &total, 0);
+
+	while ((mis = camel_message_iterator_next_array(iter, 100)) && mis->len) {
+		for (i = 0; i < mis->len; i++) {
+			int pc = count * 100 / total;
+
+			/* FIXME: this assumes that 'getting a message' actually retrieves all of its parts,
+			 * which it may not, why wasn' tthe diso-folder cache_message code copied? */
+			message = camel_folder_get_message(folder, camel_message_info_uid(mis->pdata[i]), ex);
+			if (message == NULL)
+				break;
+
+			camel_object_unref(message);
+			camel_operation_progress(NULL, pc);
+			count++;
+		}
 	}
-	
-	for (i = 0; i < uids->len; i++) {
-		int pc = i * 100 / uids->len;
-		
-		message = camel_folder_get_message (folder, uids->pdata[i], ex);
-		camel_operation_progress (NULL, pc);
-		if (message == NULL)
-			break;
-		
-		camel_object_unref (message);
-	}
-	
-	if (expression)
-		camel_folder_search_free (folder, uids);
-	else
-		camel_folder_free_uids (folder, uids);
-	
-	camel_operation_end (NULL);
+	camel_message_iterator_free(iter);
+fail:
+	camel_operation_end(NULL);
 }
 
 

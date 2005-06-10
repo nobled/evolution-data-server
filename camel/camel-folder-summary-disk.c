@@ -1,0 +1,851 @@
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8; fill-column: 160 -*- */
+/*
+ * Copyright (C) 2005 Novell Inc.
+ *
+ * Authors: Michael Zucchi <notzed@novell.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of version 2 of the GNU General Public
+ * License as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public
+ * License along with this program; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <string.h>
+
+#include "camel-folder-summary-disk.h"
+#include "camel-i18n.h"
+#include "camel-record.h"
+#include "camel-string-utils.h"
+
+#include "camel-session.h"
+#include "camel-service.h"
+#include "camel-folder.h"
+
+#include "db.h"
+
+#define w(x)
+#define io(x)
+#define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
+
+#define CDS_CLASS(x) ((CamelFolderSummaryDiskClass *)((CamelObject *)x)->klass)
+
+#define _PRIVATE(x) (((CamelFolderSummaryDisk *)x)->priv)
+
+#define HEADER_KEY "__headerinfo"
+#define HEADER_KEY_LEN (12)
+
+struct _CamelFolderSummaryDiskPrivate {
+	DB *db;
+
+	GHashTable *cache;
+	GHashTable *changed;
+};
+
+typedef struct _CamelMessageIteratorDisk CamelMessageIteratorDisk;
+struct _CamelMessageIteratorDisk {
+	CamelMessageIterator iter;
+
+	CamelFolderSummary *summary;
+	char *expr;
+
+	GPtrArray *mis;
+	int mis_index;
+
+	DBC *cursor;
+	DBT key;
+	DBT data;
+
+	CamelMessageInfo *current;
+};
+
+static CamelFolderSummaryClass *cds_parent;
+
+static int
+cds_load_header(CamelFolderSummaryDisk *cds)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	DBT key = { 0 }, data = { 0 };
+	int res = -1;
+
+	key.data = HEADER_KEY;
+	key.size = HEADER_KEY_LEN;
+	data.flags = DB_DBT_MALLOC;
+
+	res = p->db->get(p->db, NULL, &key, &data, 0);
+	if (res == DB_NOTFOUND) {
+		printf("entry not found?\n");
+		return 0;
+	}
+
+	if (res == 0) {
+		CamelRecordDecoder *crd;
+
+		crd = camel_record_decoder_new(data.data, data.size);
+		res = CDS_CLASS(cds)->decode_header(cds, crd);
+		camel_record_decoder_free(crd);
+	} else
+		p->db->err(p->db, res, "getting header fialed");
+
+	if (data.data)
+		free(data.data);
+
+	return res;
+}
+
+static int
+cds_save_header(CamelFolderSummaryDisk *cds)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	DBT key = { 0 }, data = { 0 };
+	CamelRecordEncoder *cre;
+	int res = -1;
+
+	printf("SAVING HEADER\n");
+
+	cre = camel_record_encoder_new();
+	CDS_CLASS(cds)->encode_header(cds, cre);
+
+	key.data = HEADER_KEY;
+	key.size = HEADER_KEY_LEN;
+	data.data = cre->out->data;
+	data.size = cre->out->len;
+
+	// TODO: transactions
+	res = p->db->put(p->db, NULL, &key, &data, 0);
+	if (res == DB_NOTFOUND) {
+		printf("  SAVING: db not found!? \n");
+		return 0;
+	}
+
+	if (res == 0) {
+		CamelRecordDecoder *crd;
+
+		crd = camel_record_decoder_new(data.data, data.size);
+		res = CDS_CLASS(cds)->decode_header(cds, crd);
+		camel_record_decoder_free(crd);
+	} else
+		p->db->err(p->db, res, "saving header fialed");
+
+	if (data.data)
+		free(data.data);
+
+	return res;
+}
+
+static int cds_save_info(CamelFolderSummaryDisk *s, CamelMessageInfo *mi)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	CamelRecordEncoder *cre = camel_record_encoder_new();
+	DBT key = { 0 }, data = { 0 };
+	int err;
+
+	CDS_CLASS(s)->encode((CamelFolderSummaryDisk *)s, (CamelMessageInfoDisk *)mi, cre);
+
+	key.data = mi->uid;
+	key.size = strlen(mi->uid);
+	data.data = cre->out->data;
+	data.size = cre->out->len;
+
+	/* transaction? */
+	if ((err = p->db->put(p->db, NULL, &key, &data, 0)) != 0) {
+		p->db->err(p->db, err, "putting info '%s' into database", mi->uid);
+		err = -1;
+	}
+	/* else?? */
+
+	camel_record_encoder_free(cre);
+
+	return err;
+}
+
+#if 0
+/* These have base implementations, it is only to override them or
+   performance that they can be altered */
+static int cds_add_array(CamelFolderSummary *s, GPtrArray *mis)
+{
+}
+
+static void cds_remove_array(CamelFolderSummary *s, GPtrArray *mis)
+{
+}
+
+static GPtrArray *cds_get_array(CamelFolderSummary *s, const GPtrArray *uids)
+{
+}
+
+
+static CamelMessageInfo *cds_message_info_alloc(CamelFolderSummary *s)
+{
+}
+
+static void cds_message_info_free_array(CamelFolderSummary *s, GPtrArray *mis)
+{
+}
+
+static CamelMessageInfo *cds_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
+{
+}
+
+static CamelMessageInfo *cds_message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+{
+}
+
+/* FIXME: must put back indexing crap into camelfoldersummary? */
+static CamelMessageInfo *cds_message_info_new_from_parser(CamelFolderSummary *s, struct _CamelMimeParser *mp)
+{
+}
+
+/* FIXME: must put back indexing crap into camelfoldersummary? */
+static CamelMessageInfo *cds_message_info_new_from_message(CamelFolderSummary *s, struct _CamelMimeMessage *msg)
+{
+}
+
+/* virtual accessors on messageinfo's */
+static const void *cds_info_ptr(const CamelMessageInfo *mi, int id)
+{
+}
+
+static guint32 cds_info_uint32(const CamelMessageInfo *mi, int id)
+{
+}
+
+static time_t cds_info_time(const CamelMessageInfo *mi, int id)
+{
+}
+
+static gboolean cds_info_user_flag(const CamelMessageInfo *mi, const char *id)
+{
+}
+
+static const char cds_info_user_tag(const CamelMessageInfo *mi, const char *id)
+{
+}
+#endif
+
+static int cds_rename(CamelFolderSummary *s, const char *new)
+{
+	g_warning("rename not implemented");
+	abort();
+}
+
+/* need to track a free to force a flush? */
+/* wrong!  its already too late, a child class may have freed items */
+static void cds_message_info_free(CamelMessageInfo *mi)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
+
+	g_hash_table_remove(p->cache, mi->uid);
+
+	cds_parent->message_info_free(mi);
+}
+
+static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	int res;
+
+	res = cds_save_info((CamelFolderSummaryDisk *)s, mi);
+	if (res == 0) {
+		g_hash_table_insert(p->cache, mi->uid, mi);
+		cds_parent->add(s, mi);
+	}
+
+	/* TODO: if it failed, or maybe even otherwise, put it in a queue for later adding? */
+
+	return res;
+}
+
+static void cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	DBT key;
+
+	key.data = mi->uid;
+	key.size = strlen(mi->uid);
+	if (p->db->del(p->db, NULL, &key, 0) != 0)
+		/* failed, now what? */ ;
+
+	cds_parent->remove(s, mi);
+
+	/* FIXME: lock */
+	g_hash_table_remove(p->cache, mi->uid);
+}
+
+static void cds_clear(CamelFolderSummary *s)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+
+	p->db->truncate(p->db, NULL, NULL, DB_AUTO_COMMIT);
+
+	/* FIXME: lock */
+	g_hash_table_destroy(p->cache);
+	p->cache = g_hash_table_new(g_str_hash, g_str_equal);
+	g_hash_table_destroy(p->changed);
+	p->changed = g_hash_table_new(g_str_hash, g_str_equal);
+
+	cds_parent->clear(s);
+}
+
+static CamelMessageInfo *cds_get_record(CamelFolderSummaryDisk *s, DBT *key, DBT *data)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	char *uid;
+	CamelMessageInfo *mi;
+
+	uid = g_strndup(key->data, key->size);
+	/* FIXME: locking! */
+	mi = g_hash_table_lookup(p->cache, uid);
+	if (mi) {
+		camel_message_info_ref(mi);
+		g_free(uid);
+	} else {
+		CamelRecordDecoder *crd;
+
+		mi = camel_message_info_new((CamelFolderSummary *)s);
+
+		crd = camel_record_decoder_new(data->data, data->size);
+		if (CDS_CLASS(s)->decode((CamelFolderSummaryDisk *)s, (CamelMessageInfoDisk *)mi, crd) != 0) {
+			/* wtf now? */
+		}
+		camel_record_decoder_free(crd);
+
+		mi->uid = uid;
+
+		g_hash_table_insert(p->cache, mi->uid, mi);
+	}
+
+	return mi;
+}
+
+static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	DBT key = { 0 }, data = { 0 };
+	CamelMessageInfo *mi = NULL;
+
+	key.data = (char *)uid;
+	key.size = strlen(uid);
+	data.flags = DB_DBT_MALLOC;
+
+	if (p->db->get(p->db, NULL, &key, &data, 0) == 0) {
+		mi = cds_get_record((CamelFolderSummaryDisk *)s, &key, &data);
+		if (data.data)
+			free(data.data);
+	}
+
+	return mi;
+}
+
+/* Search & iterators */
+static const CamelMessageInfo *cds_iterator_next(void *mitin)
+{
+	CamelMessageIteratorDisk *mit = mitin;
+	CamelMessageInfo *mi = NULL;
+
+	if (mit->mis) {
+		/* ?? lookup in db??/ */
+		if (mit->mis_index < mit->mis->len)
+			mi = mit->mis->pdata[mit->mis_index++];
+	} else {
+		if (mit->cursor) {
+			int res;
+
+			/* TODO: we read the whole record even if we dont need it ... */
+			do {
+				res = mit->cursor->c_get(mit->cursor, &mit->key, &mit->data, DB_NEXT);
+				if (res == DB_NOTFOUND)
+					return NULL;
+				else if (res != 0)
+					return NULL;
+			} while (mit->key.size == HEADER_KEY_LEN
+				 && memcmp(mit->key.data, HEADER_KEY, HEADER_KEY_LEN) == 0);
+
+			if (mit->current)
+				camel_message_info_free(mit->current);
+
+			mi = cds_get_record((CamelFolderSummaryDisk *)mit->summary, &mit->key, &mit->data);
+			mit->current = mi;
+		}
+	}
+
+	return mi;
+}
+
+static const GPtrArray *cds_iterator_next_array(void *mitin, int limit)
+{
+	const CamelMessageInfo *mi;
+	GPtrArray *res = NULL;
+
+	while (limit) {
+		mi = camel_message_iterator_next(mitin);
+		if (mi) {
+			if (res == NULL)
+				res = g_ptr_array_new();
+			g_ptr_array_add(res, (void *)mi);
+		}
+		limit--;
+	}
+
+	return res;
+}
+
+static void cds_iterator_free(void *mitin)
+{
+	CamelMessageIteratorDisk *mit = mitin;
+
+	if (mit->mis) {
+		camel_folder_summary_free_array(mit->summary, mit->mis);
+	} else if (mit->cursor) {
+		mit->cursor->c_close(mit->cursor);
+		if (mit->data.data)
+			free(mit->data.data);
+		if (mit->key.data)
+			free(mit->key.data);
+	}
+
+	if (mit->current)
+		camel_message_info_free(mit->current);
+
+	camel_object_unref(mit->summary);
+}
+
+static CamelMessageIteratorVTable cds_iterator_vtable = {
+	cds_iterator_free,
+	cds_iterator_next,
+	cds_iterator_next_array
+};
+
+static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const char *expr, const GPtrArray *mis)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	CamelMessageIteratorDisk *mit;
+
+	mit = camel_message_iterator_new(&cds_iterator_vtable, sizeof(*mit));
+	mit->summary = s;
+	camel_object_ref(s);
+
+	if (mis) {
+		int i;
+
+		mit->expr = g_strdup(expr);
+		mit->mis = g_ptr_array_new();
+		for (i=0;i<mis->len;i++) {
+			g_ptr_array_add(mit->mis, mis->pdata[i]);
+			camel_message_info_ref(mis->pdata[i]);
+		}
+	} else {
+		if (p->db->cursor(p->db, NULL, &mit->cursor, 0) != 0)
+			mit->cursor = NULL;
+		else {
+			mit->key.flags = DB_DBT_REALLOC;
+			mit->data.flags = DB_DBT_REALLOC;
+		}
+	}
+
+	return (CamelMessageIterator *)mit;
+}
+
+static void
+cds_change_info(CamelMessageInfo *mi)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
+
+	/* FIXME: locking */
+	if (g_hash_table_lookup(p->changed, mi->uid) == NULL) {
+		camel_message_info_ref(mi);
+		g_hash_table_insert(p->changed, mi->uid, mi);
+	}
+}
+
+/* we use the base implementation but check for changes so we can flush them at some point */
+static gboolean cds_info_set_user_flag(CamelMessageInfo *mi, const char *id, gboolean state)
+{
+	int res = cds_parent->info_set_user_flag(mi, id, state);
+
+	if (res)
+		cds_change_info(mi);
+
+	return res;
+}
+
+static gboolean cds_info_set_user_tag(CamelMessageInfo *mi, const char *id, const char *val)
+{
+	int res = cds_parent->info_set_user_tag(mi, id, val);
+
+	if (res)
+		cds_change_info(mi);
+
+	return res;
+}
+
+static gboolean cds_info_set_flags(CamelMessageInfo *mi, guint32 mask, guint32 set)
+{
+	int res = cds_parent->info_set_flags(mi, mask, set);
+
+	if (res)
+		cds_change_info(mi);
+
+	return res;
+}
+
+static void cds_encode_header(CamelFolderSummaryDisk *cds, CamelRecordEncoder *cde)
+{
+	camel_record_encoder_start_section(cde, CFSD_SECTION_FOLDERINFO, 0);
+
+	camel_record_encoder_int32(cde, ((CamelFolderSummary *)cds)->total_count);
+	camel_record_encoder_int32(cde, ((CamelFolderSummary *)cds)->visible_count);
+	camel_record_encoder_int32(cde, ((CamelFolderSummary *)cds)->unread_count);
+	camel_record_encoder_int32(cde, ((CamelFolderSummary *)cds)->deleted_count);
+	camel_record_encoder_int32(cde, ((CamelFolderSummary *)cds)->junk_count);
+
+	camel_record_encoder_end_section(cde);
+}
+
+static int cds_decode_header(CamelFolderSummaryDisk *cds, CamelRecordDecoder *crd)
+{
+	int tag, ver;
+
+	camel_record_decoder_reset(crd);
+	while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
+		switch (tag) {
+		case CFSD_SECTION_FOLDERINFO:
+			((CamelFolderSummary *)cds)->total_count = camel_record_decoder_int32(crd);
+			((CamelFolderSummary *)cds)->visible_count = camel_record_decoder_int32(crd);
+			((CamelFolderSummary *)cds)->unread_count = camel_record_decoder_int32(crd);
+			((CamelFolderSummary *)cds)->deleted_count = camel_record_decoder_int32(crd);
+			((CamelFolderSummary *)cds)->junk_count = camel_record_decoder_int32(crd); 
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static void cds_encode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, CamelRecordEncoder *cde)
+{
+	const CamelSummaryReferences *refs;
+	const CamelSummaryMessageID *id;
+	int i;
+	CamelTag *tag;
+	CamelFlag *flag;
+
+	/* read-only header section.
+	   Untyped stream of binary represents each item in a code-known order.
+
+	   New field entries MUST only ever be added to the end of a
+	   given section, this lets the data structure automatically
+	   be backward & forward compatible.  If fields become
+	   obsolete they should be written as empty/0 rather than
+	   removed, until a version bump (and even then usually).
+	*/
+
+	camel_record_encoder_start_section(cde, CFSD_SECTION_HEADERS, 0);
+
+	camel_record_encoder_int32(cde, camel_message_info_size(mi));
+	camel_record_encoder_timet(cde, camel_message_info_date_sent(mi));
+	camel_record_encoder_timet(cde, camel_message_info_date_received(mi));
+	camel_record_encoder_string(cde, camel_message_info_subject(mi));
+	camel_record_encoder_string(cde, camel_message_info_from(mi));
+	camel_record_encoder_string(cde, camel_message_info_to(mi));
+	camel_record_encoder_string(cde, camel_message_info_cc(mi));
+	camel_record_encoder_string(cde, camel_message_info_mlist(mi));
+
+	refs = camel_message_info_references(mi);
+	id = camel_message_info_message_id(mi);
+	
+	camel_record_encoder_int32(cde, refs?refs->size + 1: 1);
+	camel_record_encoder_int64(cde, id?id->id.id:0);
+	if (refs) {
+		for (i=0;i<refs->size;i++)
+			camel_record_encoder_int64(cde, refs->references[i].id.id);
+	}
+
+	camel_record_encoder_end_section(cde);
+
+	/* variable size/content flags section */
+	camel_record_encoder_start_section(cde, CFSD_SECTION_FLAGS, 0);
+	camel_record_encoder_int32(cde, camel_message_info_flags(mi));
+
+	flag = (CamelFlag *)camel_message_info_user_flags(mi);
+	if (flag) {
+		camel_record_encoder_int32(cde, camel_flag_list_size(&flag));
+		for (;flag;flag=flag->next)
+			camel_record_encoder_string(cde, flag->name);
+	} else {
+		camel_record_encoder_int32(cde, 0);
+	}
+
+	tag = (CamelTag *)camel_message_info_user_tags(mi);
+	if (tag) {
+		camel_record_encoder_int32(cde, camel_tag_list_size(&tag));
+		for (;tag;tag=tag->next) {
+			camel_record_encoder_string(cde, tag->name);
+			camel_record_encoder_string(cde, tag->value);
+		}
+	} else {
+		camel_record_encoder_int32(cde, 0);
+	}
+
+	camel_record_encoder_end_section(cde);
+}
+
+static int cds_decode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, CamelRecordDecoder *cdd)
+{
+	int tag, ver, count, i;
+	const char *s, *v;
+	int res = -1;
+
+	camel_record_decoder_reset(cdd);
+	while ((tag = camel_record_decoder_next_section(cdd, &ver)) != CR_SECTION_INVALID) {
+		switch (tag) {
+		case CFSD_SECTION_HEADERS:
+			/* decode header/static data */
+			mi->info.size = camel_record_decoder_int32(cdd);
+			mi->info.date_sent = camel_record_decoder_timet(cdd);
+			mi->info.date_received = camel_record_decoder_timet(cdd);
+			mi->info.subject = camel_pstring_strdup(camel_record_decoder_string(cdd));
+			mi->info.from = camel_pstring_strdup(camel_record_decoder_string(cdd));
+			mi->info.to = camel_pstring_strdup(camel_record_decoder_string(cdd));
+			mi->info.cc = camel_pstring_strdup(camel_record_decoder_string(cdd));
+			mi->info.mlist = camel_pstring_strdup(camel_record_decoder_string(cdd));
+			count = camel_record_decoder_int32(cdd);
+			if (count>0)
+				mi->info.message_id.id.id = camel_record_decoder_int64(cdd);
+			if (count>1) {
+				count--;
+				mi->info.references = g_malloc(sizeof(*mi->info.references) + (sizeof(CamelSummaryMessageID) * count));
+				for (i=0;i<count;i++)
+					mi->info.references->references[i].id.id = camel_record_decoder_int64(cdd);
+			}
+			/* we only need CDS_HEADERS for a valid struct */
+			res = 0;
+			break;
+		case CFSD_SECTION_FLAGS:
+			/* decode flags/dynamic data */
+			mi->info.flags = camel_record_decoder_int32(cdd);
+			count = camel_record_decoder_int32(cdd);
+			for (i=0;i<count;i++) {
+				s = camel_record_decoder_string(cdd);
+				if (*s)
+					camel_flag_set(&mi->info.user_flags, s, 1);
+			}
+			count = camel_record_decoder_int32(cdd);
+			for (i=0;i<count;i++) {
+				s = camel_record_decoder_string(cdd);
+				v = camel_record_decoder_string(cdd);
+				if (*s)
+					camel_tag_set(&mi->info.user_tags, s, v);
+			}
+			break;
+		}
+	}
+
+	return res;
+}
+
+static void
+camel_folder_summary_disk_class_init(CamelFolderSummaryDiskClass *klass)
+{
+	cds_parent = (CamelFolderSummaryClass *)camel_folder_summary_get_type();
+
+	((CamelFolderSummaryClass *)klass)->rename = cds_rename;
+
+	((CamelFolderSummaryClass *)klass)->add = cds_add;
+	((CamelFolderSummaryClass *)klass)->remove = cds_remove;
+	((CamelFolderSummaryClass *)klass)->clear = cds_clear;
+	((CamelFolderSummaryClass *)klass)->message_info_free = cds_message_info_free;
+
+	((CamelFolderSummaryClass *)klass)->get = cds_get;
+
+	((CamelFolderSummaryClass *)klass)->search = cds_search;
+
+	((CamelFolderSummaryClass *)klass)->info_set_user_flag = cds_info_set_user_flag;
+	((CamelFolderSummaryClass *)klass)->info_set_user_tag = cds_info_set_user_tag;
+	((CamelFolderSummaryClass *)klass)->info_set_flags = cds_info_set_flags;
+
+	klass->encode_header = cds_encode_header;
+	klass->decode_header = cds_decode_header;
+
+	klass->encode = cds_encode;
+	klass->decode = cds_decode;
+}
+
+static void
+camel_folder_summary_disk_init(CamelFolderSummaryDisk *o)
+{
+	o->priv = g_malloc0(sizeof(*o->priv));
+	o->priv->cache = g_hash_table_new(g_str_hash, g_str_equal);
+	o->priv->changed = g_hash_table_new(g_str_hash, g_str_equal);
+}
+
+static void
+camel_folder_summary_disk_finalise(CamelObject *obj)
+{
+	CamelFolderSummaryDisk *cds = (CamelFolderSummaryDisk *)obj;
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+
+	/* FIXME: empty cache? */
+	g_hash_table_destroy(p->cache);
+	g_free(p);
+}
+
+CamelType
+camel_folder_summary_disk_get_type(void)
+{
+	static CamelType type = CAMEL_INVALID_TYPE;
+	
+	if (type == CAMEL_INVALID_TYPE) {
+		type = camel_type_register(camel_folder_summary_get_type(), "CamelFolderSummaryDisk",
+					   sizeof (CamelFolderSummaryDisk),
+					   sizeof (CamelFolderSummaryDiskClass),
+					   (CamelObjectClassInitFunc) camel_folder_summary_disk_class_init,
+					   NULL,
+					   (CamelObjectInitFunc) camel_folder_summary_disk_init,
+					   (CamelObjectFinalizeFunc) camel_folder_summary_disk_finalise);
+	}
+	
+	return type;
+}
+
+static DB_ENV *
+get_env(CamelService *s)
+{
+	char *base, *path;
+	static DB_ENV *dbenv;
+	int err;
+
+	if (dbenv)
+		return dbenv;
+
+	base = camel_session_get_storage_path(s->session, s, NULL);
+	path = g_build_filename(base, ".folders.db", NULL);
+	g_free(base);
+
+	printf("Creating database environment for store at %s\n", path);
+
+	if (db_env_create(&dbenv, 0) != 0) {
+		printf("env create failed\n");
+		g_free(path);
+		return NULL;
+	}
+
+	if ((err = dbenv->open(dbenv, path, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_THREAD|DB_RECOVER /* |DB_PRIVATE */, 0666)) != 0) {
+		dbenv->err(dbenv, err, "cannot create db");
+		g_free(path);
+		return NULL;
+	}
+
+	return dbenv;
+}
+
+/* FIXME: this must be configurable */
+static int
+cds_key_cmp(DB *db, const DBT *a, const DBT *b)
+{
+	int av = 0, bv = 0, i;
+	unsigned char *p;
+
+	/* we need to special-case the header node */
+	if (a->size == HEADER_KEY_LEN && b->size == HEADER_KEY_LEN
+	    && memcmp(a->data, b->data, HEADER_KEY_LEN) == 0)
+		return 0;
+	else if (a->size == HEADER_KEY_LEN
+	    && memcmp(a->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
+		return -1;
+	else if (b->size == HEADER_KEY_LEN
+		 && memcmp(b->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
+		return 1;
+
+	p = a->data;
+	for (i=0;i<a->size;i++)
+		av = av*10 + (p[i] - '0');
+	p = b->data;
+	for (i=0;i<b->size;i++)
+		bv = bv*10 + (p[i] - '0');
+
+	if (av < bv)
+		return -1;
+	else if (av > bv)
+		return 1;
+	else
+		return 0;
+}
+
+CamelFolderSummaryDisk *
+camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFolder *folder)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	int err;
+
+	((CamelFolderSummary *)cds)->folder = folder;
+
+	db_create(&p->db, get_env((CamelService *)folder->parent_store), 0);
+
+	p->db->set_bt_compare(p->db, cds_key_cmp);
+	//? db->set_flags(db, DB_RECNUM);
+
+	if ((err = p->db->open(p->db, NULL, "folders", folder->full_name, DB_BTREE, DB_CREATE|DB_THREAD, 0666)) != 0)
+		p->db->err(p->db, err, "opening folder summary '%s'", folder->full_name);
+
+	printf("constructing summary, loading header\n");
+
+	cds_load_header(cds);
+
+	return cds;
+}
+
+CamelFolderSummaryDisk *
+camel_folder_summary_disk_new(struct _CamelFolder *folder)
+{
+	CamelFolderSummaryDisk *cds = (CamelFolderSummaryDisk *)camel_object_new(camel_folder_summary_disk_get_type());
+
+	return camel_folder_summary_disk_construct(cds, folder);
+}
+
+static int
+cds_get_changed(void *k, void *v, void *d)
+{
+	GPtrArray *infos = d;
+
+	g_ptr_array_add(infos, v);
+
+	return TRUE;
+}
+
+int
+camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	GPtrArray *infos;
+	int i;
+
+	printf("syncing db summary\n");
+
+	cds_save_header(cds);
+
+	/* FIXME: locking */
+	infos = g_ptr_array_new();
+	g_hash_table_foreach_remove(p->changed, cds_get_changed, infos);
+
+	for (i=0;i<infos->len;i++) {
+		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i]);
+		camel_message_info_free(infos->pdata[i]);
+	}
+
+	p->db->sync(p->db, 0);
+
+	return 0;
+}

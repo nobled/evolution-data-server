@@ -338,17 +338,17 @@ static void
 disco_expunge (CamelFolder *folder, CamelException *ex)
 {
 	GPtrArray *uids;
-	int i, count;
-	CamelMessageInfo *info;
+	int i;
+	const CamelMessageInfo *info;
+	CamelMessageIterator *iter;
 
 	uids = g_ptr_array_new ();
-	count = camel_folder_summary_count (folder->summary);
-	for (i = 0; i < count; i++) {
-		info = camel_folder_summary_index (folder->summary, i);
+	iter = camel_folder_summary_search(folder->summary, NULL, NULL);
+	while ((info = camel_message_iterator_next(iter))) {
 		if (camel_message_info_flags(info) & CAMEL_MESSAGE_DELETED)
 			g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
-		camel_message_info_free(info);
 	}
+	camel_message_iterator_free(iter);
 
 	disco_expunge_uids (folder, uids, ex);
 
@@ -461,35 +461,32 @@ disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
 			   CamelException *ex)
 {
 	CamelFolder *folder = CAMEL_FOLDER (disco_folder);
-	GPtrArray *uids;
-	int i;
+	const GPtrArray *mis;
+	CamelMessageIterator *iter;
+	int i, total, count=0;
 
 	camel_operation_start(NULL, _("Preparing folder '%s' for offline"), folder->full_name);
 
-	if (expression)
-		uids = camel_folder_search_by_expression (folder, expression, ex);
-	else
-		uids = camel_folder_get_uids (folder);
+	iter = camel_folder_search(folder, expression, NULL, ex);
+	if (iter == NULL)
+		goto fail;
 
-	if (!uids) {
-		camel_operation_end(NULL);
-		return;
+	camel_object_get(folder, NULL, CAMEL_FOLDER_TOTAL, &total, 0);
+
+	while ((mis = camel_message_iterator_next_array(iter, 100)) && mis->len) {
+		for (i = 0; i < mis->len; i++) {
+			int pc = count * 100 / total;
+
+			camel_disco_folder_cache_message (disco_folder, camel_message_info_uid(mis->pdata[i]), ex);
+			if (camel_exception_is_set (ex))
+				break;
+
+			camel_operation_progress(NULL, pc);
+			count++;
+		}
 	}
-
-	for (i = 0; i < uids->len; i++) {
-		int pc = i * 100 / uids->len;
-
-		camel_disco_folder_cache_message (disco_folder, uids->pdata[i], ex);
-		camel_operation_progress(NULL, pc);
-		if (camel_exception_is_set (ex))
-			break;
-	}
-
-	if (expression)
-		camel_folder_search_free (folder, uids);
-	else
-		camel_folder_free_uids (folder, uids);
-
+	camel_message_iterator_free(iter);
+fail:
 	camel_operation_end(NULL);
 }
 

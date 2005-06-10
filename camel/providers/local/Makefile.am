@@ -15,36 +15,38 @@ libcamellocal_la_SOURCES = 			\
 	camel-local-store.c			\
 	camel-local-summary.c			\
 	camel-local-provider.c			\
-	camel-mh-folder.c			\
-	camel-mh-store.c			\
-	camel-mh-summary.c			\
 	camel-mbox-folder.c			\
 	camel-mbox-store.c			\
 	camel-mbox-summary.c			\
-	camel-maildir-folder.c			\
-	camel-maildir-store.c			\
-	camel-maildir-summary.c			\
 	camel-spool-folder.c			\
 	camel-spool-store.c			\
 	camel-spool-summary.c
+
+#	camel-mh-folder.c			\
+#	camel-mh-store.c			\
+#	camel-mh-summary.c			\
+#	camel-maildir-folder.c			\
+#	camel-maildir-store.c			\
+#	camel-maildir-summary.c
 
 noinst_HEADERS =				\
 	camel-local-folder.h			\
 	camel-local-store.h			\
 	camel-local-summary.h			\
-	camel-mh-folder.h			\
-	camel-mh-store.h			\
-	camel-mh-summary.h			\
 	camel-mbox-folder.h			\
 	camel-mbox-store.h			\
 	camel-mbox-summary.h			\
-	camel-maildir-folder.h			\
-	camel-maildir-store.h			\
-	camel-maildir-summary.h			\
 	camel-spool-folder.h			\
 	camel-spool-store.h			\
 	camel-spool-summary.h			\
 	camel-local-private.h
+
+#	camel-mh-folder.h			\
+#	camel-mh-store.h			\
+#	camel-mh-summary.h			\
+#	camel-maildir-folder.h			\
+#	camel-maildir-store.h			\
+#	camel-maildir-summary.h
 
 libcamellocal_la_LDFLAGS = -avoid-version -module
 

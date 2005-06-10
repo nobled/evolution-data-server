@@ -93,24 +93,7 @@ struct _CamelSessionPrivate {
 
 /* most of this stuff really is private, but the lock can be used by subordinate classes */
 struct _CamelFolderSummaryPrivate {
-	GHashTable *filter_charset;	/* CamelMimeFilterCharset's indexed by source charset */
-
-	struct _CamelMimeFilterIndex *filter_index;
-	struct _CamelMimeFilterBasic *filter_64;
-	struct _CamelMimeFilterBasic *filter_qp;
-	struct _CamelMimeFilterBasic *filter_uu;
-	struct _CamelMimeFilterSave *filter_save;
-	struct _CamelMimeFilterHTML *filter_html;
-
-	struct _CamelStreamFilter *filter_stream;
-
-	struct _CamelIndex *index;
-	
-	GMutex *summary_lock;	/* for the summary hashtable/array */
-	GMutex *io_lock;	/* load/save lock, for access to saved_count, etc */
-	GMutex *filter_lock;	/* for accessing any of the filtering/indexing stuff, since we share them */
-	GMutex *alloc_lock;	/* for setting up and using allocators */
-	GMutex *ref_lock;	/* for reffing/unreffing messageinfo's ALWAYS obtain before summary_lock */
+	GMutex *ref_lock;	/* for reffing/unreffing messageinfo's */
 };
 
 #define CAMEL_SUMMARY_LOCK(f, l) (g_mutex_lock(((CamelFolderSummary *)f)->priv->l))

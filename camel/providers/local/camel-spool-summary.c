@@ -92,11 +92,8 @@ static void
 camel_spool_summary_init(CamelSpoolSummary *obj)
 {
 	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
-	
-	/* message info size is from mbox parent */
 
-	/* and a unique file version */
-	s->version += CAMEL_SPOOL_SUMMARY_VERSION;
+	s = s;
 }
 
 static void
@@ -112,7 +109,8 @@ camel_spool_summary_new(struct _CamelFolder *folder, const char *mbox_name)
 
 	((CamelFolderSummary *)new)->folder = folder;
 
-	camel_local_summary_construct((CamelLocalSummary *)new, NULL, mbox_name, NULL);
+	/* FIXME: make this call mbox construct */
+	camel_local_summary_construct((CamelLocalSummary *)new, folder, NULL, mbox_name, NULL);
 	return new;
 }
 
@@ -316,13 +314,15 @@ spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, C
 	if (((CamelLocalSummaryClass *)camel_spool_summary_parent)->check(cls, changeinfo, ex) == -1)
 		return -1;
 
+#warning "incomplee"
+#if 0
 	/* check to see if we need to copy/update the file; missing xev headers prompt this */
 	work = FALSE;
 	count = camel_folder_summary_count(s);
 	for (i=0;!work && i<count; i++) {
 		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
 		g_assert(info);
-		work = (info->info.info.flags & (CAMEL_MESSAGE_FOLDER_NOXEV)) != 0;
+		work = (((CamelMessageInfoBase *)info)->flags & (CAMEL_MESSAGE_FOLDER_NOXEV)) != 0;
 		camel_message_info_free((CamelMessageInfo *)info);
 	}
 
@@ -340,8 +340,9 @@ spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, C
 		}
 
 		((CamelMboxSummary *)cls)->folder_size = st.st_size;
-		((CamelFolderSummary *)cls)->time = st.st_mtime;
+		((CamelMboxSummary *)cls)->time = st.st_mtime;
 	}
+#endif
 
 	return 0;
 }

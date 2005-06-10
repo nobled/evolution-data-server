@@ -37,25 +37,33 @@
 
 static CamelFolderSummaryClass *camel_vee_summary_parent;
 
+static CamelMessageInfo *
+vee_message_info_alloc(CamelFolderSummary *s)
+{
+	return g_malloc0(sizeof(CamelVeeMessageInfo));
+}
+
 static void
-vee_message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
+vee_message_info_free(CamelMessageInfo *info)
 {
 	CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)info;
 
 	g_free(info->uid);
 	camel_message_info_free(mi->real);
+
+	g_free(info);
 }
 
 static CamelMessageInfo *
-vee_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
+vee_message_info_clone(const CamelMessageInfo *mi)
 {
 	CamelVeeMessageInfo *to;
 	const CamelVeeMessageInfo *from = (const CamelVeeMessageInfo *)mi;
 
-	to = (CamelVeeMessageInfo *)camel_message_info_new(s);
+	to = (CamelVeeMessageInfo *)camel_message_info_new(mi->summary);
 
 	to->real = camel_message_info_clone(from->real);
-	to->info.summary = s;
+	to->info.summary = mi->summary;
 
 	return (CamelMessageInfo *)to;
 }
@@ -126,6 +134,7 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 static void
 camel_vee_summary_class_init (CamelVeeSummaryClass *klass)
 {
+	((CamelFolderSummaryClass *)klass)->message_info_alloc = vee_message_info_alloc;
 	((CamelFolderSummaryClass *)klass)->message_info_clone = vee_message_info_clone;
 	((CamelFolderSummaryClass *)klass)->message_info_free = vee_message_info_free;
 
@@ -152,8 +161,7 @@ camel_vee_summary_init (CamelVeeSummary *obj)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)obj;
 
-	s->message_info_size = sizeof(CamelVeeMessageInfo);
-	s->content_info_size = 0;
+	s = s;
 }
 
 CamelType
@@ -208,7 +216,7 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char has
 	vuid = g_malloc(strlen(uid)+9);
 	memcpy(vuid, hash, 8);
 	strcpy(vuid+8, uid);
-	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(&s->summary, vuid);
+	mi = (CamelVeeMessageInfo *)camel_folder_summary_get(&s->summary, vuid);
 	if (mi) {
 		d(printf("w:clash, we already have '%s' in summary\n", vuid));
 		camel_message_info_free((CamelMessageInfo *)mi);

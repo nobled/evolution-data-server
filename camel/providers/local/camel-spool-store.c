@@ -256,8 +256,8 @@ spool_fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
-		fi->unread = camel_folder_get_unread_message_count(folder);
-		fi->total = camel_folder_get_message_count(folder);
+		fi->unread = folder->summary->unread_count;
+		fi->total = folder->summary->total_count;
 		camel_object_unref(folder);
 	}
 }

@@ -30,14 +30,15 @@
 #include "camel-session.h"
 #include "camel-url.h"
 
-#include "camel-mh-store.h"
+//#include "camel-mh-store.h"
 #include "camel-mbox-store.h"
-#include "camel-maildir-store.h"
+//#include "camel-maildir-store.h"
 #include "camel-spool-store.h"
 #include "camel-i18n.h"
 
 #define d(x)
 
+#if 0
 static CamelProviderConfEntry mh_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
 	{ CAMEL_PROVIDER_CONF_SECTION_START, "general", NULL, N_("Options") },
@@ -57,6 +58,7 @@ static CamelProvider mh_provider = {
 	mh_conf_entries,
 	/* ... */
 };
+#endif
 
 static CamelProviderConfEntry mbox_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
@@ -74,6 +76,7 @@ static CamelProvider mbox_provider = {
 	/* ... */
 };
 
+#if 0
 static CamelProviderConfEntry maildir_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
 	{ CAMEL_PROVIDER_CONF_SECTION_START, "general", NULL, N_("Options") },
@@ -93,6 +96,7 @@ static CamelProvider maildir_provider = {
 	maildir_conf_entries,
 	/* ... */
 };
+#endif
 
 static CamelProviderConfEntry spool_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
@@ -199,13 +203,13 @@ void camel_provider_module_init(void)
 	if (init)
 		abort();
 	init = 1;
-
+#if 0
 	mh_conf_entries[0].value = "";  /* default path */
 	mh_provider.object_types[CAMEL_PROVIDER_STORE] = camel_mh_store_get_type ();
 	mh_provider.url_hash = local_url_hash;
 	mh_provider.url_equal = local_url_equal;
 	camel_provider_register(&mh_provider);
-	
+#endif
 	if (!(path = getenv ("MAIL")))
 		path = g_strdup_printf (SYSTEM_MAIL_DIR "/%s", g_get_user_name ());
 	mbox_conf_entries[0].value = path;  /* default path */
@@ -219,11 +223,12 @@ void camel_provider_module_init(void)
 	spool_provider.url_hash = local_url_hash;
 	spool_provider.url_equal = local_url_equal;
 	camel_provider_register(&spool_provider);
-	
+#if 0
 	path = getenv("MAILDIR");
 	maildir_conf_entries[0].value = path ? path : "";  /* default path */
 	maildir_provider.object_types[CAMEL_PROVIDER_STORE] = camel_maildir_store_get_type ();
 	maildir_provider.url_hash = local_url_hash;
 	maildir_provider.url_equal = local_url_equal;
 	camel_provider_register(&maildir_provider);
+#endif
 }

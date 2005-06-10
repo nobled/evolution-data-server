@@ -28,6 +28,8 @@
 #define __USE_LARGEFILE 1
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include "camel-i18n.h"
 #include "camel-disco-diary.h"
@@ -343,7 +345,7 @@ camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
 			info = camel_folder_get_message_info (folder, uid);
 
 			camel_folder_append_message (folder, message, info, &ret_uid, ex);
-			camel_folder_free_message_info (folder, info);
+			camel_message_info_free(info);
 
 			if (ret_uid) {
 				camel_disco_diary_uidmap_add (diary, uid, ret_uid);

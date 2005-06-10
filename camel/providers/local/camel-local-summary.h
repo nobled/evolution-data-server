@@ -21,7 +21,7 @@
 #ifndef _CAMEL_LOCAL_SUMMARY_H
 #define _CAMEL_LOCAL_SUMMARY_H
 
-#include <camel/camel-folder-summary.h>
+#include <camel/camel-folder-summary-disk.h>
 #include <camel/camel-folder.h>
 #include <camel/camel-exception.h>
 #include <camel/camel-index.h>
@@ -40,16 +40,17 @@ enum {
 	CAMEL_MESSAGE_FOLDER_NOTSEEN = 1<<19, /* have we seen this in processing this loop? */
 };
 
-typedef struct _CamelLocalMessageInfo CamelLocalMessageInfo;
+enum {
+	CFS_LOCAL_SECTION_LAST = CFSD_SECTION_LAST + 8
+};
 
+typedef struct _CamelLocalMessageInfo CamelLocalMessageInfo;
 struct _CamelLocalMessageInfo {
-	CamelMessageInfoBase info;
+	CamelMessageInfoDisk info;
 };
 
 struct _CamelLocalSummary {
-	CamelFolderSummary parent;
-
-	guint32 version;	/* file version being loaded */
+	CamelFolderSummaryDisk parent;
 
 	char *folder_path;	/* name of matching folder */
 	
@@ -59,7 +60,7 @@ struct _CamelLocalSummary {
 };
 
 struct _CamelLocalSummaryClass {
-	CamelFolderSummaryClass parent_class;
+	CamelFolderSummaryDiskClass parent_class;
 
 	int (*load)(CamelLocalSummary *cls, int forceindex, CamelException *ex);
 	int (*check)(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex);
@@ -71,7 +72,7 @@ struct _CamelLocalSummaryClass {
 };
 
 CamelType	camel_local_summary_get_type	(void);
-void	camel_local_summary_construct	(CamelLocalSummary *new, const char *filename, const char *local_name, CamelIndex *index);
+void	camel_local_summary_construct	(CamelLocalSummary *new, CamelFolder *folder, const char *filename, const char *local_name, CamelIndex *index);
 
 /* load/check the summary */
 int camel_local_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex);

@@ -476,7 +476,7 @@ do_copy (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDriv
 			if (outbox == p->source)
 				break;
 			
-			if (!p->modified && p->uid && p->source && camel_folder_has_summary_capability (p->source)) {
+			if (!p->modified && p->uid && p->source) {
 				GPtrArray *uids;
 				
 				uids = g_ptr_array_new ();
@@ -529,7 +529,7 @@ do_move (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDriv
 			/* only delete on last folder (only 1 can ever be supplied by ui currently) */
 			last = (i == argc-1);
 
-			if (!p->modified && p->uid && p->source && camel_folder_has_summary_capability (p->source)) {
+			if (!p->modified && p->uid && p->source) {
 				GPtrArray *uids;
 
 				uids = g_ptr_array_new ();
@@ -545,12 +545,8 @@ do_move (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDriv
 				
 				camel_folder_append_message (outbox, p->message, p->info, NULL, p->ex);
 
-				if (!camel_exception_is_set(p->ex) && last) {
-					if (p->source && p->uid && camel_folder_has_summary_capability (p->source))
-						camel_folder_set_message_flags(p->source, p->uid, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN, ~0);
-					else
-						camel_message_info_set_flags(p->info, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
-				}
+				if (!camel_exception_is_set(p->ex) && last)
+					camel_message_info_set_flags(p->info, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
 			}
 			
 			if (!camel_exception_is_set (p->ex)) {
@@ -586,10 +582,7 @@ do_colour (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDr
 	
 	d(fprintf (stderr, "setting colour tag\n"));
 	if (argc > 0 && argv[0]->type == ESEXP_RES_STRING) {
-		if (p->source && p->uid && camel_folder_has_summary_capability (p->source))
-			camel_folder_set_message_user_tag (p->source, p->uid, "colour", argv[0]->value.string);
-		else
-			camel_message_info_set_user_tag(p->info, "colour", argv[0]->value.string);
+		camel_message_info_set_user_tag(p->info, "colour", argv[0]->value.string);
 		camel_filter_driver_log (driver, FILTER_LOG_ACTION, "Set colour to %s", argv[0]->value.string);
 	}
 	
@@ -644,10 +637,7 @@ set_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDri
 	d(fprintf (stderr, "setting flag\n"));
 	if (argc == 1 && argv[0]->type == ESEXP_RES_STRING) {
 		flags = camel_system_flag (argv[0]->value.string);
-		if (p->source && p->uid && camel_folder_has_summary_capability (p->source))
-			camel_folder_set_message_flags (p->source, p->uid, flags, ~0);
-		else
-			camel_message_info_set_flags(p->info, flags | CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
+		camel_message_info_set_flags(p->info, flags | CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
 		camel_filter_driver_log (driver, FILTER_LOG_ACTION, "Set %s flag", argv[0]->value.string);
 	}
 	
@@ -663,10 +653,7 @@ unset_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterD
 	d(fprintf (stderr, "unsetting flag\n"));
 	if (argc == 1 && argv[0]->type == ESEXP_RES_STRING) {
 		flags = camel_system_flag (argv[0]->value.string);
-		if (p->source && p->uid && camel_folder_has_summary_capability (p->source))
-			camel_folder_set_message_flags (p->source, p->uid, flags, 0);
-		else
-			camel_message_info_set_flags(p->info, flags | CAMEL_MESSAGE_FOLDER_FLAGGED, 0);
+		camel_message_info_set_flags(p->info, flags | CAMEL_MESSAGE_FOLDER_FLAGGED, 0);
 		camel_filter_driver_log (driver, FILTER_LOG_ACTION, "Unset %s flag", argv[0]->value.string);
 	}
 	
@@ -1237,6 +1224,8 @@ fail:
  * otherwise returns 0.
  *
  **/
+
+// FIXME: make this take an array of messageinfos, or a messageiterator not uids
 int
 camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folder, CamelUIDCache *cache,
 				   GPtrArray *uids, gboolean remove, CamelException *ex)
@@ -1248,7 +1237,10 @@ camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folde
 	int status = 0;
 	CamelURL *url;
 	int i;
-	
+
+#warning "incomplete"
+	return 0;
+#if 0	
 	service_url = camel_service_get_url (CAMEL_SERVICE (camel_folder_get_parent_store (folder)));
 	url = camel_url_new (service_url, NULL);
 	g_free (service_url);
@@ -1267,28 +1259,23 @@ camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folde
 		report_status (driver, CAMEL_FILTER_STATUS_START, pc, _("Getting message %d of %d"), i+1,
 			       uids->len);
 		
-		if (camel_folder_has_summary_capability (folder))
-			info = camel_folder_get_message_info (folder, uids->pdata[i]);
-		else
-			info = NULL;
-		
+		info = camel_folder_get_message_info (folder, uids->pdata[i]);
 		status = camel_filter_driver_filter_message (driver, NULL, info, uids->pdata[i],
 							     folder, source_url, source_url, ex);
-		
-		if (camel_folder_has_summary_capability (folder))
-			camel_folder_free_message_info (folder, info);
-		
+
 		if (camel_exception_is_set (ex) || status == -1) {
 			report_status (driver, CAMEL_FILTER_STATUS_END, 100, _("Failed at message %d of %d"),
 				       i+1, uids->len);
 			status = -1;
+			camel_message_info_free(info);
 			break;
 		}
 		
-		if (remove)
-			camel_folder_set_message_flags (folder, uids->pdata[i],
-							CAMEL_MESSAGE_DELETED | CAMEL_MESSAGE_SEEN, ~0);
+		if (remove && info)
+			camel_message_info_set_flags(info, CAMEL_MESSAGE_DELETED | CAMEL_MESSAGE_SEEN, ~0);
 		
+		camel_message_info_free(info);
+
 		if (cache)
 			camel_uid_cache_save_uid (cache, uids->pdata[i]);
 	}
@@ -1307,8 +1294,8 @@ camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folde
 	g_free (source_url);
 	
 	return status;
+#endif
 }
-
 
 struct _get_message {
 	struct _CamelFilterDriverPrivate *p;
@@ -1472,12 +1459,8 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 	}
 	
 	/* *Now* we can set the DELETED flag... */
-	if (p->deleted) {
-		if (p->source && p->uid && camel_folder_has_summary_capability (p->source))
-			camel_folder_set_message_flags(p->source, p->uid, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN, ~0);
-		else
-			camel_message_info_set_flags(info, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
-	}
+	if (p->deleted)
+		camel_message_info_set_flags(info, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
 	
 	/* Logic: if !Moved and there exists a default folder... */
 	if (!(p->copied && p->deleted) && !p->moved && p->defaultfolder) {
@@ -1490,7 +1473,7 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 			       camel_message_info_subject(info)?camel_message_info_subject(info):"?no subject?",
 			       p->modified?"modified message":"");
 
-		if (!p->modified && p->uid && p->source && camel_folder_has_summary_capability (p->source)) {
+		if (!p->modified && p->uid && p->source) {
 			GPtrArray *uids;
 			
 			uids = g_ptr_array_new ();

@@ -1,3 +1,53 @@
+2005-06-10  Not Zed  <NotZed@Ximian.com>
+
+	** Fixed various things for api changes.  Commented out scads of
+	code so i could get something building.
+
+	* Makefile.am (libcamel_provider_1_2_la_LIBADD): Added libdb.
+
+	* camel-folder-summary.[ch]: Major changes to the apis.
+
+	* camel-folder-summary-disk.c: a libdb-based summary.
+
+	* camel-record.[ch]: yet another binary data format
+	encoder/decoder designed for db blobs.
+
+	* camel-offline-folder.c (offline_folder_downsync): fixed to use
+	iterative interfaces/comments about problems with implementation.
+
+	* camel-vtrash-folder.c (vtrash_search): new search interface.
+
+	* camel-filter-driver.c: dont check for summary capability, this
+	is just a hack that tells us 'this is pop'.  Also just set flags
+	on messageinfo not folder.
+
+	* camel-folder.c (camel_folder_search_by_expression)
+	(search_by_expression, camel_folder_has_search_capability) 
+	(search_by_uids, camel_folder_search_by_uids, search_free) 
+	(camel_folder_search_free): removed.
+	(search, camel_folder_search): new search interface + base impl.
+
+	* camel-disco-folder.c (disco_prepare_for_offline): change to use
+	iterative interface.
+
+2005-06-09  Not Zed  <NotZed@Ximian.com>
+
+	* camel-vtrash-folder.c (vtrash_getv): removed, handled by summary
+	itself.
+
+	* camel-folder.c (get_message_count)
+	(camel_folder_get_message_count)
+	(camel_folder_get_unread_message_count)
+	(camel_folder_get_deleted_message_count)
+	(get_permanent_flags, camel_folder_get_permanent_flags)
+	(get_message_flags, camel_folder_get_message_flags)
+	(set_message_flags, camel_folder_set_message_flags)
+	(get_message_user_flag, camel_folder_get_message_user_flag)
+	(set_message_user_flag, camel_folder_set_message_user_flag)
+	(get_message_user_tag, camel_folder_get_message_user_tag)
+	(set_message_user_tag, camel_folder_set_message_user_tag): remove
+	'deprecated' apis.
+
 2005-05-16  Jeffrey Stedfast  <fejj@novell.com>
 
 	* camel-mime-filter-basic.c (complete): Call

@@ -21,6 +21,8 @@
 
 /* TODO: This could probably be made a camel object, but it isn't really required */
 
+#warning "This must be replaced by the incremental version!"
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -597,8 +599,9 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 	CamelFolderThread *thread;
 	GHashTable *wanted = NULL;
 	GPtrArray *summary;
-	GPtrArray *fsummary;
 	int i;
+	CamelMessageIterator *iter;
+	CamelMessageInfo *info;
 
 	thread = g_malloc(sizeof(*thread));
 	thread->refcount = 1;
@@ -615,19 +618,16 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 			g_hash_table_insert(wanted, uids->pdata[i], uids->pdata[i]);
 	}
 
-	fsummary = camel_folder_get_summary(folder);
+	iter = camel_folder_search(folder, NULL, NULL, NULL);
 	thread->summary = summary = g_ptr_array_new();
 
-	for (i=0;i<fsummary->len;i++) {
-		CamelMessageInfo *info = fsummary->pdata[i];
-
+	while ((info = (CamelMessageInfo *)camel_message_iterator_next(iter))) {
 		if (wanted == NULL || g_hash_table_lookup(wanted, camel_message_info_uid(info)) != NULL) {
-			camel_folder_ref_message_info(folder, info);
+			camel_message_info_ref(info);
 			g_ptr_array_add(summary, info);
 		}
 	}
-
-	camel_folder_free_summary(folder, fsummary);
+	camel_message_iterator_free(iter);
 
 	thread_summary(thread, summary);
 
@@ -648,7 +648,7 @@ add_present_rec(CamelFolderThread *thread, GHashTable *have, GPtrArray *summary,
 			g_hash_table_remove(have, (char *)camel_message_info_uid(node->message));
 			g_ptr_array_add(summary, (void *) node->message);
 		} else {
-			camel_folder_free_message_info(thread->folder, (CamelMessageInfo *)node->message);
+			camel_message_info_free((CamelMessageInfo *)node->message);
 		}
 
 		if (node->child)
@@ -712,7 +712,7 @@ camel_folder_thread_messages_unref(CamelFolderThread *thread)
 		int i;
 
 		for (i=0;i<thread->summary->len;i++)
-			camel_folder_free_message_info(thread->folder, thread->summary->pdata[i]);
+			camel_message_info_free(thread->summary->pdata[i]);
 		g_ptr_array_free(thread->summary, TRUE);
 		camel_object_unref((CamelObject *)thread->folder);
 	}

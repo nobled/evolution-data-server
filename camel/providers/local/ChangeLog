@@ -1,3 +1,9 @@
+2005-06-10  Not Zed  <NotZed@Ximian.com>
+
+	* camel-local-folder.c (local_search_by_expression)
+	(local_search_by_uids, local_search_free): removed, just use
+	parent folder-summary search.
+
 2005-06-08  Not Zed  <NotZed@Ximian.com>
 
 	** See bug #303225

@@ -446,6 +446,9 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, GPtrArra
 	EMemPool *pool;
 	struct _CamelFolderSearchPrivate *p = _PRIVATE(search);
 
+#warning "rewrite me!"
+	return g_ptr_array_new();
+#if 0
 	g_assert(search->folder);
 
 	p->ex = ex;
@@ -545,6 +548,7 @@ fail:
 	search->body_index = NULL;
 
 	return matches;
+#endif
 }
 
 void camel_folder_search_free_result(CamelFolderSearch *search, GPtrArray *result)

@@ -594,26 +594,25 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
-		fi->unread = camel_folder_get_unread_message_count(folder);
-		fi->total = camel_folder_get_message_count(folder);
+		fi->unread = folder->summary->unread_count;
+		fi->total = folder->summary->total_count;
 		camel_object_unref(folder);
 	} else {
 		char *path, *folderpath;
 		CamelMboxSummary *mbs;
+// ?? maybe we can just open all folders all the time ...?
+#if 0		
 
 		/* This should be fast enough not to have to test for INFO_FAST */
 		path = camel_local_store_get_meta_path(store, fi->full_name, ".ev-summary");
 		folderpath = camel_local_store_get_full_path(store, fi->full_name);
-		
 		mbs = (CamelMboxSummary *)camel_mbox_summary_new(NULL, path, folderpath, NULL);
-		if (camel_folder_summary_header_load((CamelFolderSummary *)mbs) != -1) {
-			fi->unread = ((CamelFolderSummary *)mbs)->unread_count;
-			fi->total = ((CamelFolderSummary *)mbs)->saved_count;
-		}
-
+		fi->unread = ((CamelFolderSummary *)mbs)->unread_count;
+		fi->total = ((CamelFolderSummary *)mbs)->total_count;
 		camel_object_unref(mbs);
 		g_free(folderpath);
 		g_free(path);
+#endif
 	}
 }
 

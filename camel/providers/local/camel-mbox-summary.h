@@ -33,9 +33,11 @@
 typedef struct _CamelMboxSummary      CamelMboxSummary;
 typedef struct _CamelMboxSummaryClass CamelMboxSummaryClass;
 
-typedef struct _CamelMboxMessageContentInfo {
-	CamelMessageContentInfo info;
-} CamelMboxMessageContentInfo;
+enum {
+	CFS_MBOX_SECTION_FOLDERINFO = CFS_LOCAL_SECTION_LAST,
+	CFS_MBOX_SECTION_INFO,
+	CFS_MBOX_SECTION_LAST = CFS_LOCAL_SECTION_LAST+8
+};
 
 typedef struct _CamelMboxMessageInfo {
 	CamelLocalMessageInfo info;
@@ -48,8 +50,8 @@ struct _CamelMboxSummary {
 
 	CamelFolderChangeInfo *changes;	/* used to build change sets */
 
-	guint32 version;
 	size_t folder_size;	/* size of the mbox file, last sync */
+	time_t time;		/* time of mbox last sync */
 
 	unsigned int xstatus:1;	/* do we store/honour xstatus/status headers */
 };
