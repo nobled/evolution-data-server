@@ -49,6 +49,9 @@
 
 #define CAMEL_MBOX_SUMMARY_VERSION (1)
 
+static char *decode_xev(const char *xev, guint32 *flagsp);
+static char *encode_xev(const char *uid, guint32 flags);
+
 static void summary_header_encode(CamelFolderSummaryDisk *s, CamelRecordEncoder *cre);
 static int summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd);
 
@@ -150,6 +153,127 @@ mbox_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 #endif
 
 static void
+mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelException *ex)
+{
+	CamelMimeParser *mp = NULL;
+	int i;
+	int fd = -1, pfd;
+	const char *xev;
+	int len;
+	off_t lastpos;
+	struct stat st;
+
+	/** FIXME !!!!
+
+	Must lock the mbox file!!!
+
+	*/
+
+	/* Try to also store the changes in the mbox.  If something goes wrong -
+	   tough luck, its stored in the summary ok */
+
+	printf("attempting to store '%d changes to mbox file\n", changes->len);
+
+	camel_operation_start(NULL, _("Storing folder"));
+
+	fd = open(((CamelLocalSummary *)cds)->folder_path, O_RDWR);
+	if (fd == -1)
+		//camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Could not open file: %s: %s"), cls->folder_path, g_strerror (errno));
+		goto fail;
+
+	/* need to dup since mime parser closes its fd once it is finalised */
+	pfd = dup(fd);
+	if (pfd == -1)
+		//camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Could not store folder: %s"), g_strerror(errno));
+		goto fail;
+
+	mp = camel_mime_parser_new();
+	camel_mime_parser_scan_from(mp, TRUE);
+	camel_mime_parser_scan_pre_from(mp, TRUE);
+	camel_mime_parser_init_with_fd(mp, pfd);
+
+	for (i = 0; i < changes->len; i++) {
+		CamelMboxMessageInfo *info = changes->pdata[i];
+		int xevoffset;
+		int pc = (i+1)*100/changes->len;
+		char *uid = NULL, *xevnew = NULL;
+		guint32 flags;
+
+		camel_operation_progress(NULL, pc);
+
+		/* We do an anally amount of testing to make sure we're updating the
+		   right message ... its all cheap at this point so why not */
+
+		camel_mime_parser_seek(mp, info->frompos, SEEK_SET);
+
+		/* wrong spot?  well try the rest */
+		if (camel_mime_parser_step(mp, 0, 0) != CAMEL_MIME_PARSER_STATE_FROM)
+			//camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Summary and folder mismatch, even after a sync"));
+			goto nextmsg2;
+
+		if (camel_mime_parser_tell_start_from(mp) != info->frompos) {
+			printf("frompos changed\n");
+			goto nextmsg1;
+		}
+
+		if (camel_mime_parser_step(mp, 0, 0) == CAMEL_MIME_PARSER_STATE_FROM_END) {
+			printf("message truncated\n");
+			goto nextmsg1;
+		}
+
+		xev = camel_mime_parser_header(mp, "X-Evolution", &xevoffset);
+		if (xev == NULL || (uid = decode_xev(xev, &flags)) == NULL) {
+			printf("no x-evolution or bad format\n");
+			goto nextmsg;
+		}
+
+		if (strcmp(uid, camel_message_info_uid(info)) != 0) {
+			printf("wrong uid, got %s expecting %s?\n", uid, camel_message_info_uid(info));
+			goto nextmsg;
+		}
+
+		/* the raw header contains a leading ' ', so (dis)count that too */
+		xevnew = encode_xev(uid, camel_message_info_flags(info));
+		if (strlen(xev)-1 != strlen(xevnew)) {
+			printf("xev changed sized was '%s' now '%s'\n", xev, xevnew);
+			goto nextmsg;
+		}
+
+		lastpos = lseek(fd, 0, SEEK_CUR);
+		lseek(fd, xevoffset+strlen("X-Evolution: "), SEEK_SET);
+		do {
+			len = write(fd, xevnew, strlen(xevnew));
+		} while (len == -1 && errno == EINTR);
+		lseek(fd, lastpos, SEEK_SET);
+	nextmsg:
+		g_free(xevnew);
+		g_free(uid);
+	nextmsg1:
+		camel_mime_parser_drop_step(mp);
+	nextmsg2:
+		camel_mime_parser_drop_step(mp);
+		/* dunno if this will leave it in the right state in case of failures? */
+	}
+
+	d(printf("Closing folders\n"));
+
+	/* all ok, update the mtime */
+	if (fstat(fd, &st) == 0)
+		((CamelMboxSummary *)cds)->time = st.st_mtime;
+fail:
+	if (fd != -1)
+		close(fd);
+	if (mp)
+		camel_object_unref((CamelObject *)mp);
+
+	camel_operation_end(NULL);
+
+	/* FIXME: we actually wnat to sync the db first ...  then update the mbox/mtime, then
+	   re-save the header */
+	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->sync(cds, changes, ex);
+}
+
+static void
 camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 {
 	CamelFolderSummaryClass *sklass = (CamelFolderSummaryClass *)klass;
@@ -162,6 +286,8 @@ camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 
 	((CamelFolderSummaryDiskClass *)klass)->encode = message_info_encode;
 	((CamelFolderSummaryDiskClass *)klass)->decode = message_info_decode;
+
+	((CamelFolderSummaryDiskClass *)klass)->sync = mbox_sync_changes;
 
 	sklass->message_info_alloc = mbox_message_info_alloc;
 	sklass->message_info_new_from_header  = message_info_new_from_header;
@@ -245,6 +371,17 @@ decode_xev(const char *xev, guint32 *flagsp)
 		*flagsp = flags;
 
 	return g_strdup(uidstr);
+}
+
+static char *
+encode_xev(const char *uidstr, guint32 flags)
+{
+	guint32 uid;
+
+	if (sscanf(uidstr, "%u", &uid) == 1)
+		return g_strdup_printf("%08x-%04x", uid, flags & 0xffff);
+	else
+		return g_strdup_printf("%s-%04x", uidstr, flags & 0xffff);
 }
 
 static char *
@@ -683,7 +820,7 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 
 	if (st.st_size != mbs->folder_size || st.st_mtime != mbs->time) {
 		summary_update(s, 0, changes, ex);
-		camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)s);
+		camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)s, ex);
 	}
 
 	return 0;

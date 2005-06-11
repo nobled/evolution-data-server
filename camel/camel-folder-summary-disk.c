@@ -524,7 +524,7 @@ cds_sync_run(CamelSession *session, CamelSessionThreadMsg *msg)
 	p->sync_queued = FALSE;
 
 	printf(" sync thread timeout, flushing changes\n");
-	camel_folder_summary_disk_sync(m->summary);
+	camel_folder_summary_disk_sync(m->summary, &msg->ex);
 }
 
 static void
@@ -726,6 +726,7 @@ static int cds_decode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, Cam
 			if (count>1) {
 				count--;
 				mi->info.references = g_malloc(sizeof(*mi->info.references) + (sizeof(CamelSummaryMessageID) * count));
+				mi->info.references->size = count;
 				for (i=0;i<count;i++) {
 					mi->info.references->references[i].id.id = camel_record_decoder_int64(cdd);
 					g_assert(mi->info.references->references[i].id.id != mi->info.message_id.id.id);
@@ -758,6 +759,23 @@ static int cds_decode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, Cam
 }
 
 static void
+cds_sync(CamelFolderSummaryDisk *cds, GPtrArray *infos, CamelException *ex)
+{
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	int i;
+
+	/* TODO: use transactions? */
+
+	for (i=0;i<infos->len;i++) {
+		d(printf("Saving message '%s'\n", camel_message_info_uid(infos->pdata[i])));
+		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i]);
+	}
+	cds_save_header(cds);
+
+	p->db->sync(p->db, 0);
+}
+
+static void
 camel_folder_summary_disk_class_init(CamelFolderSummaryDiskClass *klass)
 {
 	cds_parent = (CamelFolderSummaryClass *)camel_folder_summary_get_type();
@@ -782,6 +800,8 @@ camel_folder_summary_disk_class_init(CamelFolderSummaryDiskClass *klass)
 
 	klass->encode = cds_encode;
 	klass->decode = cds_decode;
+
+	klass->sync = cds_sync;
 }
 
 static void
@@ -931,8 +951,26 @@ cds_get_changed(void *k, void *v, void *d)
 	return TRUE;
 }
 
-int
-camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds)
+static int
+cds_info_cmp(const void *ap, const void *bp)
+{
+	const CamelMessageInfo *a = ((const CamelMessageInfo **)ap)[0];
+	const CamelMessageInfo *b = ((const CamelMessageInfo **)bp)[0];
+	unsigned long av, bv;
+
+	av = strtoul(a->uid, NULL, 10);
+	bv = strtoul(b->uid, NULL, 10);
+
+	if (av < bv)
+		return -1;
+	else if (av > bv)
+		return 1;
+	else
+		return 0;
+}
+
+void
+camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds, CamelException *ex)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
 	GPtrArray *infos;
@@ -940,20 +978,17 @@ camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds)
 
 	printf("syncing db summary\n");
 
-	cds_save_header(cds);
-
 	infos = g_ptr_array_new();
 	CAMEL_SUMMARY_LOCK(cds, ref_lock);
 	g_hash_table_foreach_remove(p->changed, cds_get_changed, infos);
 	CAMEL_SUMMARY_UNLOCK(cds, ref_lock);
 
-	for (i=0;i<infos->len;i++) {
-		printf("Saving message '%s'\n", camel_message_info_uid(infos->pdata[i]));
-		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i]);
+	/* sorted for your convenience */
+	qsort(infos->pdata, infos->len, sizeof(infos->pdata[0]), cds_info_cmp);
+
+	CDS_CLASS(cds)->sync(cds, infos, ex);
+
+	for (i=0;i<infos->len;i++)
 		camel_message_info_free(infos->pdata[i]);
-	}
-
-	p->db->sync(p->db, 0);
-
-	return 0;
+	g_ptr_array_free(infos, TRUE);
 }

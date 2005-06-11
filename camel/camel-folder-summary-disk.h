@@ -61,6 +61,9 @@ struct _CamelFolderSummaryDiskClass {
 
 	void (*encode)(CamelFolderSummaryDisk *, struct _CamelMessageInfoDisk *mi, struct _CamelRecordEncoder *);
 	int (*decode)(CamelFolderSummaryDisk *, struct _CamelMessageInfoDisk *mi, struct _CamelRecordDecoder *);
+
+	/* changes are CamelMessageInfo's */
+	void (*sync)(CamelFolderSummaryDisk *, GPtrArray *changes, CamelException *ex);
 };
 
 CamelType	camel_folder_summary_disk_get_type(void);
@@ -68,7 +71,7 @@ CamelType	camel_folder_summary_disk_get_type(void);
 CamelFolderSummaryDisk *camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFolder *folder);
 CamelFolderSummaryDisk *camel_folder_summary_disk_new(struct _CamelFolder *folder);
 
-int camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds);
+void camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds, CamelException *ex);
 
 int camel_folder_summary_disk_rename(CamelFolderSummaryDisk *cds, const char *newname);
 

@@ -1,5 +1,11 @@
 2005-06-11  Not Zed  <NotZed@Ximian.com>
 
+	* camel-mbox-summary.c (mbox_sync_changes): implement a sync
+	function, sync's changes to the mbox file if it can (i.e. nobody
+	else has modified the mbox while we weren't looking).
+
+2005-06-11  Not Zed  <NotZed@Ximian.com>
+
 	* camel-local-folder.c (camel_local_folder_construct): dont sync
 	immediately on open?
 

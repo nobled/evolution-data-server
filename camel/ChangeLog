@@ -1,5 +1,12 @@
 2005-06-11  Not Zed  <NotZed@Ximian.com>
 
+	* camel-folder-summary-disk.c (camel_folder_summary_disk_sync):
+	call virtual sync method.
+	(cds_sync): implement db sync
+	(cds_decode): duh, set the size properly.
+
+2005-06-11  Not Zed  <NotZed@Ximian.com>
+
 	* camel-folder-summary-disk.c (cds_change_info): launch a worker
 	thread to sync changes to disk within a short time, more to demo
 	the idea than a final implementaiton.
