@@ -35,6 +35,7 @@ typedef struct _SearchContext SearchContext;
 
 struct _ECalBackendSExpPrivate {
 	ESExp *search_sexp;
+	ESExpTerm *search_term;
 	char *text;
 	SearchContext *search_context;
 };
@@ -1042,7 +1043,7 @@ e_cal_backend_sexp_match_comp (ECalBackendSExp *sexp, ECalComponent *comp, ECalB
 		g_object_unref (sexp->priv->search_context->backend);
 		return FALSE;
 	}
-	r = e_sexp_eval(sexp->priv->search_sexp);
+	r = e_sexp_eval(sexp->priv->search_sexp, sexp->priv->search_term, sexp->priv->search_context);
 
 	retval = (r && r->type == ESEXP_RES_BOOL && r->value.bool);
 
@@ -1099,8 +1100,11 @@ ECalBackendSExp *
 e_cal_backend_sexp_new (const char *text)
 {
 	ECalBackendSExp *sexp = g_object_new (E_TYPE_CAL_BACKEND_SEXP, NULL);
-	int esexp_error;
 	int i;
+
+	/* TODO: Since e-sexp-eval now takes both a term and a contect pointer,
+	   This could be changed so not as to require initilising a new
+	   language (sexp) each time */
 
 	sexp->priv->search_sexp = e_sexp_new();
 	sexp->priv->text = g_strdup (text);
@@ -1108,17 +1112,17 @@ e_cal_backend_sexp_new (const char *text)
 	for (i = 0; i < G_N_ELEMENTS (symbols); i++) {
 		if (symbols[i].type == 1) {
 			e_sexp_add_ifunction(sexp->priv->search_sexp, 0, symbols[i].name,
-					     (ESExpIFunc *)symbols[i].func, sexp->priv->search_context);
+					     (ESExpIFunc *)symbols[i].func);
 		} else {
 			e_sexp_add_function(sexp->priv->search_sexp, 0, symbols[i].name,
-					    symbols[i].func, sexp->priv->search_context);
+					    symbols[i].func);
 		}
 	}
 
 	e_sexp_input_text(sexp->priv->search_sexp, text, strlen(text));
-	esexp_error = e_sexp_parse(sexp->priv->search_sexp);
+	sexp->priv->search_term = e_sexp_parse(sexp->priv->search_sexp);
 
-	if (esexp_error == -1) {
+	if (sexp->priv->search_term == NULL) {
 		g_object_unref (sexp);
 		sexp = NULL;
 	}
@@ -1153,6 +1157,7 @@ e_cal_backend_sexp_dispose (GObject *object)
 	ECalBackendSExp *sexp = E_CAL_BACKEND_SEXP (object);
 
 	if (sexp->priv) {
+		e_sexp_term_free(sexp->priv->search_sexp, sexp->priv->search_term);
 		e_sexp_unref(sexp->priv->search_sexp);
 
 		g_free (sexp->priv->text);

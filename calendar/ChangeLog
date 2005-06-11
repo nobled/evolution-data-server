@@ -1,3 +1,9 @@
+2005-06-11  Not Zed  <NotZed@Ximian.com>
+
+	* libedata-cal/e-cal-backend-sexp.c (e_cal_backend_sexp_new)
+	(e_cal_backend_sexp_dispose, e_cal_backend_sexp_match_comp): fix
+	for e-sexp api changes.
+
 2005-06-06  Chenthill Palanisamy  <pchenthill@novell.com>
 
 	* backends/groupwise/e-cal-backend-groupwise-utils.c:
