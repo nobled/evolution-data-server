@@ -83,6 +83,7 @@ struct _CamelSessionPrivate {
 	int thread_id;
 	GHashTable *thread_active;
 	EThread *thread_queue;
+	EThread *thread_new;
 
 	GHashTable *thread_msg_op;
 };

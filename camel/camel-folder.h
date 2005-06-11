@@ -135,7 +135,7 @@ typedef struct {
 				 CamelException *ex);
 	
 	CamelMimeMessage * (*get_message)(CamelFolder *folder, const char *uid, CamelException *ex);
-	CamelMessageIterator *(*search)(CamelFolder *, const char *, const GPtrArray *, CamelException *);
+	CamelMessageIterator *(*search)(CamelFolder *, const char *, CamelMessageIterator *, CamelException *);
 	CamelMessageInfo * (*get_message_info) (CamelFolder *, const char *uid);
 
 	void (*transfer_messages_to) (CamelFolder *source,
@@ -194,7 +194,7 @@ CamelMimeMessage * camel_folder_get_message           (CamelFolder *folder,
 						       CamelException *ex);
 
 /* search/iterator api */
-CamelMessageIterator *camel_folder_search(CamelFolder *folder, const char *expr, const GPtrArray *uids, CamelException *ex);
+CamelMessageIterator *camel_folder_search(CamelFolder *folder, const char *expr, CamelMessageIterator *, CamelException *ex);
 
 /* summary info */
 CamelMessageInfo *camel_folder_get_message_info		(CamelFolder *folder, const char *uid);

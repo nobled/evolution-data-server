@@ -45,6 +45,7 @@
 #include <camel/camel-stream-mem.h>
 
 #include <camel/camel-string-utils.h>
+#include <camel/camel-exception.h>
 
 #include "libedataserver/md5-utils.h"
 #include "libedataserver/e-memory.h"
@@ -78,7 +79,7 @@ add(CamelFolderSummary *s, CamelMessageInfo *mi)
 	flags = camel_message_info_flags(mi);
 	if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
 		s->visible_count++;
-	if ((flags & (CAMEL_MESSAGE_SEEN)) == 0) /* FIXME: flags right? */
+	if ((flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_JUNK|CAMEL_MESSAGE_DELETED)) == 0) /* FIXME: flags right? */
 		s->unread_count++;
 	if (flags & CAMEL_MESSAGE_DELETED)
 		s->deleted_count++;
@@ -157,6 +158,14 @@ get_array(CamelFolderSummary *s, const GPtrArray *uids)
 	}
 
 	return out;
+}
+
+static CamelMessageIterator *
+search(CamelFolderSummary *s, const char *expr, CamelMessageIterator *subset, CamelException *ex)
+{
+	/* don't translate, this is for programmers only */
+	camel_exception_setv(ex, 1, "Search not implemented");
+	return NULL;
 }
 
 static CamelMessageInfo *
@@ -248,11 +257,18 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 		scan = refs;
 		while (scan) {
 			md5_get_digest(scan->id, strlen(scan->id), digest);
-			memcpy(mi->references->references[count].id.hash, digest, sizeof(mi->message_id.id.hash));
-			count++;
+			if (memcmp(digest, mi->message_id.id.hash, sizeof(mi->message_id.id.hash)) != 0) {
+				memcpy(mi->references->references[count].id.hash, digest, sizeof(mi->message_id.id.hash));
+				count++;
+			}
 			scan = scan->next;
 		}
-		mi->references->size = count;
+		if (count == 0) {
+			g_free(mi->references);
+			mi->references = NULL;
+		} else {
+			mi->references->size = count;
+		}
 		camel_header_references_list_clear(&refs);
 	}
 
@@ -532,8 +548,11 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->get = get;
 	klass->get_array = get_array;
 
+	klass->search = search;
+
 	klass->message_info_alloc = message_info_alloc;
 	klass->message_info_clone = message_info_clone;
+
 	klass->message_info_free = message_info_free;
 	klass->message_info_free_array = message_info_free_array;
 
@@ -692,6 +711,14 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	CFS_CLASS(s)->clear(s);
 }
 
+/* Get a function which will compare the uid's (keys) and return
+   the same sort order as used internally.
+   Allows simplified algorithms to be used based on key sort order */
+GCompareFunc camel_folder_summary_uid_cmp(CamelFolderSummary *s)
+{
+	return CFS_CLASS(s)->uid_cmp;
+}
+
 /**
  * camel_folder_summary_remove:
  * @summary: a #CamelFolderSummary object
@@ -712,9 +739,9 @@ camel_folder_summary_remove_array(CamelFolderSummary *s, GPtrArray *infos)
 }
 
 CamelMessageIterator *
-camel_folder_summary_search(CamelFolderSummary *s, const char *expr, const GPtrArray *infos)
+camel_folder_summary_search(CamelFolderSummary *s, const char *expr, CamelMessageIterator *subset, CamelException *ex)
 {
-	return CFS_CLASS(s)->search(s, expr, infos);
+	return CFS_CLASS(s)->search(s, expr, subset, ex);
 }
 
 /**
@@ -896,6 +923,16 @@ camel_message_info_free(void *o)
 
 		message_info_free(mi);
 	}
+}
+
+/* Get the folder for this messageinfo, will return NULL
+   if it doesn't have one associated */
+const CamelFolder *
+camel_message_info_folder(const void *mi)
+{
+	if (((const CamelMessageInfo *)mi)->summary)
+		return ((const CamelMessageInfo *)mi)->summary->folder;
+	return NULL;
 }
 
 /**
@@ -1469,19 +1506,161 @@ void *camel_message_iterator_new(CamelMessageIteratorVTable *klass, size_t size)
 	return it;
 }
 
-const struct _CamelMessageInfo *camel_message_iterator_next(void *it)
+const struct _CamelMessageInfo *camel_message_iterator_next(void *it, CamelException *ex)
 {
-	return ((CamelMessageIterator *)it)->klass->next(it);
+	return ((CamelMessageIterator *)it)->klass->next(it, ex);
 }
 
-const struct _GPtrArray *camel_message_iterator_next_array(void *it, int limit)
+void camel_message_iterator_reset(void *it)
 {
-	return ((CamelMessageIterator *)it)->klass->next_array(it, limit);
+	((CamelMessageIterator *)it)->klass->reset(it);
 }
 
 void camel_message_iterator_free(void *it)
 {
-	((CamelMessageIterator *)it)->klass->free(it);
+	if (it) {
+		((CamelMessageIterator *)it)->klass->free(it);
+		g_free(it);
+	}
+}
 
-	g_free(it);
+/* ********************************************************************** */
+
+struct _infos_iter {
+	CamelMessageIterator iter;
+
+	int index;
+	GPtrArray *mis;
+};
+
+static const CamelMessageInfo *infos_iter_next(void *it, CamelException *ex)
+{
+	struct _infos_iter *ait = it;
+
+	if (ait->index < ait->mis->len)
+		return ait->mis->pdata[ait->index++];
+	return NULL;
+}
+
+static void
+infos_iter_reset(void *it)
+{
+	struct _infos_iter *ait = it;
+
+	ait->index = 0;
+}
+
+static void
+infos_iter_free(void *it)
+{
+	struct _infos_iter *ait = it;
+	int i;
+
+	for (i=0;i<ait->mis->len;i++)
+		camel_message_info_free(ait->mis->pdata[i]);
+	g_ptr_array_free(ait->mis, TRUE);
+}
+
+static CamelMessageIteratorVTable infos_iter_vtable = {
+	infos_iter_free,
+	infos_iter_next,
+	infos_iter_reset,
+};
+
+/*
+  Helper iterator that just wraps an infos of messageinfo's in an iterator interface.
+  To be used sparingly, where values are already in memory only.
+  The infos is not copied and is owned by the iterator afterwards (?) */
+void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit)
+{
+	struct _infos_iter *ait = camel_message_iterator_new(&infos_iter_vtable, sizeof(*ait));
+
+	if (freeit)
+		ait->mis = mis;
+	else {
+		int i;
+
+		ait->mis = g_ptr_array_new();
+		for (i=0;i<mis->len;i++) {
+			g_ptr_array_add(ait->mis, mis->pdata[i]);
+			camel_message_info_ref(mis->pdata[i]);
+		}
+	}
+	ait->index = 0;
+
+	return ait;
+}
+
+/* ********************************************************************** */
+
+struct _uids_iter {
+	CamelMessageIterator iter;
+
+	int index;
+	GPtrArray *uids;
+
+	CamelFolder *folder;
+	CamelMessageInfo *current;
+};
+
+static const CamelMessageInfo *uids_iter_next(void *it, CamelException *ex)
+{
+	struct _uids_iter *ait = it;
+
+	if (ait->current) {
+		camel_message_info_free(ait->current);
+		ait->current = NULL;
+	}
+
+	while (ait->current == NULL && ait->index < ait->uids->len)
+		ait->current = camel_folder_get_message_info(ait->folder, ait->uids->pdata[ait->index++]);
+
+	return ait->current;
+}
+
+static void
+uids_iter_reset(void *it)
+{
+	struct _uids_iter *ait = it;
+
+	ait->index = 0;
+}
+
+static void
+uids_iter_free(void *it)
+{
+	struct _uids_iter *ait = it;
+	int i;
+
+	if (ait->current)
+		camel_message_info_free(ait->current);
+	for (i=0;i<ait->uids->len;i++)
+		g_free(ait->uids->pdata[i]);
+	g_ptr_array_free(ait->uids, TRUE);
+}
+
+static CamelMessageIteratorVTable uids_iter_vtable = {
+	uids_iter_free,
+	uids_iter_next,
+	uids_iter_reset,
+};
+
+void *camel_message_iterator_uids_new(CamelFolder *source, GPtrArray *uids, int freeit)
+{
+	struct _uids_iter *ait = camel_message_iterator_new(&uids_iter_vtable, sizeof(*ait));
+
+	if (freeit)
+		ait->uids = uids;
+	else {
+		int i;
+
+		ait->uids = g_ptr_array_new();
+		for (i=0;i<uids->len;i++)
+			g_ptr_array_add(ait->uids, g_strdup(uids->pdata[i]));
+	}
+	ait->index = 0;
+	ait->folder = source;
+	camel_object_ref(source);
+
+	return ait;
 }

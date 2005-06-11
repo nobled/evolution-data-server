@@ -24,6 +24,7 @@
 #endif
 
 #include <string.h>
+#include <unistd.h>
 
 #include "camel-folder-summary-disk.h"
 #include "camel-i18n.h"
@@ -33,6 +34,9 @@
 #include "camel-session.h"
 #include "camel-service.h"
 #include "camel-folder.h"
+#include "camel-folder-search.h"
+
+#include "camel-private.h"
 
 #include "db.h"
 
@@ -50,8 +54,15 @@
 struct _CamelFolderSummaryDiskPrivate {
 	DB *db;
 
+	/* do we have a sync job already launched? */
+	volatile int sync_queued;
+
+	/* These use the ref_lock */
 	GHashTable *cache;
 	GHashTable *changed;
+
+	// Needs a lock!
+	CamelFolderSearch *search;
 };
 
 typedef struct _CamelMessageIteratorDisk CamelMessageIteratorDisk;
@@ -69,6 +80,8 @@ struct _CamelMessageIteratorDisk {
 	DBT data;
 
 	CamelMessageInfo *current;
+
+	int reset:1;
 };
 
 static CamelFolderSummaryClass *cds_parent;
@@ -247,7 +260,9 @@ static void cds_message_info_free(CamelMessageInfo *mi)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
 
+	CAMEL_SUMMARY_LOCK(mi->summary, ref_lock);
 	g_hash_table_remove(p->cache, mi->uid);
+	CAMEL_SUMMARY_UNLOCK(mi->summary, ref_lock);
 
 	cds_parent->message_info_free(mi);
 }
@@ -259,7 +274,9 @@ static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
 
 	res = cds_save_info((CamelFolderSummaryDisk *)s, mi);
 	if (res == 0) {
+		CAMEL_SUMMARY_LOCK(s, ref_lock);
 		g_hash_table_insert(p->cache, mi->uid, mi);
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		cds_parent->add(s, mi);
 	}
 
@@ -273,15 +290,16 @@ static void cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	DBT key;
 
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
+	g_hash_table_remove(p->cache, mi->uid);
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+
 	key.data = mi->uid;
 	key.size = strlen(mi->uid);
 	if (p->db->del(p->db, NULL, &key, 0) != 0)
 		/* failed, now what? */ ;
 
 	cds_parent->remove(s, mi);
-
-	/* FIXME: lock */
-	g_hash_table_remove(p->cache, mi->uid);
 }
 
 static void cds_clear(CamelFolderSummary *s)
@@ -290,11 +308,14 @@ static void cds_clear(CamelFolderSummary *s)
 
 	p->db->truncate(p->db, NULL, NULL, DB_AUTO_COMMIT);
 
-	/* FIXME: lock */
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
+
 	g_hash_table_destroy(p->cache);
 	p->cache = g_hash_table_new(g_str_hash, g_str_equal);
 	g_hash_table_destroy(p->changed);
 	p->changed = g_hash_table_new(g_str_hash, g_str_equal);
+
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
 	cds_parent->clear(s);
 }
@@ -303,16 +324,25 @@ static CamelMessageInfo *cds_get_record(CamelFolderSummaryDisk *s, DBT *key, DBT
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	char *uid;
-	CamelMessageInfo *mi;
+	CamelMessageInfo *mi, *info;
+
+	/* We are nominally converting a loaded disk record into a messageinfo.
+	   We need to check if the particular record has already been loaded though.
+	   And things are complicated by having to check if someone else has loaded
+	   it while we were loading it - we could just use more locks? */
 
 	uid = g_strndup(key->data, key->size);
-	/* FIXME: locking! */
+
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
 	mi = g_hash_table_lookup(p->cache, uid);
-	if (mi) {
-		camel_message_info_ref(mi);
+	if (mi && mi->refcount != 0) {
+		mi->refcount++;
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		g_free(uid);
 	} else {
 		CamelRecordDecoder *crd;
+
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
 		mi = camel_message_info_new((CamelFolderSummary *)s);
 
@@ -324,7 +354,20 @@ static CamelMessageInfo *cds_get_record(CamelFolderSummaryDisk *s, DBT *key, DBT
 
 		mi->uid = uid;
 
-		g_hash_table_insert(p->cache, mi->uid, mi);
+		CAMEL_SUMMARY_LOCK(s, ref_lock);
+		info = g_hash_table_lookup(p->cache, uid);
+		if (info && info->refcount != 0) {
+			info->refcount++;
+		} else {
+			info = NULL;
+			g_hash_table_insert(p->cache, mi->uid, mi);
+		}
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+
+		if (info) {
+			camel_message_info_free(mi);
+			mi = info;
+		}
 	}
 
 	return mi;
@@ -334,7 +377,18 @@ static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	DBT key = { 0 }, data = { 0 };
-	CamelMessageInfo *mi = NULL;
+	CamelMessageInfo *mi;
+
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
+	mi = g_hash_table_lookup(p->cache, uid);
+	if (mi && mi->refcount != 0) {
+		mi->refcount++;
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+		return mi;
+	} else {
+		mi = NULL;
+	}
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
 	key.data = (char *)uid;
 	key.size = strlen(uid);
@@ -350,72 +404,57 @@ static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
 }
 
 /* Search & iterators */
-static const CamelMessageInfo *cds_iterator_next(void *mitin)
+static const CamelMessageInfo *cds_iterator_next(void *mitin, CamelException *ex)
 {
 	CamelMessageIteratorDisk *mit = mitin;
 	CamelMessageInfo *mi = NULL;
 
-	if (mit->mis) {
-		/* ?? lookup in db??/ */
-		if (mit->mis_index < mit->mis->len)
-			mi = mit->mis->pdata[mit->mis_index++];
-	} else {
-		if (mit->cursor) {
-			int res;
+	if (mit->cursor) {
+		int res;
 
-			/* TODO: we read the whole record even if we dont need it ... */
-			do {
-				res = mit->cursor->c_get(mit->cursor, &mit->key, &mit->data, DB_NEXT);
-				if (res == DB_NOTFOUND)
-					return NULL;
-				else if (res != 0)
-					return NULL;
-			} while (mit->key.size == HEADER_KEY_LEN
-				 && memcmp(mit->key.data, HEADER_KEY, HEADER_KEY_LEN) == 0);
+		/* TODO: we read the whole record even if we dont need it ... */
+		do {
+			res = mit->cursor->c_get(mit->cursor, &mit->key, &mit->data, mit->reset?DB_FIRST:DB_NEXT);
+			if (res == DB_NOTFOUND)
+				return NULL;
+			else if (res != 0) {
+				// FIXMEL find a similar string
+				camel_exception_setv(ex, 1, "operation failed: %s", db_strerror(res));
+				return NULL;
+			}
+		} while (mit->key.size == HEADER_KEY_LEN
+			 && memcmp(mit->key.data, HEADER_KEY, HEADER_KEY_LEN) == 0);
 
-			if (mit->current)
-				camel_message_info_free(mit->current);
+		if (mit->current)
+			camel_message_info_free(mit->current);
 
-			mi = cds_get_record((CamelFolderSummaryDisk *)mit->summary, &mit->key, &mit->data);
-			mit->current = mi;
-		}
+		mi = cds_get_record((CamelFolderSummaryDisk *)mit->summary, &mit->key, &mit->data);
+		mit->current = mi;
+		mit->reset = 0;
 	}
 
 	return mi;
 }
 
-static const GPtrArray *cds_iterator_next_array(void *mitin, int limit)
+static void cds_iterator_reset(void *mitin)
 {
-	const CamelMessageInfo *mi;
-	GPtrArray *res = NULL;
+	CamelMessageIteratorDisk *mit = mitin;
 
-	while (limit) {
-		mi = camel_message_iterator_next(mitin);
-		if (mi) {
-			if (res == NULL)
-				res = g_ptr_array_new();
-			g_ptr_array_add(res, (void *)mi);
-		}
-		limit--;
-	}
-
-	return res;
+	mit->reset = 1;
 }
 
 static void cds_iterator_free(void *mitin)
 {
 	CamelMessageIteratorDisk *mit = mitin;
 
-	if (mit->mis) {
-		camel_folder_summary_free_array(mit->summary, mit->mis);
-	} else if (mit->cursor) {
+	if (mit->cursor) {
 		mit->cursor->c_close(mit->cursor);
 		if (mit->data.data)
 			free(mit->data.data);
 		if (mit->key.data)
 			free(mit->key.data);
 	}
-
+	
 	if (mit->current)
 		camel_message_info_free(mit->current);
 
@@ -425,48 +464,107 @@ static void cds_iterator_free(void *mitin)
 static CamelMessageIteratorVTable cds_iterator_vtable = {
 	cds_iterator_free,
 	cds_iterator_next,
-	cds_iterator_next_array
+	cds_iterator_reset,
 };
 
-static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const char *expr, const GPtrArray *mis)
+static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const char *expr, CamelMessageIterator *subset, CamelException *ex)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	CamelMessageIteratorDisk *mit;
 
-	mit = camel_message_iterator_new(&cds_iterator_vtable, sizeof(*mit));
-	mit->summary = s;
-	camel_object_ref(s);
+	/* We assume subset is still in the summary, we should probably re-check? */
 
-	if (mis) {
-		int i;
-
-		mit->expr = g_strdup(expr);
-		mit->mis = g_ptr_array_new();
-		for (i=0;i<mis->len;i++) {
-			g_ptr_array_add(mit->mis, mis->pdata[i]);
-			camel_message_info_ref(mis->pdata[i]);
-		}
+	if (subset) {
+		if (expr && expr[0])
+			return (CamelMessageIterator *)camel_folder_search_search(p->search, expr, subset, ex);
+		else
+			return subset;
 	} else {
+		mit = camel_message_iterator_new(&cds_iterator_vtable, sizeof(*mit));
+		mit->summary = s;
+		camel_object_ref(s);
+
 		if (p->db->cursor(p->db, NULL, &mit->cursor, 0) != 0)
 			mit->cursor = NULL;
 		else {
 			mit->key.flags = DB_DBT_REALLOC;
 			mit->data.flags = DB_DBT_REALLOC;
 		}
-	}
 
-	return (CamelMessageIterator *)mit;
+		if (expr && expr[0])
+			return (CamelMessageIterator *)camel_folder_search_search(p->search, expr, (CamelMessageIterator *)mit, ex);
+		else
+			return (CamelMessageIterator *)mit;
+	}
 }
+
+/* ********************************************************************** */
+/* After we have some changes, we run a job in another thread to flush them away
+   We sleep for a bit to see if any more changes are pending, then go for it */
+
+/* So ... This is all well and good, but has no connection to the storage mechanism,
+   Where the storage mechanism also stores these values.
+   i.e. mbox x-evolution header, maildir filename ... */
+
+struct _sync_msg {
+	CamelSessionThreadMsg msg;
+
+	CamelFolderSummaryDisk *summary;
+};
+
+static void
+cds_sync_run(CamelSession *session, CamelSessionThreadMsg *msg)
+{
+	struct _sync_msg *m = (struct _sync_msg *)msg;
+	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(m->summary);
+
+	/* hmm, i like threads! */
+	sleep(2);
+
+	p->sync_queued = FALSE;
+
+	printf(" sync thread timeout, flushing changes\n");
+	camel_folder_summary_disk_sync(m->summary);
+}
+
+static void
+cds_sync_free(CamelSession *session, CamelSessionThreadMsg *msg)
+{
+	struct _sync_msg *m = (struct _sync_msg *)msg;
+
+	camel_object_unref(m->summary);
+}
+
+static CamelSessionThreadOps cds_sync_ops = {
+	cds_sync_run,
+	cds_sync_free,
+};
 
 static void
 cds_change_info(CamelMessageInfo *mi)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
+	int dosync = 0;
 
-	/* FIXME: locking */
+	CAMEL_SUMMARY_LOCK(mi->summary, ref_lock);
 	if (g_hash_table_lookup(p->changed, mi->uid) == NULL) {
-		camel_message_info_ref(mi);
+		mi->refcount++;
 		g_hash_table_insert(p->changed, mi->uid, mi);
+		if (!p->sync_queued)
+			p->sync_queued = dosync = 1;
+	}
+	CAMEL_SUMMARY_UNLOCK(mi->summary, ref_lock);
+
+	if (dosync) {
+		struct _sync_msg *m;
+		CamelSession *session = ((CamelService *)mi->summary->folder->parent_store)->session;
+
+		printf("queuing sync job\n");
+
+		m = camel_session_thread_msg_new(session, &cds_sync_ops, sizeof(*m));
+		m->summary = (CamelFolderSummaryDisk *)mi->summary;
+		camel_object_ref(m->summary);
+		camel_session_thread_queue(session, &m->msg, 0);
 	}
 }
 
@@ -501,6 +599,7 @@ static gboolean cds_info_set_flags(CamelMessageInfo *mi, guint32 mask, guint32 s
 	return res;
 }
 
+/* Do we need locking on this stuff?  matching the summary locking on them? */
 static void cds_encode_header(CamelFolderSummaryDisk *cds, CamelRecordEncoder *cde)
 {
 	camel_record_encoder_start_section(cde, CFSD_SECTION_FOLDERINFO, 0);
@@ -627,8 +726,10 @@ static int cds_decode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, Cam
 			if (count>1) {
 				count--;
 				mi->info.references = g_malloc(sizeof(*mi->info.references) + (sizeof(CamelSummaryMessageID) * count));
-				for (i=0;i<count;i++)
+				for (i=0;i<count;i++) {
 					mi->info.references->references[i].id.id = camel_record_decoder_int64(cdd);
+					g_assert(mi->info.references->references[i].id.id != mi->info.message_id.id.id);
+				}
 			}
 			/* we only need CDS_HEADERS for a valid struct */
 			res = 0;
@@ -696,6 +797,8 @@ camel_folder_summary_disk_finalise(CamelObject *obj)
 {
 	CamelFolderSummaryDisk *cds = (CamelFolderSummaryDisk *)obj;
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+
+	camel_object_unref(p->search);
 
 	/* FIXME: empty cache? */
 	g_hash_table_destroy(p->cache);
@@ -792,6 +895,9 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 
 	((CamelFolderSummary *)cds)->folder = folder;
 
+	// TODO: have this optional based on implementation?
+	p->search = camel_folder_search_new();
+
 	db_create(&p->db, get_env((CamelService *)folder->parent_store), 0);
 
 	p->db->set_bt_compare(p->db, cds_key_cmp);
@@ -836,11 +942,13 @@ camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds)
 
 	cds_save_header(cds);
 
-	/* FIXME: locking */
 	infos = g_ptr_array_new();
+	CAMEL_SUMMARY_LOCK(cds, ref_lock);
 	g_hash_table_foreach_remove(p->changed, cds_get_changed, infos);
+	CAMEL_SUMMARY_UNLOCK(cds, ref_lock);
 
 	for (i=0;i<infos->len;i++) {
+		printf("Saving message '%s'\n", camel_message_info_uid(infos->pdata[i]));
 		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i]);
 		camel_message_info_free(infos->pdata[i]);
 	}

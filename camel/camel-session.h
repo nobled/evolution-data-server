@@ -189,6 +189,9 @@ struct _CamelSessionThreadMsg {
 	/* user fields follow */
 };
 
+/* run this job in a new thread */
+#define CAMEL_SESSION_THREAD_NEWTHREAD (1<<0)
+
 void *camel_session_thread_msg_new(CamelSession *session, CamelSessionThreadOps *ops, unsigned int size);
 void camel_session_thread_msg_free(CamelSession *session, CamelSessionThreadMsg *msg);
 int camel_session_thread_queue(CamelSession *session, CamelSessionThreadMsg *msg, int flags);

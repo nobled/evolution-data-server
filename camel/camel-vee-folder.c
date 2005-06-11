@@ -522,8 +522,132 @@ vee_get_message(CamelFolder *folder, const char *uid, CamelException *ex)
 	return msg;
 }
 
-static GPtrArray *
-vee_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids, CamelException *ex)
+/* ********************************************************************** */
+/*
+This is a first-cut, unoptimised, shitful version
+
+It should probably live on a vee-folder summary ... ?
+*/
+
+struct _vee_iterator {
+	CamelMessageIterator iter;
+
+	/* original vfolder */
+	CamelFolder *folder;
+
+	char *expr;
+	GPtrArray *mis;		/* ??? */
+
+	/* current and list of folders to search */
+	int index;
+	GPtrArray *folders;
+
+	/* current folder search in progress */
+	CamelMessageIterator *source;
+};
+
+static const CamelMessageInfo *vee_iterator_next(void *mitin, CamelException *ex)
+{
+	struct _vee_iterator *vit = mitin;
+
+	do {
+		if (vit->source) {
+			const CamelMessageInfo *mi = camel_message_iterator_next(vit->source, ex);
+
+			// FIXME: THen we need to convert this mi back into a vfolder one!
+			if (mi)
+				return mi;
+			if (ex && ex->id)
+				return NULL;
+			camel_message_iterator_free(vit->source);
+			vit->source = NULL;
+		}
+
+		if (vit->index >= vit->folders->len)
+			return NULL;
+
+		// FIXME: vit->mis' should be converted to the mi's on this folder? */
+		vit->source = camel_folder_search(vit->folders->pdata[vit->index++], vit->expr, NULL, ex);
+	} while (vit->source);
+
+	return NULL;
+}
+
+static void vee_iterator_reset(void *mitin)
+{
+	struct _vee_iterator *vit = mitin;
+
+	if (vit->source)
+		camel_message_iterator_free(vit->source);
+	vit->index = 0;
+}
+
+static void vee_iterator_free(void *mitin)
+{
+	struct _vee_iterator *vit = mitin;
+	int i;
+
+	camel_object_unref(vit->folder);
+	g_free(vit->expr);
+	for (i=0;i<vit->folders->len;i++)
+		camel_object_unref(vit->folders->pdata[i]);
+	g_ptr_array_free(vit->folders, TRUE);
+	camel_message_iterator_free(vit->source);
+}
+
+static CamelMessageIteratorVTable vee_iterator_vtable = {
+	vee_iterator_free,
+	vee_iterator_next,
+	vee_iterator_reset
+};
+
+/* TODO: what to do about sub-searches?
+   We can just feed it to a camelfoldersearch and it might just work? */
+static struct _CamelMessageIterator *vee_search(CamelFolder *folder, const char *expr, const GPtrArray *mis, CamelException *ex)
+{
+	struct _CamelVeeFolderPrivate *p = _PRIVATE(folder);
+	struct _vee_iterator *vit;
+	GList *node;
+	int i;
+
+#warning "api not complete"
+	/**
+	   This is highly inefficient, and doesn't honour the interface anyway, mis is ignored.
+
+	   We could iterate over just those messages in our summary when we have one,
+	   which would obviate the need for the (and) expression */
+
+	vit = camel_message_iterator_new(&vee_iterator_vtable, sizeof(*vit));
+	vit->folder = folder;
+	camel_object_ref(folder);
+
+	vit->folders = g_ptr_array_new();
+	vit->index = 0;
+
+	CAMEL_VEE_FOLDER_LOCK(folder, subfolder_lock);
+	for (node = p->folders;node;node=g_list_next(node)) {
+		CamelFolder *f = node->data;
+
+		/* unmatched can have multiple entries */
+		for (i=0;i<vit->folders->len;i++)
+			if (vit->folders->pdata[i] == f)
+				continue;
+		g_ptr_array_add(vit->folders, f);
+		camel_object_ref(f);
+	}
+	CAMEL_VEE_FOLDER_UNLOCK(folder, subfolder_lock);
+
+	if (expr)
+		vit->expr = g_strdup_printf("(and %s %s)", ((CamelVeeFolder *)folder)->expression, expr);
+	else
+		vit->expr = g_strdup(((CamelVeeFolder *)folder)->expression);
+
+	return (CamelMessageIterator *)vit;
+}
+
+#if 0
+static CamelMessageIterator *
+vee_search(CamelFolder *folder, const char *expression, GPtrArray *mis, CamelException *ex)
 {
 	GList *node;
 	GPtrArray *matches, *result = g_ptr_array_new ();
@@ -534,8 +658,6 @@ vee_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids,
 	GHashTable *searched = g_hash_table_new(NULL, NULL);
 
 	return NULL;
-#warning "rewrite"
-#if 0
 	CAMEL_VEE_FOLDER_LOCK(vf, subfolder_lock);
 
 	expr = g_strdup_printf("(and %s %s)", vf->expression, expression);
@@ -585,8 +707,8 @@ vee_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids,
 	g_ptr_array_free(folder_uids, TRUE);
 
 	return result;
-#endif
 }
+#endif
 
 static void
 vee_append_message(CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *info, char **appended_uid, CamelException *ex)
@@ -1436,8 +1558,8 @@ subfolder_renamed_update(CamelVeeFolder *vf, CamelFolder *sub, char hash[8])
 	
 	CAMEL_VEE_FOLDER_LOCK(vf, summary_lock);
 
-	iter = camel_folder_summary_search(((CamelFolder *)vf)->summary, NULL, NULL);
-	while ((mi = (CamelVeeMessageInfo *)camel_message_iterator_next(iter))) {
+	iter = camel_folder_summary_search(((CamelFolder *)vf)->summary, NULL, NULL, NULL);
+	while ((mi = (CamelVeeMessageInfo *)camel_message_iterator_next(iter, NULL))) {
 		if (mi->real->summary == ssummary) {
 			char *uid = (char *)camel_message_info_uid(mi);
 			char *oldkey;
@@ -1612,7 +1734,7 @@ camel_vee_folder_class_init (CamelVeeFolderClass *klass)
 	folder_class->append_message = vee_append_message;
 	folder_class->transfer_messages_to = vee_transfer_messages_to;
 
-	//folder_class->search = vee_search;
+	folder_class->search = vee_search;
 
 	folder_class->rename = vee_rename;
 	folder_class->delete = vee_delete;

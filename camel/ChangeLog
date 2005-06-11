@@ -1,3 +1,37 @@
+2005-06-11  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder-summary-disk.c (cds_change_info): launch a worker
+	thread to sync changes to disk within a short time, more to demo
+	the idea than a final implementaiton.
+
+	* camel-folder-summary.c (message_info_new_from_header): make sure
+	we dont put our own messageid into the references list!  And if we
+	ended up empty, discard the list we just created.
+
+	* camel-session.c (session_thread_queue): add the ability to run a
+	'new' thread, not just a queued thread.
+
+	* camel-folder-summary.c (camel_message_info_folder): new helper
+	to get the folder this message belongs to.
+	(camel_message_iterator_reset): added reset iterator.
+	(camel_message_iterator_array_new): added helper iterator for
+	existing array of messagienfos.
+	(camel_message_iterator_uids_new): and similar for iterator of an
+	array of uids.
+
+	* camel-folder-search.c (match_words_message): cache message in
+	iterator, and also look up folder directly from messageinfo.
+
+	* camel-filter-search.c: fix for e-sexp api changes.
+
+	* camel-filter-driver.c: fix for e-sexp api changes.
+
+	* camel-folder-search.c: removed all the stuff which worked on
+	array sets, we only want to iterate through 1 message at a time.
+	(match_message_index): take the all search words rather than one
+	at a time, this is a slight optimisation and we only have to
+	iterate over all words in the index once.
+
 2005-06-10  Not Zed  <NotZed@Ximian.com>
 
 	** Fixed various things for api changes.  Commented out scads of

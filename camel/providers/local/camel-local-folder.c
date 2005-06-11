@@ -282,10 +282,10 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 	
 	/*if (camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex) == -1) {*/
 	/* we sync here so that any hard work setting up the folder isn't lost */
-	if (camel_local_summary_sync((CamelLocalSummary *)folder->summary, FALSE, lf->changes, ex) == -1) {
-		camel_object_unref (CAMEL_OBJECT (folder));
-		return NULL;
-	}
+//	if (camel_local_summary_sync((CamelLocalSummary *)folder->summary, FALSE, lf->changes, ex) == -1) {
+//		camel_object_unref (CAMEL_OBJECT (folder));
+//		return NULL;
+//	}
 
 	/* TODO: This probably shouldn't be here? */
 	if ((flags & CAMEL_STORE_FOLDER_CREATE) != 0) {

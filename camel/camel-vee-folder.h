@@ -49,7 +49,7 @@ struct _CamelVeeFolder {
 	guint32 flags;		/* folder open flags */
 
 	CamelFolderChangeInfo *changes;
-	CamelFolderSearch *search;
+	struct _CamelFolderSearch *search;
 
 	/* only set-up if our parent is a vee-store, used also as a flag to
 	 * say that this folder is part of the unmatched folder */

@@ -36,7 +36,6 @@ typedef struct _CamelDataWrapper CamelDataWrapper;
 typedef struct _CamelException CamelException;
 typedef struct _CamelFilterDriver CamelFilterDriver;
 typedef struct _CamelFolder CamelFolder;
-typedef struct _CamelFolderSearch CamelFolderSearch;
 typedef struct _CamelFolderSummary CamelFolderSummary;
 typedef struct _CamelInternetAddress CamelInternetAddress;
 typedef struct _CamelMedium CamelMedium;

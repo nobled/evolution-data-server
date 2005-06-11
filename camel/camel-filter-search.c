@@ -322,7 +322,7 @@ match_all (struct _ESExp *f, int argc, struct _ESExpTerm **argv, FilterMessageSe
 	ESExpResult *r;
 	
 	if (argc > 0)
-		return e_sexp_term_eval (f, argv[0]);
+		return e_sexp_term_eval (f, argv[0], fms);
 	
 	r = e_sexp_result_new (f, ESEXP_RES_BOOL);
 	r->value.bool = TRUE;
@@ -655,8 +655,15 @@ camel_filter_search_match (CamelSession *session,
 	FilterMessageSearch fms;
 	ESExp *sexp;
 	ESExpResult *result;
+	ESExpTerm *term;
 	gboolean retval;
 	int i;
+
+	/* FIXME FIXME
+
+	We should create a single e-sexp language parser, and re-use it to generate and evaluate each term!
+
+	*/
 
 	fms.session = session;
 	fms.get_message = get_message;
@@ -667,16 +674,16 @@ camel_filter_search_match (CamelSession *session,
 	fms.ex = ex;
 	
 	sexp = e_sexp_new ();
-	
+
 	for (i = 0; i < sizeof (symbols) / sizeof (symbols[0]); i++) {
 		if (symbols[i].type == 1)
-			e_sexp_add_ifunction (sexp, 0, symbols[i].name, (ESExpIFunc *)symbols[i].func, &fms);
+			e_sexp_add_ifunction (sexp, 0, symbols[i].name, (ESExpIFunc *)symbols[i].func);
 		else
-			e_sexp_add_function (sexp, 0, symbols[i].name, symbols[i].func, &fms);
+			e_sexp_add_function (sexp, 0, symbols[i].name, symbols[i].func);
 	}
 	
 	e_sexp_input_text (sexp, expression, strlen (expression));
-	if (e_sexp_parse (sexp) == -1) {
+	if ((term = e_sexp_parse(sexp)) == NULL) {
 		if (!camel_exception_is_set (ex))
 			/* A filter search is a search through your filters, ie. your filters is the corpus being searched thru. */
 			camel_exception_setv (ex, 1, _("Error executing filter search: %s: %s"),
@@ -684,7 +691,8 @@ camel_filter_search_match (CamelSession *session,
 		goto error;
 	}
 	
-	result = e_sexp_eval (sexp);
+	result = e_sexp_eval (sexp, term, &fms);
+	e_sexp_term_free(sexp, term);
 	if (result == NULL) {
 		if (!camel_exception_is_set (ex))
 			camel_exception_setv (ex, 1, _("Error executing filter search: %s: %s"),

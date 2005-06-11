@@ -76,7 +76,7 @@ static CamelMimeMessage *get_message         (CamelFolder *folder, const gchar *
 
 static CamelMessageInfo *get_message_info    (CamelFolder *folder, const char *uid);
 
-static CamelMessageIterator *search(CamelFolder *folder, const char *expression, const GPtrArray *infos, CamelException *ex);
+static CamelMessageIterator *search(CamelFolder *folder, const char *expression, CamelMessageIterator *, CamelException *ex);
 
 static void            transfer_messages_to  (CamelFolder *source, GPtrArray *uids, CamelFolder *dest,
 					      GPtrArray **transferred_uids, gboolean delete_originals, CamelException *ex);
@@ -568,10 +568,10 @@ camel_folder_get_message (CamelFolder *folder, const char *uid, CamelException *
 }
 
 static CamelMessageIterator *
-search(CamelFolder *folder, const char *expression, const GPtrArray *infos, CamelException *ex)
+search(CamelFolder *folder, const char *expression, CamelMessageIterator *subset, CamelException *ex)
 {
 	if (folder->summary)
-		return camel_folder_summary_search(folder->summary, expression, infos);
+		return camel_folder_summary_search(folder->summary, expression, subset, ex);
 
 	camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID,
 			      _("Unsupported operation: search by expression: for %s"),
@@ -587,7 +587,7 @@ search(CamelFolder *folder, const char *expression, const GPtrArray *infos, Came
  * camel_folder_search:
  * @folder: a #CamelFolder object
  * @expr: a search expression, NULL means match everything.
- * @infos: An array of messageinfo's to limit the search.
+ * @subset: A messageiterator used to limit the search.
  * @ex: a #CamelException
  *
  * Searches the folder for messages matching the given search expression.
@@ -595,13 +595,13 @@ search(CamelFolder *folder, const char *expression, const GPtrArray *infos, Came
  * Returns a CamelMessageIterator which can be used to examime the results.
  **/
 CamelMessageIterator *
-camel_folder_search(CamelFolder *folder, const char *expression, const GPtrArray *infos, CamelException *ex)
+camel_folder_search(CamelFolder *folder, const char *expression, CamelMessageIterator *subset, CamelException *ex)
 {
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
 
 	/* NOTE: that it is upto the callee to lock */
 
-	return CF_CLASS (folder)->search(folder, expression, infos, ex);
+	return CF_CLASS (folder)->search(folder, expression, subset, ex);
 }
 
 static void

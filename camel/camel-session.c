@@ -74,6 +74,7 @@ camel_session_init (CamelSession *session)
 	session->priv->thread_id = 1;
 	session->priv->thread_active = g_hash_table_new(NULL, NULL);
 	session->priv->thread_queue = NULL;
+	session->priv->thread_new = NULL;
 }
 
 static void
@@ -84,6 +85,8 @@ camel_session_finalise (CamelObject *o)
 	g_hash_table_destroy(session->priv->thread_active);
 	if (session->priv->thread_queue)
 		e_thread_destroy(session->priv->thread_queue);
+	if (session->priv->thread_new)
+		e_thread_destroy(session->priv->thread_new);
 
 	g_free(session->storage_path);
 	
@@ -526,17 +529,28 @@ static void session_thread_received(EThread *thread, CamelSessionThreadMsg *msg,
 static int session_thread_queue(CamelSession *session, CamelSessionThreadMsg *msg, int flags)
 {
 	int id;
+	EThread *queue;
 
 	CAMEL_SESSION_LOCK(session, thread_lock);
-	if (session->priv->thread_queue == NULL) {
-		session->priv->thread_queue = e_thread_new(E_THREAD_QUEUE);
-		e_thread_set_msg_destroy(session->priv->thread_queue, (EThreadFunc)session_thread_destroy, session);
-		e_thread_set_msg_received(session->priv->thread_queue, (EThreadFunc)session_thread_received, session);
+	if ((flags & CAMEL_SESSION_THREAD_NEWTHREAD)) {
+		if (session->priv->thread_new == NULL) {
+			session->priv->thread_new = e_thread_new(E_THREAD_NEW);
+			e_thread_set_msg_destroy(session->priv->thread_new, (EThreadFunc)session_thread_destroy, session);
+			e_thread_set_msg_received(session->priv->thread_new, (EThreadFunc)session_thread_received, session);
+		}
+		queue = session->priv->thread_new;
+	} else {
+		if (session->priv->thread_queue == NULL) {
+			session->priv->thread_queue = e_thread_new(E_THREAD_QUEUE);
+			e_thread_set_msg_destroy(session->priv->thread_queue, (EThreadFunc)session_thread_destroy, session);
+			e_thread_set_msg_received(session->priv->thread_queue, (EThreadFunc)session_thread_received, session);
+		}
+		queue = session->priv->thread_queue;
 	}
 	CAMEL_SESSION_UNLOCK(session, thread_lock);
 
 	id = msg->id;
-	e_thread_put(session->priv->thread_queue, &msg->msg);
+	e_thread_put(queue, &msg->msg);
 
 	return id;
 }
@@ -606,7 +620,8 @@ camel_session_thread_msg_free(CamelSession *session, CamelSessionThreadMsg *msg)
  * camel_session_thread_queue:
  * @session: a #CamelSession object
  * @msg: a #CamelSessionThreadMsg
- * @flags: queue type flags, currently 0.
+ * @flags: queue type flags.  CAMEL_SESSION_THREAD_NEWTHREAD means run in a new thread
+ * every time, or 0 means run in a single queue.
  * 
  * Queue a thread message in another thread for processing.
  * The operation should be (but needn't) run in a queued manner

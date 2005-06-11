@@ -132,8 +132,8 @@ enum {
  * @uid: uid (to be moved to subclasses?)
  *
  * The CamelMessageInfo is an abstract boxed object, managed by a given
- * CamelFolderSummary concrete class.  It is used to iterate through all
- * items or a subset of items, via the search interface.
+ * CamelFolderSummary concrete class.  It stores information about
+ * each message in a folder.
  */
 struct _CamelMessageInfo {
 	CamelFolderSummary *summary;
@@ -197,9 +197,9 @@ struct _CamelMessageIteratorVTable {
 	/* free fields, dont free base object */
 	void (*free)(void *it);
 	/* go to the next messageinfo */
-	const struct _CamelMessageInfo *(*next)(void *it);
-	/* go to the next messageinfo in batch mode */
-	const struct _GPtrArray *(*next_array)(void *it, int len);
+	const struct _CamelMessageInfo *(*next)(void *it, CamelException *ex);
+	/* go back to the start */
+	void (*reset)(void *it);
 };
 
 struct _CamelFolderSummary {
@@ -219,6 +219,9 @@ struct _CamelFolderSummary {
 
 struct _CamelFolderSummaryClass {
 	CamelObjectClass parent_class;
+
+	/* uid comparison function, uses to sort the items in the summary in some known order */
+	GCompareFunc uid_cmp;
 
 	/* the underlying folder is being renamed */
 	int (*rename)(CamelFolderSummary *, const char *newname);
@@ -240,7 +243,7 @@ struct _CamelFolderSummaryClass {
 	GPtrArray *(*get_array)(CamelFolderSummary *, const GPtrArray *uids);
 
 	/* array is array of messageinfos, not uids */
-	struct _CamelMessageIterator *(*search)(CamelFolderSummary *, const char *expr, const GPtrArray *);
+	struct _CamelMessageIterator *(*search)(CamelFolderSummary *, const char *expr, CamelMessageIterator *, CamelException *ex);
 
 	/* messageinfo alloc/copy/free, base class works on MessageInfoBase's */
 	CamelMessageInfo * (*message_info_alloc)(CamelFolderSummary *);
@@ -287,10 +290,13 @@ GPtrArray *camel_folder_summary_get_array(CamelFolderSummary *, const GPtrArray 
 void camel_folder_summary_free_array(CamelFolderSummary *summary, GPtrArray *array);
 
 /* search/iterator interface */
-CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *expr, const GPtrArray *infos);
+CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *expr, CamelMessageIterator *subset, CamelException *ex);
 
 /* remove all items */
 void camel_folder_summary_clear(CamelFolderSummary *summary);
+
+/* get the key/uid compare function */
+GCompareFunc camel_folder_summary_uid_cmp(CamelFolderSummary *);
 
 /* Summary may be null, in which case internal structure is used to track it */
 /* Use anonymous pointers to avoid tons of cast crap */
@@ -308,6 +314,8 @@ void camel_message_info_free(void *info);
 const void *camel_message_info_ptr(const CamelMessageInfo *mi, int id);
 guint32 camel_message_info_uint32(const CamelMessageInfo *mi, int id);
 time_t camel_message_info_time(const CamelMessageInfo *mi, int id);
+
+const CamelFolder *camel_message_info_folder(const void *mi);
 
 #define camel_message_info_uid(mi) ((const char *)((const CamelMessageInfo *)mi)->uid)
 
@@ -359,9 +367,13 @@ void camel_tag_list_free(CamelTag **list);
 
 /* Iterator may not be NULL, it tracks its own parent summary */
 void *camel_message_iterator_new(CamelMessageIteratorVTable *klass, size_t size);
-const CamelMessageInfo *camel_message_iterator_next(void *it);
-const GPtrArray *camel_message_iterator_next_array(void *it, int limit);
 void camel_message_iterator_free(void *it);
+const CamelMessageInfo *camel_message_iterator_next(void *it, CamelException *ex);
+void camel_message_iterator_reset(void *it);
+
+/* helpers */
+void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit);
+void *camel_message_iterator_uids_new(CamelFolder *source, GPtrArray *uids, int freeit);
 
 #ifdef __cplusplus
 }

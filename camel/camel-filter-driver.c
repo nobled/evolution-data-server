@@ -218,9 +218,9 @@ camel_filter_driver_init (CamelFilterDriver *obj)
 	/* Load in builtin symbols */
 	for (i = 0; i < sizeof (symbols) / sizeof (symbols[0]); i++) {
 		if (symbols[i].type == 1) {
-			e_sexp_add_ifunction (p->eval, 0, symbols[i].name, (ESExpIFunc *)symbols[i].func, obj);
+			e_sexp_add_ifunction (p->eval, 0, symbols[i].name, (ESExpIFunc *)symbols[i].func);
 		} else {
-			e_sexp_add_function (p->eval, 0, symbols[i].name, symbols[i].func, obj);
+			e_sexp_add_function (p->eval, 0, symbols[i].name, symbols[i].func);
 		}
 	}
 	
@@ -1052,11 +1052,13 @@ run_only_once (gpointer key, char *action, struct _run_only_once *data)
 	struct _CamelFilterDriverPrivate *p = _PRIVATE (data->driver);
 	CamelException *ex = data->ex;
 	ESExpResult *r;
+	ESExpTerm *term;
 	
 	d(printf ("evaluating: %s\n\n", action));
 	
 	e_sexp_input_text (p->eval, action, strlen (action));
-	if (e_sexp_parse (p->eval) == -1) {
+	term = e_sexp_parse(p->eval);
+	if (term == NULL) {
 		if (!camel_exception_is_set (ex))
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 					      _("Error parsing filter: %s: %s"),
@@ -1064,7 +1066,7 @@ run_only_once (gpointer key, char *action, struct _run_only_once *data)
 		goto done;
 	}
 	
-	r = e_sexp_eval (p->eval);
+	r = e_sexp_eval (p->eval, term, data->driver);
 	if (r == NULL) {
 		if (!camel_exception_is_set (ex))
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
@@ -1076,7 +1078,7 @@ run_only_once (gpointer key, char *action, struct _run_only_once *data)
 	e_sexp_result_free (p->eval, r);
 	
  done:
-	
+	e_sexp_term_free(p->eval, term);
 	g_free (key);
 	g_free (action);
 	
@@ -1413,7 +1415,8 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 	result = CAMEL_SEARCH_NOMATCH;
 	while (node->next && !p->terminated) {
 		struct _get_message data;
-		
+		ESExpTerm *term;
+
 		d(printf("applying rule %s\naction %s\n", node->match, node->action));
 		
 		data.p = p;
@@ -1436,12 +1439,13 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 
 			/* perform necessary filtering actions */
 			e_sexp_input_text (p->eval, node->action, strlen (node->action));
-			if (e_sexp_parse (p->eval) == -1) {
+			if ((term = e_sexp_parse (p->eval)) == NULL) {
 				camel_exception_setv (ex, 1, _("Error parsing filter: %s: %s"),
 						      e_sexp_error (p->eval), node->action);
 				goto error;
 			}
-			r = e_sexp_eval (p->eval);
+			r = e_sexp_eval (p->eval, term, driver);
+			e_sexp_term_free(p->eval, term);
 			if (camel_exception_is_set(p->ex))
 				goto error;
 

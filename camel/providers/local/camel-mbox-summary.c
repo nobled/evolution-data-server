@@ -424,7 +424,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 	/* TODO: how do we jump to a uid?  camel disk folder summary could do it? */
 	/* how do we match the uid? */
-	iter = camel_folder_summary_search(s, NULL, NULL);
+	iter = camel_folder_summary_search(s, NULL, NULL, NULL);
 
 #if 0
 	camel_mime_parser_seek(mp, offset, SEEK_SET);
@@ -443,7 +443,8 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 	mbs->changes = changeinfo;
 #endif
-	iterinfo = camel_message_iterator_next(iter);
+	// FIXME: what do we do with failures here?
+	iterinfo = camel_message_iterator_next(iter, NULL);
 
 	while (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM) {
 		CamelMessageInfo *info;
@@ -467,12 +468,12 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 				while (iterinfo && strcmp(iterinfo->uid, uid) < 0) {
 					printf("Message %s vanished\n", iterinfo->uid);
 					camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-					iterinfo = camel_message_iterator_next(iter);
+					iterinfo = camel_message_iterator_next(iter, NULL);
 				}
 
 				if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
 					g_free(uid);
-					iterinfo = camel_message_iterator_next(iter);
+					iterinfo = camel_message_iterator_next(iter, NULL);
 					goto have_message;
 				}
 			} else {
@@ -520,7 +521,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 	while (iterinfo) {
 		printf("trailing message '%s' removed too\n", iterinfo->uid);
 		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-		iterinfo = camel_message_iterator_next(iter);
+		iterinfo = camel_message_iterator_next(iter, NULL);
 	}
 	camel_message_iterator_free(iter);
 	
