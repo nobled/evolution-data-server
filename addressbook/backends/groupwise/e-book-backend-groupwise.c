@@ -1743,50 +1743,51 @@ static EGwFilter*
 e_book_backend_groupwise_build_gw_filter (EBookBackendGroupwise *ebgw, const char *query, gpointer is_auto_completion, char ** search_string)
 {
 	ESExp *sexp;
+	ESExpTerm *term;
 	ESExpResult *r;
-	EBookBackendGroupwiseSExpData *sexp_data;
+	EBookBackendGroupwiseSExpData sexp_data = { 0 };
 	EGwFilter *filter;
 	int i;
 
+	/* TODO: Since e-sexp-eval now takes both a term and a contect pointer,
+	   This could be changed so not as to require initilising a new
+	   language (sexp) each time */
 
 	sexp = e_sexp_new();
 	filter = e_gw_filter_new ();
 	
-	sexp_data = g_new0 (EBookBackendGroupwiseSExpData, 1);
-	sexp_data->filter = filter;
-	sexp_data->is_filter_valid = TRUE;
-	sexp_data->is_personal_book = e_book_backend_is_writable ( E_BOOK_BACKEND (ebgw));
-	sexp_data->auto_completion = 0;
-	sexp_data->search_string = NULL;
+	sexp_data.filter = filter;
+	sexp_data.is_filter_valid = TRUE;
+	sexp_data.is_personal_book = e_book_backend_is_writable ( E_BOOK_BACKEND (ebgw));
+	sexp_data.auto_completion = 0;
+	sexp_data.search_string = NULL;
 
 	for(i=0;i<sizeof(symbols)/sizeof(symbols[0]);i++) {
 		if (symbols[i].type == 1) {
 			e_sexp_add_ifunction(sexp, 0, symbols[i].name,
-					     (ESExpIFunc *)symbols[i].func, sexp_data);
+					     (ESExpIFunc *)symbols[i].func);
 		} else {
 			e_sexp_add_function(sexp, 0, symbols[i].name,
-					    symbols[i].func, sexp_data);
+					    symbols[i].func);
 		}
 	}
 
 	e_sexp_input_text(sexp, query, strlen(query));
-	e_sexp_parse(sexp);
-	r = e_sexp_eval(sexp);
+	term = e_sexp_parse(sexp);
+	r = e_sexp_eval(sexp, term, &sexp_data);
 	e_sexp_result_free(sexp, r);
 	e_sexp_unref (sexp);
 	
 	
-	if (sexp_data->is_filter_valid) {
-		if (sexp_data->auto_completion == AUTO_COMPLETION_QUERY)
+	if (sexp_data.is_filter_valid) {
+		if (sexp_data.auto_completion == AUTO_COMPLETION_QUERY)
 			*(gboolean *)is_auto_completion = TRUE;
 		if (search_string)
-			*search_string = sexp_data->search_string;
-		g_free (sexp_data);
+			*search_string = sexp_data.search_string;
 		return filter;
 	}
 	else {
 		g_object_unref (filter);
-		g_free (sexp_data);
 		return NULL;
 	}
 

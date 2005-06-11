@@ -942,36 +942,41 @@ gboolean
 e_book_backend_summary_is_summary_query (EBookBackendSummary *summary, const char *query)
 {
 	ESExp *sexp;
+	ESExpTerm *term;
 	ESExpResult *r;
 	gboolean retval;
 	int i;
-	int esexp_error;
+
+	/* TODO: Since e-sexp-eval now takes both a term and a contect pointer,
+	   This could be changed so not as to require initilising a new
+	   language (sexp) each time */
 
 	sexp = e_sexp_new();
 
 	for(i=0;i<sizeof(check_symbols)/sizeof(check_symbols[0]);i++) {
 		if (check_symbols[i].type == 1) {
 			e_sexp_add_ifunction(sexp, 0, check_symbols[i].name,
-					     (ESExpIFunc *)check_symbols[i].func, summary);
+					     (ESExpIFunc *)check_symbols[i].func);
 		} else {
 			e_sexp_add_function(sexp, 0, check_symbols[i].name,
-					    check_symbols[i].func, summary);
+					    check_symbols[i].func);
 		}
 	}
 
 	e_sexp_input_text(sexp, query, strlen(query));
-	esexp_error = e_sexp_parse(sexp);
+	term = e_sexp_parse(sexp);
 
-	if (esexp_error == -1) {
+	if (term == NULL) {
+		e_sexp_unref(sexp);
 		return FALSE;
 	}
 
-	r = e_sexp_eval(sexp);
+	r = e_sexp_eval(sexp, term, summary);
 
 	retval = (r && r->type == ESEXP_RES_BOOL && r->value.bool);
 
 	e_sexp_result_free(sexp, r);
-
+	e_sexp_term_free(sexp, term);
 	e_sexp_unref (sexp);
 
 	return retval;
@@ -1124,31 +1129,36 @@ GPtrArray*
 e_book_backend_summary_search (EBookBackendSummary *summary, const char *query)
 {
 	ESExp *sexp;
+	ESExpTerm *term;
 	ESExpResult *r;
 	GPtrArray *retval = g_ptr_array_new();
 	int i;
-	int esexp_error;
+
+	/* TODO: Since e-sexp-eval now takes both a term and a contect pointer,
+	   This could be changed so not as to require initilising a new
+	   language (sexp) each time */
 
 	sexp = e_sexp_new();
 
 	for(i=0;i<sizeof(symbols)/sizeof(symbols[0]);i++) {
 		if (symbols[i].type == 1) {
 			e_sexp_add_ifunction(sexp, 0, symbols[i].name,
-					     (ESExpIFunc *)symbols[i].func, summary);
+					     (ESExpIFunc *)symbols[i].func);
 		} else {
 			e_sexp_add_function(sexp, 0, symbols[i].name,
-					    symbols[i].func, summary);
+					    symbols[i].func);
 		}
 	}
 
 	e_sexp_input_text(sexp, query, strlen(query));
-	esexp_error = e_sexp_parse(sexp);
+	term = e_sexp_parse(sexp);
 
-	if (esexp_error == -1) {
+	if (term ==NULL) {
+		e_sexp_unref(sexp);
 		return NULL;
 	}
 
-	r = e_sexp_eval(sexp);
+	r = e_sexp_eval(sexp, term, summary);
 
 	if (r && r->type == ESEXP_RES_ARRAY_PTR && r->value.ptrarray) {
 		GPtrArray *ptrarray = r->value.ptrarray;
@@ -1159,7 +1169,7 @@ e_book_backend_summary_search (EBookBackendSummary *summary, const char *query)
 	}
 
 	e_sexp_result_free(sexp, r);
-
+	e_sexp_term_free(sexp, term);
 	e_sexp_unref (sexp);
 
 	return retval;

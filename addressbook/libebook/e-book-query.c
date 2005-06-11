@@ -535,28 +535,32 @@ e_book_query_from_string  (const char *query_string)
 {
 	ESExp *sexp;
 	ESExpResult *r;
+	ESExpTerm *term;
 	EBookQuery *retval;
 	GList *list = NULL;
 	int i;
 
+	/* TODO: sexp could be static, defining the language,
+	   we only need to evalute a new term for each query */
 	sexp = e_sexp_new();
 
 	for(i=0;i<sizeof(symbols)/sizeof(symbols[0]);i++) {
 		if (symbols[i].type == 1) {
 			e_sexp_add_ifunction(sexp, 0, symbols[i].name,
-					     (ESExpIFunc *)symbols[i].func, &list);
+					     (ESExpIFunc *)symbols[i].func);
 		} else {
 			e_sexp_add_function(sexp, 0, symbols[i].name,
-					    symbols[i].func, &list);
+					    symbols[i].func);
 		}
 	}
 
 	e_sexp_input_text(sexp, query_string, strlen(query_string));
-	e_sexp_parse(sexp);
+	term = e_sexp_parse(sexp);
 
-	r = e_sexp_eval(sexp);
+	r = e_sexp_eval(sexp, term, &list);
 
 	e_sexp_result_free(sexp, r);
+	e_sexp_term_free(sexp, term);
 	e_sexp_unref (sexp);
 
 	if (list) {

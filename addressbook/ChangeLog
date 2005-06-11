@@ -1,3 +1,24 @@
+2005-06-11  Not Zed  <NotZed@Ximian.com>
+
+	* backends/groupwise/e-book-backend-groupwise.c
+	(e_book_backend_groupwise_build_gw_filter): api fixes, and remove
+	the unecessary malloc.
+
+	* backends/ldap/e-book-backend-ldap.c
+	(e_book_backend_ldap_build_query): api fixes.
+
+	* libedata-book/e-book-backend-summary.c
+	(e_book_backend_summary_is_summary_query): api fixes & fix memleak
+	in error case.
+	(e_book_backend_summary_search): same.
+
+	* libedata-book/e-book-backend-sexp.c
+	(e_book_backend_sexp_match_contact):
+	(e_book_backend_sexp_new): fix for api changes.
+
+	* libebook/e-book-query.c (e_book_query_from_string): changes for
+	e-sexp api changes.
+
 2005-06-08  Srinivasa Ragavan <sragavan@novell.com>
 
 	* e-gw-connection.[ch] :Added function to retrive deltainfo and delta

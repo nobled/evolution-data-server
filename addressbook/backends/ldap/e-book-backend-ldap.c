@@ -3049,6 +3049,7 @@ static gchar *
 e_book_backend_ldap_build_query (EBookBackendLDAP *bl, const char *query)
 {
 	ESExp *sexp;
+	ESExpTerm *term;
 	ESExpResult *r;
 	gchar *retval;
 	EBookBackendLDAPSExpData data;
@@ -3058,24 +3059,29 @@ e_book_backend_ldap_build_query (EBookBackendLDAP *bl, const char *query)
 	data.list = NULL;
 	data.bl = bl;
 
+	/* TODO: Since e-sexp-eval now takes both a term and a contect pointer,
+	   This could be changed so not as to require initilising a new
+	   language (sexp) each time */
+
 	sexp = e_sexp_new();
 
 	for(i=0;i<sizeof(symbols)/sizeof(symbols[0]);i++) {
 		if (symbols[i].type == 1) {
 			e_sexp_add_ifunction(sexp, 0, symbols[i].name,
-					     (ESExpIFunc *)symbols[i].func, &data);
+					     (ESExpIFunc *)symbols[i].func);
 		} else {
 			e_sexp_add_function(sexp, 0, symbols[i].name,
-					    symbols[i].func, &data);
+					    symbols[i].func);
 		}
 	}
 
 	e_sexp_input_text(sexp, query, strlen(query));
-	e_sexp_parse(sexp);
+	term = e_sexp_parse(sexp);
 
-	r = e_sexp_eval(sexp);
+	r = e_sexp_eval(sexp, term, &data);
 
 	e_sexp_result_free(sexp, r);
+	e_sexp_term_free(sexp, term);
 	e_sexp_unref (sexp);
 
 	if (data.list) {
