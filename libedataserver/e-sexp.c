@@ -252,7 +252,7 @@ term_eval_and(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 	
 	for (i=0;bool && i<argc;i++) {
-		r1 = e_sexp_term_eval(f, argv[i]);
+		r1 = e_sexp_term_eval(f, argv[i], data);
 		if (type == -1)
 			type = r1->type;
 		if (type != r1->type) {
@@ -310,7 +310,7 @@ term_eval_or(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 	
 	for (i=0;!bool && i<argc;i++) {
-		r1 = e_sexp_term_eval(f, argv[i]);
+		r1 = e_sexp_term_eval(f, argv[i], data);
 		if (type == -1)
 			type = r1->type;
 		if (r1->type != type) {
@@ -373,8 +373,8 @@ term_eval_lt(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 	
 	if (argc == 2) {
-		r1 = e_sexp_term_eval(f, argv[0]);
-		r2 = e_sexp_term_eval(f, argv[1]);
+		r1 = e_sexp_term_eval(f, argv[0], data);
+		r2 = e_sexp_term_eval(f, argv[1], data);
 		if (r1->type != r2->type) {
 			e_sexp_result_free(f, r1);
 			e_sexp_result_free(f, r2);
@@ -405,8 +405,8 @@ term_eval_gt(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 	
 	if (argc == 2) {
-		r1 = e_sexp_term_eval(f, argv[0]);
-		r2 = e_sexp_term_eval(f, argv[1]);
+		r1 = e_sexp_term_eval(f, argv[0], data);
+		r2 = e_sexp_term_eval(f, argv[1], data);
 		if (r1->type != r2->type) {
 			e_sexp_result_free(f, r1);
 			e_sexp_result_free(f, r2);
@@ -437,8 +437,8 @@ term_eval_eq(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 	
 	if (argc == 2) {
-		r1 = e_sexp_term_eval(f, argv[0]);
-		r2 = e_sexp_term_eval(f, argv[1]);
+		r1 = e_sexp_term_eval(f, argv[0], data);
+		r2 = e_sexp_term_eval(f, argv[1], data);
 		if (r1->type != r2->type) {
 			r->value.bool = FALSE;
 		} else if (r1->type == ESEXP_RES_INT) {
@@ -629,13 +629,13 @@ term_eval_if(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	int doit;
 
 	if (argc >=2 && argc<=3) {
-		r = e_sexp_term_eval(f, argv[0]);
+		r = e_sexp_term_eval(f, argv[0], data);
 		doit = (r->type == ESEXP_RES_BOOL && r->value.bool);
 		e_sexp_result_free(f, r);
 		if (doit) {
-			return e_sexp_term_eval(f, argv[1]);
+			return e_sexp_term_eval(f, argv[1], data);
 		} else if (argc>2) {
-			return e_sexp_term_eval(f, argv[2]);
+			return e_sexp_term_eval(f, argv[2], data);
 		}
 	}
 	return e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
@@ -651,7 +651,7 @@ term_eval_begin(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data
 	for (i=0;i<argc;i++) {
 		if (r)
 			e_sexp_result_free(f, r);
-		r = e_sexp_term_eval(f, argv[i]);
+		r = e_sexp_term_eval(f, argv[i], data);
 	}
 	if (r)
 		return r;
@@ -662,7 +662,7 @@ term_eval_begin(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data
 
 /* this must only be called from inside term evaluation callbacks! */
 struct _ESExpResult *
-e_sexp_term_eval(struct _ESExp *f, struct _ESExpTerm *t)
+e_sexp_term_eval(struct _ESExp *f, struct _ESExpTerm *t, void *data)
 {
 	struct _ESExpResult *r = NULL;
 	int i;
@@ -697,17 +697,17 @@ e_sexp_term_eval(struct _ESExp *f, struct _ESExpTerm *t)
 		break;
 	case ESEXP_TERM_IFUNC:
 		if (t->value.func.sym->f.ifunc)
-			r = t->value.func.sym->f.ifunc(f, t->value.func.termcount, t->value.func.terms, t->value.func.sym->data);
+			r = t->value.func.sym->f.ifunc(f, t->value.func.termcount, t->value.func.terms, data);
 		break;
 	case ESEXP_TERM_FUNC:
 		/* first evaluate all arguments to result types */
 		argv = alloca(sizeof(argv[0]) * t->value.func.termcount);
 		for (i=0;i<t->value.func.termcount;i++) {
-			argv[i] = e_sexp_term_eval(f, t->value.func.terms[i]);
+			argv[i] = e_sexp_term_eval(f, t->value.func.terms[i], data);
 		}
 		/* call the function */
 		if (t->value.func.sym->f.func)
-			r = t->value.func.sym->f.func(f, t->value.func.termcount, argv, t->value.func.sym->data);
+			r = t->value.func.sym->f.func(f, t->value.func.termcount, argv, data);
 
 		e_sexp_resultv_free(f, t->value.func.termcount, argv);
 		break;
@@ -818,8 +818,9 @@ parse_term_new(struct _ESExp *f, int type)
 	return s;
 }
 
-static void
-parse_term_free(struct _ESExp *f, struct _ESExpTerm *t)
+/* free a term tree */
+void
+e_sexp_term_free(struct _ESExp *f, struct _ESExpTerm *t)
 {
 	int i;
 
@@ -841,13 +842,13 @@ parse_term_free(struct _ESExp *f, struct _ESExpTerm *t)
 	case ESEXP_TERM_FUNC:
 	case ESEXP_TERM_IFUNC:
 		for (i=0;i<t->value.func.termcount;i++) {
-			parse_term_free(f, t->value.func.terms[i]);
+			e_sexp_term_free(f, t->value.func.terms[i]);
 		}
 		g_free(t->value.func.terms);
 		break;
 
 	default:
-		printf("parse_term_free: unknown type: %d\n", t->type);
+		printf("e_sexp_term_free: unknown type: %d\n", t->type);
 	}
 	e_memchunk_free(f->term_chunks, t);
 }
@@ -1008,7 +1009,7 @@ parse_list(ESExp *f, int gotbrace)
 				t->value.func.sym = s;
 				t->value.func.terms = parse_values(f, &t->value.func.termcount);
 			} else {
-				parse_term_free(f, t);
+				e_sexp_term_free(f, t);
 				e_sexp_fatal_error(f, "Trying to call variable as function: %s", s->name);
 			}
 			break; }
@@ -1079,11 +1080,6 @@ e_sexp_finalise(void *o)
 {
 	ESExp *s = (ESExp *)o;
 
-	if (s->tree) {
-		parse_term_free(s, s->tree);
-		s->tree = NULL;
-	}
-
 	e_memchunk_destroy(s->term_chunks);
 	e_memchunk_destroy(s->result_chunks);
 
@@ -1107,9 +1103,9 @@ e_sexp_init (ESExp *s)
 	/* load in builtin symbols? */
 	for(i=0;i<sizeof(symbols)/sizeof(symbols[0]);i++) {
 		if (symbols[i].type == 1) {
-			e_sexp_add_ifunction(s, 0, symbols[i].name, (ESExpIFunc *)symbols[i].func, &symbols[i]);
+			e_sexp_add_ifunction(s, 0, symbols[i].name, (ESExpIFunc *)symbols[i].func);
 		} else {
-			e_sexp_add_function(s, 0, symbols[i].name, symbols[i].func, &symbols[i]);
+			e_sexp_add_function(s, 0, symbols[i].name, symbols[i].func);
 		}
 	}
 
@@ -1176,7 +1172,7 @@ e_sexp_unref (ESExp *f)
 #endif
 
 void
-e_sexp_add_function(ESExp *f, int scope, char *name, ESExpFunc *func, void *data)
+e_sexp_add_function(ESExp *f, int scope, char *name, ESExpFunc *func)
 {
 	struct _ESExpSymbol *s;
 
@@ -1189,12 +1185,13 @@ e_sexp_add_function(ESExp *f, int scope, char *name, ESExpFunc *func, void *data
 	s->name = g_strdup(name);
 	s->f.func = func;
 	s->type = ESEXP_TERM_FUNC;
-	s->data = data;
 	g_scanner_scope_add_symbol(f->scanner, scope, s->name, s);
 }
 
+/* NOTE: data is never passed to the caller, only the data
+   passed in is */
 void
-e_sexp_add_ifunction(ESExp *f, int scope, char *name, ESExpIFunc *ifunc, void *data)
+e_sexp_add_ifunction(ESExp *f, int scope, char *name, ESExpIFunc *ifunc)
 {
 	struct _ESExpSymbol *s;
 
@@ -1207,7 +1204,6 @@ e_sexp_add_ifunction(ESExp *f, int scope, char *name, ESExpIFunc *ifunc, void *d
 	s->name = g_strdup(name);
 	s->f.ifunc = ifunc;
 	s->type = ESEXP_TERM_IFUNC;
-	s->data = data;
 	g_scanner_scope_add_symbol(f->scanner, scope, s->name, s);
 }
 
@@ -1270,38 +1266,33 @@ e_sexp_input_file (ESExp *f, int fd)
 	g_scanner_input_file(f->scanner, fd);
 }
 
-/* returns -1 on error */
-int
+/* returns a syntax tree, or null on error */
+/* not thread safe */
+ESExpTerm *
 e_sexp_parse(ESExp *f)
 {
-	g_return_val_if_fail (IS_E_SEXP (f), -1);
+	g_return_val_if_fail (IS_E_SEXP (f), NULL);
 
 	if (setjmp(f->failenv)) {
 		g_warning("Error in parsing: %s", f->error);
-		return -1;
+		return NULL;
 	}
 
-	if (f->tree)
-		parse_term_free(f, f->tree);
-
-	f->tree = parse_value (f);
-
-	return 0;
+	return parse_value (f);
 }
 
 /* returns NULL on error */
 struct _ESExpResult *
-e_sexp_eval(ESExp *f)
+e_sexp_eval(ESExp *f, ESExpTerm *tree, void *data)
 {
 	g_return_val_if_fail (IS_E_SEXP (f), NULL);
-	g_return_val_if_fail (f->tree != NULL, NULL);
 
 	if (setjmp(f->failenv)) {
 		g_warning("Error in execution: %s", f->error);
 		return NULL;
 	}
 
-	return e_sexp_term_eval(f, f->tree);
+	return e_sexp_term_eval(f, tree, data);
 }
 
 /**

@@ -80,7 +80,7 @@ enum _ESExpTermType {
 struct _ESExpSymbol {
 	int type;		/* ESEXP_TERM_FUNC or ESEXP_TERM_VAR */
 	char *name;
-	void *data;
+	void *data;		/* ** unused atm ** */
 	union {
 		ESExpFunc *func;
 		ESExpIFunc *ifunc;
@@ -112,7 +112,6 @@ struct _ESExp {
 	int refcount;
 #endif
 	GScanner *scanner;	/* for parsing text version */
-	ESExpTerm *tree;	/* root of expression tree */
 	
 	/* private stuff */
 	jmp_buf failenv;
@@ -143,8 +142,8 @@ ESExp 	       *e_sexp_new		(void);
 void		e_sexp_ref		(ESExp *f);
 void		e_sexp_unref		(ESExp *f);
 #endif
-void		e_sexp_add_function  	(ESExp *f, int scope, char *name, ESExpFunc *func, void *data);
-void		e_sexp_add_ifunction  	(ESExp *f, int scope, char *name, ESExpIFunc *func, void *data);
+void		e_sexp_add_function  	(ESExp *f, int scope, char *name, ESExpFunc *func);
+void		e_sexp_add_ifunction  	(ESExp *f, int scope, char *name, ESExpIFunc *func);
 void		e_sexp_add_variable  	(ESExp *f, int scope, char *name, ESExpTerm *value);
 void		e_sexp_remove_symbol	(ESExp *f, int scope, char *name);
 int		e_sexp_set_scope	(ESExp *f, int scope);
@@ -153,12 +152,15 @@ void		e_sexp_input_text	(ESExp *f, const char *text, int len);
 void		e_sexp_input_file	(ESExp *f, int fd);
 
 
-int		e_sexp_parse		(ESExp *f);
-ESExpResult    *e_sexp_eval		(ESExp *f);
+ESExpTerm      *e_sexp_parse		(ESExp *f);
+/* NB: Not re-entrant!!! */
+ESExpResult    *e_sexp_eval		(ESExp *f, struct _ESExpTerm *t, void *data);
 
-ESExpResult    *e_sexp_term_eval	(struct _ESExp *f, struct _ESExpTerm *t);
+ESExpResult    *e_sexp_term_eval	(struct _ESExp *f, struct _ESExpTerm *t, void *data);
 ESExpResult    *e_sexp_result_new	(struct _ESExp *f, int type);
 void		e_sexp_result_free	(struct _ESExp *f, struct _ESExpResult *t);
+
+void		e_sexp_term_free	(struct _ESExp *f, struct _ESExpTerm *t);
 
 /* used in normal functions if they have to abort, to free their arguments */
 void		e_sexp_resultv_free	(struct _ESExp *f, int argc, struct _ESExpResult **argv);
