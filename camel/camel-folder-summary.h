@@ -220,8 +220,9 @@ struct _CamelFolderSummary {
 struct _CamelFolderSummaryClass {
 	CamelObjectClass parent_class;
 
-	/* uid comparison function, uses to sort the items in the summary in some known order */
-	GCompareFunc uid_cmp;
+	/* comparison functions used to sort data items in summary order, compare uid's or compare messageinfos */
+	GCompareDataFunc uid_cmp;
+	GCompareDataFunc info_cmp;
 
 	/* the underlying folder is being renamed */
 	int (*rename)(CamelFolderSummary *, const char *newname);
@@ -231,9 +232,9 @@ struct _CamelFolderSummaryClass {
 	/*  base implements naive implementation */
 	int (*add_array)(CamelFolderSummary *, GPtrArray *);
 
-	void (*remove)(CamelFolderSummary *, CamelMessageInfo *);
+	int (*remove)(CamelFolderSummary *, CamelMessageInfo *);
 	/*  base implements naive implementation */
-	void (*remove_array)(CamelFolderSummary *, GPtrArray *);
+	int (*remove_array)(CamelFolderSummary *, GPtrArray *);
 
 	void (*clear)(CamelFolderSummary *);
 
@@ -280,8 +281,8 @@ int camel_folder_summary_rename(CamelFolderSummary *, const char *newname);
 /* summary management */
 int camel_folder_summary_add(CamelFolderSummary *summary, CamelMessageInfo *info);
 int camel_folder_summary_add_array(CamelFolderSummary *summary, GPtrArray *infos);
-void camel_folder_summary_remove(CamelFolderSummary *summary, CamelMessageInfo *info);
-void camel_folder_summary_remove_array(CamelFolderSummary *summary, GPtrArray *infos);
+int camel_folder_summary_remove(CamelFolderSummary *summary, CamelMessageInfo *info);
+int camel_folder_summary_remove_array(CamelFolderSummary *summary, GPtrArray *infos);
 
 /* retrieve items */
 CamelMessageInfo *camel_folder_summary_get(CamelFolderSummary *, const char *uid);
@@ -294,9 +295,6 @@ CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, c
 
 /* remove all items */
 void camel_folder_summary_clear(CamelFolderSummary *summary);
-
-/* get the key/uid compare function */
-GCompareFunc camel_folder_summary_uid_cmp(CamelFolderSummary *);
 
 /* Summary may be null, in which case internal structure is used to track it */
 /* Use anonymous pointers to avoid tons of cast crap */

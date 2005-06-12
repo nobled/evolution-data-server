@@ -23,8 +23,11 @@
 #ifndef _CAMEL_VEE_SUMMARY_H
 #define _CAMEL_VEE_SUMMARY_H
 
-#include <camel/camel-folder-summary.h>
-#include <camel/camel-exception.h>
+#include <camel/camel-folder-summary-disk.h>
+#include <libedataserver/e-msgport.h>
+
+/* Define to store each sub-folders details in a different database/summary?  UNIMPLEMENTED */
+/* #define VEE_MULTIDB (1) */
 
 struct _CamelVeeFolder;
 struct _CamelFolder;
@@ -34,9 +37,16 @@ struct _CamelFolder;
 #define CAMEL_IS_VEE_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_vee_summary_get_type ())
 
 typedef struct _CamelVeeSummary CamelVeeSummary;
+typedef struct _CamelVeeSummaryFolder CamelVeeSummaryFolder;
 typedef struct _CamelVeeSummaryClass CamelVeeSummaryClass;
 
 typedef struct _CamelVeeMessageInfo CamelVeeMessageInfo;
+
+enum {
+	CVS_SECTION_FOLDERINFO = CFSD_SECTION_LAST,
+
+	CVS_SECTION_LAST = CFSD_SECTION_LAST+4
+};
 
 struct _CamelVeeMessageInfo {
 	CamelMessageInfo info;
@@ -44,19 +54,51 @@ struct _CamelVeeMessageInfo {
 	CamelMessageInfo *real;
 };
 
+struct _CamelVeeSummaryFolder {
+	struct _CamelVeeSummaryFolder *next;
+	struct _CamelVeeSummaryFolder *prev;
+
+	/* Folder info/hooks */
+	struct _CamelFolder *folder;
+	char hash[8];
+	char *uri;
+
+	int changed_id;
+	int deleted_id;
+	int renamed_id;
+
+	/* Pending changes if we're not an auto-update folder, for updating later,
+	   it only contains uid_changed entries */
+	struct _CamelFolderChangeInfo *changes;
+};
+
 struct _CamelVeeSummary {
-	CamelFolderSummary summary;
+	CamelFolderSummaryDisk summary;
+
+	struct _CamelVeeSummaryPrivate *priv;
+
+	char *expr;
+	EDList folders;
+
+	struct _CamelFolderChangeInfo *changes;
+
+	/* this a static expression, so we ignore changed events */
+	int is_static:1;
 };
 
 struct _CamelVeeSummaryClass {
-	CamelFolderSummaryClass parent_class;
-
+	CamelFolderSummaryDiskClass parent_class;
 };
 
 CamelType               camel_vee_summary_get_type     (void);
-CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *parent);
+CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *folder);
 
-CamelVeeMessageInfo * camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char hash[8]);
+void camel_vee_summary_add_folder(CamelVeeSummary *s, const char *uriin, struct _CamelFolder *folder);
+void camel_vee_summary_remove_folder(CamelVeeSummary *s, struct _CamelFolder *folder);
+void camel_vee_summary_set_folders(CamelVeeSummary *s, GList *folders);
+void camel_vee_summary_set_expression(CamelVeeSummary *vf, const char *expr);
+
+void camel_vee_summary_hash_folder(CamelVeeSummary *folder, char buffer[8]);
 
 #endif /* ! _CAMEL_VEE_SUMMARY_H */
 

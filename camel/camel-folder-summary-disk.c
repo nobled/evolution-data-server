@@ -45,6 +45,7 @@
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
 #define CDS_CLASS(x) ((CamelFolderSummaryDiskClass *)((CamelObject *)x)->klass)
+#define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
 
 #define _PRIVATE(x) (((CamelFolderSummaryDisk *)x)->priv)
 
@@ -141,15 +142,7 @@ cds_save_header(CamelFolderSummaryDisk *cds)
 	if (res == DB_NOTFOUND) {
 		printf("  SAVING: db not found!? \n");
 		return 0;
-	}
-
-	if (res == 0) {
-		CamelRecordDecoder *crd;
-
-		crd = camel_record_decoder_new(data.data, data.size);
-		res = CDS_CLASS(cds)->decode_header(cds, crd);
-		camel_record_decoder_free(crd);
-	} else
+	} else if (res != 0)
 		p->db->err(p->db, res, "saving header fialed");
 
 	if (data.data)
@@ -158,7 +151,7 @@ cds_save_header(CamelFolderSummaryDisk *cds)
 	return res;
 }
 
-static int cds_save_info(CamelFolderSummaryDisk *s, CamelMessageInfo *mi)
+static int cds_save_info(CamelFolderSummaryDisk *s, CamelMessageInfo *mi, guint32 flags)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	CamelRecordEncoder *cre = camel_record_encoder_new();
@@ -173,7 +166,10 @@ static int cds_save_info(CamelFolderSummaryDisk *s, CamelMessageInfo *mi)
 	data.size = cre->out->len;
 
 	/* transaction? */
-	if ((err = p->db->put(p->db, NULL, &key, &data, 0)) != 0) {
+	err = p->db->put(p->db, NULL, &key, &data, flags);
+	if (err == DB_KEYEXIST)
+		err = -1;
+	else if (err != 0) {
 		p->db->err(p->db, err, "putting info '%s' into database", mi->uid);
 		err = -1;
 	}
@@ -248,6 +244,61 @@ static const char cds_info_user_tag(const CamelMessageInfo *mi, const char *id)
 }
 #endif
 
+/* This is only useful for mh and mbox ... */
+static int
+cds_uid_cmp(const void *ap, const void *bp, void *data)
+{
+	const char *a = ap, *b = bp;
+	unsigned long av, bv;
+
+	av = strtoul(a, NULL, 10);
+	bv = strtoul(b, NULL, 10);
+
+	if (av < bv)
+		return -1;
+	else if (av > bv)
+		return 1;
+	else
+		return 0;
+}
+
+static int
+cds_info_cmp(const void *ap, const void *bp, void *data)
+{
+	const CamelMessageInfo *a = ap;
+	const CamelMessageInfo *b = bp;
+
+	return CFS_CLASS(data)->uid_cmp(a->uid, b->uid, data);
+}
+
+static int
+cds_dbt_cmp(DB *db, const DBT *a, const DBT *b)
+{
+	char *au, *bu;
+
+	/* we need to special-case the header node, always at the top */
+	if (a->size == HEADER_KEY_LEN && b->size == HEADER_KEY_LEN
+	    && memcmp(a->data, b->data, HEADER_KEY_LEN) == 0)
+		return 0;
+	else if (a->size == HEADER_KEY_LEN
+	    && memcmp(a->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
+		return -1;
+	else if (b->size == HEADER_KEY_LEN
+		 && memcmp(b->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
+		return 1;
+
+	/* this costs, but saves us duplicating key compare code */
+	au = g_alloca(a->size+1);
+	memcpy(au, a->data, a->size);
+	au[a->size] = 0;
+
+	bu = g_alloca(b->size+1);
+	memcpy(bu, b->data, b->size);
+	bu[b->size] = 0;
+
+	return CFS_CLASS(db->app_private)->uid_cmp(au, bu, db->app_private);
+}
+
 static int cds_rename(CamelFolderSummary *s, const char *new)
 {
 	g_warning("rename not implemented");
@@ -272,7 +323,9 @@ static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	int res;
 
-	res = cds_save_info((CamelFolderSummaryDisk *)s, mi);
+	/* NOOVERWRITE ensures we dont get duplicates */
+
+	res = cds_save_info((CamelFolderSummaryDisk *)s, mi, DB_NOOVERWRITE);
 	if (res == 0) {
 		CAMEL_SUMMARY_LOCK(s, ref_lock);
 		g_hash_table_insert(p->cache, mi->uid, mi);
@@ -285,21 +338,32 @@ static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
 	return res;
 }
 
-static void cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
+static int cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	DBT key;
+	int res;
 
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 	g_hash_table_remove(p->cache, mi->uid);
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
+	/* Should foldersummary.remove() return some NOTFOUND code? */
+
 	key.data = mi->uid;
 	key.size = strlen(mi->uid);
-	if (p->db->del(p->db, NULL, &key, 0) != 0)
+	res = p->db->del(p->db, NULL, &key, 0);
+	if (res == DB_NOTFOUND)
+		return -1;
+	else if (res != 0) {
 		/* failed, now what? */ ;
+		p->db->err(p->db, res, "removing info '%s' from database", mi->uid);
+		res = 0;
+	}
 
 	cds_parent->remove(s, mi);
+
+	return res;
 }
 
 static void cds_clear(CamelFolderSummary *s)
@@ -345,14 +409,16 @@ static CamelMessageInfo *cds_get_record(CamelFolderSummaryDisk *s, DBT *key, DBT
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
 		mi = camel_message_info_new((CamelFolderSummary *)s);
+		mi->uid = uid;
 
 		crd = camel_record_decoder_new(data->data, data->size);
 		if (CDS_CLASS(s)->decode((CamelFolderSummaryDisk *)s, (CamelMessageInfoDisk *)mi, crd) != 0) {
-			/* wtf now? */
+			/* I guess we should then forcibly remove the record if we can't grok it */
+			camel_record_decoder_free(crd);
+			camel_message_info_free(mi);
+			return NULL;
 		}
 		camel_record_decoder_free(crd);
-
-		mi->uid = uid;
 
 		CAMEL_SUMMARY_LOCK(s, ref_lock);
 		info = g_hash_table_lookup(p->cache, uid);
@@ -768,7 +834,7 @@ cds_sync(CamelFolderSummaryDisk *cds, GPtrArray *infos, CamelException *ex)
 
 	for (i=0;i<infos->len;i++) {
 		d(printf("Saving message '%s'\n", camel_message_info_uid(infos->pdata[i])));
-		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i]);
+		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i], 0);
 	}
 	cds_save_header(cds);
 
@@ -779,6 +845,9 @@ static void
 camel_folder_summary_disk_class_init(CamelFolderSummaryDiskClass *klass)
 {
 	cds_parent = (CamelFolderSummaryClass *)camel_folder_summary_get_type();
+
+	((CamelFolderSummaryClass *)klass)->uid_cmp = cds_uid_cmp;
+	((CamelFolderSummaryClass *)klass)->info_cmp = cds_info_cmp;
 
 	((CamelFolderSummaryClass *)klass)->rename = cds_rename;
 
@@ -874,39 +943,6 @@ get_env(CamelService *s)
 	return dbenv;
 }
 
-/* FIXME: this must be configurable */
-static int
-cds_key_cmp(DB *db, const DBT *a, const DBT *b)
-{
-	int av = 0, bv = 0, i;
-	unsigned char *p;
-
-	/* we need to special-case the header node */
-	if (a->size == HEADER_KEY_LEN && b->size == HEADER_KEY_LEN
-	    && memcmp(a->data, b->data, HEADER_KEY_LEN) == 0)
-		return 0;
-	else if (a->size == HEADER_KEY_LEN
-	    && memcmp(a->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
-		return -1;
-	else if (b->size == HEADER_KEY_LEN
-		 && memcmp(b->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
-		return 1;
-
-	p = a->data;
-	for (i=0;i<a->size;i++)
-		av = av*10 + (p[i] - '0');
-	p = b->data;
-	for (i=0;i<b->size;i++)
-		bv = bv*10 + (p[i] - '0');
-
-	if (av < bv)
-		return -1;
-	else if (av > bv)
-		return 1;
-	else
-		return 0;
-}
-
 CamelFolderSummaryDisk *
 camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFolder *folder)
 {
@@ -919,8 +955,9 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 	p->search = camel_folder_search_new();
 
 	db_create(&p->db, get_env((CamelService *)folder->parent_store), 0);
+	p->db->app_private = cds;
 
-	p->db->set_bt_compare(p->db, cds_key_cmp);
+	p->db->set_bt_compare(p->db, cds_dbt_cmp);
 	//? db->set_flags(db, DB_RECNUM);
 
 	if ((err = p->db->open(p->db, NULL, "folders", folder->full_name, DB_BTREE, DB_CREATE|DB_THREAD, 0666)) != 0)
@@ -952,21 +989,12 @@ cds_get_changed(void *k, void *v, void *d)
 }
 
 static int
-cds_info_cmp(const void *ap, const void *bp)
+cds_array_info_cmp(const void *ap, const void *bp, void *data)
 {
 	const CamelMessageInfo *a = ((const CamelMessageInfo **)ap)[0];
 	const CamelMessageInfo *b = ((const CamelMessageInfo **)bp)[0];
-	unsigned long av, bv;
 
-	av = strtoul(a->uid, NULL, 10);
-	bv = strtoul(b->uid, NULL, 10);
-
-	if (av < bv)
-		return -1;
-	else if (av > bv)
-		return 1;
-	else
-		return 0;
+	return CFS_CLASS(data)->info_cmp(a, b, data);
 }
 
 void
@@ -984,7 +1012,7 @@ camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds, CamelException *ex)
 	CAMEL_SUMMARY_UNLOCK(cds, ref_lock);
 
 	/* sorted for your convenience */
-	qsort(infos->pdata, infos->len, sizeof(infos->pdata[0]), cds_info_cmp);
+	g_qsort_with_data(infos->pdata, infos->len, sizeof(infos->pdata[0]), cds_array_info_cmp, cds);
 
 	CDS_CLASS(cds)->sync(cds, infos, ex);
 

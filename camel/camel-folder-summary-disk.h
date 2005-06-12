@@ -26,6 +26,9 @@
 struct _CamelRecordEncoder;
 struct _CamelRecordDecoder;
 
+struct _DB;
+struct _DBT;
+
 #define CAMEL_FOLDER_SUMMARY_DISK(obj)         CAMEL_CHECK_CAST (obj, camel_folder_summary_disk_get_type (), CamelSummaryFolderDisk)
 #define CAMEL_FOLDER_SUMMARY_DISK_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_folder_summary_disk_get_type (), CamelSummaryFolderDiskClass)
 #define CAMEL_IS_FOLDER_SUMMARY_DISK(obj)      CAMEL_CHECK_TYPE (obj, camel_folder_summary_disk_get_type ())
@@ -55,6 +58,10 @@ struct _CamelFolderSummaryDisk {
 
 struct _CamelFolderSummaryDiskClass {
 	CamelFolderSummaryClass parent_class;
+
+	/* compare db keys, db->user_data == summary */
+	/* this will call CamelFolderSummary:uid_cmp by default so shouldn't normally need overriding */
+	//int (*dbt_cmp)(struct _DB *db, const struct _DBT *a, const struct _DBT *b);
 
 	void (*encode_header)(CamelFolderSummaryDisk *, struct _CamelRecordEncoder *);
 	int (*decode_header)(CamelFolderSummaryDisk *, struct _CamelRecordDecoder *);

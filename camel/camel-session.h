@@ -76,13 +76,9 @@ typedef struct _CamelSessionThreadMsg CamelSessionThreadMsg;
 typedef struct {
 	CamelObjectClass parent_class;
 
-	CamelService *  (*get_service)       (CamelSession *session,
-					      const char *url_string,
-					      CamelProviderType type,
-					      CamelException *ex);
-	char *          (*get_storage_path)  (CamelSession *session,
-					      CamelService *service,
-					      CamelException *ex);
+	CamelService *  (*get_service)       (CamelSession *session, const char *url_string, CamelProviderType type, CamelException *ex);
+	char *          (*get_uri)           (CamelSession *session, CamelService *service);
+	char *          (*get_storage_path)  (CamelSession *session, CamelService *service, CamelException *ex);
 
 	char *          (*get_password)      (CamelSession *session,
 					      CamelService *service,
@@ -123,10 +119,9 @@ CamelType camel_session_get_type (void);
 void            camel_session_construct             (CamelSession *session,
 						     const char *storage_path);
 
-CamelService *  camel_session_get_service           (CamelSession *session,
-						     const char *url_string,
-						     CamelProviderType type,
-						     CamelException *ex);
+CamelService *  camel_session_get_service           (CamelSession *session, const char *url_string, CamelProviderType type, CamelException *ex);
+char *          camel_session_get_uri               (CamelSession *session, CamelService *);
+
 CamelService *  camel_session_get_service_connected (CamelSession *session, 
 						     const char *url_string,
 						     CamelProviderType type, 

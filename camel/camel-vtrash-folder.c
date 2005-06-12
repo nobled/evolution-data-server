@@ -93,7 +93,9 @@ CamelFolder *
 camel_vtrash_folder_new (CamelStore *parent_store, camel_vtrash_folder_t type)
 {
 	CamelVTrashFolder *vtrash;
-	
+
+	return NULL;
+
 	g_assert(type < CAMEL_VTRASH_FOLDER_LAST);
 
 	vtrash = (CamelVTrashFolder *)camel_object_new(camel_vtrash_folder_get_type());
@@ -144,6 +146,11 @@ vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 			     CamelFolder *dest, GPtrArray **transferred_uids,
 			     gboolean delete_originals, CamelException *ex)
 {
+#warning "not even started"
+	camel_exception_setv(ex, 1, "unimplemented");
+	return;
+
+#if 0
 	CamelVeeMessageInfo *mi;
 	int i;
 	GHashTable *batch = NULL;
@@ -220,6 +227,7 @@ vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 		g_hash_table_foreach(batch, (GHFunc)transfer_messages, ex);
 		g_hash_table_destroy(batch);
 	}
+#endif
 }
 
 static GPtrArray *
@@ -285,6 +293,7 @@ vtrash_search(CamelFolder *folder, const char *expression, GPtrArray *uids, Came
 static void
 vtrash_uid_removed(CamelVTrashFolder *vf, const char *uid, char hash[8])
 {
+#if 0
 	char *vuid;
 	CamelVeeMessageInfo *vinfo;
 
@@ -297,11 +306,13 @@ vtrash_uid_removed(CamelVTrashFolder *vf, const char *uid, char hash[8])
 		camel_folder_summary_remove(((CamelFolder *)vf)->summary, (CamelMessageInfo *)vinfo);
 		camel_message_info_free(vinfo);
 	}
+#endif
 }
 
 static void
 vtrash_uid_added(CamelVTrashFolder *vf, const char *uid, CamelMessageInfo *info, char hash[8])
 {
+#if 0
 	char *vuid;
 	CamelVeeMessageInfo *vinfo;
 
@@ -316,6 +327,7 @@ vtrash_uid_added(CamelVTrashFolder *vf, const char *uid, CamelMessageInfo *info,
 		camel_folder_change_info_change_uid(((CamelVeeFolder *)vf)->changes, vuid);
 		camel_message_info_free(vinfo);
 	}
+#endif
 }
 
 static void

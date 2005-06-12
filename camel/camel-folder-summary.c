@@ -101,7 +101,7 @@ add_array(CamelFolderSummary *s, GPtrArray *mis)
 	return 0;
 }
 
-static void
+static int
 cfs_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 {
 	guint32 flags;
@@ -117,15 +117,20 @@ cfs_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 		s->deleted_count--;
 	if (flags & CAMEL_MESSAGE_JUNK)
 		s->junk_count--;
+
+	return 0;
 }
 
-static void
+static int
 remove_array(CamelFolderSummary *s, GPtrArray *mis)
 {
-	int i;
+	int i, res = 0;
 
 	for (i=0;i<mis->len;i++)
-		camel_folder_summary_remove(s, mis->pdata[i]);
+		if (camel_folder_summary_remove(s, mis->pdata[i]) != 0)
+			res = -1;
+
+	return res;
 }
 
 static void
@@ -711,14 +716,6 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	CFS_CLASS(s)->clear(s);
 }
 
-/* Get a function which will compare the uid's (keys) and return
-   the same sort order as used internally.
-   Allows simplified algorithms to be used based on key sort order */
-GCompareFunc camel_folder_summary_uid_cmp(CamelFolderSummary *s)
-{
-	return CFS_CLASS(s)->uid_cmp;
-}
-
 /**
  * camel_folder_summary_remove:
  * @summary: a #CamelFolderSummary object
@@ -726,16 +723,16 @@ GCompareFunc camel_folder_summary_uid_cmp(CamelFolderSummary *s)
  * 
  * Remove a specific @info record from the summary.
  **/
-void
+int
 camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info)
 {
-	CFS_CLASS(s)->remove(s, info);
+	return CFS_CLASS(s)->remove(s, info);
 }
 
-void
+int
 camel_folder_summary_remove_array(CamelFolderSummary *s, GPtrArray *infos)
 {
-	CFS_CLASS(s)->remove_array(s, infos);
+	return CFS_CLASS(s)->remove_array(s, infos);
 }
 
 CamelMessageIterator *
@@ -1574,6 +1571,9 @@ static CamelMessageIteratorVTable infos_iter_vtable = {
 void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit)
 {
 	struct _infos_iter *ait = camel_message_iterator_new(&infos_iter_vtable, sizeof(*ait));
+
+	/* FIXME: should we sort this so the iterator is in canonical folder-summary order?
+	   Yes almost certainly we should ... */
 
 	if (freeit)
 		ait->mis = mis;

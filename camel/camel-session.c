@@ -49,86 +49,6 @@
 
 #define CS_CLASS(so) ((CamelSessionClass *)((CamelObject *)so)->klass)
 
-static CamelService *get_service (CamelSession *session,
-				  const char *url_string,
-				  CamelProviderType type,
-				  CamelException *ex);
-static char *get_storage_path (CamelSession *session,
-			       CamelService *service,
-			       CamelException *ex);
-
-static void *session_thread_msg_new(CamelSession *session, CamelSessionThreadOps *ops, unsigned int size);
-static void session_thread_msg_free(CamelSession *session, CamelSessionThreadMsg *msg);
-static int session_thread_queue(CamelSession *session, CamelSessionThreadMsg *msg, int flags);
-static void session_thread_wait(CamelSession *session, int id);
-static void session_thread_status(CamelSession *session, CamelSessionThreadMsg *msg, const char *text, int pc);
-
-static void
-camel_session_init (CamelSession *session)
-{
-	session->online = TRUE;
-	session->priv = g_malloc0(sizeof(*session->priv));
-	
-	session->priv->lock = g_mutex_new();
-	session->priv->thread_lock = g_mutex_new();
-	session->priv->thread_id = 1;
-	session->priv->thread_active = g_hash_table_new(NULL, NULL);
-	session->priv->thread_queue = NULL;
-	session->priv->thread_new = NULL;
-}
-
-static void
-camel_session_finalise (CamelObject *o)
-{
-	CamelSession *session = (CamelSession *)o;
-	
-	g_hash_table_destroy(session->priv->thread_active);
-	if (session->priv->thread_queue)
-		e_thread_destroy(session->priv->thread_queue);
-	if (session->priv->thread_new)
-		e_thread_destroy(session->priv->thread_new);
-
-	g_free(session->storage_path);
-	
-	g_mutex_free(session->priv->lock);
-	g_mutex_free(session->priv->thread_lock);
-	
-	g_free(session->priv);
-}
-
-static void
-camel_session_class_init (CamelSessionClass *camel_session_class)
-{
-	/* virtual method definition */
-	camel_session_class->get_service = get_service;
-	camel_session_class->get_storage_path = get_storage_path;
-	
-	camel_session_class->thread_msg_new = session_thread_msg_new;
-	camel_session_class->thread_msg_free = session_thread_msg_free;
-	camel_session_class->thread_queue = session_thread_queue;
-	camel_session_class->thread_wait = session_thread_wait;
-	camel_session_class->thread_status = session_thread_status;
-}
-
-CamelType
-camel_session_get_type (void)
-{
-	static CamelType camel_session_type = CAMEL_INVALID_TYPE;
-
-	if (camel_session_type == CAMEL_INVALID_TYPE) {
-		camel_session_type = camel_type_register (
-			camel_object_get_type (), "CamelSession",
-			sizeof (CamelSession),
-			sizeof (CamelSessionClass),
-			(CamelObjectClassInitFunc) camel_session_class_init,
-			NULL,
-			(CamelObjectInitFunc) camel_session_init,
-			(CamelObjectFinalizeFunc) camel_session_finalise);
-	}
-
-	return camel_session_type;
-}
-
 /**
  * camel_session_construct:
  * @session: a #CamelSession object to construct
@@ -231,6 +151,27 @@ camel_session_get_service (CamelSession *session, const char *url_string,
 	CAMEL_SESSION_UNLOCK (session, lock);
 
 	return service;
+}
+
+static char *
+get_uri(CamelSession *session, CamelService *service)
+{
+	return camel_url_to_string(service->url, CAMEL_URL_HIDE_PASSWORD);
+}
+
+/* gets the uri representing service, by default this is just the
+   uri of the service, but may be overriden by subclasses, e.g.
+   for indirect service mapping (accounts!) */
+char *
+camel_session_get_uri(CamelSession *session, CamelService *service)
+{
+	char *uri;
+
+	CAMEL_SESSION_LOCK (session, lock);
+	uri = CS_CLASS(session)->get_uri(session, service);
+	CAMEL_SESSION_UNLOCK (session, lock);
+
+	return uri;
 }
 
 /**
@@ -685,4 +626,71 @@ camel_session_set_check_junk (CamelSession *session, gboolean check_junk)
 	g_assert(CAMEL_IS_SESSION(session));
 
 	session->check_junk = check_junk;
+}
+
+
+static void
+camel_session_init (CamelSession *session)
+{
+	session->online = TRUE;
+	session->priv = g_malloc0(sizeof(*session->priv));
+	
+	session->priv->lock = g_mutex_new();
+	session->priv->thread_lock = g_mutex_new();
+	session->priv->thread_id = 1;
+	session->priv->thread_active = g_hash_table_new(NULL, NULL);
+	session->priv->thread_queue = NULL;
+	session->priv->thread_new = NULL;
+}
+
+static void
+camel_session_finalise (CamelObject *o)
+{
+	CamelSession *session = (CamelSession *)o;
+	
+	g_hash_table_destroy(session->priv->thread_active);
+	if (session->priv->thread_queue)
+		e_thread_destroy(session->priv->thread_queue);
+	if (session->priv->thread_new)
+		e_thread_destroy(session->priv->thread_new);
+
+	g_free(session->storage_path);
+	
+	g_mutex_free(session->priv->lock);
+	g_mutex_free(session->priv->thread_lock);
+	
+	g_free(session->priv);
+}
+
+static void
+camel_session_class_init (CamelSessionClass *camel_session_class)
+{
+	camel_session_class->get_service = get_service;
+	camel_session_class->get_uri = get_uri;
+	camel_session_class->get_storage_path = get_storage_path;
+	
+	camel_session_class->thread_msg_new = session_thread_msg_new;
+	camel_session_class->thread_msg_free = session_thread_msg_free;
+	camel_session_class->thread_queue = session_thread_queue;
+	camel_session_class->thread_wait = session_thread_wait;
+	camel_session_class->thread_status = session_thread_status;
+}
+
+CamelType
+camel_session_get_type (void)
+{
+	static CamelType camel_session_type = CAMEL_INVALID_TYPE;
+
+	if (camel_session_type == CAMEL_INVALID_TYPE) {
+		camel_session_type = camel_type_register (
+			camel_object_get_type (), "CamelSession",
+			sizeof (CamelSession),
+			sizeof (CamelSessionClass),
+			(CamelObjectClassInitFunc) camel_session_class_init,
+			NULL,
+			(CamelObjectInitFunc) camel_session_init,
+			(CamelObjectFinalizeFunc) camel_session_finalise);
+	}
+
+	return camel_session_type;
 }

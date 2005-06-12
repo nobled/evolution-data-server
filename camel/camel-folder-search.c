@@ -448,6 +448,64 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelMes
 	return iter;
 }
 
+/* We could just evaluate this, as a different language input
+   But we parse by hand ... it isn't hard */
+static int
+is_static(ESExpTerm *t)
+{
+	int i, res = TRUE;
+	const char *name;
+
+	switch (t->type) {
+	case ESEXP_TERM_FUNC:
+		/* check all functions which return data which can change */
+		name = t->value.func.sym->name;
+		if (!strcmp(name, "user-tag")
+		    || !strcmp(name, "user-flag")
+		    || !strcmp(name, "system-flag")
+		    || !strcmp(name, "get-current-date"))
+			return FALSE;
+		/* falls through */
+	case ESEXP_TERM_IFUNC:
+		/* check all arguments evaluated by us or esexp */
+		res = TRUE;
+		for (i=0;i<t->value.func.termcount && res;i++)
+			res = is_static(t->value.func.terms[i]);
+		break;
+	case ESEXP_TERM_STRING:
+	case ESEXP_TERM_INT:
+	case ESEXP_TERM_BOOL:
+	case ESEXP_TERM_TIME:
+		/* all fixed data is immutable */
+	default:
+		break;
+	}
+
+	return res;
+}
+
+/* TODO: we could expose the ESExpTerm, then we wouldn't have to parse it every time */
+int
+camel_folder_search_is_static(CamelFolderSearch *search, const char *expr, CamelException *ex)
+{
+	ESExpTerm *term;
+	int res;
+
+	/* returns true if this is a 'static' search, based on items
+	   which are immutable, like headers or content */
+
+	e_sexp_input_text(search->sexp, expr, strlen(expr));
+	if ((term = e_sexp_parse(search->sexp)) == NULL) {
+		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(search->sexp), expr);
+		return TRUE;
+	}
+
+	res = is_static(term);
+	e_sexp_term_free(search->sexp, term);
+
+	return res;
+}
+
 #if 0
 /**
  * camel_folder_search_search:
@@ -659,21 +717,17 @@ search_match_threads(struct _ESExp *f, int argc, struct _ESExpTerm **argv, Camel
 	ESExpResult *r;
 	int i, type;
 	GHashTable *results;
+	static int called;
 
-	/* TODO: how on earth to do this??  set a mode variable?  track each match?  this is tricky! */
-	r = e_sexp_result_new(f, ESEXP_RES_BOOL);
-	r->value.bool = TRUE;
-	return r;
-#warning "match-threads not working"
-#if 0
-	/* not supported in match-all */
-	if (search->current)
-		e_sexp_fatal_error(f, _("(match-threads) not allowed inside match-all"));
+	if (!called) {
+		g_warning("match-threads not implemented properly!");
+		called = 1;
+	}
 
 	if (argc == 0)
 		e_sexp_fatal_error(f, _("(match-threads) requires a match type string"));
 
-	r = e_sexp_term_eval(f, argv[0]);
+	r = e_sexp_term_eval(f, argv[0], search);
 	if (r->type != ESEXP_RES_STRING)
 		e_sexp_fatal_error(f, _("(match-threads) requires a match type string"));
 
@@ -693,12 +747,18 @@ search_match_threads(struct _ESExp *f, int argc, struct _ESExpTerm **argv, Camel
 	for (i=1;i<argc;i++) {
 		if (r)
 			e_sexp_result_free(f, r);
-		r = e_sexp_term_eval(f, argv[i]);
+		r = e_sexp_term_eval(f, argv[i], search);
 	}
 
-	if (r == NULL || r->type != ESEXP_RES_ARRAY_PTR)
+	if (r == NULL || r->type != ESEXP_RES_BOOL)
 		e_sexp_fatal_error(f, _("(match-threads) expects an array result"));
 
+	return r;
+#warning "how to implement match-threads ..."
+	/* I guess ...
+	   If we get a match with this item, we add it as a candidate for later thread matching.
+	   We can then perform the thread matching at that time */
+#if 0
 	if (type == 0)
 		return r;
 

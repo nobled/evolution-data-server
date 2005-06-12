@@ -465,6 +465,7 @@ header_source (struct _ESExp *f, int argc, struct _ESExpResult **argv, FilterMes
 	CamelProvider *provider;
 	CamelURL *uria, *urib;
 
+#warning "Fix source stuff, just use strcmp?  uri's should be canonicalised by get_uri anyway?"
 	if (fms->source) {
 		src = fms->source;
 	} else {

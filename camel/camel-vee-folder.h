@@ -36,6 +36,8 @@ extern "C" {
 #define CAMEL_VEE_FOLDER_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_vee_folder_get_type (), CamelVeeFolderClass)
 #define CAMEL_IS_VEE_FOLDER(obj)      CAMEL_CHECK_TYPE (obj, camel_vee_folder_get_type ())
 
+struct _CamelVeeMessageInfo;
+
 typedef struct _CamelVeeFolder      CamelVeeFolder;
 typedef struct _CamelVeeFolderClass CamelVeeFolderClass;
 
@@ -45,6 +47,7 @@ struct _CamelVeeFolder {
 	struct _CamelVeeFolderPrivate *priv;
 
 	char *expression;	/* query expression */
+	int is_static:1;	/* static expression - dont care about message change events */
 
 	guint32 flags;		/* folder open flags */
 

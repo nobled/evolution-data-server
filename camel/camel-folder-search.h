@@ -146,6 +146,8 @@ CamelFolderSearchIterator *camel_folder_search_search(CamelFolderSearch *, const
 
 void camel_folder_search_set_body_index(CamelFolderSearch *search, CamelIndex *index);
 
+int camel_folder_search_is_static(CamelFolderSearch *search, const char *expr, CamelException *ex);
+
 #if 0
 /* This stuff currently gets cleared when you run a search ... what on earth was i thinking ... */
 void camel_folder_search_set_folder(CamelFolderSearch *search, CamelFolder *folder);
