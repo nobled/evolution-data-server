@@ -23,10 +23,6 @@
 #include <config.h>
 #endif
 
-#include "camel-mbox-summary.h"
-#include "camel/camel-mime-message.h"
-#include "camel/camel-operation.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -37,6 +33,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include "camel-mbox-folder.h"
 #include "camel-mbox-summary.h"
 #include "camel/camel-file-utils.h"
 #include "camel/camel-mime-message.h"
@@ -44,13 +41,14 @@
 #include "camel-i18n.h"
 #include "camel-record.h"
 
+/* NB, this is only for the messy iterator_get interface,
+   which could be better hidden */
+#include "db.h"
+
 #define io(x)
 #define d(x) (printf("%s(%d): ", __FILE__, __LINE__),(x))
 
 #define CAMEL_MBOX_SUMMARY_VERSION (1)
-
-static char *decode_xev(const char *xev, guint32 *flagsp);
-static char *encode_xev(const char *uid, guint32 flags);
 
 static void summary_header_encode(CamelFolderSummaryDisk *s, CamelRecordEncoder *cre);
 static int summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd);
@@ -152,6 +150,20 @@ mbox_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 }
 #endif
 
+static int mbox_add(CamelFolderSummary *s, CamelMessageInfo *mi)
+{
+	int res;
+
+	res = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->add(s, mi);
+	if (res == 0) {
+		guint32 uid = strtoul(camel_message_info_uid(mi), NULL, 10);
+
+		camel_mbox_summary_last_uid((CamelMboxSummary *)s, uid);
+	}
+
+	return res;
+}
+
 static void
 mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelException *ex)
 {
@@ -163,16 +175,13 @@ mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExceptio
 	off_t lastpos;
 	struct stat st;
 
-	/** FIXME !!!!
-
-	Must lock the mbox file!!!
-
-	*/
-
 	/* Try to also store the changes in the mbox.  If something goes wrong -
 	   tough luck, its stored in the summary ok */
 
 	printf("attempting to store '%d changes to mbox file\n", changes->len);
+
+	if (camel_local_folder_lock((CamelLocalFolder *)((CamelFolderSummary *)cds)->folder, CAMEL_LOCK_WRITE, NULL) == -1)
+		goto done;
 
 	camel_operation_start(NULL, _("Storing folder"));
 
@@ -222,7 +231,7 @@ mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExceptio
 		}
 
 		xev = camel_mime_parser_header(mp, "X-Evolution", &xevoffset);
-		if (xev == NULL || (uid = decode_xev(xev, &flags)) == NULL) {
+		if (xev == NULL || (uid = camel_mbox_summary_decode_xev(xev, &flags)) == NULL) {
 			printf("no x-evolution or bad format\n");
 			goto nextmsg;
 		}
@@ -233,7 +242,7 @@ mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExceptio
 		}
 
 		/* the raw header contains a leading ' ', so (dis)count that too */
-		xevnew = encode_xev(uid, camel_message_info_flags(info));
+		xevnew = camel_mbox_summary_encode_xev(uid, camel_message_info_flags(info));
 		if (strlen(xev)-1 != strlen(xevnew)) {
 			printf("xev changed sized was '%s' now '%s'\n", xev, xevnew);
 			goto nextmsg;
@@ -268,6 +277,8 @@ fail:
 
 	camel_operation_end(NULL);
 
+	camel_local_folder_unlock((CamelLocalFolder *)((CamelFolderSummary *)cds)->folder, CAMEL_LOCK_WRITE);
+done:
 	/* FIXME: we actually wnat to sync the db first ...  then update the mbox/mtime, then
 	   re-save the header */
 	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->sync(cds, changes, ex);
@@ -288,6 +299,8 @@ camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 	((CamelFolderSummaryDiskClass *)klass)->decode = message_info_decode;
 
 	((CamelFolderSummaryDiskClass *)klass)->sync = mbox_sync_changes;
+
+	sklass->add = mbox_add;
 
 	sklass->message_info_alloc = mbox_message_info_alloc;
 	sklass->message_info_new_from_header  = message_info_new_from_header;
@@ -337,8 +350,22 @@ CamelMboxSummary *
 camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index)
 {
 	CamelMboxSummary *new = (CamelMboxSummary *)camel_object_new(camel_mbox_summary_get_type());
+	const CamelMessageInfo *mi;
+	CamelMessageIterator *iter;
 
 	camel_local_summary_construct((CamelLocalSummary *)new, folder, filename, mbox_name, index);
+
+	iter = camel_folder_summary_search((CamelFolderSummary *)new, NULL, NULL, NULL, NULL);
+	mi = camel_message_iterator_disk_get(iter, DB_LAST, DB_PREV, NULL);
+	if (mi) {
+		guint32 uid = strtoul(camel_message_info_uid(mi), NULL, 10);
+
+		printf("Last uid in database %s is %d, last in header is %d\n", folder->full_name, (guint32)uid, (guint32)new->nextuid);
+		camel_mbox_summary_last_uid(new, uid);
+	} else {
+		printf("Nothing in the database %s, last uid in header is %d\n", folder->full_name, (guint32)new->nextuid);
+	}
+
 	return new;
 }
 
@@ -347,8 +374,26 @@ void camel_mbox_summary_xstatus(CamelMboxSummary *mbs, int state)
 	mbs->xstatus = state;
 }
 
-static char *
-decode_xev(const char *xev, guint32 *flagsp)
+/* NB: must have write lock on folder */
+guint32 camel_mbox_summary_next_uid(CamelMboxSummary *mbs)
+{
+	guint32 uid;
+
+	uid = mbs->nextuid++;
+
+	return uid;
+}
+
+/* NB: must have write lock on folder */
+void camel_mbox_summary_last_uid(CamelMboxSummary *mbs, guint32 uid)
+{
+	uid++;
+	if (uid > mbs->nextuid)
+		mbs->nextuid = uid;
+}
+
+char *
+camel_mbox_summary_decode_xev(const char *xev, guint32 *flagsp)
 {
 	guint32 uid, flags;
 	char *header;
@@ -373,8 +418,8 @@ decode_xev(const char *xev, guint32 *flagsp)
 	return g_strdup(uidstr);
 }
 
-static char *
-encode_xev(const char *uidstr, guint32 flags)
+char *
+camel_mbox_summary_encode_xev(const char *uidstr, guint32 flags)
 {
 	guint32 uid;
 
@@ -409,15 +454,15 @@ summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd)
 
 	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->decode_header(s, crd);
 
-	printf("decoding message summary\n");
-
 	camel_record_decoder_reset(crd);
 	while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
 		switch (tag) {
 		case CFS_MBOX_SECTION_FOLDERINFO:
 			((CamelMboxSummary *)s)->time = camel_record_decoder_timet(crd);
 			((CamelMboxSummary *)s)->folder_size = camel_record_decoder_sizet(crd);
-			printf("decode folderinfo time '%d' and size %d\n", (int)((CamelMboxSummary *)s)->time, (int)((CamelMboxSummary *)s)->folder_size);
+			((CamelMboxSummary *)s)->nextuid = camel_record_decoder_int32(crd);
+			/* We can actually get the last uid in the database cheaply, perhaps
+			   we should use that to get the nextuid, at each startup */
 			break;
 		}
 	}
@@ -430,13 +475,13 @@ summary_header_encode(CamelFolderSummaryDisk *s, CamelRecordEncoder *cre)
 {
 	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->encode_header(s, cre);
 
-	printf("encoding mbox header '%d' and %d\n", (int)((CamelMboxSummary *)s)->time, (int)((CamelMboxSummary *)s)->folder_size);
-
 	camel_record_encoder_start_section(cre, CFS_MBOX_SECTION_FOLDERINFO, 0);
 	camel_record_encoder_timet(cre, ((CamelMboxSummary *)s)->time);
 	camel_record_encoder_sizet(cre, ((CamelMboxSummary *)s)->folder_size);
+	camel_record_encoder_int32(cre, ((CamelMboxSummary *)s)->nextuid);
 	camel_record_encoder_end_section(cre);
 }
+
 
 static CamelMessageInfo *
 message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
@@ -532,8 +577,10 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 	CamelMimeParser *mp;
 	CamelMessageIterator *iter;
 	const CamelMessageInfo *iterinfo = NULL;
+	GPtrArray *remove;
 	int fd;
 	int ok = 0;
+	guint32 lastuid = 0;
 	struct stat st;
 	off_t size = 0;
 
@@ -541,9 +588,9 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 	//cls->index_force = FALSE;
 
-	camel_operation_start(NULL, _("Storing folder"));
+	camel_operation_start(NULL, _("Checking new mail"));
 
-	fd = open(((CamelLocalSummary *)s)->folder_path, O_RDONLY);
+	fd = open(((CamelLocalSummary *)s)->folder_path, O_RDWR);
 	if (fd == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Could not open folder: %s: %s"),
@@ -559,14 +606,11 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 	camel_mime_parser_init_with_fd(mp, fd);
 	camel_mime_parser_scan_from(mp, TRUE);
 
-	/* TODO: how do we jump to a uid?  camel disk folder summary could do it? */
-	/* how do we match the uid? */
-	iter = camel_folder_summary_search(s, NULL, NULL, NULL);
-
-#if 0
-	camel_mime_parser_seek(mp, offset, SEEK_SET);
+	/* If the offset > 0, it must mean we're scanning from the end of the known universe
+	   in our summary, so assume every message is new */
 
 	if (offset > 0) {
+		camel_mime_parser_seek(mp, offset, SEEK_SET);
 		if (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM
 		    && camel_mime_parser_tell_start_from(mp) == offset) {
 			camel_mime_parser_unstep(mp);
@@ -578,18 +622,29 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		}
 	}
 
-	mbs->changes = changeinfo;
-#endif
-	// FIXME: what do we do with failures here?
-	iterinfo = camel_message_iterator_next(iter, NULL);
+	if (offset > 0) {
+		iter = NULL;
+		iterinfo = NULL;
+	} else {
+		// failures?
+		iter = camel_folder_summary_search(s, NULL, NULL, NULL, NULL);
+		iterinfo = camel_message_iterator_next(iter, NULL);
+	}
+
+	/* We can't remove nodes whilst we're walking the tree using a simple cursor,
+	   it will almost certainly deadlock the database,
+	   So we need to save all removals till the end */
+	remove = g_ptr_array_new();
 
 	while (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM) {
 		CamelMessageInfo *info;
 		off_t pc = camel_mime_parser_tell_start_from (mp) + 1;
 		struct _camel_header_raw *h;
-		char *uid;
+		char *uid = NULL;
 		const char *xev;
-		guint32 flags;
+		int xevoffset;
+		guint32 thisuid, flags = 0;
+		int fixxev = 0;
 
 		camel_operation_progress (NULL, (int) (((float) pc / size) * 100));
 
@@ -598,23 +653,39 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		case CAMEL_MIME_PARSER_STATE_MESSAGE:
 		case CAMEL_MIME_PARSER_STATE_MULTIPART:
 			h = camel_mime_parser_headers_raw(mp);
-			xev = camel_header_raw_find(&h, "x-evolution", NULL);
-			if (xev && (uid = decode_xev(xev, &flags))) {
-				//printf("message has valid x-ev, seeing if it is here already\n");
+			xev = camel_header_raw_find(&h, "x-evolution", &xevoffset);
+			if (xev && (uid = camel_mbox_summary_decode_xev(xev, &flags))) {
+				thisuid = strtoul(uid, NULL, 10);
+				camel_mbox_summary_last_uid((CamelMboxSummary *)s, thisuid);
+
+				if (thisuid < lastuid) {
+					printf("the uid is out of order, renumbering it\n");
+					/* Ok, so the mailbox violates the strict ordering requirements.
+					   Some other client must have updated the folder, and re-ordered
+					   messages in it.  Lets re-number anything we need to */
+					fixxev = 1;
+					goto add_message;
+				} else {
+					lastuid = thisuid;
+				}
 
 				while (iterinfo && strcmp(iterinfo->uid, uid) < 0) {
+					camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+					g_ptr_array_add(remove, (void *)iterinfo);
+					camel_message_info_ref((CamelMessageInfo *)iterinfo);
 					printf("Message %s vanished\n", iterinfo->uid);
-					camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 					iterinfo = camel_message_iterator_next(iter, NULL);
 				}
 
 				if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
-					g_free(uid);
 					iterinfo = camel_message_iterator_next(iter, NULL);
 					goto have_message;
 				}
+				/* We are also adding this message, but it has a valid
+				   & validly numbered xev already */
 			} else {
-				flags = CAMEL_MESSAGE_FOLDER_NOXEV;
+			add_message:
+				g_free(uid);
 				uid = NULL;
 			}
 
@@ -622,20 +693,38 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 			info = camel_message_info_new_from_header(s, h);
 			((CamelMboxMessageInfo *)info)->frompos = camel_mime_parser_tell_start_from(mp);
 			if (uid == NULL) {
-				static int myuid = 100000;
-				// FIXME: assign a real uid
-				uid = g_strdup_printf("%d", myuid++);
+				lastuid = camel_mbox_summary_next_uid((CamelMboxSummary *)s);
+				uid = g_strdup_printf("%d", lastuid);
 				printf("all new message, adding uid\n");
 			}
-
-			// FIXME: record 'no xev header' candidates for next full sync
 
 			info->uid = uid;
 			// FIXME: handle x-status/status flags properly
 			((CamelMessageInfoBase *)info)->flags |= flags;
-			// FIXME: check for duplicates
+
+			if (fixxev) {
+				char *xevnew = camel_mbox_summary_encode_xev(uid, ((CamelMessageInfoBase *)info)->flags);
+				off_t lastpos;
+				ssize_t len;
+
+				printf("renumbering msg to %s\n", uid);
+
+				/* We update any xev's we need to re-number.
+				   We dont worry about writing new x-evolution's here, they
+				   can be detected at sync time */
+
+				lastpos = lseek(fd, 0, SEEK_CUR);
+				lseek(fd, xevoffset+strlen("X-Evolution: "), SEEK_SET);
+				do {
+					len = write(fd, xevnew, strlen(xevnew));
+				} while (len == -1 && errno == EINTR);
+				lseek(fd, lastpos, SEEK_SET);
+				g_free(xevnew);
+			}
+
 			camel_folder_summary_add(s, info);
 
+			camel_folder_change_info_add_uid(changes, uid);
 			if (xev == NULL)
 				camel_folder_change_info_recent_uid(changes, uid);
 		have_message:
@@ -644,6 +733,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 			/* Scan to next from header */
 			camel_mime_parser_drop_step(mp);
 			camel_mime_parser_drop_step(mp);
+			g_free(uid);
 			break;
 		default:
 			g_error("Invalid parser state");
@@ -651,16 +741,29 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 					     camel_mime_parser_tell(mp), ((CamelLocalSummary *)s)->folder_path);
 			ok = -1;
 		}
+
+		if (camel_operation_cancel_check(NULL)) {
+			camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, "");
+			ok = -1;
+		}
 	}
 
-	camel_object_unref(CAMEL_OBJECT (mp));
+	camel_object_unref(mp);
 
-	while (iterinfo) {
-		printf("trailing message '%s' removed too\n", iterinfo->uid);
-		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-		iterinfo = camel_message_iterator_next(iter, NULL);
+	if (ok == 0) {
+		while (iterinfo) {
+			printf("trailing message '%s' removed too\n", iterinfo->uid);
+			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+			g_ptr_array_add(remove, (void *)iterinfo);
+			camel_message_info_ref((CamelMessageInfo *)iterinfo);
+			iterinfo = camel_message_iterator_next(iter, NULL);
+		}
 	}
 	camel_message_iterator_free(iter);
+
+	/* If we were cancelled, we still may have some valid results to process, so do it */
+	camel_folder_summary_remove_array(s, remove);
+	camel_folder_summary_free_array(s, remove);
 	
 	/* update the file size/mtime in the summary */
 	if (ok != -1) {
@@ -820,7 +923,6 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 
 	if (st.st_size != mbs->folder_size || st.st_mtime != mbs->time) {
 		summary_update(s, 0, changes, ex);
-		camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)s, ex);
 	}
 
 	return 0;
@@ -1377,6 +1479,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderCh
 #endif
 }
 
+/* FIXME: this has to go into camel-folder now */
 #ifdef STATUS_PINE
 static CamelMessageInfo *
 mbox_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *ci, CamelException *ex)
@@ -1384,15 +1487,18 @@ mbox_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessa
 	CamelMboxMessageInfo *mi;
 
 	mi = (CamelMboxMessageInfo *)((CamelLocalSummaryClass *)camel_mbox_summary_parent)->add(cls, msg, info, ci, ex);
-	if (mi && ((CamelMboxSummary *)cls)->xstatus) {
-		char status[8];
+	if (mi) {
+		if (((CamelMboxSummary *)cls)->xstatus) {
+			char status[8];
 
-		/* we snoop and add status/x-status headers to suit */
-		encode_status(((CamelMessageInfoBase *)mi)->flags & STATUS_STATUS, status);
-		camel_medium_set_header((CamelMedium *)msg, "Status", status);
-		encode_status(((CamelMessageInfoBase *)mi)->flags & STATUS_XSTATUS, status);
-		camel_medium_set_header((CamelMedium *)msg, "X-Status", status);
+			/* we snoop and add status/x-status headers to suit */
+			encode_status(((CamelMessageInfoBase *)mi)->flags & STATUS_STATUS, status);
+			camel_medium_set_header((CamelMedium *)msg, "Status", status);
+			encode_status(((CamelMessageInfoBase *)mi)->flags & STATUS_XSTATUS, status);
+			camel_medium_set_header((CamelMedium *)msg, "X-Status", status);
+		}
 	}
+
 
 	return (CamelMessageInfo *)mi;
 }

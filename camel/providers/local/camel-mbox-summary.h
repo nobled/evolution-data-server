@@ -52,6 +52,7 @@ struct _CamelMboxSummary {
 
 	size_t folder_size;	/* size of the mbox file, last sync */
 	time_t time;		/* time of mbox last sync */
+	guint32 nextuid;	/* the next uid to assign */
 
 	unsigned int xstatus:1;	/* do we store/honour xstatus/status headers */
 };
@@ -71,8 +72,14 @@ CamelMboxSummary      *camel_mbox_summary_new	(struct _CamelFolder *, const char
 /* do we honour/use xstatus headers, etc */
 void camel_mbox_summary_xstatus(CamelMboxSummary *mbs, int state);
 
+char *camel_mbox_summary_encode_xev(const char *uidstr, guint32 flags);
+char *camel_mbox_summary_decode_xev(const char *xev, guint32 *flagsp);
+
 /* build a new mbox from an existing mbox storing summary information */
 int camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderChangeInfo *changeinfo, int fd, int fdout, CamelException *ex);
+
+guint32 camel_mbox_summary_next_uid(CamelMboxSummary *);
+void camel_mbox_summary_last_uid(CamelMboxSummary *, guint32 uid);
 
 #endif /* ! _CAMEL_MBOX_SUMMARY_H */
 

@@ -59,7 +59,7 @@ static CamelFolderClass *parent_class = NULL;
 static CamelLocalSummary *spool_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index);
 
 static int spool_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
-static void spool_unlock(CamelLocalFolder *lf);
+static void spool_unlock(CamelLocalFolder *lf, CamelLockType type);
 
 static void spool_finalize(CamelObject * object);
 
@@ -174,7 +174,7 @@ spool_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex)
 }
 
 static void
-spool_unlock(CamelLocalFolder *lf)
+spool_unlock(CamelLocalFolder *lf, CamelLockType type)
 {
 	CamelMboxFolder *mf = (CamelMboxFolder *)lf;
 	CamelSpoolFolder *sf = (CamelSpoolFolder *)lf;

@@ -67,11 +67,17 @@ static GSList *local_folder_properties;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 #define CLOCALS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
+/* Again glib lets one down with its over-all craptasticness */
+#define LOCK_READ(l) g_static_rw_lock_reader_lock(l)
+#define UNLOCK_READ(l) g_static_rw_lock_reader_unlock(l)
+#define LOCK_WRITE(l) g_static_rw_lock_writer_lock(l)
+#define UNLOCK_WRITE(l) g_static_rw_lock_writer_unlock(l)
+
 static int local_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args);
 static int local_setv(CamelObject *object, CamelException *ex, CamelArgV *args);
 
 static int local_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
-static void local_unlock(CamelLocalFolder *lf);
+static void local_unlock(CamelLocalFolder *lf, CamelLockType type);
 
 static void local_refresh_info(CamelFolder *folder, CamelException *ex);
 
@@ -123,6 +129,10 @@ local_init(gpointer object, gpointer klass)
 	folder->summary = NULL;
 	local_folder->search = NULL;
 
+	/* funny, it doesn't look like a static lock ... */
+	local_folder->lock = g_malloc(sizeof(GStaticRWLock));
+	g_static_rw_lock_init(local_folder->lock);
+
 	local_folder->priv = g_malloc0(sizeof(*local_folder->priv));
 	local_folder->priv->search_lock = g_mutex_new();
 }
@@ -146,8 +156,8 @@ local_finalize(CamelObject * object)
 	if (local_folder->index)
 		camel_object_unref((CamelObject *)local_folder->index);
 
-	while (local_folder->locked> 0)
-		camel_local_folder_unlock(local_folder);
+	g_static_rw_lock_free(local_folder->lock);
+	g_free(local_folder->lock);
 
 	g_free(local_folder->base_path);
 	g_free(local_folder->folder_path);
@@ -296,8 +306,8 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		fi->full_name = g_strdup (full_name);
 		fi->name = g_strdup (name);
 		fi->uri = camel_url_to_string (url, 0);
-		fi->unread = folder->summary->unread_count;
-		fi->total = folder->summary->total_count;
+		fi->unread = folder->summary->root_view->unread_count;
+		fi->total = folder->summary->root_view->total_count;
 		fi->flags = CAMEL_FOLDER_NOCHILDREN;
 	
 		camel_url_free (url);
@@ -309,31 +319,34 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 	return lf;
 }
 
-/* lock the folder, may be called repeatedly (with matching unlock calls),
-   with type the same or less than the first call */
+/* not re-entrant, but it probably needs to be? */
 int camel_local_folder_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex)
 {
-	if (lf->locked > 0) {
-		/* lets be anal here - its important the code knows what its doing */
-		g_assert(lf->locktype == type || lf->locktype == CAMEL_LOCK_WRITE);
-	} else {
-		if (CLOCALF_CLASS(lf)->lock(lf, type, ex) == -1)
-			return -1;
-		lf->locktype = type;
-	}
+	if (type == CAMEL_LOCK_WRITE)
+		LOCK_WRITE(lf->lock);
+	else
+		LOCK_READ(lf->lock);
 
-	lf->locked++;
+	if (CLOCALF_CLASS(lf)->lock(lf, type, ex) == -1) {
+		if (type == CAMEL_LOCK_WRITE)
+			UNLOCK_WRITE(lf->lock);
+		else
+			UNLOCK_READ(lf->lock);
+		return -1;
+	}
 
 	return 0;
 }
 
 /* unlock folder */
-int camel_local_folder_unlock(CamelLocalFolder *lf)
+int camel_local_folder_unlock(CamelLocalFolder *lf, CamelLockType type)
 {
-	g_assert(lf->locked>0);
-	lf->locked--;
-	if (lf->locked == 0)
-		CLOCALF_CLASS(lf)->unlock(lf);
+	CLOCALF_CLASS(lf)->unlock(lf, type);
+
+	if (type == CAMEL_LOCK_WRITE)
+		UNLOCK_WRITE(lf->lock);
+	else
+		UNLOCK_READ(lf->lock);
 
 	return 0;
 }
@@ -446,10 +459,11 @@ local_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex)
 }
 
 static void
-local_unlock(CamelLocalFolder *lf)
+local_unlock(CamelLocalFolder *lf, CamelLockType type)
 {
 	/* nothing */
 }
+
 
 /* for auto-check to work */
 static void
@@ -457,8 +471,15 @@ local_refresh_info(CamelFolder *folder, CamelException *ex)
 {
 	CamelLocalFolder *lf = (CamelLocalFolder *)folder;
 
+	if (camel_local_folder_lock(lf, CAMEL_LOCK_WRITE, ex) == -1)
+		return;
+
 	if (camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex) == -1)
 		return;
+
+	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
+
+	camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)folder->summary, ex);
 
 	if (camel_folder_change_info_changed(lf->changes)) {
 		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
@@ -473,14 +494,14 @@ local_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 
 	d(printf("local sync '%s' , expunge=%s\n", folder->full_name, expunge?"true":"false"));
 
-	if (camel_local_folder_lock(lf, CAMEL_LOCK_WRITE, ex) == -1)
-		return;
+//	if (camel_local_folder_lock(lf, CAMEL_LOCK_WRITE, ex) == -1)
+//		return;
 
 	camel_object_state_write(lf);
 
 	/* if sync fails, we'll pass it up on exit through ex */
 	camel_local_summary_sync((CamelLocalSummary *)folder->summary, expunge, lf->changes, ex);
-	camel_local_folder_unlock(lf);
+//	camel_local_folder_unlock(lf);
 
 	if (camel_folder_change_info_changed(lf->changes)) {
 		camel_object_trigger_event(CAMEL_OBJECT(folder), "folder_changed", lf->changes);

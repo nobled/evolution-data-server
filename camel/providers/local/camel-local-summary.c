@@ -134,6 +134,39 @@ camel_local_summary_construct(CamelLocalSummary *new, CamelFolder *folder, const
 	camel_folder_summary_disk_construct((CamelFolderSummaryDisk *)new, folder);
 }
 
+#if 0
+		d(printf("Added, uid = %s\n", mi->uid));
+		if (info) {
+			const CamelTag *tag = camel_message_info_user_tags(info);
+			const CamelFlag *flag = camel_message_info_user_flags(info);
+
+			while (flag) {
+				camel_message_info_set_user_flag((CamelMessageInfo *)mi, flag->name, TRUE);
+				flag = flag->next;
+			}
+			
+			while (tag) {
+				camel_message_info_set_user_tag((CamelMessageInfo *)mi, tag->name, tag->value);
+				tag = tag->next;
+			}
+
+			mi->info.info.flags |= (camel_message_info_flags(info) & 0xffff);
+			mi->info.info.size = camel_message_info_size(info);
+		}
+
+		/* we need to calculate the size ourselves */
+		if (mi->info.info.size == 0) {
+			CamelStreamNull *sn = (CamelStreamNull *)camel_stream_null_new();
+
+			camel_data_wrapper_write_to_stream((CamelDataWrapper *)msg, (CamelStream *)sn);
+			mi->info.info.size = sn->written;
+			camel_object_unref((CamelObject *)sn);
+		}
+
+		camel_folder_change_info_add_uid(ci, camel_message_info_uid(mi));
+#endif
+
+
 void camel_local_summary_check_force(CamelLocalSummary *cls)
 {
 	cls->check_force = 1;
@@ -392,7 +425,7 @@ local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMess
 
 	d(printf("Adding message to summary\n"));
 	
-	mi = (CamelLocalMessageInfo *)camel_message_info_new_from_message((CamelFolderSummary *)cls, msg);
+	mi = (CamelLocalMessageInfo *)camel_message_info_new_from_message((CamelFolderSummary *)cls, msg, info);
 	if (mi) {
 		d(printf("Added, uid = %s\n", mi->uid));
 		if (info) {
@@ -422,10 +455,6 @@ local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMess
 			camel_object_unref((CamelObject *)sn);
 		}
 
-		mi->info.info.flags &= ~(CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_FLAGGED);
-		xev = camel_local_summary_encode_x_evolution(cls, mi);
-		camel_medium_set_header((CamelMedium *)msg, "X-Evolution", xev);
-		g_free(xev);
 		camel_folder_change_info_add_uid(ci, camel_message_info_uid(mi));
 
 		camel_folder_summary_add((CamelFolderSummary *)cls, (CamelMessageInfo *)mi);

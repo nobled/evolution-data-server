@@ -31,8 +31,7 @@ extern "C" {
 #include <camel/camel-folder-search.h>
 #include <camel/camel-index.h>
 #include "camel-local-summary.h"
-#include "camel-lock.h"
-
+#include <camel/camel-lock.h>
 /*  #include "camel-store.h" */
 
 #define CAMEL_LOCAL_FOLDER_TYPE     (camel_local_folder_get_type ())
@@ -56,8 +55,7 @@ typedef struct {
 
 	guint32 flags;		/* open mode flags */
 
-	int locked;		/* lock counter */
-	CamelLockType locktype;	/* what type of lock we have */
+	void *lock;		/* thread locker, used to access disk resources */
 
 	char *base_path;	/* base path of the local folder */
 	char *folder_path;	/* the path to the folder itself */
@@ -72,8 +70,6 @@ typedef struct {
 typedef struct {
 	CamelFolderClass parent_class;
 
-	/* Virtual methods */	
-	
 	/* summary factory, only used at init */
 	CamelLocalSummary *(*create_summary)(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index);
 
@@ -81,7 +77,7 @@ typedef struct {
 	int (*lock)(CamelLocalFolder *, CamelLockType type, CamelException *ex);
 
 	/* Unlock the folder for my operations */
-	void (*unlock)(CamelLocalFolder *);
+	void (*unlock)(CamelLocalFolder *, CamelLockType type);
 } CamelLocalFolderClass;
 
 
@@ -93,10 +89,9 @@ CamelLocalFolder *camel_local_folder_construct(CamelLocalFolder *lf, CamelStore 
 /* Standard Camel function */
 CamelType camel_local_folder_get_type(void);
 
-/* Lock the folder for internal use.  May be called repeatedly */
-/* UNIMPLEMENTED */
+/* Lock the folder for internal use.  Not re-entrant! */
 int camel_local_folder_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
-int camel_local_folder_unlock(CamelLocalFolder *lf);
+int camel_local_folder_unlock(CamelLocalFolder *lf, CamelLockType type);
 
 #ifdef __cplusplus
 }

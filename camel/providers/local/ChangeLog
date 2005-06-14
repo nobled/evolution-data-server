@@ -1,3 +1,11 @@
+2005-06-14  Not Zed  <NotZed@Ximian.com>
+
+	* camel-mbox-folder.c (mbox_lock): change locking so we don't
+	.lock for read operations.  This should be a big and safe (within
+	bounds) performance boost for reading many messages.
+	(mbox_get_message): major changes, use only read locking now, and
+	re-sync differently if the mailbox changed under us.
+
 2005-06-11  Not Zed  <NotZed@Ximian.com>
 
 	* camel-mbox-summary.c (mbox_sync_changes): implement a sync
