@@ -253,7 +253,7 @@ offline_folder_downsync (CamelOfflineFolder *offline, const char *expression, Ca
 
 	camel_operation_start (NULL, _("Syncing messages in folder '%s' to disk"), folder->full_name);
 
-	iter = camel_folder_search(folder, expression, NULL, ex);
+	iter = camel_folder_search(folder, NULL, expression, NULL, ex);
 	if (iter == NULL)
 		goto fail;
 

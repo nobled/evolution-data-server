@@ -144,7 +144,10 @@ void camel_folder_search_construct (CamelFolderSearch *search);
 
 CamelFolderSearchIterator *camel_folder_search_search(CamelFolderSearch *, const char *expr, CamelMessageIterator *iter, CamelException *ex);
 
+int camel_folder_search_match(CamelFolderSearchIterator *iter, const CamelMessageInfo *mi, CamelException *ex);
+
 void camel_folder_search_set_body_index(CamelFolderSearch *search, CamelIndex *index);
+
 
 int camel_folder_search_is_static(CamelFolderSearch *search, const char *expr, CamelException *ex);
 

@@ -132,6 +132,8 @@ camel_vee_folder_new(CamelStore *parent_store, const char *full, guint32 flags)
 {
 	CamelVeeFolder *vf;
 	char *tmp;
+
+	return NULL;
 	
 	if (CAMEL_IS_VEE_STORE(parent_store) && strcmp(full, CAMEL_UNMATCHED_NAME) == 0) {
 		vf = ((CamelVeeStore *)parent_store)->folder_unmatched;
@@ -481,7 +483,7 @@ static const CamelMessageInfo *vee_iterator_next(void *mitin, CamelException *ex
 			return NULL;
 
 		// FIXME: vit->mis' should be converted to the mi's on this folder? */
-		vit->source = camel_folder_search(vit->folders->pdata[vit->index++], vit->expr, NULL, ex);
+		vit->source = camel_folder_search(vit->folders->pdata[vit->index++], NULL, vit->expr, NULL, ex);
 	} while (vit->source);
 
 	return NULL;
@@ -1464,6 +1466,7 @@ subfolder_deleted(CamelFolder *f, void *event_data, CamelVeeFolder *vf)
 static void
 subfolder_renamed_update(CamelVeeFolder *vf, CamelFolder *sub, char hash[8])
 {
+#if 0
 	int count, i;
 	CamelFolderChangeInfo *changes = NULL;
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
@@ -1513,6 +1516,7 @@ subfolder_renamed_update(CamelVeeFolder *vf, CamelFolder *sub, char hash[8])
 		camel_object_trigger_event((CamelObject *)vf, "folder_changed", changes);
 		camel_folder_change_info_free(changes);
 	}
+#endif
 }
 
 static void

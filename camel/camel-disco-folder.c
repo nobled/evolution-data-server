@@ -344,7 +344,7 @@ disco_expunge (CamelFolder *folder, CamelException *ex)
 
 	// FIXME: very bad use of iterators
 	uids = g_ptr_array_new ();
-	iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL);
+	iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
 	while ((info = camel_message_iterator_next(iter, NULL))) {
 		if (camel_message_info_flags(info) & CAMEL_MESSAGE_DELETED)
 			g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
@@ -468,7 +468,7 @@ disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
 
 	camel_operation_start(NULL, _("Preparing folder '%s' for offline"), folder->full_name);
 
-	iter = camel_folder_search(folder, expression, NULL, ex);
+	iter = camel_folder_search(folder, NULL, expression, NULL, ex);
 	if (iter == NULL)
 		goto fail;
 

@@ -187,7 +187,7 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 
 	old = camel_message_info_flags(((CamelVeeMessageInfo *)mi)->real);
 	res = camel_message_info_set_flags(((CamelVeeMessageInfo *)mi)->real, flags, set);
-
+#if 0
 	new = set & flags;
 	diff = (set ^ old) & flags;
 	if (diff & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) {
@@ -214,6 +214,7 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 		else
 			mi->summary->junk_count--;
 	}
+#endif
 
 	return res;
 }
@@ -577,7 +578,7 @@ cvs_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 
 			cvs_change_infos(s, f,
 					 camel_message_iterator_infos_new(infos, FALSE),
-					 camel_folder_search(m->sub, s->expr, camel_message_iterator_infos_new(infos, TRUE), NULL));
+					 camel_folder_search(m->sub, NULL, s->expr, camel_message_iterator_infos_new(infos, TRUE), NULL));
 		}
 	}
 
@@ -588,7 +589,7 @@ cvs_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 	/* Add newly matched */
 	if (m->changes->uid_added->len)
 		cvs_add_infos(s, f,
-			      camel_folder_search(m->sub, s->expr,
+			      camel_folder_search(m->sub, NULL, s->expr,
 						  camel_message_iterator_uids_new(m->sub, m->changes->uid_added, FALSE),
 						  NULL));
 
@@ -750,8 +751,8 @@ void camel_vee_summary_set_expression(CamelVeeSummary *s, const char *expr)
 	f = (CamelVeeSummaryFolder *)s->folders.head;
 	while (f->next) {
 		cvs_change_infos(s, f,
-				 camel_folder_search(f->folder, NULL, NULL, NULL),
-				 camel_folder_search(f->folder, s->expr, NULL, NULL));
+				 camel_folder_search(f->folder, NULL, NULL, NULL, NULL),
+				 camel_folder_search(f->folder, NULL, s->expr, NULL, NULL));
 		f = f->next;
 	}
 }

@@ -176,6 +176,9 @@ vee_get_folder (CamelStore *store, const char *folder_name, guint32 flags, Camel
 	CamelFolder *folder;
 	char *name, *p;
 
+	camel_exception_setv(ex, 1, "vfolders dont work, dont even try");
+	return NULL;
+
 	vf = (CamelVeeFolder *)camel_vee_folder_new(store, folder_name, flags);
 	if ((vf->flags & CAMEL_STORE_FOLDER_PRIVATE) == 0) {
 		/* Check that parents exist, if not, create dummy ones */
@@ -198,7 +201,7 @@ vee_get_folder (CamelStore *store, const char *folder_name, guint32 flags, Camel
 			*p++='/';
 		}
 
-		change_folder(store, ((CamelFolder *)vf)->full_name, CHANGE_ADD, ((CamelFolder *)vf)->summary->unread_count);
+		change_folder(store, ((CamelFolder *)vf)->full_name, CHANGE_ADD, ((CamelFolder *)vf)->summary->root_view->unread_count);
 	}
 
 	return (CamelFolder *)vf;
@@ -285,7 +288,7 @@ vee_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExce
 			((CamelFolder *)folder)->full_name);*/
 			info->full_name = g_strdup(((CamelFolder *)folder)->full_name);
 			info->name = g_strdup(((CamelFolder *)folder)->name);
-			info->unread = ((CamelFolder *)folder)->summary->unread_count;
+			info->unread = ((CamelFolder *)folder)->summary->root_view->unread_count;
 			info->flags = CAMEL_FOLDER_NOCHILDREN|CAMEL_FOLDER_VIRTUAL;
 			g_hash_table_insert(infos_hash, info->full_name, info);
 

@@ -82,4 +82,6 @@ void camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds, CamelException 
 
 int camel_folder_summary_disk_rename(CamelFolderSummaryDisk *cds, const char *newname);
 
+const CamelMessageInfo *camel_message_iterator_disk_get(void *mitin, guint32 flags0, guint32 flags1, CamelException *ex);
+
 #endif /* ! _CAMEL_FOLDER_SUMMARY_DISK_H */

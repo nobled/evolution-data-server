@@ -29,6 +29,7 @@ extern "C" {
 
 #include <time.h>
 #include <camel/camel-object.h>
+#include <libedataserver/e-msgport.h>
 
 struct _CamelFolder;
 struct _CamelMimeParser;
@@ -42,6 +43,7 @@ struct _camel_header_raw;
 
 /*typedef struct _CamelFolderSummary      CamelFolderSummary;*/
 typedef struct _CamelFolderSummaryClass CamelFolderSummaryClass;
+typedef struct _CamelFolderView CamelFolderView;
 
 typedef struct _CamelMessageInfo CamelMessageInfo;
 typedef struct _CamelMessageIterator CamelMessageIterator;
@@ -202,12 +204,25 @@ struct _CamelMessageIteratorVTable {
 	void (*reset)(void *it);
 };
 
-struct _CamelFolderSummary {
-	CamelObject parent;
+/* view stuff, the new vfolders */
+struct _CamelFolderView {
+	struct _CamelFolderView *next;
+	struct _CamelFolderView *prev;
 
-	struct _CamelFolderSummaryPrivate *priv;
+	/* ref them for threading purposes */
+	guint32 refcount:30;
+	/* set when we're deleted, so we can abort/do the right thing if we have open cursors */
+	guint32 deleted:1;
+	guint32 is_static:1;
 
-	struct _CamelFolder *folder; /* parent folder, for events, not reffed */
+	CamelFolderSummary *summary;
+
+	char *vid;		/* unique id for all time for this view */
+	char *expr;
+	/* This is not a real iterator, but is used in one-shot search mode */
+	struct _CamelFolderSearchIterator *iter;
+
+	struct _CamelFolderChangeInfo *changes;
 
 	/* handy totals */
 	guint32 total_count;
@@ -215,10 +230,31 @@ struct _CamelFolderSummary {
 	guint32 unread_count;
 	guint32 deleted_count;
 	guint32 junk_count;
+
+	/* subclasses may add additional fields ... */
+};
+
+struct _CamelFolderSummary {
+	CamelObject parent;
+
+	struct _CamelFolderSummaryPrivate *priv;
+
+	struct _CamelFolder *folder; /* parent folder, for events, not reffed */
+
+	/* needs locking - TBD */
+	struct _CamelFolderSearch *search;
+
+	/* the root view contains all messages, and always exists */
+	/* It must be created by the implementation ! */
+	struct _CamelFolderView *root_view;
+	EDList views;
 };
 
 struct _CamelFolderSummaryClass {
 	CamelObjectClass parent_class;
+
+	/* sizes of allocated objects */
+	int view_sizeof;
 
 	/* comparison functions used to sort data items in summary order, compare uid's or compare messageinfos */
 	GCompareDataFunc uid_cmp;
@@ -243,8 +279,13 @@ struct _CamelFolderSummaryClass {
 	/*  base implements naive implementation */
 	GPtrArray *(*get_array)(CamelFolderSummary *, const GPtrArray *uids);
 
-	/* array is array of messageinfos, not uids */
-	struct _CamelMessageIterator *(*search)(CamelFolderSummary *, const char *expr, CamelMessageIterator *, CamelException *ex);
+	/* the master iterator/search/view interface */
+	struct _CamelMessageIterator *(*search)(CamelFolderSummary *, const char *vid, const char *expr, CamelMessageIterator *, CamelException *ex);
+
+	/* view management */
+	void (*view_free)(CamelFolderSummary *, CamelFolderView *);
+	CamelFolderView *(*view_create)(CamelFolderSummary *, const char *vid, const char *expr, CamelException *ex);
+	void (*view_delete)(CamelFolderSummary *, CamelFolderView *);
 
 	/* messageinfo alloc/copy/free, base class works on MessageInfoBase's */
 	CamelMessageInfo * (*message_info_alloc)(CamelFolderSummary *);
@@ -257,7 +298,7 @@ struct _CamelFolderSummaryClass {
 	/* construction functions, base works on MessageInfoBase's */
 	CamelMessageInfo * (*message_info_new_from_header)(CamelFolderSummary *, struct _camel_header_raw *);
 	CamelMessageInfo * (*message_info_new_from_parser)(CamelFolderSummary *, struct _CamelMimeParser *);
-	CamelMessageInfo * (*message_info_new_from_message)(CamelFolderSummary *, struct _CamelMimeMessage *);
+	CamelMessageInfo * (*message_info_new_from_message)(CamelFolderSummary *, struct _CamelMimeMessage *, const CamelMessageInfo *info);
 
 	/* virtual accessors on messageinfo's, base works on MessageInfoBase's */
 	const void *(*info_ptr)(const CamelMessageInfo *mi, int id);
@@ -291,7 +332,12 @@ GPtrArray *camel_folder_summary_get_array(CamelFolderSummary *, const GPtrArray 
 void camel_folder_summary_free_array(CamelFolderSummary *summary, GPtrArray *array);
 
 /* search/iterator interface */
-CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *expr, CamelMessageIterator *subset, CamelException *ex);
+CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *viewid, const char *expr, CamelMessageIterator *subset, CamelException *ex);
+
+CamelFolderView *camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid);
+void camel_folder_summary_view_unref(CamelFolderView *v);
+const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex);
+void camel_folder_summary_view_delete(CamelFolderSummary *s, const char *vid);
 
 /* remove all items */
 void camel_folder_summary_clear(CamelFolderSummary *summary);
@@ -301,7 +347,7 @@ void camel_folder_summary_clear(CamelFolderSummary *summary);
 void *camel_message_info_new(CamelFolderSummary *summary);
 void *camel_message_info_new_from_header(CamelFolderSummary *summary, struct _camel_header_raw *header);
 void *camel_message_info_new_from_parser(CamelFolderSummary *summary, struct _CamelMimeParser *parser);
-void *camel_message_info_new_from_message(CamelFolderSummary *summary, struct _CamelMimeMessage *message);
+void *camel_message_info_new_from_message(CamelFolderSummary *summary, struct _CamelMimeMessage *message, const CamelMessageInfo *base);
 
 void *camel_message_info_clone(const void *info);
 

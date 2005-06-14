@@ -76,7 +76,7 @@ static CamelMimeMessage *get_message         (CamelFolder *folder, const gchar *
 
 static CamelMessageInfo *get_message_info    (CamelFolder *folder, const char *uid);
 
-static CamelMessageIterator *search(CamelFolder *folder, const char *expression, CamelMessageIterator *, CamelException *ex);
+static CamelMessageIterator *search(CamelFolder *folder, const char *, const char *expression, CamelMessageIterator *, CamelException *ex);
 
 static void            transfer_messages_to  (CamelFolder *source, GPtrArray *uids, CamelFolder *dest,
 					      GPtrArray **transferred_uids, gboolean delete_originals, CamelException *ex);
@@ -258,11 +258,7 @@ camel_folder_refresh_info (CamelFolder *folder, CamelException *ex)
 {
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 
-	CAMEL_FOLDER_LOCK(folder, lock);
-
 	CF_CLASS (folder)->refresh_info (folder, ex);
-
-	CAMEL_FOLDER_UNLOCK(folder, lock);
 }
 
 static int
@@ -299,19 +295,19 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 			*arg->ca_int = folder->permanent_flags;
 			break;
 		case CAMEL_FOLDER_ARG_TOTAL:
-			*arg->ca_int = folder->summary->total_count;
+			*arg->ca_int = folder->summary->root_view->total_count;
 			break;
 		case CAMEL_FOLDER_ARG_UNREAD:
-			*arg->ca_int = folder->summary->unread_count;
+			*arg->ca_int = folder->summary->root_view->unread_count;
 			break;
 		case CAMEL_FOLDER_ARG_DELETED:
-			*arg->ca_int = folder->summary->deleted_count;
+			*arg->ca_int = folder->summary->root_view->deleted_count;
 			break;
 		case CAMEL_FOLDER_ARG_JUNKED:
-			*arg->ca_int = folder->summary->junk_count;
+			*arg->ca_int = folder->summary->root_view->junk_count;
 			break;
 		case CAMEL_FOLDER_ARG_VISIBLE:
-			*arg->ca_int = folder->summary->visible_count;
+			*arg->ca_int = folder->summary->root_view->visible_count;
 			break;
 		case CAMEL_FOLDER_ARG_UID_ARRAY:
 			g_warning("trying to get deprecated UID_ARRAY from folder");
@@ -552,12 +548,8 @@ camel_folder_get_message (CamelFolder *folder, const char *uid, CamelException *
 
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
 
-	CAMEL_FOLDER_LOCK(folder, lock);
-
 	ret = CF_CLASS (folder)->get_message (folder, uid, ex);
-
-	CAMEL_FOLDER_UNLOCK(folder, lock);
-
+	
 	if (ret && camel_debug_start(":folder")) {
 		printf("CamelFolder:get_message('%s', '%s') =\n", folder->full_name, uid);
 		camel_mime_message_dump(ret, FALSE);
@@ -568,10 +560,10 @@ camel_folder_get_message (CamelFolder *folder, const char *uid, CamelException *
 }
 
 static CamelMessageIterator *
-search(CamelFolder *folder, const char *expression, CamelMessageIterator *subset, CamelException *ex)
+search(CamelFolder *folder, const char *vid, const char *expression, CamelMessageIterator *subset, CamelException *ex)
 {
 	if (folder->summary)
-		return camel_folder_summary_search(folder->summary, expression, subset, ex);
+		return camel_folder_summary_search(folder->summary, vid, expression, subset, ex);
 
 	camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID,
 			      _("Unsupported operation: search by expression: for %s"),
@@ -586,6 +578,7 @@ search(CamelFolder *folder, const char *expression, CamelMessageIterator *subset
 /**
  * camel_folder_search:
  * @folder: a #CamelFolder object
+ * @vid: view id, NULL means the root view
  * @expr: a search expression, NULL means match everything.
  * @subset: A messageiterator used to limit the search.
  * @ex: a #CamelException
@@ -595,13 +588,13 @@ search(CamelFolder *folder, const char *expression, CamelMessageIterator *subset
  * Returns a CamelMessageIterator which can be used to examime the results.
  **/
 CamelMessageIterator *
-camel_folder_search(CamelFolder *folder, const char *expression, CamelMessageIterator *subset, CamelException *ex)
+camel_folder_search(CamelFolder *folder, const char *vid, const char *expression, CamelMessageIterator *subset, CamelException *ex)
 {
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
 
 	/* NOTE: that it is upto the callee to lock */
 
-	return CF_CLASS (folder)->search(folder, expression, subset, ex);
+	return CF_CLASS (folder)->search(folder, vid, expression, subset, ex);
 }
 
 static void

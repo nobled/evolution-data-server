@@ -46,6 +46,7 @@
 
 #include <camel/camel-string-utils.h>
 #include <camel/camel-exception.h>
+#include <camel/camel-folder-search.h>
 
 #include "libedataserver/md5-utils.h"
 #include "libedataserver/e-memory.h"
@@ -73,18 +74,19 @@ static int
 add(CamelFolderSummary *s, CamelMessageInfo *mi)
 {
 	guint32 flags;
+	CamelFolderView *v = s->root_view;
 
 	/* FIXME: lock */
-	s->total_count++;
+	v->total_count++;
 	flags = camel_message_info_flags(mi);
 	if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
-		s->visible_count++;
+		v->visible_count++;
 	if ((flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_JUNK|CAMEL_MESSAGE_DELETED)) == 0) /* FIXME: flags right? */
-		s->unread_count++;
+		v->unread_count++;
 	if (flags & CAMEL_MESSAGE_DELETED)
-		s->deleted_count++;
+		v->deleted_count++;
 	if (flags & CAMEL_MESSAGE_JUNK)
-		s->junk_count++;
+		v->junk_count++;
 
 	return 0;
 }
@@ -105,18 +107,19 @@ static int
 cfs_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 {
 	guint32 flags;
+	CamelFolderView *v = s->root_view;
 
 	/* FIXME: lock */
-	s->total_count--;
+	v->total_count--;
 	flags = camel_message_info_flags(mi);
 	if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
-		s->visible_count--;
+		v->visible_count--;
 	if ((flags & (CAMEL_MESSAGE_SEEN)) == 0) /* FIXME: flags right? */
-		s->unread_count--;
+		v->unread_count--;
 	if (flags & CAMEL_MESSAGE_DELETED)
-		s->deleted_count--;
+		v->deleted_count--;
 	if (flags & CAMEL_MESSAGE_JUNK)
-		s->junk_count--;
+		v->junk_count--;
 
 	return 0;
 }
@@ -136,11 +139,61 @@ remove_array(CamelFolderSummary *s, GPtrArray *mis)
 static void
 cfs_clear(CamelFolderSummary *s)
 {
-	s->total_count = 0;
-	s->visible_count = 0;
-	s->unread_count = 0;
-	s->deleted_count = 0;
-	s->junk_count = 0;
+	CamelFolderView *v = s->root_view;
+
+	v->total_count = 0;
+	v->visible_count = 0;
+	v->unread_count = 0;
+	v->deleted_count = 0;
+	v->junk_count = 0;
+
+	/* what about all views? */
+}
+
+static CamelFolderView *
+cfs_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex)
+{
+	CamelFolderView *view;
+
+	if (vid == NULL)
+		printf("Creating root view\n");
+	else
+		printf("Creating view '%s' (%s)\n", vid, expr);
+
+	view = g_malloc0(CFS_CLASS(s)->view_sizeof);
+	view->refcount = 1;
+	view->vid = g_strdup(vid);
+	view->expr = g_strdup(expr);
+	/* Hmm, refcounting of this would create a loop, but ... */
+	view->summary = s;
+
+	if (expr) {
+		view->iter = camel_folder_search_search(s->search, view->expr, NULL, ex);
+		view->is_static = camel_folder_search_is_static(s->search, view->expr, NULL);
+	} else {
+		view->iter = NULL;
+		view->is_static = 1;
+	}
+
+	return view;
+}
+
+static void
+cfs_view_delete(CamelFolderSummary *s, CamelFolderView *view)
+{
+	/* nothing, already removed elsewhere */
+}
+
+static void
+cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
+{
+	if (view->iter)
+		camel_message_iterator_free((CamelMessageIterator *)view->iter);
+	if (view->changes)
+		camel_folder_change_info_free(view->changes);
+	g_free(view->vid);
+	g_free(view->expr);
+	g_free(view);
 }
 
 static CamelMessageInfo *
@@ -166,7 +219,7 @@ get_array(CamelFolderSummary *s, const GPtrArray *uids)
 }
 
 static CamelMessageIterator *
-search(CamelFolderSummary *s, const char *expr, CamelMessageIterator *subset, CamelException *ex)
+search(CamelFolderSummary *s, const char *vid, const char *expr, CamelMessageIterator *subset, CamelException *ex)
 {
 	/* don't translate, this is for programmers only */
 	camel_exception_setv(ex, 1, "Search not implemented");
@@ -305,12 +358,32 @@ message_info_new_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
 }
 
 static CamelMessageInfo *
-message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg)
+message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg, const CamelMessageInfo *info)
 {
+	CamelMessageInfo *mi;
 	if (s)
-		return CFS_CLASS(s)->message_info_new_from_header(s, ((CamelMimePart *)msg)->headers);
+		mi = CFS_CLASS(s)->message_info_new_from_header(s, ((CamelMimePart *)msg)->headers);
 	else
-		return message_info_new_from_header(s, ((CamelMimePart *)msg)->headers);
+		mi = message_info_new_from_header(s, ((CamelMimePart *)msg)->headers);
+
+	if (mi && info) {
+		const CamelTag *tag = camel_message_info_user_tags(info);
+		const CamelFlag *flag = camel_message_info_user_flags(info);
+
+		while (flag) {
+			camel_message_info_set_user_flag(mi, flag->name, TRUE);
+			flag = flag->next;
+		}
+
+		while (tag) {
+			camel_message_info_set_user_tag(mi, tag->name, tag->value);
+			tag = tag->next;
+		}
+
+		camel_message_info_set_flags(mi, camel_message_info_flags(info), ~0);
+	}
+
+	return mi;
 }
 
 static void
@@ -469,6 +542,7 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 {
 	guint32 old, diff, new;
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
+	CamelFolderView *v;
 
 	/* TODO: locking? */
 
@@ -477,32 +551,34 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 
 	// FIXME: what constitutes 'visible' needs to be configurable per summary?
 
+	v = info->summary->root_view;
+
 	/* diff will contain which flags have changed, set will contain what they are now */
 	new = set & mask;
 	diff = (set ^ old) & mask;
 	if (diff & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) {
 		if ((new & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
-			info->summary->visible_count++;
+			v->visible_count++;
 		else if ((old & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
-			info->summary->visible_count--;
+			v->visible_count--;
 	}
 	if (diff & CAMEL_MESSAGE_SEEN) {
 		if (new & CAMEL_MESSAGE_SEEN)
-			info->summary->unread_count--;
+			v->unread_count--;
 		else
-			info->summary->unread_count++;
+			v->unread_count++;
 	}
 	if (diff & CAMEL_MESSAGE_DELETED) {
 		if (new & CAMEL_MESSAGE_DELETED)
-			info->summary->deleted_count++;
+			v->deleted_count++;
 		else
-			info->summary->deleted_count--;
+			v->deleted_count--;
 	}
 	if (diff & CAMEL_MESSAGE_JUNK) {
 		if (new & CAMEL_MESSAGE_JUNK)
-			info->summary->junk_count++;
+			v->junk_count++;
 		else
-			info->summary->junk_count--;
+			v->junk_count--;
 	}
 
 	if ((old & ~CAMEL_MESSAGE_SYSTEM_MASK) == (mi->flags & ~CAMEL_MESSAGE_SYSTEM_MASK))
@@ -550,6 +626,10 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->remove_array = remove_array;
 	klass->clear = cfs_clear;
 
+	klass->view_create = cfs_view_create;
+	klass->view_delete = cfs_view_delete;
+	klass->view_free = cfs_view_free;
+
 	klass->get = get;
 	klass->get_array = get_array;
 
@@ -583,6 +663,8 @@ camel_folder_summary_init (CamelFolderSummary *s)
 
 	p = _PRIVATE(s) = g_malloc0(sizeof(*p));
 
+	e_dlist_init(&s->views);
+
 	p->ref_lock = g_mutex_new();
 }
 
@@ -590,13 +672,16 @@ static void
 camel_folder_summary_finalize (CamelObject *obj)
 {
 	struct _CamelFolderSummaryPrivate *p;
-	/*CamelFolderSummary *s = (CamelFolderSummary *)obj;*/
+	CamelFolderSummary *s = (CamelFolderSummary *)obj;
 
 	p = _PRIVATE(obj);
 
 	g_mutex_free(p->ref_lock);
 	
 	g_free(p);
+
+	if (s->search)
+		camel_object_unref(s->search);
 }
 
 CamelType
@@ -736,9 +821,89 @@ camel_folder_summary_remove_array(CamelFolderSummary *s, GPtrArray *infos)
 }
 
 CamelMessageIterator *
-camel_folder_summary_search(CamelFolderSummary *s, const char *expr, CamelMessageIterator *subset, CamelException *ex)
+camel_folder_summary_search(CamelFolderSummary *s, const char *vid, const char *expr, CamelMessageIterator *subset, CamelException *ex)
 {
-	return CFS_CLASS(s)->search(s, expr, subset, ex);
+	return CFS_CLASS(s)->search(s, vid, expr, subset, ex);
+}
+
+CamelFolderView *
+camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid)
+{
+	CamelFolderView *v;
+
+	if (vid == NULL) {
+		if (s->root_view)
+			s->root_view->refcount++;
+		return s->root_view;
+	}
+
+	v = (CamelFolderView *)s->views.head;
+
+	/* FIXME: lock, refcount? */
+	while (v->next && strcmp(v->vid, vid) != 0)
+		v = v->next;
+
+	if (v->next) {
+		v->refcount++;
+		return v;
+	}
+	return NULL;
+}
+
+void
+camel_folder_summary_view_unref(CamelFolderView *v)
+{
+	v->refcount--;
+	if (v->refcount == 0)
+		CFS_CLASS(v->summary)->view_free(v->summary, v);
+}
+
+const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex)
+{
+	CamelFolderView *v = (CamelFolderView *)s->views.head;
+
+	/* FIXME: locking? */
+	if (vid) {
+		while (v->next && strcmp(v->vid, vid) != 0)
+			v = v->next;
+
+		if (v->next) {
+			if (strcmp(v->expr, expr) == 0)
+				return NULL;
+		}
+	} else {
+		if (s->root_view)
+			return NULL;
+	}
+
+	v = CFS_CLASS(s)->view_create(s, vid, expr, ex);
+	if (camel_exception_is_set(ex)) {
+		camel_folder_summary_view_unref(v);
+		v = NULL;
+	} else {
+		if (vid == NULL)
+			s->root_view = v;
+		else
+			e_dlist_addtail(&s->views, (EDListNode *)v);
+	}
+
+	return v;
+}
+
+void camel_folder_summary_view_delete(CamelFolderSummary *s, const char *vid)
+{
+	CamelFolderView *v = (CamelFolderView *)s->views.head;
+
+	/* FIXME: locking? */
+	while (v->next && strcmp(v->vid, vid) != 0)
+		v = v->next;
+
+	if (v->next) {
+		e_dlist_remove((EDListNode *)v);
+		v->deleted = TRUE;
+		CFS_CLASS(s)->view_delete(s, v);
+		camel_folder_summary_view_unref(v);
+	}
 }
 
 /**
@@ -821,21 +986,22 @@ camel_message_info_new_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
  * camel_message_info_new_from_message:
  * @summary: a #CamelFolderSummary object
  * @message: a #CamelMimeMessage object
- * 
+ * @base: CamelMessageInfo to provide flags for this message.
+ *
  * Create a summary item from a message.
  * 
  * Returns the newly allocated record which must be freed using
  * #camel_message_info_free
  **/
 void *
-camel_message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg)
+camel_message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg, const CamelMessageInfo *base)
 {
 	CamelMessageInfo *mi;
 
 	if (s)
-		mi = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_new_from_message(s, msg);
+		mi = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_new_from_message(s, msg, base);
 	else
-		mi = message_info_new_from_message(NULL, msg);
+		mi = message_info_new_from_message(NULL, msg, base);
 
 	return mi;
 }

@@ -618,7 +618,7 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 			g_hash_table_insert(wanted, uids->pdata[i], uids->pdata[i]);
 	}
 
-	iter = camel_folder_search(folder, NULL, NULL, NULL);
+	iter = camel_folder_search(folder, NULL, NULL, NULL, NULL);
 	thread->summary = summary = g_ptr_array_new();
 
 	while ((info = (CamelMessageInfo *)camel_message_iterator_next(iter, NULL))) {

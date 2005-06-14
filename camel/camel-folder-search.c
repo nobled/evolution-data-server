@@ -375,7 +375,8 @@ static void cfs_iter_free(void *v)
 	camel_object_unref(iter->search);
 
 	g_free(iter->expr);
-	camel_message_iterator_free(iter->source);
+	if (iter->source)
+		camel_message_iterator_free(iter->source);
 
 	if (iter->current_message)
 		camel_object_unref(iter->current_message);
@@ -432,7 +433,8 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelMes
 	e_sexp_input_text(search->sexp, expr, strlen(expr));
 	if ((term = e_sexp_parse(search->sexp)) == NULL) {
 		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(search->sexp), expr);
-		camel_message_iterator_free(source);
+		if (source)
+			camel_message_iterator_free(source);
 		return NULL;
 	}
 
@@ -504,6 +506,36 @@ camel_folder_search_is_static(CamelFolderSearch *search, const char *expr, Camel
 	e_sexp_term_free(search->sexp, term);
 
 	return res;
+}
+
+/* this 'abuses' the search mechanism slightly, so we can share lots of code,
+   'iterate' over a single message */
+int camel_folder_search_match(CamelFolderSearchIterator *iter, const CamelMessageInfo *mi, CamelException *ex)
+{
+	ESExpResult *r;
+	int found = FALSE;
+
+	if (iter->current_message) {
+		camel_object_unref(iter->current_message);
+		iter->current_message = NULL;
+	}
+
+	iter->current = (CamelMessageInfo *)mi;
+
+	/* FIXME lock evaluator/make it re-entrant */
+	r = e_sexp_eval(iter->search->sexp, iter->term, iter);
+	if (r == NULL) {
+		if (!camel_exception_is_set(ex))
+			camel_exception_setv(ex, 1, _("Error executing search expression: %s:\n%s"), e_sexp_error(iter->search->sexp), iter->expr);
+	} else if (r->type != ESEXP_RES_BOOL)
+		g_warning("search match returned an invalid type");
+	else
+		found = r->value.bool;
+	e_sexp_result_free(iter->search->sexp, r);
+
+	iter->current = NULL;
+
+	return found;
 }
 
 #if 0
@@ -705,18 +737,20 @@ add_thread_results(struct _CamelFolderThreadNode *root, GHashTable *result_hash)
 	}
 }
 
+#if 0
 static void
 add_results(char *uid, void *dummy, GPtrArray *result)
 {
 	g_ptr_array_add(result, uid);
 }
+#endif
 
 static ESExpResult *
 search_match_threads(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r;
 	int i, type;
-	GHashTable *results;
+	//GHashTable *results;
 	static int called;
 
 	if (!called) {
