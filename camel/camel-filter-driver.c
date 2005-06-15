@@ -1052,33 +1052,32 @@ run_only_once (gpointer key, char *action, struct _run_only_once *data)
 	struct _CamelFilterDriverPrivate *p = _PRIVATE (data->driver);
 	CamelException *ex = data->ex;
 	ESExpResult *r;
-	ESExpTerm *term;
+	ESExpTree *tree;
 	
 	d(printf ("evaluating: %s\n\n", action));
 	
-	e_sexp_input_text (p->eval, action, strlen (action));
-	term = e_sexp_parse(p->eval);
-	if (term == NULL) {
+	tree = e_sexp_parse(p->eval, action);
+	if (tree->term == NULL) {
 		if (!camel_exception_is_set (ex))
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 					      _("Error parsing filter: %s: %s"),
-					      e_sexp_error (p->eval), action);
+					      e_sexp_error (tree), action);
 		goto done;
 	}
 	
-	r = e_sexp_eval (p->eval, term, data->driver);
+	r = e_sexp_eval (tree, data->driver);
 	if (r == NULL) {
 		if (!camel_exception_is_set (ex))
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 					      _("Error executing filter: %s: %s"),
-					      e_sexp_error (p->eval), action);
+					      e_sexp_error (tree), action);
 		goto done;
 	}
 	
-	e_sexp_result_free (p->eval, r);
+	e_sexp_result_free (tree, r);
 	
  done:
-	e_sexp_term_free(p->eval, term);
+	e_sexp_tree_free(tree);
 	g_free (key);
 	g_free (action);
 	
@@ -1415,7 +1414,7 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 	result = CAMEL_SEARCH_NOMATCH;
 	while (node->next && !p->terminated) {
 		struct _get_message data;
-		ESExpTerm *term;
+		ESExpTree *tree;
 
 		d(printf("applying rule %s\naction %s\n", node->match, node->action));
 		
@@ -1438,23 +1437,27 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 				       camel_message_info_subject(info)?camel_message_info_subject(info):"?no subject?", node->name);
 
 			/* perform necessary filtering actions */
-			e_sexp_input_text (p->eval, node->action, strlen (node->action));
-			if ((term = e_sexp_parse (p->eval)) == NULL) {
+			tree = e_sexp_parse(p->eval, node->action);
+			if (tree->term == NULL) {
 				camel_exception_setv (ex, 1, _("Error parsing filter: %s: %s"),
-						      e_sexp_error (p->eval), node->action);
+						      e_sexp_error (tree), node->action);
+				e_sexp_tree_free(tree);
 				goto error;
 			}
-			r = e_sexp_eval (p->eval, term, driver);
-			e_sexp_term_free(p->eval, term);
-			if (camel_exception_is_set(p->ex))
+			r = e_sexp_eval(tree, driver);
+			if (camel_exception_is_set(p->ex)) {
+				e_sexp_tree_free(tree);
 				goto error;
+			}
 
 			if (r == NULL) {
 				camel_exception_setv (ex, 1, _("Error executing filter: %s: %s"),
-						      e_sexp_error (p->eval), node->action);
+						      e_sexp_error(tree), node->action);
+				e_sexp_tree_free(tree);
 				goto error;
 			}
-			e_sexp_result_free (p->eval, r);
+			e_sexp_result_free(tree, r);
+			e_sexp_tree_free(tree);
 		default:
 			break;
 		}

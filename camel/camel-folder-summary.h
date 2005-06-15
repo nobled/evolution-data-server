@@ -186,7 +186,8 @@ struct _CamelChangeInfo {
 };
 */
 
-/* Message-iterators are non-reffed pseudo-objects a little like a type-less interface */
+/* Message-iterators are non-reffed pseudo-objects a little like a type-less interface 
+   TODO: Rename this to CamelIterator, it has uses beyond message lists */
 typedef struct _CamelMessageIteratorVTable CamelMessageIteratorVTable;
 
 struct _CamelMessageIterator {

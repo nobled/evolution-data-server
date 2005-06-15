@@ -49,7 +49,7 @@ struct _CamelFolderSearchIterator {
 	CamelException *ex;
 
 	char *expr;		/* only needed for error messages */
-	ESExpTerm *term;
+	ESExpTree *tree;
 
 	const struct _CamelMessageInfo *current;
 	struct _CamelMimeMessage *current_message;
@@ -81,61 +81,61 @@ struct _CamelFolderSearchClass {
 	CamelObjectClass parent_class;
 
 	/* general bool/comparison options, usually these wont need to be set, unless it is compiling into another language */
-	ESExpResult * (*and)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
-	ESExpResult * (*or)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
-	ESExpResult * (*not)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-	ESExpResult * (*lt)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
-	ESExpResult * (*gt)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
-	ESExpResult * (*eq)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*and)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*or)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*not)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*lt)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*gt)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*eq)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
 
 	/* search options */
 	/* (match-all [boolean expression]) Apply match to all messages */
-	ESExpResult * (*match_all)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*match_all)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
 
 	/* (match-threads "type" [array expression]) add all related threads */
-	ESExpResult * (*match_threads)(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*match_threads)(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
 
 	/* (body-contains "string1" "string2" ...) Returns a list of matches, or true if in single-message mode */
-	ESExpResult * (*body_contains)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*body_contains)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
 	/* (header-contains "headername" "string1" ...) List of matches, or true if in single-message mode */
-	ESExpResult * (*header_contains)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*header_contains)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (header-matches "headername" "string") */
-	ESExpResult * (*header_matches)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*header_matches)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (header-starts-with "headername" "string") */
-	ESExpResult * (*header_starts_with)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*header_starts_with)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (header-ends-with "headername" "string") */
-	ESExpResult * (*header_ends_with)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*header_ends_with)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (header-exists "headername") */
-	ESExpResult * (*header_exists)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*header_exists)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (user-flag "flagname" "flagname" ...) If one of user-flag set */
-	ESExpResult * (*user_flag)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*user_flag)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
 	/* (user-tag "flagname") Returns the value of a user tag.  Can only be used in match-all */
-	ESExpResult * (*user_tag)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*user_tag)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (system-flag "flagname") Returns the value of a system flag.  Can only be used in match-all */
-	ESExpResult * (*system_flag)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*system_flag)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 	
 	/* (get-sent-date) Retrieve the date that the message was sent on as a time_t */
-	ESExpResult * (*get_sent_date)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*get_sent_date)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
 	/* (get-received-date) Retrieve the date that the message was received on as a time_t */
-	ESExpResult * (*get_received_date)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*get_received_date)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
 	/* (get-current-date) Retrieve 'now' as a time_t */
-	ESExpResult * (*get_current_date)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*get_current_date)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
 	/* (get-size) Retrieve message size as an int (in kilobytes) */
-	ESExpResult * (*get_size)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*get_size)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
 	/* (uid "uid" ...) True if the uid is in the list */
-	ESExpResult * (*uid)(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+	ESExpResult * (*uid)(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 };
 
 CamelType		camel_folder_search_get_type	(void);

@@ -1,3 +1,20 @@
+2005-06-15  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder-summary-disk.c: throw out all the locking code,
+	dont use libdb's threded api, and just single-thread every access
+	to all the db's on the env using manual locking.  Actually i can
+	probably just single-thread each database, but thats just going to
+	get trickier for view indices.
+
+	* camel-folder-search.c (camel_folder_search_execute_expression):
+	kill dead code.
+
+	* camel-folder-search.[hc]: 
+	* camel-filter-search.c: e-sexp api sync.
+
+	* camel-filter-driver.c (run_only_once): e-sexp api sync.
+	(camel_filter_driver_filter_message): "
+
 2005-06-14  Not Zed  <NotZed@Ximian.com>
 
 	* camel-folder-summary.c (message_info_new_from_message): take an

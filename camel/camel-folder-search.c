@@ -60,24 +60,24 @@ struct _CamelFolderSearchPrivate {
 
 #define _PRIVATE(o) (((CamelFolderSearch *)(o))->priv)
 
-static ESExpResult *search_header_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_header_matches(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_header_starts_with(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_header_ends_with(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_header_exists(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_match_all(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_match_threads(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_body_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
-static ESExpResult *search_user_flag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_user_tag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_system_flag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_get_sent_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_get_received_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_get_current_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_get_size(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
-static ESExpResult *search_uid(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_header_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_header_matches(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_header_starts_with(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_header_ends_with(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_header_exists(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_match_all(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_match_threads(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_body_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_user_flag(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_user_tag(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_system_flag(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_get_sent_date(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_get_received_date(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_get_current_date(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_get_size(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
+static ESExpResult *search_uid(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s);
 
-static ESExpResult *search_dummy(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
+static ESExpResult *search_dummy(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search);
 
 static void camel_folder_search_class_init (CamelFolderSearchClass *klass);
 static void camel_folder_search_init       (CamelFolderSearch *obj);
@@ -260,118 +260,11 @@ camel_folder_search_set_body_index(CamelFolderSearch *search, CamelIndex *index)
 		camel_object_ref((CamelObject *)index);
 }
 
-#if 0
-/**
- * camel_folder_search_execute_expression:
- * @search: 
- * @expr: 
- * @ex: 
- * 
- * Execute the search expression @expr, returning an array of
- * all matches as a GPtrArray of uid's of matching messages.
- *
- * Note that any settings such as set_body_index(), set_folder(),
- * and so on are reset to #NULL once the search has completed.
- *
- * TODO: The interface should probably return summary items instead
- * (since they are much more useful to any client).
- * 
- * Return value: A GPtrArray of strings of all matching messages.
- * This must only be freed by camel_folder_search_free_result.
- **/
-GPtrArray *
-camel_folder_search_execute_expression(CamelFolderSearch *search, const char *expr, CamelException *ex)
-{
-	ESExpResult *r;
-	GPtrArray *matches;
-	int i;
-	GHashTable *results;
-	EMemPool *pool;
-	struct _CamelFolderSearchPrivate *p = _PRIVATE(search);
-
-	p->ex = ex;
-
-	/* only re-parse if the search has changed */
-	if (search->last_search == NULL
-	    || strcmp(search->last_search, expr)) {
-		e_sexp_input_text(search->sexp, expr, strlen(expr));
-		if (e_sexp_parse(search->sexp) == -1) {
-			camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(search->sexp), expr);
-			return NULL;
-		}
-
-		g_free(search->last_search);
-		search->last_search = g_strdup(expr);
-	}
-	r = e_sexp_eval(search->sexp, search);
-	if (r == NULL) {
-		if (!camel_exception_is_set(ex))
-			camel_exception_setv(ex, 1, _("Error executing search expression: %s:\n%s"), e_sexp_error(search->sexp), expr);
-		return NULL;
-	}
-
-	matches = g_ptr_array_new();
-
-	/* now create a folder summary to return?? */
-	if (r->type == ESEXP_RES_ARRAY_PTR) {
-		d(printf("got result ...\n"));
-		/* we use a mempool to store the strings, packed in tight as possible, and freed together */
-		/* because the strings are often short (like <8 bytes long), we would be wasting appx 50%
-		   of memory just storing the size tag that malloc assigns us and alignment padding, so this
-		   gets around that (and is faster to allocate and free as a bonus) */
-		pool = e_mempool_new(512, 256, E_MEMPOOL_ALIGN_BYTE);
-		if (search->summary) {
-			/* reorder result in summary order */
-			results = g_hash_table_new(g_str_hash, g_str_equal);
-			for (i=0;i<r->value.ptrarray->len;i++) {
-				d(printf("adding match: %s\n", (char *)g_ptr_array_index(r->value.ptrarray, i)));
-				g_hash_table_insert(results, g_ptr_array_index(r->value.ptrarray, i), GINT_TO_POINTER (1));
-			}
-			for (i=0;i<search->summary->len;i++) {
-				CamelMessageInfo *info = g_ptr_array_index(search->summary, i);
-				char *uid = (char *)camel_message_info_uid(info);
-				if (g_hash_table_lookup(results, uid)) {
-					g_ptr_array_add(matches, e_mempool_strdup(pool, uid));
-				}
-			}
-			g_hash_table_destroy(results);
-		} else {
-			for (i=0;i<r->value.ptrarray->len;i++) {
-				d(printf("adding match: %s\n", (char *)g_ptr_array_index(r->value.ptrarray, i)));
-				g_ptr_array_add(matches, e_mempool_strdup(pool, g_ptr_array_index(r->value.ptrarray, i)));
-			}
-		}
-		/* instead of putting the mempool_hash in the structure, we keep the api clean by
-		   putting a reference to it in a hashtable.  Lets us do some debugging and catch
-		   unfree'd results as well. */
-		g_hash_table_insert(p->mempool_hash, matches, pool);
-	} else {
-		g_warning("Search returned an invalid result type");
-	}
-
-	e_sexp_result_free(search->sexp, r);
-
-	if (p->threads)
-		camel_folder_thread_messages_unref(p->threads);
-	if (p->threads_hash)
-		g_hash_table_destroy(p->threads_hash);
-
-	p->threads = NULL;
-	p->threads_hash = NULL;
-	search->folder = NULL;
-	search->summary = NULL;
-	search->current = NULL;
-	search->body_index = NULL;
-
-	return matches;
-}
-#endif
-
 static void cfs_iter_free(void *v)
 {
 	CamelFolderSearchIterator *iter = v;
 
-	e_sexp_term_free(iter->search->sexp, iter->term);
+	e_sexp_tree_free(iter->tree);
 	camel_object_unref(iter->search);
 
 	g_free(iter->expr);
@@ -401,10 +294,10 @@ static const CamelMessageInfo *cfs_iter_next(void *v, CamelException *ex)
 	while (!found && (iter->current = camel_message_iterator_next(iter->source, ex))) {
 		ESExpResult *r;
 
-		r = e_sexp_eval(iter->search->sexp, iter->term, iter);
+		r = e_sexp_eval(iter->tree, iter);
 		if (r == NULL) {
 			if (!camel_exception_is_set(ex))
-				camel_exception_setv(ex, 1, _("Error executing search expression: %s:\n%s"), e_sexp_error(iter->search->sexp), iter->expr);
+				camel_exception_setv(ex, 1, _("Error executing search expression: %s:\n%s"), e_sexp_error(iter->tree), iter->expr);
 			break;
 		} else if (r->type != ESEXP_RES_BOOL)
 			g_warning("search match returned an invalid type");
@@ -427,14 +320,15 @@ CamelFolderSearchIterator *
 camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelMessageIterator *source, CamelException *ex)
 {
 	CamelFolderSearchIterator *iter;
-	ESExpTerm *term;
+	ESExpTree *tree;
 
 	// FIXME: locking?
-	e_sexp_input_text(search->sexp, expr, strlen(expr));
-	if ((term = e_sexp_parse(search->sexp)) == NULL) {
-		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(search->sexp), expr);
+	tree = e_sexp_parse(search->sexp, expr);
+	if (tree->term == NULL) {
+		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(tree), expr);
 		if (source)
 			camel_message_iterator_free(source);
+		e_sexp_tree_free(tree);
 		return NULL;
 	}
 
@@ -445,13 +339,14 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelMes
 	iter->search = search;
 	camel_object_ref(search);
 	iter->source = source;
-	iter->term = term;
+	iter->tree = tree;
 
 	return iter;
 }
 
 /* We could just evaluate this, as a different language input
-   But we parse by hand ... it isn't hard */
+   But we parse by hand ... it isn't hard.
+   Strictly, needs to be virtual, if a folder sub-classed us & extended the language */
 static int
 is_static(ESExpTerm *t)
 {
@@ -486,24 +381,23 @@ is_static(ESExpTerm *t)
 	return res;
 }
 
-/* TODO: we could expose the ESExpTerm, then we wouldn't have to parse it every time */
 int
 camel_folder_search_is_static(CamelFolderSearch *search, const char *expr, CamelException *ex)
 {
-	ESExpTerm *term;
+	ESExpTree *tree;
 	int res;
 
 	/* returns true if this is a 'static' search, based on items
 	   which are immutable, like headers or content */
 
-	e_sexp_input_text(search->sexp, expr, strlen(expr));
-	if ((term = e_sexp_parse(search->sexp)) == NULL) {
-		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(search->sexp), expr);
-		return TRUE;
+	tree = e_sexp_parse(search->sexp, expr);
+	if (tree->term == NULL) {
+		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(tree), expr);
+		res = TRUE;
+	} else {
+		res = is_static(tree->term);
 	}
-
-	res = is_static(term);
-	e_sexp_term_free(search->sexp, term);
+	e_sexp_tree_free(tree);
 
 	return res;
 }
@@ -522,16 +416,15 @@ int camel_folder_search_match(CamelFolderSearchIterator *iter, const CamelMessag
 
 	iter->current = (CamelMessageInfo *)mi;
 
-	/* FIXME lock evaluator/make it re-entrant */
-	r = e_sexp_eval(iter->search->sexp, iter->term, iter);
+	r = e_sexp_eval(iter->tree, iter);
 	if (r == NULL) {
 		if (!camel_exception_is_set(ex))
-			camel_exception_setv(ex, 1, _("Error executing search expression: %s:\n%s"), e_sexp_error(iter->search->sexp), iter->expr);
+			camel_exception_setv(ex, 1, _("Error executing search expression: %s:\n%s"), e_sexp_error(iter->tree), iter->expr);
 	} else if (r->type != ESEXP_RES_BOOL)
 		g_warning("search match returned an invalid type");
 	else
 		found = r->value.bool;
-	e_sexp_result_free(iter->search->sexp, r);
+	e_sexp_result_free(iter->tree, r);
 
 	iter->current = NULL;
 
@@ -669,7 +562,7 @@ fail:
 
 /* dummy function, returns false always */
 static ESExpResult *
-search_dummy(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_dummy(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r;
 
@@ -682,7 +575,7 @@ search_dummy(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolder
 /* This is a historical function, we used to match array sets, and this would convert
    a linear match into an array match.  Now we dummy it */
 static ESExpResult *
-search_match_all(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search)
+search_match_all(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r;
 	static int called;
@@ -746,7 +639,7 @@ add_results(char *uid, void *dummy, GPtrArray *result)
 #endif
 
 static ESExpResult *
-search_match_threads(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search)
+search_match_threads(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r;
 	int i, type;
@@ -848,7 +741,7 @@ search_match_threads(struct _ESExp *f, int argc, struct _ESExpTerm **argv, Camel
 }
 
 static ESExpResult *
-check_header(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search, camel_search_match_t how)
+check_header(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search, camel_search_match_t how)
 {
 	ESExpResult *r;
 	int truth = FALSE;
@@ -921,31 +814,31 @@ check_header(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolder
 }
 
 static ESExpResult *
-search_header_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_header_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	return check_header(f, argc, argv, search, CAMEL_SEARCH_MATCH_CONTAINS);
 }
 
 static ESExpResult *
-search_header_matches(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_header_matches(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	return check_header(f, argc, argv, search, CAMEL_SEARCH_MATCH_EXACT);
 }
 
 static ESExpResult *
-search_header_starts_with (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_header_starts_with (struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	return check_header(f, argc, argv, search, CAMEL_SEARCH_MATCH_STARTS);
 }
 
 static ESExpResult *
-search_header_ends_with (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_header_ends_with (struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	return check_header(f, argc, argv, search, CAMEL_SEARCH_MATCH_ENDS);
 }
 
 static ESExpResult *
-search_header_exists (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_header_exists (struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r;
 	
@@ -1069,7 +962,7 @@ match_words_message(CamelFolderSearchIterator *iter, struct _camel_search_words 
 }
 
 static ESExpResult *
-search_body_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_body_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	CamelException *ex = search->ex;
 	struct _camel_search_words *words;
@@ -1099,7 +992,7 @@ search_body_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, Cam
 }
 
 static ESExpResult *
-search_user_flag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_user_flag(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 	int i;
@@ -1119,7 +1012,7 @@ search_user_flag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFo
 }
 
 static ESExpResult *
-search_system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_system_flag (struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 	int i;
@@ -1139,7 +1032,7 @@ search_system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 }
 
 static ESExpResult *
-search_user_tag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_user_tag(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	const char *value = NULL;
 	ESExpResult *r;
@@ -1156,7 +1049,7 @@ search_user_tag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFol
 }
 
 static ESExpResult *
-search_get_sent_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
+search_get_sent_date(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
 {
 	ESExpResult *r = e_sexp_result_new(f, ESEXP_RES_INT);
 
@@ -1167,7 +1060,7 @@ search_get_sent_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, Cam
 }
 
 static ESExpResult *
-search_get_received_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
+search_get_received_date(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
 {
 	ESExpResult *r = e_sexp_result_new(f, ESEXP_RES_INT);
 
@@ -1178,7 +1071,7 @@ search_get_received_date(struct _ESExp *f, int argc, struct _ESExpResult **argv,
 }
 
 static ESExpResult *
-search_get_current_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
+search_get_current_date(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
 {
 	ESExpResult *r;
 
@@ -1190,7 +1083,7 @@ search_get_current_date(struct _ESExp *f, int argc, struct _ESExpResult **argv, 
 }
 
 static ESExpResult *
-search_get_size (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
+search_get_size (struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *s)
 {
 	ESExpResult *r = e_sexp_result_new(f, ESEXP_RES_INT);
 
@@ -1201,7 +1094,7 @@ search_get_size (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFo
 }
 
 static ESExpResult *
-search_uid(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
+search_uid(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, CamelFolderSearchIterator *search)
 {
 	ESExpResult *r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 	const char *uid = camel_message_info_uid(search->current);

@@ -53,9 +53,6 @@
 #define HEADER_KEY_LEN (12)
 
 struct _CamelFolderSummaryDiskPrivate {
-	/* This is just a copy of the root-view db, for convenience */
-	DB *db;
-
 	/* do we have a sync job already launched? */
 	volatile int sync_queued;
 
@@ -87,51 +84,79 @@ typedef struct _CamelFolderViewDisk CamelFolderViewDisk;
 struct _CamelFolderViewDisk {
 	CamelFolderView view;
 
+	/* So ... libdb has a tendency to deadlock a lot if we try to
+	   do 'unusual' things, like write a record in 1 thread, while
+	   we have a cursor opened and around the same spot(!) in another(!).
+
+	   So to get around this, we do all our own locking and just
+	   run it single threaded.  This is a pretty major i/o
+	   performance hit, but it works, i hope. */
+
+	struct _camel_disk_env *env;
 	DB *db;
 
-	int rebuild:1;
+	/* we need to build this view, i.e. it didn't exist at startup */
+	int build:1;
+};
+
+struct _camel_disk_env {
+	int refcount;
+
+	char *path;
+	DB_ENV *env;
+
+	/* EVERY call to libdb must be locked */
+	/* Never lock another lock whilst holding this one */
+	void *lock;
 };
 
 static CamelFolderSummaryClass *cds_parent;
 
+#define LOCK_VIEW(v) g_mutex_lock(((CamelFolderViewDisk *)v)->env->lock)
+#define UNLOCK_VIEW(v) g_mutex_unlock(((CamelFolderViewDisk *)v)->env->lock)
+
 /* FIXME: Short term hack alert ... we just get one dbenv,
    based on the first folder opened :) */
 
-static DB_ENV *
+static struct _camel_disk_env *
 get_env(CamelService *s)
 {
-	char *base, *path;
-	static DB_ENV *dbenv;
+	char *base;
+	static struct _camel_disk_env *env;
 	int err;
 
-	if (dbenv)
-		return dbenv;
+	if (env) {
+		env->refcount++;
+		return env;
+	}
+
+	env = g_malloc0(sizeof(*env));
+	env->refcount = 1;
+	env->lock = g_mutex_new();
 
 	base = camel_session_get_storage_path(s->session, s, NULL);
-	path = g_build_filename(base, ".folders.db", NULL);
+	env->path = g_build_filename(base, ".folders.db", NULL);
 	g_free(base);
 
-	printf("Creating database environment for store at %s\n", path);
+	printf("Creating database environment for store at %s\n", env->path);
 
-	if (db_env_create(&dbenv, 0) != 0) {
+	if (db_env_create(&env->env, 0) != 0) {
 		printf("env create failed\n");
-		g_free(path);
 		return NULL;
 	}
 
-	if ((err = dbenv->open(dbenv, path, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_THREAD|DB_RECOVER /* |DB_PRIVATE */, 0666)) != 0) {
-		dbenv->err(dbenv, err, "cannot create db");
-		g_free(path);
+	if ((err = env->env->open(env->env, env->path, DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_RECOVER /* |DB_PRIVATE */, 0666)) != 0) {
+		env->env->err(env->env, err, "cannot create db");
 		return NULL;
 	}
 
-	return dbenv;
+	return env;
 }
 
 static int
 cds_load_header(CamelFolderSummaryDisk *cds)
 {
-	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->root_view;
 	DBT key = { 0 }, data = { 0 };
 	int res = -1;
 
@@ -139,11 +164,9 @@ cds_load_header(CamelFolderSummaryDisk *cds)
 	key.size = HEADER_KEY_LEN;
 	data.flags = DB_DBT_MALLOC;
 
-	res = p->db->get(p->db, NULL, &key, &data, 0);
-	if (res == DB_NOTFOUND) {
-		printf("entry not found?\n");
-		return 0;
-	}
+	LOCK_VIEW(view);
+	res = view->db->get(view->db, NULL, &key, &data, 0);
+	UNLOCK_VIEW(view);
 
 	if (res == 0) {
 		CamelRecordDecoder *crd;
@@ -151,8 +174,12 @@ cds_load_header(CamelFolderSummaryDisk *cds)
 		crd = camel_record_decoder_new(data.data, data.size);
 		res = CDS_CLASS(cds)->decode_header(cds, crd);
 		camel_record_decoder_free(crd);
+	} else if (res == DB_NOTFOUND) {
+		printf("entry not found?\n");
+		res = 0;
 	} else
-		p->db->err(p->db, res, "getting header fialed");
+		// TODO find out if this is safe to call unlocked?
+		view->db->err(view->db, res, "getting header fialed");
 
 	if (data.data)
 		free(data.data);
@@ -163,7 +190,7 @@ cds_load_header(CamelFolderSummaryDisk *cds)
 static int
 cds_save_header(CamelFolderSummaryDisk *cds)
 {
-	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->root_view;
 	DBT key = { 0 }, data = { 0 };
 	CamelRecordEncoder *cre;
 	int res = -1;
@@ -178,13 +205,13 @@ cds_save_header(CamelFolderSummaryDisk *cds)
 	data.data = cre->out->data;
 	data.size = cre->out->len;
 
-	// TODO: transactions
-	res = p->db->put(p->db, NULL, &key, &data, 0);
-	if (res == DB_NOTFOUND) {
-		printf("  SAVING: db not found!? \n");
-		return 0;
-	} else if (res != 0)
-		p->db->err(p->db, res, "saving header fialed");
+	// TODO: transactions?
+	LOCK_VIEW(view);
+	res = view->db->put(view->db, NULL, &key, &data, 0);
+	UNLOCK_VIEW(view);
+
+	if (res != 0)
+		view->db->err(view->db, res, "saving header fialed");
 
 	if (data.data)
 		free(data.data);
@@ -194,7 +221,7 @@ cds_save_header(CamelFolderSummaryDisk *cds)
 
 static int cds_save_info(CamelFolderSummaryDisk *s, CamelMessageInfo *mi, guint32 flags)
 {
-	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)((CamelFolderSummary *)s)->root_view;
 	CamelRecordEncoder *cre = camel_record_encoder_new();
 	DBT key = { 0 }, data = { 0 };
 	int err;
@@ -207,9 +234,11 @@ static int cds_save_info(CamelFolderSummaryDisk *s, CamelMessageInfo *mi, guint3
 	data.size = cre->out->len;
 
 	/* transaction? */
-	err = p->db->put(p->db, NULL, &key, &data, flags);
+	LOCK_VIEW(view);
+	err = view->db->put(view->db, NULL, &key, &data, flags);
 	if (err != 0 && err == DB_KEYEXIST)
-		p->db->err(p->db, err, "putting info '%s' into database", mi->uid);
+		view->db->err(view->db, err, "putting info '%s' into database", mi->uid);
+	UNLOCK_VIEW(view);
 
 	camel_record_encoder_free(cre);
 
@@ -497,42 +526,69 @@ static void cds_message_info_free(CamelMessageInfo *mi)
    If we know what flags have changed, we can highly optimise trash and junk
    views, but whatever eh */
 
+static int
+cds_update_view_add(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
+{
+	int res = 0;
+
+	if (camel_folder_search_match(view->view.iter, mi, NULL)) {
+		DBT key = { 0 }, data = { 0 };
+
+		key.data = (void *)camel_message_info_uid(mi);
+		key.size = strlen(key.data);
+
+		LOCK_VIEW(view);
+		res = view->db->put(view->db, NULL, &key, &data, DB_NOOVERWRITE);
+		if (res == 0) {
+			d(printf("  just added a new match\n"));
+			view->view.total_count++;
+			// FIXME: update counts
+		}
+		UNLOCK_VIEW(view);
+	}
+
+	return res;
+}
+
+static int
+cds_update_view_remove(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
+{
+	int res;
+	DBT key = { 0 };
+
+	key.data = (void *)camel_message_info_uid(mi);
+	key.size = strlen(key.data);
+
+	LOCK_VIEW(view);
+	res = view->db->del(view->db, NULL, &key, 0);
+	if (res == 0) {
+		d(printf("  we had it, bye byte\n"));
+		view->view.total_count--;
+		// FIXME: update counts
+	} else if (res != DB_NOTFOUND) {
+		/* I can fill some data integrity issues coming on ... */
+	}
+	UNLOCK_VIEW(view);
+
+	return res;
+}
+
 static int cds_update_views_change(CamelFolderSummaryDisk *cds, CamelMessageInfo *mi)
 {
 	CamelFolderViewDisk *view;
 	int res = 0;
-	DBT key = { 0 }, data = { 0 };
 
 	for (view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->views.head;
 	     view->view.next;
 	     view = (CamelFolderViewDisk *)view->view.next) {
-
-		(printf("updating uid '%s' for secondary index '%s'\n", camel_message_info_uid(mi), view->view.vid));
+		d(printf("updating uid '%s' for secondary index '%s'\n", camel_message_info_uid(mi), view->view.vid));
 
 		/* static searches, we only scan immutable data, so no changes need to be re-checked */
-		if (view->view.is_static) {
-			printf(" static, no need to search\n");
-			continue;
-		}
-
-		key.data = (void *)camel_message_info_uid(mi);
-		key.size = strlen(key.data);
-		if (camel_folder_search_match(view->view.iter, mi, NULL)) {
-			res = view->db->put(view->db, NULL, &key, &data, DB_NOOVERWRITE);
-			if (res == 0) {
-				d(printf("  just added a new match\n"));
-				view->view.total_count++;
-				// FIXME: update counts
-			} else if (res == DB_KEYEXIST)
-				d(printf("  already had this one\n"));
-		} else {
-			res = view->db->del(view->db, NULL, &key, 0);
-			if (res == 0) {
-				d(printf("  just removed one we had\n"));
-				view->view.total_count--;
-				// FIXME: update counts
-			} else if (res == DB_NOTFOUND)
-				d(printf("  didn't have it anyway\n"));
+		if (!view->view.is_static) {
+			if (camel_folder_search_match(view->view.iter, mi, NULL))
+				res = cds_update_view_add(view, mi);
+			else
+				res = cds_update_view_remove(view, mi);
 		}
 	}
 
@@ -544,24 +600,11 @@ static int cds_update_views_change(CamelFolderSummaryDisk *cds, CamelMessageInfo
 static int cds_update_views_add(CamelFolderSummaryDisk *cds, CamelMessageInfo *mi)
 {
 	CamelFolderViewDisk *view;
-	int res = 0;
-	DBT key = { 0 }, data = { 0 };
+	int res;
 
 	view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->views.head;
 	while (((CamelFolderView *)view)->next) {
-		d(printf("updating uid '%s' for secondary index '%s'\n", camel_message_info_uid(mi), view->view.vid));
-
-		key.data = (void *)camel_message_info_uid(mi);
-		key.size = strlen(key.data);
-		if (camel_folder_search_match(view->view.iter, mi, NULL)) {
-			res = view->db->put(view->db, NULL, &key, &data, DB_NOOVERWRITE);
-			if (res == 0) {
-				d(printf("  just added a new match\n"));
-				view->view.total_count++;
-				// FIXME: update counts
-			}
-		}
-
+		res = cds_update_view_add(view, mi);
 		view = (CamelFolderViewDisk *)view->view.next;
 	}
 
@@ -574,24 +617,10 @@ static int cds_update_views_remove(CamelFolderSummaryDisk *cds, CamelMessageInfo
 {
 	CamelFolderViewDisk *view;
 	int res = 0;
-	DBT key = { 0 };
 
 	view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->views.head;
 	while (((CamelFolderView *)view)->next) {
-		printf("removing '%s' from secondary index '%s'\n", camel_message_info_uid(mi), view->view.vid);
-
-		key.data = (void *)camel_message_info_uid(mi);
-		key.size = strlen(key.data);
-		res = view->db->del(view->db, NULL, &key, 0);
-		if (res == 0) {
-			printf("  we had it, bye byte\n");
-			view->view.total_count--;
-			// FIXME: update counts
-		} else if (res != DB_NOTFOUND) {
-			/* I can fill some data integrity issues coming on ... */
-		} else
-			printf("  didn't have it anyway\n");
-
+		res = cds_update_view_remove(view, mi);
 		view = (CamelFolderViewDisk *)view->view.next;
 	}
 
@@ -608,6 +637,7 @@ static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
 	/* NOOVERWRITE ensures we dont get duplicates */
 
 	res = cds_save_info((CamelFolderSummaryDisk *)s, mi, DB_NOOVERWRITE);
+
 	if (res == 0) {
 		CAMEL_SUMMARY_LOCK(s, ref_lock);
 		g_hash_table_insert(p->cache, mi->uid, mi);
@@ -633,6 +663,7 @@ static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
    directly remove anything, so it isn't so important to hide */
 static int cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 {
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)s->root_view;
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	DBT key = { 0 };
 	int res;
@@ -643,19 +674,24 @@ static int cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 
 	/* Should foldersummary.remove() return some NOTFOUND code? */
 
-	// FIXME: transactions with view update
+	// FIXME: transactions with view update?
 
 	key.data = mi->uid;
 	key.size = strlen(mi->uid);
-	res = p->db->del(p->db, NULL, &key, 0);
+	LOCK_VIEW(view);
+	res = view->db->del(view->db, NULL, &key, 0);
+	UNLOCK_VIEW(view);
+
+	/* We never had it anyway, ignore it */
 	if (res == DB_NOTFOUND)
 		return -1;
-	else if (res != 0) {
-		/* failed, now what? */ ;
-		p->db->err(p->db, res, "removing info '%s' from database", mi->uid);
-		res = 0;
-	} else {
+
+	if (res == 0) {
 		res = cds_update_views_remove((CamelFolderSummaryDisk *)s, mi);
+	} else {
+		/* failed, now what? */ ;
+		view->db->err(view->db, res, "removing info '%s' from database", mi->uid);
+		res = 0;
 	}
 
 	cds_parent->remove(s, mi);
@@ -666,10 +702,16 @@ static int cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 static void cds_clear(CamelFolderSummary *s)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)s->root_view;
 
-	p->db->truncate(p->db, NULL, NULL, DB_AUTO_COMMIT);
+	LOCK_VIEW(view);
 
-	/* FIXME: views? */
+	view->db->truncate(view->db, NULL, NULL, 0);
+
+	/* FIXME: other views? */
+	/* FIXME: counts? */
+
+	UNLOCK_VIEW(s->root_view);
 
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 
@@ -686,8 +728,10 @@ static void cds_clear(CamelFolderSummary *s)
 static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)s->root_view;
 	DBT key = { 0 }, data = { 0 };
 	CamelMessageInfo *mi;
+	int res;
 
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 	mi = g_hash_table_lookup(p->cache, uid);
@@ -704,7 +748,11 @@ static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
 	key.size = strlen(uid);
 	data.flags = DB_DBT_MALLOC;
 
-	if (p->db->get(p->db, NULL, &key, &data, 0) == 0) {
+	LOCK_VIEW(view);
+	res = view->db->get(view->db, NULL, &key, &data, 0);
+	UNLOCK_VIEW(view);
+
+	if (res == 0) {
 		mi = cds_get_record((CamelFolderSummaryDisk *)s, &key, &data);
 		if (data.data)
 			free(data.data);
@@ -718,57 +766,60 @@ static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
 static const CamelMessageInfo *cds_iterator_step(void *mitin, guint32 flags0, guint32 flags1, CamelException *ex)
 {
 	CamelMessageIteratorDisk *mit = mitin;
+	CamelFolderViewDisk *root = (CamelFolderViewDisk *)mit->view->summary->root_view;
 	CamelMessageInfo *mi;
+	int res;
 
 	if (mit->cursor == NULL)
 		return NULL;
 
+	if (mit->current) {
+		camel_message_info_free(mit->current);
+		mit->current = NULL;
+	}
 
 	/* Iterates over all keys in either the primary or secondary index.
 	   For secondary indices we then also have to lookup in the main
-	   index for the actual content.  Easy peasy.
+	   index for the actual content.  Easy peasy. */
 
-	   We have to use the DB_RMW flag so any other thread (!) can modify
-	   the db at the same time. */
+	/* We lock the root 'view', but all views are the same environment anyway */
+	LOCK_VIEW(root);
 
 	do {
-		int res;
-
 	nextkey:
-		res = mit->cursor->c_get(mit->cursor, &mit->key, &mit->data, flags0|DB_RMW);
+		res = mit->cursor->c_get(mit->cursor, &mit->key, &mit->data, flags0);
 		if (res == DB_NOTFOUND)
-			return NULL;
-		else if (res != 0) {
-			// FIXMEL find a similar string
-			camel_exception_setv(ex, 1, "operation failed: %s", db_strerror(res));
-			return NULL;
-		}
+			goto done;
+		else if (res != 0)
+			goto done_fail;
 
 		flags0 = flags1;
 
-		if (mit->view != mit->view->summary->root_view) {
-			struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mit->view->summary);
-
-			res = p->db->get(p->db, NULL, &mit->key, &mit->data, 0);
+		if ((CamelFolderViewDisk *)mit->view != root) {
+			res = root->db->get(root->db, NULL, &mit->key, &mit->data, 0);
 			if (res == DB_NOTFOUND) {
 				g_warning("Secondary index mismatch!  Eek!");
 				goto nextkey;
-			} else if (res != 0) {
-				camel_exception_setv(ex, 1, "operation failed: %s", db_strerror(res));
-				return NULL;
-			}
+			} else if (res != 0)
+				goto done_fail;
 		}
-
 	} while (mit->key.size == HEADER_KEY_LEN
 		 && memcmp(mit->key.data, HEADER_KEY, HEADER_KEY_LEN) == 0);
 
-	if (mit->current)
-		camel_message_info_free(mit->current);
+	UNLOCK_VIEW(root);
 
 	mi = cds_get_record((CamelFolderSummaryDisk *)mit->view->summary, &mit->key, &mit->data);
 	mit->current = mi;
 
 	return mi;
+
+done_fail:
+	// FIXME: find a good translator string
+	camel_exception_setv(ex, 1, "operation failed: %s", db_strerror(res));
+done:
+	UNLOCK_VIEW(root);
+
+	return NULL;
 }
 
 static const CamelMessageInfo *cds_iterator_next(void *mitin, CamelException *ex)
@@ -794,7 +845,9 @@ static void cds_iterator_free(void *mitin)
 	CamelMessageIteratorDisk *mit = mitin;
 
 	if (mit->cursor) {
+		LOCK_VIEW(mit->view);
 		mit->cursor->c_close(mit->cursor);
+		UNLOCK_VIEW(mit->view);
 		if (mit->data.data)
 			free(mit->data.data);
 		if (mit->key.data)
@@ -804,6 +857,7 @@ static void cds_iterator_free(void *mitin)
 	if (mit->current)
 		camel_message_info_free(mit->current);
 
+	/* FIXME: This could free the view before we unref it ... */
 	camel_object_ref(mit->view->summary->folder);
 	camel_folder_summary_view_unref(mit->view);
 }
@@ -842,12 +896,16 @@ static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const cha
 		mit->view = (CamelFolderView *)view;
 		camel_object_ref(s->folder);
 
+		LOCK_VIEW(view);
+
 		if (view->db->cursor(view->db, NULL, &mit->cursor, 0) != 0)
 			mit->cursor = NULL;
 		else {
 			mit->key.flags = DB_DBT_REALLOC;
 			mit->data.flags = DB_DBT_REALLOC;
 		}
+
+		UNLOCK_VIEW(view);
 
 		if (expr && expr[0])
 			return (CamelMessageIterator *)camel_folder_search_search(s->search, expr, (CamelMessageIterator *)mit, ex);
@@ -856,6 +914,8 @@ static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const cha
 	}
 }
 
+#if 0
+// see comments in view_build_all 
 static void
 cds_view_rebuild(CamelFolderSummary *s, CamelFolderViewDisk *view, CamelException *ex)
 {
@@ -878,15 +938,72 @@ cds_view_rebuild(CamelFolderSummary *s, CamelFolderViewDisk *view, CamelExceptio
 	while ((info = camel_message_iterator_next(iter, ex))) {
 		key.data = (void *)camel_message_info_uid(info);
 		key.size = strlen(key.data);
+
+		LOCK_VIEW(view);
 		res = view->db->put(view->db, NULL, &key, &data, 0);
 		if (res == 0) {
 			view->view.total_count++;
 			// FIXME: update other counts
 		}
+		UNLOCK_VIEW(view);
 	}
 	camel_message_iterator_free(iter);
 
 	printf(" %d total matches\n", view->view.total_count);
+}
+#endif
+
+static void
+cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
+{
+	CamelFolderViewDisk *view;
+	GPtrArray *build = g_ptr_array_new();
+	int i;
+
+	/* So, two possibilities here:
+	   We iterator over all messages and match every view one by one
+	   or
+	   We search each view and add them.
+
+	   The first should be better because we only iterate the full
+	   set once, and should have good locality of reference for
+	   everything anyway.
+
+	   The second might be better, if we can somehow optimise
+	   the search better than iterating over each message anyway.
+	   Currently we don't, so the first should be better, and that is what
+	   we're doing here.  (in reality they're probably the same).
+	*/
+
+	printf("Checking for views to rebuild:\n");
+
+	/* FIXME: lockit */
+	for (view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->views.head;
+	     ((CamelFolderView *)view)->next;
+	     view = (CamelFolderViewDisk *)((CamelFolderView *)view)->next) {
+		if (view->build) {
+			printf(" %s\n", view->view.vid);
+			// FIXME: ref it
+			g_ptr_array_add(build, view);
+			view->build = 0;
+		}
+	}
+
+	if (build->len) {
+		CamelMessageIterator *iter;
+		const CamelMessageInfo *info;
+
+		iter = camel_folder_summary_search((CamelFolderSummary *)cds, NULL, NULL, NULL, ex);
+		while ((info = camel_message_iterator_next(iter, ex)))
+			for (i=0;i<build->len;i++)
+				cds_update_view_add(build->pdata[i], info);
+		camel_message_iterator_free(iter);
+		// fixme unref 'em
+	} else {
+		printf(" none!\n");
+	}
+
+	g_ptr_array_free(build, TRUE);
 }
 
 static CamelFolderView *
@@ -910,39 +1027,43 @@ cds_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelE
 
 	printf("opening view db '%s'\n", name);
 
-	db_create(&view->db, get_env((CamelService *)s->folder->parent_store), 0);
+	view->env = get_env((CamelService *)s->folder->parent_store);
+	g_assert(view->env);
+
+	LOCK_VIEW(view);
+
+	db_create(&view->db, view->env->env, 0);
 	view->db->app_private = view;
 	view->db->set_bt_compare(view->db, cds_dbt_cmp);
 
 	if (vid == NULL) {
 		/* root db, we just open it with create */
-		err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, DB_CREATE|DB_THREAD, 0666);
+		err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, DB_CREATE, 0666);
+		UNLOCK_VIEW(view);
+
 		if (err != 0)
 			camel_exception_setv(ex, 1, "creating database failed", db_strerror(err));
-		else {
-			struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
-
-			/* We leave a copy of the root db here for convenience */
-			p->db = view->db;
-		}
 	} else {
 		/* secondary db, if this is the first time we've opened it, we need to re-index */
-		err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, DB_THREAD, 0666);
+		err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, 0, 0666);
+		// FIXME: must check we're getting the right return code ...
 		if (err != 0) {
 			view->db->close(view->db, 0);
 			view->db = NULL;
-			db_create(&view->db, get_env((CamelService *)s->folder->parent_store), 0);
+			db_create(&view->db, view->env->env, 0);
 			view->db->app_private = view;
 			view->db->set_bt_compare(view->db, cds_dbt_cmp);
-			err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, DB_CREATE|DB_THREAD, 0666);
+			err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, DB_CREATE, 0666);
+			UNLOCK_VIEW(view);
 			if (err != 0)
 				camel_exception_setv(ex, 1, "creating database failed", db_strerror(err));
 			else
-				// FIXME: We really need to rebiuld AFTER we return, otherwise we can't
-				// guarantee more updates dont happen since this view doesn't 'exist'
-				// until we're done
-				cds_view_rebuild(s, view, ex);
-		}
+				// TODO: If this was a view that code other than load_header
+				// created, we need to fire off a job to rebuild it?
+				view->build = 1;
+		} else
+			UNLOCK_VIEW(view);
+
 	}
 
 	return (CamelFolderView *)view;
@@ -961,6 +1082,8 @@ cds_view_free(CamelFolderSummary *s, CamelFolderView *view)
 {
 	printf("freeing view/closing db '%s'\n", view->vid?view->vid:"root view");
 
+	LOCK_VIEW(view);
+
 	((CamelFolderViewDisk *)view)->db->close(((CamelFolderViewDisk *)view)->db, 0);
 
 	if (view->deleted) {
@@ -970,9 +1093,13 @@ cds_view_free(CamelFolderSummary *s, CamelFolderView *view)
 		name = g_alloca(strlen(s->folder->full_name)+strlen(view->vid)+2);
 		sprintf(name, "%s:%s", s->folder->full_name, view->vid);
 
-		db_create(&db, get_env((CamelService *)s->folder->parent_store), 0);
+		printf("The view '%s' was deleted, doing it\n", name);
+
+		db_create(&db, ((CamelFolderViewDisk *)view)->env->env, 0);
 		db->remove(db, "folders", name, 0);
 	}
+
+	UNLOCK_VIEW(view);
 
 	cds_parent->view_free(s, view);
 }
@@ -1281,20 +1408,27 @@ static int cds_decode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, Cam
 static void
 cds_sync(CamelFolderSummaryDisk *cds, GPtrArray *infos, CamelException *ex)
 {
-	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
+	CamelFolderViewDisk *root = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->root_view;
 	int i;
 
 	/* TODO: use transactions? */
 	/* TODO: what to do about failures? */
 
+	camel_operation_start(NULL, _("Storing changes"));
+
 	for (i=0;i<infos->len;i++) {
-		d(printf("Saving message '%s'\n", camel_message_info_uid(infos->pdata[i])));
+		camel_operation_progress(NULL, i*100/infos->len);
 		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i], 0);
 		cds_update_views_change(cds, (CamelMessageInfo *)infos->pdata[i]);
 	}
+
 	cds_save_header(cds);
 
-	p->db->sync(p->db, 0);
+	LOCK_VIEW(root);
+	root->db->sync(root->db, 0);
+	UNLOCK_VIEW(root);
+
+	camel_operation_end(NULL);
 }
 
 static void
@@ -1376,6 +1510,7 @@ CamelFolderSummaryDisk *
 camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFolder *folder)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)cds;
+	CamelException ex = { 0 };
 
 	s->folder = folder;
 
@@ -1383,7 +1518,8 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 	s->search = camel_folder_search_new();
 
 	printf("init root view\n");
-	camel_folder_summary_view_create(s, NULL, NULL, NULL);
+	camel_folder_summary_view_create(s, NULL, NULL, &ex);
+	// check ex
 
 	printf("constructing summary, loading header\n");
 	cds_load_header(cds);
@@ -1392,17 +1528,27 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 	   they will just be ignored now, if we set them up before, it means we'd lose the counts */
 
 	printf("init trash view\n");
-	camel_folder_summary_view_create(s, "#.trash", "(system-flag \"Deleted\")", NULL);
+	camel_folder_summary_view_create(s, "#.trash", "(system-flag \"Deleted\")", &ex);
+	camel_exception_clear(&ex);
 	printf("init junk view\n");
-	camel_folder_summary_view_create(s, "#.junk", "(system-flag \"Junk\")", NULL);
-
+	camel_folder_summary_view_create(s, "#.junk", "(system-flag \"Junk\")", &ex);
+	camel_exception_clear(&ex);
 
 	/* add some 'vfolders' */
-	camel_folder_summary_view_create(s, "unread", "(not (system-flag \"Seen\"))", NULL);
-	camel_folder_summary_view_create(s, "evolution-hackers", "(header-contains \"subject\" \"[evolution-hackers]\")", NULL);
-	camel_folder_summary_view_create(s, "evolution", "(header-contains \"subject\" \"[hackers]\")", NULL);
-	camel_folder_summary_view_create(s, "to.notzed", "(header-contains \"to\" \"notzed\")", NULL);
-	camel_folder_summary_view_create(s, "from.notzed", "(header-contains \"from\" \"notzed\")", NULL);
+	camel_folder_summary_view_create(s, "unread", "(not (system-flag \"Seen\"))", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "evolution-hackers", "(header-contains \"subject\" \"[evolution-hackers]\")", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "evolution", "(header-contains \"subject\" \"[hackers]\")", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "to.notzed", "(header-contains \"to\" \"notzed\")", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "from.notzed", "(header-contains \"from\" \"notzed\")", &ex);
+	camel_exception_clear(&ex);
+
+	/* Now build any views we need to at all at once */
+	cds_view_build_all(cds, &ex);
+	camel_exception_clear(&ex);
 
 	/* sync? */
 
