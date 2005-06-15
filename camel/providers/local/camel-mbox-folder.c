@@ -264,14 +264,13 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 		mbs->time = st.st_mtime;
 	}
 
-	/* unlock as soon as we can */
-	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
-
 	/* now update the summary */
 	((CamelMessageInfoBase *)mi)->size = mbs->folder_size - ((CamelMboxMessageInfo *)mi)->frompos;
-
 	camel_folder_summary_add(folder->summary, mi);
-	
+
+	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
+
+	/* Need to lock lf->changes somehow */
 	if (camel_folder_change_info_changed(lf->changes)) {
 		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
 		camel_folder_change_info_clear(lf->changes);

@@ -289,7 +289,6 @@ done:
 	for (i = 0; i < changes->len; i++)
 		((CamelMessageInfoBase *)changes->pdata[i])->flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
 
-
 	/* FIXME: we actually wnat to sync the db first ...  then update the mbox/mtime, then
 	   re-save the header */
 	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->sync(cds, changes, ex);
@@ -600,7 +599,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 	//cls->index_force = FALSE;
 
-	camel_operation_start(NULL, _("Checking new mail"));
+	camel_operation_start(NULL, _("Checking for new mail"));
 
 	fd = open(((CamelLocalSummary *)s)->folder_path, O_RDWR);
 	if (fd == -1) {
@@ -690,7 +689,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 				iterinfo = camel_message_iterator_next(iter, NULL);
 			}
 
-			if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
+			if (iterinfo && uid_cmp(iterinfo->uid, uid) == 0) {
 				info = (CamelMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
 				iterinfo = camel_message_iterator_next(iter, NULL);
@@ -1143,7 +1142,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 				iterinfo = camel_message_iterator_next(iter, NULL);
 			}
 
-			if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
+			if (iterinfo && uid_cmp(iterinfo->uid, uid) == 0) {
 				info = (CamelMboxMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
 				iterinfo = camel_message_iterator_next(iter, NULL);
@@ -1153,7 +1152,6 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 			printf("how silly, a new message with no xev header got added by someone\n");
 		}
 	add_message:
-
 		printf("how odd, found an unkown message at %ld\n", camel_mime_parser_tell_start_from(mp));
 
 		/* A message we didn't know about, just create a new xev for it and write it out */

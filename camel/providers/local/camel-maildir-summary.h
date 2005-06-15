@@ -33,19 +33,17 @@
 typedef struct _CamelMaildirSummary	CamelMaildirSummary;
 typedef struct _CamelMaildirSummaryClass	CamelMaildirSummaryClass;
 
-typedef struct _CamelMaildirMessageContentInfo {
-	CamelMessageContentInfo info;
-} CamelMaildirMessageContentInfo;
-
 enum {
-	CAMEL_MAILDIR_INFO_FILENAME = CAMEL_MESSAGE_INFO_LAST,
-	CAMEL_MAILDIR_INFO_LAST,
+	CFS_MDIR_SECTION_FOLDERINFO = CFS_LOCAL_SECTION_LAST,
+	CFS_MDIR_SECTION_INFO,
+	CFS_MDIR_SECTION_LAST = CFS_LOCAL_SECTION_LAST+8
 };
 
 typedef struct _CamelMaildirMessageInfo {
 	CamelLocalMessageInfo info;
 
-	char *filename;		/* maildir has this annoying status shit on the end of the filename, use this to get the real message id */
+	/* Contains everything after a ':' if present */
+	char *ext;
 } CamelMaildirMessageInfo;
 
 struct _CamelMaildirSummary {
@@ -55,10 +53,6 @@ struct _CamelMaildirSummary {
 
 struct _CamelMaildirSummaryClass {
 	CamelLocalSummaryClass parent_class;
-
-	/* virtual methods */
-
-	/* signals */
 };
 
 CamelType	 camel_maildir_summary_get_type	(void);
@@ -68,7 +62,6 @@ CamelMaildirSummary	*camel_maildir_summary_new	(struct _CamelFolder *folder, con
 char *camel_maildir_summary_info_to_name(const CamelMaildirMessageInfo *info);
 int camel_maildir_summary_name_to_info(CamelMaildirMessageInfo *info, const char *name);
 
-/* TODO: could proably use get_string stuff */
 #define camel_maildir_info_filename(x) (((CamelMaildirMessageInfo *)x)->filename)
 #define camel_maildir_info_set_filename(x, s) (g_free(((CamelMaildirMessageInfo *)x)->filename),((CamelMaildirMessageInfo *)x)->filename = s)
 

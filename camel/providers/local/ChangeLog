@@ -1,3 +1,16 @@
+2005-06-16  Not Zed  <NotZed@Ximian.com>
+
+	* camel-maildir-summary.c: ho hum, rewrote most of this too.  wont
+	compile yet.
+
+	* camel-mbox-summary.c (camel_mbox_summary_sync_mbox) 
+	(summary_update): use the right uid cmp function.
+
+	* camel-maildir-summary.h: cleaned up some cruft.
+
+	* camel-mbox-folder.c (mbox_append_message): add the info within
+	the write_lock to avoid re-sync races.
+
 2005-06-15  Not Zed  <NotZed@Ximian.com>
 
 	* camel-mbox-summary.c (camel_mbox_summary_sync_mbox): completely

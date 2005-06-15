@@ -50,13 +50,6 @@ static CamelLocalFolderClass *parent_class = NULL;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 #define CMAILDIRS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
-static CamelLocalSummary *maildir_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index);
-
-static void maildir_append_message(CamelFolder * folder, CamelMimeMessage * message, const CamelMessageInfo *info, char **appended_uid, CamelException * ex);
-static CamelMimeMessage *maildir_get_message(CamelFolder * folder, const gchar * uid, CamelException * ex);
-
-static void maildir_finalize(CamelObject * object);
-
 static int
 maildir_folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 {
@@ -84,52 +77,6 @@ maildir_folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 	}
 
 	return ((CamelObjectClass *)parent_class)->getv(object, ex, args);
-}
-
-static void camel_maildir_folder_class_init(CamelObjectClass * camel_maildir_folder_class)
-{
-	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_maildir_folder_class);
-	CamelLocalFolderClass *lclass = (CamelLocalFolderClass *)camel_maildir_folder_class;
-
-	parent_class = CAMEL_LOCAL_FOLDER_CLASS (camel_type_get_global_classfuncs(camel_local_folder_get_type()));
-
-	/* virtual method definition */
-
-	/* virtual method overload */
-	((CamelObjectClass *)camel_folder_class)->getv = maildir_folder_getv;
-
-	camel_folder_class->append_message = maildir_append_message;
-	camel_folder_class->get_message = maildir_get_message;
-
-	lclass->create_summary = maildir_create_summary;
-}
-
-static void maildir_init(gpointer object, gpointer klass)
-{
-	/*CamelFolder *folder = object;
-	  CamelMaildirFolder *maildir_folder = object;*/
-}
-
-static void maildir_finalize(CamelObject * object)
-{
-	/*CamelMaildirFolder *maildir_folder = CAMEL_MAILDIR_FOLDER(object);*/
-}
-
-CamelType camel_maildir_folder_get_type(void)
-{
-	static CamelType camel_maildir_folder_type = CAMEL_INVALID_TYPE;
-
-	if (camel_maildir_folder_type == CAMEL_INVALID_TYPE) {
-		camel_maildir_folder_type = camel_type_register(CAMEL_LOCAL_FOLDER_TYPE, "CamelMaildirFolder",
-							   sizeof(CamelMaildirFolder),
-							   sizeof(CamelMaildirFolderClass),
-							   (CamelObjectClassInitFunc) camel_maildir_folder_class_init,
-							   NULL,
-							   (CamelObjectInitFunc) maildir_init,
-							   (CamelObjectFinalizeFunc) maildir_finalize);
-	}
- 
-	return camel_maildir_folder_type;
 }
 
 CamelFolder *
@@ -276,4 +223,50 @@ static CamelMimeMessage *maildir_get_message(CamelFolder * folder, const gchar *
 	g_free(name);
 
 	return message;
+}
+
+static void camel_maildir_folder_class_init(CamelObjectClass * camel_maildir_folder_class)
+{
+	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_maildir_folder_class);
+	CamelLocalFolderClass *lclass = (CamelLocalFolderClass *)camel_maildir_folder_class;
+
+	parent_class = CAMEL_LOCAL_FOLDER_CLASS (camel_type_get_global_classfuncs(camel_local_folder_get_type()));
+
+	/* virtual method definition */
+
+	/* virtual method overload */
+	((CamelObjectClass *)camel_folder_class)->getv = maildir_folder_getv;
+
+	camel_folder_class->append_message = maildir_append_message;
+	camel_folder_class->get_message = maildir_get_message;
+
+	lclass->create_summary = maildir_create_summary;
+}
+
+static void maildir_init(gpointer object, gpointer klass)
+{
+	/*CamelFolder *folder = object;
+	  CamelMaildirFolder *maildir_folder = object;*/
+}
+
+static void maildir_finalize(CamelObject * object)
+{
+	/*CamelMaildirFolder *maildir_folder = CAMEL_MAILDIR_FOLDER(object);*/
+}
+
+CamelType camel_maildir_folder_get_type(void)
+{
+	static CamelType camel_maildir_folder_type = CAMEL_INVALID_TYPE;
+
+	if (camel_maildir_folder_type == CAMEL_INVALID_TYPE) {
+		camel_maildir_folder_type = camel_type_register(CAMEL_LOCAL_FOLDER_TYPE, "CamelMaildirFolder",
+							   sizeof(CamelMaildirFolder),
+							   sizeof(CamelMaildirFolderClass),
+							   (CamelObjectClassInitFunc) camel_maildir_folder_class_init,
+							   NULL,
+							   (CamelObjectInitFunc) maildir_init,
+							   (CamelObjectFinalizeFunc) maildir_finalize);
+	}
+ 
+	return camel_maildir_folder_type;
 }
