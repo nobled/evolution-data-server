@@ -35,7 +35,7 @@ typedef struct _SearchContext SearchContext;
 
 struct _ECalBackendSExpPrivate {
 	ESExp *search_sexp;
-	ESExpTerm *search_term;
+	ESExpTree *search_tree;
 	char *text;
 	SearchContext *search_context;
 };
@@ -58,7 +58,7 @@ struct _SearchContext {
  * Return value: The result of the function.
  */
 ESExpResult *
-e_cal_backend_sexp_func_time_now (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+e_cal_backend_sexp_func_time_now (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	ESExpResult *result;
 
@@ -89,7 +89,7 @@ e_cal_backend_sexp_func_time_now (ESExp *esexp, int argc, ESExpResult **argv, vo
  * Return value: The result of the function.
  */
 ESExpResult *
-e_cal_backend_sexp_func_make_time (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+e_cal_backend_sexp_func_make_time (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	const char *str;
 	time_t t;
@@ -149,7 +149,7 @@ e_cal_backend_sexp_func_make_time (ESExp *esexp, int argc, ESExpResult **argv, v
  * Return value: The result of the function.
  */
 ESExpResult *
-e_cal_backend_sexp_func_time_add_day (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+e_cal_backend_sexp_func_time_add_day (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	ESExpResult *result;
 	time_t t;
@@ -200,7 +200,7 @@ e_cal_backend_sexp_func_time_add_day (ESExp *esexp, int argc, ESExpResult **argv
  * Return value: The result of the function.
  */
 ESExpResult *
-e_cal_backend_sexp_func_time_day_begin (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+e_cal_backend_sexp_func_time_day_begin (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	time_t t;
 	ESExpResult *result;
@@ -242,7 +242,7 @@ e_cal_backend_sexp_func_time_day_begin (ESExp *esexp, int argc, ESExpResult **ar
  * Return value: The result of the function.
  */
 ESExpResult *
-e_cal_backend_sexp_func_time_day_end (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+e_cal_backend_sexp_func_time_day_end (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	time_t t;
 	ESExpResult *result;
@@ -274,7 +274,7 @@ e_cal_backend_sexp_func_time_day_end (ESExp *esexp, int argc, ESExpResult **argv
  * Returns a boolean indicating whether the component has the given UID
  */
 static ESExpResult *
-func_uid (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_uid (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	const char *uid = NULL, *arg_uid;
@@ -347,7 +347,7 @@ resolve_tzid_cb (const char *tzid, gpointer user_data)
  * specified time range.
  */
 static ESExpResult *
-func_occur_in_time_range (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_occur_in_time_range (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	time_t start, end;
@@ -501,7 +501,7 @@ matches_any (ECalComponent *comp, const char *str)
  * specified string.
  */
 static ESExpResult *
-func_contains (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_contains (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	const char *field;
@@ -566,7 +566,7 @@ func_contains (ESExp *esexp, int argc, ESExpResult **argv, void *data)
  * Returns: a boolean indicating whether the component has alarms or not.
  */
 static ESExpResult *
-func_has_alarms (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_has_alarms (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	ESExpResult *result;
@@ -594,7 +594,7 @@ func_has_alarms (ESExp *esexp, int argc, ESExpResult **argv, void *data)
  * time range or not.
  */
 static ESExpResult *
-func_has_alarms_in_range (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_has_alarms_in_range (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	time_t start, end;
 	ESExpResult *result;
@@ -657,7 +657,7 @@ func_has_alarms_in_range (ESExp *esexp, int argc, ESExpResult **argv, void *data
  * categories.
  */
 static ESExpResult *
-func_has_categories (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_has_categories (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	gboolean unfiled;
@@ -759,7 +759,7 @@ func_has_categories (ESExp *esexp, int argc, ESExpResult **argv, void *data)
  * Returns: a boolean indicating whether the component has recurrences or not.
  */
 static ESExpResult *
-func_has_recurrences (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_has_recurrences (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	ESExpResult *result;
@@ -784,7 +784,7 @@ func_has_recurrences (ESExp *esexp, int argc, ESExpResult **argv, void *data)
  * a COMPLETED property. This is really only useful for TODO components.
  */
 static ESExpResult *
-func_is_completed (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_is_completed (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	ESExpResult *result;
@@ -820,7 +820,7 @@ func_is_completed (ESExp *esexp, int argc, ESExpResult **argv, void *data)
  * This is really only useful for TODO components.
  */
 static ESExpResult *
-func_completed_before (ESExp *esexp, int argc, ESExpResult **argv, void *data)
+func_completed_before (ESExpTree *esexp, int argc, ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	ESExpResult *result;
@@ -917,7 +917,7 @@ static struct prop_info {
 static int num_prop_infos = sizeof(prop_info_table) / sizeof(prop_info_table[0]);
 
 static ESExpResult *
-entry_compare(SearchContext *ctx, struct _ESExp *f,
+entry_compare(SearchContext *ctx, struct _ESExpTree *f,
 	      int argc, struct _ESExpResult **argv,
 	      char *(*compare)(const char*, const char*))
 {
@@ -1043,14 +1043,14 @@ e_cal_backend_sexp_match_comp (ECalBackendSExp *sexp, ECalComponent *comp, ECalB
 		g_object_unref (sexp->priv->search_context->backend);
 		return FALSE;
 	}
-	r = e_sexp_eval(sexp->priv->search_sexp, sexp->priv->search_term, sexp->priv->search_context);
+	r = e_sexp_eval(sexp->priv->search_tree, sexp->priv->search_context);
 
 	retval = (r && r->type == ESEXP_RES_BOOL && r->value.bool);
 
 	g_object_unref (sexp->priv->search_context->comp);
 	g_object_unref (sexp->priv->search_context->backend);
 
-	e_sexp_result_free(sexp->priv->search_sexp, r);
+	e_sexp_result_free(sexp->priv->search_tree, r);
 
 	return retval;
 }
@@ -1119,10 +1119,10 @@ e_cal_backend_sexp_new (const char *text)
 		}
 	}
 
-	e_sexp_input_text(sexp->priv->search_sexp, text, strlen(text));
-	sexp->priv->search_term = e_sexp_parse(sexp->priv->search_sexp);
+	sexp->priv->search_tree = e_sexp_parse(sexp->priv->search_sexp, text);
 
-	if (sexp->priv->search_term == NULL) {
+	if (sexp->priv->search_tree->term == NULL) {
+		e_sexp_tree_free(sexp->priv->search_tree);
 		g_object_unref (sexp);
 		sexp = NULL;
 	}
@@ -1157,7 +1157,7 @@ e_cal_backend_sexp_dispose (GObject *object)
 	ECalBackendSExp *sexp = E_CAL_BACKEND_SEXP (object);
 
 	if (sexp->priv) {
-		e_sexp_term_free(sexp->priv->search_sexp, sexp->priv->search_term);
+		e_sexp_tree_free(sexp->priv->search_tree);
 		e_sexp_unref(sexp->priv->search_sexp);
 
 		g_free (sexp->priv->text);

@@ -66,11 +66,11 @@ gboolean         e_cal_backend_sexp_match_comp   (ECalBackendSExp *sexp,
 
 /* Default implementations of time functions for use by subclasses */
 
-ESExpResult *e_cal_backend_sexp_func_time_now       (ESExp *esexp, int argc, ESExpResult **argv, void *data);
-ESExpResult *e_cal_backend_sexp_func_make_time      (ESExp *esexp, int argc, ESExpResult **argv, void *data);
-ESExpResult *e_cal_backend_sexp_func_time_add_day   (ESExp *esexp, int argc, ESExpResult **argv, void *data);
-ESExpResult *e_cal_backend_sexp_func_time_day_begin (ESExp *esexp, int argc, ESExpResult **argv, void *data);
-ESExpResult *e_cal_backend_sexp_func_time_day_end   (ESExp *esexp, int argc, ESExpResult **argv, void *data);
+ESExpResult *e_cal_backend_sexp_func_time_now       (ESExpTree *esexp, int argc, ESExpResult **argv, void *data);
+ESExpResult *e_cal_backend_sexp_func_make_time      (ESExpTree *esexp, int argc, ESExpResult **argv, void *data);
+ESExpResult *e_cal_backend_sexp_func_time_add_day   (ESExpTree *esexp, int argc, ESExpResult **argv, void *data);
+ESExpResult *e_cal_backend_sexp_func_time_day_begin (ESExpTree *esexp, int argc, ESExpResult **argv, void *data);
+ESExpResult *e_cal_backend_sexp_func_time_day_end   (ESExpTree *esexp, int argc, ESExpResult **argv, void *data);
 
 
 G_END_DECLS

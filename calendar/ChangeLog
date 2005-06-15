@@ -1,3 +1,8 @@
+2005-06-15  Not Zed  <NotZed@Ximian.com>
+
+	* libedata-cal/e-cal-backend-sexp.c (e_cal_backend_sexp_new):
+	e-sexp api sync.
+
 2005-06-11  Not Zed  <NotZed@Ximian.com>
 
 	* libedata-cal/e-cal-backend-sexp.c (e_cal_backend_sexp_new)
