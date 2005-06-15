@@ -56,6 +56,7 @@ typedef struct {
 	guint32 flags;		/* open mode flags */
 
 	void *lock;		/* thread locker, used to access disk resources */
+	int lock_count;		/* count of readers */
 
 	char *base_path;	/* base path of the local folder */
 	char *folder_path;	/* the path to the folder itself */

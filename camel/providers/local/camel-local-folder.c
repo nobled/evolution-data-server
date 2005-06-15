@@ -324,14 +324,21 @@ int camel_local_folder_lock(CamelLocalFolder *lf, CamelLockType type, CamelExcep
 {
 	if (type == CAMEL_LOCK_WRITE)
 		LOCK_WRITE(lf->lock);
-	else
+	else {
 		LOCK_READ(lf->lock);
+		// FIXME: lock the counter?
+		lf->lock_count++;
+		if (lf->lock_count > 1)
+			return 0;
+	}
 
 	if (CLOCALF_CLASS(lf)->lock(lf, type, ex) == -1) {
 		if (type == CAMEL_LOCK_WRITE)
 			UNLOCK_WRITE(lf->lock);
-		else
+		else {
+			lf->lock_count--;
 			UNLOCK_READ(lf->lock);
+		}
 		return -1;
 	}
 
@@ -341,6 +348,15 @@ int camel_local_folder_lock(CamelLocalFolder *lf, CamelLockType type, CamelExcep
 /* unlock folder */
 int camel_local_folder_unlock(CamelLocalFolder *lf, CamelLockType type)
 {
+	if (type == CAMEL_LOCK_READ) {
+		g_assert(lf->lock_count > 0);
+		lf->lock_count--;
+		if (lf->lock_count > 0) {
+			UNLOCK_READ(lf->lock);
+			return 0;
+		}
+	}
+
 	CLOCALF_CLASS(lf)->unlock(lf, type);
 
 	if (type == CAMEL_LOCK_WRITE)

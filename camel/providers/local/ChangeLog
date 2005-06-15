@@ -1,3 +1,9 @@
+2005-06-15  Not Zed  <NotZed@Ximian.com>
+
+	* camel-local-folder.c (camel_local_folder_lock)
+	(camel_local_folder_unlock): maintain our own reader count, and
+	only physically lock/unlock if it is the first locker.
+
 2005-06-14  Not Zed  <NotZed@Ximian.com>
 
 	* camel-mbox-folder.c (mbox_lock): change locking so we don't

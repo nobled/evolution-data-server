@@ -175,6 +175,9 @@ mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExceptio
 	off_t lastpos;
 	struct stat st;
 
+	/* Do we even care anymore?
+	   Should flags never be stored in the mailbox, unless the mailbox is being exported?? */
+
 	/* Try to also store the changes in the mbox.  If something goes wrong -
 	   tough luck, its stored in the summary ok */
 
@@ -365,6 +368,7 @@ camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const 
 	} else {
 		printf("Nothing in the database %s, last uid in header is %d\n", folder->full_name, (guint32)new->nextuid);
 	}
+	camel_message_iterator_free(iter);
 
 	return new;
 }
