@@ -51,7 +51,7 @@ enum {
 };
 
 struct _CamelFolderSummaryDisk {
-	CamelFolderSummary parent;
+	CamelFolderSummary summary;
 
 	struct _CamelFolderSummaryDiskPrivate *priv;
 };

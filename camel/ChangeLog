@@ -1,5 +1,14 @@
 2005-06-15  Not Zed  <NotZed@Ximian.com>
 
+	* camel-disco-folder.c (disco_expunge): moved into disco_sync.
+
+	* camel-folder.c (camel_folder_sync): remove locks.
+	(camel_folder_expunge): removed.  use sync.
+
+	* camel-folder-summary.c (camel_folder_summary_add): void the
+	args, sick of bloody casts!!!
+	(camel_folder_summary_remove, camel_folder_summary_get): same!!
+
 	* camel-folder-summary-disk.c: throw out all the locking code,
 	dont use libdb's threded api, and just single-thread every access
 	to all the db's on the env using manual locking.  Actually i can

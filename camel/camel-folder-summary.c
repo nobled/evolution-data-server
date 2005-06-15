@@ -71,8 +71,9 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 static CamelObjectClass *camel_folder_summary_parent;
 
 static int
-add(CamelFolderSummary *s, CamelMessageInfo *mi)
+add(CamelFolderSummary *s, void *o)
 {
+	CamelMessageInfo *mi = o;
 	guint32 flags;
 	CamelFolderView *v = s->root_view;
 
@@ -104,8 +105,9 @@ add_array(CamelFolderSummary *s, GPtrArray *mis)
 }
 
 static int
-cfs_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
+cfs_remove(CamelFolderSummary *s, void *o)
 {
+	CamelMessageInfo *mi = o;
 	guint32 flags;
 	CamelFolderView *v = s->root_view;
 
@@ -196,7 +198,7 @@ cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
 	g_free(view);
 }
 
-static CamelMessageInfo *
+static void *
 get(CamelFolderSummary *s, const char *uid)
 {
 	return NULL;
@@ -581,12 +583,10 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 			v->junk_count--;
 	}
 
-	if ((old & ~CAMEL_MESSAGE_SYSTEM_MASK) == (mi->flags & ~CAMEL_MESSAGE_SYSTEM_MASK))
-		return FALSE;
+	if (diff & ~CAMEL_MESSAGE_SYSTEM_MASK)
+		cfs_changed(mi);
 
-	cfs_changed(mi);
-
-	return TRUE;
+	return diff != 0;
 }
 
 static gboolean
@@ -735,7 +735,7 @@ camel_folder_summary_free_array(CamelFolderSummary *s, GPtrArray *array)
  * 
  * Returns the summary item, or %NULL if the uid @uid is not available
  **/
-CamelMessageInfo *
+void *
 camel_folder_summary_get(CamelFolderSummary *s, const char *uid)
 {
 	return CFS_CLASS(s)->get(s, uid);
@@ -773,12 +773,12 @@ camel_folder_summary_get_array(CamelFolderSummary *s, const GPtrArray *array)
  * Return: -1 on error (i.e. uid clash)
  **/
 int
-camel_folder_summary_add(CamelFolderSummary *s, CamelMessageInfo *info)
+camel_folder_summary_add(CamelFolderSummary *s, void *info)
 {
 	if (info == NULL)
 		return -1;
 
-	g_assert(info->summary == s);
+	g_assert(((CamelMessageInfo *)info)->summary == s);
 
 	return CFS_CLASS(s)->add(s, info);
 }
@@ -809,7 +809,7 @@ camel_folder_summary_clear(CamelFolderSummary *s)
  * Remove a specific @info record from the summary.
  **/
 int
-camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info)
+camel_folder_summary_remove(CamelFolderSummary *s, void *info)
 {
 	return CFS_CLASS(s)->remove(s, info);
 }

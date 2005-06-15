@@ -126,8 +126,6 @@ typedef struct {
 
 	CamelStore *  (*get_parent_store) (CamelFolder *folder);
 
-	void (*expunge)  (CamelFolder *folder, CamelException *ex);
-
 	void (*append_message)  (CamelFolder *folder, 
 				 CamelMimeMessage *message,
 				 const CamelMessageInfo *info,
@@ -170,12 +168,6 @@ void               camel_folder_sync                   (CamelFolder *folder,
 							CamelException *ex);
 
 CamelStore *       camel_folder_get_parent_store       (CamelFolder *folder);
-
-
-/* delete operations */
-void		   camel_folder_expunge                (CamelFolder *folder, 
-							CamelException *ex);
-
 
 /* folder name operations */
 const char *      camel_folder_get_name                (CamelFolder *folder);

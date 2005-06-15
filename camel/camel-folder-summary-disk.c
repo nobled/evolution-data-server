@@ -331,77 +331,6 @@ cds_dbt_cmp(DB *db, const DBT *a, const DBT *b)
 }
 
 #if 0
-/* Nice idea, but:
-   This is called a lot, at least 2x on every change/insert.
-   We can't keep track of counts properly as it is used to evaluate
-   both the new and old key
-
-   So ... do it ourselves
-*/
-static int
-cds_associate_key(DB *db, const DBT *key, const DBT *data, DBT *newkey)
-{
-	CamelFolderView *view = db->app_private;
-	CamelMessageInfo *mi;
-	int match = FALSE;
-	CamelRecordDecoder *crd;
-
-	if (key->size == HEADER_KEY_LEN
-	    && memcmp(key->data, HEADER_KEY, HEADER_KEY_LEN) == 0)
-		return DB_DONOTINDEX;
-
-	/* let the fun begin ...
-
-	   One problem with this is that we have to decode the whole
-	   messageinfo, once for each of the secondary keys.
-
-	   Although we could probably use the in-memory copy if
-	   it is available (and normally it will be), we may risk a data
-	   inconsistency.
-
-	   We could probably cache it on the view though - libdb will
-	   call each index in turn every time a new value is written,
-	   so we'll always get them in sequence ...
-
-	   Hrmph, libdb calls this multiple times for each secondary
-	   index update.  So it should run fast.  That's a pity.
-	   We could save a little time by only decoding the root
-	   messageinfo stuff, we dont really need to decode
-	   mbox from offsets and the like.
-
-	   But the real nasty surprise comes after this, how
-	   do we know when to change those view counts? */
-
-	mi = camel_message_info_new((CamelFolderSummary *)view->summary);
-	mi->uid = g_strndup(key->data, key->size);
-
-	printf("checking view '%s' for association with uid '%s' - ", view->vid, mi->uid);
-
-	/* If we can't decode it, uh, oh well, it doesn't match does it */
-
-	crd = camel_record_decoder_new(data->data, data->size);
-	if (CDS_CLASS(view->summary)->decode((CamelFolderSummaryDisk *)view->summary, (CamelMessageInfoDisk *)mi, crd) == 0) {
-		CamelException ex = { 0 };
-
-		match = camel_folder_search_match(view->iter, mi, &ex);
-		camel_exception_clear(&ex);
-	}
-	camel_record_decoder_free(crd);
-	camel_message_info_free(mi);
-
-	if (match) {
-		printf("matches\n");
-		newkey->data = key->data;
-		newkey->size = key->size;
-		return 0;
-	} else {
-		printf("doesn't matches\n");
-		return DB_DONOTINDEX;
-	}
-}
-#endif
-
-#if 0
 /* These have base implementations, it is only to override them or
    performance that they can be altered */
 static int cds_add_array(CamelFolderSummary *s, GPtrArray *mis)
@@ -629,8 +558,9 @@ static int cds_update_views_remove(CamelFolderSummaryDisk *cds, CamelMessageInfo
 	return res;
 }
 
-static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
+static int cds_add(CamelFolderSummary *s, void *o)
 {
+	CamelMessageInfo *mi = o;
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	int res;
 
@@ -651,18 +581,9 @@ static int cds_add(CamelFolderSummary *s, CamelMessageInfo *mi)
 	return res;
 }
 
-/* It is vitally important that remove() is not called from any iterator
-
-   It will almost certainly deadlock.
-
-   It may be that remove() needs to be delayed and processed in
-   another thread, the same way other changes are synced
-   to the db.
-
-   FolderSummary is an internal object anyway, applications NEVER
-   directly remove anything, so it isn't so important to hide */
-static int cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
+static int cds_remove(CamelFolderSummary *s, void *o)
 {
+	CamelMessageInfo *mi = o, *oldmi;
 	CamelFolderViewDisk *view = (CamelFolderViewDisk *)s->root_view;
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	DBT key = { 0 };
@@ -670,6 +591,13 @@ static int cds_remove(CamelFolderSummary *s, CamelMessageInfo *mi)
 
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 	g_hash_table_remove(p->cache, mi->uid);
+	oldmi = g_hash_table_lookup(p->changed, mi->uid);
+	if (oldmi) {
+		g_hash_table_remove(p->changed, mi->uid);
+		g_assert(oldmi == mi);
+		g_assert(mi->refcount > 1);
+		mi->refcount--;
+	}
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
 	/* Should foldersummary.remove() return some NOTFOUND code? */
@@ -725,7 +653,7 @@ static void cds_clear(CamelFolderSummary *s)
 	cds_parent->clear(s);
 }
 
-static CamelMessageInfo *cds_get(CamelFolderSummary *s, const char *uid)
+static void *cds_get(CamelFolderSummary *s, const char *uid)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(s);
 	CamelFolderViewDisk *view = (CamelFolderViewDisk *)s->root_view;
@@ -956,7 +884,7 @@ cds_view_rebuild(CamelFolderSummary *s, CamelFolderViewDisk *view, CamelExceptio
 static void
 cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
 {
-	CamelFolderViewDisk *view;
+	CamelFolderViewDisk *view, *root = (CamelFolderViewDisk *)cds->summary.root_view;
 	GPtrArray *build = g_ptr_array_new();
 	int i;
 
@@ -972,7 +900,7 @@ cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
 	   The second might be better, if we can somehow optimise
 	   the search better than iterating over each message anyway.
 	   Currently we don't, so the first should be better, and that is what
-	   we're doing here.  (in reality they're probably the same).
+	   we're doing here.  (in reality they're probably the same).  Got that?!
 	*/
 
 	printf("Checking for views to rebuild:\n");
@@ -993,11 +921,19 @@ cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
 		CamelMessageIterator *iter;
 		const CamelMessageInfo *info;
 
+		camel_operation_start(NULL, ngettext("Building view", "Building views", build->len));
+
 		iter = camel_folder_summary_search((CamelFolderSummary *)cds, NULL, NULL, NULL, ex);
-		while ((info = camel_message_iterator_next(iter, ex)))
+		while ((info = camel_message_iterator_next(iter, ex))) {
+			camel_operation_progress(NULL, (i++)*100/root->view.total_count);
+
 			for (i=0;i<build->len;i++)
 				cds_update_view_add(build->pdata[i], info);
+		}
 		camel_message_iterator_free(iter);
+
+		camel_operation_end(NULL);
+
 		// fixme unref 'em
 	} else {
 		printf(" none!\n");
@@ -1152,6 +1088,8 @@ cds_change_info(CamelMessageInfo *mi)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
 	int dosync = 0;
+
+	printf("%p: uid %s changed\n", mi, camel_message_info_uid(mi));
 
 	CAMEL_SUMMARY_LOCK(mi->summary, ref_lock);
 	if (g_hash_table_lookup(p->changed, mi->uid) == NULL) {

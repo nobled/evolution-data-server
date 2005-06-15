@@ -48,7 +48,6 @@ static int disco_setv(CamelObject *object, CamelException *ex, CamelArgV *args);
 static void disco_refresh_info (CamelFolder *folder, CamelException *ex);
 static void disco_refresh_info_online (CamelFolder *folder, CamelException *ex);
 static void disco_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
-static void disco_expunge (CamelFolder *folder, CamelException *ex);
 
 static void disco_append_message (CamelFolder *folder, CamelMimeMessage *message,
 				  const CamelMessageInfo *info, char **appended_uid, CamelException *ex);
@@ -82,7 +81,6 @@ camel_disco_folder_class_init (CamelDiscoFolderClass *camel_disco_folder_class)
 	/* virtual method overload */
 	camel_folder_class->refresh_info = disco_refresh_info;
 	camel_folder_class->sync = disco_sync;
-	camel_folder_class->expunge = disco_expunge;
 
 	camel_folder_class->append_message = disco_append_message;
 	camel_folder_class->transfer_messages_to = disco_transfer_messages_to;
@@ -269,41 +267,6 @@ disco_refresh_info (CamelFolder *folder, CamelException *ex)
 }
 
 static void
-disco_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
-{
-	void (*sync)(CamelFolder *, CamelException *) = NULL;
-
-	if (expunge) {
-		disco_expunge (folder, ex);
-		if (camel_exception_is_set (ex))
-			return;
-	}
-
-	camel_object_state_write(folder);
-
-	switch (camel_disco_store_status (CAMEL_DISCO_STORE (folder->parent_store))) {
-	case CAMEL_DISCO_STORE_ONLINE:
-		sync = CDF_CLASS (folder)->sync_online;
-		break;
-
-	case CAMEL_DISCO_STORE_OFFLINE:
-		sync = CDF_CLASS (folder)->sync_offline;
-		break;
-
-	case CAMEL_DISCO_STORE_RESYNCING:
-		sync = CDF_CLASS (folder)->sync_resyncing;
-		break;
-	}
-
-	if (sync) {
-		sync(folder, ex);
-	} else {
-		g_warning("Class '%s' doesn't implement CamelDiscoFolder:sync methods",
-			  ((CamelObject *)folder)->klass->name);
-	}
-}
-
-static void
 disco_expunge_uids (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
 {
 	CamelDiscoStore *disco = CAMEL_DISCO_STORE (folder->parent_store);
@@ -335,27 +298,57 @@ disco_expunge_uids (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
 }
 
 static void
-disco_expunge (CamelFolder *folder, CamelException *ex)
+disco_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 {
-	GPtrArray *uids;
-	int i;
-	const CamelMessageInfo *info;
-	CamelMessageIterator *iter;
+	void (*sync)(CamelFolder *, CamelException *) = NULL;
 
-	// FIXME: very bad use of iterators
-	uids = g_ptr_array_new ();
-	iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
-	while ((info = camel_message_iterator_next(iter, NULL))) {
-		if (camel_message_info_flags(info) & CAMEL_MESSAGE_DELETED)
-			g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
+	if (expunge) {
+		GPtrArray *uids;
+		int i;
+		const CamelMessageInfo *info;
+		CamelMessageIterator *iter;
+
+		// FIXME: very bad use of iterators
+		uids = g_ptr_array_new ();
+		iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
+		while ((info = camel_message_iterator_next(iter, NULL))) {
+			if (camel_message_info_flags(info) & CAMEL_MESSAGE_DELETED)
+				g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
+		}
+		camel_message_iterator_free(iter);
+
+		disco_expunge_uids (folder, uids, ex);
+
+		for (i = 0; i < uids->len; i++)
+			g_free (uids->pdata[i]);
+		g_ptr_array_free (uids, TRUE);
+
+		if (camel_exception_is_set (ex))
+			return;
 	}
-	camel_message_iterator_free(iter);
 
-	disco_expunge_uids (folder, uids, ex);
+	camel_object_state_write(folder);
 
-	for (i = 0; i < uids->len; i++)
-		g_free (uids->pdata[i]);
-	g_ptr_array_free (uids, TRUE);
+	switch (camel_disco_store_status (CAMEL_DISCO_STORE (folder->parent_store))) {
+	case CAMEL_DISCO_STORE_ONLINE:
+		sync = CDF_CLASS (folder)->sync_online;
+		break;
+
+	case CAMEL_DISCO_STORE_OFFLINE:
+		sync = CDF_CLASS (folder)->sync_offline;
+		break;
+
+	case CAMEL_DISCO_STORE_RESYNCING:
+		sync = CDF_CLASS (folder)->sync_resyncing;
+		break;
+	}
+
+	if (sync) {
+		sync(folder, ex);
+	} else {
+		g_warning("Class '%s' doesn't implement CamelDiscoFolder:sync methods",
+			  ((CamelObject *)folder)->klass->name);
+	}
 }
 
 static void

@@ -265,18 +265,18 @@ struct _CamelFolderSummaryClass {
 	int (*rename)(CamelFolderSummary *, const char *newname);
 
 	/* summary management, abstract virtual */
-	int (*add)(CamelFolderSummary *, CamelMessageInfo *);
+	int (*add)(CamelFolderSummary *, void *);
 	/*  base implements naive implementation */
 	int (*add_array)(CamelFolderSummary *, GPtrArray *);
 
-	int (*remove)(CamelFolderSummary *, CamelMessageInfo *);
+	int (*remove)(CamelFolderSummary *, void *);
 	/*  base implements naive implementation */
 	int (*remove_array)(CamelFolderSummary *, GPtrArray *);
 
 	void (*clear)(CamelFolderSummary *);
 
 	/* summary lookup & query, abstract virtual */
-	CamelMessageInfo * (*get)(CamelFolderSummary *, const char *uid);
+	void * (*get)(CamelFolderSummary *, const char *uid);
 	/*  base implements naive implementation */
 	GPtrArray *(*get_array)(CamelFolderSummary *, const GPtrArray *uids);
 
@@ -321,13 +321,13 @@ CamelFolderSummary      *camel_folder_summary_new	(struct _CamelFolder *folder);
 int camel_folder_summary_rename(CamelFolderSummary *, const char *newname);
 
 /* summary management */
-int camel_folder_summary_add(CamelFolderSummary *summary, CamelMessageInfo *info);
+int camel_folder_summary_add(CamelFolderSummary *summary, void *info);
 int camel_folder_summary_add_array(CamelFolderSummary *summary, GPtrArray *infos);
-int camel_folder_summary_remove(CamelFolderSummary *summary, CamelMessageInfo *info);
+int camel_folder_summary_remove(CamelFolderSummary *summary, void *info);
 int camel_folder_summary_remove_array(CamelFolderSummary *summary, GPtrArray *infos);
 
 /* retrieve items */
-CamelMessageInfo *camel_folder_summary_get(CamelFolderSummary *, const char *uid);
+void *camel_folder_summary_get(CamelFolderSummary *, const char *uid);
 GPtrArray *camel_folder_summary_get_array(CamelFolderSummary *, const GPtrArray *uids);
 
 void camel_folder_summary_free_array(CamelFolderSummary *summary, GPtrArray *array);

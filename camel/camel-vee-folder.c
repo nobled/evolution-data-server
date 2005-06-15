@@ -1648,7 +1648,6 @@ camel_vee_folder_class_init (CamelVeeFolderClass *klass)
 
 	folder_class->refresh_info = vee_refresh_info;
 	folder_class->sync = vee_sync;
-	folder_class->expunge = vee_expunge;
 
 	folder_class->get_message = vee_get_message;
 	folder_class->append_message = vee_append_message;
