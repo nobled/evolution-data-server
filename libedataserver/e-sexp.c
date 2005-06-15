@@ -100,8 +100,8 @@
 #define d(x)			/* general debug */
 
 
-static struct _ESExpTerm * parse_list(ESExp *f, int gotbrace);
-static struct _ESExpTerm * parse_value(ESExp *f);
+static struct _ESExpTerm * parse_list(ESExpTree *f, int gotbrace);
+static struct _ESExpTerm * parse_value(ESExpTree *f);
 
 static void parse_dump_term(struct _ESExpTerm *t, int depth);
 
@@ -148,7 +148,7 @@ static GScannerConfig scanner_config =
 
 /* jumps back to the caller of f->failenv, only to be called from inside a callback */
 void
-e_sexp_fatal_error(struct _ESExp *f, char *why, ...)
+e_sexp_fatal_error(struct _ESExpTree *f, char *why, ...)
 {
 	va_list args;
 
@@ -163,13 +163,13 @@ e_sexp_fatal_error(struct _ESExp *f, char *why, ...)
 }
 
 const char *
-e_sexp_error(struct _ESExp *f)
+e_sexp_error(struct _ESExpTree *f)
 {
 	return f->error;
 }
 
 struct _ESExpResult *
-e_sexp_result_new(struct _ESExp *f, int type)
+e_sexp_result_new(struct _ESExpTree *f, int type)
 {
 	struct _ESExpResult *r = e_memchunk_alloc0(f->result_chunks);
 	r->type = type;
@@ -177,7 +177,7 @@ e_sexp_result_new(struct _ESExp *f, int type)
 }
 
 void
-e_sexp_result_free(struct _ESExp *f, struct _ESExpResult *t)
+e_sexp_result_free(struct _ESExpTree *f, struct _ESExpResult *t)
 {
 	if (t == NULL)
 		return;
@@ -203,7 +203,7 @@ e_sexp_result_free(struct _ESExp *f, struct _ESExpResult *t)
 
 /* used in normal functions if they have to abort, and free their arguments */
 void
-e_sexp_resultv_free(struct _ESExp *f, int argc, struct _ESExpResult **argv)
+e_sexp_resultv_free(struct _ESExpTree *f, int argc, struct _ESExpResult **argv)
 {
 	int i;
 
@@ -238,7 +238,7 @@ g_lib_sux_htor(char *key, int value, struct _glib_sux_donkeys *fuckup)
 }
 
 static ESExpResult *
-term_eval_and(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_and(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r, *r1;
 	GHashTable *ht = g_hash_table_new(g_str_hash, g_str_equal);
@@ -296,7 +296,7 @@ term_eval_and(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 }
 
 static ESExpResult *
-term_eval_or(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_or(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r, *r1;
 	GHashTable *ht = g_hash_table_new(g_str_hash, g_str_equal);
@@ -349,7 +349,7 @@ term_eval_or(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 }
 
 static ESExpResult *
-term_eval_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+term_eval_not(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	int res = TRUE;
 	ESExpResult *r;
@@ -366,7 +366,7 @@ term_eval_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 
 /* this should support all arguments ...? */
 static ESExpResult *
-term_eval_lt(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_lt(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r, *r1, *r2;
 
@@ -398,7 +398,7 @@ term_eval_lt(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 
 /* this should support all arguments ...? */
 static ESExpResult *
-term_eval_gt(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_gt(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r, *r1, *r2;
 
@@ -430,7 +430,7 @@ term_eval_gt(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 
 /* this should support all arguments ...? */
 static ESExpResult *
-term_eval_eq(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_eq(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r, *r1, *r2;
 
@@ -457,7 +457,7 @@ term_eval_eq(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 }
 
 static ESExpResult *
-term_eval_plus(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+term_eval_plus(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	struct _ESExpResult *r=NULL;
 	int type;
@@ -518,7 +518,7 @@ term_eval_plus(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *dat
 }
 
 static ESExpResult *
-term_eval_sub(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+term_eval_sub(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	struct _ESExpResult *r=NULL;
 	int type;
@@ -567,7 +567,7 @@ term_eval_sub(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 
 /* cast to int */
 static ESExpResult *
-term_eval_castint(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+term_eval_castint(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	struct _ESExpResult *r;
 
@@ -595,7 +595,7 @@ term_eval_castint(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *
 
 /* cast to string */
 static ESExpResult *
-term_eval_caststring(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+term_eval_caststring(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	struct _ESExpResult *r;
 
@@ -623,7 +623,7 @@ term_eval_caststring(struct _ESExp *f, int argc, struct _ESExpResult **argv, voi
 
 /* implements 'if' function */
 static ESExpResult *
-term_eval_if(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_if(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r;
 	int doit;
@@ -643,7 +643,7 @@ term_eval_if(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 
 /* implements 'begin' statement */
 static ESExpResult *
-term_eval_begin(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
+term_eval_begin(struct _ESExpTree *f, int argc, struct _ESExpTerm **argv, void *data)
 {
 	struct _ESExpResult *r=NULL;
 	int i;
@@ -662,7 +662,7 @@ term_eval_begin(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data
 
 /* this must only be called from inside term evaluation callbacks! */
 struct _ESExpResult *
-e_sexp_term_eval(struct _ESExp *f, struct _ESExpTerm *t, void *data)
+e_sexp_term_eval(struct _ESExpTree *f, struct _ESExpTerm *t, void *data)
 {
 	struct _ESExpResult *r = NULL;
 	int i;
@@ -811,7 +811,7 @@ parse_dump_term(struct _ESExpTerm *t, int depth)
 */
 
 static struct _ESExpTerm *
-parse_term_new(struct _ESExp *f, int type)
+parse_term_new(struct _ESExpTree *f, int type)
 {
 	struct _ESExpTerm *s = e_memchunk_alloc0(f->term_chunks);
 	s->type = type;
@@ -820,7 +820,7 @@ parse_term_new(struct _ESExp *f, int type)
 
 /* free a term tree */
 void
-e_sexp_term_free(struct _ESExp *f, struct _ESExpTerm *t)
+e_sexp_term_free(struct _ESExpTree *f, struct _ESExpTerm *t)
 {
 	int i;
 
@@ -854,12 +854,12 @@ e_sexp_term_free(struct _ESExp *f, struct _ESExpTerm *t)
 }
 
 static struct _ESExpTerm **
-parse_values(ESExp *f, int *len)
+parse_values(ESExpTree *f, int *len)
 {
 	int token;
 	struct _ESExpTerm **terms;
 	int i, size = 0;
-	GScanner *gs = f->scanner;
+	GScanner *gs = f->sexp->scanner;
 	GSList *list = NULL, *l;
 
 	p(printf("parsing values\n"));
@@ -889,11 +889,11 @@ parse_values(ESExp *f, int *len)
 }
 
 static struct _ESExpTerm *
-parse_value(ESExp *f)
+parse_value(ESExpTree *f)
 {
 	int token, negative = FALSE;
 	struct _ESExpTerm *t = NULL;
-	GScanner *gs = f->scanner;
+	GScanner *gs = f->sexp->scanner;
 	struct _ESExpSymbol *s;
 	
 	p(printf("parsing value\n"));
@@ -979,11 +979,11 @@ parse_value(ESExp *f)
 
 /* FIXME: this needs some robustification */
 static struct _ESExpTerm *
-parse_list(ESExp *f, int gotbrace)
+parse_list(ESExpTree *f, int gotbrace)
 {
 	int token;
 	struct _ESExpTerm *t = NULL;
-	GScanner *gs = f->scanner;
+	GScanner *gs = f->sexp->scanner;
 
 	p(printf("parsing list\n"));
 	if (gotbrace)
@@ -1080,11 +1080,10 @@ e_sexp_finalise(void *o)
 {
 	ESExp *s = (ESExp *)o;
 
-	e_memchunk_destroy(s->term_chunks);
-	e_memchunk_destroy(s->result_chunks);
-
 	g_scanner_scope_foreach_symbol(s->scanner, 0, free_symbol, 0);
 	g_scanner_destroy(s->scanner);
+
+	g_mutex_free(s->lock);
 
 #ifdef E_SEXP_IS_G_OBJECT
 	G_OBJECT_CLASS (parent_class)->finalize (o);
@@ -1097,8 +1096,7 @@ e_sexp_init (ESExp *s)
 	int i;
 
 	s->scanner = g_scanner_new(&scanner_config);
-	s->term_chunks = e_memchunk_new(16, sizeof(struct _ESExpTerm));
-	s->result_chunks = e_memchunk_new(16, sizeof(struct _ESExpResult));
+	s->lock = g_mutex_new();
 
 	/* load in builtin symbols? */
 	for(i=0;i<sizeof(symbols)/sizeof(symbols[0]);i++) {
@@ -1249,50 +1247,71 @@ e_sexp_set_scope(ESExp *f, int scope)
 	return g_scanner_set_scope(f->scanner, scope);
 }
 
-void
-e_sexp_input_text(ESExp *f, const char *text, int len)
-{
-	g_return_if_fail (IS_E_SEXP (f));
-	g_return_if_fail (text != NULL);
-
-	g_scanner_input_text(f->scanner, text, len);
-}
-
-void
-e_sexp_input_file (ESExp *f, int fd)
-{
-	g_return_if_fail (IS_E_SEXP (f));
-
-	g_scanner_input_file(f->scanner, fd);
-}
-
 /* returns a syntax tree, or null on error */
-/* not thread safe */
-ESExpTerm *
-e_sexp_parse(ESExp *f)
+/* mt safe */
+ESExpTree *
+e_sexp_parse(ESExp *f, const char *expr)
 {
+	ESExpTree *tree;
+
 	g_return_val_if_fail (IS_E_SEXP (f), NULL);
 
-	if (setjmp(f->failenv)) {
-		g_warning("Error in parsing: %s", f->error);
-		return NULL;
-	}
+	tree = g_malloc0(sizeof(*tree));
+	tree->lock = g_mutex_new();
+	tree->sexp = f;
+	e_sexp_ref(f);
+	tree->term_chunks = e_memchunk_new(16, sizeof(struct _ESExpTerm));
+	tree->result_chunks = e_memchunk_new(16, sizeof(struct _ESExpResult));
 
-	return parse_value (f);
+	g_mutex_lock(f->lock);
+	g_scanner_input_text(f->scanner, expr, strlen(expr));
+
+	if (setjmp(tree->failenv)) {
+		g_warning("Error in parsing: %s", tree->error);
+	} else {
+		tree->term = parse_value(tree);
+	}
+	g_mutex_unlock(f->lock);
+
+	return tree;
 }
 
 /* returns NULL on error */
+/* This is mt-safe, although getting any error on failure is not ... */
 struct _ESExpResult *
-e_sexp_eval(ESExp *f, ESExpTerm *tree, void *data)
+e_sexp_eval(ESExpTree *tree, void *data)
 {
+	ESExpResult *r;
+
 	g_return_val_if_fail (IS_E_SEXP (f), NULL);
 
-	if (setjmp(f->failenv)) {
-		g_warning("Error in execution: %s", f->error);
+	/* parser must've failed */
+	if (tree->term == NULL)
 		return NULL;
+
+	g_mutex_lock(tree->lock);
+
+	if (setjmp(tree->failenv)) {
+		g_warning("Error in execution: %s", tree->error);
+		r = NULL;
+	} else {
+		r = e_sexp_term_eval(tree, tree->term, data);
 	}
 
-	return e_sexp_term_eval(f, tree, data);
+	g_mutex_unlock(tree->lock);
+
+	return r;
+}
+
+void
+e_sexp_tree_free(struct _ESExpTree *tree)
+{
+	g_mutex_free(tree->lock);
+	g_free(tree->error);
+	e_memchunk_destroy(tree->term_chunks);
+	e_memchunk_destroy(tree->result_chunks);
+	e_sexp_unref(tree->sexp);
+	g_free(tree);
 }
 
 /**

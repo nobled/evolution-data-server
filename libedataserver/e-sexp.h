@@ -1,5 +1,8 @@
 /*
   generic s-exp evaluator class
+
+  This expression evaluator is (now) re-entrant.
+  The parser interface is mt-safe.
 */
 #ifndef _E_SEXP_H
 #define _E_SEXP_H
@@ -38,12 +41,13 @@ typedef struct _ESExpClass ESExpClass;
 typedef struct _ESExpSymbol ESExpSymbol;
 typedef struct _ESExpResult ESExpResult;
 typedef struct _ESExpTerm ESExpTerm;
+typedef struct _ESExpTree ESExpTree;
 
-typedef struct _ESExpResult *(ESExpFunc)(struct _ESExp *sexp, int argc,
+typedef struct _ESExpResult *(ESExpFunc)(struct _ESExpTree *sexp, int argc,
 					 struct _ESExpResult **argv,
 					 void *data);
 
-typedef struct _ESExpResult *(ESExpIFunc)(struct _ESExp *sexp, int argc,
+typedef struct _ESExpResult *(ESExpIFunc)(struct _ESExpTree *sexp, int argc,
 					  struct _ESExpTerm **argv,
 					  void *data);
 
@@ -103,24 +107,32 @@ struct _ESExpTerm {
 	} value;
 };
 
+struct _ESExpTree {
+	struct _ESExp *sexp;
+	struct _ESExpTerm *term;
 
+	void *user_data;
+
+	/* private stuff */
+	jmp_buf failenv;
+	char *error;
+	void *lock;
+
+	/* TODO: may also need a pool allocator for term strings, so we dont lose them
+	   in error conditions? */
+	struct _EMemChunk *term_chunks;
+	struct _EMemChunk *result_chunks;
+};
 
 struct _ESExp {
+	/* Its all private */
 #ifdef E_SEXP_IS_G_OBJECT
 	GObject parent_object;
 #else
 	int refcount;
 #endif
-	GScanner *scanner;	/* for parsing text version */
-	
-	/* private stuff */
-	jmp_buf failenv;
-	char *error;
-	
-	/* TODO: may also need a pool allocator for term strings, so we dont lose them
-	   in error conditions? */
-	struct _EMemChunk *term_chunks;
-	struct _EMemChunk *result_chunks;
+	void *lock;
+	GScanner *scanner;
 };
 
 struct _ESExpClass {
@@ -142,38 +154,40 @@ ESExp 	       *e_sexp_new		(void);
 void		e_sexp_ref		(ESExp *f);
 void		e_sexp_unref		(ESExp *f);
 #endif
+
+/* Define the language */
+
 void		e_sexp_add_function  	(ESExp *f, int scope, char *name, ESExpFunc *func);
 void		e_sexp_add_ifunction  	(ESExp *f, int scope, char *name, ESExpIFunc *func);
 void		e_sexp_add_variable  	(ESExp *f, int scope, char *name, ESExpTerm *value);
 void		e_sexp_remove_symbol	(ESExp *f, int scope, char *name);
 int		e_sexp_set_scope	(ESExp *f, int scope);
 
-void		e_sexp_input_text	(ESExp *f, const char *text, int len);
-void		e_sexp_input_file	(ESExp *f, int fd);
+/* Parser the language */
+ESExpTree      *e_sexp_parse		(ESExp *f, const char *expr);
+void e_sexp_tree_free(struct _ESExpTree *tree);
 
+/* Execute the language */
+ESExpResult    *e_sexp_eval		(struct _ESExpTree *tree, void *data);
 
-ESExpTerm      *e_sexp_parse		(ESExp *f);
-/* NB: Not re-entrant!!! */
-ESExpResult    *e_sexp_eval		(ESExp *f, struct _ESExpTerm *t, void *data);
+ESExpResult    *e_sexp_term_eval	(struct _ESExpTree *f, struct _ESExpTerm *t, void *data);
+ESExpResult    *e_sexp_result_new	(struct _ESExpTree *f, int type);
+void		e_sexp_result_free	(struct _ESExpTree *f, struct _ESExpResult *t);
 
-ESExpResult    *e_sexp_term_eval	(struct _ESExp *f, struct _ESExpTerm *t, void *data);
-ESExpResult    *e_sexp_result_new	(struct _ESExp *f, int type);
-void		e_sexp_result_free	(struct _ESExp *f, struct _ESExpResult *t);
-
-void		e_sexp_term_free	(struct _ESExp *f, struct _ESExpTerm *t);
+void		e_sexp_term_free	(struct _ESExpTree *f, struct _ESExpTerm *t);
 
 /* used in normal functions if they have to abort, to free their arguments */
-void		e_sexp_resultv_free	(struct _ESExp *f, int argc, struct _ESExpResult **argv);
+void		e_sexp_resultv_free	(struct _ESExpTree *f, int argc, struct _ESExpResult **argv);
 
 /* utility functions for creating s-exp strings. */
 void		e_sexp_encode_bool	(GString *s, gboolean state);
 void		e_sexp_encode_string	(GString *s, const char *string);
 
 /* only to be called from inside a callback to signal a fatal execution error */
-void		e_sexp_fatal_error	(struct _ESExp *f, char *why, ...);
+void		e_sexp_fatal_error	(struct _ESExpTree *f, char *why, ...);
 
 /* return the error string */
-const char     *e_sexp_error		(struct _ESExp *f);
+const char     *e_sexp_error		(struct _ESExpTree *f);
 
 G_END_DECLS
 

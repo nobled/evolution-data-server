@@ -1,3 +1,10 @@
+2005-06-15  Not Zed  <NotZed@Ximian.com>
+
+	* libedataserver/e-sexp.c: Another big set of api changes.
+	Removed some redundant interfaces, changed the expression
+	evaluator and parser to run with their own separate context -
+	making the language evaluator re-entrant.
+
 2005-06-11  Not Zed  <NotZed@Ximian.com>
 
 	* libedataserver/e-sexp.c (e_sexp_term_free): export this function
