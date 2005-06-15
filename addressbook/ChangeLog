@@ -1,3 +1,9 @@
+2005-06-15  Not Zed  <NotZed@Ximian.com>
+
+	* backends/*/*: e-sexp api sync.
+
+	* libebook/e-book-query.c (e_book_query_from_string): e-sexp api sync.
+
 2005-06-11  Not Zed  <NotZed@Ximian.com>
 
 	* backends/groupwise/e-book-backend-groupwise.c

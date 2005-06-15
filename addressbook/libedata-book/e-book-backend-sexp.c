@@ -29,7 +29,7 @@ typedef struct _SearchContext SearchContext;
 
 struct _EBookBackendSExpPrivate {
 	ESExp *search_sexp;
-	ESExpTerm *search_term;
+	ESExpTree *search_tree;
 	SearchContext *search_context;
 };
 
@@ -265,7 +265,7 @@ static struct prop_info {
 static int num_prop_infos = sizeof(prop_info_table) / sizeof(prop_info_table[0]);
 
 static ESExpResult *
-entry_compare(SearchContext *ctx, struct _ESExp *f,
+entry_compare(SearchContext *ctx, struct _ESExpTree *f,
 	      int argc, struct _ESExpResult **argv,
 	      char *(*compare)(const char*, const char*))
 {
@@ -323,7 +323,7 @@ entry_compare(SearchContext *ctx, struct _ESExp *f,
 }
 
 static ESExpResult *
-func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 
@@ -340,7 +340,7 @@ is_helper (const char *s1, const char *s2)
 }
 
 static ESExpResult *
-func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_is(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 
@@ -359,7 +359,7 @@ endswith_helper (const char *s1, const char *s2)
 }
 
 static ESExpResult *
-func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_endswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 
@@ -378,7 +378,7 @@ beginswith_helper (const char *s1, const char *s2)
 }
 
 static ESExpResult *
-func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_beginswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 
@@ -386,7 +386,7 @@ func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *da
 }
 
 static ESExpResult *
-func_exists(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_exists(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	SearchContext *ctx = data;
 	ESExpResult *r;
@@ -466,13 +466,13 @@ e_book_backend_sexp_match_contact (EBookBackendSExp *sexp, EContact *contact)
 
 	sexp->priv->search_context->contact = g_object_ref (contact);
 
-	r = e_sexp_eval(sexp->priv->search_sexp, sexp->priv->search_term, sexp->priv->search_context);
+	r = e_sexp_eval(sexp->priv->search_tree, sexp->priv->search_context);
 
 	retval = (r && r->type == ESEXP_RES_BOOL && r->value.bool);
 
 	g_object_unref(sexp->priv->search_context->contact);
 
-	e_sexp_result_free(sexp->priv->search_sexp, r);
+	e_sexp_result_free(sexp->priv->search_tree, r);
 
 	return retval;
 }
@@ -534,10 +534,10 @@ e_book_backend_sexp_new (const char *text)
 		}
 	}
 
-	e_sexp_input_text(sexp->priv->search_sexp, text, strlen(text));
-	sexp->priv->search_term = e_sexp_parse(sexp->priv->search_sexp);
+	sexp->priv->search_tree = e_sexp_parse(sexp->priv->search_sexp, text);
 
-	if (sexp->priv->search_term == NULL) {
+	if (sexp->priv->search_tree->term == NULL) {
+		e_sexp_tree_free(sexp->priv->search_tree);
 		g_object_unref (sexp);
 		sexp = NULL;
 	}
@@ -551,7 +551,7 @@ e_book_backend_sexp_dispose (GObject *object)
 	EBookBackendSExp *sexp = E_BOOK_BACKEND_SEXP (object);
 
 	if (sexp->priv) {
-		e_sexp_term_free(sexp->priv->search_sexp, sexp->priv->search_term);
+		e_sexp_tree_free(sexp->priv->search_tree);
 		e_sexp_unref(sexp->priv->search_sexp);
 		g_free (sexp->priv->search_context);
 		g_free (sexp->priv);

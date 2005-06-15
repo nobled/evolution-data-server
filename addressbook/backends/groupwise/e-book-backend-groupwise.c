@@ -1437,7 +1437,7 @@ typedef struct {
 } EBookBackendGroupwiseSExpData;
 
 static ESExpResult *
-func_and(ESExp *f, int argc, ESExpResult **argv, void *data)
+func_and(ESExpTree *f, int argc, ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	EGwFilter *filter;
@@ -1454,7 +1454,7 @@ func_and(ESExp *f, int argc, ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_or(ESExp *f, int argc, ESExpResult **argv, void *data)
+func_or(ESExpTree *f, int argc, ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	EGwFilter *filter;
@@ -1471,7 +1471,7 @@ func_or(ESExp *f, int argc, ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_not(ESExp *f, int argc, ESExpResult **argv, void *data)
+func_not(ESExpTree *f, int argc, ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	EBookBackendGroupwiseSExpData *sexp_data;
@@ -1485,7 +1485,7 @@ func_not(ESExp *f, int argc, ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	EGwFilter *filter;
@@ -1535,7 +1535,7 @@ func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 }
 
 static ESExpResult *
-func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_is(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	EGwFilter *filter;
@@ -1592,7 +1592,7 @@ func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 #define AUTO_COMPLETION_QUERY 15
 
 static ESExpResult *
-func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_beginswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 
 	ESExpResult *r;
@@ -1657,7 +1657,7 @@ func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *da
 }
 
 static ESExpResult *
-func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_endswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendGroupwiseSExpData *sexp_data;
 	ESExpResult *r;
@@ -1673,7 +1673,7 @@ func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 }
 
 static ESExpResult *
-func_exists(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_exists(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	EGwFilter *filter;
@@ -1743,7 +1743,7 @@ static EGwFilter*
 e_book_backend_groupwise_build_gw_filter (EBookBackendGroupwise *ebgw, const char *query, gpointer is_auto_completion, char ** search_string)
 {
 	ESExp *sexp;
-	ESExpTerm *term;
+	ESExpTree *tree;
 	ESExpResult *r;
 	EBookBackendGroupwiseSExpData sexp_data = { 0 };
 	EGwFilter *filter;
@@ -1772,12 +1772,11 @@ e_book_backend_groupwise_build_gw_filter (EBookBackendGroupwise *ebgw, const cha
 		}
 	}
 
-	e_sexp_input_text(sexp, query, strlen(query));
-	term = e_sexp_parse(sexp);
-	r = e_sexp_eval(sexp, term, &sexp_data);
-	e_sexp_result_free(sexp, r);
+	tree = e_sexp_parse(sexp, query);
+	r = e_sexp_eval(tree, &sexp_data);
+	e_sexp_result_free(tree, r);
+	e_sexp_tree_free(tree);
 	e_sexp_unref (sexp);
-	
 	
 	if (sexp_data.is_filter_valid) {
 		if (sexp_data.auto_completion == AUTO_COMPLETION_QUERY)

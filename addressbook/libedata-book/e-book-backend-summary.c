@@ -890,7 +890,7 @@ e_book_backend_summary_is_up_to_date (EBookBackendSummary *summary, time_t t)
 /* we only want to do summary queries if the query is over the set fields in the summary */
 
 static ESExpResult *
-func_check(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_check(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	ESExpResult *r;
 	int truth = FALSE;
@@ -942,7 +942,7 @@ gboolean
 e_book_backend_summary_is_summary_query (EBookBackendSummary *summary, const char *query)
 {
 	ESExp *sexp;
-	ESExpTerm *term;
+	ESExpTree *tree;
 	ESExpResult *r;
 	gboolean retval;
 	int i;
@@ -963,20 +963,19 @@ e_book_backend_summary_is_summary_query (EBookBackendSummary *summary, const cha
 		}
 	}
 
-	e_sexp_input_text(sexp, query, strlen(query));
-	term = e_sexp_parse(sexp);
-
-	if (term == NULL) {
+	tree = e_sexp_parse(sexp, query);
+	if (tree->term == NULL) {
+		e_sexp_tree_free(tree);
 		e_sexp_unref(sexp);
 		return FALSE;
 	}
 
-	r = e_sexp_eval(sexp, term, summary);
+	r = e_sexp_eval(tree, summary);
 
 	retval = (r && r->type == ESEXP_RES_BOOL && r->value.bool);
 
-	e_sexp_result_free(sexp, r);
-	e_sexp_term_free(sexp, term);
+	e_sexp_result_free(tree, r);
+	e_sexp_tree_free(tree);
 	e_sexp_unref (sexp);
 
 	return retval;
@@ -986,7 +985,7 @@ e_book_backend_summary_is_summary_query (EBookBackendSummary *summary, const cha
 
 /* the actual query mechanics */
 static ESExpResult *
-do_compare (EBookBackendSummary *summary, struct _ESExp *f, int argc,
+do_compare (EBookBackendSummary *summary, struct _ESExpTree *f, int argc,
 	    struct _ESExpResult **argv,
 	    char *(*compare)(const char*, const char*))
 {
@@ -1041,7 +1040,7 @@ do_compare (EBookBackendSummary *summary, struct _ESExp *f, int argc,
 }
 
 static ESExpResult *
-func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendSummary *summary = data;
 
@@ -1058,7 +1057,7 @@ is_helper (const char *s1, const char *s2)
 }
 
 static ESExpResult *
-func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_is(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendSummary *summary = data;
 
@@ -1077,7 +1076,7 @@ endswith_helper (const char *s1, const char *s2)
 }
 
 static ESExpResult *
-func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_endswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendSummary *summary = data;
 
@@ -1096,7 +1095,7 @@ beginswith_helper (const char *s1, const char *s2)
 }
 
 static ESExpResult *
-func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_beginswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendSummary *summary = data;
 
@@ -1129,7 +1128,7 @@ GPtrArray*
 e_book_backend_summary_search (EBookBackendSummary *summary, const char *query)
 {
 	ESExp *sexp;
-	ESExpTerm *term;
+	ESExpTree *tree;
 	ESExpResult *r;
 	GPtrArray *retval = g_ptr_array_new();
 	int i;
@@ -1150,15 +1149,15 @@ e_book_backend_summary_search (EBookBackendSummary *summary, const char *query)
 		}
 	}
 
-	e_sexp_input_text(sexp, query, strlen(query));
-	term = e_sexp_parse(sexp);
+	tree = e_sexp_parse(sexp, query);
 
-	if (term ==NULL) {
+	if (tree->term == NULL) {
+		e_sexp_tree_free(tree);
 		e_sexp_unref(sexp);
 		return NULL;
 	}
 
-	r = e_sexp_eval(sexp, term, summary);
+	r = e_sexp_eval(tree, summary);
 
 	if (r && r->type == ESEXP_RES_ARRAY_PTR && r->value.ptrarray) {
 		GPtrArray *ptrarray = r->value.ptrarray;
@@ -1168,8 +1167,8 @@ e_book_backend_summary_search (EBookBackendSummary *summary, const char *query)
 			g_ptr_array_add (retval, g_ptr_array_index (ptrarray, i));
 	}
 
-	e_sexp_result_free(sexp, r);
-	e_sexp_term_free(sexp, term);
+	e_sexp_result_free(tree, r);
+	e_sexp_tree_free(tree);
 	e_sexp_unref (sexp);
 
 	return retval;

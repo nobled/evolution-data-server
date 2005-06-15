@@ -295,7 +295,7 @@ e_book_query_ref (EBookQuery *q)
 }
 
 static ESExpResult *
-func_and(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_and(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -328,7 +328,7 @@ func_and(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_or(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_or(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -361,7 +361,7 @@ func_or(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_not(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -379,7 +379,7 @@ func_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -410,7 +410,7 @@ func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 }
 
 static ESExpResult *
-func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_is(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -435,7 +435,7 @@ func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_beginswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -460,7 +460,7 @@ func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *da
 }
 
 static ESExpResult *
-func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_endswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -485,7 +485,7 @@ func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 }
 
 static ESExpResult *
-func_exists(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_exists(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	GList **list = data;
 	ESExpResult *r;
@@ -535,7 +535,7 @@ e_book_query_from_string  (const char *query_string)
 {
 	ESExp *sexp;
 	ESExpResult *r;
-	ESExpTerm *term;
+	ESExpTree *tree;
 	EBookQuery *retval;
 	GList *list = NULL;
 	int i;
@@ -554,13 +554,10 @@ e_book_query_from_string  (const char *query_string)
 		}
 	}
 
-	e_sexp_input_text(sexp, query_string, strlen(query_string));
-	term = e_sexp_parse(sexp);
-
-	r = e_sexp_eval(sexp, term, &list);
-
-	e_sexp_result_free(sexp, r);
-	e_sexp_term_free(sexp, term);
+	tree = e_sexp_parse(sexp, query_string);
+	r = e_sexp_eval(tree, &list);
+	e_sexp_result_free(tree, r);
+	e_sexp_tree_free(tree);
 	e_sexp_unref (sexp);
 
 	if (list) {

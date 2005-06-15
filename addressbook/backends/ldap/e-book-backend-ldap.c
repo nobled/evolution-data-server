@@ -2711,7 +2711,7 @@ rfc2254_escape(char *str)
 }
 
 static ESExpResult *
-func_and(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_and(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2748,7 +2748,7 @@ func_and(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_or(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_or(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2785,7 +2785,7 @@ func_or(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_not(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2804,7 +2804,7 @@ func_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_contains(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2868,7 +2868,7 @@ func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 }
 
 static ESExpResult *
-func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_is(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2901,7 +2901,7 @@ func_is(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 }
 
 static ESExpResult *
-func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_beginswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2950,7 +2950,7 @@ func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *da
 }
 
 static ESExpResult *
-func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_endswith(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -2977,7 +2977,7 @@ func_endswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 }
 
 static ESExpResult *
-func_exists(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+func_exists(struct _ESExpTree *f, int argc, struct _ESExpResult **argv, void *data)
 {
 	EBookBackendLDAPSExpData *ldap_data = data;
 	ESExpResult *r;
@@ -3049,7 +3049,7 @@ static gchar *
 e_book_backend_ldap_build_query (EBookBackendLDAP *bl, const char *query)
 {
 	ESExp *sexp;
-	ESExpTerm *term;
+	ESExpTree *tree;
 	ESExpResult *r;
 	gchar *retval;
 	EBookBackendLDAPSExpData data;
@@ -3075,13 +3075,12 @@ e_book_backend_ldap_build_query (EBookBackendLDAP *bl, const char *query)
 		}
 	}
 
-	e_sexp_input_text(sexp, query, strlen(query));
-	term = e_sexp_parse(sexp);
+	tree = e_sexp_parse(sexp, query);
 
-	r = e_sexp_eval(sexp, term, &data);
+	r = e_sexp_eval(tree, &data);
 
-	e_sexp_result_free(sexp, r);
-	e_sexp_term_free(sexp, term);
+	e_sexp_result_free(tree, r);
+	e_sexp_tree_free(tree);
 	e_sexp_unref (sexp);
 
 	if (data.list) {
