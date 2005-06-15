@@ -84,6 +84,8 @@ static void encode_status(guint32 flags, char status[8]);
 static guint32 decode_status(const char *status);
 #endif
 
+#define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
+
 static CamelLocalSummaryClass *camel_mbox_summary_parent;
 
 CamelType
@@ -150,8 +152,9 @@ mbox_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 }
 #endif
 
-static int mbox_add(CamelFolderSummary *s, CamelMessageInfo *mi)
+static int mbox_add(CamelFolderSummary *s, void *o)
 {
+	CamelMessageInfo *mi = o;
 	int res;
 
 	res = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->add(s, mi);
@@ -282,6 +285,11 @@ fail:
 
 	camel_local_folder_unlock((CamelLocalFolder *)((CamelFolderSummary *)cds)->folder, CAMEL_LOCK_WRITE);
 done:
+	/* always remove the flagged flag, its used just to trigger us indirectly */
+	for (i = 0; i < changes->len; i++)
+		((CamelMessageInfoBase *)changes->pdata[i])->flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
+
+
 	/* FIXME: we actually wnat to sync the db first ...  then update the mbox/mtime, then
 	   re-save the header */
 	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->sync(cds, changes, ex);
@@ -581,12 +589,12 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 	CamelMimeParser *mp;
 	CamelMessageIterator *iter;
 	const CamelMessageInfo *iterinfo = NULL;
-	GPtrArray *remove;
 	int fd;
-	int ok = 0;
+	int res = 0;
 	guint32 lastuid = 0;
 	struct stat st;
 	off_t size = 0;
+	GCompareDataFunc uid_cmp = CFS_CLASS(s)->uid_cmp;
 
 	d(printf("Calling summary update, from pos %d\n", (int)offset));
 
@@ -602,7 +610,8 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		camel_operation_end(NULL);
 		return -1;
 	}
-	
+
+	/* size == 0, could optimise ... */
 	if (fstat(fd, &st) == 0)
 		size = st.st_size;
 
@@ -635,12 +644,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		iterinfo = camel_message_iterator_next(iter, NULL);
 	}
 
-	/* We can't remove nodes whilst we're walking the tree using a simple cursor,
-	   it will almost certainly deadlock the database,
-	   So we need to save all removals till the end */
-	remove = g_ptr_array_new();
-
-	while (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM) {
+	while (res == 0 && camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM) {
 		CamelMessageInfo *info;
 		off_t pc = camel_mime_parser_tell_start_from (mp) + 1;
 		struct _camel_header_raw *h;
@@ -649,258 +653,149 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		int xevoffset;
 		guint32 thisuid, flags = 0;
 		int fixxev = 0;
+		off_t frompos;
 
 		camel_operation_progress (NULL, (int) (((float) pc / size) * 100));
 
-		switch (camel_mime_parser_step(mp, NULL, NULL)) {
-		case CAMEL_MIME_PARSER_STATE_HEADER:
-		case CAMEL_MIME_PARSER_STATE_MESSAGE:
-		case CAMEL_MIME_PARSER_STATE_MULTIPART:
-			h = camel_mime_parser_headers_raw(mp);
-			xev = camel_header_raw_find(&h, "x-evolution", &xevoffset);
-			if (xev && (uid = camel_mbox_summary_decode_xev(xev, &flags))) {
-				thisuid = strtoul(uid, NULL, 10);
-				camel_mbox_summary_last_uid((CamelMboxSummary *)s, thisuid);
-
-				if (thisuid < lastuid) {
-					printf("the uid is out of order, renumbering it\n");
-					/* Ok, so the mailbox violates the strict ordering requirements.
-					   Some other client must have updated the folder, and re-ordered
-					   messages in it.  Lets re-number anything we need to */
-					fixxev = 1;
-					goto add_message;
-				} else {
-					lastuid = thisuid;
-				}
-
-				while (iterinfo && strcmp(iterinfo->uid, uid) < 0) {
-					camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
-					g_ptr_array_add(remove, (void *)iterinfo);
-					camel_message_info_ref((CamelMessageInfo *)iterinfo);
-					printf("Message %s vanished\n", iterinfo->uid);
-					iterinfo = camel_message_iterator_next(iter, NULL);
-				}
-
-				if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
-					iterinfo = camel_message_iterator_next(iter, NULL);
-					goto have_message;
-				}
-				/* We are also adding this message, but it has a valid
-				   & validly numbered xev already */
-			} else {
-			add_message:
-				g_free(uid);
-				uid = NULL;
-			}
-
-			//printf("dont have message, adding anew\n");
-			info = camel_message_info_new_from_header(s, h);
-			((CamelMboxMessageInfo *)info)->frompos = camel_mime_parser_tell_start_from(mp);
-			if (uid == NULL) {
-				lastuid = camel_mbox_summary_next_uid((CamelMboxSummary *)s);
-				uid = g_strdup_printf("%d", lastuid);
-				printf("all new message, adding uid\n");
-			}
-
-			info->uid = uid;
-			// FIXME: handle x-status/status flags properly
-			((CamelMessageInfoBase *)info)->flags |= flags;
-
-			if (fixxev) {
-				char *xevnew = camel_mbox_summary_encode_xev(uid, ((CamelMessageInfoBase *)info)->flags);
-				off_t lastpos;
-				ssize_t len;
-
-				printf("renumbering msg to %s\n", uid);
-
-				/* We update any xev's we need to re-number.
-				   We dont worry about writing new x-evolution's here, they
-				   can be detected at sync time */
-
-				lastpos = lseek(fd, 0, SEEK_CUR);
-				lseek(fd, xevoffset+strlen("X-Evolution: "), SEEK_SET);
-				do {
-					len = write(fd, xevnew, strlen(xevnew));
-				} while (len == -1 && errno == EINTR);
-				lseek(fd, lastpos, SEEK_SET);
-				g_free(xevnew);
-			}
-
-			camel_folder_summary_add(s, info);
-
-			camel_folder_change_info_add_uid(changes, uid);
-			if (xev == NULL)
-				camel_folder_change_info_recent_uid(changes, uid);
-		have_message:
-			// FIXME: check/perform indexing here
-
-			/* Scan to next from header */
-			camel_mime_parser_drop_step(mp);
-			camel_mime_parser_drop_step(mp);
-			g_free(uid);
-			break;
-		default:
-			g_error("Invalid parser state");
+		if (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM_END) {
 			camel_exception_setv(ex, 1, _("Fatal mail parser error near position %ld in folder %s"),
 					     camel_mime_parser_tell(mp), ((CamelLocalSummary *)s)->folder_path);
-			ok = -1;
+			res = -1;
+			break;
 		}
 
+		frompos = camel_mime_parser_tell_start_from(mp);
+
+		h = camel_mime_parser_headers_raw(mp);
+		xev = camel_header_raw_find(&h, "x-evolution", &xevoffset);
+		if (xev && (uid = camel_mbox_summary_decode_xev(xev, &flags))) {
+			thisuid = strtoul(uid, NULL, 10);
+			camel_mbox_summary_last_uid((CamelMboxSummary *)s, thisuid);
+
+			if (thisuid < lastuid) {
+				printf("the uid is out of order, renumbering it\n");
+				/* Ok, so the mailbox violates the strict ordering requirements.
+				   Some other client must have updated the folder, and re-ordered
+				   messages in it.  Lets re-number anything we need to */
+				fixxev = 1;
+				goto add_message;
+			} else {
+				lastuid = thisuid;
+			}
+
+			while (iterinfo && uid_cmp(iterinfo->uid, uid, s) < 0) {
+				printf("Message %s vanished\n", iterinfo->uid);
+				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
+				iterinfo = camel_message_iterator_next(iter, NULL);
+			}
+
+			if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
+				info = (CamelMessageInfo *)iterinfo;
+				camel_message_info_ref(info);
+				iterinfo = camel_message_iterator_next(iter, NULL);
+				goto have_message;
+			}
+			/* We are also adding this message, but it has a valid
+			   & validly numbered xev already */
+		} else {
+		add_message:
+			g_free(uid);
+			uid = NULL;
+		}
+
+		/* What about checking size? */
+
+		info = camel_message_info_new_from_header(s, h);
+		((CamelMboxMessageInfo *)info)->frompos = frompos;
+		if (uid == NULL) {
+			lastuid = camel_mbox_summary_next_uid((CamelMboxSummary *)s);
+			uid = g_strdup_printf("%d", lastuid);
+			printf("all new message, adding uid\n");
+		}
+
+		info->uid = uid;
+		// FIXME: handle x-status/status flags properly
+		((CamelMessageInfoBase *)info)->flags |= flags;
+
+		if (fixxev) {
+			char *xevnew = camel_mbox_summary_encode_xev(uid, ((CamelMessageInfoBase *)info)->flags);
+			off_t lastpos;
+			ssize_t len;
+
+			printf("renumbering msg to %s\n", uid);
+
+			/* We update any xev's we need to re-number.
+			   We dont worry about writing new x-evolution's here, they
+			   can be detected at sync time */
+
+			lastpos = lseek(fd, 0, SEEK_CUR);
+			lseek(fd, xevoffset+strlen("X-Evolution: "), SEEK_SET);
+			do {
+				len = write(fd, xevnew, strlen(xevnew));
+			} while (len == -1 && errno == EINTR);
+			lseek(fd, lastpos, SEEK_SET);
+			g_free(xevnew);
+		}
+
+		camel_folder_summary_add(s, info);
+
+		camel_folder_change_info_add_uid(changes, uid);
+		if (xev == NULL)
+			camel_folder_change_info_recent_uid(changes, uid);
+	have_message:
+
+		// FIXME: check/perform indexing here
+
+
+		if (((CamelMboxMessageInfo *)info)->frompos != frompos) {
+			// FIXME: This will trigger not only a save of the messageinfo, but a
+			// re-store of the flags on the message, even though they haven't changed
+			((CamelMboxMessageInfo *)info)->frompos = frompos;
+			camel_message_info_set_flags(info, CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
+		}
+
+		camel_message_info_free(info);
+
+		/* Scan to next from header */
+		camel_mime_parser_drop_step(mp);
+		camel_mime_parser_drop_step(mp);
+		g_free(uid);
+
+		/* Do we really want to do this?  It could make rather a pigs-breakfast of the db? */
 		if (camel_operation_cancel_check(NULL)) {
 			camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, "");
-			ok = -1;
+			res = -1;
+			break;
 		}
 	}
 
+
 	camel_object_unref(mp);
 
-	if (ok == 0) {
+	if (res == 0) {
 		while (iterinfo) {
 			printf("trailing message '%s' removed too\n", iterinfo->uid);
+			camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
-			g_ptr_array_add(remove, (void *)iterinfo);
-			camel_message_info_ref((CamelMessageInfo *)iterinfo);
 			iterinfo = camel_message_iterator_next(iter, NULL);
 		}
 	}
 	camel_message_iterator_free(iter);
 
-	/* If we were cancelled, we still may have some valid results to process, so do it */
-	camel_folder_summary_remove_array(s, remove);
-	camel_folder_summary_free_array(s, remove);
-	
 	/* update the file size/mtime in the summary */
-	if (ok != -1) {
+	if (res == 0) {
 		// FIXME: stat before running?
 		if (stat(((CamelLocalSummary *)s)->folder_path, &st) == 0) {
 			((CamelMboxSummary *)s)->folder_size = st.st_size;
 			((CamelMboxSummary *)s)->time = st.st_mtime;
-			//camel_folder_summary_touch(s);
 		}
 	}
 
 	camel_operation_end(NULL);
 
-	return ok;
+	return res;
 }
-
-
-#if 0
-
-
-/* like summary_rebuild, but also do changeinfo stuff (if supplied) */
-static int
-summary_update_old(CamelLocalSummary *cls, off_t offset, CamelFolderChangeInfo *changeinfo, CamelException *ex)
-{
-	int i, count;
-	CamelFolderSummary *s = (CamelFolderSummary *)cls;
-	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
-	CamelMimeParser *mp;
-	CamelMboxMessageInfo *mi;
-	int fd;
-	int ok = 0;
-	struct stat st;
-	off_t size = 0;
-
-	d(printf("Calling summary update, from pos %d\n", (int)offset));
-
-	cls->index_force = FALSE;
-
-	camel_operation_start(NULL, _("Storing folder"));
-
-	fd = open(cls->folder_path, O_RDONLY);
-	if (fd == -1) {
-		d(printf("%s failed to open: %s\n", cls->folder_path, strerror (errno)));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not open folder: %s: %s"),
-				      cls->folder_path, g_strerror (errno));
-		camel_operation_end(NULL);
-		return -1;
-	}
-	
-	if (fstat(fd, &st) == 0)
-		size = st.st_size;
-
-	mp = camel_mime_parser_new();
-	camel_mime_parser_init_with_fd(mp, fd);
-	camel_mime_parser_scan_from(mp, TRUE);
-	camel_mime_parser_seek(mp, offset, SEEK_SET);
-
-	if (offset > 0) {
-		if (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM
-		    && camel_mime_parser_tell_start_from(mp) == offset) {
-			camel_mime_parser_unstep(mp);
-		} else {
-			g_warning("The next message didn't start where I expected, building summary from start");
-			camel_mime_parser_drop_step(mp);
-			offset = 0;
-			camel_mime_parser_seek(mp, offset, SEEK_SET);
-		}
-	}
-
-	/* we mark messages as to whether we've seen them or not.
-	   If we're not starting from the start, we must be starting
-	   from the old end, so everything must be treated as new */
-	count = camel_folder_summary_count(s);
-	for (i=0;i<count;i++) {
-		mi = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-		if (offset == 0)
-			((CamelMessageInfoBase *)mi)->flags |= CAMEL_MESSAGE_FOLDER_NOTSEEN;
-		else
-			((CamelMessageInfoBase *)mi)->flags &= ~CAMEL_MESSAGE_FOLDER_NOTSEEN;
-		camel_message_info_free(mi);
-	}
-	mbs->changes = changeinfo;
-
-	while (camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM) {
-		CamelMessageInfo *info;
-		off_t pc = camel_mime_parser_tell_start_from (mp) + 1;
-		
-		camel_operation_progress (NULL, (int) (((float) pc / size) * 100));
-
-		info = camel_folder_summary_add_from_parser(s, mp);
-		if (info == NULL) {
-			camel_exception_setv(ex, 1, _("Fatal mail parser error near position %ld in folder %s"),
-					     camel_mime_parser_tell(mp), cls->folder_path);
-			ok = -1;
-			break;
-		}
-
-		g_assert(camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM_END);
-	}
-
-	camel_object_unref(CAMEL_OBJECT (mp));
-
-	count = camel_folder_summary_count(s);
-	for (i=0;i<count;i++) {
-		mi = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-		/* must've dissapeared from the file? */
-		if (((CamelMessageInfoBase *)mi)->flags & CAMEL_MESSAGE_FOLDER_NOTSEEN) {
-			d(printf("uid '%s' vanished, removing", camel_message_info_uid(mi)));
-			if (changeinfo)
-				camel_folder_change_info_remove_uid(changeinfo, camel_message_info_uid(mi));
-			camel_folder_summary_remove(s, (CamelMessageInfo *)mi);
-			count--;
-			i--;
-		}
-		camel_message_info_free(mi);
-	}
-	mbs->changes = NULL;
-	
-	/* update the file size/mtime in the summary */
-	if (ok != -1) {
-		if (stat(cls->folder_path, &st) == 0) {
-			camel_folder_summary_touch(s);
-			mbs->folder_size = st.st_size;
-			mbs->time = st.st_mtime;
-		}
-	}
-
-	camel_operation_end(NULL);
-
-	return ok;
-}
-#endif
 
 static int
 mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, CamelException *ex)
@@ -908,8 +803,7 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
 	CamelFolderSummary *s = (CamelFolderSummary *)cls;
 	struct stat st;
-	int ret = 0;
-	int i, count;
+	int res = 0;
 
 	d(printf("Checking summary\n"));
 
@@ -926,59 +820,19 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 	       (int)st.st_size, (int)mbs->folder_size, (int)st.st_mtime, (int)mbs->time);
 
 	if (st.st_size != mbs->folder_size || st.st_mtime != mbs->time) {
-		summary_update(s, 0, changes, ex);
+		if (mbs->folder_size < st.st_size) {
+			/* this will automatically rescan from 0 if there is a problem */
+			d(printf("folder grew, attempting to check from %d\n", (int)mbs->folder_size));
+			res = summary_update(s, mbs->folder_size, changes, ex);
+		} else {
+			d(printf("folder shrank!  checking from start\n"));
+			res = summary_update(s, 0, changes, ex);
+		}
+	} else {
+		d(printf("Folder unchanged, do nothing\n"));
 	}
 
 	return 0;
-
-#if 0
-
-	if (cls->check_force)
-		mbs->folder_size = 0;
-	cls->check_force = 0;
-
-	if (st.st_size == 0) {
-		/* empty?  No need to scan at all */
-		d(printf("Empty mbox, clearing summary\n"));
-		count= camel_folder_summary_count(s);
-		for (i=0;i<count;i++) {
-			CamelMessageInfo *info = camel_folder_summary_index(s, i);
-
-			if (info) {
-				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(info));
-				camel_message_info_free(info);
-			}
-		}
-		camel_folder_summary_clear(s);
-		ret = 0;
-	} else {
-		/* is the summary uptodate? */
-		if (st.st_size != mbs->folder_size || st.st_mtime != mbs->time) {
-			if (mbs->folder_size < st.st_size) {
-				/* this will automatically rescan from 0 if there is a problem */
-				d(printf("folder grew, attempting to rebuild from %d\n", mbs->folder_size));
-				ret = summary_update(cls, mbs->folder_size, changes, ex);
-			} else {
-				d(printf("folder shrank!  rebuilding from start\n"));
-				ret = summary_update(cls, 0, changes, ex);
-			}
-		} else {
-			d(printf("Folder unchanged, do nothing\n"));
-		}
-	}
-
-	/* FIXME: move upstream? */
-
-	if (ret != -1) {
-		if (mbs->folder_size != st.st_size || mbs->time != st.st_mtime) {
-			mbs->folder_size = st.st_size;
-			mbs->time = st.st_mtime;
-			camel_folder_summary_touch(s);
-		}
-	}
-
-	return ret;
-#endif
 }
 
 /* perform a full sync */
@@ -987,8 +841,9 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 {
 	CamelLocalSummary *cls = (CamelLocalSummary *)mbs;
 	int fd = -1, fdout = -1;
-	char *tmpname = NULL;
+	char *tmpname = NULL, *oldname = NULL;
 	guint32 flags = (expunge?1:0);
+	struct stat st;
 
 	d(printf("performing full summary/sync\n"));
 
@@ -1003,8 +858,23 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 		return -1;
 	}
 
-	tmpname = g_alloca (strlen (cls->folder_path) + 5);
-	sprintf (tmpname, "%s.tmp", cls->folder_path);
+	/* We need to use names that can't be used!  Uh, who knows ... */
+
+	tmpname = g_alloca(strlen(cls->folder_path) + 5);
+	sprintf(tmpname, "%s.tmp", cls->folder_path);
+
+	oldname = g_alloca(strlen(cls->folder_path) + 5);
+	sprintf(oldname, "%s.old", cls->folder_path);
+
+	if (stat(tmpname, &st) == 0
+	    || stat(oldname, &st) == 0) {
+		camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
+				     _("Found temporary mailbox `%s' left over from a failed expunge operation.  "
+				       "Refusing to expunge mailbox until you repair it manually."),
+				     stat(tmpname, &st) == 0?tmpname:oldname);
+		return -1;
+	}
+
 	d(printf("Writing tmp file to %s\n", tmpname));
 	fdout = open(tmpname, O_WRONLY|O_CREAT|O_TRUNC, 0600);
 	if (fdout == -1) {
@@ -1025,6 +895,7 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 				      _("Could not close source folder %s: %s"),
 				      cls->folder_path, g_strerror (errno));
 		fd = -1;
+		close(fdout);
 		goto error;
 	}
 
@@ -1037,16 +908,32 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 		goto error;
 	}
 
-	/* this should probably either use unlink/link/unlink, or recopy over
-	   the original mailbox, for various locking reasons/etc */
-	if (rename(tmpname, cls->folder_path) == -1) {
+	/* We use link/unlink rather than rename, so that anyone who is still
+	   reading the mailbox doesn't suddenly get the content ripped from
+	   under them.  It isn't quite as atomic, so the user may have to clean
+	   up after us, if their box gets hit by lightning in a thunderstorm
+	   on the forth of july under a stampede of elephants ...
+
+	   There is however a race in which the old name doesn't exist
+	   for a short period of time, which could cause problems
+	   with procmail and other things - but we dont support that for
+	   mbox, so tough! */
+
+	if (link(cls->folder_path, oldname) == -1
+	    || unlink(cls->folder_path) == -1
+	    || link(tmpname, cls->folder_path) == -1) {
+		/* TODO: we should probably check folder_path wasn't created 'anyway',
+		   on nfs ... */
 		g_warning("Cannot rename folder: %s", strerror (errno));
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Could not rename folder: %s"),
 				      g_strerror (errno));
+		tmpname = NULL;
 		goto error;
+	} else {
+		unlink(oldname);
+		unlink(tmpname);
 	}
-	tmpname = NULL;
 
 	camel_operation_end(NULL);
 		
@@ -1070,6 +957,7 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 static int
 mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
 {
+#if 0
 	CamelLocalSummary *cls = (CamelLocalSummary *)mbs;
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
 	CamelMimeParser *mp = NULL;
@@ -1082,145 +970,8 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 	off_t lastpos;
 
 	d(printf("Performing quick summary sync\n"));
-
-	return 0;
-#if 0
-	camel_operation_start(NULL, _("Storing folder"));
-
-	fd = open(cls->folder_path, O_RDWR);
-	if (fd == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not open file: %s: %s"),
-				      cls->folder_path, g_strerror (errno));
-
-		camel_operation_end(NULL);
-		return -1;
-	}
-
-	/* need to dup since mime parser closes its fd once it is finalised */
-	pfd = dup(fd);
-	if (pfd == -1) {
-		camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
-				     _("Could not store folder: %s"),
-				     g_strerror(errno));
-		close(fd);
-		return -1;
-	}
-
-	mp = camel_mime_parser_new();
-	camel_mime_parser_scan_from(mp, TRUE);
-	camel_mime_parser_scan_pre_from(mp, TRUE);
-	camel_mime_parser_init_with_fd(mp, pfd);
-
-	count = camel_folder_summary_count(s);
-	for (i = 0; i < count; i++) {
-		int xevoffset;
-		int pc = (i+1)*100/count;
-
-		camel_operation_progress(NULL, pc);
-
-		info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-
-		g_assert(info);
-
-		d(printf("Checking message %s %08x\n", camel_message_info_uid(info), info->info.flags));
-
-		if ((((CamelMessageInfoBase *)info)->flags & CAMEL_MESSAGE_FOLDER_FLAGGED) == 0) {
-			camel_message_info_free((CamelMessageInfo *)info);
-			info = NULL;
-			continue;
-		}
-
-		d(printf("Updating message %s\n", camel_message_info_uid(info)));
-
-		camel_mime_parser_seek(mp, info->frompos, SEEK_SET);
-
-		if (camel_mime_parser_step(mp, 0, 0) != CAMEL_MIME_PARSER_STATE_FROM) {
-			g_warning("Expected a From line here, didn't get it");
-			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Summary and folder mismatch, even after a sync"));
-			goto error;
-		}
-
-		if (camel_mime_parser_tell_start_from(mp) != info->frompos) {
-			g_warning("Didn't get the next message where I expected (%d) got %d instead",
-				  (int)info->frompos, (int)camel_mime_parser_tell_start_from(mp));
-			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Summary and folder mismatch, even after a sync"));
-			goto error;
-		}
-
-		if (camel_mime_parser_step(mp, 0, 0) == CAMEL_MIME_PARSER_STATE_FROM_END) {
-			g_warning("camel_mime_parser_step failed (2)");
-			goto error;
-		}
-
-		xev = camel_mime_parser_header(mp, "X-Evolution", &xevoffset);
-		if (xev == NULL || camel_local_summary_decode_x_evolution(cls, xev, NULL) == -1) {
-			g_warning("We're supposed to have a valid x-ev header, but we dont");
-			goto error;
-		}
-		xevnew = camel_local_summary_encode_x_evolution(cls, &info->info);
-		/* SIGH: encode_param_list is about the only function which folds headers by itself.
-		   This should be fixed somehow differently (either parser doesn't fold headers,
-		   or param_list doesn't, or something */
-		xevtmp = camel_header_unfold(xevnew);
-		/* the raw header contains a leading ' ', so (dis)count that too */
-		if (strlen(xev)-1 != strlen(xevtmp)) {
-			printf ("strlen(xev)-1 = %d; strlen(xevtmp) = %d\n", strlen(xev)-1, strlen(xevtmp));
-			printf ("xev='%s'; xevtmp='%s'\n", xev, xevtmp);
-			g_free(xevnew);
-			g_free(xevtmp);
-			g_warning("Hmm, the xev headers shouldn't have changed size, but they did");
-			goto error;
-		}
-		g_free(xevtmp);
-
-		/* we write out the xevnew string, assuming its been folded identically to the original too! */
-
-		lastpos = lseek(fd, 0, SEEK_CUR);
-		lseek(fd, xevoffset+strlen("X-Evolution: "), SEEK_SET);
-		do {
-			len = write(fd, xevnew, strlen(xevnew));
-		} while (len == -1 && errno == EINTR);
-		lseek(fd, lastpos, SEEK_SET);
-		g_free(xevnew);
-
-		camel_mime_parser_drop_step(mp);
-		camel_mime_parser_drop_step(mp);
-
-		((CamelMessageInfoBase *)info)->flags &= 0xffff;
-		camel_message_info_free((CamelMessageInfo *)info);
-	}
-
-	d(printf("Closing folders\n"));
-
-	if (close(fd) == -1) {
-		g_warning ("Cannot close source folder: %s", strerror (errno));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not close source folder %s: %s"),
-				      cls->folder_path, g_strerror (errno));
-		fd = -1;
-		goto error;
-	}
-
-	camel_object_unref((CamelObject *)mp);
-
-	camel_operation_end(NULL);
-	
-	return 0;
- error:
-	if (fd != -1)
-		close(fd);
-	if (mp)
-		camel_object_unref((CamelObject *)mp);
-	if (info)
-		camel_message_info_free((CamelMessageInfo *)info);
-
-	camel_operation_end(NULL);
-
-	return -1;
 #endif
+	return 0;
 }
 
 static int
@@ -1228,89 +979,102 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 {
 	struct stat st;
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
-	CamelFolderSummary *s = (CamelFolderSummary *)cls;
-	int i, count;
-	int quick = TRUE, work=FALSE;
-	int ret;
+	int res;
 
-	/* first, sync ourselves up, just to make sure */
-	if (camel_local_summary_check(cls, changeinfo, ex) == -1)
-		return -1;
+	/* We auto-sync all the time, so we only really care about expunging */
 
-	return 0;
-#if 0
-	count = camel_folder_summary_count(s);
-	if (count == 0)
-		return 0;
+	/* We should probably find out if we pending/running an auto-sync ...
+	   but ... that should just sort itself out automatically. */
 
-	/* check what work we have to do, if any */
-	for (i=0;quick && i<count; i++) {
-		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-
-		g_assert(info);
-		if ((expunge && (((CamelMessageInfoBase *)info)->flags & CAMEL_MESSAGE_DELETED)) ||
-		    (((CamelMessageInfoBase *)info)->flags & (CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_XEVCHANGE)))
-			quick = FALSE;
-		else
-			work |= (((CamelMessageInfoBase *)info)->flags & CAMEL_MESSAGE_FOLDER_FLAGGED) != 0;
-		camel_message_info_free(info);
-	}
-
-	/* yuck i hate this logic, but its to simplify the 'all ok, update summary' and failover cases */
-	ret = -1;
-	if (quick) {
-		if (work) {
-			ret = ((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_quick(mbs, expunge, changeinfo, ex);
-			if (ret == -1) {
-				g_warning("failed a quick-sync, trying a full sync");
-				camel_exception_clear(ex);
-			}
-		} else {
-			ret = 0;
+	if (expunge) {
+		res = ((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full(mbs, expunge, changeinfo, ex);
+		if (res == 0
+		    && stat(cls->folder_path, &st) == 0
+		    && (mbs->folder_size != st.st_size || mbs->time != st.st_mtime)) {
+			    mbs->time = st.st_mtime;
+			    mbs->folder_size = st.st_size;
 		}
 	}
 
-	if (ret == -1)
-		ret = ((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full(mbs, expunge, changeinfo, ex);
-	if (ret == -1)
-		return -1;
+	return res;
+}
 
-	if (stat(cls->folder_path, &st) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Unknown error: %s"), g_strerror (errno));
-		return -1;
-	}
-
-	if (mbs->folder_size != st.st_size || mbs->time != st.st_mtime) {
-		mbs->time = st.st_mtime;
-		mbs->folder_size = st.st_size;
-		camel_folder_summary_touch(s);
-	}
-
-	return ((CamelLocalSummaryClass *)camel_mbox_summary_parent)->sync(cls, expunge, changeinfo, ex);
+static void
+mbox_build_headers(CamelMboxSummary *mbs, GString *out, struct _camel_header_raw *header, CamelMboxMessageInfo *info)
+{
+	char *xev;
+#ifdef STATUS_PINE
+	char status[8];
 #endif
+
+	while (header) {
+		if (strcmp(header->name, "X-Evolution") != 0
+#ifdef STATUS_PINE
+		    && (!mbs->xstatus
+			|| (strcmp(header->name, "Status") != 0
+			    && strcmp(header->name, "X-Status") != 0))
+#endif
+			) {
+			g_string_append(out, header->name);
+			g_string_append_c(out, ':');
+			g_string_append(out, header->value);
+			g_string_append_c(out, '\n');
+		}
+		header = header->next;
+	}
+
+#ifdef STATUS_PINE
+	if (mbs->xstatus) {
+		encode_status(((CamelMessageInfoBase *)info)->flags & STATUS_STATUS, status);
+		g_string_append(out, "Status: ");
+		g_string_append(out, status);
+		g_string_append_c(out, '\n');
+
+		encode_status(((CamelMessageInfoBase *)info)->flags & STATUS_XSTATUS, status);
+		g_string_append(out, "X-Status: ");
+		g_string_append(out, status);
+		g_string_append_c(out, '\n');
+	}
+#endif
+
+	g_string_append(out, "X-Evolution: ");
+	xev = camel_mbox_summary_encode_xev(((CamelMessageInfoBase *)info)->uid, ((CamelMessageInfoBase *)info)->flags);
+	g_string_append(out, xev);
+	g_free(xev);
+	g_string_append(out, "\n\n");
 }
 
 int
-camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderChangeInfo *changeinfo, int fd, int fdout, CamelException *ex)
+camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolderChangeInfo *changes, int fd, int fdout, CamelException *ex)
 {
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
 	CamelMimeParser *mp = NULL;
-	int i, count;
-	CamelMboxMessageInfo *info = NULL;
-	char *buffer, *xevnew = NULL;
-	size_t len;
-	const char *fromline;
-	int lastdel = FALSE;
-#ifdef STATUS_PINE
-	char statnew[8], xstatnew[8];
-#endif
+	int count = 0, res = -1;
+	CamelMessageIterator *iter;
+	const CamelMessageInfo *iterinfo;
+	char *buffer;
+	size_t bufferlen;
+	ssize_t len;
+	GCompareDataFunc uid_cmp = CFS_CLASS(s)->uid_cmp;
+	GString *headers;
+	guint32 lastuid = 0, thisuid;
 
-	d(printf("performing full summary/sync\n"));
-	return 0;
+	/* The new improved 'sync and expunge an mbox' code.
 
-#if 0
+	We make no assumptions about what we have anymore.  Or about
+	what is on the disk.  We never fail because of mismatches.
+	If we return successful, then the mailbox will be in a guaranteed
+	increasing uid order, and all messages will have a valid
+	X-Evolution header.
+
+	Messages may move location - we just update the frompos
+	Out of order - we renumber them
+	New messages - we add them
+	*/
+
+	printf("Syncing mailbox with expunge!?\n");
+
 	/* need to dup this because the mime-parser owns the fd after we give it to it */
 	fd = dup(fd);
 	if (fd == -1) {
@@ -1320,167 +1084,168 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderCh
 		return -1;
 	}
 
+	headers = g_string_new("");
+
 	mp = camel_mime_parser_new();
 	camel_mime_parser_scan_from(mp, TRUE);
 	camel_mime_parser_scan_pre_from(mp, TRUE);
 	camel_mime_parser_init_with_fd(mp, fd);
 
-	count = camel_folder_summary_count(s);
-	for (i = 0; i < count; i++) {
-		int pc = (i + 1) * 100 / count;
+	/* FIXME: handle exceptions on the iterator? */
 
-		camel_operation_progress(NULL, pc);
+	iter = camel_folder_summary_search(s, NULL, NULL, NULL, ex);
+	iterinfo = camel_message_iterator_next(iter, NULL);
+	while (camel_mime_parser_step(mp, &buffer, &len) != CAMEL_MIME_PARSER_STATE_EOF) {
+		CamelMboxMessageInfo *info;
+		struct _camel_header_raw *h;
+		const char *xev;
+		char *uid;
+		guint32 flags;
 
-		info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
+		if (s->root_view->total_count)
+			camel_operation_progress(NULL, (++count)*100 / s->root_view->total_count);
 
-		g_assert(info);
+		/* The from line is only valid in the FROM state, so grab it here,
+		   we use it later if this isn't a deleted message.  I */
+		g_string_truncate(headers, 0);
+		if (camel_mime_parser_state(mp) == CAMEL_MIME_PARSER_STATE_FROM)
+			g_string_append(headers, camel_mime_parser_from_line(mp));
 
-		d(printf("Looking at message %s\n", camel_message_info_uid(info)));
-
-		/* only need to seek past deleted messages, otherwise we should be at the right spot/state already */
-		if (lastdel) {
-			d(printf("seeking to %d\n", (int)info->frompos));
-			camel_mime_parser_seek(mp, info->frompos, SEEK_SET);
-		}
-
-		if (camel_mime_parser_step(mp, &buffer, &len) != CAMEL_MIME_PARSER_STATE_FROM) {
+		/* Read next message */
+		if (camel_mime_parser_state(mp) != CAMEL_MIME_PARSER_STATE_FROM
+		    || camel_mime_parser_step(mp, &buffer, &len) == CAMEL_MIME_PARSER_STATE_FROM_END) {
 			g_warning("Expected a From line here, didn't get it");
 			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Summary and folder mismatch, even after a sync"));
-			goto error;
+					     _("Unreadable mailbox"));
+			goto fail;
 		}
 
-		if (camel_mime_parser_tell_start_from(mp) != info->frompos) {
-			g_warning("Didn't get the next message where I expected (%d) got %d instead",
-				  (int)info->frompos, (int)camel_mime_parser_tell_start_from(mp));
-			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Summary and folder mismatch, even after a sync"));
-			goto error;
-		}
+		h = camel_mime_parser_headers_raw(mp);
+		xev = camel_header_raw_find(&h, "x-evolution", NULL);
+		if (xev && (uid = camel_mbox_summary_decode_xev(xev, &flags))) {
+			thisuid = strtoul(uid, NULL, 10);
+			camel_mbox_summary_last_uid((CamelMboxSummary *)s, thisuid);
 
-		lastdel = FALSE;
-		if ((flags&1) && ((CamelMessageInfoBase *)info)->flags & CAMEL_MESSAGE_DELETED) {
-			const char *uid = camel_message_info_uid(info);
-
-			d(printf("Deleting %s\n", uid));
-
-			if (((CamelLocalSummary *)cls)->index)
-				camel_index_delete_name(((CamelLocalSummary *)cls)->index, uid);
-
-			/* remove it from the change list */
-			camel_folder_change_info_remove_uid(changeinfo, uid);
-			camel_folder_summary_remove(s, (CamelMessageInfo *)info);
-			camel_message_info_free((CamelMessageInfo *)info);
-			count--;
-			i--;
-			info = NULL;
-			lastdel = TRUE;
-		} else {
-			/* otherwise, the message is staying, copy its From_ line across */
-#if 0
-			if (i>0)
-				write(fdout, "\n", 1);
-#endif
-			info->frompos = lseek(fdout, 0, SEEK_CUR);
-			fromline = camel_mime_parser_from_line(mp);
-			write(fdout, fromline, strlen(fromline));
-		}
-
-		if (info && ((CamelMessageInfoBase *)info)->flags & (CAMEL_MESSAGE_FOLDER_NOXEV | CAMEL_MESSAGE_FOLDER_FLAGGED)) {
-			d(printf("Updating header for %s flags = %08x\n", camel_message_info_uid(info), info->info.flags));
-
-			if (camel_mime_parser_step(mp, &buffer, &len) == CAMEL_MIME_PARSER_STATE_FROM_END) {
-				g_warning("camel_mime_parser_step failed (2)");
-				goto error;
-			}
-
-			xevnew = camel_local_summary_encode_x_evolution((CamelLocalSummary *)cls, &info->info);
-#ifdef STATUS_PINE
-			if (mbs->xstatus) {
-				encode_status(((CamelMessageInfoBase *)info)->flags & STATUS_STATUS, statnew);
-				encode_status(((CamelMessageInfoBase *)info)->flags & STATUS_XSTATUS, xstatnew);
-				len = camel_local_summary_write_headers(fdout, camel_mime_parser_headers_raw(mp), xevnew, statnew, xstatnew);
+			if (thisuid < lastuid) {
+				printf("the uid is out of order, renumbering it\n");
+				/* Ok, so the mailbox violates the strict ordering requirements.
+				   Some other client must have updated the folder, and re-ordered
+				   messages in it.  Lets re-number anything we need to */
+				goto add_message;
 			} else {
-#endif
-				len = camel_local_summary_write_headers(fdout, camel_mime_parser_headers_raw(mp), xevnew, NULL, NULL);
-#ifdef STATUS_PINE
+				lastuid = thisuid;
 			}
-#endif
-			if (len == -1) {
-				d(printf("Error writing to tmp mailbox\n"));
-				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-						      _("Error writing to temp mailbox: %s"),
-						      g_strerror (errno));
-				goto error;
+
+			while (iterinfo && uid_cmp(camel_message_info_uid(iterinfo), uid, s) < 0) {
+				printf("Message %s vanished\n", iterinfo->uid);
+				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
+				iterinfo = camel_message_iterator_next(iter, NULL);
 			}
-			((CamelMessageInfoBase *)info)->flags &= 0xffff;
-			g_free(xevnew);
-			xevnew = NULL;
+
+			if (iterinfo && strcmp(iterinfo->uid, uid) == 0) {
+				info = (CamelMboxMessageInfo *)iterinfo;
+				camel_message_info_ref(info);
+				iterinfo = camel_message_iterator_next(iter, NULL);
+				goto have_message;
+			}
+		} else {
+			printf("how silly, a new message with no xev header got added by someone\n");
+		}
+	add_message:
+
+		printf("how odd, found an unkown message at %ld\n", camel_mime_parser_tell_start_from(mp));
+
+		/* A message we didn't know about, just create a new xev for it and write it out */
+		lastuid = camel_mbox_summary_next_uid((CamelMboxSummary *)s);
+		uid = g_strdup_printf("%d", lastuid);
+
+		info = camel_message_info_new_from_header(s, h);
+		((CamelMboxMessageInfo *)info)->frompos = camel_mime_parser_tell_start_from(mp);
+		((CamelMessageInfoBase *)info)->uid = uid;
+
+		camel_folder_summary_add(s, (CamelMessageInfo *)info);
+		camel_folder_change_info_add_uid(changes, uid);
+		if (xev == NULL)
+			camel_folder_change_info_recent_uid(changes, uid);
+
+	have_message:
+		if ((inflags & 1) && ((CamelMessageInfoBase *)info)->flags & CAMEL_MESSAGE_DELETED) {
+			printf("%p: expunging deleted message %s\n", info, camel_message_info_uid(info));
+			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(info));
+			camel_folder_summary_remove(s, (CamelMessageInfo *)info);
 			camel_mime_parser_drop_step(mp);
-		}
-
-		camel_mime_parser_drop_step(mp);
-		if (info) {
-			d(printf("looking for message content to copy across from %d\n", (int)camel_mime_parser_tell(mp)));
-			while (camel_mime_parser_step(mp, &buffer, &len) == CAMEL_MIME_PARSER_STATE_PRE_FROM) {
-				/*d(printf("copying mbox contents to tmp: '%.*s'\n", len, buffer));*/
-				if (write(fdout, buffer, len) != len) {
-					camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-							      _("Writing to tmp mailbox failed: %s: %s"),
-							      ((CamelLocalSummary *)cls)->folder_path,
-							      g_strerror (errno));
-					goto error;
-				}
-			}
-
-			if (write(fdout, "\n", 1) != 1) {
-				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-						      _("Error writing to temp mailbox: %s"),
-						      g_strerror (errno));
-				goto error;
-			}
-
-			d(printf("we are now at %d, from = %d\n", (int)camel_mime_parser_tell(mp),
-				 (int)camel_mime_parser_tell_start_from(mp)));
+			camel_mime_parser_drop_step(mp);
+			while (camel_mime_parser_step(mp, &buffer, &bufferlen) == CAMEL_MIME_PARSER_STATE_PRE_FROM)
+				;
 			camel_mime_parser_unstep(mp);
-			camel_message_info_free((CamelMessageInfo *)info);
-			info = NULL;
-		}
-	}
+		} else {
+			off_t frompos;
+			size_t size;
 
-#if 0
-	/* if last was deleted, append the \n we removed */
-	if (lastdel && count > 0)
-		write(fdout, "\n", 1);
-#endif
+			frompos = lseek(fdout, 0, SEEK_CUR);
+			printf("copying message from %ld to %ld\n", camel_mime_parser_tell_start_from(mp), frompos);
 
-	camel_object_unref((CamelObject *)mp);
+			/* Copy From_ + headers to destination, fixing status markers */
+			mbox_build_headers(mbs, headers, h, info);
+			do {
+				len = write(fdout, headers->str, headers->len);
+			} while (len == -1 && errno == EINTR);
 
-	/* clear working flags */
-	for (i=0; i<count; i++) {
-		info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-		if (info) {
-			if (((CamelMessageInfoBase *)info)->flags & (CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_FLAGGED|CAMEL_MESSAGE_FOLDER_XEVCHANGE)) {
-				((CamelMessageInfoBase *)info)->flags &= ~(CAMEL_MESSAGE_FOLDER_NOXEV
-							   |CAMEL_MESSAGE_FOLDER_FLAGGED
-							   |CAMEL_MESSAGE_FOLDER_XEVCHANGE);
-				camel_folder_summary_touch(s);
+			/* Copy the whole message content */
+			camel_mime_parser_drop_step(mp);
+			camel_mime_parser_drop_step(mp);
+			while (camel_mime_parser_step(mp, &buffer, &bufferlen) == CAMEL_MIME_PARSER_STATE_PRE_FROM) {
+				do {
+					len = write(fdout, buffer, bufferlen);
+				} while (len == -1 && errno == EINTR);
+
+				if (len == -1)
+					goto io_error;
 			}
-			camel_message_info_free((CamelMessageInfo *)info);
-		}
-	}
-		
-	return 0;
- error:
-	g_free(xevnew);
-	
-	if (mp)
-		camel_object_unref((CamelObject *)mp);
-	if (info)
-		camel_message_info_free((CamelMessageInfo *)info);
 
-	return -1;
-#endif
+			do {
+				len = write(fdout, "\n", 1);
+			} while (len == -1 && errno == EINTR);
+
+			if (len == -1)
+				goto io_error;
+
+			size = lseek(fdout, 0, SEEK_CUR) - frompos;
+
+			/* Update offsets/size if they've changed & force the summary to save it */
+			if (frompos != info->frompos || ((CamelMessageInfoBase *)info)->size != size) {
+				info->frompos = frompos;
+				((CamelMessageInfoBase *)info)->size = size;
+				camel_message_info_set_flags((CamelMessageInfo *)info, CAMEL_MESSAGE_FOLDER_FLAGGED, ~0);
+			}
+
+			camel_mime_parser_unstep(mp);
+		}
+
+		camel_message_info_free(info);
+	}
+
+	/* Anything else still in the summary isn't really there anymore, so discard it.
+	   Also happens if we renumbered messages */
+	while (iterinfo) {
+		camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
+		iterinfo = camel_message_iterator_next(iter, NULL);
+	}
+	res = 0;
+fail:
+	camel_message_iterator_free(iter);
+	camel_object_unref(mp);
+	g_string_free(headers, TRUE);
+	
+	return res;
+
+io_error:
+	/* FIXME: find another matching string */
+	camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
+			     _("System failure writing new mailbox: %s"), g_strerror(errno));
+	goto fail;
 }
 
 /* FIXME: this has to go into camel-folder now */

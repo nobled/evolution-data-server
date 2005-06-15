@@ -421,7 +421,6 @@ static CamelMessageInfo *
 local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *ci, CamelException *ex)
 {
 	CamelLocalMessageInfo *mi;
-	char *xev;
 
 	d(printf("Adding message to summary\n"));
 	
