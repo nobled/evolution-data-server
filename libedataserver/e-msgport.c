@@ -1127,12 +1127,44 @@ int e_mutex_cond_wait(void *vcond, EMutex *m)
 	switch(m->type) {
 	case E_MUTEX_SIMPLE:
 		return pthread_cond_wait(cond, &m->mutex);
-	case E_MUTEX_REC:
+	case E_MUTEX_REC: {
+		int depth;
+
 		if ((ret = pthread_mutex_lock(&m->mutex)) != 0)
 			return ret;
 		g_assert(m->owner == pthread_self());
+
+		/* 'unlock' */
+		depth = m->depth;
+		m->depth = 0;
+		m->owner = E_THREAD_NONE;
+		if (m->waiters > 0)
+			pthread_cond_signal(&m->cond);
+
 		ret = pthread_cond_wait(cond, &m->mutex);
-		g_assert(m->owner == pthread_self());
+
+		/* 're-lock' */
+		m->depth = depth;
+		m->owner = pthread_self();
+		pthread_mutex_unlock(&m->mutex);
+		return ret; }
+	default:
+		g_return_val_if_reached(-1);
+	}
+}
+
+int e_mutex_cond_signal(void *vcond, EMutex *m)
+{
+	int ret;
+	pthread_cond_t *cond = vcond;
+
+	switch(m->type) {
+	case E_MUTEX_SIMPLE:
+		return pthread_cond_signal(cond);
+	case E_MUTEX_REC:
+		if ((ret = pthread_mutex_lock(&m->mutex)) != 0)
+			return ret;
+		ret = pthread_cond_signal(cond);
 		pthread_mutex_unlock(&m->mutex);
 		return ret;
 	default:

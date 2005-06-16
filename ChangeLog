@@ -1,3 +1,10 @@
+2005-06-16  Not Zed  <NotZed@Ximian.com>
+
+	* libedataserver/e-msgport.c (e_mutex_cond_signal): implement a
+	cond signal to match cond wait.
+	(e_mutex_cond_wait): Fix this, we need to fully unlock the mutex
+	before waiting.
+
 2005-06-15  Not Zed  <NotZed@Ximian.com>
 
 	* libedataserver/e-sexp.c: Another big set of api changes.
