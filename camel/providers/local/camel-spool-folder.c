@@ -56,56 +56,6 @@ static CamelFolderClass *parent_class = NULL;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 #define CSPOOLS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
-static CamelLocalSummary *spool_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index);
-
-static int spool_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
-static void spool_unlock(CamelLocalFolder *lf, CamelLockType type);
-
-static void spool_finalize(CamelObject * object);
-
-static void
-camel_spool_folder_class_init(CamelSpoolFolderClass *klass)
-{
-	CamelLocalFolderClass *lklass = (CamelLocalFolderClass *)klass;
-
-	parent_class = (CamelFolderClass *)camel_mbox_folder_get_type();
-
-	lklass->create_summary = spool_create_summary;
-	lklass->lock = spool_lock;
-	lklass->unlock = spool_unlock;
-}
-
-static void
-spool_init(gpointer object, gpointer klass)
-{
-	CamelSpoolFolder *spool_folder = object;
-
-	spool_folder->lockid = -1;
-}
-
-static void
-spool_finalize(CamelObject * object)
-{
-	/*CamelSpoolFolder *spool_folder = CAMEL_SPOOL_FOLDER(object);*/
-}
-
-CamelType camel_spool_folder_get_type(void)
-{
-	static CamelType camel_spool_folder_type = CAMEL_INVALID_TYPE;
-
-	if (camel_spool_folder_type == CAMEL_INVALID_TYPE) {
-		camel_spool_folder_type = camel_type_register(camel_mbox_folder_get_type(), "CamelSpoolFolder",
-							     sizeof(CamelSpoolFolder),
-							     sizeof(CamelSpoolFolderClass),
-							     (CamelObjectClassInitFunc) camel_spool_folder_class_init,
-							     NULL,
-							     (CamelObjectInitFunc) spool_init,
-							     (CamelObjectFinalizeFunc) spool_finalize);
-	}
-
-	return camel_spool_folder_type;
-}
-
 CamelFolder *
 camel_spool_folder_new(CamelStore *parent_store, const char *full_name, guint32 flags, CamelException *ex)
 {
@@ -186,4 +136,47 @@ spool_unlock(CamelLocalFolder *lf, CamelLockType type)
 
 	close(mf->lockfd);
 	mf->lockfd = -1;
+}
+
+static void
+spool_init(gpointer object, gpointer klass)
+{
+	CamelSpoolFolder *spool_folder = object;
+
+	spool_folder->lockid = -1;
+}
+
+static void
+spool_finalize(CamelObject * object)
+{
+	/*CamelSpoolFolder *spool_folder = CAMEL_SPOOL_FOLDER(object);*/
+}
+
+static void
+camel_spool_folder_class_init(CamelSpoolFolderClass *klass)
+{
+	CamelLocalFolderClass *lklass = (CamelLocalFolderClass *)klass;
+
+	parent_class = (CamelFolderClass *)camel_mbox_folder_get_type();
+
+	lklass->create_summary = spool_create_summary;
+	lklass->lock = spool_lock;
+	lklass->unlock = spool_unlock;
+}
+
+CamelType camel_spool_folder_get_type(void)
+{
+	static CamelType camel_spool_folder_type = CAMEL_INVALID_TYPE;
+
+	if (camel_spool_folder_type == CAMEL_INVALID_TYPE) {
+		camel_spool_folder_type = camel_type_register(camel_mbox_folder_get_type(), "CamelSpoolFolder",
+							     sizeof(CamelSpoolFolder),
+							     sizeof(CamelSpoolFolderClass),
+							     (CamelObjectClassInitFunc) camel_spool_folder_class_init,
+							     NULL,
+							     (CamelObjectInitFunc) spool_init,
+							     (CamelObjectFinalizeFunc) spool_finalize);
+	}
+
+	return camel_spool_folder_type;
 }

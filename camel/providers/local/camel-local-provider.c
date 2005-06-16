@@ -32,7 +32,7 @@
 
 //#include "camel-mh-store.h"
 #include "camel-mbox-store.h"
-//#include "camel-maildir-store.h"
+#include "camel-maildir-store.h"
 #include "camel-spool-store.h"
 #include "camel-i18n.h"
 
@@ -76,7 +76,6 @@ static CamelProvider mbox_provider = {
 	/* ... */
 };
 
-#if 0
 static CamelProviderConfEntry maildir_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
 	{ CAMEL_PROVIDER_CONF_SECTION_START, "general", NULL, N_("Options") },
@@ -96,7 +95,6 @@ static CamelProvider maildir_provider = {
 	maildir_conf_entries,
 	/* ... */
 };
-#endif
 
 static CamelProviderConfEntry spool_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
@@ -223,12 +221,11 @@ void camel_provider_module_init(void)
 	spool_provider.url_hash = local_url_hash;
 	spool_provider.url_equal = local_url_equal;
 	camel_provider_register(&spool_provider);
-#if 0
+
 	path = getenv("MAILDIR");
 	maildir_conf_entries[0].value = path ? path : "";  /* default path */
 	maildir_provider.object_types[CAMEL_PROVIDER_STORE] = camel_maildir_store_get_type ();
 	maildir_provider.url_hash = local_url_hash;
 	maildir_provider.url_equal = local_url_equal;
 	camel_provider_register(&maildir_provider);
-#endif
 }

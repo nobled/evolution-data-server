@@ -227,6 +227,16 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	camel_medium_set_header((CamelMedium *)message, "X-Evolution", xev);
 	g_free(xev);
 
+#ifdef STATUS_PINE
+	if (((CamelMboxSummary *)folder->summary)->xstatus) {
+		char status[8];
+
+		camel_mbox_summary_encode_status(((CamelMessageInfoBase *)mi)->flags & CAMEL_MBOX_STATUS_STATUS, status);
+		camel_medium_set_header((CamelMedium *)message, "Status", status);
+		camel_mbox_summary_encode_status(((CamelMessageInfoBase *)mi)->flags & CAMEL_MBOX_STATUS_XSTATUS, status);
+		camel_medium_set_header((CamelMedium *)message, "X-Status", status);
+	}
+#endif
 	d(printf("Appending message: uid is %s\n", camel_message_info_uid(mi)));
 
 	output_stream = camel_stream_fs_new_with_name(lf->folder_path, O_WRONLY|O_APPEND, 0600);

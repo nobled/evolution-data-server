@@ -24,7 +24,7 @@
 #include "camel-local-summary.h"
 
 /* Enable the use of elm/pine style "Status" & "X-Status" headers */
-#define STATUS_PINE
+#define STATUS_PINE (1)
 
 #define CAMEL_MBOX_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_mbox_summary_get_type (), CamelMboxSummary)
 #define CAMEL_MBOX_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mbox_summary_get_type (), CamelMboxSummaryClass)
@@ -55,6 +55,7 @@ struct _CamelMboxSummary {
 	guint32 nextuid;	/* the next uid to assign */
 
 	unsigned int xstatus:1;	/* do we store/honour xstatus/status headers */
+	unsigned int xstatus_changed:1;	/* fun, next sync requires a full sync */
 };
 
 struct _CamelMboxSummaryClass {
@@ -68,6 +69,7 @@ struct _CamelMboxSummaryClass {
 
 CamelType		camel_mbox_summary_get_type	(void);
 CamelMboxSummary      *camel_mbox_summary_new	(struct _CamelFolder *, const char *filename, const char *mbox_name, CamelIndex *index);
+void camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index);
 
 /* do we honour/use xstatus headers, etc */
 void camel_mbox_summary_xstatus(CamelMboxSummary *mbs, int state);
@@ -80,6 +82,18 @@ int camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFold
 
 guint32 camel_mbox_summary_next_uid(CamelMboxSummary *);
 void camel_mbox_summary_last_uid(CamelMboxSummary *, guint32 uid);
+
+#ifdef STATUS_PINE
+
+/* For pine/elm/etc headers, we can store various bits in various of the status headers,
+   These flags define which bits are relevant for each of "Status" and "X-Status"
+   respectively */
+
+#define CAMEL_MBOX_STATUS_XSTATUS (CAMEL_MESSAGE_FLAGGED|CAMEL_MESSAGE_ANSWERED|CAMEL_MESSAGE_DELETED)
+#define CAMEL_MBOX_STATUS_STATUS (CAMEL_MESSAGE_SEEN)
+
+void camel_mbox_summary_encode_status(guint32 flags, char status[8]);
+#endif
 
 #endif /* ! _CAMEL_MBOX_SUMMARY_H */
 

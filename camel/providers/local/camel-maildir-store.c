@@ -307,10 +307,11 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
-		fi->unread = camel_folder_get_unread_message_count(folder);
-		fi->total = camel_folder_get_message_count(folder);
+		fi->unread = folder->summary->root_view->unread_count;
+		fi->total = folder->summary->root_view->total_count;
 		camel_object_unref(folder);
 	} else {
+#if 0
 		char *path, *folderpath;
 		CamelFolderSummary *s;
 		const char *root;
@@ -327,6 +328,7 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 		camel_object_unref(s);
 		g_free(folderpath);
 		g_free(path);
+#endif
 	}
 }
 

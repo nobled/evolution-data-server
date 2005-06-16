@@ -35,8 +35,6 @@
 #include <ctype.h>
 
 #include "camel-spool-summary.h"
-#include "camel-mime-message.h"
-#include "camel-file-utils.h"
 #include "camel-operation.h"
 #include "camel-i18n.h"
 
@@ -45,80 +43,16 @@
 
 #define CAMEL_SPOOL_SUMMARY_VERSION (0x400)
 
-static int spool_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex);
-static int spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-
-static int spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-
-static void camel_spool_summary_class_init (CamelSpoolSummaryClass *klass);
-static void camel_spool_summary_init       (CamelSpoolSummary *obj);
-static void camel_spool_summary_finalise   (CamelObject *obj);
-
 static CamelFolderSummaryClass *camel_spool_summary_parent;
-
-CamelType
-camel_spool_summary_get_type(void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-	
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(camel_mbox_summary_get_type(), "CamelSpoolSummary",
-					   sizeof (CamelSpoolSummary),
-					   sizeof (CamelSpoolSummaryClass),
-					   (CamelObjectClassInitFunc) camel_spool_summary_class_init,
-					   NULL,
-					   (CamelObjectInitFunc) camel_spool_summary_init,
-					   (CamelObjectFinalizeFunc) camel_spool_summary_finalise);
-	}
-	
-	return type;
-}
-
-static void
-camel_spool_summary_class_init(CamelSpoolSummaryClass *klass)
-{
-	CamelLocalSummaryClass *lklass = (CamelLocalSummaryClass *)klass;
-	CamelMboxSummaryClass *mklass = (CamelMboxSummaryClass *)klass;
-
-	camel_spool_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS(camel_mbox_summary_get_type());
-
-	lklass->load = spool_summary_load;
-	lklass->check = spool_summary_check;
-
-	mklass->sync_full = spool_summary_sync_full;
-}
-
-static void
-camel_spool_summary_init(CamelSpoolSummary *obj)
-{
-	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
-
-	s = s;
-}
-
-static void
-camel_spool_summary_finalise(CamelObject *obj)
-{
-	/*CamelSpoolSummary *mbs = CAMEL_SPOOL_SUMMARY(obj);*/
-}
 
 CamelSpoolSummary *
 camel_spool_summary_new(struct _CamelFolder *folder, const char *mbox_name)
 {
 	CamelSpoolSummary *new = (CamelSpoolSummary *)camel_object_new(camel_spool_summary_get_type());
 
-	((CamelFolderSummary *)new)->folder = folder;
+	camel_mbox_summary_construct((CamelMboxSummary *)new, folder, NULL, mbox_name, NULL);
 
-	/* FIXME: make this call mbox construct */
-	camel_local_summary_construct((CamelLocalSummary *)new, folder, NULL, mbox_name, NULL);
 	return new;
-}
-
-static int
-spool_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex)
-{
-	g_warning("spool summary - not loading anything\n");
-	return 0;
 }
 
 /* perform a full sync */
@@ -307,42 +241,70 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 static int
 spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex)
 {
-	int i, work, count;
 	struct stat st;
-	CamelFolderSummary *s = (CamelFolderSummary *)cls;
+	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
 
-	if (((CamelLocalSummaryClass *)camel_spool_summary_parent)->check(cls, changeinfo, ex) == -1)
+	if (stat(cls->folder_path, &st) == -1) {
+		// FIXME: error string
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Unknown error: %s"),
+				      g_strerror (errno));
+	}
+
+	if (st.st_size == mbs->folder_size && st.st_mtime == mbs->time)
+		return 0;
+
+	if (((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full((CamelMboxSummary *)cls, FALSE, changeinfo, ex) == -1)
 		return -1;
 
-#warning "incomplee"
-#if 0
-	/* check to see if we need to copy/update the file; missing xev headers prompt this */
-	work = FALSE;
-	count = camel_folder_summary_count(s);
-	for (i=0;!work && i<count; i++) {
-		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-		g_assert(info);
-		work = (((CamelMessageInfoBase *)info)->flags & (CAMEL_MESSAGE_FOLDER_NOXEV)) != 0;
-		camel_message_info_free((CamelMessageInfo *)info);
+	if (stat(cls->folder_path, &st) == 0) {
+		mbs->folder_size = st.st_size;
+		mbs->time = st.st_mtime;
 	}
-
-	/* if we do, then write out the headers using sync_full, etc */
-	if (work) {
-		d(printf("Have to add new headers, re-syncing from the start to accomplish this\n"));
-		if (((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full((CamelMboxSummary *)cls, FALSE, changeinfo, ex) == -1)
-			return -1;
-		
-		if (stat(cls->folder_path, &st) == -1) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Unknown error: %s"),
-					      g_strerror (errno));
-			return -1;
-		}
-
-		((CamelMboxSummary *)cls)->folder_size = st.st_size;
-		((CamelMboxSummary *)cls)->time = st.st_mtime;
-	}
-#endif
 
 	return 0;
+}
+
+static void
+camel_spool_summary_init(CamelSpoolSummary *obj)
+{
+	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
+
+	s = s;
+}
+
+static void
+camel_spool_summary_finalise(CamelObject *obj)
+{
+	/*CamelSpoolSummary *mbs = CAMEL_SPOOL_SUMMARY(obj);*/
+}
+
+static void
+camel_spool_summary_class_init(CamelSpoolSummaryClass *klass)
+{
+	CamelLocalSummaryClass *lklass = (CamelLocalSummaryClass *)klass;
+	CamelMboxSummaryClass *mklass = (CamelMboxSummaryClass *)klass;
+
+	camel_spool_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS(camel_mbox_summary_get_type());
+
+	lklass->check = spool_summary_check;
+
+	mklass->sync_full = spool_summary_sync_full;
+}
+
+CamelType
+camel_spool_summary_get_type(void)
+{
+	static CamelType type = CAMEL_INVALID_TYPE;
+	
+	if (type == CAMEL_INVALID_TYPE) {
+		type = camel_type_register(camel_mbox_summary_get_type(), "CamelSpoolSummary",
+					   sizeof (CamelSpoolSummary),
+					   sizeof (CamelSpoolSummaryClass),
+					   (CamelObjectClassInitFunc) camel_spool_summary_class_init,
+					   NULL,
+					   (CamelObjectInitFunc) camel_spool_summary_init,
+					   (CamelObjectFinalizeFunc) camel_spool_summary_finalise);
+	}
+	
+	return type;
 }

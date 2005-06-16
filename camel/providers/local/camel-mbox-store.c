@@ -598,10 +598,10 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 		fi->total = folder->summary->root_view->total_count;
 		camel_object_unref(folder);
 	} else {
+#warning "implement"
+#if 0
 		char *path, *folderpath;
 		CamelMboxSummary *mbs;
-// ?? maybe we can just open all folders all the time ...?
-#if 0		
 
 		/* This should be fast enough not to have to test for INFO_FAST */
 		path = camel_local_store_get_meta_path(store, fi->full_name, ".ev-summary");

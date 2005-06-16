@@ -41,116 +41,59 @@
 #include "camel-i18n.h"
 #include "camel-record.h"
 
-/* NB, this is only for the messy iterator_get interface,
-   which could be better hidden */
+/* NB, this is only for the messy iterator_get interface, which could be better hidden */
 #include "db.h"
 
 #define io(x)
 #define d(x) (printf("%s(%d): ", __FILE__, __LINE__),(x))
 
-#define CAMEL_MBOX_SUMMARY_VERSION (1)
-
-static void summary_header_encode(CamelFolderSummaryDisk *s, CamelRecordEncoder *cre);
-static int summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd);
-
-static void message_info_encode(CamelFolderSummaryDisk *s, CamelMessageInfoDisk *mi, CamelRecordEncoder *cre);
-static int message_info_decode(CamelFolderSummaryDisk *s, CamelMessageInfoDisk *mi, CamelRecordDecoder *crd);
-
-static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
-static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *, CamelMimeParser *);
-/*static void		  message_info_free (CamelFolderSummary *, CamelMessageInfo *);*/
-
-static char *mbox_summary_encode_x_evolution (CamelLocalSummary *cls, const CamelLocalMessageInfo *mi);
-
-static int mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-static int mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-#ifdef STATUS_PINE
-static CamelMessageInfo *mbox_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *ci, CamelException *ex);
-#endif
-
-static int mbox_summary_sync_quick(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-static int mbox_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-
-static void camel_mbox_summary_class_init (CamelMboxSummaryClass *klass);
-static void camel_mbox_summary_init       (CamelMboxSummary *obj);
-static void camel_mbox_summary_finalise   (CamelObject *obj);
-
-#ifdef STATUS_PINE
-/* Which status flags are stored in each separate header */
-#define STATUS_XSTATUS (CAMEL_MESSAGE_FLAGGED|CAMEL_MESSAGE_ANSWERED|CAMEL_MESSAGE_DELETED)
-#define STATUS_STATUS (CAMEL_MESSAGE_SEEN)
-
-static void encode_status(guint32 flags, char status[8]);
-static guint32 decode_status(const char *status);
-#endif
-
 #define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
 
 static CamelLocalSummaryClass *camel_mbox_summary_parent;
 
-CamelType
-camel_mbox_summary_get_type(void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-	
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(camel_local_summary_get_type(), "CamelMboxSummary",
-					   sizeof (CamelMboxSummary),
-					   sizeof (CamelMboxSummaryClass),
-					   (CamelObjectClassInitFunc) camel_mbox_summary_class_init,
-					   NULL,
-					   (CamelObjectInitFunc) camel_mbox_summary_init,
-					   (CamelObjectFinalizeFunc) camel_mbox_summary_finalise);
-	}
-	
-	return type;
-}
-
-static CamelMessageInfo *mbox_message_info_alloc(CamelFolderSummary *s)
-{
-	return g_malloc0(sizeof(CamelMboxMessageInfo));
-}
-
-static gboolean
-mbox_info_set_user_flag(CamelMessageInfo *mi, const char *name, gboolean value)
-{
-	int res;
-
-	res = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->info_set_user_flag(mi, name, value);
-	/* FIXME: should base class manage this? */
-	if (res)
-		((CamelMessageInfoBase *)mi)->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
-
-	return res;
-}
-
-static gboolean
-mbox_info_set_user_tag(CamelMessageInfo *mi, const char *name, const char *value)
-{
-	int res;
-
-	res = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->info_set_user_tag(mi, name, value);
-	/* FIXME: should base class manage this? */
-	if (res)
-		((CamelMessageInfoBase *)mi)->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
-
-	return res;
-}
-
 #ifdef STATUS_PINE
-static gboolean
-mbox_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
+static struct {
+	char tag;
+	guint32 flag;
+} status_flags[] = {
+	{ 'F', CAMEL_MESSAGE_FLAGGED },
+	{ 'A', CAMEL_MESSAGE_ANSWERED },
+	{ 'D', CAMEL_MESSAGE_DELETED },
+	{ 'R', CAMEL_MESSAGE_SEEN },
+};
+
+void
+camel_mbox_summary_encode_status(guint32 flags, char status[8])
 {
-	/* Basically, if anything could change the Status line, presume it does */
-	if (((CamelMboxSummary *)mi->summary)->xstatus
-	    && (flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_FLAGGED|CAMEL_MESSAGE_ANSWERED|CAMEL_MESSAGE_DELETED))) {
-		flags |= CAMEL_MESSAGE_FOLDER_XEVCHANGE|CAMEL_MESSAGE_FOLDER_FLAGGED;
-		set |= CAMEL_MESSAGE_FOLDER_XEVCHANGE|CAMEL_MESSAGE_FOLDER_FLAGGED;
+	char *p;
+	int i;
+
+	p = status;
+	for (i=0;i<sizeof(status_flags)/sizeof(status_flags[0]);i++)
+		if (status_flags[i].flag & flags)
+			*p++ = status_flags[i].tag;
+	*p++ = 'O';
+	*p=0;
+}
+
+static guint32
+decode_status(const char *status)
+{
+	const char *p;
+	char c;
+	guint32 flags = 0;
+	int i;
+
+	p = status;
+	while ((c = *p++)) {
+		for (i=0;i<sizeof(status_flags)/sizeof(status_flags[0]);i++)
+			if (status_flags[i].tag == *p)
+				flags |= status_flags[i].flag;
 	}
 
-	return ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->info_set_flags(mi, flags, set);
+	return flags;
 }
-#endif
+#endif /* STATUS_PINE */
 
 static int mbox_add(CamelFolderSummary *s, void *o)
 {
@@ -184,6 +127,13 @@ mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExceptio
 	/* Try to also store the changes in the mbox.  If something goes wrong -
 	   tough luck, its stored in the summary ok */
 
+#ifdef STATUS_PINE
+	/* Storing status headers anyway?  Dont even bother - wait till the next sync */
+	if (((CamelMboxSummary *)cds)->xstatus) {
+		((CamelMboxSummary *)cds)->xstatus_changed = 1;
+		goto done;
+	}
+#endif
 	printf("attempting to store '%d changes to mbox file\n", changes->len);
 
 	if (camel_local_folder_lock((CamelLocalFolder *)((CamelFolderSummary *)cds)->folder, CAMEL_LOCK_WRITE, NULL) == -1)
@@ -294,72 +244,9 @@ done:
 	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->sync(cds, changes, ex);
 }
 
-static void
-camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
+void
+camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index)
 {
-	CamelFolderSummaryClass *sklass = (CamelFolderSummaryClass *)klass;
-	CamelLocalSummaryClass *lklass = (CamelLocalSummaryClass *)klass;
-	
-	camel_mbox_summary_parent = (CamelLocalSummaryClass *)camel_type_get_global_classfuncs(camel_local_summary_get_type());
-
-	((CamelFolderSummaryDiskClass *)klass)->encode_header = summary_header_encode;
-	((CamelFolderSummaryDiskClass *)klass)->decode_header = summary_header_decode;
-
-	((CamelFolderSummaryDiskClass *)klass)->encode = message_info_encode;
-	((CamelFolderSummaryDiskClass *)klass)->decode = message_info_decode;
-
-	((CamelFolderSummaryDiskClass *)klass)->sync = mbox_sync_changes;
-
-	sklass->add = mbox_add;
-
-	sklass->message_info_alloc = mbox_message_info_alloc;
-	sklass->message_info_new_from_header  = message_info_new_from_header;
-	sklass->message_info_new_from_parser = message_info_new_from_parser;
-
-	/*sklass->message_info_free = message_info_free;*/
-
-	sklass->info_set_user_flag = mbox_info_set_user_flag;
-	sklass->info_set_user_tag = mbox_info_set_user_tag;
-#ifdef STATUS_PINE
-	sklass->info_set_flags = mbox_info_set_flags;
-#endif
-	
-	lklass->encode_x_evolution = mbox_summary_encode_x_evolution;
-	lklass->check = mbox_summary_check;
-	lklass->sync = mbox_summary_sync;
-#ifdef STATUS_PINE
-	lklass->add = mbox_summary_add;
-#endif
-
-	klass->sync_quick = mbox_summary_sync_quick;
-	klass->sync_full = mbox_summary_sync_full;
-}
-
-static void
-camel_mbox_summary_init(CamelMboxSummary *obj)
-{
-	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
-
-	s = s;
-}
-
-static void
-camel_mbox_summary_finalise(CamelObject *obj)
-{
-	/*CamelMboxSummary *mbs = CAMEL_MBOX_SUMMARY(obj);*/
-}
-
-/**
- * camel_mbox_summary_new:
- *
- * Create a new CamelMboxSummary object.
- * 
- * Return value: A new CamelMboxSummary widget.
- **/
-CamelMboxSummary *
-camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index)
-{
-	CamelMboxSummary *new = (CamelMboxSummary *)camel_object_new(camel_mbox_summary_get_type());
 	const CamelMessageInfo *mi;
 	CamelMessageIterator *iter;
 
@@ -376,6 +263,21 @@ camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const 
 		printf("Nothing in the database %s, last uid in header is %d\n", folder->full_name, (guint32)new->nextuid);
 	}
 	camel_message_iterator_free(iter);
+}
+
+/**
+ * camel_mbox_summary_new:
+ *
+ * Create a new CamelMboxSummary object.
+ * 
+ * Return value: A new CamelMboxSummary widget.
+ **/
+CamelMboxSummary *
+camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index)
+{
+	CamelMboxSummary *new = (CamelMboxSummary *)camel_object_new(camel_mbox_summary_get_type());
+
+	camel_mbox_summary_construct(new, folder, filename, mbox_name, index);
 
 	return new;
 }
@@ -440,24 +342,6 @@ camel_mbox_summary_encode_xev(const char *uidstr, guint32 flags)
 		return g_strdup_printf("%s-%04x", uidstr, flags & 0xffff);
 }
 
-static char *
-mbox_summary_encode_x_evolution (CamelLocalSummary *cls, const CamelLocalMessageInfo *mi)
-{
-	const char *p, *uidstr;
-	guint32 uid;
-
-	/* This is busted, it is supposed to encode ALL DATA */
-	p = uidstr = camel_message_info_uid(mi);
-	while (*p && isdigit(*p))
-		p++;
-	
-	if (*p == 0 && sscanf(uidstr, "%u", &uid) == 1) {
-		return g_strdup_printf("%08x-%04x", uid, ((CamelMessageInfoBase *)mi)->flags & 0xffff);
-	} else {
-		return g_strdup_printf("%s-%04x", uidstr, ((CamelMessageInfoBase *)mi)->flags & 0xffff);
-	}
-}
-
 static int
 summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd)
 {
@@ -493,7 +377,6 @@ summary_header_encode(CamelFolderSummaryDisk *s, CamelRecordEncoder *cre)
 	camel_record_encoder_end_section(cre);
 }
 
-
 static CamelMessageInfo *
 message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 {
@@ -516,9 +399,13 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 				flags |= decode_status(xstatus);
 
 			if (status)
-				((CamelMessageInfoBase *)mi)->flags = (((CamelMessageInfoBase *)mi)->flags & ~(STATUS_STATUS)) | (flags & STATUS_STATUS);
+				((CamelMessageInfoBase *)mi)->flags =
+					(((CamelMessageInfoBase *)mi)->flags & ~(CAMEL_MBOX_STATUS_STATUS))
+					| (flags & CAMEL_MBOX_STATUS_STATUS);
 			if (xstatus)
-				((CamelMessageInfoBase *)mi)->flags = (((CamelMessageInfoBase *)mi)->flags & ~(STATUS_XSTATUS)) | (flags & STATUS_XSTATUS);
+				((CamelMessageInfoBase *)mi)->flags =
+					(((CamelMessageInfoBase *)mi)->flags & ~(CAMEL_MBOX_STATUS_XSTATUS))
+					| (flags & CAMEL_MBOX_STATUS_XSTATUS);
 		}
 #endif
 		mi->frompos = -1;
@@ -576,11 +463,6 @@ message_info_encode(CamelFolderSummaryDisk *s, CamelMessageInfoDisk *mi, CamelRe
 	camel_record_encoder_sizet(cre, ((CamelMboxMessageInfo *)mi)->frompos);
 	camel_record_encoder_end_section(cre);
 }
-
-
-
-
-
 
 static int
 summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *changes, CamelException *ex)
@@ -689,7 +571,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 				iterinfo = camel_message_iterator_next(iter, NULL);
 			}
 
-			if (iterinfo && uid_cmp(iterinfo->uid, uid) == 0) {
+			if (iterinfo && uid_cmp(iterinfo->uid, uid, s) == 0) {
 				info = (CamelMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
 				iterinfo = camel_message_iterator_next(iter, NULL);
@@ -784,7 +666,6 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 	/* update the file size/mtime in the summary */
 	if (res == 0) {
-		// FIXME: stat before running?
 		if (stat(((CamelLocalSummary *)s)->folder_path, &st) == 0) {
 			((CamelMboxSummary *)s)->folder_size = st.st_size;
 			((CamelMboxSummary *)s)->time = st.st_mtime;
@@ -980,18 +861,28 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
 	int res;
 
-	/* We auto-sync all the time, so we only really care about expunging */
+	/* We auto-sync all the time, so we only really care about expunging,
+	   or if we're storing pine headers.  We should probably save xstatus in
+	   the summary header, but ... who cares really */
 
 	/* We should probably find out if we pending/running an auto-sync ...
 	   but ... that should just sort itself out automatically. */
 
-	if (expunge) {
+	if (expunge
+#ifdef STATUS_PINE
+	    || mbs->xstatus_changed
+#endif
+		) {
 		res = ((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full(mbs, expunge, changeinfo, ex);
-		if (res == 0
-		    && stat(cls->folder_path, &st) == 0
-		    && (mbs->folder_size != st.st_size || mbs->time != st.st_mtime)) {
-			    mbs->time = st.st_mtime;
-			    mbs->folder_size = st.st_size;
+		if (res == 0) {
+#ifdef STATUS_PINE
+			mbs->xstatus_changed = 0;
+#endif
+			if (stat(cls->folder_path, &st) == 0
+			    && (mbs->folder_size != st.st_size || mbs->time != st.st_mtime)) {
+				mbs->time = st.st_mtime;
+				mbs->folder_size = st.st_size;
+			}
 		}
 	}
 
@@ -1024,12 +915,12 @@ mbox_build_headers(CamelMboxSummary *mbs, GString *out, struct _camel_header_raw
 
 #ifdef STATUS_PINE
 	if (mbs->xstatus) {
-		encode_status(((CamelMessageInfoBase *)info)->flags & STATUS_STATUS, status);
+		camel_mbox_summary_encode_status(((CamelMessageInfoBase *)info)->flags & CAMEL_MBOX_STATUS_STATUS, status);
 		g_string_append(out, "Status: ");
 		g_string_append(out, status);
 		g_string_append_c(out, '\n');
 
-		encode_status(((CamelMessageInfoBase *)info)->flags & STATUS_XSTATUS, status);
+		camel_mbox_summary_encode_status(((CamelMessageInfoBase *)info)->flags & CAMEL_MBOX_STATUS_XSTATUS, status);
 		g_string_append(out, "X-Status: ");
 		g_string_append(out, status);
 		g_string_append_c(out, '\n');
@@ -1142,7 +1033,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 				iterinfo = camel_message_iterator_next(iter, NULL);
 			}
 
-			if (iterinfo && uid_cmp(iterinfo->uid, uid) == 0) {
+			if (iterinfo && uid_cmp(iterinfo->uid, uid, s) == 0) {
 				info = (CamelMboxMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
 				iterinfo = camel_message_iterator_next(iter, NULL);
@@ -1246,70 +1137,64 @@ io_error:
 	goto fail;
 }
 
-/* FIXME: this has to go into camel-folder now */
-#ifdef STATUS_PINE
-static CamelMessageInfo *
-mbox_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *ci, CamelException *ex)
+static void
+camel_mbox_summary_init(CamelMboxSummary *obj)
 {
-	CamelMboxMessageInfo *mi;
+	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
 
-	mi = (CamelMboxMessageInfo *)((CamelLocalSummaryClass *)camel_mbox_summary_parent)->add(cls, msg, info, ci, ex);
-	if (mi) {
-		if (((CamelMboxSummary *)cls)->xstatus) {
-			char status[8];
-
-			/* we snoop and add status/x-status headers to suit */
-			encode_status(((CamelMessageInfoBase *)mi)->flags & STATUS_STATUS, status);
-			camel_medium_set_header((CamelMedium *)msg, "Status", status);
-			encode_status(((CamelMessageInfoBase *)mi)->flags & STATUS_XSTATUS, status);
-			camel_medium_set_header((CamelMedium *)msg, "X-Status", status);
-		}
-	}
-
-
-	return (CamelMessageInfo *)mi;
+	s = s;
 }
-
-static struct {
-	char tag;
-	guint32 flag;
-} status_flags[] = {
-	{ 'F', CAMEL_MESSAGE_FLAGGED },
-	{ 'A', CAMEL_MESSAGE_ANSWERED },
-	{ 'D', CAMEL_MESSAGE_DELETED },
-	{ 'R', CAMEL_MESSAGE_SEEN },
-};
 
 static void
-encode_status(guint32 flags, char status[8])
+camel_mbox_summary_finalise(CamelObject *obj)
 {
-	char *p;
-	int i;
-
-	p = status;
-	for (i=0;i<sizeof(status_flags)/sizeof(status_flags[0]);i++)
-		if (status_flags[i].flag & flags)
-			*p++ = status_flags[i].tag;
-	*p++ = 'O';
-	*p=0;
+	/*CamelMboxSummary *mbs = CAMEL_MBOX_SUMMARY(obj);*/
 }
 
-static guint32
-decode_status(const char *status)
+static void
+camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 {
-	const char *p;
-	char c;
-	guint32 flags = 0;
-	int i;
+	CamelFolderSummaryClass *sklass = (CamelFolderSummaryClass *)klass;
+	CamelLocalSummaryClass *lklass = (CamelLocalSummaryClass *)klass;
+	
+	camel_mbox_summary_parent = (CamelLocalSummaryClass *)camel_type_get_global_classfuncs(camel_local_summary_get_type());
 
-	p = status;
-	while ((c = *p++)) {
-		for (i=0;i<sizeof(status_flags)/sizeof(status_flags[0]);i++)
-			if (status_flags[i].tag == *p)
-				flags |= status_flags[i].flag;
+	((CamelFolderSummaryClass *)klass)->messageinfo_sizeof = sizeof(CamelMboxMessageInfo);
+
+	((CamelFolderSummaryDiskClass *)klass)->encode_header = summary_header_encode;
+	((CamelFolderSummaryDiskClass *)klass)->decode_header = summary_header_decode;
+
+	((CamelFolderSummaryDiskClass *)klass)->encode = message_info_encode;
+	((CamelFolderSummaryDiskClass *)klass)->decode = message_info_decode;
+
+	((CamelFolderSummaryDiskClass *)klass)->sync = mbox_sync_changes;
+
+	sklass->add = mbox_add;
+
+	sklass->message_info_new_from_header  = message_info_new_from_header;
+	sklass->message_info_new_from_parser = message_info_new_from_parser;
+
+	lklass->check = mbox_summary_check;
+	lklass->sync = mbox_summary_sync;
+
+	klass->sync_quick = mbox_summary_sync_quick;
+	klass->sync_full = mbox_summary_sync_full;
+}
+
+CamelType
+camel_mbox_summary_get_type(void)
+{
+	static CamelType type = CAMEL_INVALID_TYPE;
+	
+	if (type == CAMEL_INVALID_TYPE) {
+		type = camel_type_register(camel_local_summary_get_type(), "CamelMboxSummary",
+					   sizeof (CamelMboxSummary),
+					   sizeof (CamelMboxSummaryClass),
+					   (CamelObjectClassInitFunc) camel_mbox_summary_class_init,
+					   NULL,
+					   (CamelObjectInitFunc) camel_mbox_summary_init,
+					   (CamelObjectFinalizeFunc) camel_mbox_summary_finalise);
 	}
-
-	return flags;
+	
+	return type;
 }
-
-#endif /* STATUS_PINE */

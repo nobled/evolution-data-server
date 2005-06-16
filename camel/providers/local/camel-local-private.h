@@ -39,7 +39,7 @@ extern "C" {
 #include <pthread.h>
 
 struct _CamelLocalFolderPrivate {
-	GMutex *search_lock;	/* for locking the search object */
+	int dummy;
 };
 
 #define CAMEL_LOCAL_FOLDER_LOCK(f, l) (g_mutex_lock(((CamelLocalFolder *)f)->priv->l))

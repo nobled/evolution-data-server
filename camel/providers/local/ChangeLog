@@ -1,5 +1,22 @@
 2005-06-16  Not Zed  <NotZed@Ximian.com>
 
+	* camel-maildir-summary.c (camel_maildir_summary_init): cleanup
+	bodgey hostnames.
+
+	* camel-*.c: re-arranged so that class init conmes after virtual
+	methods so i can get rid of all the messy shitty forward
+	references.
+
+	* camel-spool-summary.c (spool_summary_check): re-written
+	(surprised?), we just check new mail (using a full sync) if the
+	folder has changed.
+
+	* camel-mbox-summary.c: remove more cruft.
+
+	* camel-local-summary.c: remove some more cruft.
+
+2005-06-16  Not Zed  <NotZed@Ximian.com>
+
 	* camel-maildir-summary.c: ho hum, rewrote most of this too.  wont
 	compile yet.
 

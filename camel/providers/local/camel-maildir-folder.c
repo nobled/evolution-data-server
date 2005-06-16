@@ -106,121 +106,129 @@ static CamelLocalSummary *maildir_create_summary(CamelLocalFolder *lf, const cha
 static void
 maildir_append_message (CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *info, char **appended_uid, CamelException *ex)
 {
-	CamelMaildirFolder *maildir_folder = (CamelMaildirFolder *)folder;
 	CamelLocalFolder *lf = (CamelLocalFolder *)folder;
-	CamelStream *output_stream;
+	CamelStream *stream;
 	CamelMessageInfo *mi;
-	CamelMaildirMessageInfo *mdi;
-	char *name, *dest = NULL;
-	
+	int retry = 0, res;
+	char *dest = NULL, *uid = NULL;
+	GString *name;
+	struct stat st;
+
 	d(printf("Appending message\n"));
 
-	/* add it to the summary/assign the uid, etc */
-	mi = camel_local_summary_add((CamelLocalSummary *)folder->summary, message, info, lf->changes, ex);
-	if (camel_exception_is_set (ex))
-		return;
-	
-	mdi = (CamelMaildirMessageInfo *)mi;
+	/*
+	  Delivered per details at http://www.dataloss.nl/docs/maildir/
 
-	d(printf("Appending message: uid is %s filename is %s\n", camel_message_info_uid(mi), mdi->filename));
+	  We do however, deliver straight to 'cur', bypassing 'new'.  Otherwise
+	  we can't retain the incoming flags.  Given we are a client I dont
+	  think this is an issue, it just saves us 1 step */
 
-	/* write it out to tmp, use the uid we got from the summary */
-	name = g_strdup_printf ("%s/tmp/%s", lf->folder_path, camel_message_info_uid(mi));
-	output_stream = camel_stream_fs_new_with_name (name, O_WRONLY|O_CREAT, 0600);
-	if (output_stream == NULL)
-		goto fail_write;
-	
-	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *)message, output_stream) == -1
-	    || camel_stream_close (output_stream) == -1)
-		goto fail_write;
-	
-	/* now move from tmp to cur (bypass new, does it matter?) */
-	dest = g_strdup_printf("%s/cur/%s", lf->folder_path, camel_maildir_info_filename (mdi));
-	if (rename (name, dest) == 1)
-		goto fail_write;
+	name = g_string_new("");
+	do {
+		if (uid) {
+			g_free(uid);
+			sleep(2);
+		}
+		uid = camel_maildir_summary_next_uid((CamelMaildirSummary *)folder->summary);
+		g_string_printf(name, "%s/tmp/%s", lf->folder_path, uid);
+		res = stat(name->str, &st);
+	} while ((res == 0 || errno != ENOENT) && retry++<5);
 
-	g_free (dest);
-	g_free (name);
-	
-	camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed",
-				    ((CamelLocalFolder *)maildir_folder)->changes);
-	camel_folder_change_info_clear (((CamelLocalFolder *)maildir_folder)->changes);
-	
-	if (appended_uid)
-		*appended_uid = g_strdup(camel_message_info_uid(mi));
-
-	return;
-	
- fail_write:
-	
-	/* remove the summary info so we are not out-of-sync with the mh folder */
-	camel_folder_summary_remove_uid (CAMEL_FOLDER_SUMMARY (folder->summary),
-					 camel_message_info_uid (mi));
-	
-	if (errno == EINTR)
-		camel_exception_set (ex, CAMEL_EXCEPTION_USER_CANCEL,
-				     _("Maildir append message cancelled"));
-	else
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Cannot append message to maildir folder: %s: %s"),
-				      name, g_strerror (errno));
-	
-	if (output_stream) {
-		camel_object_unref (CAMEL_OBJECT (output_stream));
-		unlink (name);
+	if (res == 0 || errno != ENOENT) {
+		g_free(uid);
+		if (res == 0)
+			errno = EEXIST;
+		res = -1;
+		goto fail;
 	}
-	
-	g_free (name);
-	g_free (dest);
+	res = -1;
+
+	mi = camel_message_info_new_from_message(folder->summary, message, info);
+	mi->uid = uid;
+	dest = g_strdup_printf("%s/cur/%s:%s", lf->folder_path, uid, ((CamelMaildirMessageInfo *)mi)->ext);
+
+	if ((stream = camel_stream_fs_new_with_name(name->str, O_WRONLY|O_CREAT, 0666)) == NULL
+	    || camel_data_wrapper_write_to_stream((CamelDataWrapper *)message, stream) == -1
+	    || camel_stream_flush(stream) == -1
+	    || camel_stream_close(stream) == -1
+	    || link(name->str, dest) == -1) {
+	fail:
+		if (errno == EINTR)
+			camel_exception_set(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Cancelled."));
+		else
+			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot append message to maildir folder: %s: %s"), name, g_strerror(errno));
+	} else {
+		if (appended_uid)
+			*appended_uid = g_strdup(uid);
+	}
+
+	if (stream) {
+		camel_object_unref(stream);
+		unlink(name->str);
+	}
+	g_free(dest);
+	if (mi)
+		camel_message_info_free(mi);
+
+	g_string_free(name, TRUE);
 }
 
 static CamelMimeMessage *maildir_get_message(CamelFolder * folder, const gchar * uid, CamelException * ex)
 {
 	CamelLocalFolder *lf = (CamelLocalFolder *)folder;
-	CamelStream *message_stream = NULL;
 	CamelMimeMessage *message = NULL;
 	CamelMessageInfo *info;
-	char *name;
-	CamelMaildirMessageInfo *mdi;
+	GString *name;
+	int retry = 0;
 
 	d(printf("getting message: %s\n", uid));
 
-	/* get the message summary info */
-	if ((info = camel_folder_summary_uid(folder->summary, uid)) == NULL) {
-		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
-				     _("Cannot get message: %s from folder %s\n  %s"),
-				     uid, lf->folder_path, _("No such message"));
-		return NULL;
-	}
+	/* Why do things have to be so bloody complicated?  Maildir works great - if you've
+	   got any number of delivery agents and only one user agent.
+	   But we have to worry about other clients changing flags and making messages
+	   harder to find.
 
-	mdi = (CamelMaildirMessageInfo *)info;
+	   We use maildir's sync to re-check the filenames.  Perhaps it should be
+	   refresh_info, but that checks for new mail too?  Are they any different? */
 
-	/* what do we do if the message flags (and :info data) changes?  filename mismatch - need to recheck I guess */
-	name = g_strdup_printf("%s/cur/%s", lf->folder_path, camel_maildir_info_filename(mdi));
+	name = g_string_new("");
+	do {
+		CamelStream *stream;
 
-	camel_message_info_free(info);
+		if ((info = camel_folder_summary_get(folder->summary, uid)) == NULL) {
+			camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
+					     _("Cannot get message: %s from folder %s\n  %s"),
+					     uid, lf->folder_path, _("No such message"));
+			return NULL;
+		}
 
-	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0)) == NULL) {
-		camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
-				     _("Cannot get message: %s from folder %s\n  %s"),
-				     uid, lf->folder_path, g_strerror(errno));
-		g_free(name);
-		return NULL;
-	}
+		if (((CamelMaildirMessageInfo *)info)->ext && ((CamelMaildirMessageInfo *)info)->ext[0])
+			g_string_append_printf(name, "%s/cur/%s:%s", lf->folder_path, info->uid, ((CamelMaildirMessageInfo *)info)->ext);
+		else
+			g_string_append_printf(name, "%s/cur/%s", lf->folder_path, info->uid);
+		camel_message_info_free(info);
 
-	message = camel_mime_message_new();
-	if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)message, message_stream) == -1) {
-		camel_exception_setv(ex, (errno==EINTR)?CAMEL_EXCEPTION_USER_CANCEL:CAMEL_EXCEPTION_SYSTEM,
-				     _("Cannot get message: %s from folder %s\n  %s"),
-				     uid, lf->folder_path, _("Invalid message contents"));
-		g_free(name);
-		camel_object_unref((CamelObject *)message_stream);
-		camel_object_unref((CamelObject *)message);
-		return NULL;
+		if ((stream = camel_stream_fs_new_with_name(name->str, O_RDONLY, 0)) != NULL) {
+			message = camel_mime_message_new();
+			if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)message, stream) == -1) {
+				camel_object_unref(message);
+				message = NULL;
+				if (errno == EINTR)
+					camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Cancelled."));
+				else
+					camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message: %s from folder %s\n  %s"),
+							     uid, lf->folder_path, _("Invalid message contents"));
+			}
+			camel_object_unref(stream);
+		} else if (errno == ENOENT && retry == 0) {
+			camel_folder_sync(folder, FALSE, ex);
+		} else {
+			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message: %s from folder %s\n  %s"),
+					     uid, lf->folder_path, g_strerror(errno));
+		}
+	} while (retry++ < 2 && !camel_exception_is_set(ex) && message == NULL);
 
-	}
-	camel_object_unref((CamelObject *)message_stream);
-	g_free(name);
+	g_string_free(name, TRUE);
 
 	return message;
 }

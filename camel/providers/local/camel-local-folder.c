@@ -125,31 +125,18 @@ local_init(gpointer object, gpointer klass)
 	    CAMEL_MESSAGE_ANSWERED_ALL | CAMEL_MESSAGE_USER;
 
 	folder->summary = NULL;
-	local_folder->search = NULL;
 
 	/* funny, it doesn't look like a static lock ... */
 	local_folder->lock = g_malloc(sizeof(GStaticRWLock));
 	g_static_rw_lock_init(local_folder->lock);
 
 	local_folder->priv = g_malloc0(sizeof(*local_folder->priv));
-	local_folder->priv->search_lock = g_mutex_new();
 }
 
 static void
 local_finalize(CamelObject * object)
 {
 	CamelLocalFolder *local_folder = CAMEL_LOCAL_FOLDER(object);
-	CamelFolder *folder = (CamelFolder *)object;
-
-	if (folder->summary) {
-		camel_local_summary_sync((CamelLocalSummary *)folder->summary, FALSE, local_folder->changes, NULL);
-		camel_object_unref((CamelObject *)folder->summary);
-		folder->summary = NULL;
-	}
-
-	if (local_folder->search) {
-		camel_object_unref((CamelObject *)local_folder->search);
-	}
 
 	if (local_folder->index)
 		camel_object_unref((CamelObject *)local_folder->index);
@@ -163,8 +150,6 @@ local_finalize(CamelObject * object)
 	g_free(local_folder->index_path);
 
 	camel_folder_change_info_free(local_folder->changes);
-	
-	g_mutex_free(local_folder->priv->search_lock);
 	
 	g_free(local_folder->priv);
 }
@@ -477,7 +462,6 @@ local_unlock(CamelLocalFolder *lf, CamelLockType type)
 {
 	/* nothing */
 }
-
 
 /* for auto-check to work */
 static void
