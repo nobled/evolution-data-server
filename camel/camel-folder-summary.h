@@ -255,7 +255,8 @@ struct _CamelFolderSummaryClass {
 	CamelObjectClass parent_class;
 
 	/* sizes of allocated objects */
-	int view_sizeof;
+	size_t messageinfo_sizeof;
+	size_t view_sizeof;
 
 	/* comparison functions used to sort data items in summary order, compare uid's or compare messageinfos */
 	GCompareDataFunc uid_cmp;

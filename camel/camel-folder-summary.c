@@ -157,11 +157,6 @@ cfs_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelE
 {
 	CamelFolderView *view;
 
-	if (vid == NULL)
-		printf("Creating root view\n");
-	else
-		printf("Creating view '%s' (%s)\n", vid, expr);
-
 	view = g_malloc0(CFS_CLASS(s)->view_sizeof);
 	view->refcount = 1;
 	view->vid = g_strdup(vid);
@@ -226,12 +221,6 @@ search(CamelFolderSummary *s, const char *vid, const char *expr, CamelMessageIte
 	/* don't translate, this is for programmers only */
 	camel_exception_setv(ex, 1, "Search not implemented");
 	return NULL;
-}
-
-static CamelMessageInfo *
-message_info_alloc(CamelFolderSummary *s)
-{
-	return g_malloc0(sizeof(CamelMessageInfoBase));
 }
 
 static CamelMessageInfo *
@@ -620,6 +609,9 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 {
 	camel_folder_summary_parent = camel_type_get_global_classfuncs (camel_object_get_type ());
 
+	klass->view_sizeof = sizeof(CamelFolderView);
+	klass->messageinfo_sizeof = sizeof(CamelMessageInfoBase);
+
 	klass->add = add;
 	klass->add_array = add_array;
 	klass->remove = cfs_remove;
@@ -635,7 +627,6 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 
 	klass->search = search;
 
-	klass->message_info_alloc = message_info_alloc;
 	klass->message_info_clone = message_info_clone;
 
 	klass->message_info_free = message_info_free;
@@ -920,7 +911,7 @@ camel_message_info_new (CamelFolderSummary *s)
 	CamelMessageInfo *info;
 
 	if (s)
-		info = CFS_CLASS(s)->message_info_alloc(s);
+		info = g_malloc0(CFS_CLASS(s)->messageinfo_sizeof);
 	else
 		info = g_malloc0(sizeof(CamelMessageInfoBase));
 

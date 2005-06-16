@@ -1,3 +1,16 @@
+2005-06-16  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder-summary-disk.c (cds_iterator_free): fix ref ordering.
+
+	* camel-object.c (camel_object_bag_*): Changed to use a cond
+	rather than a semaphore with new e_mutex_cond stuff that works
+	now.  Dunno if they worked normally but they really didn't work on
+	x86-64, at all.  Maybe exposed by more parallelism in code.
+
+	* camel-folder-summary.h (CamelFolderSummaryClass): removed
+	message_info_alloc, and just put messageinfo_sizeof like it used
+	to be.
+
 2005-06-15  Not Zed  <NotZed@Ximian.com>
 
 	* camel-disco-folder.c (disco_expunge): moved into disco_sync.

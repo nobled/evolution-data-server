@@ -112,8 +112,8 @@ struct _camel_disk_env {
 
 static CamelFolderSummaryClass *cds_parent;
 
-#define LOCK_VIEW(v) g_mutex_lock(((CamelFolderViewDisk *)v)->env->lock)
-#define UNLOCK_VIEW(v) g_mutex_unlock(((CamelFolderViewDisk *)v)->env->lock)
+#define LOCK_VIEW(v) (g_mutex_lock(((CamelFolderViewDisk *)v)->env->lock), printf("%p: lock view '%s'\n", ((CamelFolderViewDisk *)v)->env->lock, ((CamelFolderView *)v)->vid))
+#define UNLOCK_VIEW(v) (printf("%p: unlock view '%s'\n", ((CamelFolderViewDisk *)v)->env->lock, ((CamelFolderView *)v)->vid), g_mutex_unlock(((CamelFolderViewDisk *)v)->env->lock))
 
 /* FIXME: Short term hack alert ... we just get one dbenv,
    based on the first folder opened :) */
@@ -342,11 +342,6 @@ static void cds_remove_array(CamelFolderSummary *s, GPtrArray *mis)
 }
 
 static GPtrArray *cds_get_array(CamelFolderSummary *s, const GPtrArray *uids)
-{
-}
-
-
-static CamelMessageInfo *cds_message_info_alloc(CamelFolderSummary *s)
 {
 }
 
@@ -771,6 +766,7 @@ static void cds_iterator_reset(void *mitin)
 static void cds_iterator_free(void *mitin)
 {
 	CamelMessageIteratorDisk *mit = mitin;
+	CamelFolder *folder;
 
 	if (mit->cursor) {
 		LOCK_VIEW(mit->view);
@@ -785,9 +781,11 @@ static void cds_iterator_free(void *mitin)
 	if (mit->current)
 		camel_message_info_free(mit->current);
 
-	/* FIXME: This could free the view before we unref it ... */
-	camel_object_ref(mit->view->summary->folder);
+	/* Need to unref the view first, since unreffing the folder
+	   may free everything under us */
+	folder = mit->view->summary->folder;
 	camel_folder_summary_view_unref(mit->view);
+	camel_object_unref(folder);
 }
 
 static CamelMessageIteratorVTable cds_iterator_vtable = {
@@ -960,8 +958,6 @@ cds_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelE
 		name = g_alloca(strlen(s->folder->full_name)+strlen(vid)+2);
 		sprintf(name, "%s:%s", s->folder->full_name, vid);
 	}
-
-	printf("opening view db '%s'\n", name);
 
 	view->env = get_env((CamelService *)s->folder->parent_store);
 	g_assert(view->env);
@@ -1455,20 +1451,16 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 	/* todo: make this overridable, setup in init func probably */
 	s->search = camel_folder_search_new();
 
-	printf("init root view\n");
 	camel_folder_summary_view_create(s, NULL, NULL, &ex);
 	// check ex
 
-	printf("constructing summary, loading header\n");
 	cds_load_header(cds);
 
 	/* We init these extra views after loading the header data, if we already had them, this means
 	   they will just be ignored now, if we set them up before, it means we'd lose the counts */
 
-	printf("init trash view\n");
 	camel_folder_summary_view_create(s, "#.trash", "(system-flag \"Deleted\")", &ex);
 	camel_exception_clear(&ex);
-	printf("init junk view\n");
 	camel_folder_summary_view_create(s, "#.junk", "(system-flag \"Junk\")", &ex);
 	camel_exception_clear(&ex);
 
