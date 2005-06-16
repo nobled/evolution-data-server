@@ -43,6 +43,7 @@
 #define w(x)
 #define io(x)
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
+#define v(x)
 
 #define CDS_CLASS(x) ((CamelFolderSummaryDiskClass *)((CamelObject *)x)->klass)
 #define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
@@ -112,8 +113,13 @@ struct _camel_disk_env {
 
 static CamelFolderSummaryClass *cds_parent;
 
+#if 0
 #define LOCK_VIEW(v) (g_mutex_lock(((CamelFolderViewDisk *)v)->env->lock), printf("%p: lock view '%s'\n", ((CamelFolderViewDisk *)v)->env->lock, ((CamelFolderView *)v)->vid))
 #define UNLOCK_VIEW(v) (printf("%p: unlock view '%s'\n", ((CamelFolderViewDisk *)v)->env->lock, ((CamelFolderView *)v)->vid), g_mutex_unlock(((CamelFolderViewDisk *)v)->env->lock))
+#else
+#define LOCK_VIEW(v) g_mutex_lock(((CamelFolderViewDisk *)v)->env->lock)
+#define UNLOCK_VIEW(v) g_mutex_unlock(((CamelFolderViewDisk *)v)->env->lock)
+#endif
 
 /* FIXME: Short term hack alert ... we just get one dbenv,
    based on the first folder opened :) */
@@ -901,14 +907,14 @@ cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
 	   we're doing here.  (in reality they're probably the same).  Got that?!
 	*/
 
-	printf("Checking for views to rebuild:\n");
+	v(printf("Checking for views to rebuild:\n"));
 
 	/* FIXME: lockit */
 	for (view = (CamelFolderViewDisk *)((CamelFolderSummary *)cds)->views.head;
 	     ((CamelFolderView *)view)->next;
 	     view = (CamelFolderViewDisk *)((CamelFolderView *)view)->next) {
 		if (view->build) {
-			printf(" %s\n", view->view.vid);
+			v(printf(" %s\n", view->view.vid));
 			// FIXME: ref it
 			g_ptr_array_add(build, view);
 			view->build = 0;
@@ -934,7 +940,7 @@ cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
 
 		// fixme unref 'em
 	} else {
-		printf(" none!\n");
+		v(printf(" none!\n"));
 	}
 
 	g_ptr_array_free(build, TRUE);
@@ -1084,8 +1090,6 @@ cds_change_info(CamelMessageInfo *mi)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
 	int dosync = 0;
-
-	printf("%p: uid %s changed\n", mi, camel_message_info_uid(mi));
 
 	CAMEL_SUMMARY_LOCK(mi->summary, ref_lock);
 	if (g_hash_table_lookup(p->changed, mi->uid) == NULL) {
@@ -1518,8 +1522,6 @@ camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds, CamelException *ex)
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(cds);
 	GPtrArray *infos;
 	int i;
-
-	printf("syncing db summary\n");
 
 	infos = g_ptr_array_new();
 	CAMEL_SUMMARY_LOCK(cds, ref_lock);

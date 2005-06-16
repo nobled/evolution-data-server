@@ -35,6 +35,7 @@
 #include <ctype.h>
 
 #include "camel-maildir-summary.h"
+#include "camel-maildir-folder.h"
 #include <camel/camel-mime-message.h>
 #include <camel/camel-operation.h>
 #include <camel/camel-record.h>
@@ -147,7 +148,7 @@ maildir_info_to_ext(CamelMaildirMessageInfo *info, char ext[16])
 }
 
 /* returns 0 if the info matches (or there was none), otherwise we changed it */
-static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name, const char *ext)
+static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name, const char *ext, CamelFolderChangeInfo *changes)
 {
 	const char *p;
 	char c;
@@ -163,7 +164,7 @@ static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name
 		while ((c = *p++)) {
 			/* we could assume that the flags are in order, but its just as easy not to require */
 			for (i=0;i<sizeof(flagbits)/sizeof(flagbits[0]);i++) {
-				if (flagbits[i].flag == c && (flags & flagbits[i].flagbit) == 0) {
+				if (flagbits[i].flag == c) {
 					set |= flagbits[i].flagbit;
 				}
 			}
@@ -178,8 +179,8 @@ static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name
 		all = set = CAMEL_MESSAGE_FOLDER_FLAGGED;
 	}
 
-	if (all)
-		camel_message_info_set_flags((CamelMessageInfo *)info, all, set);
+	if (all && camel_message_info_set_flags((CamelMessageInfo *)info, all, set) && changes)
+		camel_folder_change_info_add_uid(changes, name);
 
 	if (((CamelMessageInfoBase *)info)->uid == NULL)
 		((CamelMessageInfoBase *)info)->uid = g_strdup(name);
@@ -213,7 +214,10 @@ maildir_info_new(CamelMaildirSummary *mds, const char *name, const char *ext)
 	camel_object_unref(mp);
 
 	if (info)
-		maildir_name_to_info((CamelMaildirMessageInfo *)info, name, ext);
+		maildir_name_to_info((CamelMaildirMessageInfo *)info, name, ext, NULL);
+
+	/* Make sure this isn't set, otherwise we never unset it */
+	((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
 
 	return info;
 }
@@ -451,7 +455,7 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelFolderChange
 				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 			} else {
-				maildir_name_to_info(mi, uid, ext);
+				maildir_name_to_info(mi, uid, ext, changes);
 			}
 			iterinfo = camel_message_iterator_next(iter, NULL);
 		} else {
@@ -496,7 +500,7 @@ maildir_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChange
 	maildir_summary_check_cur(cls, expunge, changes, ex);
 	maildir_summary_check_new(cls, changes, ex);
 
-	return ((CamelLocalSummaryClass *)parent_class)->sync(cls, expunge, changes, ex);
+	return 0;
 }
 
 static void
@@ -505,18 +509,15 @@ maildir_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExcep
 	GString *cur0, *cur1;
 	int i, curlen;
 
-	printf("start: maildir '%s' sync changes\n", ((CamelLocalSummary *)cds)->folder_path);
+	/* Note that even though maildir is unlocked, we want to lock in-process
+	   so we don't race trying to update messageinfo's against each other */
 
-	/* Note that even though maildir is unlocked, we are locked in-process,
-	   This is to ensure the sync code here and the check code above
-	   aren't in a race to update the summary.
-
-	   I think ... */
-#if 0
 	cur0 = g_string_new(((CamelLocalSummary *)cds)->folder_path);
 	g_string_append(cur0, "/cur/");
 	curlen = cur0->len;
 	cur1 = g_string_new(cur0->str);
+
+	camel_local_folder_lock((CamelLocalFolder *)((CamelFolderSummary *)cds)->folder, CAMEL_LOCK_WRITE, NULL);
 
 	for (i = 0; i < changes->len; i++) {
 		CamelMaildirMessageInfo *info = changes->pdata[i];
@@ -540,17 +541,15 @@ maildir_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExcep
 			g_free(info->ext);
 			info->ext = g_strdup(ext);
 		}
-
 		((CamelMessageInfoBase *)changes->pdata[i])->flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
 	}
 
 	g_string_free(cur0, TRUE);
 	g_string_free(cur1, TRUE);
-#endif
+
+	camel_local_folder_unlock((CamelLocalFolder *)((CamelFolderSummary *)cds)->folder, CAMEL_LOCK_WRITE);
 
 	((CamelFolderSummaryDiskClass *)parent_class)->sync(cds, changes, ex);
-
-	printf("end  : maildir '%s' sync changes\n", ((CamelLocalSummary *)cds)->folder_path);
 }
 
 static void

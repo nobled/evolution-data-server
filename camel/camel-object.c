@@ -36,7 +36,7 @@
 #include <libedataserver/e-msgport.h>
 
 #define d(x)
-#define b(x) x 			/* object bag */
+#define b(x) 			/* object bag */
 #define h(x) 			/* hooks */
 
 /* I just mashed the keyboard for these... */
@@ -2097,7 +2097,7 @@ camel_object_bag_get(CamelObjectBag *bag, const void *key)
 
 	o = g_hash_table_lookup(bag->object_table, key);
 	if (o) {
-		printf("object bag get '%s' = %p\n", (char *)key, o);
+		b(printf("object bag get '%s' = %p\n", (char *)key, o));
 
 		/* we use the same lock as the refcount */
 		o->ref_count++;
@@ -2112,7 +2112,7 @@ camel_object_bag_get(CamelObjectBag *bag, const void *key)
 		}
 
 		if (res) {
-			printf("object bag get '%s', reserved, waiting\n", (char *)key);
+			b(printf("object bag get '%s', reserved, waiting\n", (char *)key));
 
 			res->waiters++;
 			g_assert(res->owner != pthread_self());
@@ -2124,7 +2124,7 @@ camel_object_bag_get(CamelObjectBag *bag, const void *key)
 			if (o)
 				o->ref_count++;
 
-			printf("object bag get '%s', finished waiting, got %p\n", (char *)key, o);
+			b(printf("object bag get '%s', finished waiting, got %p\n", (char *)key, o));
 
 			/* we don't actually reserve it */
 			res->owner = pthread_self();
@@ -2215,14 +2215,13 @@ camel_object_bag_reserve(CamelObjectBag *bag, const void *key)
 			/* incase its slipped in while we were waiting */
 			o = g_hash_table_lookup(bag->object_table, key);
 			if (o) {
-				printf("finished wait, someone else created '%s' = %p\n", (char *)key, o);
-
+				b(printf("finished wait, someone else created '%s' = %p\n", (char *)key, o));
 				o->ref_count++;
 				/* in which case we dont need to reserve the bag either */
 				res->owner = pthread_self();
 				co_bag_unreserve(bag, key);
 			} else {
-				printf("finished wait, now owner of '%s'\n", (char *)key);
+				b(printf("finished wait, now owner of '%s'\n", (char *)key));
 				res->owner = pthread_self();
 			}
 		} else {
