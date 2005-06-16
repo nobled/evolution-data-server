@@ -1,5 +1,8 @@
 2005-06-16  Not Zed  <NotZed@Ximian.com>
 
+	* camel-folder-summary.c (camel_folder_summary_finalize): free
+	views when done.
+
 	* camel-folder-summary-disk.c (cds_iterator_free): fix ref ordering.
 
 	* camel-object.c (camel_object_bag_*): Changed to use a cond

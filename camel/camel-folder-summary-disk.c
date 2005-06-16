@@ -980,7 +980,7 @@ cds_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelE
 		UNLOCK_VIEW(view);
 
 		if (err != 0)
-			camel_exception_setv(ex, 1, "creating database failed", db_strerror(err));
+			camel_exception_setv(ex, 1, "creating database failed: %s", db_strerror(err));
 	} else {
 		/* secondary db, if this is the first time we've opened it, we need to re-index */
 		err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, 0, 0666);
@@ -994,7 +994,7 @@ cds_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelE
 			err = view->db->open(view->db, NULL, "folders", name, DB_BTREE, DB_CREATE, 0666);
 			UNLOCK_VIEW(view);
 			if (err != 0)
-				camel_exception_setv(ex, 1, "creating database failed", db_strerror(err));
+				camel_exception_setv(ex, 1, "creating database failed: %s", db_strerror(err));
 			else
 				// TODO: If this was a view that code other than load_header
 				// created, we need to fire off a job to rebuild it?
@@ -1452,10 +1452,14 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 
 	s->folder = folder;
 
+	printf("Setting up summary for '%s'\n", folder->full_name);
+
 	/* todo: make this overridable, setup in init func probably */
 	s->search = camel_folder_search_new();
 
 	camel_folder_summary_view_create(s, NULL, NULL, &ex);
+	if (ex.id)
+		g_warning("Root view create failed: %s", ex.desc);
 	// check ex
 
 	cds_load_header(cds);

@@ -664,11 +664,17 @@ camel_folder_summary_finalize (CamelObject *obj)
 {
 	struct _CamelFolderSummaryPrivate *p;
 	CamelFolderSummary *s = (CamelFolderSummary *)obj;
+	CamelFolderView *v;
 
 	p = _PRIVATE(obj);
 
+	/* ?? */
+	while ((v = e_dlist_remhead(&s->views)))
+		CFS_CLASS(s)->view_free(s, v);
+
+	CFS_CLASS(s)->view_free(s, s->root_view);
+
 	g_mutex_free(p->ref_lock);
-	
 	g_free(p);
 
 	if (s->search)
