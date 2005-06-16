@@ -575,6 +575,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 				info = (CamelMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
 				iterinfo = camel_message_iterator_next(iter, NULL);
+				g_free(uid);
 				goto have_message;
 			}
 			/* We are also adding this message, but it has a valid
@@ -641,7 +642,6 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		/* Scan to next from header */
 		camel_mime_parser_drop_step(mp);
 		camel_mime_parser_drop_step(mp);
-		g_free(uid);
 
 		/* Do we really want to do this?  It could make rather a pigs-breakfast of the db? */
 		if (camel_operation_cancel_check(NULL)) {
