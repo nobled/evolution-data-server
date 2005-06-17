@@ -45,7 +45,7 @@ enum {
 	CFSD_SECTION_HEADERS,	/* message headers */
 	CFSD_SECTION_FLAGS,	/* message flags */
 
-	CFSD_SECTION_FOLDERINFO=16,	/* folder header */
+	CFSD_SECTION_FOLDERINFO=16,	/* folder header, stored in the folders database */
 
 	CFSD_SECTION_LAST = 32,
 };
@@ -63,8 +63,8 @@ struct _CamelFolderSummaryDiskClass {
 	/* this will call CamelFolderSummary:uid_cmp by default so shouldn't normally need overriding */
 	//int (*dbt_cmp)(struct _DB *db, const struct _DBT *a, const struct _DBT *b);
 
-	void (*encode_header)(CamelFolderSummaryDisk *, struct _CamelRecordEncoder *);
-	int (*decode_header)(CamelFolderSummaryDisk *, struct _CamelRecordDecoder *);
+	void (*encode_view)(CamelFolderSummaryDisk *, struct _CamelFolderView *, struct _CamelRecordEncoder *);
+	int (*decode_view)(CamelFolderSummaryDisk *, struct _CamelFolderView *, struct _CamelRecordDecoder *);
 
 	void (*encode)(CamelFolderSummaryDisk *, struct _CamelMessageInfoDisk *mi, struct _CamelRecordEncoder *);
 	int (*decode)(CamelFolderSummaryDisk *, struct _CamelMessageInfoDisk *mi, struct _CamelRecordDecoder *);

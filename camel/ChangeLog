@@ -1,3 +1,12 @@
+2005-06-17  Not Zed  <NotZed@Ximian.com>
+
+	* camel-object.c (camel_type_init): setup a new lock 'ref_lock',
+	used for all refcounting, so we dont use type_lock, and dont need
+	a recursive mutex.  Fixed all ref and object bag ops.
+
+	* camel-folder-summary-disk.c: Changed to read the views from a
+	separate database.
+
 2005-06-16  Not Zed  <NotZed@Ximian.com>
 
 	* camel-folder-summary.c (camel_folder_summary_finalize): free

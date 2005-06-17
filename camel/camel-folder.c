@@ -244,9 +244,12 @@ refresh_info (CamelFolder *folder, CamelException *ex)
 void
 camel_folder_refresh_info (CamelFolder *folder, CamelException *ex)
 {
+	CamelException x = { 0 };
+
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 
-	CF_CLASS (folder)->refresh_info (folder, ex);
+	CF_CLASS (folder)->refresh_info (folder, &x);
+	camel_exception_xfer(ex, &x);
 }
 
 static int

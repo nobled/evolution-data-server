@@ -343,22 +343,24 @@ camel_mbox_summary_encode_xev(const char *uidstr, guint32 flags)
 }
 
 static int
-summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd)
+summary_decode_view(CamelFolderSummaryDisk *s, CamelFolderView *view, CamelRecordDecoder *crd)
 {
 	int tag, ver;
 
-	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->decode_header(s, crd);
+	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->decode_view(s, view, crd);
 
-	camel_record_decoder_reset(crd);
-	while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
-		switch (tag) {
-		case CFS_MBOX_SECTION_FOLDERINFO:
-			((CamelMboxSummary *)s)->time = camel_record_decoder_timet(crd);
-			((CamelMboxSummary *)s)->folder_size = camel_record_decoder_sizet(crd);
-			((CamelMboxSummary *)s)->nextuid = camel_record_decoder_int32(crd);
-			/* We can actually get the last uid in the database cheaply, perhaps
-			   we should use that to get the nextuid, at each startup */
-			break;
+	if (view->vid == NULL) {
+		camel_record_decoder_reset(crd);
+		while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
+			switch (tag) {
+			case CFS_MBOX_SECTION_FOLDERINFO:
+				((CamelMboxSummary *)s)->time = camel_record_decoder_timet(crd);
+				((CamelMboxSummary *)s)->folder_size = camel_record_decoder_sizet(crd);
+				((CamelMboxSummary *)s)->nextuid = camel_record_decoder_int32(crd);
+				/* We can actually get the last uid in the database cheaply, perhaps
+				   we should use that to get the nextuid, at each startup */
+				break;
+			}
 		}
 	}
 
@@ -366,15 +368,19 @@ summary_header_decode(CamelFolderSummaryDisk *s, CamelRecordDecoder *crd)
 }
 
 static void
-summary_header_encode(CamelFolderSummaryDisk *s, CamelRecordEncoder *cre)
+summary_encode_view(CamelFolderSummaryDisk *s, CamelFolderView *view, CamelRecordEncoder *cre)
 {
-	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->encode_header(s, cre);
+	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->encode_view(s, view, cre);
 
-	camel_record_encoder_start_section(cre, CFS_MBOX_SECTION_FOLDERINFO, 0);
-	camel_record_encoder_timet(cre, ((CamelMboxSummary *)s)->time);
-	camel_record_encoder_sizet(cre, ((CamelMboxSummary *)s)->folder_size);
-	camel_record_encoder_int32(cre, ((CamelMboxSummary *)s)->nextuid);
-	camel_record_encoder_end_section(cre);
+	/* We only store extra data on the root view */
+
+	if (view->vid == NULL) {
+		camel_record_encoder_start_section(cre, CFS_MBOX_SECTION_FOLDERINFO, 0);
+		camel_record_encoder_timet(cre, ((CamelMboxSummary *)s)->time);
+		camel_record_encoder_sizet(cre, ((CamelMboxSummary *)s)->folder_size);
+		camel_record_encoder_int32(cre, ((CamelMboxSummary *)s)->nextuid);
+		camel_record_encoder_end_section(cre);
+	}
 }
 
 static CamelMessageInfo *
@@ -669,6 +675,8 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		if (stat(((CamelLocalSummary *)s)->folder_path, &st) == 0) {
 			((CamelMboxSummary *)s)->folder_size = st.st_size;
 			((CamelMboxSummary *)s)->time = st.st_mtime;
+			// FIXME: accessor/lock
+			s->root_view->touched = 1;
 		}
 	}
 
@@ -882,6 +890,8 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 			    && (mbs->folder_size != st.st_size || mbs->time != st.st_mtime)) {
 				mbs->time = st.st_mtime;
 				mbs->folder_size = st.st_size;
+				// FIXME: accessor/lock
+				((CamelFolderSummary *)cls)->root_view->touched = 1;
 			}
 		}
 	}
@@ -1161,8 +1171,8 @@ camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 
 	((CamelFolderSummaryClass *)klass)->messageinfo_sizeof = sizeof(CamelMboxMessageInfo);
 
-	((CamelFolderSummaryDiskClass *)klass)->encode_header = summary_header_encode;
-	((CamelFolderSummaryDiskClass *)klass)->decode_header = summary_header_decode;
+	((CamelFolderSummaryDiskClass *)klass)->encode_view = summary_encode_view;
+	((CamelFolderSummaryDiskClass *)klass)->decode_view = summary_decode_view;
 
 	((CamelFolderSummaryDiskClass *)klass)->encode = message_info_encode;
 	((CamelFolderSummaryDiskClass *)klass)->decode = message_info_decode;

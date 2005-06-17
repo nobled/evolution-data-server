@@ -321,8 +321,8 @@ camel_vee_summary_class_init (CamelVeeSummaryClass *klass)
 
 	((CamelFolderSummaryClass *)klass)->info_set_flags = vee_info_set_flags;
 
-	((CamelFolderSummaryDiskClass *)klass)->encode_header = vee_encode_header;
-	((CamelFolderSummaryDiskClass *)klass)->decode_header = vee_decode_header;
+//	((CamelFolderSummaryDiskClass *)klass)->encode_header = vee_encode_header;
+//	((CamelFolderSummaryDiskClass *)klass)->decode_header = vee_decode_header;
 
 	((CamelFolderSummaryDiskClass *)klass)->encode = vee_encode;
 	((CamelFolderSummaryDiskClass *)klass)->decode = vee_decode;

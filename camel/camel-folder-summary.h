@@ -211,10 +211,15 @@ struct _CamelFolderView {
 	struct _CamelFolderView *prev;
 
 	/* ref them for threading purposes */
-	guint32 refcount:30;
+	guint32 refcount:28;
 	/* set when we're deleted, so we can abort/do the right thing if we have open cursors */
 	guint32 deleted:1;
+	/* the search expression is static, doesn't need updating on flag changes */
 	guint32 is_static:1;
+	/* we must rebuild this view, the expression changed */
+	guint32 rebuild:1;
+	/* we must save this view, information in it has changed */
+	guint32 touched:1;
 
 	CamelFolderSummary *summary;
 
@@ -286,7 +291,7 @@ struct _CamelFolderSummaryClass {
 
 	/* view management */
 	void (*view_free)(CamelFolderSummary *, CamelFolderView *);
-	CamelFolderView *(*view_create)(CamelFolderSummary *, const char *vid, const char *expr, CamelException *ex);
+	void (*view_add)(CamelFolderSummary *, CamelFolderView *, CamelException *ex);
 	void (*view_delete)(CamelFolderSummary *, CamelFolderView *);
 
 	/* messageinfo alloc/copy/free, base class works on MessageInfoBase's */
@@ -336,9 +341,11 @@ void camel_folder_summary_free_array(CamelFolderSummary *summary, GPtrArray *arr
 /* search/iterator interface */
 CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *viewid, const char *expr, CamelMessageIterator *subset, CamelException *ex);
 
+const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex);
+CamelFolderView *camel_folder_summary_view_new(CamelFolderSummary *s, const char *vid);
 CamelFolderView *camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid);
 void camel_folder_summary_view_unref(CamelFolderView *v);
-const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex);
+void camel_folder_summary_view_add(CamelFolderSummary *s, CamelFolderView *, CamelException *ex);
 void camel_folder_summary_view_delete(CamelFolderSummary *s, const char *vid);
 
 /* remove all items */
