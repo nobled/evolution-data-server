@@ -252,6 +252,7 @@ camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder,
 
 	camel_local_summary_construct((CamelLocalSummary *)new, folder, filename, mbox_name, index);
 
+	/* FIXME: this does'nt work */
 	iter = camel_folder_summary_search((CamelFolderSummary *)new, NULL, NULL, NULL, NULL);
 	mi = camel_message_iterator_disk_get(iter, DB_LAST, DB_PREV, NULL);
 	if (mi) {

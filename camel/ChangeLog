@@ -1,3 +1,12 @@
+2005-06-18    <NotZed@Ximian.com>
+
+	* camel-folder-summary.c: cleaned up some debug.
+
+	* camel-folder-summary-disk.c (cds_view_initdb)
+	(cds_load_views, cds_view_save): Use 0x01 to separate names from
+	views rather than :, since : sorts after /, and 0x01 shouldn't
+	need escaping.
+
 2005-06-17  Not Zed  <NotZed@Ximian.com>
 
 	* camel-object.c (camel_type_init): setup a new lock 'ref_lock',

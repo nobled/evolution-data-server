@@ -63,6 +63,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
 #define d(x)
 #define io(x)			/* io debug */
+#define v(x)			/* view debug */
 
 #define CAMEL_FOLDER_SUMMARY_VERSION (13)
 
@@ -882,22 +883,22 @@ const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, c
 {
 	CamelFolderView *view;
 
-	printf("Asking to create view '%s' %s\n", vid?vid:"<root>", expr?expr:"<empty>");
+	v(printf("Asking to create view '%s' %s\n", vid?vid:"<root>", expr?expr:"<empty>"));
 
 	view = camel_folder_summary_view_lookup(s, vid);
 	if (view) {
 		if (view->expr != expr
 		    && strcmp(view->expr, expr) != 0) {
-			printf(" already have '%s' but new expression, queueing rebuild\n", vid);
+			v(printf(" already have '%s' but new expression, queueing rebuild\n", vid));
 			g_free(view->expr);
 			view->expr = g_strdup(expr);
 			view->rebuild = 1;
 		} else {
-			printf(" already have '%s', no change\n", vid);
+			v(printf(" already have '%s', no change\n", vid));
 		}
 		camel_folder_summary_view_unref(view);
 	} else {
-		printf(" adding new view '%s'\n", vid);
+		v(printf(" adding new view '%s'\n", vid));
 		view = camel_folder_summary_view_new(s, vid);
 		view->expr = g_strdup(expr);
 		view->rebuild = 1;
