@@ -46,7 +46,6 @@
 #include <libsoup/soup.h>
 #include <libsoup/soup-headers.h>
 
-
 #include "e-cal-backend-caldav.h"
 
 /* in seconds */
@@ -383,6 +382,29 @@ xp_object_get_string (xmlXPathObjectPtr result)
 	return ret;
 }
 
+static char *
+xp_object_get_etag (xmlXPathObjectPtr result)
+{
+	char *ret;
+	char *str;
+	
+	if (result == NULL || result->type != XPATH_STRING) {
+		return NULL;	
+	}
+
+	str = (char *) result->stringval;
+
+	/* strip the leading and ending " (a bit hacky) */
+	if (str && str[0] == '\"' && str[strlen (str) -1] == '\"') {
+		str++;
+		ret = g_strndup (str, strlen (str) - 1);
+	} else {
+		ret = g_strdup (str);
+	}
+		
+	xmlXPathFreeObject (result);
+	return ret;
+}
 
 static guint
 xp_object_get_status (xmlXPathObjectPtr result)
@@ -527,7 +549,7 @@ parse_report_response (SoupMessage *soup_message, CalDAVObject **objs, int *len)
 		}
 
 		xpres = xpath_eval (xpctx, XPATH_GETETAG, i + 1);
-		object->etag = xp_object_get_string (xpres);
+		object->etag = xp_object_get_etag (xpres);
 
 		xpres = xpath_eval (xpctx, XPATH_CALENDAR_DATA, i + 1);
 		object->cdata = xp_object_get_string (xpres);
@@ -789,8 +811,8 @@ caldav_server_get_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 
 static gboolean
 synchronize_object (ECalBackendCalDAV *cbdav, 
-		    CalDAVObject *object,
-		    ECalComponent *old_comp)
+		    CalDAVObject      *object,
+		    ECalComponent     *old_comp)
 {
 	ECalBackendCalDAVPrivate *priv;
 	ECalBackendCache         *bcache;
@@ -821,36 +843,42 @@ synchronize_object (ECalBackendCalDAV *cbdav,
 	
 		kind = e_cal_backend_get_kind (bkend);
 		subcomp = icalcomponent_get_first_component (icomp, kind);
+
 		comp = e_cal_component_new ();
-		e_cal_component_set_icalcomponent (comp, 
+		res = e_cal_component_set_icalcomponent (comp, 
 						   icalcomponent_new_clone (subcomp));
-		
-		e_cal_component_set_href (comp, object->href);
-		e_cal_component_set_etag (comp, object->etag);
+		if (res == TRUE) { 
+			e_cal_component_set_href (comp, object->href);
+			e_cal_component_set_etag (comp, object->etag);
+		} else {
+			g_object_unref (comp);
+			comp = NULL;
+		}
 		
 	} else {
 		res = FALSE;	
 	}
-
+	
 	icalcomponent_free (icomp);
 
 	if (res == FALSE) {
 		return res;
 	}
-	
-	bcache = E_CAL_BACKEND_CACHE (priv->cache);
+		
+	bcache = priv->cache;
 	do_report = priv->report_changes;
 	
-	if (e_cal_backend_cache_put_component (bcache, comp) && do_report) {
+	if ((res = e_cal_backend_cache_put_component (bcache, comp)) 
+	    && do_report) {
 		char *new_cs = NULL;
 		char *old_cs = NULL;
 
 		new_cs = e_cal_component_get_as_string (comp);
-		       	
+
 		if (old_comp == NULL) {
-			old_cs = e_cal_component_get_as_string (old_comp);
 			e_cal_backend_notify_object_created (bkend, new_cs);
 		} else {
+			old_cs = e_cal_component_get_as_string (old_comp);
 			e_cal_backend_notify_object_modified (bkend, old_cs, new_cs);	
 		}
 		
@@ -918,9 +946,9 @@ synchronize_cache (ECalBackendCalDAV *cbdav)
 		const char *etag = NULL;
 		
 		if (object->status != 200) {
-			/* just continue here, so that the objects
-			 * doenst get removed from the cobjs list
-			 * therefore it will be removed */
+			/* just continue here, so that the object
+			 * doesnt get removed from the cobjs list
+			 * - therefore it will be removed */
 			continue;
 		}
 
@@ -992,7 +1020,7 @@ synch_slave_loop (gpointer data)
 		/* Ok here we go, do some real work 
 		 * Synch it baby one more time ...
 		 */
-		g_print ("Synch-Slave: Goint to work ...\n");
+		d(g_print ("Synch-Slave: Goint to work ...\n"));
 		synchronize_cache (cbdav); 
 
 		/* puhh that was hard, get some rest :) */
@@ -1122,6 +1150,7 @@ initialize_backend (ECalBackendCalDAV *cbdav)
 		result = GNOME_Evolution_Calendar_OtherError;
 	}
 	
+	priv->report_changes = TRUE;	
 	priv->synch_slave = slave;
 	priv->loaded = TRUE;	
 out:

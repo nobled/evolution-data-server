@@ -1,5 +1,15 @@
 2005-06-20  Christian Kellner  <gicmo@gnome.org>
 
+	* backends/caldav/e-cal-backend-caldav.c: 
+	(xp_object_get_etag):  New function to parse and 
+	strip ETags from response xml.	
+	(parse_report_response): Use xp_object_get_etag.
+	(synchronize_object): More error checking and 
+	fix notify_modifed argument.
+	(initialize_backend): Always report changes for now.
+
+2005-06-20  Christian Kellner  <gicmo@gnome.org>
+
 	* backends/Makefile.am:
 	Added CalDAV backend.
 	
