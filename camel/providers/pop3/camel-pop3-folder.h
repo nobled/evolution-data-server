@@ -31,7 +31,7 @@ extern "C" {
 #pragma }
 #endif /* __cplusplus }*/
 
-#include "camel-folder.h"
+#include <camel/camel-folder.h>
 
 #define CAMEL_POP3_FOLDER_TYPE     (camel_pop3_folder_get_type ())
 #define CAMEL_POP3_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_POP3_FOLDER_TYPE, CamelPOP3Folder))
@@ -39,29 +39,21 @@ extern "C" {
 #define CAMEL_IS_POP3_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_POP3_FOLDER_TYPE))
 
 typedef struct {
-	guint32 id;
-	guint32 size;
-	guint32 flags;
-	guint32 index;		/* index of request */
-	char *uid;
-	int err;
-	struct _CamelPOP3Command *cmd;
-	struct _CamelStream *stream;
-} CamelPOP3FolderInfo;
+	CamelFolder folder;
 
-typedef struct {
-	CamelFolder parent_object;
-
+	/* Used for building list */
 	GPtrArray *uids;
-	GHashTable *uids_uid;	/* messageinfo by uid */
-	GHashTable *uids_id;	/* messageinfo by id */
+	GHashTable *uids_id;	/* folderinfo by id */
+
+	/* Used for pre-fetching messages */
+	int prefetch;
+	EDList fetches;
+	CamelMessageIterator *iter;
+	const CamelMessageInfo *iterinfo;
 } CamelPOP3Folder;
 
 typedef struct {
-	CamelFolderClass parent_class;
-
-	/* Virtual methods */	
-	
+	CamelFolderClass folder_class;
 } CamelPOP3FolderClass;
 
 /* public methods */

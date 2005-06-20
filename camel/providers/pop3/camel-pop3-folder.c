@@ -1,12 +1,11 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
-/* camel-pop3-folder.c : class for a pop3 folder */
-
-/* 
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+ *
  * Authors:
  *   Dan Winship <danw@ximian.com>
  *   Michael Zucchi <notzed@ximian.com>
  *
  * Copyright (C) 2002 Ximian, Inc. (www.ximian.com)
+ * Copyright (C) 2005 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or 
  * modify it under the terms of version 2 of the GNU General Public 
@@ -29,8 +28,20 @@
 
 #include <errno.h>
 
+/*
+  Having a pop summary and a pop store and a pop folder ... is
+  really pointless.  Unless we wanted it to behave
+  like IMAP, which we really dont.
+
+  We could possibly use another class of object, like CamelSpool,
+  which along with CamelStore and CamelTransport, defines
+  the remote mail environment.  But I suppose this will
+  have to do for now.
+*/
+
 #include "camel-pop3-folder.h"
 #include "camel-pop3-store.h"
+#include "camel-pop3-summary.h"
 #include "camel-exception.h"
 #include "camel-stream-mem.h"
 #include "camel-stream-filter.h"
@@ -46,78 +57,35 @@
 
 #define d(x) 
 
-#define CF_CLASS(o) (CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(o)))
+/* how many messages to pre-fetch */
+#define POP3_PREFETCH (5)
+
+#define CF_CLASS(o) ((CamelFolderClass *)((CamelObject *)x)->klass)
+#define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
+
+struct _list_info {
+	guint32 id;
+	guint32 size;
+	int index;		/* for progress reporting */
+	char *uid;
+	int err;
+	struct _CamelPOP3Command *cmd;
+};
+
+struct _fetch_info {
+	struct _fetch_info *next;
+	struct _fetch_info *prev;
+
+	char *uid;
+	int refcount;
+	size_t size;
+	CamelPOP3Folder *folder;
+	CamelStream *stream;
+	CamelPOP3Command *cmd;
+	CamelException ex;
+};
+
 static CamelFolderClass *parent_class;
-
-static void pop3_finalize (CamelObject *object);
-static void pop3_refresh_info (CamelFolder *folder, CamelException *ex);
-static void pop3_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
-static gint pop3_get_message_count (CamelFolder *folder);
-static GPtrArray *pop3_get_uids (CamelFolder *folder);
-static CamelMimeMessage *pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex);
-static gboolean pop3_set_message_flags (CamelFolder *folder, const char *uid, guint32 flags, guint32 set);
-
-static void
-camel_pop3_folder_class_init (CamelPOP3FolderClass *camel_pop3_folder_class)
-{
-	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_pop3_folder_class);
-	
-	parent_class = CAMEL_FOLDER_CLASS(camel_folder_get_type());
-	
-	/* virtual method overload */
-	camel_folder_class->refresh_info = pop3_refresh_info;
-	camel_folder_class->sync = pop3_sync;
-	
-	camel_folder_class->get_message_count = pop3_get_message_count;
-	camel_folder_class->get_uids = pop3_get_uids;
-	camel_folder_class->free_uids = camel_folder_free_shallow;
-	
-	camel_folder_class->get_message = pop3_get_message;
-	camel_folder_class->set_message_flags = pop3_set_message_flags;
-}
-
-CamelType
-camel_pop3_folder_get_type (void)
-{
-	static CamelType camel_pop3_folder_type = CAMEL_INVALID_TYPE;
-	
-	if (!camel_pop3_folder_type) {
-		camel_pop3_folder_type = camel_type_register (CAMEL_FOLDER_TYPE, "CamelPOP3Folder",
-							      sizeof (CamelPOP3Folder),
-							      sizeof (CamelPOP3FolderClass),
-							      (CamelObjectClassInitFunc) camel_pop3_folder_class_init,
-							      NULL,
-							      NULL,
-							      (CamelObjectFinalizeFunc) pop3_finalize);
-	}
-	
-	return camel_pop3_folder_type;
-}
-
-static void
-pop3_finalize (CamelObject *object)
-{
-	CamelPOP3Folder *pop3_folder = CAMEL_POP3_FOLDER (object);
-	CamelPOP3FolderInfo **fi = (CamelPOP3FolderInfo **)pop3_folder->uids->pdata;
-	CamelPOP3Store *pop3_store = (CamelPOP3Store *)((CamelFolder *)pop3_folder)->parent_store;
-	int i;
-
-	if (pop3_folder->uids) {
-		for (i=0;i<pop3_folder->uids->len;i++,fi++) {
-			if (fi[0]->cmd) {
-				while (camel_pop3_engine_iterate(pop3_store->engine, fi[0]->cmd) > 0)
-					;
-				camel_pop3_engine_command_free(pop3_store->engine, fi[0]->cmd);
-			}
-			
-			g_free(fi[0]->uid);
-			g_free(fi[0]);
-		}
-		
-		g_ptr_array_free(pop3_folder->uids, TRUE);
-		g_hash_table_destroy(pop3_folder->uids_uid);
-	}
-}
 
 CamelFolder *
 camel_pop3_folder_new (CamelStore *parent, CamelException *ex)
@@ -129,7 +97,8 @@ camel_pop3_folder_new (CamelStore *parent, CamelException *ex)
 	folder = CAMEL_FOLDER (camel_object_new (CAMEL_POP3_FOLDER_TYPE));
 	camel_folder_construct (folder, parent, "inbox", "inbox");
 	
-	/* mt-ok, since we dont have the folder-lock for new() */
+	/* Unlike other folders, for pop3 we want to force a
+	   refresh at startup just to make sure we get everything we can */
 	camel_folder_refresh_info (folder, ex);/* mt-ok */
 	if (camel_exception_is_set (ex)) {
 		camel_object_unref (CAMEL_OBJECT (folder));
@@ -139,11 +108,36 @@ camel_pop3_folder_new (CamelStore *parent, CamelException *ex)
 	return folder;
 }
 
-/* create a uid from md5 of 'top' output */
+static struct _fetch_info *
+fetch_find(CamelPOP3Folder *pop3_folder, const char *uid)
+{
+	struct _fetch_info *fi;
+
+	for (fi= (struct _fetch_info *)pop3_folder->fetches.head;fi->next;fi=fi->next)
+		if (!strcmp(fi->uid, uid))
+			return fi;
+
+	return NULL;
+}
+
+static void
+fetch_free(CamelPOP3Folder *pop3_folder, struct _fetch_info *fi)
+{
+	fi->refcount--;
+	if (fi->refcount == 0) {
+		if (fi->stream)
+			camel_data_cache_abort(((CamelPOP3Store *)pop3_folder->folder.parent_store)->cache, fi->stream);
+		camel_exception_clear(&fi->ex);
+		g_free(fi->uid);
+		g_free(fi);
+	}
+}
+
+/* create a uid from md5 of 'top' output. */
 static void
 cmd_builduid(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 {
-	CamelPOP3FolderInfo *fi = data;
+	struct _list_info *fi = data;
 	MD5Context md5;
 	unsigned char digest[16];
 	struct _camel_header_raw *h;
@@ -187,7 +181,7 @@ cmd_list(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 	unsigned char *line;
 	CamelFolder *folder = data;
 	CamelPOP3Store *pop3_store = CAMEL_POP3_STORE (folder->parent_store);
-	CamelPOP3FolderInfo *fi;
+	struct _list_info *fi;
 
 	do {
 		ret = camel_pop3_stream_line(stream, &line, &len);
@@ -214,7 +208,7 @@ cmd_uidl(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 	unsigned char *line;
 	char uid[1025];
 	unsigned int id;
-	CamelPOP3FolderInfo *fi;
+	struct _list_info *fi;
 	CamelPOP3Folder *folder = data;
 	
 	do {
@@ -227,7 +221,6 @@ cmd_uidl(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 				if (fi) {
 					camel_operation_progress(NULL, (fi->index+1) * 100 / folder->uids->len);
 					fi->uid = g_strdup(uid);
-					g_hash_table_insert(folder->uids_uid, fi->uid, fi);
 				} else {
 					g_warning("ID %u (uid: %s) not in previous LIST output", id, uid);
 				}
@@ -236,25 +229,35 @@ cmd_uidl(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 	} while (ret>0);
 }
 
+static int
+pop3_info_cmp(const void *ap, const void *bp, void *s)
+{
+	return CFS_CLASS(s)->uid_cmp(((struct _list_info **)ap)[0], ((struct _list_info **)bp)[0], s);
+}
+
 static void 
 pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 {
 	CamelPOP3Store *pop3_store = CAMEL_POP3_STORE (folder->parent_store);
 	CamelPOP3Folder *pop3_folder = (CamelPOP3Folder *) folder;
 	CamelPOP3Command *pcl, *pcu = NULL;
+	GCompareDataFunc uid_cmp = CFS_CLASS(folder->summary)->uid_cmp;
+	CamelMessageIterator *iter;
+	const CamelMessageInfo *iterinfo;
+	CamelException x = { 0 };
 	int i;
 
 	camel_operation_start (NULL, _("Retrieving POP summary"));
 
-	pop3_folder->uids = g_ptr_array_new ();
-	pop3_folder->uids_uid = g_hash_table_new(g_str_hash, g_str_equal);
+	LOCK_ENGINE(pop3_store);
+
 	/* only used during setup */
+	pop3_folder->uids = g_ptr_array_new ();
 	pop3_folder->uids_id = g_hash_table_new(NULL, NULL);
 
 	pcl = camel_pop3_engine_command_new(pop3_store->engine, CAMEL_POP3_COMMAND_MULTI, cmd_list, folder, "LIST\r\n");
-	if (pop3_store->engine->capa & CAMEL_POP3_CAP_UIDL) {
+	if (pop3_store->engine->capa & CAMEL_POP3_CAP_UIDL)
 		pcu = camel_pop3_engine_command_new(pop3_store->engine, CAMEL_POP3_COMMAND_MULTI, cmd_uidl, folder, "UIDL\r\n");
-	}
 	while ((i = camel_pop3_engine_iterate(pop3_store->engine, NULL)) > 0)
 		;
 
@@ -275,88 +278,126 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 		camel_pop3_engine_command_free(pop3_store->engine, pcu);
 	} else {
 		for (i=0;i<pop3_folder->uids->len;i++) {
-			CamelPOP3FolderInfo *fi = pop3_folder->uids->pdata[i];
+			struct _list_info *fi = pop3_folder->uids->pdata[i];
 			if (fi->cmd) {
 				camel_pop3_engine_command_free(pop3_store->engine, fi->cmd);
 				fi->cmd = NULL;
 			}
-			if (fi->uid)
-				g_hash_table_insert(pop3_folder->uids_uid, fi->uid, fi);
 		}
 	}
 
-	/* dont need this anymore */
+	/* Now, update the summary to match ... */
+	// FIXME: exceptions
+	g_qsort_with_data(pop3_folder->uids->pdata, pop3_folder->uids->len, sizeof(pop3_folder->uids->pdata[0]), pop3_info_cmp, folder->summary);
+	iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
+	iterinfo = camel_message_iterator_next(iter, NULL);
+	for (i=0;i<pop3_folder->uids->len;i++) {
+		struct _list_info *fi = pop3_folder->uids->pdata[i];
+
+		if (fi->uid == NULL) {
+			/* This points to an error happening elsewhere ... *shrug* */
+			g_free(fi);
+			continue;
+		}
+
+		while (iterinfo && uid_cmp(iterinfo->uid, fi->uid, folder->summary) < 0) {
+			// FIXME: remove cache file?  summary should?
+			camel_folder_summary_remove(folder->summary, (CamelMessageInfo *)iterinfo);
+			iterinfo = camel_message_iterator_next(iter, NULL);
+		}
+
+		if (iterinfo && uid_cmp(iterinfo->uid, fi->uid, folder->summary) == 0) {
+			if (((CamelPOP3MessageInfo *)iterinfo)->id != fi->id) {
+				((CamelPOP3MessageInfo *)iterinfo)->id = fi->id;
+				camel_message_info_changed((CamelMessageInfo *)iterinfo, TRUE);
+			}
+			iterinfo = camel_message_iterator_next(iter, NULL);
+		} else {
+			CamelPOP3MessageInfo *mi = camel_message_info_new(folder->summary);
+
+			mi->info.uid = g_strdup(fi->uid);
+			mi->size = fi->size;
+			mi->id = fi->id;
+			camel_folder_summary_add(folder->summary, (CamelMessageInfo *)mi);
+		}
+		g_free(fi);
+	}
+
+	while (iterinfo) {
+		// FIXME: remove cache file?  summary should?
+		camel_folder_summary_remove(folder->summary, (CamelMessageInfo *)iterinfo);
+		iterinfo = camel_message_iterator_next(iter, NULL);
+	}
+	camel_message_iterator_free(iter);
+
 	g_hash_table_destroy(pop3_folder->uids_id);
+	g_ptr_array_free(pop3_folder->uids, TRUE);
+
+	UNLOCK_ENGINE(pop3_store);
 	
 	camel_operation_end (NULL);
+
+	camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)folder->summary, &x);
+	if (!camel_exception_is_set(ex))
+		camel_exception_xfer(ex, &x);
+
 	return;
 }
 
 static void
-pop3_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+pop3_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 {
-	CamelPOP3Folder *pop3_folder;
 	CamelPOP3Store *pop3_store;
 	int i;
-	CamelPOP3FolderInfo *fi;
+	CamelPOP3Command *cmd;
+	const CamelMessageInfo *iterinfo;
+	CamelMessageIterator *iter;
+	CamelException x = { 0 };
+	GPtrArray *cmds;
 
-	if (!expunge)
-		return;
+	if (expunge && FALSE /* FIXME keep on server */) {
+		camel_operation_start(NULL, _("Expunging deleted messages"));
+		cmds = g_ptr_array_new();
 
-	pop3_folder = CAMEL_POP3_FOLDER (folder);
-	pop3_store = CAMEL_POP3_STORE (folder->parent_store);
+		LOCK_ENGINE(pop3_store);
 
-	camel_operation_start(NULL, _("Expunging deleted messages"));
-	
-	for (i = 0; i < pop3_folder->uids->len; i++) {
-		fi = pop3_folder->uids->pdata[i];
-		/* busy already?  wait for that to finish first */
-		if (fi->cmd) {
-			while (camel_pop3_engine_iterate(pop3_store->engine, fi->cmd) > 0)
+		iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
+		while ((iterinfo = camel_message_iterator_next(iter, NULL))) {
+			CamelPOP3MessageInfo *mi = (CamelPOP3MessageInfo *)iterinfo;
+
+			if ((mi->flags & CAMEL_MESSAGE_DELETED)
+			    && (cmd = camel_pop3_engine_command_new(pop3_store->engine, 0, NULL, NULL, "DELE %u\r\n", mi->id)))
+				g_ptr_array_add(cmds, cmd);
+		}
+		camel_message_iterator_free(iter);
+
+		for (i=0;i<cmds->len;i++) {
+			cmd = cmds->pdata[i];
+			while (camel_pop3_engine_iterate(pop3_store->engine, cmd) > 0)
 				;
-			camel_pop3_engine_command_free(pop3_store->engine, fi->cmd);
-			fi->cmd = NULL;
+			camel_pop3_engine_command_free(pop3_store->engine, cmd);
+			camel_operation_progress(NULL, (i+1) * 100 / cmds->len);
 		}
 
-		if (fi->flags & CAMEL_MESSAGE_DELETED) {
-			fi->cmd = camel_pop3_engine_command_new(pop3_store->engine, 0, NULL, NULL, "DELE %u\r\n", fi->id);
+		LOCK_ENGINE(pop3_store);
 
-			/* also remove from cache */
-			if (pop3_store->cache && fi->uid)
-				camel_data_cache_remove(pop3_store->cache, "cache", fi->uid, NULL);
-		}
+		g_ptr_array_free(cmds, TRUE);
+		camel_operation_end(NULL);
+
+		camel_pop3_store_expunge(pop3_store, ex);
 	}
 
-	for (i = 0; i < pop3_folder->uids->len; i++) {
-		fi = pop3_folder->uids->pdata[i];
-		/* wait for delete commands to finish */
-		if (fi->cmd) {
-			while (camel_pop3_engine_iterate(pop3_store->engine, fi->cmd) > 0)
-				;
-			camel_pop3_engine_command_free(pop3_store->engine, fi->cmd);
-			fi->cmd = NULL;
-		}
-		camel_operation_progress(NULL, (i+1) * 100 / pop3_folder->uids->len);
-	}
-
-	camel_operation_end(NULL);
-
-	camel_pop3_store_expunge (pop3_store, ex);
+	camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)folder->summary, &x);
+	if (!camel_exception_is_set(ex))
+		camel_exception_xfer(ex, &x);
 }
 
 static void
 cmd_tocache(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 {
-	CamelPOP3FolderInfo *fi = data;
+	struct _fetch_info *fi = data;
 	char buffer[2048];
 	int w = 0, n;
-
-	/* What if it fails? */
-
-	/* We write an '*' to the start of the stream to say its not complete yet */
-	/* This should probably be part of the cache code */
-	if ((n = camel_stream_write(fi->stream, "*", 1)) == -1)
-		goto done;
 
 	while ((n = camel_stream_read((CamelStream *)stream, buffer, sizeof(buffer))) > 0) {
 		n = camel_stream_write(fi->stream, buffer, n);
@@ -370,20 +411,17 @@ cmd_tocache(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 			camel_operation_progress(NULL, (w * 100) / fi->size);
 	}
 
-	/* it all worked, output a '#' to say we're a-ok */
-	if (n != -1) {
-		camel_stream_reset(fi->stream);
-		n = camel_stream_write(fi->stream, "#", 1);
-	}
-done:
 	if (n == -1) {
-		fi->err = errno;
-		g_warning("POP3 retrieval failed: %s", strerror(errno));
+		if (errno == EINTR)
+			camel_exception_setv(&fi->ex, CAMEL_EXCEPTION_USER_CANCEL, _("Cancelled."));
+		else
+			camel_exception_setv(&fi->ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"), fi->uid, g_strerror(errno));
+		camel_data_cache_abort(((CamelPOP3Store *)fi->folder->folder.parent_store)->cache, fi->stream);
 	} else {
-		fi->err = 0;
+		camel_data_cache_commit(((CamelPOP3Store *)fi->folder->folder.parent_store)->cache, fi->stream, &fi->ex);
 	}
-	
-	camel_object_unref((CamelObject *)fi->stream);
+
+	fi->folder->prefetch--;
 	fi->stream = NULL;
 }
 
@@ -393,12 +431,116 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 	CamelMimeMessage *message = NULL;
 	CamelPOP3Store *pop3_store = CAMEL_POP3_STORE (folder->parent_store);
 	CamelPOP3Folder *pop3_folder = (CamelPOP3Folder *)folder;
-	CamelPOP3Command *pcr;
-	CamelPOP3FolderInfo *fi;
-	char buffer[1];
-	int ok, i, last;
-	CamelStream *stream = NULL;
+	CamelPOP3MessageInfo *mi;
+	int i;
+	CamelStream *stream = NULL, *rstream;
+	struct _fetch_info *fi;
+	GCompareDataFunc uid_cmp = CFS_CLASS(folder->summary)->uid_cmp;
 
+	/*
+	  Blah.  Why do even the simple things have to be so bloody complicated!
+
+	  First, if we are currently loading a message, we process the i/o in
+	  this loop until it is done, handle exceptions, get the stream.
+
+	  If not, then reserve the key and queue a job.  Because pipelineing
+	  adds so much performance, we then iterate through the summary and
+	  start fetching the following few messages as well - since
+	  those are probably the ones we're going to get next.
+	*/
+
+	mi = camel_folder_summary_get(folder->summary, uid);
+	if (mi == NULL) {
+		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
+				     _("Cannot get message: %s from folder %s\n  %s"),
+				     uid, _("Inbox"), _("No such message"));
+		return NULL;
+	}
+
+	LOCK_ENGINE(pop3_store);
+
+	fi = fetch_find(pop3_folder, uid);
+	if (fi) {
+		fi->refcount++;
+	} else if ((stream = camel_data_cache_get(pop3_store->cache, "cache", uid, &rstream, ex)) == NULL && rstream != NULL) {
+		const CamelMessageInfo *iterinfo;
+
+		fi = g_malloc0(sizeof(*fi));
+		fi->refcount = 1;
+		fi->uid = g_strdup(uid);
+		fi->size = mi->size;
+		fi->folder = pop3_folder;
+		fi->stream = rstream;
+		e_dlist_addtail(&pop3_folder->fetches, (EDListNode *)fi);
+		fi->cmd = camel_pop3_engine_command_new(pop3_store->engine, CAMEL_POP3_COMMAND_MULTI, cmd_tocache, fi, "RETR %u\r\n", mi->id);
+
+		if (pop3_folder->iter == NULL) {
+			pop3_folder->iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
+			pop3_folder->iterinfo = camel_message_iterator_next(pop3_folder->iter, NULL);
+		}
+
+		iterinfo = pop3_folder->iterinfo;
+		while (iterinfo && uid_cmp(iterinfo->uid, uid, folder->summary) < 0)
+			iterinfo = camel_message_iterator_next(pop3_folder->iter, NULL);
+
+		while (iterinfo && pop3_folder->prefetch < POP3_PREFETCH) {
+			if (fetch_find(pop3_folder, iterinfo->uid) == NULL) {
+				stream = camel_data_cache_get(pop3_store->cache, "cache", iterinfo->uid, &rstream, NULL);
+				if (stream) {
+					camel_object_unref(stream);
+				} else if (rstream) {
+					struct _fetch_info *nfi = g_malloc0(sizeof(*nfi));
+
+					pop3_folder->prefetch++;
+					nfi->refcount = 1;
+					nfi->uid = iterinfo->uid;
+					nfi->size = ((CamelPOP3MessageInfo *)iterinfo)->size;
+					nfi->folder = pop3_folder;
+					nfi->stream = rstream;
+					e_dlist_addtail(&pop3_folder->fetches, (EDListNode *)fi);
+					nfi->cmd = camel_pop3_engine_command_new(pop3_store->engine, CAMEL_POP3_COMMAND_MULTI, cmd_tocache, nfi, "RETR %u\r\n",
+										 ((CamelPOP3MessageInfo *)iterinfo)->id);
+				}
+			}
+			iterinfo = camel_message_iterator_next(pop3_folder->iter, NULL);
+		}
+
+		pop3_folder->iterinfo = iterinfo;
+		stream = NULL;
+	}
+
+	if (fi) {
+		while ((i = camel_pop3_engine_iterate(pop3_store->engine, fi->cmd)) > 0)
+			;
+
+		if (camel_exception_is_set(&fi->ex))
+			camel_exception_xfer(ex, &fi->ex);
+		else
+			stream = camel_data_cache_get(pop3_store->cache, "cache", uid, NULL, ex);
+
+		fetch_free(pop3_folder, fi);
+	}
+
+	UNLOCK_ENGINE(pop3_store);
+
+	if (stream) {
+		message = camel_mime_message_new();
+		if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)message, stream) == -1) {
+			if (errno == EINTR)
+				camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Cancelled."));
+			else
+				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"), uid, g_strerror(errno));
+			camel_object_unref(message);
+			message = NULL;
+		}
+		camel_object_unref(stream);
+	}
+
+	camel_message_info_free(mi);
+
+	return message;
+
+#if 0
 	fi = g_hash_table_lookup(pop3_folder->uids_uid, uid);
 	if (fi == NULL) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
@@ -461,7 +603,7 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 			i = fi->index+1;
 			last = MIN(i+10, pop3_folder->uids->len);
 			for (;i<last;i++) {
-				CamelPOP3FolderInfo *pfi = pop3_folder->uids->pdata[i];
+				struct _list_info *pfi = pop3_folder->uids->pdata[i];
 				
 				if (pfi->uid && pfi->cmd == NULL) {
 					pfi->stream = camel_data_cache_add(pop3_store->cache, "cache", pfi->uid, NULL);
@@ -521,48 +663,64 @@ fail:
 	camel_operation_end(NULL);
 
 	return message;
+#endif
 }
 
-static gboolean
-pop3_set_message_flags (CamelFolder *folder, const char *uid, guint32 flags, guint32 set)
+static void
+pop3_init(CamelPOP3Folder *pop3_folder)
 {
-	CamelPOP3Folder *pop3_folder = CAMEL_POP3_FOLDER (folder);
-	CamelPOP3FolderInfo *fi;
-	gboolean res = FALSE;
+	((CamelFolder *)pop3_folder)->summary = camel_pop3_summary_new((CamelFolder *)pop3_folder);
+	e_dlist_init(&pop3_folder->fetches);
+}
 
-	fi = g_hash_table_lookup(pop3_folder->uids_uid, uid);
-	if (fi) {
-		guint32 new = (fi->flags & ~flags) | (set & flags);
+static void
+pop3_finalize (CamelObject *object)
+{
+	CamelPOP3Folder *pop3_folder = CAMEL_POP3_FOLDER (object);
+	CamelPOP3Store *pop3_store = (CamelPOP3Store *)((CamelFolder *)pop3_folder)->parent_store;
+	struct _fetch_info *fi, *fn;
 
-		if (fi->flags != new) {
-			fi->flags = new;
-			res = TRUE;
-		}
+	/* Clean up any outstanding fetches we're now aborting */
+
+	fi = (struct _fetch_info *)pop3_folder->fetches.head;
+	fn = fi->next;
+	while (fn) {
+		while (camel_pop3_engine_iterate(pop3_store->engine, fi->cmd) > 0)
+			;
+		camel_pop3_engine_command_free(pop3_store->engine, fi->cmd);
+		fetch_free(pop3_folder, fi);
+		fi = fn;
+		fn = fn->next;
 	}
-
-	return res;
 }
 
-static gint
-pop3_get_message_count (CamelFolder *folder)
+static void
+camel_pop3_folder_class_init (CamelPOP3FolderClass *camel_pop3_folder_class)
 {
-	CamelPOP3Folder *pop3_folder = CAMEL_POP3_FOLDER (folder);
+	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_pop3_folder_class);
 	
-	return pop3_folder->uids->len;
+	parent_class = CAMEL_FOLDER_CLASS(camel_folder_get_type());
+	
+	camel_folder_class->refresh_info = pop3_refresh_info;
+	camel_folder_class->sync = pop3_sync;
+	camel_folder_class->get_message = pop3_get_message;
 }
 
-static GPtrArray *
-pop3_get_uids (CamelFolder *folder)
+CamelType
+camel_pop3_folder_get_type (void)
 {
-	CamelPOP3Folder *pop3_folder = CAMEL_POP3_FOLDER (folder);
-	GPtrArray *uids = g_ptr_array_new();
-	CamelPOP3FolderInfo **fi = (CamelPOP3FolderInfo **)pop3_folder->uids->pdata;
-	int i;
-
-	for (i=0;i<pop3_folder->uids->len;i++,fi++) {
-		if (fi[0]->uid)
-			g_ptr_array_add(uids, fi[0]->uid);
+	static CamelType camel_pop3_folder_type = CAMEL_INVALID_TYPE;
+	
+	if (!camel_pop3_folder_type) {
+		camel_pop3_folder_type = camel_type_register (CAMEL_FOLDER_TYPE, "CamelPOP3Folder",
+							      sizeof (CamelPOP3Folder),
+							      sizeof (CamelPOP3FolderClass),
+							      (CamelObjectClassInitFunc) camel_pop3_folder_class_init,
+							      NULL,
+							      (CamelObjectInitFunc) pop3_init,
+							      (CamelObjectFinalizeFunc) pop3_finalize);
 	}
 	
-	return uids;
+	return camel_pop3_folder_type;
 }
+

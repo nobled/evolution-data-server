@@ -27,13 +27,11 @@
 #ifndef CAMEL_POP3_STORE_H
 #define CAMEL_POP3_STORE_H 1
 
-
 #ifdef __cplusplus
 extern "C" {
 #pragma }
 #endif /* __cplusplus }*/
 
-#include <camel/camel-types.h>
 #include <camel/camel-store.h>
 #include "camel-pop3-engine.h"
 
@@ -42,22 +40,21 @@ extern "C" {
 #define CAMEL_POP3_STORE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_POP3_STORE_TYPE, CamelPOP3StoreClass))
 #define CAMEL_IS_POP3_STORE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_POP3_STORE_TYPE))
 
+#define LOCK_ENGINE(s) (g_mutex_lock(((CamelPOP3Store *)s)->engine_lock))
+#define UNLOCK_ENGINE(s) (g_mutex_unlock(((CamelPOP3Store *)s)->engine_lock))
 
 typedef struct {
 	CamelStore parent_object;
 
+	GMutex *engine_lock;
 	CamelPOP3Engine *engine; /* pop processing engine */
-
 	struct _CamelDataCache *cache;
 } CamelPOP3Store;
-
-
 
 typedef struct {
 	CamelStoreClass parent_class;
 
 } CamelPOP3StoreClass;
-
 
 /* public methods */
 void camel_pop3_store_expunge (CamelPOP3Store *store, CamelException *ex);

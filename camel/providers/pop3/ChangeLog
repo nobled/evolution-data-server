@@ -1,3 +1,15 @@
+2005-06-20  Not Zed  <NotZed@Ximian.com>
+
+	* camel-pop3-folder.c: major revamp, to drive and be driven by the
+	foldersummary.  Added locking to various places that didn't have
+	it.
+
+	* camel-pop3-summary.[ch]: New classes to manage now-required folder
+	interfaces.
+
+	* camel-pop3-store.c: re-arranged to kill forward decl.
+
+	* camel-pop3-folder.c: re-arranged to kill forward declarations.
 
 Refer to main changelog for earlier changes.
 

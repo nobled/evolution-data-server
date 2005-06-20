@@ -63,79 +63,6 @@
 
 static CamelStoreClass *parent_class = NULL;
 
-static void finalize (CamelObject *object);
-
-static gboolean pop3_connect (CamelService *service, CamelException *ex);
-static gboolean pop3_disconnect (CamelService *service, gboolean clean, CamelException *ex);
-static GList *query_auth_types (CamelService *service, CamelException *ex);
-
-static CamelFolder *get_folder (CamelStore *store, const char *folder_name, 
-				guint32 flags, CamelException *ex);
-
-static CamelFolder *get_trash  (CamelStore *store, CamelException *ex);
-
-static void
-camel_pop3_store_class_init (CamelPOP3StoreClass *camel_pop3_store_class)
-{
-	CamelServiceClass *camel_service_class =
-		CAMEL_SERVICE_CLASS (camel_pop3_store_class);
-	CamelStoreClass *camel_store_class =
-		CAMEL_STORE_CLASS (camel_pop3_store_class);
-
-	parent_class = CAMEL_STORE_CLASS (camel_type_get_global_classfuncs (camel_store_get_type ()));
-	
-	/* virtual method overload */
-	camel_service_class->query_auth_types = query_auth_types;
-	camel_service_class->connect = pop3_connect;
-	camel_service_class->disconnect = pop3_disconnect;
-
-	camel_store_class->get_folder = get_folder;
-	camel_store_class->get_trash = get_trash;
-}
-
-
-
-static void
-camel_pop3_store_init (gpointer object, gpointer klass)
-{
-	;
-}
-
-CamelType
-camel_pop3_store_get_type (void)
-{
-	static CamelType camel_pop3_store_type = CAMEL_INVALID_TYPE;
-
-	if (!camel_pop3_store_type) {
-		camel_pop3_store_type = camel_type_register (CAMEL_STORE_TYPE,
-							     "CamelPOP3Store",
-							     sizeof (CamelPOP3Store),
-							     sizeof (CamelPOP3StoreClass),
-							     (CamelObjectClassInitFunc) camel_pop3_store_class_init,
-							     NULL,
-							     (CamelObjectInitFunc) camel_pop3_store_init,
-							     finalize);
-	}
-
-	return camel_pop3_store_type;
-}
-
-static void
-finalize (CamelObject *object)
-{
-	CamelPOP3Store *pop3_store = CAMEL_POP3_STORE (object);
-
-	/* force disconnect so we dont have it run later, after we've cleaned up some stuff */
-	/* SIGH */
-
-	camel_service_disconnect((CamelService *)pop3_store, TRUE, NULL);
-
-	if (pop3_store->engine)
-		camel_object_unref((CamelObject *)pop3_store->engine);
-	if (pop3_store->cache)
-		camel_object_unref((CamelObject *)pop3_store->cache);
-}
-
 enum {
 	MODE_CLEAR,
 	MODE_SSL,
@@ -146,6 +73,8 @@ enum {
 #define SSL_PORT_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_SSL2 | CAMEL_TCP_STREAM_SSL_ENABLE_SSL3)
 #define STARTTLS_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_TLS)
 #endif
+
+static gboolean pop3_disconnect(CamelService *service, gboolean clean, CamelException *ex);
 
 static gboolean
 connect_to_server (CamelService *service, struct addrinfo *ai, int ssl_mode, CamelException *ex)
@@ -653,4 +582,64 @@ get_trash (CamelStore *store, CamelException *ex)
 {
 	/* no-op */
 	return NULL;
+}
+
+static void
+camel_pop3_store_init(CamelPOP3Store *pstore, gpointer klass)
+{
+	pstore->engine_lock = g_mutex_new();
+}
+
+static void
+finalize (CamelObject *object)
+{
+	CamelPOP3Store *pop3_store = CAMEL_POP3_STORE (object);
+
+	/* force disconnect so we dont have it run later, after we've cleaned up some stuff */
+	/* SIGH */
+
+	camel_service_disconnect((CamelService *)pop3_store, TRUE, NULL);
+
+	if (pop3_store->engine)
+		camel_object_unref((CamelObject *)pop3_store->engine);
+	if (pop3_store->cache)
+		camel_object_unref((CamelObject *)pop3_store->cache);
+}
+
+static void
+camel_pop3_store_class_init (CamelPOP3StoreClass *camel_pop3_store_class)
+{
+	CamelServiceClass *camel_service_class =
+		CAMEL_SERVICE_CLASS (camel_pop3_store_class);
+	CamelStoreClass *camel_store_class =
+		CAMEL_STORE_CLASS (camel_pop3_store_class);
+
+	parent_class = CAMEL_STORE_CLASS (camel_type_get_global_classfuncs (camel_store_get_type ()));
+	
+	/* virtual method overload */
+	camel_service_class->query_auth_types = query_auth_types;
+	camel_service_class->connect = pop3_connect;
+	camel_service_class->disconnect = pop3_disconnect;
+
+	camel_store_class->get_folder = get_folder;
+	camel_store_class->get_trash = get_trash;
+}
+
+CamelType
+camel_pop3_store_get_type (void)
+{
+	static CamelType camel_pop3_store_type = CAMEL_INVALID_TYPE;
+
+	if (!camel_pop3_store_type) {
+		camel_pop3_store_type = camel_type_register (CAMEL_STORE_TYPE,
+							     "CamelPOP3Store",
+							     sizeof (CamelPOP3Store),
+							     sizeof (CamelPOP3StoreClass),
+							     (CamelObjectClassInitFunc) camel_pop3_store_class_init,
+							     NULL,
+							     (CamelObjectInitFunc) camel_pop3_store_init,
+							     finalize);
+	}
+
+	return camel_pop3_store_type;
 }

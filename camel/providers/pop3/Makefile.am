@@ -15,13 +15,15 @@ libcamelpop3_la_SOURCES = 			\
 	camel-pop3-folder.c			\
 	camel-pop3-provider.c			\
 	camel-pop3-stream.c			\
-	camel-pop3-store.c
+	camel-pop3-store.c			\
+	camel-pop3-summary.c
 
 noinst_HEADERS =			\
 	camel-pop3-engine.h			\
 	camel-pop3-folder.h			\
 	camel-pop3-stream.h			\
-	camel-pop3-store.h
+	camel-pop3-store.h			\
+	camel-pop3-summary.h
 
 libcamelpop3_la_LDFLAGS = -avoid-version -module
 
