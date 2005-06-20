@@ -1,3 +1,8 @@
+2005-06-20  Christian Kellner  <gicmo@gnom.org>
+
+	* configure.in:
+	Add CalDAV Makefile creation.
+
 2005-06-12  Sarfraaz Ahmed <asarfraaz@novell.com>
 
 	* servers/Makefile.am : use ENABLE_LDAP instead of HAVE_LDAP
