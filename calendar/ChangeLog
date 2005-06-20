@@ -1,3 +1,18 @@
+2005-06-20  Christian Kellner  <gicmo@gnome.org>
+
+	* backends/Makefile.am:
+	Added CalDAV backend.
+	
+	* backends/caldav/Makefile.am:
+	* backends/caldav/create-account.c: 
+	Added small and dumb tool to create CalDAV sources. 
+	
+	* backends/caldav/e-cal-backend-caldav-factory.c:
+	* backends/caldav/e-cal-backend-caldav-factory.h:
+	* backends/caldav/e-cal-backend-caldav.c: 
+	* backends/caldav/e-cal-backend-caldav.h:
+	Added first version of the CalDAV backend.
+
 2005-06-06  Chenthill Palanisamy  <pchenthill@novell.com>
 
 	* backends/groupwise/e-cal-backend-groupwise-utils.c:
