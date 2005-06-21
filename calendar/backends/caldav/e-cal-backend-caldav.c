@@ -32,6 +32,7 @@
 #include <libedataserver/e-xml-hash-utils.h>
 #include <libecal/e-cal-recur.h>
 #include <libecal/e-cal-util.h>
+#include <libecal/e-cal-time-util.h>
 #include <libedata-cal/e-cal-backend-cache.h>
 #include <libedata-cal/e-cal-backend-util.h>
 #include <libedata-cal/e-cal-backend-sexp.h>
@@ -117,6 +118,7 @@ struct _ECalBackendCalDAVPrivate {
 static ECalBackendSyncClass *parent_class = NULL;
 
 /* ************************************************************************* */
+/* Misc. utility functions */
 #define X_E_CALDAV "X-EVOLUTION-CALDAV-" 
 
 static void
@@ -224,6 +226,63 @@ e_cal_component_get_etag (ECalComponent *comp)
 	return str;
 }
 
+typedef enum {
+	
+	/* object is in synch,
+	 * now isnt that ironic? :) */
+	E_CAL_COMPONENT_IN_SYNCH = 0,
+	
+	/* local changes */
+	E_CAL_COMPONENT_LOCALLY_CREATED,
+	E_CAL_COMPONENT_LOCALLY_DELETED,
+	E_CAL_COMPONENT_LOCALLY_MODIFIED,	
+
+} ECalComponentSyncState;
+
+/* oos = out of synch */
+static void
+e_cal_component_set_synch_state (ECalComponent          *comp, 
+				 ECalComponentSyncState  state)
+{
+	icalcomponent *icomp;
+	char          *state_string;
+	
+	icomp = e_cal_component_get_icalcomponent (comp);
+	
+	state_string = g_strdup_printf ("%d", state);
+	
+	icomp_x_prop_set (icomp, X_E_CALDAV "ETAG", state_string);
+
+	g_free (state_string);
+}
+
+
+/* gen uid, set it internally and report it back so we can instantly 
+ * use it 
+ * and btw FIXME!!! */
+static char *
+e_cal_component_gen_href (ECalComponent *comp, const char *base_uri)
+{
+	char *href, *iso;
+
+	icalcomponent *icomp;
+
+	iso = isodate_from_time_t (time (NULL));
+
+	if (g_str_has_suffix (base_uri, "/")) {
+		href = g_strconcat (base_uri, iso, ".ics", NULL);
+	} else {
+		href = g_strconcat (base_uri, "/" ,iso, ".ics", NULL);
+	}
+
+	g_free (iso);	
+	
+	icomp = e_cal_component_get_icalcomponent (comp);	
+	icomp_x_prop_set (icomp, X_E_CALDAV "HREF", href);
+
+	return href;	
+}	
+
 /* ************************************************************************* */
 static char **
 sm_join_and_split_header (SoupMessage *message, const char *header)
@@ -260,15 +319,6 @@ sm_join_and_split_header (SoupMessage *message, const char *header)
 	g_free (tofree);
 	
 	return sa;
-}
-
-static gchar *
-caldav_to_http_method (const gchar *caldav_str)
-{
-	if (strncmp ("caldav://", caldav_str, sizeof ("caldav://") - 1))
-		return g_strdup (caldav_str);
-
-	return g_strconcat ("http://", caldav_str + sizeof ("caldav://") - 1, NULL);
 }
 
 static ECalBackendSyncStatus
@@ -314,12 +364,42 @@ match_header (const char *header, const char *string)
 	return !g_ascii_strncasecmp (header, string, strlen (string));
 }
 
+/* !TS, call with lock held */
+static ECalBackendSyncStatus
+check_state (ECalBackendCalDAV *cbdav, gboolean *online)
+{
+	ECalBackendCalDAVPrivate *priv;
+	
+	priv = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
+
+	*online = FALSE;
+	
+	if (priv->loaded != TRUE) {
+		return GNOME_Evolution_Calendar_OtherError;
+	}
+
+	if (priv->mode == CAL_MODE_LOCAL) {
+		
+		if (! priv->do_offline) {
+			return GNOME_Evolution_Calendar_RepositoryOffline;
+		} 
+		
+	} else {
+		*online = TRUE;	
+	}
+
+	return 	GNOME_Evolution_Calendar_Success;
+}
+
+/* ************************************************************************* */
+/* XML Parsing code */
+
 static xmlXPathObjectPtr
 xpath_eval (xmlXPathContextPtr ctx, char *format, ...)
 {
-	xmlXPathObjectPtr result;
-	va_list args;
-	char *expr;
+	xmlXPathObjectPtr  result;
+	va_list            args;
+	char              *expr;
 
 	if (ctx == NULL) {
 		return NULL;	
@@ -484,9 +564,9 @@ parse_report_response (SoupMessage *soup_message, CalDAVObject **objs, int *len)
 {
 	xmlXPathContextPtr xpctx;
 	xmlXPathObjectPtr  result;
-	xmlDocPtr  doc;
-	int        i, n;
-	gboolean   res;
+	xmlDocPtr          doc;
+	int                i, n;
+	gboolean           res;
 
 	g_return_val_if_fail (soup_message != NULL, FALSE);
 	g_return_val_if_fail (objs != NULL || len != NULL, FALSE);
@@ -562,6 +642,7 @@ out:
 }
 
 /* ************************************************************************* */
+/* Authentication helpers for libsoup */
 
 static void
 soup_authenticate (SoupSession  *session, 
@@ -612,15 +693,18 @@ soup_reauthenticate (SoupSession  *session,
 
 
 /* ************************************************************************* */
+/* direct CalDAV server access functions */
 
 static ECalBackendSyncStatus
 caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 {
-	ECalBackendCalDAVPrivate *priv;
-	SoupMessage *message;
-	char **sa, **siter;
-	gboolean calendar_access;
-	gboolean put_allowed;
+	ECalBackendCalDAVPrivate  *priv;
+	SoupMessage               *message;
+	char                     **sa;
+	char                     **siter;
+	gboolean                   calendar_access;
+	gboolean                   put_allowed;
+	gboolean                   delete_allowed;
 	
 	priv = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
 
@@ -656,12 +740,17 @@ caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 	
 	sa = sm_join_and_split_header (message, "Allow");
 	
-	/* parse the Allow header and look for PUT at the moment
-	 * (maybe we should check a bit more here, for REPORT eg) */
-	put_allowed = FALSE;
+	/* parse the Allow header and look for PUT, DELETE at the 
+	 * moment (maybe we should check more here, for REPORT eg) */
+	put_allowed = delete_allowed = FALSE;
 	for (siter = sa; siter && *siter; siter++) {
-		if (match_header (*siter, "PUT")) {
+		if (match_header (*siter, "DELETE")) {
+			delete_allowed = TRUE;
+		} else if (match_header (*siter, "PUT")) {
 			put_allowed = TRUE;
+		}
+
+		if (put_allowed && delete_allowed) {
 			break;
 		}
 	}	
@@ -671,7 +760,7 @@ caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 	g_object_unref (message);
 
 	if (calendar_access) {
-		priv->read_only = put_allowed;
+		priv->read_only = ! (put_allowed && delete_allowed);
 		priv->do_synch = TRUE;
 		return GNOME_Evolution_Calendar_Success;
 	}
@@ -759,9 +848,9 @@ static ECalBackendSyncStatus
 caldav_server_get_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 {
 	ECalBackendCalDAVPrivate *priv;
-	ECalBackendSyncStatus result;
-	SoupMessage *message;
-	const char *hdr;
+	ECalBackendSyncStatus     result;
+	SoupMessage              *message;
+	const char               *hdr;
 
 	priv = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);	
 	result = GNOME_Evolution_Calendar_Success;
@@ -808,6 +897,58 @@ caldav_server_get_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 	return result;
 }
 
+static ECalBackendSyncStatus
+caldav_server_put_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
+{
+	ECalBackendCalDAVPrivate *priv;
+	ECalBackendSyncStatus     result;
+	SoupMessage              *message;
+	
+	priv = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);	
+	result = GNOME_Evolution_Calendar_Success;
+	
+	g_assert (object != NULL && object->cdata != NULL);
+
+	message = soup_message_new (SOUP_METHOD_PUT, object->href);
+	
+	soup_message_add_header (message->request_headers, 
+				 "User-Agent", "Evolution/" VERSION);
+
+	/* For new items we use the If-None-Match so we don't
+	 * acidently override resources, for item updates we
+	 * use the If-Match header to avoid the Lost-update 
+	 * problem */
+	if (object->etag == NULL) {
+		soup_message_add_header (message->request_headers, 
+				         "If-None-Match", "*");
+	} else {
+		/* FIXME: add quotationmarks around the etag here? */
+		soup_message_add_header (message->request_headers, 
+				         "If-Match", object->etag);
+	}
+	
+	soup_message_set_request (message, 
+			          "text/calendar", 
+				  SOUP_BUFFER_USER_OWNED, 
+				  object->cdata,
+				  strlen (object->cdata));
+
+	
+	soup_session_send_message (priv->session, message);
+
+	/* FIXME: sepcial case precondition errors ?*/
+	if (! SOUP_STATUS_IS_SUCCESSFUL (message->status_code)) {
+		result = status_code_to_result (message->status_code);
+		g_object_unref (message);
+		g_warning ("Could not fetch object from server\n");
+		return result;
+	}
+	
+	return result;	
+}
+
+/* ************************************************************************* */
+/* Synchronization foo */
 
 static gboolean
 synchronize_object (ECalBackendCalDAV *cbdav, 
@@ -1037,6 +1178,7 @@ synch_slave_loop (gpointer data)
 	return NULL;	
 }
 
+/* ************************************************************************* */
 /* ********** ECalBackendSync virtual function implementation *************  */
 
 static ECalBackendSyncStatus
@@ -1056,7 +1198,7 @@ caldav_is_read_only (ECalBackendSync *backend,
 	} else {
 		*read_only = priv->read_only;
 	}
-	
+
 	return GNOME_Evolution_Calendar_Success;	
 }
 
@@ -1130,7 +1272,12 @@ initialize_backend (ECalBackendCalDAV *cbdav)
 	}
 	
 	uri = e_cal_backend_get_uri (E_CAL_BACKEND (cbdav));
-	priv->uri = caldav_to_http_method (uri);
+
+	if (g_str_has_prefix (uri, "caldav://")) {
+		priv->uri = g_strconcat ("http://", uri + 9, NULL);
+	} else {
+		priv->uri = g_strdup (uri);
+	} 
 		
 	if (priv->cache == NULL) {
 		priv->cache = e_cal_backend_cache_new (priv->uri);
@@ -1227,15 +1374,74 @@ caldav_remove (ECalBackendSync *backend,
 	return GNOME_Evolution_Calendar_OtherError;
 }
 
+#define pack_cobj(__cobj) (g_strdup_printf ("BEGIN:VCALENDAR\n%sEND:VCALENDAR\n", __cobj))
+
 static ECalBackendSyncStatus
 caldav_create_object (ECalBackendSync  *backend, 
 		      EDataCal         *cal, 
 		      char            **calobj, 
 		      char            **uid)
 {
-	/* FIXME: implement me! */
-	g_warning ("function not implemented %s", G_STRFUNC);
-	return GNOME_Evolution_Calendar_OtherError;	
+	ECalBackendCalDAV        *cbdav;
+	ECalBackendCalDAVPrivate *priv;
+	ECalBackendSyncStatus     status;
+	ECalComponent            *comp;
+	gboolean                  online;
+	char                     *href;
+	
+	cbdav = E_CAL_BACKEND_CALDAV (backend);
+	priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
+
+	g_mutex_lock (priv->lock);
+
+	status = check_state (cbdav, &online);
+
+	if (status != GNOME_Evolution_Calendar_Success) {
+		g_mutex_unlock (priv->lock);
+		return status;
+	}
+
+	comp = e_cal_component_new_from_string (*calobj);
+
+	if (comp == NULL) {
+		g_mutex_unlock (priv->lock);
+		return GNOME_Evolution_Calendar_InvalidObject;
+	}
+	
+	if (online) {
+		CalDAVObject object;
+	
+		href = e_cal_component_gen_href (comp, priv->uri);	
+	
+		object.href  = href;
+		object.etag  = NULL;
+		object.cdata = pack_cobj (*calobj);
+
+		status = caldav_server_put_object (cbdav, &object);
+
+		e_cal_component_set_etag (comp, object.etag);
+		caldav_object_free (&object, FALSE);
+		
+	} else {
+		/* mark component as out of synch */
+		e_cal_component_set_synch_state (comp, 
+				E_CAL_COMPONENT_LOCALLY_CREATED);
+	}
+
+	if (status != GNOME_Evolution_Calendar_Success) {
+		g_object_unref (comp);
+		g_mutex_unlock (priv->lock);
+		return status;	
+	}
+	
+	/* We should prolly check for cache errors
+	 * but when that happens we are kinda hosed anyway */
+	e_cal_backend_cache_put_component (priv->cache, comp);
+	*calobj = e_cal_component_get_as_string (comp);
+	
+	g_mutex_unlock (priv->lock);
+	
+	return status;	
 }
 
 static ECalBackendSyncStatus
@@ -1624,7 +1830,8 @@ caldav_internal_get_timezone (ECalBackend *backend,
 	return zone;
 }
 
-/* ************ GObject **************** */
+/* ************************************************************************* */
+/* ***************************** GObject Foo ******************************* */
 
 G_DEFINE_TYPE (ECalBackendCalDAV, e_cal_backend_caldav, E_TYPE_CAL_BACKEND_SYNC);
 

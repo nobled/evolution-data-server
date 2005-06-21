@@ -1,3 +1,20 @@
+2005-06-21  Christian Kellner  <gicmo@gnome.org>
+
+	* backends/caldav/e-cal-backend-caldav.c:
+	(e_cal_component_set_synch_state): New function to 
+	indicate the synch state of on object (will be used
+	to mark offline created/modified/deleted objects later)
+	(e_cal_component_gen_href): New function to generate
+	the uri where the object will be store. The implemenation
+	totally sucks at the moment.
+	(check_state): New helper function.
+	(caldav_server_open_calendar): Fix setting of read only mode
+	Also check for the DELETE header to decide about setting it.
+	(caldav_server_put_object): New function to store objects on
+	the CalDAV server.
+	(initialize_backend): Fix the totally borken priv->uri.
+	(caldav_create_object): Implement object creation!
+
 2005-06-20  Christian Kellner  <gicmo@gnome.org>
 
 	* backends/caldav/e-cal-backend-caldav.c: 
