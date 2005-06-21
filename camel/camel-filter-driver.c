@@ -623,8 +623,8 @@ set_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDri
 	
 	d(fprintf (stderr, "setting flag\n"));
 	if (argc == 1 && argv[0]->type == ESEXP_RES_STRING) {
-		camel_message_info_set_flags(p->info, CAMEL_MESSAGE_FLAGGED, ~0);
-		camel_filter_driver_log (driver, FILTER_LOG_ACTION, "Set %s flag", argv[0]->value.string);
+		camel_message_info_set_flags(p->info, camel_system_flag(argv[0]->value.string), ~0);
+		camel_filter_driver_log(driver, FILTER_LOG_ACTION, "Set %s flag", argv[0]->value.string);
 	}
 	
 	return NULL;
@@ -634,12 +634,10 @@ static ESExpResult *
 unset_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFilterDriver *driver)
 {
 	struct _CamelFilterDriverPrivate *p = _PRIVATE (driver);
-	guint32 flags;
 	
 	d(fprintf (stderr, "unsetting flag\n"));
 	if (argc == 1 && argv[0]->type == ESEXP_RES_STRING) {
-		flags = camel_system_flag (argv[0]->value.string);
-		camel_message_info_set_flags(p->info, flags | CAMEL_MESSAGE_FOLDER_FLAGGED, 0);
+		camel_message_info_set_flags(p->info, camel_system_flag(argv[0]->value.string), 0);
 		camel_filter_driver_log (driver, FILTER_LOG_ACTION, "Unset %s flag", argv[0]->value.string);
 	}
 	

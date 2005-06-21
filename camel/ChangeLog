@@ -1,5 +1,9 @@
 2005-06-21  Not Zed  <NotZed@Ximian.com>
 
+	* camel-filter-driver.c (set_flag): duh, unfix my broken fix.  Not
+	really on the ball today.
+	(unset_flag): clean up this to match.
+
 	* camel-folder-summary.c (message_info_new_from_message): dont
 	set_flags, we dont want to emit changed events on unfinished mi.
 
