@@ -372,7 +372,7 @@ message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg, cons
 			tag = tag->next;
 		}
 
-		camel_message_info_set_flags(mi, camel_message_info_flags(info), ~0);
+		((CamelMessageInfoBase *)mi)->flags = camel_message_info_flags(info);
 	}
 
 	return mi;
@@ -566,7 +566,7 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 	}
 
 	if (diff)
-		camel_folder_summary_info_changed(info, (diff & ~CAMEL_MESSAGE_SYSTEM_MASK) == 0);
+		camel_message_info_changed(info, (diff & ~CAMEL_MESSAGE_SYSTEM_MASK) == 0);
 
 	return diff != 0;
 }
@@ -579,7 +579,7 @@ info_set_user_flag(CamelMessageInfo *info, const char *name, gboolean value)
 
 	res = camel_flag_set(&mi->user_flags, name, value);
 	if (res)
-		camel_folder_summary_info_changed(info, FALSE);
+		camel_message_info_changed(info, FALSE);
 
 	return res;
 }
@@ -592,7 +592,7 @@ info_set_user_tag(CamelMessageInfo *info, const char *name, const char *value)
 
 	res = camel_tag_set(&mi->user_tags, name, value);
 	if (res)
-		camel_folder_summary_info_changed(info, FALSE);
+		camel_message_info_changed(info, FALSE);
 
 	return res;
 }

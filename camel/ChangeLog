@@ -1,3 +1,21 @@
+2005-06-21  Not Zed  <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (message_info_new_from_message): dont
+	set_flags, we dont want to emit changed events on unfinished mi.
+
+	* camel-filter-driver.c (set_flag): fix the broken implemntation,
+	we dont need to read the flags!
+
+	* camel-folder.c (filter_filter): filter-driver api change.
+
+	* camel-filter-driver.c (camel_filter_driver_filter_folder):
+	changed to take a messageiterator rather than uid list.
+	(camel_filter_driver_filter_message): dont take uid anymore.
+	(cfd_copy_message): new helper, fix the 3 cases where we copy
+	messages somewhere.
+	(do_copy): cleanup using above.
+	(do_move): "
+
 2005-06-20  Not Zed  <NotZed@Ximian.com>
 
 	* camel-data-cache.c (camel_data_cache_path): make the path

@@ -92,16 +92,17 @@ int  camel_filter_driver_remove_rule_by_name  (CamelFilterDriver *d, const char 
 
 void camel_filter_driver_flush                (CamelFilterDriver *driver, CamelException *ex);
 
-int  camel_filter_driver_filter_message       (CamelFilterDriver *driver, CamelMimeMessage *message,
-					       CamelMessageInfo *info, const char *uri,
-					       CamelFolder *source, const char *source_url,
-					       const char *original_source_url, CamelException *ex);
+int camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage *message,
+					CamelMessageInfo *info, CamelFolder *source,
+					const char *source_url,
+					const char *original_source_url,
+					CamelException *ex);
 
 int  camel_filter_driver_filter_mbox          (CamelFilterDriver *driver, const char *mbox,
 					       const char *original_source_url, CamelException *ex);
 
-int  camel_filter_driver_filter_folder        (CamelFilterDriver *driver, CamelFolder *folder, CamelUIDCache *cache,
-					       GPtrArray *uids, gboolean remove, CamelException *ex);
+int camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folder,
+				       CamelMessageIterator *iter, gboolean delete, CamelException *ex);
 
 #if 0
 /* generate the search query/action string for a filter option */

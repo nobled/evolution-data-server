@@ -898,6 +898,7 @@ filter_filter(CamelSession *session, CamelSessionThreadMsg *msg)
 		camel_junk_plugin_commit_reports (csp);
 
 	if (m->driver && m->recents) {
+		/* FIXME: Why isn't this just using cfd_filter_folder? */
 		camel_operation_start(NULL, _("Filtering new message(s)"));
 
 		source_url = camel_service_get_url((CamelService *)m->folder->parent_store);
@@ -925,7 +926,7 @@ filter_filter(CamelSession *session, CamelSessionThreadMsg *msg)
 				continue;
 			}
 
-			status = camel_filter_driver_filter_message(m->driver, NULL, info, uid, m->folder, source_url, source_url, &m->ex);
+			status = camel_filter_driver_filter_message(m->driver, NULL, info, m->folder, source_url, source_url, &m->ex);
 
 			camel_message_info_free(info);
 		}
