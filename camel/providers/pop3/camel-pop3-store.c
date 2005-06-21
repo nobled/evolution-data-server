@@ -584,6 +584,16 @@ get_trash (CamelStore *store, CamelException *ex)
 	return NULL;
 }
 
+static void pop3_construct (CamelService *service, CamelSession *session,
+			    CamelProvider *provider, CamelURL *url,
+			    CamelException *ex)
+{
+	if (camel_url_get_param(url, "keep_on_server"))
+		((CamelPOP3Store *)service)->keep_on_server = TRUE;
+
+	((CamelServiceClass *)parent_class)->construct(service, session, provider, url, ex);
+}
+
 static void
 camel_pop3_store_init(CamelPOP3Store *pstore, gpointer klass)
 {
@@ -617,6 +627,7 @@ camel_pop3_store_class_init (CamelPOP3StoreClass *camel_pop3_store_class)
 	parent_class = CAMEL_STORE_CLASS (camel_type_get_global_classfuncs (camel_store_get_type ()));
 	
 	/* virtual method overload */
+	camel_service_class->construct = pop3_construct;
 	camel_service_class->query_auth_types = query_auth_types;
 	camel_service_class->connect = pop3_connect;
 	camel_service_class->disconnect = pop3_disconnect;

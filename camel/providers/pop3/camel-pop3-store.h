@@ -49,6 +49,8 @@ typedef struct {
 	GMutex *engine_lock;
 	CamelPOP3Engine *engine; /* pop processing engine */
 	struct _CamelDataCache *cache;
+
+	int keep_on_server:1;
 } CamelPOP3Store;
 
 typedef struct {

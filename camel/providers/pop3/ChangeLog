@@ -1,5 +1,14 @@
 2005-06-21  Not Zed  <NotZed@Ximian.com>
 
+	* camel-pop3-folder.c (pop3_sync): honour keep_on_server here.
+	(camel_pop3_folder_new): setup the summary here, not init.
+	(cmd_buildinfo): set the uid on the messageinfo.
+	(cmd_list): assign fi to the allocated object.  Why am i putting
+	such detailed changelogs in prototype code ...
+
+	* camel-pop3-store.c (pop3_construct): add a constructor to snarf
+	keep_on_server.
+
 	* camel-pop3-summary.c (pop3_message_info_*): Removed the special
 	messageinfo stuff, we just use the base class now and store proper
 	summary entries.

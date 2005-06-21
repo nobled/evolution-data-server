@@ -43,7 +43,7 @@
 
 
 extern int camel_verbose_debug;
-#define dd(x) (camel_verbose_debug?(x):0)
+#define dd(x) x /*(camel_verbose_debug?(x):0)*/
 
 static void get_capabilities(CamelPOP3Engine *pe);
 

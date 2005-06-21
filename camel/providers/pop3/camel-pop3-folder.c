@@ -94,6 +94,8 @@ camel_pop3_folder_new (CamelStore *parent, CamelException *ex)
 	
 	folder = CAMEL_FOLDER (camel_object_new (CAMEL_POP3_FOLDER_TYPE));
 	camel_folder_construct (folder, parent, "inbox", "inbox");
+
+	folder->summary = camel_pop3_summary_new(folder);
 	
 	/* Unlike other folders, for pop3 we want to force a
 	   refresh at startup just to make sure we get everything we can */
@@ -184,6 +186,8 @@ pop3_tocache(struct _fetch_info *fi, CamelStream *stream)
 	} else {
 		camel_data_cache_commit(((CamelPOP3Store *)fi->folder->folder.parent_store)->cache, fi->stream, &fi->ex);
 	}
+
+	fi->stream = NULL;
 }
 
 /* writes data in a fetch_info to a cache stream/committing, etc */
@@ -278,6 +282,7 @@ cmd_buildinfo(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 	if (mi) {
 		((CamelPOP3MessageInfo *)mi)->id = fi->id;
 		((CamelMessageInfoBase *)mi)->size = fi->size;
+		((CamelMessageInfoBase *)mi)->uid = g_strdup(fi->uid);
 		camel_folder_summary_add(fi->folder->folder.summary, mi);
 	} else {
 		set_system_ex(&fi->ex, _("Cannot get POP summary: %s"));
@@ -298,7 +303,7 @@ cmd_list(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 		ret = camel_pop3_stream_line(stream, &line, &len);
 		if (ret>=0) {
 			if (sscanf(line, "%u %u", &id, &size) == 2) {
-				fetch_alloc(folder, &folder->lists);
+				fi = fetch_alloc(folder, &folder->lists);
 				fi->size = size;
 				fi->id = id;
 				fi->index = count++;
@@ -331,6 +336,7 @@ cmd_uidl(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 			if (sscanf(line, "%u %s", &id, uid) == 2) {
 				fi = g_hash_table_lookup(folder->uids_id, GINT_TO_POINTER(id));
 				if (fi) {
+					g_assert(fi->uid == NULL);
 					camel_operation_progress(NULL, (fi->index+1) * 100 / folder->uids->len);
 					gettimeofday(&tv, NULL);
 					fi->uid = g_strdup_printf("%s,%08x.%08x", uid, (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
@@ -345,8 +351,35 @@ cmd_uidl(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 static int
 pop3_info_cmp(const void *ap, const void *bp, void *s)
 {
-	return CFS_CLASS(s)->uid_cmp(((struct _fetch_info **)ap)[0], ((struct _fetch_info **)bp)[0], s);
+	return CFS_CLASS(s)->uid_cmp(((struct _fetch_info **)ap)[0]->uid, ((struct _fetch_info **)bp)[0]->uid, s);
 }
+
+#if 0
+
+/*
+  FIXME: If they exist (?) we need to scan the old uid cache files
+  and summary-delete anything they contain (?).
+*/
+static char *
+uid_cachename_hack (CamelStore *store)
+{
+	CamelURL *url = CAMEL_SERVICE (store)->url;
+	char *encoded_url, *filename;
+	const char *evolution_dir;
+	
+	encoded_url = g_strdup_printf ("%s%s%s@%s", url->user,
+				       url->authmech ? ";auth=" : "",
+				       url->authmech ? url->authmech : "",
+				       url->host);
+	e_filename_make_safe (encoded_url);
+	
+	evolution_dir = mail_component_peek_base_directory (mail_component_peek ());
+	filename = g_build_filename (evolution_dir, "mail", "pop", encoded_url, "uid-cache", NULL);
+	g_free (encoded_url);
+	
+	return filename;
+}
+#endif
 
 static void 
 pop3_refresh_info (CamelFolder *folder, CamelException *ex)
@@ -497,7 +530,7 @@ fail:
 static void
 pop3_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 {
-	CamelPOP3Store *pop3_store;
+	CamelPOP3Store *pop3_store = (CamelPOP3Store *)folder->parent_store;
 	int i;
 	CamelPOP3Command *cmd;
 	const CamelMessageInfo *iterinfo;
@@ -505,7 +538,7 @@ pop3_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 	CamelException x = { 0 };
 	GPtrArray *cmds;
 
-	if (expunge && FALSE /* FIXME keep on server */) {
+	if (expunge && !pop3_store->keep_on_server) {
 		camel_operation_start(NULL, _("Expunging deleted messages"));
 		cmds = g_ptr_array_new();
 
@@ -532,7 +565,7 @@ pop3_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 			camel_operation_progress(NULL, (i+1) * 100 / cmds->len);
 		}
 
-		LOCK_ENGINE(pop3_store);
+		UNLOCK_ENGINE(pop3_store);
 
 		g_ptr_array_free(cmds, TRUE);
 		camel_operation_end(NULL);
@@ -661,8 +694,8 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 static void
 pop3_init(CamelPOP3Folder *pop3_folder)
 {
-	((CamelFolder *)pop3_folder)->summary = camel_pop3_summary_new((CamelFolder *)pop3_folder);
 	e_dlist_init(&pop3_folder->fetches);
+	e_dlist_init(&pop3_folder->lists);
 }
 
 static void

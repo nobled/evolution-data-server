@@ -38,7 +38,7 @@
 #include "camel-pop3-stream.h"
 
 extern int camel_verbose_debug;
-#define dd(x) (camel_verbose_debug?(x):0)
+#define dd(x) x /*(camel_verbose_debug?(x):0)*/
 
 static CamelObjectClass *parent_class = NULL;
 
