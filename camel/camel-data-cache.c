@@ -53,8 +53,16 @@ extern int camel_verbose_debug;
    once an hour should be enough */
 #define CAMEL_DATA_CACHE_CYCLE_TIME (60*60)
 
+struct _cdc_entry {
+	char *ckey;
+	char *tmp;
+	char *real;
+	GCond *cond;
+};
+
 struct _CamelDataCachePrivate {
-	CamelObjectBag *busy_bag;
+	GMutex *busy_lock;
+	GHashTable *busy_table, *busy_stream_table;
 
 	int expire_inc;
 	time_t expire_last[1<<CAMEL_DATA_CACHE_BITS];
@@ -62,17 +70,85 @@ struct _CamelDataCachePrivate {
 
 static CamelObject *camel_data_cache_parent;
 
+static void
+data_cache_expire(CamelDataCache *cdc, const char *path, const char *keep, time_t now)
+{
+	DIR *dir;
+	struct dirent *d;
+	GString *s;
+	struct stat st;
+
+	dir = opendir(path);
+	if (dir == NULL)
+		return;
+
+	s = g_string_new("");
+	while ( (d = readdir(dir)) ) {
+		if (strcmp(d->d_name, keep) == 0)
+			continue;
+		
+		g_string_printf (s, "%s/%s", path, d->d_name);
+		dd(printf("Checking '%s' for expiry\n", s->str));
+		if (stat(s->str, &st) == 0
+		    && S_ISREG(st.st_mode)
+		    && ((cdc->expire_age != -1 && st.st_mtime + cdc->expire_age < now)
+			|| (cdc->expire_access != -1 && st.st_atime + cdc->expire_access < now))) {
+			dd(printf("Has expired!  Removing!\n"));
+			unlink(s->str);
+		}
+	}
+	g_string_free(s, TRUE);
+	closedir(dir);
+}
+
+/* Since we have to stat the directory anyway, we use this opportunity to
+   lazily expire old data.
+   If it is this directories 'turn', and we haven't done it for CYCLE_TIME seconds,
+   then we perform an expiry run */
+static char *
+data_cache_path(CamelDataCache *cdc, const char *path, const char *key)
+{
+	char *dir, *real, *tmp;
+	guint32 hash;
+
+	hash = g_str_hash(key);
+	hash = (hash>>5)&CAMEL_DATA_CACHE_MASK;
+	if (path) {
+		dir = alloca(strlen(cdc->path) + strlen(path) + 8);
+		sprintf(dir, "%s/%s/%02x", cdc->path, path, hash);
+	} else {
+		dir = alloca(strlen(cdc->path) + 8);
+		sprintf(dir, "%s/%02x", cdc->path, hash);
+	}
+	if (access(dir, F_OK) == -1) {
+		camel_mkdir (dir, 0700);
+	} else if (cdc->priv->expire_inc == hash
+		   && (cdc->expire_age != -1 || cdc->expire_access != -1)) {
+		time_t now;
+
+		dd(printf("Checking expire cycle time on dir '%s'\n", dir));
+
+		/* This has a race, but at worst we re-run an expire cycle which is safe */
+		now = time(0);
+		if (cdc->priv->expire_last[hash] + CAMEL_DATA_CACHE_CYCLE_TIME < now) {
+			cdc->priv->expire_last[hash] = now;
+			data_cache_expire(cdc, dir, key, now);
+		}
+		cdc->priv->expire_inc = (cdc->priv->expire_inc + 1) & CAMEL_DATA_CACHE_MASK;
+	}
+
+	tmp = camel_file_util_safe_filename(key);
+	real = g_strdup_printf("%s/%s", dir, tmp);
+	g_free(tmp);
+
+	return real;
+}
+
 static void data_cache_class_init(CamelDataCacheClass *klass)
 {
 	camel_data_cache_parent = (CamelObject *)camel_object_get_type ();
 
-#if 0
-	klass->add = data_cache_add;
-	klass->get = data_cache_get;
-	klass->close = data_cache_close;
-	klass->remove = data_cache_remove;
-	klass->clear = data_cache_clear;
-#endif
+	klass->path = data_cache_path;
 }
 
 static void data_cache_init(CamelDataCache *cdc, CamelDataCacheClass *klass)
@@ -80,7 +156,9 @@ static void data_cache_init(CamelDataCache *cdc, CamelDataCacheClass *klass)
 	struct _CamelDataCachePrivate *p;
 
 	p = cdc->priv = g_malloc0(sizeof(*cdc->priv));
-	p->busy_bag = camel_object_bag_new(g_str_hash, g_str_equal, (CamelCopyFunc)g_strdup, g_free);
+	p->busy_lock = g_mutex_new();
+	p->busy_table = g_hash_table_new(g_str_hash, g_str_equal);
+	p->busy_stream_table = g_hash_table_new(NULL, NULL);
 }
 
 static void data_cache_finalise(CamelDataCache *cdc)
@@ -88,7 +166,13 @@ static void data_cache_finalise(CamelDataCache *cdc)
 	struct _CamelDataCachePrivate *p;
 
 	p = cdc->priv;
-	camel_object_bag_destroy(p->busy_bag);
+
+	g_assert(g_hash_table_size(p->busy_table) == 0);
+	g_assert(g_hash_table_size(p->busy_stream_table) == 0);
+
+	g_hash_table_destroy(p->busy_table);
+	g_hash_table_destroy(p->busy_stream_table);
+	g_mutex_free(p->busy_lock);
 	g_free(p);
 	
 	g_free (cdc->path);
@@ -187,128 +271,104 @@ camel_data_cache_set_expire_access(CamelDataCache *cdc, time_t when)
 	cdc->expire_access = when;
 }
 
-static void
-data_cache_expire(CamelDataCache *cdc, const char *path, const char *keep, time_t now)
+/* Convert a path/key into a filesystem path.
+   On exit, the path should exist as well */
+char *
+camel_data_cache_path(CamelDataCache *cdc, const char *path, const char *key)
 {
-	DIR *dir;
-	struct dirent *d;
-	GString *s;
-	struct stat st;
-	CamelStream *stream;
-
-	dir = opendir(path);
-	if (dir == NULL)
-		return;
-
-	s = g_string_new("");
-	while ( (d = readdir(dir)) ) {
-		if (strcmp(d->d_name, keep) == 0)
-			continue;
-		
-		g_string_printf (s, "%s/%s", path, d->d_name);
-		dd(printf("Checking '%s' for expiry\n", s->str));
-		if (stat(s->str, &st) == 0
-		    && S_ISREG(st.st_mode)
-		    && ((cdc->expire_age != -1 && st.st_mtime + cdc->expire_age < now)
-			|| (cdc->expire_access != -1 && st.st_atime + cdc->expire_access < now))) {
-			dd(printf("Has expired!  Removing!\n"));
-			unlink(s->str);
-			stream = camel_object_bag_get(cdc->priv->busy_bag, s->str);
-			if (stream) {
-				camel_object_bag_remove(cdc->priv->busy_bag, stream);
-				camel_object_unref(stream);
-			}
-		}
-	}
-	g_string_free(s, TRUE);
-	closedir(dir);
+	return ((CamelDataCacheClass *)((CamelObject *)cdc)->klass)->path(cdc, path, key);
 }
 
-/* Since we have to stat the directory anyway, we use this opportunity to
-   lazily expire old data.
-   If it is this directories 'turn', and we haven't done it for CYCLE_TIME seconds,
-   then we perform an expiry run */
+/* should be virtual too? */
 static char *
-data_cache_path(CamelDataCache *cdc, int create, const char *path, const char *key)
+cdc_tmp_path(CamelDataCache *cdc, const char *path, const char *key)
 {
-	char *dir, *real, *tmp;
-	guint32 hash;
+	char *dir;
 
-	hash = g_str_hash(key);
-	hash = (hash>>5)&CAMEL_DATA_CACHE_MASK;
-	dir = alloca(strlen(cdc->path) + strlen(path) + 8);
-	sprintf(dir, "%s/%s/%02x", cdc->path, path, hash);
-	if (access(dir, F_OK) == -1) {
-		if (create)
-			camel_mkdir (dir, 0700);
-	} else if (cdc->priv->expire_inc == hash
-		   && (cdc->expire_age != -1 || cdc->expire_access != -1)) {
-		time_t now;
-
-		dd(printf("Checking expire cycle time on dir '%s'\n", dir));
-
-		/* This has a race, but at worst we re-run an expire cycle which is safe */
-		now = time(0);
-		if (cdc->priv->expire_last[hash] + CAMEL_DATA_CACHE_CYCLE_TIME < now) {
-			cdc->priv->expire_last[hash] = now;
-			data_cache_expire(cdc, dir, key, now);
-		}
-		cdc->priv->expire_inc = (cdc->priv->expire_inc + 1) & CAMEL_DATA_CACHE_MASK;
+	if (path) {
+		dir = g_alloca(strlen(cdc->path)+strlen(path)+20);
+		sprintf(dir, "%s/%s/tmp", cdc->path, path);
+	} else {
+		dir = g_alloca(strlen(cdc->path)+20);
+		sprintf(dir, "%s/tmp", cdc->path);
 	}
 
-	tmp = camel_file_util_safe_filename(key);
-	real = g_strdup_printf("%s/%s", dir, tmp);
-	g_free(tmp);
+	camel_mkdir(dir, 0777);
 
-	return real;
+	return g_strdup_printf("%s/%08x", dir, g_str_hash(key));
 }
 
-/**
- * camel_data_cache_add:
- * @cdc: 
- * @path: Relative path of item to add.
- * @key: Key of item to add.
- * @ex: 
- * 
- * Add a new item to the cache.
- *
- * The key and the path combine to form a unique key used to store
- * the item.
- * 
- * Potentially, expiry processing will be performed while this call
- * is executing.
- *
- * Return value: A CamelStream (file) opened in read-write mode.
- * The caller must unref this when finished.
- **/
-CamelStream *
-camel_data_cache_add(CamelDataCache *cdc, const char *path, const char *key, CamelException *ex)
+/* MUST only be called from abort or commit */
+static void
+centry_free(struct _cdc_entry *centry)
 {
-	char *real;
-	CamelStream *stream;
+	g_cond_broadcast(centry->cond);
+	g_free(centry->ckey);
+	g_free(centry->tmp);
+	g_free(centry->real);
+	g_cond_free(centry->cond);
+	g_free(centry);
+}
 
-	real = data_cache_path(cdc, TRUE, path, key);
-	/* need to loop 'cause otherwise we can call bag_add/bag_abort
-	 * after bag_reserve returned a pointer, which is an invalid
-	 * sequence. */
-	do {
-		stream = camel_object_bag_reserve(cdc->priv->busy_bag, real);
-		if (stream) {
-			unlink(real);
-			camel_object_bag_remove(cdc->priv->busy_bag, stream);
-			camel_object_unref(stream);
-		}
-	} while (stream != NULL);
+/* Commit a stream to the cache.  Returning a stream to the committed
+   data.  The stream passed must not have been closed yet, and must
+   not be re-used after calling this function.
+ */
+void
+camel_data_cache_commit(CamelDataCache *cdc, CamelStream *stream, CamelException *ex)
+{
+	struct _cdc_entry *centry;
 
-	stream = camel_stream_fs_new_with_name(real, O_RDWR|O_CREAT|O_TRUNC, 0600);
-	if (stream)
-		camel_object_bag_add(cdc->priv->busy_bag, real, stream);
-	else
-		camel_object_bag_abort(cdc->priv->busy_bag, real);
+	g_assert(((CamelObject *)stream)->ref_count == 1);
 
-	g_free(real);
+	/* Overwrite anything in the cache already.  If for whatever
+	   reason we fail on an otherwise good commit, we
+	   just return the original stream.
 
-	return stream;
+	   If we were removed while this was running, or another add
+	   was called on the same object, then the link will fail
+	   automatically, etc. */
+
+	g_mutex_lock(cdc->priv->busy_lock);
+	centry = g_hash_table_lookup(cdc->priv->busy_stream_table, stream);
+	g_assert(centry != NULL);
+
+	g_hash_table_remove(cdc->priv->busy_stream_table, stream);
+	g_hash_table_remove(cdc->priv->busy_table, centry->ckey);
+
+	if (camel_stream_flush(stream) == -1
+	    || camel_stream_close(stream) == -1
+	    || link(centry->tmp, centry->real) == -1) {
+		if (errno == EINTR)
+			camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Cancelled."));
+		else
+			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Error writing to cache: %s"), g_strerror (errno));
+	}
+
+	camel_object_unref(stream);
+	unlink(centry->tmp);
+
+	centry_free(centry);
+	g_mutex_unlock(cdc->priv->busy_lock);
+}
+
+void
+camel_data_cache_abort(CamelDataCache *cdc, CamelStream *stream)
+{
+	struct _cdc_entry *centry;
+
+	g_mutex_lock(cdc->priv->busy_lock);
+
+	centry = g_hash_table_lookup(cdc->priv->busy_stream_table, stream);
+	g_assert(centry != NULL);
+
+	g_hash_table_remove(cdc->priv->busy_stream_table, stream);
+	g_hash_table_remove(cdc->priv->busy_table, centry->ckey);
+	camel_object_unref(stream);
+	unlink(centry->tmp);
+	centry_free(centry);
+
+	g_mutex_unlock(cdc->priv->busy_lock);
 }
 
 /**
@@ -316,30 +376,90 @@ camel_data_cache_add(CamelDataCache *cdc, const char *path, const char *key, Cam
  * @cdc: 
  * @path: Path to the (sub) cache the item exists in.
  * @key: Key for the cache item.
+ * @reserve: reserve stream
  * @ex: 
  * 
  * Lookup an item in the cache.  If the item exists, a stream
- * is returned for the item.  The stream may be shared by
- * multiple callers, so ensure the stream is in a valid state
- * through external locking.
+ * is returned for the item.  Each caller gets its own
+ * unique stream.
  * 
+ * If reserve is non-null, and the item is not present,
+ * then it is atomically reserved for loading.  Once
+ * finished with it must be either commited or aborted.
+ *
  * Return value: A cache item, or NULL if the cache item does not exist.
  **/
 CamelStream *
-camel_data_cache_get(CamelDataCache *cdc, const char *path, const char *key, CamelException *ex)
+camel_data_cache_get(CamelDataCache *cdc, const char *path, const char *key, CamelStream **reserve, CamelException *ex)
 {
-	char *real;
+	char *real, *ckey;
 	CamelStream *stream;
+	struct _cdc_entry *centry;
 
-	real = data_cache_path(cdc, FALSE, path, key);
-	stream = camel_object_bag_reserve(cdc->priv->busy_bag, real);
-	if (!stream) {
-		stream = camel_stream_fs_new_with_name(real, O_RDWR, 0600);
-		if (stream)
-			camel_object_bag_add(cdc->priv->busy_bag, real, stream);
-		else
-			camel_object_bag_abort(cdc->priv->busy_bag, real);
+	/* First we try to lookup the entry on disk.  If it is there,
+	   it must be valid and it must be done.  Lets go ...
+
+	   If not, check to see if anyone is waiting to write one
+	   out.  We need to loop incase another add() comes
+	   along and overwrites the first.  Then, we just
+	   try to open the file, which will exist if commit()
+	   ran successfully, or wont if we aborted and is
+	   no use anyway.
+
+	   If after all that we can't open a stream, and reserve
+	   is supplied, we atomically reserve the name.
+	*/
+
+	if (reserve)
+		*reserve = NULL;
+
+	real = camel_data_cache_path(cdc, path, key);
+	stream = camel_stream_fs_new_with_name(real, O_RDONLY, 0);
+	if (stream)
+		goto done;
+
+	ckey = g_strdup_printf("%s/%s", path, key);
+
+	g_mutex_lock(cdc->priv->busy_lock);
+
+	centry = g_hash_table_lookup(cdc->priv->busy_table, ckey);
+	if (centry) {
+		do {
+			g_cond_wait(centry->cond, cdc->priv->busy_lock);
+			centry = g_hash_table_lookup(cdc->priv->busy_table, ckey);
+		} while (centry);
+		stream = camel_stream_fs_new_with_name(real, O_RDONLY, 0);
 	}
+	if (stream == NULL && reserve) {
+		char * tmp = cdc_tmp_path(cdc, path, key);
+
+		unlink(real);
+		unlink(tmp);
+
+		*reserve = camel_stream_fs_new_with_name(tmp, O_RDWR|O_CREAT|O_TRUNC, 0666);
+		if (*reserve) {
+			centry = g_malloc(sizeof(*centry));
+			centry->ckey = ckey;
+			centry->tmp = tmp;
+			centry->real = real;
+			centry->cond = g_cond_new();
+			g_hash_table_insert(cdc->priv->busy_table, centry->ckey, centry);
+			g_hash_table_insert(cdc->priv->busy_stream_table, *reserve, centry);
+			ckey = NULL;
+			real = NULL;
+		} else {
+			if (errno == EINTR)
+				camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Cancelled."));
+			else
+				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("Error writing to cache: %s"), g_strerror(errno));
+			g_free(tmp);
+		}
+	}
+
+	g_mutex_unlock(cdc->priv->busy_lock);
+
+	g_free(ckey);
+done:
 	g_free(real);
 
 	return stream;
@@ -350,39 +470,26 @@ camel_data_cache_get(CamelDataCache *cdc, const char *path, const char *key, Cam
  * @cdc: 
  * @path: 
  * @key: 
- * @ex: 
  * 
  * Remove/expire a cache item.
- * 
- * Return value: 
  **/
-int
-camel_data_cache_remove(CamelDataCache *cdc, const char *path, const char *key, CamelException *ex)
+void
+camel_data_cache_remove(CamelDataCache *cdc, const char *path, const char *key)
 {
-	CamelStream *stream;
-	char *real;
-	int ret;
+	char *real, *tmp;
 
-	real = data_cache_path(cdc, FALSE, path, key);
-	stream = camel_object_bag_get(cdc->priv->busy_bag, real);
-	if (stream) {
-		camel_object_bag_remove(cdc->priv->busy_bag, stream);
-		camel_object_unref(stream);
-	}
+	/* By unlinking tmp first, we should automagically
+	   synchronise properly with the commit code, its
+	   not like we should really need to anyway */
 
-	/* maybe we were a mem stream */
-	if (unlink (real) == -1 && errno != ENOENT) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not remove cache entry: %s: %s"),
-				      real, g_strerror (errno));
-		ret = -1;
-	} else {
-		ret = 0;
-	}
+	real = camel_data_cache_path(cdc, path, key);
+	tmp = cdc_tmp_path(cdc, path, key);
 
+	unlink(tmp);
+	unlink(real);
+
+	g_free(tmp);
 	g_free(real);
-
-	return ret;
 }
 
 /**

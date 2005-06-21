@@ -319,6 +319,9 @@ struct _CamelFolderSummaryClass {
 	gboolean (*info_set_user_flag)(CamelMessageInfo *mi, const char *id, gboolean state);
 	gboolean (*info_set_user_tag)(CamelMessageInfo *mi, const char *id, const char *val);
 	gboolean (*info_set_flags)(CamelMessageInfo *mi, guint32 mask, guint32 set);
+
+	/* something in the mi changed, either system data or user info */
+	void (*info_changed)(CamelMessageInfo *mi, int sys);
 };
 
 CamelType			 camel_folder_summary_get_type	(void);
@@ -392,12 +395,19 @@ const CamelFolder *camel_message_info_folder(const void *mi);
 gboolean camel_message_info_user_flag(const CamelMessageInfo *mi, const char *id);
 const char *camel_message_info_user_tag(const CamelMessageInfo *mi, const char *id);
 
+/* settors */
 gboolean camel_message_info_set_flags(CamelMessageInfo *mi, guint32 mask, guint32 set);
 gboolean camel_message_info_set_user_flag(CamelMessageInfo *mi, const char *id, gboolean state);
 gboolean camel_message_info_set_user_tag(CamelMessageInfo *mi, const char *id, const char *val);
 
+/* for implementations to let the parent know something has changed, and the client
+   needs to know about it, or it may need saving to disk */
+void camel_message_info_changed(CamelMessageInfo *mi, int sysonly);
+
+/* debug */
 void camel_message_info_dump (CamelMessageInfo *mi);
 
+/* helpers */
 char *camel_message_info_format_address(struct _camel_header_raw *h, const char *name, const char *charset);
 char *camel_message_info_format_string(struct _camel_header_raw *h, const char *name, const char *charset);
 

@@ -1,3 +1,28 @@
+2005-06-20  Not Zed  <NotZed@Ximian.com>
+
+	* camel-data-cache.c (camel_data_cache_path): make the path
+	function virtual - support different cache layouts.
+	(camel_data_cache_add): removed this.  stream rather than writing
+	to the target dir.
+	(camel_data_cache_commit): new function, commit a data stream to
+	the live cache.
+	(camel_data_cache_abort): new function to abort the data stream,
+	it disappears from the cache.
+	(camel_data_cache_get): changed to be able to optionally,
+	atomically reserve the name as well as get.
+	(camel_data_cache_remove): changed to match, no longer take
+	exception.
+	(data_cache_path, data_cache_expire): make this handle null path.
+
+	* camel-folder-summary-disk.c (set_user_flag, set_user_tag)
+	(set_flags): Removed, the parent class now tells us when things
+	change.
+	(cds_change_info): renamed to cds_info_changed, and hook into
+	parent class.
+
+	* camel-folder-summary.c (camel_message_info_changed): new api for
+	implementations to notify of changes.
+
 2005-06-18    <NotZed@Ximian.com>
 
 	* camel-folder-summary.c: cleaned up some debug.

@@ -517,18 +517,6 @@ info_user_tag(const CamelMessageInfo *mi, const char *id)
 	return camel_tag_get(&((CamelMessageInfoBase *)mi)->user_tags, id);
 }
 
-static void
-cfs_changed(CamelMessageInfoBase *mi)
-{
-	if (mi->summary && mi->summary->folder && mi->uid) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
-
-		camel_folder_change_info_change_uid(changes, mi->uid);
-		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
-	}
-}
-
 static gboolean
 info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 {
@@ -577,8 +565,8 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 		}
 	}
 
-	if (diff & ~CAMEL_MESSAGE_SYSTEM_MASK)
-		cfs_changed(mi);
+	if (diff)
+		camel_folder_summary_info_changed(info, (diff & ~CAMEL_MESSAGE_SYSTEM_MASK) == 0);
 
 	return diff != 0;
 }
@@ -591,7 +579,7 @@ info_set_user_flag(CamelMessageInfo *info, const char *name, gboolean value)
 
 	res = camel_flag_set(&mi->user_flags, name, value);
 	if (res)
-		cfs_changed(mi);
+		camel_folder_summary_info_changed(info, FALSE);
 
 	return res;
 }
@@ -604,9 +592,23 @@ info_set_user_tag(CamelMessageInfo *info, const char *name, const char *value)
 
 	res = camel_tag_set(&mi->user_tags, name, value);
 	if (res)
-		cfs_changed(mi);
+		camel_folder_summary_info_changed(info, FALSE);
 
 	return res;
+}
+
+static void
+info_changed(CamelMessageInfoBase *mi, int sysonly)
+{
+	/* FIXME: Obviously we should batch-up these changes rather than
+	   emit them one at a time */
+	if (!sysonly && mi->summary && mi->summary->folder && mi->uid) {
+		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
+
+		camel_folder_change_info_change_uid(changes, mi->uid);
+		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
+		camel_folder_change_info_free(changes);
+	}
 }
 
 static void
@@ -650,6 +652,8 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->info_set_user_flag = info_set_user_flag;
 	klass->info_set_user_tag = info_set_user_tag;
 	klass->info_set_flags = info_set_flags;
+
+	klass->info_changed = info_changed;
 }
 
 static void
@@ -1262,6 +1266,18 @@ camel_message_info_set_user_tag(CamelMessageInfo *mi, const char *id, const char
 		return ((CamelFolderSummaryClass *)((CamelObject *)mi->summary)->klass)->info_set_user_tag(mi, id, val);
 	else
 		return info_set_user_tag(mi, id, val);
+}
+
+/* For implementations, let the summary know the info is
+   changed, so changed events can be created or changes
+   written to disk, etc */
+void
+camel_message_info_changed(CamelMessageInfo *mi, int sysonly)
+{
+	if (mi->summary)
+		((CamelFolderSummaryClass *)((CamelObject *)mi->summary)->klass)->info_changed(mi, sysonly);
+	else
+		info_changed(mi, sysonly);
 }
 
 void

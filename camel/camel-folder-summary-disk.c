@@ -1216,12 +1216,9 @@ cds_view_free(CamelFolderSummary *s, CamelFolderView *view)
 }
 
 /* ********************************************************************** */
+
 /* After we have some changes, we run a job in another thread to flush them away
    We sleep for a bit to see if any more changes are pending, then go for it */
-
-/* So ... This is all well and good, but has no connection to the storage mechanism,
-   Where the storage mechanism also stores these values.
-   i.e. mbox x-evolution header, maildir filename ... */
 
 struct _sync_msg {
 	CamelSessionThreadMsg msg;
@@ -1258,8 +1255,8 @@ static CamelSessionThreadOps cds_sync_ops = {
 	cds_sync_free,
 };
 
-static void
-cds_change_info(CamelMessageInfo *mi)
+static
+cds_info_changed(CamelMessageInfo *mi, int sysonly)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
 	int dosync = 0;
@@ -1285,37 +1282,6 @@ cds_change_info(CamelMessageInfo *mi)
 		camel_object_ref(((CamelFolderSummary *)m->summary)->folder);
 		camel_session_thread_queue(session, &m->msg, 0);
 	}
-}
-
-/* we use the base implementation but check for changes so we can flush them at some point */
-static gboolean cds_info_set_user_flag(CamelMessageInfo *mi, const char *id, gboolean state)
-{
-	int res = cds_parent->info_set_user_flag(mi, id, state);
-
-	if (res && mi->uid)
-		cds_change_info(mi);
-
-	return res;
-}
-
-static gboolean cds_info_set_user_tag(CamelMessageInfo *mi, const char *id, const char *val)
-{
-	int res = cds_parent->info_set_user_tag(mi, id, val);
-
-	if (res && mi->uid)
-		cds_change_info(mi);
-
-	return res;
-}
-
-static gboolean cds_info_set_flags(CamelMessageInfo *mi, guint32 mask, guint32 set)
-{
-	int res = cds_parent->info_set_flags(mi, mask, set);
-
-	if (res && mi->uid)
-		cds_change_info(mi);
-
-	return res;
 }
 
 /* Do we need locking on this stuff?  matching the summary locking on them? */
@@ -1529,6 +1495,8 @@ camel_folder_summary_disk_class_init(CamelFolderSummaryDiskClass *klass)
 	((CamelFolderSummaryClass *)klass)->clear = cds_clear;
 	((CamelFolderSummaryClass *)klass)->message_info_free = cds_message_info_free;
 
+	((CamelFolderSummaryClass *)klass)->info_changed = cds_info_changed;
+
 	((CamelFolderSummaryClass *)klass)->get = cds_get;
 
 	((CamelFolderSummaryClass *)klass)->search = cds_search;
@@ -1536,10 +1504,6 @@ camel_folder_summary_disk_class_init(CamelFolderSummaryDiskClass *klass)
 	((CamelFolderSummaryClass *)klass)->view_add = cds_view_add;
 	((CamelFolderSummaryClass *)klass)->view_delete = cds_view_delete;
 	((CamelFolderSummaryClass *)klass)->view_free = cds_view_free;
-
-	((CamelFolderSummaryClass *)klass)->info_set_user_flag = cds_info_set_user_flag;
-	((CamelFolderSummaryClass *)klass)->info_set_user_tag = cds_info_set_user_tag;
-	((CamelFolderSummaryClass *)klass)->info_set_flags = cds_info_set_flags;
 
 	klass->encode_view = cds_encode_view;
 	klass->decode_view = cds_decode_view;
@@ -1643,6 +1607,8 @@ camel_folder_summary_disk_new(struct _CamelFolder *folder)
 	return camel_folder_summary_disk_construct(cds, folder);
 }
 
+/* ********************************************************************** */
+
 static int
 cds_get_changed(void *k, void *v, void *d)
 {
@@ -1700,5 +1666,7 @@ camel_folder_summary_disk_sync(CamelFolderSummaryDisk *cds, CamelException *ex)
 
 const CamelMessageInfo *camel_message_iterator_disk_get(void *mitin, guint32 flags0, guint32 flags1, CamelException *ex)
 {
+	// FIXME: this doesn't actually work!
+
 	return cds_iterator_step(mitin, flags0, flags1, ex);
 }

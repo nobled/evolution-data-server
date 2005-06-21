@@ -57,9 +57,10 @@ struct _CamelDataCache {
 struct _CamelDataCacheClass {
 	CamelObjectClass parent_class;
 
-	/* None are virtual yet */
+	/* map a path/key to a physical path for this cache */
+	char *(*path)(CamelDataCache *cmc, const char *path, const char *key);
+
 #if 0
-	/* Virtual methods */
 	CamelStream *(*add)(CamelDataCache *cmc, const char *path, const char *key, CamelException *ex);
 	CamelStream *(*get)(CamelDataCache *cmc, const char *path, const char *key, CamelException *ex);
 	int (*close)(CamelDataCache *cmc, CamelStream *stream, CamelException *ex);
@@ -74,19 +75,18 @@ CamelDataCache *camel_data_cache_new(const char *path, guint32 flags, CamelExcep
 
 void camel_data_cache_set_expire_age(CamelDataCache *cache, time_t when);
 void camel_data_cache_set_expire_access(CamelDataCache *cdc, time_t when);
+char *camel_data_cache_path(CamelDataCache *cache, const char *path, const char *key);
 
 int             camel_data_cache_rename(CamelDataCache *cache,
 					const char *old, const char *new, CamelException *ex);
 
-CamelStream    *camel_data_cache_add(CamelDataCache *cache,
-				     const char *path, const char *key, CamelException *ex);
-CamelStream    *camel_data_cache_get(CamelDataCache *cache,
-				     const char *path, const char *key, CamelException *ex);
-int             camel_data_cache_remove(CamelDataCache *cache,
-					const char *path, const char *key, CamelException *ex);
+CamelStream *camel_data_cache_get(CamelDataCache *cdc, const char *path, const char *key, CamelStream **reserve, CamelException *ex);
+void camel_data_cache_commit(CamelDataCache *cdc, CamelStream *stream, CamelException *ex);
+void camel_data_cache_abort(CamelDataCache *cdc, CamelStream *stream);
 
-int             camel_data_cache_clear(CamelDataCache *cache,
-				       const char *path, CamelException *ex);
+void camel_data_cache_remove(CamelDataCache *cache, const char *path, const char *key);
+
+int             camel_data_cache_clear(CamelDataCache *cache, const char *path, CamelException *ex);
 
 /* Standard Camel function */
 CamelType camel_data_cache_get_type (void);
