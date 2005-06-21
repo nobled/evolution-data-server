@@ -42,6 +42,7 @@ typedef struct {
 	CamelFolder folder;
 
 	/* Used for building list */
+	EDList lists;
 	GPtrArray *uids;
 	GHashTable *uids_id;	/* folderinfo by id */
 

@@ -41,12 +41,9 @@ typedef struct _CamelPOP3SummaryClass CamelPOP3SummaryClass;
 typedef struct _CamelPOP3Summary CamelPOP3Summary;
 
 typedef struct _CamelPOP3MessageInfo {
-	CamelMessageInfo info;
+	CamelMessageInfoDisk info;
 
 	guint32 id;
-	guint32 size;
-	guint32 flags;
-	time_t date;		/* download date? */
 } CamelPOP3MessageInfo;
 
 struct _CamelPOP3Summary {

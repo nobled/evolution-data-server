@@ -1,3 +1,14 @@
+2005-06-21  Not Zed  <NotZed@Ximian.com>
+
+	* camel-pop3-summary.c (pop3_message_info_*): Removed the special
+	messageinfo stuff, we just use the base class now and store proper
+	summary entries.
+
+	* camel-pop3-folder.c, camel-pop3-summary.c: Change the uid format
+	to include a timestamp so we can sort properly.
+	(pop3_refresh_info): we now downlod either the TOP or the whole
+	message here as well, so we can build a full messageinfo properly.
+
 2005-06-20  Not Zed  <NotZed@Ximian.com>
 
 	* camel-pop3-folder.c: major revamp, to drive and be driven by the
