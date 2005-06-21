@@ -326,6 +326,10 @@ status_code_to_result (guint status_code)
 {
 	ECalBackendSyncStatus result;
 	
+	if (SOUP_STATUS_IS_SUCCESSFUL (status_code)) {
+		return GNOME_Evolution_Calendar_Success;
+	}
+	
 	switch (status_code) {
 
 	case 404:
@@ -937,16 +941,44 @@ caldav_server_put_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 	soup_session_send_message (priv->session, message);
 
 	/* FIXME: sepcial case precondition errors ?*/
-	if (! SOUP_STATUS_IS_SUCCESSFUL (message->status_code)) {
-		result = status_code_to_result (message->status_code);
-		g_object_unref (message);
-		g_warning ("Could not fetch object from server\n");
-		return result;
-	}
+	result = status_code_to_result (message->status_code);	
 	
+	g_object_unref (message);
 	return result;	
 }
 
+static ECalBackendSyncStatus
+caldav_server_delete_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
+{
+	ECalBackendCalDAVPrivate *priv;
+	ECalBackendSyncStatus     result;
+	SoupMessage              *message;
+	
+	priv = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);	
+	result = GNOME_Evolution_Calendar_Success;
+	
+	g_assert (object != NULL && object->href != NULL);
+
+	message = soup_message_new (SOUP_METHOD_DELETE, object->href);
+	
+	soup_message_add_header (message->request_headers, 
+				 "User-Agent", "Evolution/" VERSION);
+
+	if (object->etag != NULL) {
+		/* FIXME: again add quotationmarks ? */
+		soup_message_add_header (message->request_headers, 
+					"If-None-Match", object->etag);
+	}
+	
+	soup_session_send_message (priv->session, message);
+	
+	result = status_code_to_result (message->status_code);	
+	
+	g_object_unref (message);
+
+	return result;
+}
+	
 /* ************************************************************************* */
 /* Synchronization foo */
 

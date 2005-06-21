@@ -1,5 +1,13 @@
 2005-06-21  Christian Kellner  <gicmo@gnome.org>
 
+	* backends/caldav/e-cal-backend-caldav.c: 
+	(status_code_to_result): Also handle success status code;
+	(caldav_server_put_object): Unref the SoupMessage.
+	(caldav_server_delete_object): New function to delete
+	objects on the CalDAV server.
+
+2005-06-21  Christian Kellner  <gicmo@gnome.org>
+
 	* backends/caldav/e-cal-backend-caldav.c:
 	(e_cal_component_set_synch_state): New function to 
 	indicate the synch state of on object (will be used
