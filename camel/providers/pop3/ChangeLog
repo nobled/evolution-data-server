@@ -1,3 +1,9 @@
+2005-06-22    <NotZed@Ximian.com>
+
+	* camel-pop3-folder.c, camel-pop3-summary.c: Changed uid to be
+	stamp,uid.  So we can easily strip the time from the cache uid.
+	We now store cache items by the real uid, not the uid+time.
+
 2005-06-21  Not Zed  <NotZed@Ximian.com>
 
 	* camel-pop3-folder.c (pop3_sync): honour keep_on_server here.

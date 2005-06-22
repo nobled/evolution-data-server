@@ -52,22 +52,24 @@ camel_pop3_summary_new(struct _CamelFolder *folder)
 static int
 pop3_uid_cmp(const void *ap, const void *bp, void *d)
 {
-	const char *a = ap, *b = bp, *at, *bt;
+	const char *a = ap, *b = bp, *au, *bu;
 
 	/* UID's are stored:
-	   uid,sec.usec, sec & usec in hexadecimal format.
+	   "sec.usec,uid" sec & usec in hexadecimal format.
 	   This is so we can sort them in time order */
 
-	at = strrchr(a, ',');
-	bt = strrchr(b, ',');
-	g_assert(at && bt);
+	au = strrchr(a, ',');
+	bu = strrchr(b, ',');
+	g_assert(au && bu);
+	g_assert((au-a) == 17);
+	g_assert((bu-b) == 17);
 
 	/* just check uid part, if the same we have a match, ignoring time */
-	if ((at-a) == (bt-b) && memcmp(a, b, at-a) == 0)
+	if (strcmp(au+1, bu+1) == 0)
 		return 0;
 
 	/* otherwise, compare the times */
-	return strcmp(at, bt);
+	return memcmp(a, b, 17);
 }
 
 /* CamelFolderSummaryDisk */

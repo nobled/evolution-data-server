@@ -60,6 +60,8 @@
 
 /* how many messages to pre-fetch */
 #define POP3_PREFETCH (5)
+/* convert a uid into the real/cache uid */
+#define POP3_UID(x) (g_assert(strlen(x)>18 && (x)[8] == '.' && (x)[17] ==','), (x)+17)
 
 #define CF_CLASS(o) ((CamelFolderClass *)((CamelObject *)x)->klass)
 #define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
@@ -241,7 +243,7 @@ cmd_builduid(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 	md5_final(&md5, digest);
 	uid = camel_base64_encode_simple(digest, 16);
 	gettimeofday(&tv, NULL);
-	fi->uid = g_strdup_printf("%s,%08x.%08x", uid, (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+	fi->uid = g_strdup_printf("%08x.%08x,%s", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec, uid);
 	g_free(uid);
 
 	d(printf("building uid for id '%d' = '%s'\n", fi->id, fi->uid));
@@ -265,7 +267,7 @@ cmd_buildinfo(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 		if (camel_exception_is_set(&fi->ex))
 			return;
 
-		cstream = camel_data_cache_get(((CamelPOP3Store *)fi->folder->folder.parent_store)->cache, "cache", fi->uid, NULL, &fi->ex);
+		cstream = camel_data_cache_get(((CamelPOP3Store *)fi->folder->folder.parent_store)->cache, "cache", POP3_UID(fi->uid), NULL, &fi->ex);
 		if (!cstream)
 			return;
 		mp = camel_mime_parser_new();
@@ -339,7 +341,7 @@ cmd_uidl(CamelPOP3Engine *pe, CamelPOP3Stream *stream, void *data)
 					g_assert(fi->uid == NULL);
 					camel_operation_progress(NULL, (fi->index+1) * 100 / folder->uids->len);
 					gettimeofday(&tv, NULL);
-					fi->uid = g_strdup_printf("%s,%08x.%08x", uid, (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+					fi->uid = g_strdup_printf("%08x.%08x,%s", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec, uid);
 				} else {
 					g_warning("ID %u (uid: %s) not in previous LIST output", id, uid);
 				}
@@ -488,7 +490,7 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 		if (fi->size < 5120) {
 			CamelStream *stream, *rstream;
 
-			stream = camel_data_cache_get(pop3_store->cache, "cache", fi->uid, &rstream, NULL);
+			stream = camel_data_cache_get(pop3_store->cache, "cache", POP3_UID(fi->uid), &rstream, NULL);
 			if (stream) {
 				cmd_buildinfo(pop3_store->engine, (CamelPOP3Stream *)stream, fi);
 				camel_object_unref(stream);
@@ -615,7 +617,7 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 	fi = fetch_find(pop3_folder, uid);
 	if (fi) {
 		fi->refcount++;
-	} else if ((stream = camel_data_cache_get(pop3_store->cache, "cache", uid, &rstream, ex)) == NULL && rstream != NULL) {
+	} else if ((stream = camel_data_cache_get(pop3_store->cache, "cache", POP3_UID(uid), &rstream, ex)) == NULL && rstream != NULL) {
 		const CamelMessageInfo *iterinfo;
 
 		fi = fetch_alloc(pop3_folder, &pop3_folder->fetches);
@@ -636,7 +638,7 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 
 		while (iterinfo && pop3_folder->prefetch < POP3_PREFETCH) {
 			if (fetch_find(pop3_folder, iterinfo->uid) == NULL) {
-				stream = camel_data_cache_get(pop3_store->cache, "cache", iterinfo->uid, &rstream, NULL);
+				stream = camel_data_cache_get(pop3_store->cache, "cache", POP3_UID(iterinfo->uid), &rstream, NULL);
 				if (stream) {
 					camel_object_unref(stream);
 				} else if (rstream) {
@@ -666,7 +668,7 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 		if (camel_exception_is_set(&fi->ex))
 			camel_exception_xfer(ex, &fi->ex);
 		else
-			stream = camel_data_cache_get(pop3_store->cache, "cache", uid, NULL, ex);
+			stream = camel_data_cache_get(pop3_store->cache, "cache", POP3_UID(uid), NULL, ex);
 
 		fetch_free(fi);
 	}
