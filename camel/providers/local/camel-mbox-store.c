@@ -48,52 +48,6 @@ static CamelLocalStoreClass *parent_class = NULL;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS(CAMEL_OBJECT_GET_CLASS(so))
 #define CMBOXF_CLASS(so) CAMEL_MBOX_FOLDER_CLASS(CAMEL_OBJECT_GET_CLASS(so))
 
-static CamelFolder *get_folder(CamelStore *store, const char *folder_name, guint32 flags, CamelException *ex);
-static void delete_folder(CamelStore *store, const char *folder_name, CamelException *ex);
-static void rename_folder(CamelStore *store, const char *old, const char *new, CamelException *ex);
-static CamelFolderInfo *create_folder(CamelStore *store, const char *parent_name, const char *folder_name, CamelException *ex);
-static CamelFolderInfo *get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelException *ex);
-static char *mbox_get_meta_path(CamelLocalStore *ls, const char *full_name, const char *ext);
-static char *mbox_get_full_path(CamelLocalStore *ls, const char *full_name);
-
-static void
-camel_mbox_store_class_init(CamelMboxStoreClass *camel_mbox_store_class)
-{
-	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(camel_mbox_store_class);
-
-	parent_class =(CamelLocalStoreClass *)camel_type_get_global_classfuncs(camel_local_store_get_type());
-	
-	/* virtual method overload */
-	camel_store_class->get_folder = get_folder;
-	camel_store_class->delete_folder = delete_folder;
-	camel_store_class->rename_folder = rename_folder;
-	camel_store_class->create_folder = create_folder;
-	
-	camel_store_class->get_folder_info = get_folder_info;
-	camel_store_class->free_folder_info = camel_store_free_folder_info_full;
-
-	((CamelLocalStoreClass *)camel_store_class)->get_full_path = mbox_get_full_path;
-	((CamelLocalStoreClass *)camel_store_class)->get_meta_path = mbox_get_meta_path;
-}
-
-CamelType
-camel_mbox_store_get_type(void)
-{
-	static CamelType camel_mbox_store_type = CAMEL_INVALID_TYPE;
-	
-	if (camel_mbox_store_type == CAMEL_INVALID_TYPE)	{
-		camel_mbox_store_type = camel_type_register(CAMEL_LOCAL_STORE_TYPE, "CamelMboxStore",
-							    sizeof(CamelMboxStore),
-							    sizeof(CamelMboxStoreClass),
-							    (CamelObjectClassInitFunc) camel_mbox_store_class_init,
-							    NULL,
-							    NULL,
-							    NULL);
-	}
-	
-	return camel_mbox_store_type;
-}
-
 static char *extensions[] = {
 	".msf", ".ev-summary", ".ibex.index", ".ibex.index.data", ".cmeta", ".lock"
 };
@@ -102,6 +56,9 @@ static gboolean
 ignore_file(const char *filename, gboolean sbd)
 {
 	int flen, len, i;
+
+	if (filename[0] == '.')
+		return TRUE;
 	
 	/* TODO: Should probably just be 1 regex */
 	flen = strlen(filename);
@@ -877,14 +834,170 @@ mbox_get_meta_path(CamelLocalStore *ls, const char *full_name, const char *ext)
 	else
 		sprintf (name, ".%s%s", full_name, ext);
 	
-	return mbox_get_full_path(ls, name);
-#else
-	char *full_path, *path;
-	
-	full_path = mbox_get_full_path(ls, full_name);
-	path = g_strdup_printf ("%s%s", full_path, ext);
-	g_free (full_path);
-	
-	return path;
+	return mbox_get_full_path(ls, name);return path;
 #endif
+	return parent_class->get_meta_path(ls, full_name, ext);
+}
+
+static CamelIterator *
+mbox_store_get_namespaces(CamelStore *store, const char *pattern, CamelException *ex)
+{
+	char *path;
+	CamelIterator *iter;
+
+#warning "FIXME: namespace must return a separate namespace folder-object"
+	path = camel_local_store_get_full_path(store, "");
+	iter = camel_mbox_store_get_folders(store, pattern, path, ex);
+	g_free(path);
+
+	return iter;
+}
+
+static void
+camel_mbox_store_class_init(CamelMboxStoreClass *camel_mbox_store_class)
+{
+	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(camel_mbox_store_class);
+
+	parent_class =(CamelLocalStoreClass *)camel_type_get_global_classfuncs(camel_local_store_get_type());
+	
+	/* virtual method overload */
+	camel_store_class->get_folder = get_folder;
+	camel_store_class->delete_folder = delete_folder;
+	camel_store_class->rename_folder = rename_folder;
+	camel_store_class->create_folder = create_folder;
+	
+	camel_store_class->get_folder_info = get_folder_info;
+	camel_store_class->free_folder_info = camel_store_free_folder_info_full;
+
+	camel_store_class->get_namespaces = mbox_store_get_namespaces;
+
+	((CamelLocalStoreClass *)camel_store_class)->get_full_path = mbox_get_full_path;
+	((CamelLocalStoreClass *)camel_store_class)->get_meta_path = mbox_get_meta_path;
+}
+
+CamelType
+camel_mbox_store_get_type(void)
+{
+	static CamelType camel_mbox_store_type = CAMEL_INVALID_TYPE;
+	
+	if (camel_mbox_store_type == CAMEL_INVALID_TYPE)	{
+		camel_mbox_store_type = camel_type_register(CAMEL_LOCAL_STORE_TYPE, "CamelMboxStore",
+							    sizeof(CamelMboxStore),
+							    sizeof(CamelMboxStoreClass),
+							    (CamelObjectClassInitFunc) camel_mbox_store_class_init,
+							    NULL,
+							    NULL,
+							    NULL);
+	}
+	
+	return camel_mbox_store_type;
+}
+
+struct _CamelFolderIterator {
+	CamelIterator iter;
+
+	CamelStore *store;
+	CamelFolder *current;
+	int index;
+	GPtrArray *paths;
+};
+
+static void mbox_get_folders_free(void *it)
+{
+	struct _CamelFolderIterator *iter = it;
+	int i;
+
+	if (iter->current)
+		camel_object_unref(iter->current);
+	for (i=0;i<iter->paths->len;i++)
+		g_free(iter->paths->pdata[i]);
+	g_ptr_array_free(iter->paths, TRUE);
+
+	camel_object_unref(iter->store);
+}
+
+static const void * mbox_get_folders_next(void *it, CamelException *ex)
+{
+	struct _CamelFolderIterator *iter = it;
+
+	if (iter->current) {
+		camel_object_unref(iter->current);
+		iter->current = NULL;
+	}
+
+	if (iter->index >= iter->paths->len)
+		return NULL;
+
+	/* Should we loop if we can't open it?  e.g. its vanished in the meantime? */
+	iter->current = camel_store_get_folder(iter->store, iter->paths->pdata[iter->index++], 0, ex);
+
+	return iter->current;
+}
+
+static void mbox_get_folders_reset(void *it)
+{
+	struct _CamelFolderIterator *iter = it;
+
+	iter->index = 0;
+}
+
+static int mbox_get_folders_length(void *it)
+{
+	struct _CamelFolderIterator *iter = it;
+
+	return iter->paths->len;
+}
+
+static CamelIteratorVTable mbox_get_folders_vtable = {
+	mbox_get_folders_free,
+	mbox_get_folders_next,
+	mbox_get_folders_reset,
+	mbox_get_folders_length,
+};
+
+CamelIterator *
+camel_mbox_store_get_folders(CamelStore *store, const char *pattern, const char *path, CamelException *ex)
+{
+	DIR *dir;
+	struct dirent *d;
+	struct _CamelFolderIterator *iter;
+
+	dir = opendir(path);
+	if (dir == NULL) {
+		camel_exception_setv(ex, 2, _("Unable to list folders: %s"), g_strerror(errno));
+		return NULL;
+	}
+
+	iter = camel_iterator_new(&mbox_get_folders_vtable, sizeof(*iter));
+	iter->store = store;
+	camel_object_ref(store);
+	iter->paths = g_ptr_array_new();
+
+	while ((d = readdir(dir))) {
+		char *folder, from[5];
+		int fd;
+
+		if (ignore_file(d->d_name, TRUE))
+			continue;
+
+		from[0] = 0;
+		folder = g_build_filename(path, d->d_name);
+		fd = open(folder, O_RDONLY);
+		if (fd != -1) {
+			int res;
+
+			do {
+				res = read(fd, from, 5);
+			} while (res == -1 && errno == EINTR);
+
+			close(fd);
+		}
+		g_free(folder);
+
+		if (memcmp(from, "From ", 5) == 0)
+			g_ptr_array_add(iter->paths, g_strdup(d->d_name));
+	}
+	closedir(dir);
+
+	return (CamelIterator *)iter;
 }

@@ -53,68 +53,6 @@ static CamelLocalFolderClass *parent_class = NULL;
 #define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 #define CMBOXS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
-static int mbox_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
-static void mbox_unlock(CamelLocalFolder *lf, CamelLockType type);
-
-static void mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const CamelMessageInfo * info,	char **appended_uid, CamelException *ex);
-static CamelMimeMessage *mbox_get_message(CamelFolder *folder, const gchar * uid, CamelException *ex);
-static CamelLocalSummary *mbox_create_summary(CamelLocalFolder *lf, const char *path, const char *folder, CamelIndex *index);
-
-static void mbox_finalise(CamelObject * object);
-
-static void
-camel_mbox_folder_class_init(CamelMboxFolderClass * camel_mbox_folder_class)
-{
-	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_mbox_folder_class);
-	CamelLocalFolderClass *lclass = (CamelLocalFolderClass *)camel_mbox_folder_class;
-
-	parent_class = (CamelLocalFolderClass *)camel_type_get_global_classfuncs(camel_local_folder_get_type());
-
-	/* virtual method definition */
-
-	/* virtual method overload */
-	camel_folder_class->append_message = mbox_append_message;
-	camel_folder_class->get_message = mbox_get_message;
-
-	lclass->create_summary = mbox_create_summary;
-	lclass->lock = mbox_lock;
-	lclass->unlock = mbox_unlock;
-}
-
-static void
-mbox_init(gpointer object, gpointer klass)
-{
-	/*CamelFolder *folder = object;*/
-	CamelMboxFolder *mbox_folder = object;
-
-	mbox_folder->lockfd = -1;
-}
-
-static void
-mbox_finalise(CamelObject * object)
-{
-	CamelMboxFolder *mbox_folder = (CamelMboxFolder *)object;
-
-	g_assert(mbox_folder->lockfd == -1);
-}
-
-CamelType camel_mbox_folder_get_type(void)
-{
-	static CamelType camel_mbox_folder_type = CAMEL_INVALID_TYPE;
-
-	if (camel_mbox_folder_type == CAMEL_INVALID_TYPE) {
-		camel_mbox_folder_type = camel_type_register(CAMEL_LOCAL_FOLDER_TYPE, "CamelMboxFolder",
-							     sizeof(CamelMboxFolder),
-							     sizeof(CamelMboxFolderClass),
-							     (CamelObjectClassInitFunc) camel_mbox_folder_class_init,
-							     NULL,
-							     (CamelObjectInitFunc) mbox_init,
-							     (CamelObjectFinalizeFunc) mbox_finalise);
-	}
-
-	return camel_mbox_folder_type;
-}
-
 CamelFolder *
 camel_mbox_folder_new(CamelStore *parent_store, const char *full_name, guint32 flags, CamelException *ex)
 {
@@ -429,4 +367,72 @@ mbox_get_message(CamelFolder *folder, const gchar * uid, CamelException *ex)
 		camel_medium_remove_header((CamelMedium *)message, "X-Evolution");
 	
 	return message;
+}
+
+static CamelIterator *
+mbox_get_folders(CamelFolder *folder, const char *pattern, CamelException *ex)
+{
+	char *path;
+	CamelIterator *iter;
+
+	path = g_strdup_printf("%s.sbd", ((CamelLocalFolder *)folder)->folder_path);
+	iter = camel_mbox_store_get_folders(folder->parent_store, pattern, path, ex);
+	g_free(path);
+
+	return iter;
+}
+
+static void
+mbox_init(gpointer object, gpointer klass)
+{
+	/*CamelFolder *folder = object;*/
+	CamelMboxFolder *mbox_folder = object;
+
+	mbox_folder->lockfd = -1;
+}
+
+static void
+mbox_finalise(CamelObject * object)
+{
+	CamelMboxFolder *mbox_folder = (CamelMboxFolder *)object;
+
+	g_assert(mbox_folder->lockfd == -1);
+}
+
+static void
+camel_mbox_folder_class_init(CamelMboxFolderClass * camel_mbox_folder_class)
+{
+	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_mbox_folder_class);
+	CamelLocalFolderClass *lclass = (CamelLocalFolderClass *)camel_mbox_folder_class;
+
+	parent_class = (CamelLocalFolderClass *)camel_type_get_global_classfuncs(camel_local_folder_get_type());
+
+	/* virtual method definition */
+
+	/* virtual method overload */
+	camel_folder_class->append_message = mbox_append_message;
+	camel_folder_class->get_message = mbox_get_message;
+
+	camel_folder_class->get_folders = mbox_get_folders;
+
+	lclass->create_summary = mbox_create_summary;
+	lclass->lock = mbox_lock;
+	lclass->unlock = mbox_unlock;
+}
+
+CamelType camel_mbox_folder_get_type(void)
+{
+	static CamelType camel_mbox_folder_type = CAMEL_INVALID_TYPE;
+
+	if (camel_mbox_folder_type == CAMEL_INVALID_TYPE) {
+		camel_mbox_folder_type = camel_type_register(CAMEL_LOCAL_FOLDER_TYPE, "CamelMboxFolder",
+							     sizeof(CamelMboxFolder),
+							     sizeof(CamelMboxFolderClass),
+							     (CamelObjectClassInitFunc) camel_mbox_folder_class_init,
+							     NULL,
+							     (CamelObjectInitFunc) mbox_init,
+							     (CamelObjectFinalizeFunc) mbox_finalise);
+	}
+
+	return camel_mbox_folder_type;
 }

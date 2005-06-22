@@ -49,10 +49,10 @@ typedef struct {
 /* Standard Camel function */
 CamelType camel_mbox_store_get_type (void);
 
+CamelIterator *camel_mbox_store_get_folders(CamelStore *store, const char *pattern, const char *path, CamelException *ex);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
 #endif /* CAMEL_MBOX_STORE_H */
-
-

@@ -5,6 +5,7 @@ camel_provider_DATA = libcamellocal.urls
 
 INCLUDES = \
 	-I$(top_srcdir)/camel			\
+	-I$(top_srcdir)/libdb/dist		\
 	-I$(top_srcdir)/intl			\
 	-I$(top_srcdir)				\
 	$(CAMEL_CFLAGS)				\

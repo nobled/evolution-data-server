@@ -42,7 +42,7 @@
 #include "camel-record.h"
 
 /* NB, this is only for the messy iterator_get interface, which could be better hidden */
-#include "db.h"
+#include "libdb/dist/db.h"
 
 #define io(x)
 #define d(x) (printf("%s(%d): ", __FILE__, __LINE__),(x))
@@ -252,7 +252,6 @@ camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder,
 
 	camel_local_summary_construct((CamelLocalSummary *)new, folder, filename, mbox_name, index);
 
-	/* FIXME: this does'nt work */
 	iter = camel_folder_summary_search((CamelFolderSummary *)new, NULL, NULL, NULL, NULL);
 	mi = camel_message_iterator_disk_get(iter, DB_LAST, DB_PREV, NULL);
 	if (mi) {
@@ -294,6 +293,7 @@ guint32 camel_mbox_summary_next_uid(CamelMboxSummary *mbs)
 	guint32 uid;
 
 	uid = mbs->nextuid++;
+	((CamelFolderSummary *)mbs)->root_view->touched = 1;
 
 	return uid;
 }
@@ -302,8 +302,10 @@ guint32 camel_mbox_summary_next_uid(CamelMboxSummary *mbs)
 void camel_mbox_summary_last_uid(CamelMboxSummary *mbs, guint32 uid)
 {
 	uid++;
-	if (uid > mbs->nextuid)
+	if (uid > mbs->nextuid) {
 		mbs->nextuid = uid;
+		((CamelFolderSummary *)mbs)->root_view->touched = 1;
+	}
 }
 
 char *

@@ -1,3 +1,17 @@
+2005-06-22  Not Zed <NotZed@Ximian.com>
+
+	* camel-mbox-summary.c: include the right db.h so we dont get an
+	older one - DB_LAST was different(!).
+
+	* camel-mbox-folder.c (mbox_get_folders): implement new folder
+	iterface.
+
+	* camel-mbox-store.c: re-arrange to get rid of forward decls.
+	(mbox_get_folders): implement new folder interface.
+
+	* camel-mbox-summary.c (camel_mbox_summary_next_uid)
+	(camel_mbox_summary_last_uid): touch the root view when we change.
+
 2005-06-16  Not Zed  <NotZed@Ximian.com>
 
 	* camel-maildir-summary.c (camel_maildir_summary_init): cleanup
