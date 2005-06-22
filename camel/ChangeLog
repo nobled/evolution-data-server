@@ -1,3 +1,14 @@
+2005-06-22    <NotZed@Ximian.com>
+
+	* camel-folder.c (camel_folder_get_folders): new experimental
+	folder listing interface.
+
+	* camel-store.c (camel_store_get_namespaces): testing new
+	namespace interface.x
+
+	* camel-object.c (camel_iterator_*): Make a new generic iterator
+	object.
+
 2005-06-21  Not Zed  <NotZed@Ximian.com>
 
 	* camel-filter-driver.c (set_flag): duh, unfix my broken fix.  Not

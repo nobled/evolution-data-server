@@ -181,6 +181,11 @@ typedef struct {
 						     CamelException *ex);
 	void            (*noop)                     (CamelStore *store,
 						     CamelException *ex);
+
+
+	/* 'new' folder interfaces */
+	CamelIterator *(*get_namespaces)(CamelStore *store, const char *pattern, CamelException *ex);
+
 } CamelStoreClass;
 
 /* Standard Camel function */
@@ -262,6 +267,12 @@ CamelType camel_isubscribe_get_type (void);
 gboolean camel_isubscribe_subscribed(CamelStore *store, const char *name);
 void camel_isubscribe_subscribe(CamelStore *store, const char *folder_name, CamelException *ex);
 void camel_isubscribe_unsubscribe(CamelStore *store, const char *folder_name, CamelException *ex);
+
+/* 'new' folder interfaces */
+/* Get the namespaces on this store, it returns a list of folder objects */
+CamelIterator *camel_store_get_namespaces(CamelStore *store, const char *pattern, CamelException *ex);
+
+/* root folder?  */
 
 #ifdef __cplusplus
 }

@@ -1217,7 +1217,7 @@ camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folde
 	g_assert(iter != NULL);
 	g_assert(folder !=  NULL);
 
-	service_url = camel_service_get_url (CAMEL_SERVICE (camel_folder_get_parent_store (folder)));
+	service_url = camel_service_get_url (CAMEL_SERVICE (folder->parent_store));
 	url = camel_url_new (service_url, NULL);
 	g_free (service_url);
 	

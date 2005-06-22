@@ -78,6 +78,8 @@ static gboolean        is_frozen             (CamelFolder *folder);
 
 static gboolean        folder_changed        (CamelObject *object, gpointer event_data);
 
+static CamelIterator *get_folders(CamelFolder *folder, const char *pattern, CamelException *ex);
+
 static void
 camel_folder_class_init (CamelFolderClass *camel_folder_class)
 {
@@ -98,6 +100,8 @@ camel_folder_class_init (CamelFolderClass *camel_folder_class)
 	camel_folder_class->freeze = freeze;
 	camel_folder_class->thaw = thaw;
 	camel_folder_class->is_frozen = is_frozen;
+
+	camel_folder_class->get_folders = get_folders;
 
 	/* virtual method overload */
 	camel_object_class->getv = folder_getv;
@@ -986,6 +990,20 @@ folder_changed (CamelObject *obj, gpointer event_data)
 
 	return TRUE;
 }
+
+static CamelIterator *get_folders(CamelFolder *folder, const char *pattern, CamelException *ex)
+{
+	camel_exception_setv(ex, 2, "get_folders not implemented for class %s", ((CamelObject *)folder)->klass->name);
+
+	return NULL;
+}
+
+CamelIterator *camel_folder_get_folders(CamelFolder *folder, const char *pattern, CamelException *ex)
+{
+	return CF_CLASS(folder)->get_folders(folder, pattern, ex);
+}
+
+/* ********************************************************************** */
 
 struct _CamelFolderChangeInfoPrivate {
 	GHashTable *uid_stored;	/* what we have stored, which array they're in */

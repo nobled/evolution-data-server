@@ -113,6 +113,11 @@ struct _CamelFolder {
 #define CAMEL_FOLDER_IS_JUNK                (1<<5)
 #define CAMEL_FOLDER_FILTER_JUNK  	    (1<<6)
 
+/* Folder can hold folders */
+#define CAMEL_FOLDER_HOLDS_FOLDERS	    (1<<7)
+/* Folder can hold messages */
+#define CAMEL_FOLDER_HOLDS_MESSAGES	    (1<<8)
+
 typedef struct {
 	CamelObjectClass parent_class;
 
@@ -144,6 +149,10 @@ typedef struct {
 	void     (*freeze)    (CamelFolder *folder);
 	void     (*thaw)      (CamelFolder *folder);
 	gboolean (*is_frozen) (CamelFolder *folder);
+
+	/* new folder interface */
+	CamelIterator *(*get_folders)(CamelFolder *folder, const char *pattern, CamelException *ex);
+
 } CamelFolderClass;
 
 /* Standard Camel function */
@@ -221,9 +230,9 @@ void			camel_folder_change_info_recent_uid	(CamelFolderChangeInfo *info, const c
 void camel_folder_subscribe(CamelFolder *folder, int state, CamelException *ex);
 void camel_folder_renameX(CamelFolder *, const char *new, CamelException *ex);
 void camel_folder_deleteX(CamelFolder *, CamelException *ex);
-
-CamelIterator *camel_folder_get_folders(CamelFolder *folder, const char *pattern, guint32 flags, CamelException *ex);
 #endif
+
+CamelIterator *camel_folder_get_folders(CamelFolder *folder, const char *pattern, CamelException *ex);
 
 #ifdef __cplusplus
 }

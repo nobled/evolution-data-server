@@ -38,7 +38,7 @@
 
 #include "camel-private.h"
 
-#include "db.h"
+#include "libdb/dist/db.h"
 
 /*
   A Berkeley DB based folder summary object.
@@ -1255,7 +1255,7 @@ static CamelSessionThreadOps cds_sync_ops = {
 	cds_sync_free,
 };
 
-static
+static void
 cds_info_changed(CamelMessageInfo *mi, int sysonly)
 {
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
@@ -1577,7 +1577,7 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 	camel_exception_clear(&ex);
 	camel_folder_summary_view_create(s, "#.junk", "(system-flag \"Junk\")", &ex);
 	camel_exception_clear(&ex);
-#if 0
+#if 1
 	/* add some 'vfolders' */
 	camel_folder_summary_view_create(s, "unread", "(not (system-flag \"Seen\"))", &ex);
 	camel_exception_clear(&ex);

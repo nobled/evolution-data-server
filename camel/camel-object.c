@@ -2369,3 +2369,46 @@ camel_object_bag_remove(CamelObjectBag *inbag, void *vo)
 	REF_UNLOCK();
 	camel_object_unget_hooks(o);
 }
+
+/* ********************************************************************** */
+
+void *camel_iterator_new(CamelIteratorVTable *klass, size_t size)
+{
+	CamelIterator *it;
+
+	g_assert(size >= sizeof(CamelIterator));
+
+	it = g_malloc0(size);
+	it->klass = klass;
+
+	return it;
+}
+
+const void *camel_iterator_next(void *it, CamelException *ex)
+{
+	g_assert(it);
+	return ((CamelIterator *)it)->klass->next(it, ex);
+}
+
+void camel_iterator_reset(void *it)
+{
+	g_assert(it);
+	((CamelIterator *)it)->klass->reset(it);
+}
+
+int camel_iterator_length(void *it)
+{
+	g_assert(it);
+	g_return_val_if_fail(((CamelIterator *)it)->klass->length != NULL, 1);
+	
+	return ((CamelIterator *)it)->klass->length(it);
+}
+
+void camel_iterator_free(void *it)
+{
+	if (it) {
+		if (((CamelIterator *)it)->klass->free)
+			((CamelIterator *)it)->klass->free(it);
+		g_free(it);
+	}
+}

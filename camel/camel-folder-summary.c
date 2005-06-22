@@ -598,7 +598,7 @@ info_set_user_tag(CamelMessageInfo *info, const char *name, const char *value)
 }
 
 static void
-info_changed(CamelMessageInfoBase *mi, int sysonly)
+info_changed(CamelMessageInfo *mi, int sysonly)
 {
 	/* FIXME: Obviously we should batch-up these changes rather than
 	   emit them one at a time */
