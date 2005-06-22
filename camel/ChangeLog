@@ -47,6 +47,16 @@
 
 2005-06-18    <NotZed@Ximian.com>
 
+	* camel-folder.c (camel_folder_get_parent_store)
+	(camel_folder_get_full_name, camel_folder_get_name): Removed more
+	redundant interfaces, these are property gets or pointers, use
+	those.
+	(camel_folder_free_nop, camel_folder_free_shallow)
+	(camel_folder_free_deep): more old cruft to go.
+	(filter_free): fre uids using another function not a public one.
+	(*): Make the folder->summary optional, if not present noop
+	a few default functions.
+
 	* camel-folder-summary.c: cleaned up some debug.
 
 	* camel-folder-summary-disk.c (cds_view_initdb)

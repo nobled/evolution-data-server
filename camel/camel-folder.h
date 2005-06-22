@@ -121,11 +121,6 @@ typedef struct {
 
 	void   (*sync) (CamelFolder *folder, gboolean expunge, CamelException *ex);
 
-	const char *  (*get_name)  (CamelFolder *folder);
-	const char *  (*get_full_name)   (CamelFolder *folder);
-
-	CamelStore *  (*get_parent_store) (CamelFolder *folder);
-
 	void (*append_message)  (CamelFolder *folder, 
 				 CamelMimeMessage *message,
 				 const CamelMessageInfo *info,
@@ -167,12 +162,6 @@ void               camel_folder_sync                   (CamelFolder *folder,
 							gboolean expunge, 
 							CamelException *ex);
 
-CamelStore *       camel_folder_get_parent_store       (CamelFolder *folder);
-
-/* folder name operations */
-const char *      camel_folder_get_name                (CamelFolder *folder);
-const char *      camel_folder_get_full_name           (CamelFolder *folder);
-
 /* message manipulation */
 void               camel_folder_append_message         (CamelFolder *folder, 
 							CamelMimeMessage *message,
@@ -206,11 +195,6 @@ void               camel_folder_freeze                (CamelFolder *folder);
 void               camel_folder_thaw                  (CamelFolder *folder);
 gboolean           camel_folder_is_frozen             (CamelFolder *folder);
 
-/* For use by subclasses (for free_{uids,summary,subfolder_names}) */
-void camel_folder_free_nop     (CamelFolder *folder, GPtrArray *array);
-void camel_folder_free_shallow (CamelFolder *folder, GPtrArray *array);
-void camel_folder_free_deep    (CamelFolder *folder, GPtrArray *array);
-
 /* update functions for change info */
 CamelFolderChangeInfo *	camel_folder_change_info_new		(void);
 void			camel_folder_change_info_clear		(CamelFolderChangeInfo *info);
@@ -230,6 +214,16 @@ void			camel_folder_change_info_add_uid	(CamelFolderChangeInfo *info, const char
 void			camel_folder_change_info_remove_uid	(CamelFolderChangeInfo *info, const char *uid);
 void			camel_folder_change_info_change_uid	(CamelFolderChangeInfo *info, const char *uid);
 void			camel_folder_change_info_recent_uid	(CamelFolderChangeInfo *info, const char *uid);
+
+#if 0
+//Potential ideas ...
+
+void camel_folder_subscribe(CamelFolder *folder, int state, CamelException *ex);
+void camel_folder_renameX(CamelFolder *, const char *new, CamelException *ex);
+void camel_folder_deleteX(CamelFolder *, CamelException *ex);
+
+CamelIterator *camel_folder_get_folders(CamelFolder *folder, const char *pattern, guint32 flags, CamelException *ex);
+#endif
 
 #ifdef __cplusplus
 }
