@@ -46,7 +46,6 @@ typedef struct _CamelFolderSummaryClass CamelFolderSummaryClass;
 typedef struct _CamelFolderView CamelFolderView;
 
 typedef struct _CamelMessageInfo CamelMessageInfo;
-typedef struct _CamelMessageIterator CamelMessageIterator;
 
 /* system flag bits */
 typedef enum _CamelMessageFlags {
@@ -186,25 +185,6 @@ struct _CamelChangeInfo {
 };
 */
 
-/* Message-iterators are non-reffed pseudo-objects a little like a type-less interface 
-   TODO: Rename this to CamelIterator, it has uses beyond message lists */
-typedef struct _CamelMessageIteratorVTable CamelMessageIteratorVTable;
-
-struct _CamelMessageIterator {
-	CamelMessageIteratorVTable *klass;
-
-	/* subclass adds new fields afterwards */
-};
-
-struct _CamelMessageIteratorVTable {
-	/* free fields, dont free base object */
-	void (*free)(void *it);
-	/* go to the next messageinfo */
-	const struct _CamelMessageInfo *(*next)(void *it, CamelException *ex);
-	/* go back to the start */
-	void (*reset)(void *it);
-};
-
 /* view stuff, the new vfolders */
 struct _CamelFolderView {
 	struct _CamelFolderView *next;
@@ -287,7 +267,7 @@ struct _CamelFolderSummaryClass {
 	GPtrArray *(*get_array)(CamelFolderSummary *, const GPtrArray *uids);
 
 	/* the master iterator/search/view interface */
-	struct _CamelMessageIterator *(*search)(CamelFolderSummary *, const char *vid, const char *expr, CamelMessageIterator *, CamelException *ex);
+	struct _CamelIterator *(*search)(CamelFolderSummary *, const char *vid, const char *expr, CamelIterator *, CamelException *ex);
 
 	/* view management */
 	void (*view_free)(CamelFolderSummary *, CamelFolderView *);
@@ -342,7 +322,7 @@ GPtrArray *camel_folder_summary_get_array(CamelFolderSummary *, const GPtrArray 
 void camel_folder_summary_free_array(CamelFolderSummary *summary, GPtrArray *array);
 
 /* search/iterator interface */
-CamelMessageIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *viewid, const char *expr, CamelMessageIterator *subset, CamelException *ex);
+CamelIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *viewid, const char *expr, CamelIterator *subset, CamelException *ex);
 
 const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex);
 CamelFolderView *camel_folder_summary_view_new(CamelFolderSummary *s, const char *vid);
@@ -427,12 +407,6 @@ gboolean camel_tag_set(CamelTag **list, const char *name, const char *value);
 gboolean camel_tag_list_copy(CamelTag **to, CamelTag **from);
 int camel_tag_list_size(CamelTag **list);
 void camel_tag_list_free(CamelTag **list);
-
-/* Iterator may not be NULL, it tracks its own parent summary */
-void *camel_message_iterator_new(CamelMessageIteratorVTable *klass, size_t size);
-void camel_message_iterator_free(void *it);
-const CamelMessageInfo *camel_message_iterator_next(void *it, CamelException *ex);
-void camel_message_iterator_reset(void *it);
 
 /* helpers */
 void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit);

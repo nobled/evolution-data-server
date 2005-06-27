@@ -269,13 +269,13 @@ static void cfs_iter_free(void *v)
 
 	g_free(iter->expr);
 	if (iter->source)
-		camel_message_iterator_free(iter->source);
+		camel_iterator_free(iter->source);
 
 	if (iter->current_message)
 		camel_object_unref(iter->current_message);
 }
 
-static const CamelMessageInfo *cfs_iter_next(void *v, CamelException *ex)
+static const void *cfs_iter_next(void *v, CamelException *ex)
 {
 	CamelFolderSearchIterator *iter = v;
 	int found = FALSE;
@@ -291,7 +291,7 @@ static const CamelMessageInfo *cfs_iter_next(void *v, CamelException *ex)
 
 	iter->ex = ex;
 
-	while (!found && (iter->current = camel_message_iterator_next(iter->source, ex))) {
+	while (!found && (iter->current = camel_iterator_next(iter->source, ex))) {
 		ESExpResult *r;
 
 		r = e_sexp_eval(iter->tree, iter);
@@ -311,13 +311,13 @@ static const CamelMessageInfo *cfs_iter_next(void *v, CamelException *ex)
 		return iter->current;
 }
 
-static CamelMessageIteratorVTable cfs_iter_vtable = {
+static CamelIteratorVTable cfs_iter_vtable = {
 	cfs_iter_free,
 	cfs_iter_next,
 };
 
 CamelFolderSearchIterator *
-camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelMessageIterator *source, CamelException *ex)
+camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelIterator *source, CamelException *ex)
 {
 	CamelFolderSearchIterator *iter;
 	ESExpTree *tree;
@@ -327,12 +327,12 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, CamelMes
 	if (tree->term == NULL) {
 		camel_exception_setv(ex, 1, _("Cannot parse search expression: %s:\n%s"), e_sexp_error(tree), expr);
 		if (source)
-			camel_message_iterator_free(source);
+			camel_iterator_free(source);
 		e_sexp_tree_free(tree);
 		return NULL;
 	}
 
-	iter = camel_message_iterator_new(&cfs_iter_vtable, sizeof(*iter));
+	iter = camel_iterator_new(&cfs_iter_vtable, sizeof(*iter));
 
 	iter->expr = g_strdup(expr);
 

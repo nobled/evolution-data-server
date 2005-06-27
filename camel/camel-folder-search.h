@@ -42,10 +42,10 @@ typedef struct _CamelFolderSearchClass CamelFolderSearchClass;
 typedef struct _CamelFolderSearchIterator CamelFolderSearchIterator;
 
 struct _CamelFolderSearchIterator {
-	CamelMessageIterator iter;
+	CamelIterator iter;
 
 	CamelFolderSearch *search;
-	CamelMessageIterator *source;
+	CamelIterator *source;
 	CamelException *ex;
 
 	char *expr;		/* only needed for error messages */
@@ -142,7 +142,7 @@ CamelType		camel_folder_search_get_type	(void);
 CamelFolderSearch      *camel_folder_search_new	(void);
 void camel_folder_search_construct (CamelFolderSearch *search);
 
-CamelFolderSearchIterator *camel_folder_search_search(CamelFolderSearch *, const char *expr, CamelMessageIterator *iter, CamelException *ex);
+CamelFolderSearchIterator *camel_folder_search_search(CamelFolderSearch *, const char *expr, CamelIterator *iter, CamelException *ex);
 
 int camel_folder_search_match(CamelFolderSearchIterator *iter, const CamelMessageInfo *mi, CamelException *ex);
 

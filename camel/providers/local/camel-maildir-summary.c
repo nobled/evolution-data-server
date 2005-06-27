@@ -372,7 +372,7 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelFolderChange
 	struct dirent *d;
 	CamelMessageInfo *info;
 	const CamelMessageInfo *iterinfo;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	CamelFolderSummary *s = (CamelFolderSummary *)cls;
 	int i;
 	char *cur;
@@ -425,7 +425,7 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelFolderChange
 	name = g_string_new("");
 
 	iter = camel_folder_summary_search(s, NULL, NULL, NULL, NULL);
-	iterinfo = camel_message_iterator_next(iter, NULL);
+	iterinfo = camel_iterator_next(iter, NULL);
 	for (i=0;i<names->len;i++) {
 		char *uid = names->pdata[i];
 		char *ext;
@@ -440,7 +440,7 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelFolderChange
 		while (iterinfo && uid_cmp(iterinfo->uid, uid, s) < 0) {
 			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
 			camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-			iterinfo = camel_message_iterator_next(iter, NULL);
+			iterinfo = camel_iterator_next(iter, NULL);
 		}
 
 		if (iterinfo && uid_cmp(iterinfo->uid, uid, s) == 0) {
@@ -457,7 +457,7 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelFolderChange
 			} else {
 				maildir_name_to_info(mi, uid, ext, changes);
 			}
-			iterinfo = camel_message_iterator_next(iter, NULL);
+			iterinfo = camel_iterator_next(iter, NULL);
 		} else {
 			/* TODO: do we fix no-extension names here?? */
 			info = maildir_info_new((CamelMaildirSummary *)cls, uid, ext);
@@ -475,9 +475,9 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelFolderChange
 	while (iterinfo) {
 		camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
 		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-		iterinfo = camel_message_iterator_next(iter, NULL);
+		iterinfo = camel_iterator_next(iter, NULL);
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 
 	camel_operation_end(NULL);
 

@@ -49,7 +49,7 @@ typedef struct {
 	/* Used for pre-fetching messages */
 	int prefetch;
 	EDList fetches;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *iterinfo;
 } CamelPOP3Folder;
 

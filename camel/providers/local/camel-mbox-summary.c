@@ -248,7 +248,7 @@ void
 camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder, const char *filename, const char *mbox_name, CamelIndex *index)
 {
 	const CamelMessageInfo *mi;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 
 	camel_local_summary_construct((CamelLocalSummary *)new, folder, filename, mbox_name, index);
 
@@ -262,7 +262,7 @@ camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder,
 	} else {
 		printf("Nothing in the database %s, last uid in header is %d\n", folder->full_name, (guint32)new->nextuid);
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 }
 
 /**
@@ -477,7 +477,7 @@ static int
 summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *changes, CamelException *ex)
 {
 	CamelMimeParser *mp;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *iterinfo = NULL;
 	int fd;
 	int res = 0;
@@ -531,7 +531,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 	} else {
 		// failures?
 		iter = camel_folder_summary_search(s, NULL, NULL, NULL, NULL);
-		iterinfo = camel_message_iterator_next(iter, NULL);
+		iterinfo = camel_iterator_next(iter, NULL);
 	}
 
 	while (res == 0 && camel_mime_parser_step(mp, NULL, NULL) == CAMEL_MIME_PARSER_STATE_FROM) {
@@ -577,13 +577,13 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 				printf("Message %s vanished\n", iterinfo->uid);
 				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-				iterinfo = camel_message_iterator_next(iter, NULL);
+				iterinfo = camel_iterator_next(iter, NULL);
 			}
 
 			if (iterinfo && uid_cmp(iterinfo->uid, uid, s) == 0) {
 				info = (CamelMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
-				iterinfo = camel_message_iterator_next(iter, NULL);
+				iterinfo = camel_iterator_next(iter, NULL);
 				g_free(uid);
 				goto have_message;
 			}
@@ -668,10 +668,10 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 			printf("trailing message '%s' removed too\n", iterinfo->uid);
 			camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
-			iterinfo = camel_message_iterator_next(iter, NULL);
+			iterinfo = camel_iterator_next(iter, NULL);
 		}
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 
 	/* update the file size/mtime in the summary */
 	if (res == 0) {
@@ -954,7 +954,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
 	CamelMimeParser *mp = NULL;
 	int count = 0, res = -1;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *iterinfo;
 	char *buffer;
 	size_t bufferlen;
@@ -997,7 +997,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 	/* FIXME: handle exceptions on the iterator? */
 
 	iter = camel_folder_summary_search(s, NULL, NULL, NULL, ex);
-	iterinfo = camel_message_iterator_next(iter, NULL);
+	iterinfo = camel_iterator_next(iter, NULL);
 	while (camel_mime_parser_step(mp, &buffer, &len) != CAMEL_MIME_PARSER_STATE_EOF) {
 		CamelMboxMessageInfo *info;
 		struct _camel_header_raw *h;
@@ -1043,13 +1043,13 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 				printf("Message %s vanished\n", iterinfo->uid);
 				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-				iterinfo = camel_message_iterator_next(iter, NULL);
+				iterinfo = camel_iterator_next(iter, NULL);
 			}
 
 			if (iterinfo && uid_cmp(iterinfo->uid, uid, s) == 0) {
 				info = (CamelMboxMessageInfo *)iterinfo;
 				camel_message_info_ref(info);
-				iterinfo = camel_message_iterator_next(iter, NULL);
+				iterinfo = camel_iterator_next(iter, NULL);
 				goto have_message;
 			}
 		} else {
@@ -1133,11 +1133,11 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 	while (iterinfo) {
 		camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
 		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-		iterinfo = camel_message_iterator_next(iter, NULL);
+		iterinfo = camel_iterator_next(iter, NULL);
 	}
 	res = 0;
 fail:
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 	camel_object_unref(mp);
 	g_string_free(headers, TRUE);
 	

@@ -1,3 +1,13 @@
+2005-06-27    <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (info_set_flags): only change messageinfo
+	if it has a uid.
+
+	* camel-folder-summary-disk.c: only open the db's when we need
+	them, and lazily close them (db pool).
+
+	* camel-folder-summary.h: changed messageiterator to use iterator.
+
 2005-06-22    <NotZed@Ximian.com>
 
 	* camel-folder.c (camel_folder_get_folders): new experimental

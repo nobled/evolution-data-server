@@ -600,7 +600,7 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 	GHashTable *wanted = NULL;
 	GPtrArray *summary;
 	int i;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	CamelMessageInfo *info;
 
 	thread = g_malloc(sizeof(*thread));
@@ -621,13 +621,13 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 	iter = camel_folder_search(folder, NULL, NULL, NULL, NULL);
 	thread->summary = summary = g_ptr_array_new();
 
-	while ((info = (CamelMessageInfo *)camel_message_iterator_next(iter, NULL))) {
+	while ((info = (CamelMessageInfo *)camel_iterator_next(iter, NULL))) {
 		if (wanted == NULL || g_hash_table_lookup(wanted, camel_message_info_uid(info)) != NULL) {
 			camel_message_info_ref(info);
 			g_ptr_array_add(summary, info);
 		}
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 
 	thread_summary(thread, summary);
 

@@ -1205,7 +1205,7 @@ fail:
  *
  **/
 int
-camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folder, CamelMessageIterator *iter, gboolean delete, CamelException *ex)
+camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folder, CamelIterator *iter, gboolean delete, CamelException *ex)
 {
 	struct _CamelFilterDriverPrivate *p = _PRIVATE (driver);
 	const CamelMessageInfo *iterinfo;
@@ -1224,7 +1224,7 @@ camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folde
 	source_url = camel_url_to_string (url, CAMEL_URL_HIDE_ALL);
 	camel_url_free (url);
 
-	for (i=0;(iterinfo = camel_message_iterator_next(iter, ex));i++) {
+	for (i=0;(iterinfo = camel_iterator_next(iter, ex));i++) {
 		//int pc = (100 * i)/uids->len;
 		int pc = 50, total = 100;
 

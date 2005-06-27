@@ -186,7 +186,7 @@ static void
 cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
 {
 	if (view->iter)
-		camel_message_iterator_free((CamelMessageIterator *)view->iter);
+		camel_iterator_free((CamelIterator *)view->iter);
 	if (view->changes)
 		camel_folder_change_info_free(view->changes);
 	g_free(view->vid);
@@ -216,8 +216,8 @@ get_array(CamelFolderSummary *s, const GPtrArray *uids)
 	return out;
 }
 
-static CamelMessageIterator *
-search(CamelFolderSummary *s, const char *vid, const char *expr, CamelMessageIterator *subset, CamelException *ex)
+static CamelIterator *
+search(CamelFolderSummary *s, const char *vid, const char *expr, CamelIterator *subset, CamelException *ex)
 {
 	/* don't translate, this is for programmers only */
 	camel_exception_setv(ex, 1, "Search not implemented");
@@ -565,7 +565,7 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 		}
 	}
 
-	if (diff)
+	if (diff && info->uid)
 		camel_message_info_changed(info, (diff & ~CAMEL_MESSAGE_SYSTEM_MASK) == 0);
 
 	return diff != 0;
@@ -826,8 +826,8 @@ camel_folder_summary_remove_array(CamelFolderSummary *s, GPtrArray *infos)
 	return CFS_CLASS(s)->remove_array(s, infos);
 }
 
-CamelMessageIterator *
-camel_folder_summary_search(CamelFolderSummary *s, const char *vid, const char *expr, CamelMessageIterator *subset, CamelException *ex)
+CamelIterator *
+camel_folder_summary_search(CamelFolderSummary *s, const char *vid, const char *expr, CamelIterator *subset, CamelException *ex)
 {
 	return CFS_CLASS(s)->search(s, vid, expr, subset, ex);
 }
@@ -1692,46 +1692,14 @@ camel_system_flag_get (guint32 flags, const char *name)
 
 /* ********************************************************************** */
 
-void *camel_message_iterator_new(CamelMessageIteratorVTable *klass, size_t size)
-{
-	CamelMessageIterator *it;
-
-	g_assert(size >= sizeof(CamelMessageIterator));
-
-	it = g_malloc0(size);
-	it->klass = klass;
-
-	return it;
-}
-
-const struct _CamelMessageInfo *camel_message_iterator_next(void *it, CamelException *ex)
-{
-	return ((CamelMessageIterator *)it)->klass->next(it, ex);
-}
-
-void camel_message_iterator_reset(void *it)
-{
-	((CamelMessageIterator *)it)->klass->reset(it);
-}
-
-void camel_message_iterator_free(void *it)
-{
-	if (it) {
-		((CamelMessageIterator *)it)->klass->free(it);
-		g_free(it);
-	}
-}
-
-/* ********************************************************************** */
-
 struct _infos_iter {
-	CamelMessageIterator iter;
+	CamelIterator iter;
 
 	int index;
 	GPtrArray *mis;
 };
 
-static const CamelMessageInfo *infos_iter_next(void *it, CamelException *ex)
+static const void *infos_iter_next(void *it, CamelException *ex)
 {
 	struct _infos_iter *ait = it;
 
@@ -1759,7 +1727,7 @@ infos_iter_free(void *it)
 	g_ptr_array_free(ait->mis, TRUE);
 }
 
-static CamelMessageIteratorVTable infos_iter_vtable = {
+static CamelIteratorVTable infos_iter_vtable = {
 	infos_iter_free,
 	infos_iter_next,
 	infos_iter_reset,
@@ -1771,7 +1739,7 @@ static CamelMessageIteratorVTable infos_iter_vtable = {
   The infos is not copied and is owned by the iterator afterwards (?) */
 void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit)
 {
-	struct _infos_iter *ait = camel_message_iterator_new(&infos_iter_vtable, sizeof(*ait));
+	struct _infos_iter *ait = camel_iterator_new(&infos_iter_vtable, sizeof(*ait));
 
 	/* FIXME: should we sort this so the iterator is in canonical folder-summary order?
 	   Yes almost certainly we should ... */
@@ -1795,7 +1763,7 @@ void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit)
 /* ********************************************************************** */
 
 struct _uids_iter {
-	CamelMessageIterator iter;
+	CamelIterator iter;
 
 	int index;
 	GPtrArray *uids;
@@ -1804,7 +1772,7 @@ struct _uids_iter {
 	CamelMessageInfo *current;
 };
 
-static const CamelMessageInfo *uids_iter_next(void *it, CamelException *ex)
+static const void *uids_iter_next(void *it, CamelException *ex)
 {
 	struct _uids_iter *ait = it;
 
@@ -1840,7 +1808,7 @@ uids_iter_free(void *it)
 	g_ptr_array_free(ait->uids, TRUE);
 }
 
-static CamelMessageIteratorVTable uids_iter_vtable = {
+static CamelIteratorVTable uids_iter_vtable = {
 	uids_iter_free,
 	uids_iter_next,
 	uids_iter_reset,
@@ -1848,7 +1816,7 @@ static CamelMessageIteratorVTable uids_iter_vtable = {
 
 void *camel_message_iterator_uids_new(CamelFolder *source, GPtrArray *uids, int freeit)
 {
-	struct _uids_iter *ait = camel_message_iterator_new(&uids_iter_vtable, sizeof(*ait));
+	struct _uids_iter *ait = camel_iterator_new(&uids_iter_vtable, sizeof(*ait));
 
 	if (freeit)
 		ait->uids = uids;

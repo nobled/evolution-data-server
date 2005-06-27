@@ -64,7 +64,7 @@ static void append_message (CamelFolder *folder, CamelMimeMessage *message,
 
 static CamelMimeMessage *get_message         (CamelFolder *folder, const gchar *uid, CamelException *ex);
 static CamelMessageInfo *get_message_info    (CamelFolder *folder, const char *uid);
-static CamelMessageIterator *search(CamelFolder *folder, const char *, const char *expression, CamelMessageIterator *, CamelException *ex);
+static CamelIterator *search(CamelFolder *folder, const char *, const char *expression, CamelIterator *, CamelException *ex);
 
 static void            transfer_messages_to  (CamelFolder *source, GPtrArray *uids, CamelFolder *dest,
 					      GPtrArray **transferred_uids, gboolean delete_originals, CamelException *ex);
@@ -442,8 +442,8 @@ camel_folder_get_message (CamelFolder *folder, const char *uid, CamelException *
 	return ret;
 }
 
-static CamelMessageIterator *
-search(CamelFolder *folder, const char *vid, const char *expression, CamelMessageIterator *subset, CamelException *ex)
+static CamelIterator *
+search(CamelFolder *folder, const char *vid, const char *expression, CamelIterator *subset, CamelException *ex)
 {
 	if (folder->summary)
 		return camel_folder_summary_search(folder->summary, vid, expression, subset, ex);
@@ -468,10 +468,10 @@ search(CamelFolder *folder, const char *vid, const char *expression, CamelMessag
  *
  * Searches the folder for messages matching the given search expression.
  *
- * Returns a CamelMessageIterator which can be used to examime the results.
+ * Returns a CamelIterator which can be used to examime the results.
  **/
-CamelMessageIterator *
-camel_folder_search(CamelFolder *folder, const char *vid, const char *expression, CamelMessageIterator *subset, CamelException *ex)
+CamelIterator *
+camel_folder_search(CamelFolder *folder, const char *vid, const char *expression, CamelIterator *subset, CamelException *ex)
 {
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), NULL);
 

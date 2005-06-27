@@ -436,14 +436,14 @@ cvs_remove_info(CamelVeeSummary *s, CamelVeeSummaryFolder *f, const CamelMessage
 }
 
 static void
-cvs_remove_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelMessageIterator *iter)
+cvs_remove_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelIterator *iter)
 {
 	const CamelMessageInfo *mi;
 
-	while ((mi = camel_message_iterator_next(iter, NULL)))
+	while ((mi = camel_iterator_next(iter, NULL)))
 		cvs_remove_info(s, f, mi);
 
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 }
 
 static void
@@ -469,18 +469,18 @@ cvs_add_info(CamelVeeSummary *s, CamelVeeSummaryFolder *f, const CamelMessageInf
 }
 
 static void
-cvs_add_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelMessageIterator *iter)
+cvs_add_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelIterator *iter)
 {
 	const CamelMessageInfo *mi;
 
-	while ((mi = camel_message_iterator_next(iter, NULL)))
+	while ((mi = camel_iterator_next(iter, NULL)))
 		cvs_add_info(s, f, mi);
 
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 }
 
 static void
-cvs_change_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelMessageIterator *all, CamelMessageIterator *match)
+cvs_change_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelIterator *all, CamelIterator *match)
 {
 	const CamelMessageInfo *cmatch, *call;
 

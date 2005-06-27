@@ -390,7 +390,7 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 	CamelPOP3Folder *pop3_folder = (CamelPOP3Folder *) folder;
 	CamelPOP3Command *pcl, *pcu = NULL;
 	GCompareDataFunc uid_cmp = CFS_CLASS(folder->summary)->uid_cmp;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *iterinfo;
 	CamelException x = { 0 };
 	GPtrArray *fetches;
@@ -439,7 +439,7 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 
 	fetches = g_ptr_array_new();
 	iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
-	iterinfo = camel_message_iterator_next(iter, NULL);
+	iterinfo = camel_iterator_next(iter, NULL);
 	for (i=0;i<pop3_folder->uids->len;i++) {
 		struct _fetch_info *fi = pop3_folder->uids->pdata[i];
 
@@ -452,7 +452,7 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 		while (iterinfo && uid_cmp(iterinfo->uid, fi->uid, folder->summary) < 0) {
 			// FIXME: remove cache file?  summary should?
 			camel_folder_summary_remove(folder->summary, (CamelMessageInfo *)iterinfo);
-			iterinfo = camel_message_iterator_next(iter, NULL);
+			iterinfo = camel_iterator_next(iter, NULL);
 		}
 
 		if (iterinfo && uid_cmp(iterinfo->uid, fi->uid, folder->summary) == 0) {
@@ -460,7 +460,7 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 				((CamelPOP3MessageInfo *)iterinfo)->id = fi->id;
 				camel_message_info_changed((CamelMessageInfo *)iterinfo, TRUE);
 			}
-			iterinfo = camel_message_iterator_next(iter, NULL);
+			iterinfo = camel_iterator_next(iter, NULL);
 			fetch_free(fi);
 		} else {
 			g_ptr_array_add(fetches, fi);
@@ -470,9 +470,9 @@ pop3_refresh_info (CamelFolder *folder, CamelException *ex)
 	while (iterinfo) {
 		// FIXME: remove cache file?  summary should?
 		camel_folder_summary_remove(folder->summary, (CamelMessageInfo *)iterinfo);
-		iterinfo = camel_message_iterator_next(iter, NULL);
+		iterinfo = camel_iterator_next(iter, NULL);
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 
 	g_hash_table_destroy(pop3_folder->uids_id);
 	g_ptr_array_free(pop3_folder->uids, TRUE);
@@ -536,7 +536,7 @@ pop3_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 	int i;
 	CamelPOP3Command *cmd;
 	const CamelMessageInfo *iterinfo;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	CamelException x = { 0 };
 	GPtrArray *cmds;
 
@@ -547,14 +547,14 @@ pop3_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 		LOCK_ENGINE(pop3_store);
 
 		iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
-		while ((iterinfo = camel_message_iterator_next(iter, NULL))) {
+		while ((iterinfo = camel_iterator_next(iter, NULL))) {
 			CamelPOP3MessageInfo *mi = (CamelPOP3MessageInfo *)iterinfo;
 
 			if ((((CamelMessageInfoBase *)mi)->flags & CAMEL_MESSAGE_DELETED)
 			    && (cmd = camel_pop3_engine_command_new(pop3_store->engine, 0, NULL, NULL, "DELE %u\r\n", mi->id)))
 				g_ptr_array_add(cmds, cmd);
 		}
-		camel_message_iterator_free(iter);
+		camel_iterator_free(iter);
 
 		for (i=0;i<cmds->len;i++) {
 			cmd = cmds->pdata[i];
@@ -629,12 +629,12 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 
 		if (pop3_folder->iter == NULL) {
 			pop3_folder->iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
-			pop3_folder->iterinfo = camel_message_iterator_next(pop3_folder->iter, NULL);
+			pop3_folder->iterinfo = camel_iterator_next(pop3_folder->iter, NULL);
 		}
 
 		iterinfo = pop3_folder->iterinfo;
 		while (iterinfo && uid_cmp(iterinfo->uid, uid, folder->summary) < 0)
-			iterinfo = camel_message_iterator_next(pop3_folder->iter, NULL);
+			iterinfo = camel_iterator_next(pop3_folder->iter, NULL);
 
 		while (iterinfo && pop3_folder->prefetch < POP3_PREFETCH) {
 			if (fetch_find(pop3_folder, iterinfo->uid) == NULL) {
@@ -654,7 +654,7 @@ pop3_get_message (CamelFolder *folder, const char *uid, CamelException *ex)
 										 ((CamelPOP3MessageInfo *)iterinfo)->id);
 				}
 			}
-			iterinfo = camel_message_iterator_next(pop3_folder->iter, NULL);
+			iterinfo = camel_iterator_next(pop3_folder->iter, NULL);
 		}
 
 		pop3_folder->iterinfo = iterinfo;

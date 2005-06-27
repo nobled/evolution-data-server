@@ -81,6 +81,8 @@
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 #define v(x)
 
+#define CDS_UNUSED_LIMIT (10)
+
 #define CDS_CLASS(x) ((CamelFolderSummaryDiskClass *)((CamelObject *)x)->klass)
 #define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
 #define CFS(x) ((CamelFolderSummary *)x)
@@ -97,9 +99,9 @@ struct _CamelFolderSummaryDiskPrivate {
 	GHashTable *changed;
 };
 
-typedef struct _CamelMessageIteratorDisk CamelMessageIteratorDisk;
-struct _CamelMessageIteratorDisk {
-	CamelMessageIterator iter;
+typedef struct _CamelIteratorDisk CamelIteratorDisk;
+struct _CamelIteratorDisk {
+	CamelIterator iter;
 
 	CamelFolderView *view;
 	char *expr;
@@ -130,7 +132,15 @@ struct _CamelFolderViewDisk {
 
 	struct _camel_disk_env *env;
 	DB *db;
+
+	/* For managing a pool of open but unused db's */
+	int usecount:31;
+	/* If 1, then we are in the env's unused list (using ln) */
+	int unused:1;
+	EDListNode ln;
 };
+/* Converts the list node pointer as stored in the unused list, to the folderview pointer */
+#define VIEW_FROM_LIST(x) ((CamelFolderViewDisk *)(((char *)x)-G_STRUCT_OFFSET(CamelFolderViewDisk, ln)))
 
 struct _camel_disk_env {
 	int refcount;
@@ -144,6 +154,9 @@ struct _camel_disk_env {
 
 	/* We must maintain our own list of folders too (?) */
 	DB *folders;
+
+	/* A list of views which have open db's but otherwise unused */
+	EDList unused;
 };
 
 static CamelFolderSummaryClass *cds_parent;
@@ -196,6 +209,7 @@ get_env(CamelService *s, CamelException *ex)
 	env = g_malloc0(sizeof(*env));
 	env->refcount = 1;
 	env->lock = g_mutex_new();
+	e_dlist_init(&env->unused);
 
 	base = camel_session_get_storage_path(s->session, s, NULL);
 	env->path = g_build_filename(base, ".folders.db", NULL);
@@ -261,19 +275,34 @@ cds_view_save(CamelFolderSummaryDisk *cds, CamelFolderViewDisk *view, DB_TXN *tx
 }
 
 /* Initialise the database entries for a view, creating if necessary */
+/* Must have ENV lock */
 static void
-cds_view_initdb(CamelFolderSummary *s, CamelFolderView *fview, DB_TXN *txn, CamelException *ex)
+cds_view_usedb(CamelFolderSummary *s, CamelFolderView *fview, DB_TXN *txn, CamelException *ex)
 {
 	CamelFolderViewDisk *view = (CamelFolderViewDisk *)fview;
 	char *name;
 	int err;
 
-	g_assert(view->db == NULL);
-	g_assert(view->env == NULL);
+	/* We keep track of the usage count of each view.  Once it reaches zero then
+	   we put it in the 'unused' list; a candidate for closing to free up
+	   some resources in a LRU fashion.
 
-	view->env = get_env((CamelService *)s->folder->parent_store, ex);
-	if (camel_exception_is_set(ex))
+	   Note that the 'root view' is always opened all the time currently; although
+	   it needn't be.
+	*/
+
+	if (view->db) {
+		if (view->usecount == 0)
+			e_dlist_remove(&view->ln);
+		view->usecount++;
 		return;
+	}
+
+	if (view->env == NULL) {
+		view->env = get_env((CamelService *)s->folder->parent_store, ex);
+		if (camel_exception_is_set(ex))
+			return;
+	}
 
 	if (view->view.vid) {
 		name = g_alloca(strlen(s->folder->full_name)+(view->view.vid?strlen(view->view.vid):0)+2);
@@ -281,7 +310,7 @@ cds_view_initdb(CamelFolderSummary *s, CamelFolderView *fview, DB_TXN *txn, Came
 	} else
 		name = s->folder->full_name;
 
-	LOCK_VIEW(view);
+	printf("opening view db '%s'\n", name);
 
 	db_create(&view->db, view->env->env, 0);
 	view->db->app_private = view;
@@ -290,8 +319,6 @@ cds_view_initdb(CamelFolderSummary *s, CamelFolderView *fview, DB_TXN *txn, Came
 	if (view->view.vid == NULL) {
 		/* root db, we just open it with create */
 		err = view->db->open(view->db, txn, "folders", name, DB_BTREE, DB_CREATE, 0666);
-		UNLOCK_VIEW(view);
-
 		if (err != 0)
 			camel_exception_setv(ex, 1, "creating root database failed: %s", db_strerror(err));
 	} else {
@@ -305,15 +332,48 @@ cds_view_initdb(CamelFolderSummary *s, CamelFolderView *fview, DB_TXN *txn, Came
 			view->db->app_private = view;
 			view->db->set_bt_compare(view->db, cds_dbt_cmp);
 			err = view->db->open(view->db, txn, "folders", name, DB_BTREE, DB_CREATE, 0666);
-			UNLOCK_VIEW(view);
 			if (err != 0)
 				camel_exception_setv(ex, 1, "creating view database failed: %s", db_strerror(err));
 			else
 				// TODO: If this was a view that code other than load_header
 				// created, we need to fire off a job to rebuild it?
 				view->view.rebuild = 1;
-		} else
-			UNLOCK_VIEW(view);
+		}
+	}
+
+	if (view->unused)
+		e_dlist_remove(&view->ln);
+
+	view->usecount = 1;
+	view->unused = 0;
+}
+
+/* must have ENV lock */
+static void
+cds_view_unusedb(CamelFolderSummary *s, CamelFolderView *fview)
+{
+	CamelFolderViewDisk *view = (CamelFolderViewDisk *)fview;
+	struct _camel_disk_env *env = view->env;
+	int len;
+
+	g_assert(view->usecount > 0);
+	g_assert(env);
+	view->usecount--;
+	if (view->usecount == 0) {
+		view->unused = 1;
+		e_dlist_addtail(&env->unused, &view->ln);
+		len = e_dlist_length(&env->unused);
+		while (len >= CDS_UNUSED_LIMIT) {
+			EDListNode *ln = e_dlist_remhead(&env->unused);
+
+			view = VIEW_FROM_LIST(ln);
+			printf("Flushing unused db for view '%s'\n", view->view.vid);
+			g_assert(view->usecount == 0);
+			view->unused = 0;
+			view->db->close(view->db, 0);
+			view->db = NULL;
+			len--;
+		}
 	}
 }
 
@@ -375,12 +435,13 @@ cds_load_views(CamelFolderSummaryDisk *cds, DB_TXN *txn, CamelException *ex)
 	crd = camel_record_decoder_new(data.data, data.size);
 	CDS_CLASS(cds)->decode_view(cds, view, crd);
 	camel_record_decoder_free(crd);
-	cds_view_initdb(CFS(cds), view, NULL, ex);
+
+	LOCK_ENV(env);
+	cds_view_usedb(CFS(cds), view, NULL, ex);
 	if (!camel_exception_is_set(ex))
 		camel_folder_summary_view_add(CFS(cds), view, ex);
 	else
 		camel_folder_summary_view_unref((CamelFolderView *)view);
-	LOCK_ENV(env);
 
 	while (!camel_exception_is_set(ex)
 	       && (res = cursor->c_get(cursor, &key, &data, DB_NEXT)) == 0
@@ -388,6 +449,8 @@ cds_load_views(CamelFolderSummaryDisk *cds, DB_TXN *txn, CamelException *ex)
 	       && memcmp(key.data, CFS(cds)->folder->full_name, len) == 0
 	       && ((char *)key.data)[len] == 1) {
 		char *vid;
+
+		env->refcount++;
 		UNLOCK_ENV(env);
 
 		vid = g_strndup(key.data+len+1, key.size-len-1);
@@ -395,15 +458,20 @@ cds_load_views(CamelFolderSummaryDisk *cds, DB_TXN *txn, CamelException *ex)
 		v(printf("  loading view '%s'\n", vid));
 
 		view = camel_folder_summary_view_new(CFS(cds), vid);
+		((CamelFolderViewDisk *)view)->env = env;
 		g_free(vid);
 		crd = camel_record_decoder_new(data.data, data.size);
 		CDS_CLASS(cds)->decode_view(cds, view, crd);
 		camel_record_decoder_free(crd);
+#if 0
 		cds_view_initdb(CFS(cds), view, NULL, ex);
 		if (!camel_exception_is_set(ex))
 			camel_folder_summary_view_add(CFS(cds), view, ex);
 		else
 			camel_folder_summary_view_unref((CamelFolderView *)view);
+#else
+		camel_folder_summary_view_add(CFS(cds), view, ex);
+#endif
 		LOCK_ENV(env);
 	}
 
@@ -647,18 +715,24 @@ cds_update_view_add(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
 
 	if (camel_folder_search_match(view->view.iter, mi, NULL)) {
 		DBT key = { 0 }, data = { 0 };
+		CamelException ex = { 0 };
 
 		key.data = (void *)camel_message_info_uid(mi);
 		key.size = strlen(key.data);
 
 		LOCK_VIEW(view);
-		res = view->db->put(view->db, NULL, &key, &data, DB_NOOVERWRITE);
-		if (res == 0) {
-			d(printf("  just added a new match\n"));
-			view->view.touched = 1;
-			view->view.total_count++;
-			// FIXME: update counts
-		}
+		cds_view_usedb(view->view.summary, (CamelFolderView *)view, NULL, &ex);
+		if (ex.id == 0) {
+			res = view->db->put(view->db, NULL, &key, &data, DB_NOOVERWRITE);
+			if (res == 0) {
+				d(printf("  just added a new match\n"));
+				view->view.touched = 1;
+				view->view.total_count++;
+				// FIXME: update counts
+			}
+		} else
+			camel_exception_clear(&ex);
+		cds_view_unusedb(view->view.summary, (CamelFolderView *)view);
 		UNLOCK_VIEW(view);
 	}
 
@@ -670,20 +744,26 @@ cds_update_view_remove(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
 {
 	int res;
 	DBT key = { 0 };
+	CamelException ex = { 0 };
 
 	key.data = (void *)camel_message_info_uid(mi);
 	key.size = strlen(key.data);
 
 	LOCK_VIEW(view);
-	res = view->db->del(view->db, NULL, &key, 0);
-	if (res == 0) {
-		d(printf("  we had it, bye byte\n"));
-		view->view.touched = 1;
-		view->view.total_count--;
-		// FIXME: update counts
-	} else if (res != DB_NOTFOUND) {
-		/* I can fill some data integrity issues coming on ... */
-	}
+	cds_view_usedb(view->view.summary, (CamelFolderView *)view, NULL, &ex);
+	if (ex.id == 0) {
+		res = view->db->del(view->db, NULL, &key, 0);
+		if (res == 0) {
+			d(printf("  we had it, bye byte\n"));
+			view->view.touched = 1;
+			view->view.total_count--;
+			// FIXME: update counts
+		} else if (res != DB_NOTFOUND) {
+			/* I can fill some data integrity issues coming on ... */
+		}
+	} else
+		camel_exception_clear(&ex);
+	cds_view_unusedb(view->view.summary, (CamelFolderView *)view);
 	UNLOCK_VIEW(view);
 
 	return res;
@@ -880,7 +960,7 @@ static void *cds_get(CamelFolderSummary *s, const char *uid)
    if we need to go again - i.e. we got the header key or secondary index mismatch */
 static const CamelMessageInfo *cds_iterator_step(void *mitin, guint32 flags0, guint32 flags1, CamelException *ex)
 {
-	CamelMessageIteratorDisk *mit = mitin;
+	CamelIteratorDisk *mit = mitin;
 	CamelFolderViewDisk *root = (CamelFolderViewDisk *)mit->view->summary->root_view;
 	CamelMessageInfo *mi;
 	int res;
@@ -934,9 +1014,9 @@ done:
 	return NULL;
 }
 
-static const CamelMessageInfo *cds_iterator_next(void *mitin, CamelException *ex)
+static const void *cds_iterator_next(void *mitin, CamelException *ex)
 {
-	CamelMessageIteratorDisk *mit = mitin;
+	CamelIteratorDisk *mit = mitin;
 	const CamelMessageInfo *mi;
 
 	mi = cds_iterator_step(mitin, mit->reset?DB_FIRST:DB_NEXT, DB_NEXT, ex);
@@ -947,19 +1027,20 @@ static const CamelMessageInfo *cds_iterator_next(void *mitin, CamelException *ex
 
 static void cds_iterator_reset(void *mitin)
 {
-	CamelMessageIteratorDisk *mit = mitin;
+	CamelIteratorDisk *mit = mitin;
 
 	mit->reset = 1;
 }
 
 static void cds_iterator_free(void *mitin)
 {
-	CamelMessageIteratorDisk *mit = mitin;
+	CamelIteratorDisk *mit = mitin;
 	CamelFolder *folder;
 
 	if (mit->cursor) {
 		LOCK_VIEW(mit->view);
 		mit->cursor->c_close(mit->cursor);
+		cds_view_unusedb(mit->view->summary, mit->view);
 		UNLOCK_VIEW(mit->view);
 		if (mit->data.data)
 			free(mit->data.data);
@@ -977,15 +1058,15 @@ static void cds_iterator_free(void *mitin)
 	camel_object_unref(folder);
 }
 
-static CamelMessageIteratorVTable cds_iterator_vtable = {
+static CamelIteratorVTable cds_iterator_vtable = {
 	cds_iterator_free,
 	cds_iterator_next,
 	cds_iterator_reset,
 };
 
-static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const char *vid, const char *expr, CamelMessageIterator *subset, CamelException *ex)
+static struct _CamelIterator *cds_search(CamelFolderSummary *s, const char *vid, const char *expr, CamelIterator *subset, CamelException *ex)
 {
-	CamelMessageIteratorDisk *mit;
+	CamelIteratorDisk *mit;
 	CamelFolderViewDisk *view;
 
 	/* We find the right index to search on then use that.  If this view
@@ -1001,21 +1082,22 @@ static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const cha
 		/* we also assume subset is in the view ... */
 		camel_folder_summary_view_unref((CamelFolderView *)view);
 		if (expr && expr[0])
-			return (CamelMessageIterator *)camel_folder_search_search(s->search, expr, subset, ex);
+			return (CamelIterator *)camel_folder_search_search(s->search, expr, subset, ex);
 		else
 			return subset;
 	} else {
 		/* The summary has no ref on the folder so we need to ref that instead */
 
-		mit = camel_message_iterator_new(&cds_iterator_vtable, sizeof(*mit));
+		mit = camel_iterator_new(&cds_iterator_vtable, sizeof(*mit));
 		mit->view = (CamelFolderView *)view;
 		camel_object_ref(s->folder);
 
 		LOCK_VIEW(view);
-
-		if (view->db->cursor(view->db, NULL, &mit->cursor, 0) != 0)
+		cds_view_usedb(s, (CamelFolderView *)view, NULL, ex);
+		if (view->db->cursor(view->db, NULL, &mit->cursor, 0) != 0) {
+			cds_view_unusedb(s, (CamelFolderView *)view);
 			mit->cursor = NULL;
-		else {
+		} else {
 			mit->key.flags = DB_DBT_REALLOC;
 			mit->data.flags = DB_DBT_REALLOC;
 		}
@@ -1023,9 +1105,9 @@ static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const cha
 		UNLOCK_VIEW(view);
 
 		if (expr && expr[0])
-			return (CamelMessageIterator *)camel_folder_search_search(s->search, expr, (CamelMessageIterator *)mit, ex);
+			return (CamelIterator *)camel_folder_search_search(s->search, expr, (CamelIterator *)mit, ex);
 		else
-			return (CamelMessageIterator *)mit;
+			return (CamelIterator *)mit;
 	}
 }
 
@@ -1034,7 +1116,7 @@ static struct _CamelMessageIterator *cds_search(CamelFolderSummary *s, const cha
 static void
 cds_view_rebuild(CamelFolderSummary *s, CamelFolderViewDisk *view, CamelException *ex)
 {
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *info;
 	DBT key = { 0 }, data = { 0 };
 	int res;
@@ -1050,7 +1132,7 @@ cds_view_rebuild(CamelFolderSummary *s, CamelFolderViewDisk *view, CamelExceptio
 
 	// This should be transaction protected
 
-	while ((info = camel_message_iterator_next(iter, ex))) {
+	while ((info = camel_iterator_next(iter, ex))) {
 		key.data = (void *)camel_message_info_uid(info);
 		key.size = strlen(key.data);
 
@@ -1063,7 +1145,7 @@ cds_view_rebuild(CamelFolderSummary *s, CamelFolderViewDisk *view, CamelExceptio
 		}
 		UNLOCK_VIEW(view);
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 
 	printf(" %d total matches\n", view->view.total_count);
 }
@@ -1106,20 +1188,20 @@ cds_view_build_all(CamelFolderSummaryDisk *cds, CamelException *ex)
 	}
 
 	if (build->len) {
-		CamelMessageIterator *iter;
+		CamelIterator *iter;
 		const CamelMessageInfo *info;
 
 		camel_operation_start(NULL, ngettext("Building view", "Building views", build->len));
 
 		iter = camel_folder_summary_search((CamelFolderSummary *)cds, NULL, NULL, NULL, ex);
-		while ((info = camel_message_iterator_next(iter, ex))) {
+		while ((info = camel_iterator_next(iter, ex))) {
 			if (root->view.total_count)
 				camel_operation_progress(NULL, (i++)*100/root->view.total_count);
 
 			for (i=0;i<build->len;i++)
 				cds_update_view_add(build->pdata[i], info);
 		}
-		camel_message_iterator_free(iter);
+		camel_iterator_free(iter);
 
 		camel_operation_end(NULL);
 
@@ -1135,7 +1217,6 @@ static void
 cds_view_add(CamelFolderSummary *s, CamelFolderView *fview, CamelException *ex)
 {
 	CamelFolderViewDisk *view = (CamelFolderViewDisk *)fview;
-	DB_TXN *txn;
 	struct _camel_disk_env *env;
 
 	/* We get called both from startup code loading the list of
@@ -1153,8 +1234,16 @@ cds_view_add(CamelFolderSummary *s, CamelFolderView *fview, CamelException *ex)
 	if (env == NULL)
 		return;
 
-	txn = NULL;
+	LOCK_ENV(env);
+	cds_view_usedb(s, fview, NULL, ex);
+	if (fview->vid != NULL)
+		cds_view_unusedb(s, fview);
+	UNLOCK_ENV(env);
+
+	if (!camel_exception_is_set(ex))
+		cds_view_save(CDS(s), view, NULL, ex);
 #if 0
+	DB_TXN *txn;
 	int err;
 
 	LOCK_ENV(env);
@@ -1164,9 +1253,6 @@ cds_view_add(CamelFolderSummary *s, CamelFolderView *fview, CamelException *ex)
 		camel_exception_setv(ex, 1, "cannot create transcation: %s", db_strerror(err));
 	} else {
 #endif
-		cds_view_initdb(s, fview, txn, ex);
-		if (!camel_exception_is_set(ex))
-			cds_view_save(CDS(s), view, txn, ex);
 #if 0
 
 		LOCK_ENV(env);
@@ -1195,7 +1281,11 @@ cds_view_free(CamelFolderSummary *s, CamelFolderView *view)
 
 	LOCK_VIEW(view);
 
-	((CamelFolderViewDisk *)view)->db->close(((CamelFolderViewDisk *)view)->db, 0);
+	if (((CamelFolderViewDisk *)view)->unused)
+		e_dlist_remove(&((CamelFolderViewDisk *)view)->ln);
+
+	if (((CamelFolderViewDisk *)view)->db)
+		((CamelFolderViewDisk *)view)->db->close(((CamelFolderViewDisk *)view)->db, 0);
 
 	if (view->deleted) {
 		DB *db;
@@ -1472,7 +1562,8 @@ cds_sync(CamelFolderSummaryDisk *cds, GPtrArray *infos, CamelException *ex)
 	cds_save_views(cds, NULL, ex);
 
 	LOCK_VIEW(root);
-	root->db->sync(root->db, 0);
+	if (root->db)
+		root->db->sync(root->db, 0);
 	UNLOCK_VIEW(root);
 
 	camel_operation_end(NULL);
@@ -1551,6 +1642,133 @@ camel_folder_summary_disk_get_type(void)
 	return type;
 }
 
+static void
+setup_views(CamelFolderSummary *s)
+{
+	CamelException ex = { 0 };
+
+	camel_folder_summary_view_create(s, "vfolder-0", " (and         (match-all (system-flag  \"Flagged\"))        ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-1", " (or    	(match-all (header-starts-with \"Subject\"  \"Avvist posting til no.annonser\"))          	(match-all (header-starts-with \"Subject\"  \"Feil i posting til no.annonser\"))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-2", " (and    	(match-all (or (header-matches \"To\"  \"au@usenet.no\") 	    	       (header-matches \"Cc\"  \"au@usenet.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-3", " (and   (match-all (header-contains \"From\"  \"daemon\"))            (match-all (or (header-starts-with \"To\"  \"postmaster\") 	    	       (header-starts-with \"Cc\"  \"postmaster\")))                  (match-all (or (header-ends-with \"To\"  \"usenet.no\") 	    	       (header-ends-with \"Cc\"  \"usenet.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-4", " (or            (match-all (or (header-ends-with \"To\"  \"moderators.isc.org\") 	    	       (header-ends-with \"Cc\"  \"moderators.isc.org\")))                  (match-all (or (header-ends-with \"To\"  \"moderators.usenet.no\") 	    	       (header-ends-with \"Cc\"  \"moderators.usenet.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-5", " (or    	(match-all (or (header-matches \"To\"  \"vaktmester@usenet.no\") 	    	       (header-matches \"Cc\"  \"vaktmester@usenet.no\")))          	(match-all (or (header-matches \"To\"  \"vaktmeister@usenet.no\") 	    	       (header-matches \"Cc\"  \"vaktmeister@usenet.no\")))          	(match-all (or (header-matches \"To\"  \"postmaster@usenet.no\") 	    	       (header-matches \"Cc\"  \"postmaster@usenet.no\")))          	(match-all (or (header-matches \"To\"  \"postmaster@general.usenet.no\") 	    	       (header-matches \"Cc\"  \"postmaster@general.usenet.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-6", " (and    	(match-all (or (header-matches \"To\"  \"abuse@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"abuse@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-7", " (and    	(match-all (or (header-matches \"To\"  \"ansatte@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"ansatte@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-8", " (or    	(match-all (or (header-contains \"To\"  \"drift@ifi.uio.no\") 	               (header-contains \"Cc\"  \"drift@ifi.uio.no\")))          	(match-all (or (header-contains \"To\"  \"drift@piazza.ifi.uio.no\") 	               (header-contains \"Cc\"  \"drift@piazza.ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"ifi-cd@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"ifi-cd@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"ijk@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"ijk@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"hostmaster@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"hostmaster@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"mr.find@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"mr.find@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"postmaster@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"postmaster@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"timekeeper@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"timekeeper@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-9", " (or    	(match-all (or (header-matches \"To\"  \"drift-internt@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"drift-internt@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"drift-internt@piazza.ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"drift-internt@piazza.ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-10", " (or    	(match-all (or (header-matches \"To\"  \"is@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"is@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"iq@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"iq@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-11", " (and    	(match-all (or (header-matches \"To\"  \"operator@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"operator@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-12", " (and   (match-all (header-matches \"From\"  \"postmaster@ifi.uio.no\"))    	(match-all (or (header-matches \"To\"  \"postmaster@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"postmaster@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-13", " (or    	(match-all (or (header-matches \"To\"  \"root@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"root@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-14", " (or   (match-all (header-matches \"From\"  \"store@ifi.uio.no\"))   ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-15", " (and   (match-all (header-matches \"From\"  \"news@ifi.uio.no\"))   ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-16", " (and   (match-all (header-contains \"From\"  \"owner\"))    	(match-all (header-contains \"Subject\"  \"admin request\"))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-17", " (or    	(match-all (or (header-matches \"To\"  \"drift@matnat.uio.no\") 	    	       (header-matches \"Cc\"  \"drift@matnat.uio.no\")))          	(match-all (or (header-matches \"To\"  \"stue-drift@matnat.uio.no\") 	    	       (header-matches \"Cc\"  \"stue-drift@matnat.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-18", " (and    	(match-all (or (header-matches \"To\"  \"cerebrum-commits@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"cerebrum-commits@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-19", " (or    	(match-all (or (header-matches \"To\"  \"cerebrum-developers@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"cerebrum-developers@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"noreply@sourceforge.net\") 	    	       (header-matches \"Cc\"  \"noreply@sourceforge.net\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-20", " (or    	(match-all (or (header-matches \"To\"  \"cerebrum-drift@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"cerebrum-drift@usit.uio.no\")))                  (match-all (or (header-starts-with \"To\"  \"cerebrum@\") 	    	       (header-starts-with \"Cc\"  \"cerebrum@\")))          	(match-all (or (header-matches \"To\"  \"cerebrum.bruker@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"cerebrum.bruker@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-21", " (and    	(match-all (or (header-matches \"To\"  \"cerebrum-logs@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"cerebrum-logs@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-22", " (and    	(match-all (or (header-matches \"To\"  \"cerebrum-uio@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"cerebrum-uio@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-23", " (and    	(match-all (or (header-matches \"To\"  \"imap-core@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"imap-core@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-24", " (or    	(match-all (or (header-matches \"To\"  \"lk-alle@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"lk-alle@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"lk-mn@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"lk-mn@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-25", " (and   (match-all (header-contains \"From\"  \"root@mail-lb\"))   ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-26", " (and    	(match-all (or (header-matches \"To\"  \"postklient@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"postklient@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-27", " (or    	(match-all (or (header-matches \"To\"  \"postmaster@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"postmaster@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"listearkiv@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"listearkiv@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"mailman-owner@lister.uio.no\") 	    	       (header-matches \"Cc\"  \"mailman-owner@lister.uio.no\")))          	(match-all (or (header-matches \"To\"  \"mister.mailman@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"mister.mailman@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"mister.exim@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"mister.exim@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-28", " (and    	(match-all (or (header-matches \"To\"  \"postmaster-core@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"postmaster-core@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-29", " (and    	(match-all (or (header-matches \"To\"  \"postmaster-logs@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"postmaster-logs@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-30", " (and    	(match-all (or (header-contains \"To\"  \"postmaster\") 	               (header-contains \"Cc\"  \"postmaster\")))          	(match-all (or (header-contains \"To\"  \"uio.no\") 	               (header-contains \"Cc\"  \"uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-31", " (or    	(match-all (or (header-matches \"To\"  \"studit-drift@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"studit-drift@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"utskriftsbetaling@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"utskriftsbetaling@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"utskriftskvote@admin.uio.no\") 	    	       (header-matches \"Cc\"  \"utskriftskvote@admin.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-32", " (or    	(match-all (or (header-matches \"To\"  \"unix-core@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"unix-core@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"sikkerhet@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"sikkerhet@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"daily-core@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"daily-core@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-33", " (or    	(match-all (or (header-matches \"To\"  \"unix-drift@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"unix-drift@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"down@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"down@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"samba@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"samba@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"fms@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"fms@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"utskrift@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"utskrift@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"drift@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"drift@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"priss@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"priss@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"unix-harddrift@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"unix-harddrift@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-34", " (or    	(match-all (or (header-matches \"To\"  \"ureg2000@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"ureg2000@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"ureg2000-core@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"ureg2000-core@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-35", " (or    	(match-all (or (header-matches \"To\"  \"usenet@uio.no\") 	    	       (header-matches \"Cc\"  \"usenet@uio.no\")))          	(match-all (or (header-matches \"To\"  \"usenet@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"usenet@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"usenet@readme.uio.no\") 	    	       (header-matches \"Cc\"  \"usenet@readme.uio.no\")))          	(match-all (or (header-matches \"To\"  \"ntb@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"ntb@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"newsmaster@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"newsmaster@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-36", " (and   (match-all (header-matches \"From\"  \"news@usit.uio.no\"))   ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-37", " (or    	(match-all (or (header-matches \"To\"  \"alle@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"alle@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"gt-core@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"gt-core@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"usit-sapp@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"usit-sapp@usit.uio.no\")))          	(match-all (or (header-matches \"To\"  \"linux-drift@uio.no\") 	    	       (header-matches \"Cc\"  \"linux-drift@uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-38", " (or    	(match-all (or (header-contains \"To\"  \"drift@uninett.no\") 	               (header-contains \"Cc\"  \"drift@uninett.no\")))          	(match-all (or (header-contains \"To\"  \"drift-info@uninett.no\") 	               (header-contains \"Cc\"  \"drift-info@uninett.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-39", " (match-threads \"replies_parents\"  (or            (match-all (or (header-starts-with \"To\"  \"kjetilho\") 	    	       (header-starts-with \"Cc\"  \"kjetilho\")))          	(match-all (or (header-matches \"To\"  \"kjetilth@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"kjetilth@ifi.uio.no\")))         ) ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-40", " (or    	(match-all (or (header-matches \"To\"  \"11m@l.olafsen.org\") 	    	       (header-matches \"Cc\"  \"11m@l.olafsen.org\")))         (match-all (header-contains \"From\"  \"11mod.info\"))    	(match-all (or (header-contains \"To\"  \"11mod.info\") 	               (header-contains \"Cc\"  \"11mod.info\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-41", " (and    	(match-all (or (header-matches \"To\"  \"bash-testers@cwru.edu\") 	    	       (header-matches \"Cc\"  \"bash-testers@cwru.edu\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-42", " (and    	(match-all (or (header-matches \"To\"  \"bsd@linpro.no\") 	    	       (header-matches \"Cc\"  \"bsd@linpro.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-43", " (and   (match-all (header-contains \"From\"  \"bugzilla-daemon\"))   ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-44", " (or    	(match-all (or (header-matches \"To\"  \"info-cyrus@lists.andrew.cmu.edu\") 	    	       (header-matches \"Cc\"  \"info-cyrus@lists.andrew.cmu.edu\")))          	(match-all (or (header-matches \"To\"  \"info-cyrus@andrew.cmu.edu\") 	    	       (header-matches \"Cc\"  \"info-cyrus@andrew.cmu.edu\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-45", " (or    	(match-all (or (header-matches \"To\"  \"cyrus-sasl@lists.andrew.cmu.edu\") 	    	       (header-matches \"Cc\"  \"cyrus-sasl@lists.andrew.cmu.edu\")))          	(match-all (or (header-matches \"To\"  \"cyrus-sasl@andrew.cmu.edu\") 	    	       (header-matches \"Cc\"  \"cyrus-sasl@andrew.cmu.edu\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-46", " (or    	(match-all (or (header-matches \"To\"  \"evolution@lists.ximian.com\") 	    	       (header-matches \"Cc\"  \"evolution@lists.ximian.com\")))          	(match-all (or (header-matches \"To\"  \"evolution@ximian.com\") 	    	       (header-matches \"Cc\"  \"evolution@ximian.com\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-47", " (or    	(match-all (or (header-matches \"To\"  \"evolution-hackers@lists.ximian.com\") 	    	       (header-matches \"Cc\"  \"evolution-hackers@lists.ximian.com\")))          	(match-all (or (header-matches \"To\"  \"evolution-hackers@ximian.com\") 	    	       (header-matches \"Cc\"  \"evolution-hackers@ximian.com\")))          	(match-all (or (header-matches \"To\"  \"evolution-hackers@ximian.org\") 	    	       (header-matches \"Cc\"  \"evolution-hackers@ximian.org\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-48", " (or    	(match-all (or (header-matches \"To\"  \"exim-users@exim.org\") 	    	       (header-matches \"Cc\"  \"exim-users@exim.org\")))          	(match-all (or (header-matches \"To\"  \"exim-dev@exim.org\") 	    	       (header-matches \"Cc\"  \"exim-dev@exim.org\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-49", " (and    	(match-all (or (header-matches \"To\"  \"i18n-nn@lister.ping.uio.no\") 	    	       (header-matches \"Cc\"  \"i18n-nn@lister.ping.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-50", " (and    	(match-all (or (header-matches \"To\"  \"i18n-no@lister.ping.uio.no\") 	    	       (header-matches \"Cc\"  \"i18n-no@lister.ping.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-51", " (or    	(match-all (or (header-matches \"To\"  \"ietf-mta-filters@imc.org\") 	    	       (header-matches \"Cc\"  \"ietf-mta-filters@imc.org\")))          	(match-all (or (header-matches \"To\"  \"ietf-mta-filters@mail.imc.org\") 	    	       (header-matches \"Cc\"  \"ietf-mta-filters@mail.imc.org\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-52", " (and    	(match-all (or (header-matches \"To\"  \"iml@math.uio.no\") 	    	       (header-matches \"Cc\"  \"iml@math.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-53", " (or    	(match-all (or (header-matches \"To\"  \"jofi@l.olafsen.org\") 	    	       (header-matches \"Cc\"  \"jofi@l.olafsen.org\")))          	(match-all (or (header-matches \"To\"  \"varsel@l.olafsen.org\") 	    	       (header-matches \"Cc\"  \"varsel@l.olafsen.org\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-54", " (and    	(match-all (or (header-matches \"To\"  \"keepalived-devel@lists.sourceforge.net\") 	    	       (header-matches \"Cc\"  \"keepalived-devel@lists.sourceforge.net\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-55", " (and    	(match-all (or (header-matches \"To\"  \"lvs-users@linuxvirtualserver.org\") 	    	       (header-matches \"Cc\"  \"lvs-users@linuxvirtualserver.org\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-56", " (and    	(match-all (or (header-matches \"To\"  \"porsche@yahoogroups.com\") 	    	       (header-matches \"Cc\"  \"porsche@yahoogroups.com\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-57", " (or    	(match-all (or (header-matches \"To\"  \"gurpserne@studorg.uio.no\") 	    	       (header-matches \"Cc\"  \"gurpserne@studorg.uio.no\")))          	(match-all (or (header-matches \"To\"  \"warhammer@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"warhammer@ifi.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-58", " (or    	(match-all (or (header-matches \"To\"  \"sycophant@smoe.org\") 	    	       (header-matches \"Cc\"  \"sycophant@smoe.org\")))          	(match-all (or (header-matches \"To\"  \"sycophant@ecto.org\") 	    	       (header-matches \"Cc\"  \"sycophant@ecto.org\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+	camel_folder_summary_view_create(s, "vfolder-59", " (or    	(match-all (or (header-matches \"To\"  \"eiere@linpro.no\") 	    	       (header-matches \"Cc\"  \"eiere@linpro.no\")))          	(match-all (or (header-matches \"To\"  \"rom-utvalget@ifi.uio.no\") 	    	       (header-matches \"Cc\"  \"rom-utvalget@ifi.uio.no\")))          	(match-all (or (header-matches \"To\"  \"fvwm-announce@fvwm.org\") 	    	       (header-matches \"Cc\"  \"fvwm-announce@fvwm.org\")))          	(match-all (or (header-matches \"To\"  \"bash-testers@po.cwru.edu\") 	    	       (header-matches \"Cc\"  \"bash-testers@po.cwru.edu\")))                  (match-all (or (header-ends-with \"To\"  \"bilkollektivet.no\") 	    	       (header-ends-with \"Cc\"  \"bilkollektivet.no\")))                  (match-all (or (header-ends-with \"To\"  \"nuug.no\") 	    	       (header-ends-with \"Cc\"  \"nuug.no\")))          	(match-all (or (header-matches \"To\"  \"mandagspils@simula.org\") 	    	       (header-matches \"Cc\"  \"mandagspils@simula.org\")))                  (match-all (or (header-ends-with \"To\"  \"duggfrisk.org\") 	    	       (header-ends-with \"Cc\"  \"duggfrisk.org\")))          	(match-all (or (header-matches \"To\"  \"praha-gutta@usit.uio.no\") 	    	       (header-matches \"Cc\"  \"praha-gutta@usit.uio.no\")))         ) ", &ex);
+	camel_exception_clear(&ex);
+}
+
 CamelFolderSummaryDisk *
 camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFolder *folder)
 {
@@ -1577,7 +1795,9 @@ camel_folder_summary_disk_construct(CamelFolderSummaryDisk *cds, struct _CamelFo
 	camel_exception_clear(&ex);
 	camel_folder_summary_view_create(s, "#.junk", "(system-flag \"Junk\")", &ex);
 	camel_exception_clear(&ex);
-#if 1
+
+	setup_views(s);
+#if 0
 	/* add some 'vfolders' */
 	camel_folder_summary_view_create(s, "unread", "(not (system-flag \"Seen\"))", &ex);
 	camel_exception_clear(&ex);

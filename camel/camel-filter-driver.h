@@ -102,7 +102,7 @@ int  camel_filter_driver_filter_mbox          (CamelFilterDriver *driver, const 
 					       const char *original_source_url, CamelException *ex);
 
 int camel_filter_driver_filter_folder (CamelFilterDriver *driver, CamelFolder *folder,
-				       CamelMessageIterator *iter, gboolean delete, CamelException *ex);
+				       CamelIterator *iter, gboolean delete, CamelException *ex);
 
 #if 0
 /* generate the search query/action string for a filter option */

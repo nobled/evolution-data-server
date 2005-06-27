@@ -306,16 +306,16 @@ disco_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		GPtrArray *uids;
 		int i;
 		const CamelMessageInfo *info;
-		CamelMessageIterator *iter;
+		CamelIterator *iter;
 
 		// FIXME: very bad use of iterators
 		uids = g_ptr_array_new ();
 		iter = camel_folder_summary_search(folder->summary, NULL, NULL, NULL, NULL);
-		while ((info = camel_message_iterator_next(iter, NULL))) {
+		while ((info = camel_iterator_next(iter, NULL))) {
 			if (camel_message_info_flags(info) & CAMEL_MESSAGE_DELETED)
 				g_ptr_array_add (uids, g_strdup (camel_message_info_uid (info)));
 		}
-		camel_message_iterator_free(iter);
+		camel_iterator_free(iter);
 
 		disco_expunge_uids (folder, uids, ex);
 
@@ -455,7 +455,7 @@ disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
 			   CamelException *ex)
 {
 	CamelFolder *folder = CAMEL_FOLDER (disco_folder);
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *info;
 	int total, count=0;
 
@@ -468,7 +468,7 @@ disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
 	/* total might not match the expression result - *shrug* */
 	camel_object_get(folder, NULL, CAMEL_FOLDER_TOTAL, &total, 0);
 
-	while ((info = camel_message_iterator_next(iter, ex))) {
+	while ((info = camel_iterator_next(iter, ex))) {
 		int pc = count * 100 / total;
 
 		camel_disco_folder_cache_message(disco_folder, camel_message_info_uid(info), ex);
@@ -478,7 +478,7 @@ disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
 		camel_operation_progress(NULL, pc);
 		count++;
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 fail:
 	camel_operation_end(NULL);
 }

@@ -2399,7 +2399,7 @@ void camel_iterator_reset(void *it)
 int camel_iterator_length(void *it)
 {
 	g_assert(it);
-	g_return_val_if_fail(((CamelIterator *)it)->klass->length != NULL, 1);
+	g_return_val_if_fail(((CamelIterator *)it)->klass->length != NULL, 0);
 	
 	return ((CamelIterator *)it)->klass->length(it);
 }

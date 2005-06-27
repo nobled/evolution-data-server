@@ -247,7 +247,7 @@ offline_folder_downsync (CamelOfflineFolder *offline, const char *expression, Ca
 {
 	CamelFolder *folder = (CamelFolder *)offline;
 	CamelMimeMessage *message;
-	CamelMessageIterator *iter;
+	CamelIterator *iter;
 	const CamelMessageInfo *info;
 	int total, count=0;
 
@@ -259,7 +259,7 @@ offline_folder_downsync (CamelOfflineFolder *offline, const char *expression, Ca
 
 	camel_object_get(folder, NULL, CAMEL_FOLDER_TOTAL, &total, 0);
 
-	while ((info = camel_message_iterator_next(iter, ex))) {
+	while ((info = camel_iterator_next(iter, ex))) {
 		int pc = count * 100 / total;
 
 		/* FIXME: this assumes that 'getting a message' actually retrieves all of its parts,
@@ -272,7 +272,7 @@ offline_folder_downsync (CamelOfflineFolder *offline, const char *expression, Ca
 		camel_operation_progress(NULL, pc);
 		count++;
 	}
-	camel_message_iterator_free(iter);
+	camel_iterator_free(iter);
 fail:
 	camel_operation_end(NULL);
 }
