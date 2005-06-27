@@ -1,3 +1,7 @@
+2005-06-27    <NotZed@Ximian.com>
+
+	* configure.in: added imapx makefile.
+
 2005-06-16  Not Zed  <NotZed@Ximian.com>
 
 	* libedataserver/e-msgport.c (e_mutex_cond_signal): implement a
