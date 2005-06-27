@@ -1133,6 +1133,22 @@ imap_parse_status(CamelIMAPXStream *is)
 	return sinfo;
 }
 
+struct _status_info *
+imap_copy_status(struct _status_info *sinfo)
+{
+	struct _status_info *out;
+
+	out = g_malloc(sizeof(*out));
+	memcpy(out, sinfo, sizeof(*out));
+	out->text = g_strdup(out->text);
+	if (out->condition == IMAP_NEWNAME) {
+		out->u.newname.oldname = g_strdup(out->u.newname.oldname);
+		out->u.newname.newname = g_strdup(out->u.newname.newname);
+	}
+
+	return out;
+}
+
 void
 imap_free_status(struct _status_info *sinfo)
 {

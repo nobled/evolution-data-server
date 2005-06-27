@@ -53,7 +53,7 @@
 static CamelFolderClass *parent_class;
 
 CamelFolder *
-camel_imapx_folder_new(CamelStore *store, const char *path)
+camel_imapx_folder_new(CamelStore *store, const char *path, const char *raw)
 {
 	CamelFolder *folder;
 
@@ -62,7 +62,7 @@ camel_imapx_folder_new(CamelStore *store, const char *path)
 	folder = CAMEL_FOLDER (camel_object_new (CAMEL_IMAPX_FOLDER_TYPE));
 	camel_folder_construct(folder, store, path, path);
 
-	((CamelIMAPXFolder *)folder)->raw_name = g_strdup(path);
+	((CamelIMAPXFolder *)folder)->raw_name = g_strdup(raw);
 
 	folder->summary = camel_imapx_summary_new(folder);
 

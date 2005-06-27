@@ -69,7 +69,7 @@ struct _CamelIMAPXServer {
 	struct _CamelFolder *select_folder;
 	char *select;
 	struct _CamelFolderChangeInfo *changes;
-	const char*pending_select;
+	struct _CamelFolder *select_pending;
 	guint32 permanentflags;
 	guint32 uidvalidity;
 	guint32 unseen;
@@ -92,6 +92,8 @@ CamelType               camel_imapx_server_get_type     (void);
 CamelIMAPXServer *camel_imapx_server_new(struct _CamelStore *store, struct _CamelURL *url);
 
 void camel_imapx_server_connect(CamelIMAPXServer *is, int state);
+
+GPtrArray *camel_imapx_server_list(CamelIMAPXServer *is, const char *top, guint32 flags, CamelException *ex);
 
 void camel_imapx_server_refresh_info(CamelIMAPXServer *is, CamelFolder *folder, struct _CamelException *ex);
 void camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrArray *infos, CamelException *ex);

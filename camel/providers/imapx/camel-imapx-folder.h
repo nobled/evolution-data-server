@@ -51,7 +51,7 @@ typedef struct _CamelIMAPXFolderClass {
 CamelType camel_imapx_folder_get_type (void);
 
 /* public methods */
-CamelFolder *camel_imapx_folder_new(CamelStore *parent, const char *path);
+CamelFolder *camel_imapx_folder_new(CamelStore *parent, const char *path, const char *raw);
 
 #ifdef __cplusplus
 }

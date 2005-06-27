@@ -153,6 +153,7 @@ struct _status_info {
 };
 
 struct _status_info *imap_parse_status(struct _CamelIMAPXStream *is);
+struct _status_info *imap_copy_status(struct _status_info *sinfo);
 void imap_free_status(struct _status_info *sinfo);
 
 /* ********************************************************************** */

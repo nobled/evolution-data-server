@@ -50,7 +50,6 @@
 #endif
 #include "camel/camel-i18n.h"
 
-#include "camel-imapx-store-summary.h"
 #include "camel-imapx-store.h"
 #include "camel-imapx-folder.h"
 #include "camel-imapx-exception.h"
@@ -63,88 +62,25 @@
 
 static CamelStoreClass *parent_class = NULL;
 
-static void finalize (CamelObject *object);
-
-static void imap_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex);
-/* static char *imap_get_name(CamelService *service, gboolean brief);*/
-static gboolean imap_connect (CamelService *service, CamelException *ex);
-static gboolean imap_disconnect (CamelService *service, gboolean clean, CamelException *ex);
-static GList *imap_query_auth_types (CamelService *service, CamelException *ex);
-
-static CamelFolder *imap_get_trash  (CamelStore *store, CamelException *ex);
-
-static CamelFolder *imap_get_folder(CamelStore * store, const char *folder_name, guint32 flags, CamelException * ex);
-static CamelFolder *imap_get_inbox (CamelStore *store, CamelException *ex);
-static void imap_rename_folder(CamelStore *store, const char *old_name, const char *new_name, CamelException *ex);
-static CamelFolderInfo *imap_get_folder_info (CamelStore *store, const char *top, guint32 flags, CamelException *ex);
-static void imap_delete_folder(CamelStore *store, const char *folder_name, CamelException *ex);
-static void imap_rename_folder(CamelStore *store, const char *old, const char *new, CamelException *ex);
-static CamelFolderInfo *imap_create_folder(CamelStore *store, const char *parent_name, const char *folder_name, CamelException *ex);
-
-static void
-camel_imapx_store_class_init (CamelIMAPXStoreClass *camel_imapx_store_class)
+static guint
+imapx_name_hash(gconstpointer key)
 {
-	CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS(camel_imapx_store_class);
-	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(camel_imapx_store_class);
-
-	parent_class = CAMEL_STORE_CLASS(camel_type_get_global_classfuncs(camel_store_get_type()));
-	
-	/* virtual method overload */
-	camel_service_class->construct = imap_construct;
-	/*camel_service_class->get_name = imap_get_name;*/
-	camel_service_class->query_auth_types = imap_query_auth_types;
-	camel_service_class->connect = imap_connect;
-	camel_service_class->disconnect = imap_disconnect;
-
-	camel_store_class->get_trash = imap_get_trash;
-	camel_store_class->get_folder = imap_get_folder;
-	camel_store_class->get_inbox = imap_get_inbox;
-
-	camel_store_class->create_folder = imap_create_folder;
-	camel_store_class->rename_folder = imap_rename_folder;
-	camel_store_class->delete_folder = imap_delete_folder;
-	camel_store_class->get_folder_info = imap_get_folder_info;
+	if (g_ascii_strcasecmp(key, "INBOX") == 0)
+		return g_str_hash("INBOX");
+	else
+		return g_str_hash(key);
 }
 
-static void
-camel_imapx_store_init (gpointer object, gpointer klass)
+static gint
+imapx_name_equal(gconstpointer a, gconstpointer b)
 {
-	/*CamelIMAPXStore *istore = object;*/
-}
+	gconstpointer aname = a, bname = b;
 
-CamelType
-camel_imapx_store_get_type (void)
-{
-	static CamelType camel_imapx_store_type = CAMEL_INVALID_TYPE;
-
-	if (!camel_imapx_store_type) {
-		camel_imapx_store_type = camel_type_register(CAMEL_STORE_TYPE,
-							    "CamelIMAPXStore",
-							    sizeof (CamelIMAPXStore),
-							    sizeof (CamelIMAPXStoreClass),
-							    (CamelObjectClassInitFunc) camel_imapx_store_class_init,
-							    NULL,
-							    (CamelObjectInitFunc) camel_imapx_store_init,
-							    finalize);
-	}
-
-	return camel_imapx_store_type;
-}
-
-static void
-finalize (CamelObject *object)
-{
-	CamelIMAPXStore *imap_store = CAMEL_IMAPX_STORE (object);
-
-	/* force disconnect so we dont have it run later, after we've cleaned up some stuff */
-	/* SIGH */
-
-	camel_service_disconnect((CamelService *)imap_store, TRUE, NULL);
-
-	if (imap_store->driver)
-		camel_object_unref(imap_store->driver);
-	if (imap_store->cache)
-		camel_object_unref(imap_store->cache);
+	if (g_ascii_strcasecmp(a, "INBOX") == 0)
+		aname = "INBOX";
+	if (g_ascii_strcasecmp(b, "INBOX") == 0)
+		bname = "INBOX";
+	return g_str_equal(aname, bname);
 }
 
 static void imap_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
@@ -284,7 +220,8 @@ imap_get_folder (CamelStore *store, const char *folder_name, guint32 flags, Came
 //	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
 	CamelIMAPXFolder * volatile folder = NULL;
 
-	folder = (CamelIMAPXFolder *)camel_imapx_folder_new(store, folder_name);
+	/* FIXME: need to map the folder name to the server folder name */
+	folder = (CamelIMAPXFolder *)camel_imapx_folder_new(store, folder_name, folder_name);
 
 	return (CamelFolder *)folder;
 }
@@ -297,29 +234,6 @@ imap_get_inbox(CamelStore *store, CamelException *ex)
 	return NULL;
 }
 
-/* 8 bit, string compare */
-static int folders_build_cmp(const void *app, const void *bpp)
-{
-	struct _list_info *a = *((struct _list_info **)app);
-	struct _list_info *b = *((struct _list_info **)bpp);
-	unsigned char *ap = (unsigned char *)(a->name);
-	unsigned char *bp = (unsigned char *)(b->name);
-
-	printf("qsort, cmp '%s' <> '%s'\n", ap, bp);
-
-	while (*ap && *ap == *bp) {
-		ap++;
-		bp++;
-	}
-
-	if (*ap < *bp)
-		return -1;
-	else if (*ap > *bp)
-		return 1;
-	return 0;
-}
-
-/* FIXME: this should go via storesummary? */
 static CamelFolderInfo *
 folders_build_info(CamelURL *base, struct _list_info *li)
 {
@@ -452,103 +366,30 @@ imap_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExc
 {
 	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
 	CamelFolderInfo * fi= NULL;
+	GPtrArray *folders;
+	CamelURL *base;
+	int i;
 
-#if 0
-	char *name;
-
-	/* FIXME: temporary, since this is not a disco store */
-	if (istore->driver == NULL
-	    && !camel_service_connect((CamelService *)store, ex))
-		return NULL;
-
-	name = (char *)top;
-	if (name == NULL || name[0] == 0) {
-		/* namespace? */
-		name = "";
+	if (istore->server == NULL) {
+		camel_service_connect((CamelService *)store, ex);
+		if (camel_exception_is_set(ex))
+			return NULL;
 	}
 
-	name = "";
+	if (top == NULL)
+		top = "";
 
-	CAMEL_TRY {
-		CamelURL *base;
-		int i;
-		GPtrArray *folders;
+	/* FIXME: we need to get the list of folders some other way, and only
+	   got to the server sometimes */
 
-		/* FIXME: subscriptions? lsub? */
-		folders = camel_imapx_driver_list(istore->driver, name, flags);
+	folders = camel_imapx_server_list(istore->server, top, flags, ex);
 
-		/* this greatly simplifies the tree algorithm ... but it might
-		   be faster just to use a hashtable to find parents? */
-		qsort(folders->pdata, folders->len, sizeof(folders->pdata[0]), folders_build_cmp);
-
-		i = 0;
-		base = camel_url_copy(((CamelService *)store)->url);
-		fi = folders_build_rec(base, folders, &i, NULL, NULL);
-		camel_url_free(base);
-		g_ptr_array_free(folders, TRUE);
-	} CAMEL_CATCH(e) {
-		camel_exception_xfer(ex, e);
-	} CAMEL_DONE;
-
-	printf("built folder info:\n");
-	folder_info_dump(fi, 2);
+	i = 0;
+	base = camel_url_copy(((CamelService *)store)->url);
+	fi = folders_build_rec(base, folders, &i, NULL, NULL);
+	camel_url_free(base);
 
 	return fi;
-
-#else
-	if (top == NULL || !g_ascii_strcasecmp(top, "inbox")) {
-		CamelFolder *folder;
-		CamelURL *uri = camel_url_copy(((CamelService *)store)->url);
-
-		camel_url_set_path(uri, "/INBOX");
-		fi = g_malloc0(sizeof(*fi));
-		fi->uri = camel_url_to_string(uri, CAMEL_URL_HIDE_ALL);
-		camel_url_free(uri);
-		fi->name = g_strdup("INBOX");
-		fi->full_name = g_strdup("INBOX");
-		fi->unread = -1;
-		fi->flags = 0;
-
-		folder = camel_object_bag_get(store->folders, "INBOX");
-		if (folder) {
-			fi->unread = folder->summary->root_view->unread_count;
-			camel_object_unref(folder);
-		}
-	} else {
-		camel_exception_setv(ex, 1, "not implemented");
-	}
-
-	return fi;
-#endif
-
-#if 0
-	istore->pending_list = g_ptr_array_new();
-
-	CAMEL_TRY {
-		ic = camel_imapx_engine_command_new(istore->driver->engine, "LIST", NULL, "LIST \"\" %f", top);
-		camel_imapx_engine_command_queue(istore->driver->engine, ic);
-		while (camel_imapx_engine_iterate(istore->driver->engine, ic) > 0)
-			;
-
-		if (ic->status->result != IMAP_OK)
-			camel_exception_throw(1, "list failed: %s", ic->status->text);
-	} CAMEL_CATCH (e) {
-		camel_exception_xfer(ex, e);
-	} CAMEL_DONE;
-	
-	camel_imapx_engine_command_free(istore->driver->engine, ic);
-
-	printf("got folder list:\n");
-	for (i=0;i<(int)istore->pending_list->len;i++) {
-		struct _list_info *linfo = istore->pending_list->pdata[i];
-
-		printf("%s (%c)\n", linfo->name, linfo->separator);
-		imap_free_list(linfo);
-	}
-	istore->pending_list = NULL;
-
-	return NULL;
-#endif
 }
 
 static void
@@ -795,3 +636,70 @@ uidset_test(CamelIMAPXEngine *ie)
 	}
 }
 #endif
+
+static void
+camel_imapx_store_class_init(CamelIMAPXStoreClass *klass)
+{
+	CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS(klass);
+	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(klass);
+
+	parent_class = CAMEL_STORE_CLASS(camel_type_get_global_classfuncs(camel_store_get_type()));
+	
+	camel_service_class->construct = imap_construct;
+	camel_service_class->query_auth_types = imap_query_auth_types;
+	camel_service_class->connect = imap_connect;
+	camel_service_class->disconnect = imap_disconnect;
+
+	camel_store_class->get_trash = imap_get_trash;
+	camel_store_class->get_folder = imap_get_folder;
+	camel_store_class->get_inbox = imap_get_inbox;
+
+	camel_store_class->create_folder = imap_create_folder;
+	camel_store_class->rename_folder = imap_rename_folder;
+	camel_store_class->delete_folder = imap_delete_folder;
+	camel_store_class->get_folder_info = imap_get_folder_info;
+
+	((CamelStoreClass *)klass)->hash_folder_name = imapx_name_hash;
+	((CamelStoreClass *)klass)->compare_folder_name = imapx_name_equal;
+}
+
+static void
+camel_imapx_store_init (gpointer object, gpointer klass)
+{
+	/*CamelIMAPXStore *istore = object;*/
+}
+
+static void
+imapx_store_finalise(CamelObject *object)
+{
+	CamelIMAPXStore *imap_store = CAMEL_IMAPX_STORE (object);
+
+	/* force disconnect so we dont have it run later, after we've cleaned up some stuff */
+	/* SIGH */
+
+	camel_service_disconnect((CamelService *)imap_store, TRUE, NULL);
+
+	if (imap_store->driver)
+		camel_object_unref(imap_store->driver);
+	if (imap_store->cache)
+		camel_object_unref(imap_store->cache);
+}
+
+CamelType
+camel_imapx_store_get_type (void)
+{
+	static CamelType camel_imapx_store_type = CAMEL_INVALID_TYPE;
+
+	if (!camel_imapx_store_type) {
+		camel_imapx_store_type = camel_type_register(CAMEL_STORE_TYPE,
+							    "CamelIMAPXStore",
+							    sizeof (CamelIMAPXStore),
+							    sizeof (CamelIMAPXStoreClass),
+							    (CamelObjectClassInitFunc) camel_imapx_store_class_init,
+							    NULL,
+							    (CamelObjectInitFunc) camel_imapx_store_init,
+							     imapx_store_finalise);
+	}
+
+	return camel_imapx_store_type;
+}

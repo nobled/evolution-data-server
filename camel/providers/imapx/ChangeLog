@@ -1,3 +1,10 @@
+2005-06-27    <NotZed@Ximian.com>
+
+	* camel-imapx-server.c: Fixed some problems with multi-folder
+	support.
+
+	* camel-imapx-store.c: Simple first-cut of listing code.
+
 2005-06-23  Not Zed  <NotZed@Ximian.com>
 
 	* camel-imapx-server.c (imapx_command_addv): added support for raw
