@@ -36,6 +36,7 @@
 #include <libedataserver/e-iconv.h>
 
 #include "camel-folder-summary.h"
+#include "camel-view-summary.h"
 
 /* for change events, perhaps we should just do them ourselves */
 #include "camel-folder.h"
@@ -76,10 +77,9 @@ add(CamelFolderSummary *s, void *o)
 {
 	CamelMessageInfo *mi = o;
 	guint32 flags;
-	CamelFolderView *v = s->root_view;
+	CamelView *v = s->root_view->view;
 
 	/* FIXME: lock */
-	v->touched = 1;
 	v->total_count++;
 	flags = camel_message_info_flags(mi);
 	if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
@@ -90,6 +90,7 @@ add(CamelFolderSummary *s, void *o)
 		v->deleted_count++;
 	if (flags & CAMEL_MESSAGE_JUNK)
 		v->junk_count++;
+	camel_view_changed(v);
 
 	return 0;
 }
@@ -111,10 +112,9 @@ cfs_remove(CamelFolderSummary *s, void *o)
 {
 	CamelMessageInfo *mi = o;
 	guint32 flags;
-	CamelFolderView *v = s->root_view;
+	CamelView *v = s->root_view->view;
 
 	/* FIXME: lock */
-	v->touched = 1;
 	v->total_count--;
 	flags = camel_message_info_flags(mi);
 	if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
@@ -125,6 +125,7 @@ cfs_remove(CamelFolderSummary *s, void *o)
 		v->deleted_count--;
 	if (flags & CAMEL_MESSAGE_JUNK)
 		v->junk_count--;
+	camel_view_changed(v);
 
 	return 0;
 }
@@ -144,14 +145,15 @@ remove_array(CamelFolderSummary *s, GPtrArray *mis)
 static void
 cfs_clear(CamelFolderSummary *s)
 {
-	CamelFolderView *v = s->root_view;
+	CamelView *v = s->root_view->view;
 
-	v->touched = 1;
 	v->total_count = 0;
 	v->visible_count = 0;
 	v->unread_count = 0;
 	v->deleted_count = 0;
 	v->junk_count = 0;
+
+	camel_view_changed(v);
 
 	/* what about all views? */
 }
@@ -159,25 +161,25 @@ cfs_clear(CamelFolderSummary *s)
 static void
 cfs_view_add(CamelFolderSummary *s, CamelFolderView *view, CamelException *ex)
 {
-	if (view->expr) {
-		view->iter = camel_folder_search_search(s->search, view->expr, NULL, ex);
-		view->is_static = camel_folder_search_is_static(s->search, view->expr, NULL);
+	if (view->view->expr) {
+		view->iter = camel_folder_search_search(s->search, view->view->expr, NULL, ex);
+		view->is_static = camel_folder_search_is_static(s->search, view->view->expr, NULL);
 	} else {
 		view->iter = NULL;
 		view->is_static = 1;
 	}
 
-	if (view->vid == NULL) {
+	if (strchr(view->view->vid, 1) == NULL) {
 		g_assert(s->root_view == NULL);
 		s->root_view = view;
 	} else {
-		g_assert(camel_folder_summary_view_lookup(s, view->vid) == NULL);
+		g_assert(camel_folder_view_get(s, view->view->vid) == NULL);
 		e_dlist_addtail(&s->views, (EDListNode *)view);
 	}
 }
 
 static void
-cfs_view_delete(CamelFolderSummary *s, CamelFolderView *view)
+cfs_view_remove(CamelFolderSummary *s, CamelFolderView *view)
 {
 	/* nothing, already removed elsewhere */
 }
@@ -189,8 +191,7 @@ cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
 		camel_iterator_free((CamelIterator *)view->iter);
 	if (view->changes)
 		camel_folder_change_info_free(view->changes);
-	g_free(view->vid);
-	g_free(view->expr);
+	camel_view_unref(view->view);
 	g_free(view);
 }
 
@@ -522,7 +523,6 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 {
 	guint32 old, diff, new;
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
-	CamelFolderView *v;
 
 	/* TODO: locking? */
 
@@ -531,13 +531,12 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 
 	// FIXME: what constitutes 'visible' needs to be configurable per summary?
 
-	v = info->summary->root_view;
-
 	/* diff will contain which flags have changed, set will contain what they are now */
 	diff = (set ^ old) & mask;
 	if (diff & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK|CAMEL_MESSAGE_SEEN)) {
-		v->touched = 1;
+		CamelView *v;
 
+		v = info->summary->root_view->view;
 		new = set & mask;
 		if (diff & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) {
 			if ((new & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)
@@ -563,6 +562,8 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 			else
 				v->junk_count--;
 		}
+
+		camel_view_changed(v);
 	}
 
 	if (diff && info->uid)
@@ -616,7 +617,7 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 {
 	camel_folder_summary_parent = camel_type_get_global_classfuncs (camel_object_get_type ());
 
-	klass->view_sizeof = sizeof(CamelFolderView);
+	klass->folderview_sizeof = sizeof(CamelFolderView);
 	klass->messageinfo_sizeof = sizeof(CamelMessageInfoBase);
 
 	klass->add = add;
@@ -626,7 +627,7 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->clear = cfs_clear;
 
 	klass->view_add = cfs_view_add;
-	klass->view_delete = cfs_view_delete;
+	klass->view_remove = cfs_view_remove;
 	klass->view_free = cfs_view_free;
 
 	klass->get = get;
@@ -669,25 +670,29 @@ camel_folder_summary_init (CamelFolderSummary *s)
 }
 
 static void
-camel_folder_summary_finalize (CamelObject *obj)
+camel_folder_summary_finalise(CamelObject *obj)
 {
 	struct _CamelFolderSummaryPrivate *p;
 	CamelFolderSummary *s = (CamelFolderSummary *)obj;
 	CamelFolderView *v;
 
 	p = _PRIVATE(obj);
-
+#if 0
+	/* must be freed by outer class */
 	/* ?? */
 	while ((v = (CamelFolderView *)e_dlist_remhead(&s->views)))
 		CFS_CLASS(s)->view_free(s, v);
 
 	CFS_CLASS(s)->view_free(s, s->root_view);
+#endif
 
 	g_mutex_free(p->ref_lock);
 	g_free(p);
 
 	if (s->search)
 		camel_object_unref(s->search);
+	if (s->view_summary)
+		camel_object_unref(s->view_summary);
 }
 
 CamelType
@@ -702,7 +707,7 @@ camel_folder_summary_get_type (void)
 					    (CamelObjectClassInitFunc) camel_folder_summary_class_init,
 					    NULL,
 					    (CamelObjectInitFunc) camel_folder_summary_init,
-					    (CamelObjectFinalizeFunc) camel_folder_summary_finalize);
+					    (CamelObjectFinalizeFunc) camel_folder_summary_finalise);
 	}
 	
 	return type;
@@ -832,21 +837,24 @@ camel_folder_summary_search(CamelFolderSummary *s, const char *vid, const char *
 	return CFS_CLASS(s)->search(s, vid, expr, subset, ex);
 }
 
+/* ********************************************************************** */
+
 CamelFolderView *
-camel_folder_summary_view_new(CamelFolderSummary *s, const char *vid)
+camel_folder_view_new(CamelFolderSummary *s, CamelView *vview)
 {
 	CamelFolderView *view;
 
-	view = g_malloc0(CFS_CLASS(s)->view_sizeof);
+	view = g_malloc0(CFS_CLASS(s)->folderview_sizeof);
 	view->refcount = 1;
-	view->vid = g_strdup(vid);
+	view->view = vview;
+	camel_view_ref(vview);
 	view->summary = s;
 
 	return view;
 }
 
 CamelFolderView *
-camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid)
+camel_folder_view_get(CamelFolderSummary *s, const char *vid)
 {
 	CamelFolderView *v;
 
@@ -859,7 +867,7 @@ camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid)
 	v = (CamelFolderView *)s->views.head;
 
 	/* FIXME: lock, refcount? */
-	while (v->next && strcmp(v->vid, vid) != 0)
+	while (v->next && strcmp(v->view->vid, vid) != 0)
 		v = v->next;
 
 	if (v->next) {
@@ -870,7 +878,7 @@ camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid)
 }
 
 void
-camel_folder_summary_view_unref(CamelFolderView *v)
+camel_folder_view_unref(CamelFolderView *v)
 {
 	v->refcount--;
 	if (v->refcount == 0)
@@ -878,55 +886,54 @@ camel_folder_summary_view_unref(CamelFolderView *v)
 }
 
 /* 0wN3z view after adding */
-void camel_folder_summary_view_add(CamelFolderSummary *s, CamelFolderView *view, CamelException *ex)
+void camel_folder_view_add(CamelFolderSummary *s, CamelFolderView *view, CamelException *ex)
 {
 	CFS_CLASS(s)->view_add(s, view, ex);
 }
 
-const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex)
+const CamelFolderView *camel_folder_view_create(CamelFolderSummary *s, const char *name, const char *expr, CamelException *ex)
 {
 	CamelFolderView *view;
+	char *vid;
+
+	vid = g_strdup_printf("%s\01%s", s->folder->full_name, name);
 
 	v(printf("Asking to create view '%s' %s\n", vid?vid:"<root>", expr?expr:"<empty>"));
 
-	view = camel_folder_summary_view_lookup(s, vid);
+	view = camel_folder_view_get(s, vid);
 	if (view) {
-		if (view->expr != expr
-		    && strcmp(view->expr, expr) != 0) {
+		if (view->view->expr != expr
+		    && strcmp(view->view->expr, expr) != 0) {
 			v(printf(" already have '%s' but new expression, queueing rebuild\n", vid));
-			g_free(view->expr);
-			view->expr = g_strdup(expr);
-			view->rebuild = 1;
+			g_free(view->view->expr);
+			view->view->expr = g_strdup(expr);
+			view->view->rebuild = 1;
+			camel_view_changed(view->view);
 		} else {
 			v(printf(" already have '%s', no change\n", vid));
 		}
-		camel_folder_summary_view_unref(view);
+		camel_folder_view_unref(view);
 	} else {
+		CamelView *cview;
+
 		v(printf(" adding new view '%s'\n", vid));
-		view = camel_folder_summary_view_new(s, vid);
-		view->expr = g_strdup(expr);
-		view->rebuild = 1;
-		view->touched = 1;
-		camel_folder_summary_view_add(s, view, ex);
+		cview = camel_view_new(s->view_summary, vid);
+		cview->expr = g_strdup(expr);
+		cview->rebuild = 1;
+		view = camel_folder_view_new(s, cview);
+		camel_folder_view_add(s, view, ex);
 	}
+
+	g_free(vid);
 
 	return view;
 }
 
-void camel_folder_summary_view_delete(CamelFolderSummary *s, const char *vid)
+void camel_folder_view_remove(CamelFolderSummary *s, CamelFolderView *view)
 {
-	CamelFolderView *v = (CamelFolderView *)s->views.head;
-
-	/* FIXME: locking? */
-	while (v->next && strcmp(v->vid, vid) != 0)
-		v = v->next;
-
-	if (v->next) {
-		e_dlist_remove((EDListNode *)v);
-		v->deleted = TRUE;
-		CFS_CLASS(s)->view_delete(s, v);
-		camel_folder_summary_view_unref(v);
-	}
+	e_dlist_remove((EDListNode *)view);
+	view->view->deleted = TRUE;
+	CFS_CLASS(s)->view_remove(s, view);
 }
 
 /**
@@ -1351,8 +1358,12 @@ camel_flag_get(CamelFlag **list, const char *name)
 	CamelFlag *flag;
 	flag = *list;
 	while (flag) {
-		if (!strcmp(flag->name, name))
+		int res = strcmp(name, flag->name);
+
+		if (res == 0)
 			return TRUE;
+		else if (res>0)
+			return FALSE;
 		flag = flag->next;
 	}
 	return FALSE;
@@ -1364,7 +1375,9 @@ camel_flag_get(CamelFlag **list, const char *name)
  * @name: name of the flag to set or change
  * @value: the value to set on the flag
  * 
- * Set the state of a flag @name in the list @list to @value.
+ * Set the state of a flag @name in the list @list to @value.  Items
+ * in the flag list are stored in a sorted order, to facilitate
+ * efficient set operations.
  *
  * Returns %TRUE if the value of the flag has been changed or %FALSE
  * otherwise
@@ -1377,14 +1390,18 @@ camel_flag_set(CamelFlag **list, const char *name, gboolean value)
 	/* this 'trick' works because flag->next is the first element */
 	flag = (CamelFlag *)list;
 	while (flag->next) {
+		int res;
+
 		tmp = flag->next;
-		if (!strcmp(flag->next->name, name)) {
+		res = strcmp(name, tmp->name);
+		if (res == 0) {
 			if (!value) {
 				flag->next = tmp->next;
 				g_free(tmp);
 			}
 			return !value;
-		}
+		} else if (res > 0)
+			break;
 		flag = tmp;
 	}
 

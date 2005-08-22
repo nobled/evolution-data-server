@@ -67,6 +67,8 @@ libcamel_provider_1_2_la_SOURCES = 		\
 	camel-tcp-stream.c			\
 	camel-transport.c			\
 	camel-uid-cache.c			\
+	camel-view-summary.c			\
+	camel-view-summary-disk.c		\
 	camel-vee-folder.c			\
 	camel-vee-store.c			\
 	camel-vee-summary.c			\
@@ -116,6 +118,8 @@ libcamel_providerinclude_HEADERS =			\
 	camel-tcp-stream.h			\
 	camel-transport.h			\
 	camel-uid-cache.h			\
+	camel-view-summary.h			\
+	camel-view-summary-disk.h		\
 	camel-vee-folder.h			\
 	camel-vee-store.h			\
 	camel-vee-summary.h			\

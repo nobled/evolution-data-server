@@ -1,3 +1,27 @@
+2005-08-22    <NotZed@Ximian.com>
+
+	* camel-folder-summary-disk.c: cleaned up initialisation to use
+	global db object from view-summary.
+
+	* camel-folder-summary.c: changed around for view-summary stuff.
+
+	* camel-vee-store.c: hack enough to make it not crash.
+
+	* camel-view-summary-disk.c: a db-based implementation.
+
+	* camel-view-summary.c: new object for managing all views and
+	folders separately from the folder-summary.
+
+2005-06-30    <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (camel_flag_get, camel_flag_set): make it
+	store values sorted, for efficient set operations.
+
+2005-06-29    <NotZed@Ximian.com>
+
+	* camel-object.c (camel_object_new): changed to void * type, sick
+	of more pointless casts.
+
 2005-06-27    <NotZed@Ximian.com>
 
 	* camel-folder-summary.c (info_set_flags): only change messageinfo

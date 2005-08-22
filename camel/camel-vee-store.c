@@ -25,6 +25,7 @@
 #include "camel-exception.h"
 #include "camel-vee-store.h"
 #include "camel-vee-folder.h"
+#include "camel-view-summary-disk.h"
 
 #include "camel-private.h"
 #include "camel-i18n.h"
@@ -67,6 +68,18 @@ camel_vee_store_get_type (void)
 	return type;
 }
 
+
+static void
+vee_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
+{
+	char *base;
+
+	CAMEL_SERVICE_CLASS (camel_vee_store_parent)->construct (service, session, provider, url, ex);
+	base = camel_session_get_storage_path(session, service, ex);
+	((CamelStore *)service)->view_summary = (CamelViewSummary *)camel_view_summary_disk_new(base, ex);
+	g_free(base);
+}
+
 static void
 camel_vee_store_class_init (CamelVeeStoreClass *klass)
 {
@@ -74,7 +87,8 @@ camel_vee_store_class_init (CamelVeeStoreClass *klass)
 	
 	camel_vee_store_parent = (CamelStoreClass *)camel_store_get_type();
 
-	/* virtual method overload */
+	((CamelServiceClass *)store_class)->construct = vee_construct;
+
 	store_class->get_folder = vee_get_folder;
 	store_class->rename_folder = vee_rename_folder;
 	store_class->delete_folder = vee_delete_folder;
@@ -97,7 +111,7 @@ camel_vee_store_init (CamelVeeStore *obj)
 	/* Set up unmatched folder */
 	obj->unmatched_uids = g_hash_table_new (g_str_hash, g_str_equal);
 	obj->folder_unmatched = (CamelVeeFolder *)camel_object_new (camel_vee_folder_get_type ());
-	camel_vee_folder_construct (obj->folder_unmatched, store, CAMEL_UNMATCHED_NAME, _("Unmatched"), CAMEL_STORE_FOLDER_PRIVATE);
+//	camel_vee_folder_construct (obj->folder_unmatched, store, CAMEL_UNMATCHED_NAME, _("Unmatched"), CAMEL_STORE_FOLDER_PRIVATE);
 }
 
 static void
@@ -201,7 +215,7 @@ vee_get_folder (CamelStore *store, const char *folder_name, guint32 flags, Camel
 			*p++='/';
 		}
 
-		change_folder(store, ((CamelFolder *)vf)->full_name, CHANGE_ADD, ((CamelFolder *)vf)->summary->root_view->unread_count);
+		change_folder(store, ((CamelFolder *)vf)->full_name, CHANGE_ADD, ((CamelFolder *)vf)->summary->root_view->view->unread_count);
 	}
 
 	return (CamelFolder *)vf;
@@ -288,7 +302,7 @@ vee_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExce
 			((CamelFolder *)folder)->full_name);*/
 			info->full_name = g_strdup(((CamelFolder *)folder)->full_name);
 			info->name = g_strdup(((CamelFolder *)folder)->name);
-			info->unread = ((CamelFolder *)folder)->summary->root_view->unread_count;
+			info->unread = ((CamelFolder *)folder)->summary->root_view->view->unread_count;
 			info->flags = CAMEL_FOLDER_NOCHILDREN|CAMEL_FOLDER_VIRTUAL;
 			g_hash_table_insert(infos_hash, info->full_name, info);
 

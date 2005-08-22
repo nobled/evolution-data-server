@@ -40,6 +40,7 @@
 #include "camel-private.h"
 #include "camel-vtrash-folder.h"
 #include "camel-i18n.h"
+#include "camel-view-summary.h"
 
 #define d(x) 
 #define w(x)
@@ -277,19 +278,19 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 			*arg->ca_int = folder->permanent_flags;
 			break;
 		case CAMEL_FOLDER_ARG_TOTAL:
-			*arg->ca_int = folder->summary?folder->summary->root_view->total_count:0;
+			*arg->ca_int = folder->summary?folder->summary->root_view->view->total_count:0;
 			break;
 		case CAMEL_FOLDER_ARG_UNREAD:
-			*arg->ca_int = folder->summary?folder->summary->root_view->unread_count:0;
+			*arg->ca_int = folder->summary?folder->summary->root_view->view->unread_count:0;
 			break;
 		case CAMEL_FOLDER_ARG_DELETED:
-			*arg->ca_int = folder->summary?folder->summary->root_view->deleted_count:0;
+			*arg->ca_int = folder->summary?folder->summary->root_view->view->deleted_count:0;
 			break;
 		case CAMEL_FOLDER_ARG_JUNKED:
-			*arg->ca_int = folder->summary?folder->summary->root_view->junk_count:0;
+			*arg->ca_int = folder->summary?folder->summary->root_view->view->junk_count:0;
 			break;
 		case CAMEL_FOLDER_ARG_VISIBLE:
-			*arg->ca_int = folder->summary?folder->summary->root_view->visible_count:0;
+			*arg->ca_int = folder->summary?folder->summary->root_view->view->visible_count:0;
 			break;
 		case CAMEL_FOLDER_ARG_UID_ARRAY:
 			g_warning("trying to get deprecated UID_ARRAY from folder");

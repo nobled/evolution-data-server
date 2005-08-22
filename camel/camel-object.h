@@ -229,8 +229,8 @@ gboolean camel_interface_is(CamelObjectClass *k, CamelType ctype);
 
 CamelType camel_object_get_type (void);
 
-CamelObject *camel_object_new (CamelType type);
-CamelObject *camel_object_new_name (const char *name);
+void *camel_object_new(CamelType type);
+void *camel_object_new_name(const char *name);
 
 void camel_object_ref(void *);
 void camel_object_unref(void *);

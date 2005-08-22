@@ -832,7 +832,7 @@ camel_object_init(CamelObject *o, CamelObjectClass *klass, CamelType type)
 		type->init(o, klass);
 }
 
-CamelObject *
+void *
 camel_object_new(CamelType type)
 {
 	CamelObject *o;

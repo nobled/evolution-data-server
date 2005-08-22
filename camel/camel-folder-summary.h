@@ -185,45 +185,34 @@ struct _CamelChangeInfo {
 };
 */
 
-/* view stuff, the new vfolders */
+/* The CamelView view information record is wrapped in our own
+   management object as well; we need to know when it was deleted,
+   we need to refcount it, and we also keep track of other information
+   related to the view itself.
+
+   Each subclass must implement this object, CFS only provides basic
+   manipulation for allocating and refcounting */
 struct _CamelFolderView {
 	struct _CamelFolderView *next;
 	struct _CamelFolderView *prev;
 
-	/* ref them for threading purposes */
-	guint32 refcount:28;
-	/* set when we're deleted, so we can abort/do the right thing if we have open cursors */
-	guint32 deleted:1;
-	/* the search expression is static, doesn't need updating on flag changes */
+	guint32 refcount:31;
 	guint32 is_static:1;
-	/* we must rebuild this view, the expression changed */
-	guint32 rebuild:1;
-	/* we must save this view, information in it has changed */
-	guint32 touched:1;
 
-	CamelFolderSummary *summary;
+	struct _CamelFolderSummary *summary;
 
-	char *vid;		/* unique id for all time for this view */
-	char *expr;
-	/* This is not a real iterator, but is used in one-shot search mode */
+	struct _CamelView *view;
 	struct _CamelFolderSearchIterator *iter;
-
 	struct _CamelFolderChangeInfo *changes;
-
-	/* handy totals */
-	guint32 total_count;
-	guint32 visible_count;
-	guint32 unread_count;
-	guint32 deleted_count;
-	guint32 junk_count;
-
-	/* subclasses may add additional fields ... */
 };
 
 struct _CamelFolderSummary {
 	CamelObject parent;
 
 	struct _CamelFolderSummaryPrivate *priv;
+
+	/* used to store/retrieve view information */
+	struct _CamelViewSummary *view_summary;
 
 	struct _CamelFolder *folder; /* parent folder, for events, not reffed */
 
@@ -241,7 +230,7 @@ struct _CamelFolderSummaryClass {
 
 	/* sizes of allocated objects */
 	size_t messageinfo_sizeof;
-	size_t view_sizeof;
+	size_t folderview_sizeof;
 
 	/* comparison functions used to sort data items in summary order, compare uid's or compare messageinfos */
 	GCompareDataFunc uid_cmp;
@@ -272,7 +261,7 @@ struct _CamelFolderSummaryClass {
 	/* view management */
 	void (*view_free)(CamelFolderSummary *, CamelFolderView *);
 	void (*view_add)(CamelFolderSummary *, CamelFolderView *, CamelException *ex);
-	void (*view_delete)(CamelFolderSummary *, CamelFolderView *);
+	void (*view_remove)(CamelFolderSummary *, CamelFolderView *);
 
 	/* messageinfo alloc/copy/free, base class works on MessageInfoBase's */
 	CamelMessageInfo * (*message_info_alloc)(CamelFolderSummary *);
@@ -305,7 +294,7 @@ struct _CamelFolderSummaryClass {
 };
 
 CamelType			 camel_folder_summary_get_type	(void);
-CamelFolderSummary      *camel_folder_summary_new	(struct _CamelFolder *folder);
+CamelFolderSummary      *camel_folder_summary_new	(struct _CamelFolder *folder, struct _CamelViewSummary *);
 
 int camel_folder_summary_rename(CamelFolderSummary *, const char *newname);
 
@@ -324,12 +313,13 @@ void camel_folder_summary_free_array(CamelFolderSummary *summary, GPtrArray *arr
 /* search/iterator interface */
 CamelIterator *camel_folder_summary_search(CamelFolderSummary *summary, const char *viewid, const char *expr, CamelIterator *subset, CamelException *ex);
 
-const CamelFolderView *camel_folder_summary_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex);
-CamelFolderView *camel_folder_summary_view_new(CamelFolderSummary *s, const char *vid);
-CamelFolderView *camel_folder_summary_view_lookup(CamelFolderSummary *s, const char *vid);
-void camel_folder_summary_view_unref(CamelFolderView *v);
-void camel_folder_summary_view_add(CamelFolderSummary *s, CamelFolderView *, CamelException *ex);
-void camel_folder_summary_view_delete(CamelFolderSummary *s, const char *vid);
+CamelFolderView *camel_folder_view_new(CamelFolderSummary *s, struct _CamelView *);
+CamelFolderView *camel_folder_view_get(CamelFolderSummary *s, const char *vid);
+void camel_folder_view_unref(CamelFolderView *v);
+void camel_folder_view_add(CamelFolderSummary *s, CamelFolderView *, CamelException *ex);
+void camel_folder_view_remove(CamelFolderSummary *s, CamelFolderView *);
+
+const CamelFolderView *camel_folder_view_create(CamelFolderSummary *s, const char *vid, const char *expr, CamelException *ex);
 
 /* remove all items */
 void camel_folder_summary_clear(CamelFolderSummary *summary);

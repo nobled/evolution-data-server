@@ -120,6 +120,8 @@ struct _CamelStore {
 	CamelObjectBag *folders;
 
 	int flags;
+
+	struct _CamelViewSummary *view_summary;
 };
 
 /* open mode for folder */
