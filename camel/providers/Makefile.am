@@ -9,5 +9,5 @@ IMAPP_DIR=imapp
 endif
 
 # SUBDIRS = pop3 sendmail smtp imap imap4 $(NNTP_DIR) local $(IMAPP_DIR) groupwise
-SUBDIRS = pop3 sendmail smtp local imapx
+SUBDIRS = sendmail smtp local imapx #pop3 sendmail smtp local imapx
 
