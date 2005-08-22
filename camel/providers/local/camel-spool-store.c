@@ -44,6 +44,7 @@
 #include "camel-i18n.h"
 #include "camel-session.h"
 #include "camel-file-utils.h"
+#include "camel-mbox-view-summary.h"
 
 #define d(x)
 
@@ -256,8 +257,8 @@ spool_fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
-		fi->unread = folder->summary->root_view->unread_count;
-		fi->total = folder->summary->root_view->total_count;
+		fi->unread = folder->summary->root_view->view->unread_count;
+		fi->total = folder->summary->root_view->view->total_count;
 		camel_object_unref(folder);
 	}
 }

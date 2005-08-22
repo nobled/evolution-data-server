@@ -50,10 +50,6 @@ struct _CamelMboxSummary {
 
 	CamelFolderChangeInfo *changes;	/* used to build change sets */
 
-	size_t folder_size;	/* size of the mbox file, last sync */
-	time_t time;		/* time of mbox last sync */
-	guint32 nextuid;	/* the next uid to assign */
-
 	unsigned int xstatus:1;	/* do we store/honour xstatus/status headers */
 	unsigned int xstatus_changed:1;	/* fun, next sync requires a full sync */
 };

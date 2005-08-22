@@ -22,6 +22,7 @@ libcamellocal_la_SOURCES = 			\
 	camel-mbox-folder.c			\
 	camel-mbox-store.c			\
 	camel-mbox-summary.c			\
+	camel-mbox-view-summary.c		\
 	camel-spool-folder.c			\
 	camel-spool-store.c			\
 	camel-spool-summary.c
@@ -40,6 +41,7 @@ noinst_HEADERS =				\
 	camel-mbox-folder.h			\
 	camel-mbox-store.h			\
 	camel-mbox-summary.h			\
+	camel-mbox-view-summary.h		\
 	camel-spool-folder.h			\
 	camel-spool-store.h			\
 	camel-spool-summary.h			\

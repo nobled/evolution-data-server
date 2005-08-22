@@ -38,6 +38,7 @@
 #include "camel-private.h"
 #include "camel-maildir-summary.h"
 #include "camel-i18n.h"
+#include "camel-view-summary-disk.h"
 
 #define d(x)
 
@@ -58,10 +59,25 @@ static CamelFolderInfo * get_folder_info (CamelStore *store, const char *top, gu
 static gboolean maildir_compare_folder_name(const void *a, const void *b);
 static guint maildir_hash_folder_name(const void *a);
 
+static void
+maildir_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
+{
+	char *base;
+
+	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
+	if (camel_exception_is_set (ex))
+		return;
+
+	base = camel_session_get_storage_path(session, service, ex);
+	((CamelStore *)service)->view_summary = (CamelViewSummary *)camel_view_summary_disk_new(base, ex);
+	g_free(base);
+}
+
 static void camel_maildir_store_class_init(CamelObjectClass * camel_maildir_store_class)
 {
 	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(camel_maildir_store_class);
-	/*CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS(camel_maildir_store_class);*/
+
+	((CamelServiceClass *)camel_maildir_store_class)->construct = maildir_construct;
 
 	parent_class = (CamelLocalStoreClass *)camel_type_get_global_classfuncs(camel_local_store_get_type());
 
@@ -307,8 +323,8 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
-		fi->unread = folder->summary->root_view->unread_count;
-		fi->total = folder->summary->root_view->total_count;
+		fi->unread = folder->summary->root_view->view->unread_count;
+		fi->total = folder->summary->root_view->view->total_count;
 		camel_object_unref(folder);
 	} else {
 #if 0

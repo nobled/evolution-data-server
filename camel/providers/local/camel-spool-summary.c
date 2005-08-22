@@ -37,11 +37,14 @@
 #include "camel-spool-summary.h"
 #include "camel-operation.h"
 #include "camel-i18n.h"
+#include "camel-mbox-view-summary.h"
 
 #define io(x)
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
 #define CAMEL_SPOOL_SUMMARY_VERSION (0x400)
+
+#define CFS(x) ((CamelFolderSummary *)x)
 
 static CamelFolderSummaryClass *camel_spool_summary_parent;
 
@@ -242,7 +245,7 @@ static int
 spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex)
 {
 	struct stat st;
-	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
+	CamelMBOXView *root = (CamelMBOXView *)CFS(cls)->root_view->view;
 
 	if (stat(cls->folder_path, &st) == -1) {
 		// FIXME: error string
@@ -250,15 +253,16 @@ spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, C
 				      g_strerror (errno));
 	}
 
-	if (st.st_size == mbs->folder_size && st.st_mtime == mbs->time)
+	if (st.st_size == root->folder_size && st.st_mtime == root->time)
 		return 0;
 
 	if (((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full((CamelMboxSummary *)cls, FALSE, changeinfo, ex) == -1)
 		return -1;
 
 	if (stat(cls->folder_path, &st) == 0) {
-		mbs->folder_size = st.st_size;
-		mbs->time = st.st_mtime;
+		root->folder_size = st.st_size;
+		root->time = st.st_mtime;
+		camel_view_changed((CamelView *)root);
 	}
 
 	return 0;

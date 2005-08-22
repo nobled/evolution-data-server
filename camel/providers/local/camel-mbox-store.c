@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "camel-session.h"
 #include "camel-mbox-store.h"
 #include "camel-mbox-folder.h"
 #include "camel-file-utils.h"
@@ -38,6 +39,7 @@
 #include "camel-exception.h"
 #include "camel-url.h"
 #include "camel-i18n.h"
+#include "camel-mbox-view-summary.h"
 
 #define d(x) 
 
@@ -556,8 +558,8 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 	if (folder) {
 		if ((flags & CAMEL_STORE_FOLDER_INFO_FAST) == 0)
 			camel_folder_refresh_info(folder, NULL);
-		fi->unread = folder->summary->root_view->unread_count;
-		fi->total = folder->summary->root_view->total_count;
+		fi->unread = folder->summary->root_view->view->unread_count;
+		fi->total = folder->summary->root_view->view->total_count;
 		camel_object_unref(folder);
 	} else {
 #warning "implement"
@@ -839,6 +841,20 @@ mbox_get_meta_path(CamelLocalStore *ls, const char *full_name, const char *ext)
 	return parent_class->get_meta_path(ls, full_name, ext);
 }
 
+static void
+mbox_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
+{
+	char *base;
+
+	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
+	if (camel_exception_is_set (ex))
+		return;
+
+	base = camel_session_get_storage_path(session, service, ex);
+	((CamelStore *)service)->view_summary = (CamelViewSummary *)camel_mbox_view_summary_new(base, ex);
+	g_free(base);
+}
+
 static CamelIterator *
 mbox_store_get_namespaces(CamelStore *store, const char *pattern, CamelException *ex)
 {
@@ -854,13 +870,15 @@ mbox_store_get_namespaces(CamelStore *store, const char *pattern, CamelException
 }
 
 static void
-camel_mbox_store_class_init(CamelMboxStoreClass *camel_mbox_store_class)
+camel_mbox_store_class_init(CamelMboxStoreClass *klass)
 {
-	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(camel_mbox_store_class);
+	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(klass);
 
 	parent_class =(CamelLocalStoreClass *)camel_type_get_global_classfuncs(camel_local_store_get_type());
 	
 	/* virtual method overload */
+	((CamelServiceClass *)klass)->construct = mbox_construct;
+
 	camel_store_class->get_folder = get_folder;
 	camel_store_class->delete_folder = delete_folder;
 	camel_store_class->rename_folder = rename_folder;

@@ -1,3 +1,12 @@
+2005-08-22    <NotZed@Ximian.com>
+
+	* *.c: update to use view summary stuff.
+
+	* camel-mbox-summary.c: and don't store it here anymore.
+
+	* camel-mbox-view-summary.c: store folder status information in the
+	view summary.
+
 2005-06-22  Not Zed <NotZed@Ximian.com>
 
 	* camel-mbox-summary.c: include the right db.h so we dont get an

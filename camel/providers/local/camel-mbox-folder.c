@@ -43,6 +43,7 @@
 #include "camel-mime-filter-from.h"
 #include "camel-exception.h"
 #include "camel-i18n.h"
+#include "camel-mbox-view-summary.h"
 
 #define d(x) (printf("%s(%d): ", __FILE__, __LINE__),(x))
 
@@ -136,7 +137,7 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	CamelLocalFolder *lf = (CamelLocalFolder *)folder;
 	CamelStream *output_stream = NULL, *filter_stream = NULL;
 	CamelMimeFilter *filter_from = NULL;
-	CamelMboxSummary *mbs = (CamelMboxSummary *)folder->summary;
+	CamelMBOXView *root = (CamelMBOXView *)folder->summary->root_view;
 	CamelMessageInfo *mi;
 	char *fromline = NULL;
 	int fd, retval;
@@ -159,7 +160,7 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	mi = camel_message_info_new_from_message(folder->summary, message, info);
 	uid = camel_mbox_summary_next_uid((CamelMboxSummary *)folder->summary);
 	mi->uid = g_strdup_printf("%d", uid);
-	((CamelMboxMessageInfo *)mi)->frompos = mbs->folder_size;
+	((CamelMboxMessageInfo *)mi)->frompos = root->folder_size;
 
 	xev = camel_mbox_summary_encode_xev(mi->uid, ((CamelMessageInfoBase *)mi)->flags);
 	camel_medium_set_header((CamelMedium *)message, "X-Evolution", xev);
@@ -208,12 +209,13 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	/* now we 'fudge' the summary  to tell it its uptodate, because its idea of uptodate has just changed */
 	/* the stat really shouldn't fail, we just wrote to it */
 	if (stat(lf->folder_path, &st) == 0) {
-		mbs->folder_size = st.st_size;
-		mbs->time = st.st_mtime;
+		root->folder_size = st.st_size;
+		root->time = st.st_mtime;
+		camel_view_changed((CamelView *)root);
 	}
 
 	/* now update the summary */
-	((CamelMessageInfoBase *)mi)->size = mbs->folder_size - ((CamelMboxMessageInfo *)mi)->frompos;
+	((CamelMessageInfoBase *)mi)->size = root->folder_size - ((CamelMboxMessageInfo *)mi)->frompos;
 	camel_folder_summary_add(folder->summary, mi);
 
 	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
@@ -254,14 +256,15 @@ fail_write:
 	/* reset the file to original size */
 	fd = open(lf->folder_path, O_WRONLY, 0600);
 	if (fd != -1) {
-		ftruncate(fd, mbs->folder_size);
+		ftruncate(fd, root->folder_size);
 		close(fd);
 	}
 	
 	/* and tell the summary its uptodate */
 	if (stat(lf->folder_path, &st) == 0) {
-		mbs->folder_size = st.st_size;
-		mbs->time = st.st_mtime;
+		root->folder_size = st.st_size;
+		root->time = st.st_mtime;
+		camel_view_changed((CamelView *)root);
 	}
 	
 fail:
@@ -282,6 +285,7 @@ mbox_get_message(CamelFolder *folder, const gchar * uid, CamelException *ex)
 	CamelMimeMessage *message = NULL;
 	CamelMboxMessageInfo *info = NULL;
 	CamelMimeParser *parser;
+	CamelMBOXView *root = (CamelMBOXView *)folder->summary->root_view;
 	int fd, retry=0;
 	off_t frompos;
 
@@ -332,7 +336,7 @@ mbox_get_message(CamelFolder *folder, const gchar * uid, CamelException *ex)
 				  (long int)camel_mime_parser_tell_start_from(parser),
 				  camel_mime_parser_state(parser));
 
-			((CamelMboxSummary *)folder->summary)->folder_size = 0;
+			root->folder_size = 0;
 
 			camel_object_unref((CamelObject *)parser);
 			camel_local_folder_unlock(lf, CAMEL_LOCK_READ);

@@ -48,6 +48,7 @@
 #include "camel-mime-filter-from.h"
 #include "camel-exception.h"
 #include "camel-i18n.h"
+#include "camel-view-summary.h"
 
 #include "camel-local-private.h"
 
@@ -289,8 +290,8 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		fi->full_name = g_strdup (full_name);
 		fi->name = g_strdup (name);
 		fi->uri = camel_url_to_string (url, 0);
-		fi->unread = folder->summary->root_view->unread_count;
-		fi->total = folder->summary->root_view->total_count;
+		fi->unread = folder->summary->root_view->view->unread_count;
+		fi->total = folder->summary->root_view->view->total_count;
 		fi->flags = CAMEL_FOLDER_NOCHILDREN;
 	
 		camel_url_free (url);

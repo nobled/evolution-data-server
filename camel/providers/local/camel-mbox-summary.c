@@ -41,6 +41,8 @@
 #include "camel-i18n.h"
 #include "camel-record.h"
 
+#include "camel-mbox-view-summary.h"
+
 /* NB, this is only for the messy iterator_get interface, which could be better hidden */
 #include "libdb/dist/db.h"
 
@@ -48,6 +50,7 @@
 #define d(x) (printf("%s(%d): ", __FILE__, __LINE__),(x))
 
 #define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
+#define CFS(x) ((CamelFolderSummary *)x)
 
 static CamelLocalSummaryClass *camel_mbox_summary_parent;
 
@@ -224,7 +227,7 @@ mbox_sync_changes(CamelFolderSummaryDisk *cds, GPtrArray *changes, CamelExceptio
 
 	/* all ok, update the mtime */
 	if (fstat(fd, &st) == 0)
-		((CamelMboxSummary *)cds)->time = st.st_mtime;
+		((CamelMBOXView *)CFS(cds)->root_view->view)->time = st.st_mtime;
 fail:
 	if (fd != -1)
 		close(fd);
@@ -249,18 +252,21 @@ camel_mbox_summary_construct(CamelMboxSummary *new, struct _CamelFolder *folder,
 {
 	const CamelMessageInfo *mi;
 	CamelIterator *iter;
+	CamelMBOXView *root;
 
 	camel_local_summary_construct((CamelLocalSummary *)new, folder, filename, mbox_name, index);
+
+	root = (CamelMBOXView *)CFS(new)->root_view->view;
 
 	iter = camel_folder_summary_search((CamelFolderSummary *)new, NULL, NULL, NULL, NULL);
 	mi = camel_message_iterator_disk_get(iter, DB_LAST, DB_PREV, NULL);
 	if (mi) {
 		guint32 uid = strtoul(camel_message_info_uid(mi), NULL, 10);
 
-		printf("Last uid in database %s is %d, last in header is %d\n", folder->full_name, (guint32)uid, (guint32)new->nextuid);
-		camel_mbox_summary_last_uid(new, uid);
+		printf("Last uid in database %s is %d, last in header is %d\n", folder->full_name, (guint32)uid, (guint32)root->nextuid);
+		camel_mbox_view_last_uid(root, uid);
 	} else {
-		printf("Nothing in the database %s, last uid in header is %d\n", folder->full_name, (guint32)new->nextuid);
+		printf("Nothing in the database %s, last uid in header is %d\n", folder->full_name, (guint32)root->nextuid);
 	}
 	camel_iterator_free(iter);
 }
@@ -291,9 +297,10 @@ void camel_mbox_summary_xstatus(CamelMboxSummary *mbs, int state)
 guint32 camel_mbox_summary_next_uid(CamelMboxSummary *mbs)
 {
 	guint32 uid;
+	CamelMBOXView *view = (CamelMBOXView *)CFS(mbs)->root_view->view;
 
-	uid = mbs->nextuid++;
-	((CamelFolderSummary *)mbs)->root_view->touched = 1;
+	uid = view->nextuid++;
+	camel_view_changed((CamelView *)view);
 
 	return uid;
 }
@@ -301,10 +308,12 @@ guint32 camel_mbox_summary_next_uid(CamelMboxSummary *mbs)
 /* NB: must have write lock on folder */
 void camel_mbox_summary_last_uid(CamelMboxSummary *mbs, guint32 uid)
 {
+	CamelMBOXView *view = (CamelMBOXView *)CFS(mbs)->root_view->view;
+
 	uid++;
-	if (uid > mbs->nextuid) {
-		mbs->nextuid = uid;
-		((CamelFolderSummary *)mbs)->root_view->touched = 1;
+	if (uid > view->nextuid) {
+		view->nextuid = uid;
+		camel_view_changed((CamelView *)view);
 	}
 }
 
@@ -343,47 +352,6 @@ camel_mbox_summary_encode_xev(const char *uidstr, guint32 flags)
 		return g_strdup_printf("%08x-%04x", uid, flags & 0xffff);
 	else
 		return g_strdup_printf("%s-%04x", uidstr, flags & 0xffff);
-}
-
-static int
-summary_decode_view(CamelFolderSummaryDisk *s, CamelFolderView *view, CamelRecordDecoder *crd)
-{
-	int tag, ver;
-
-	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->decode_view(s, view, crd);
-
-	if (view->vid == NULL) {
-		camel_record_decoder_reset(crd);
-		while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
-			switch (tag) {
-			case CFS_MBOX_SECTION_FOLDERINFO:
-				((CamelMboxSummary *)s)->time = camel_record_decoder_timet(crd);
-				((CamelMboxSummary *)s)->folder_size = camel_record_decoder_sizet(crd);
-				((CamelMboxSummary *)s)->nextuid = camel_record_decoder_int32(crd);
-				/* We can actually get the last uid in the database cheaply, perhaps
-				   we should use that to get the nextuid, at each startup */
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static void
-summary_encode_view(CamelFolderSummaryDisk *s, CamelFolderView *view, CamelRecordEncoder *cre)
-{
-	((CamelFolderSummaryDiskClass *)camel_mbox_summary_parent)->encode_view(s, view, cre);
-
-	/* We only store extra data on the root view */
-
-	if (view->vid == NULL) {
-		camel_record_encoder_start_section(cre, CFS_MBOX_SECTION_FOLDERINFO, 0);
-		camel_record_encoder_timet(cre, ((CamelMboxSummary *)s)->time);
-		camel_record_encoder_sizet(cre, ((CamelMboxSummary *)s)->folder_size);
-		camel_record_encoder_int32(cre, ((CamelMboxSummary *)s)->nextuid);
-		camel_record_encoder_end_section(cre);
-	}
 }
 
 static CamelMessageInfo *
@@ -676,10 +644,11 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 	/* update the file size/mtime in the summary */
 	if (res == 0) {
 		if (stat(((CamelLocalSummary *)s)->folder_path, &st) == 0) {
-			((CamelMboxSummary *)s)->folder_size = st.st_size;
-			((CamelMboxSummary *)s)->time = st.st_mtime;
-			// FIXME: accessor/lock
-			s->root_view->touched = 1;
+			CamelMBOXView *root = (CamelMBOXView *)s->root_view->view;
+
+			root->folder_size = st.st_size;
+			root->time = st.st_mtime;
+			camel_view_changed((CamelView *)root);
 		}
 	}
 
@@ -691,10 +660,10 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 static int
 mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, CamelException *ex)
 {
-	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
 	CamelFolderSummary *s = (CamelFolderSummary *)cls;
 	struct stat st;
 	int res = 0;
+	CamelMBOXView *root = (CamelMBOXView *)s->root_view->view;
 
 	d(printf("Checking summary\n"));
 
@@ -708,13 +677,13 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 	}
 
 	printf("size %d, summary size %d, time %d, summary time %d\n",
-	       (int)st.st_size, (int)mbs->folder_size, (int)st.st_mtime, (int)mbs->time);
+	       (int)st.st_size, (int)root->folder_size, (int)st.st_mtime, (int)root->time);
 
-	if (st.st_size != mbs->folder_size || st.st_mtime != mbs->time) {
-		if (mbs->folder_size < st.st_size) {
+	if (st.st_size != root->folder_size || st.st_mtime != root->time) {
+		if (root->folder_size < st.st_size) {
 			/* this will automatically rescan from 0 if there is a problem */
-			d(printf("folder grew, attempting to check from %d\n", (int)mbs->folder_size));
-			res = summary_update(s, mbs->folder_size, changes, ex);
+			d(printf("folder grew, attempting to check from %d\n", (int)root->folder_size));
+			res = summary_update(s, root->folder_size, changes, ex);
 		} else {
 			d(printf("folder shrank!  checking from start\n"));
 			res = summary_update(s, 0, changes, ex);
@@ -870,6 +839,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 {
 	struct stat st;
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
+	CamelMBOXView *root = (CamelMBOXView *)CFS(cls)->root_view->view;
 	int res;
 
 	/* We auto-sync all the time, so we only really care about expunging,
@@ -890,11 +860,10 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 			mbs->xstatus_changed = 0;
 #endif
 			if (stat(cls->folder_path, &st) == 0
-			    && (mbs->folder_size != st.st_size || mbs->time != st.st_mtime)) {
-				mbs->time = st.st_mtime;
-				mbs->folder_size = st.st_size;
-				// FIXME: accessor/lock
-				((CamelFolderSummary *)cls)->root_view->touched = 1;
+			    && (root->folder_size != st.st_size || root->time != st.st_mtime)) {
+				root->time = st.st_mtime;
+				root->folder_size = st.st_size;
+				camel_view_changed((CamelView *)root);
 			}
 		}
 	}
@@ -1005,8 +974,8 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 		char *uid;
 		guint32 flags;
 
-		if (s->root_view->total_count)
-			camel_operation_progress(NULL, (++count)*100 / s->root_view->total_count);
+		if (s->root_view->view->total_count)
+			camel_operation_progress(NULL, (++count)*100 / s->root_view->view->total_count);
 
 		/* The from line is only valid in the FROM state, so grab it here,
 		   we use it later if this isn't a deleted message.  I */
@@ -1173,9 +1142,6 @@ camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 	camel_mbox_summary_parent = (CamelLocalSummaryClass *)camel_type_get_global_classfuncs(camel_local_summary_get_type());
 
 	((CamelFolderSummaryClass *)klass)->messageinfo_sizeof = sizeof(CamelMboxMessageInfo);
-
-	((CamelFolderSummaryDiskClass *)klass)->encode_view = summary_encode_view;
-	((CamelFolderSummaryDiskClass *)klass)->decode_view = summary_decode_view;
 
 	((CamelFolderSummaryDiskClass *)klass)->encode = message_info_encode;
 	((CamelFolderSummaryDiskClass *)klass)->decode = message_info_decode;
