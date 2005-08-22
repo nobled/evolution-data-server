@@ -33,13 +33,12 @@
 
 #include <camel/camel-stream-mem.h>
 
+#include "camel-imapx-utils.h"
 #include "camel-imapx-stream.h"
 #include "camel-imapx-exception.h"
 
 #define t(x) 
 #define io(x) x
-
-static void setup_table(void);
 
 static CamelObjectClass *parent_class = NULL;
 
@@ -182,7 +181,6 @@ camel_imapx_stream_get_type (void)
 	static CamelType camel_imapx_stream_type = CAMEL_INVALID_TYPE;
 
 	if (camel_imapx_stream_type == CAMEL_INVALID_TYPE) {
-		setup_table();
 		camel_imapx_stream_type = camel_type_register( camel_stream_get_type(),
 							    "CamelIMAPXStream",
 							    sizeof( CamelIMAPXStream ),
@@ -221,71 +219,6 @@ int
 camel_imapx_stream_buffered(CamelIMAPXStream *is)
 {
 	return is->end - is->ptr;
-}
-
-/*
- From rfc2060
-
-ATOM_CHAR       ::= <any CHAR except atom_specials>
-
-atom_specials   ::= "(" / ")" / "{" / SPACE / CTL / list_wildcards /
-                    quoted_specials
-
-CHAR            ::= <any 7-bit US-ASCII character except NUL,
-                     0x01 - 0x7f>
-
-CTL             ::= <any ASCII control character and DEL,
-                        0x00 - 0x1f, 0x7f>
-
-SPACE           ::= <ASCII SP, space, 0x20>
-
-list_wildcards  ::= "%" / "*"
-
-quoted_specials ::= <"> / "\"
-*/
-
-static unsigned char imap_specials[256] = {
-/* 00 */0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-/* 10 */0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-/* 20 */0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
-/* 30 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-/* 40 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-/* 50 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
-/* 60 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-/* 70 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-};
-
-#define imap_is_atom(c) ((imap_specials[(c)&0xff] & 0x01) != 0)
-#define imap_is_simple(c) ((imap_specials[(c)&0xff] & 0x02) != 0)
-#define imap_not_id(c) ((imap_specials[(c)&0xff] & 0x04) != 0)
-
-/* could be pregenerated, but this is cheap */
-static struct {
-	unsigned char *chars;
-	unsigned char mask;
-} is_masks[] = {
-	{ "\n*()[]+", 2 },
-	{ " \r\n()[]+", 4 },
-};
-
-static void setup_table(void)
-{
-	int i;
-	unsigned char *p, c;
-
-	for (i=0;i<(int)(sizeof(is_masks)/sizeof(is_masks[0]));i++) {
-		p = is_masks[i].chars;
-		while ((c = *p++))
-			imap_specials[c] |= is_masks[i].mask;
-	}
 }
 
 #if 0
@@ -563,7 +496,7 @@ camel_imapx_stream_token(CamelIMAPXStream *is, unsigned char **data, unsigned in
 	} while (c == ' ' || c == '\r');
 
 	/*strchr("\n*()[]+", c)*/
-	if (imap_is_simple(c)) {
+	if (imapx_is_token_char(c)) {
 		is->ptr = p;
 		t(printf("token '%c'\n", c));
 		return c;
@@ -656,7 +589,7 @@ camel_imapx_stream_token(CamelIMAPXStream *is, unsigned char **data, unsigned in
 			while (p < e) {
 				c = *p++;
 				/*if (strchr(" \r\n*()[]+", c) != NULL) {*/
-				if (imap_not_id(c)) {
+				if (imapx_is_notid_char(c)) {
 					if (c == ' ' || c == '\r')
 						is->ptr = p;
 					else

@@ -72,45 +72,6 @@ imapx_uid_cmp(const void *ap, const void *bp, void *data)
 	return strcmp(ae, be);
 }
 
-static void
-imapx_encode_view(CamelFolderSummaryDisk *cds, CamelFolderView *view, CamelRecordEncoder *cre)
-{
-	((CamelFolderSummaryDiskClass *)imapx_parent)->encode_view(cds, view, cre);
-
-	/* We only store extra data on the root view */
-
-	if (view->vid == NULL) {
-		camel_record_encoder_start_section(cre, CFS_IMAPX_SECTION_FOLDERINFO, 0);
-		camel_record_encoder_int32(cre, ((CamelIMAPXSummary *)cds)->uidvalidity);
-		camel_record_encoder_int32(cre, ((CamelIMAPXSummary *)cds)->permanentflags);
-		camel_record_encoder_int32(cre, ((CamelIMAPXSummary *)cds)->exists);
-		camel_record_encoder_end_section(cre);
-	}
-}	
-
-static int
-imapx_decode_view(CamelFolderSummaryDisk *s, CamelFolderView *view, CamelRecordDecoder *crd)
-{
-	int tag, ver;
-
-	((CamelFolderSummaryDiskClass *)imapx_parent)->decode_view(s, view, crd);
-
-	if (view->vid == NULL) {
-		camel_record_decoder_reset(crd);
-		while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
-			switch (tag) {
-			case CFS_IMAPX_SECTION_FOLDERINFO:
-				((CamelIMAPXSummary *)s)->uidvalidity = camel_record_decoder_int32(crd);
-				((CamelIMAPXSummary *)s)->permanentflags = camel_record_decoder_int32(crd);
-				((CamelIMAPXSummary *)s)->exists = camel_record_decoder_int32(crd);
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
 static int
 imapx_decode(CamelFolderSummaryDisk *s, CamelMessageInfoDisk *mi, CamelRecordDecoder *crd)
 {
@@ -164,8 +125,6 @@ camel_imapx_summary_class_init(CamelIMAPXSummaryClass *klass)
 	((CamelFolderSummaryClass *)klass)->messageinfo_sizeof = sizeof(CamelIMAPXMessageInfo);
 	((CamelFolderSummaryClass *)klass)->uid_cmp = imapx_uid_cmp;
 
-	((CamelFolderSummaryDiskClass *)klass)->decode_view = imapx_decode_view;
-	((CamelFolderSummaryDiskClass *)klass)->encode_view = imapx_encode_view;
 	((CamelFolderSummaryDiskClass *)klass)->decode = imapx_decode;
 	((CamelFolderSummaryDiskClass *)klass)->encode = imapx_encode;
 

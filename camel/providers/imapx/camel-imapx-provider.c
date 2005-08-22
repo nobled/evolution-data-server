@@ -74,11 +74,12 @@ CamelServiceAuthType camel_imapx_password_authtype = {
 
 void camel_imapx_module_init(void);
 
+extern void camel_exception_setup(void);
+extern void imapx_utils_init(void);
+
 void
 camel_imapx_module_init(void)
 {
-	extern void camel_exception_setup(void);
-
 	imapx_provider.object_types[CAMEL_PROVIDER_STORE] = camel_imapx_store_get_type();
 	imapx_provider.url_hash = camel_url_hash;
 	imapx_provider.url_equal = camel_url_equal;
@@ -89,6 +90,7 @@ camel_imapx_module_init(void)
 	/* blah ... could just use it in object setup? */
 	/* TEMPORARY */
 	camel_exception_setup();
+	imapx_utils_init();
 
 	camel_provider_register(&imapx_provider);
 }

@@ -52,17 +52,15 @@ typedef struct _CamelIMAPXMessageInfo {
 	CamelMessageInfoBase info;
 
 	guint32 server_flags;
+	struct _CamelFlag *server_user_flags;
 } CamelIMAPXMessageInfo;
 
 struct _CamelIMAPXSummary {
 	CamelFolderSummaryDisk parent;
 
-	/* do we really need to keep all of this around ?? */
-	guint32 exists;
-	guint32 recent;
-	guint32 uidvalidity;
+	/* NB: not used? */
 	guint32 unseen;
-	guint32 permanentflags;	
+	guint32 recent;
 };
 
 struct _CamelIMAPXSummaryClass {

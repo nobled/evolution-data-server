@@ -52,7 +52,7 @@ static struct {
    shoudl this be part of imapx-driver? */
 /* mabye this should be a stream op? */
 void
-imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp)
+imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_flagsp)
 /* throws IO,PARSE exception */
 {
 	int tok, len, i;
@@ -67,11 +67,17 @@ imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp)
 			tok = camel_imapx_stream_token(stream, &token, &len);
 			if (tok == IMAP_TOK_TOKEN) {
 				p = token;
+				// FIXME: ascii_toupper
 				while ((c=*p))
 					*p++ = toupper(c);
 				for (i=0;i<(int)(sizeof(flag_table)/sizeof(flag_table[0]));i++)
-					if (!strcmp(token, flag_table[i].name))
+					if (!strcmp(token, flag_table[i].name)) {
 						flags |= flag_table[i].flag;
+						goto found;
+					}
+				if (user_flagsp)
+					camel_user_tag_set(user_flagsp, token);
+			found:
 			} else if (tok != ')') {
 				camel_exception_throw(1, "expecting flag");
 			}
@@ -83,9 +89,8 @@ imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp)
 	*flagsp = flags;
 }
 
-// FIXME: This needs to handle user-flags too ...
 void
-imap_write_flags(CamelStream *stream, guint32 flags)
+imap_write_flags(CamelStream *stream, guint32 flags, CamelFlag *user_flags)
 /* throws IO exception */
 {
 	int i;
@@ -99,10 +104,18 @@ imap_write_flags(CamelStream *stream, guint32 flags)
 			if (camel_stream_write(stream, flag_table[i].name, strlen(flag_table[i].name)) == -1)
 				camel_exception_throw(1, "io error: %s", strerror(errno));
 			flags &= ~flag_table[i].flag;
-			if (flags != 0)
+			if (flags != 0 && user_flags == NULL)
 				if (camel_stream_write(stream, " ", 1) == -1)
 					camel_exception_throw(1, "io error: %s", strerror(errno));
 		}
+	}
+
+	while (user_flags) {
+		if (camel_stream_write(stream, user_flags->name, strlen(user_flags->name)) == -1)
+			camel_exception_throw(1, "io error: %s", strerror(errno));
+		if (user_flags->next && camel_stream_write(stream, " ", 1) == -1)
+			camel_exception_throw(1, "io error: %s", strerror(errno));
+		user_flags = user_flags->next;
 	}
 
 	if (camel_stream_write(stream, ")", 1) == -1)
@@ -881,6 +894,7 @@ imap_free_fetch(struct _fetch_info *finfo)
 		camel_message_info_free(finfo->minfo);
 	if (finfo->cinfo)
 		imap_free_body(finfo->cinfo);
+	camel_flag_list_clear(&finfo->user_flags);
 	g_free(finfo->date);
 	g_free(finfo->section);
 	g_free(finfo->uid);
@@ -971,7 +985,7 @@ imap_parse_fetch(CamelIMAPXStream *is)
 				finfo->got |= FETCH_MINFO;
 				break;
 			case IMAP_FLAGS:
-				imap_parse_flags(is, &finfo->flags);
+				imap_parse_flags(is, &finfo->flags, &finfo->user_flags);
 				finfo->got |= FETCH_FLAGS;
 				break;
 			case IMAP_INTERNALDATE:
@@ -1100,7 +1114,8 @@ imap_parse_status(CamelIMAPXStream *is)
 				sinfo->u.newname.newname = g_strdup(token);
 				break;
 			case IMAP_PERMANENTFLAGS:
-				imap_parse_flags(is, &sinfo->u.permanentflags);
+				/* we only care about \* for permanent flags, not user flags */
+				imap_parse_flags(is, &sinfo->u.permanentflags, NULL);
 				break;
 			case IMAP_UIDVALIDITY:
 				sinfo->u.uidvalidity = camel_imapx_stream_number(is);
@@ -1256,3 +1271,114 @@ imap_free_list(struct _list_info *linfo)
 		g_free(linfo);
 	}
 }
+
+/* ********************************************************************** */
+
+/*
+ From rfc2060
+
+ATOM_CHAR       ::= <any CHAR except atom_specials>
+
+atom_specials   ::= "(" / ")" / "{" / SPACE / CTL / list_wildcards /
+                    quoted_specials
+
+CHAR            ::= <any 7-bit US-ASCII character except NUL,
+                     0x01 - 0x7f>
+
+CTL             ::= <any ASCII control character and DEL,
+                        0x00 - 0x1f, 0x7f>
+
+SPACE           ::= <ASCII SP, space, 0x20>
+
+list_wildcards  ::= "%" / "*"
+
+quoted_specials ::= <"> / "\"
+
+string          ::= quoted / literal
+
+literal         ::= "{" number "}" CRLF *CHAR8
+                    ;; Number represents the number of CHAR8 octets
+
+quoted          ::= <"> *QUOTED_CHAR <">
+
+QUOTED_CHAR     ::= <any TEXT_CHAR except quoted_specials> /
+                    "\" quoted_specials
+
+TEXT_CHAR       ::= <any CHAR except CR and LF>
+
+*/
+
+/*
+ATOM = 1
+SIMPLE? = 2
+NOTID? = 4
+
+QSPECIAL = 8
+
+*/
+
+unsigned char imapx_specials[256] = {
+/* 00 */0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 4, 0, 0,
+/* 10 */0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+/* 20 */4, 1, 0, 1, 1, 0, 1, 1, 0, 0, 2, 7, 1, 1, 1, 1,
+/* 30 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+/* 40 */7, 7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+/* 50 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 0, 7, 1, 1,
+/* 60 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+/* 70 */1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+};
+
+#define list_wildcards "*%"
+#define quoted_specials "\\\""
+#define atom_specials "(){" list_wildcards quoted_specials /* + CTL */
+
+/* special types for the tokeniser, come out as raw tokens */
+#define token_specials "\n*()[]+"
+#define notid_specials "\x20\r\n()[]+"
+
+void imapx_utils_init(void)
+{
+	int i;
+	unsigned char *p, v;
+
+	for (i=0;i<128;i++) {
+		v = 0;
+		if (i>=1 && i<=0x7f) {
+			v |= IMAPX_TYPE_CHAR;
+			if (i != 0x0a && i != 0x0d) {
+				v |= IMAPX_TYPE_TEXT_CHAR;
+				if (i != '"' && i != '\\')
+					v |= IMAPX_TYPE_QUOTED_CHAR;
+			}
+			if (i> 0x20 && i <0x7f && strchr(atom_specials, i) == NULL)
+				v |= IMAPX_TYPE_ATOM_CHAR;
+			if (strchr(token_specials, i) != NULL)
+				v |= IMAPX_TYPE_TOKEN_CHAR;
+			if (strchr(notid_specials, i) != NULL)
+				v |= IMAPX_TYPE_NOTID_CHAR;
+		}
+		
+		imapx_specials[i] = v;
+	}
+}
+
+unsigned char imapx_is_mask(const char *p)
+{
+	unsigned char v = 0xff;
+
+	while (*p) {
+		v &= imapx_specials[((unsigned char)*p) & 0xff];
+		p++;
+	}
+
+	return v;
+}
+

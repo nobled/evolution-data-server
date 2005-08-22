@@ -51,8 +51,9 @@ enum {
 };
 
 /* ********************************************************************** */
-void imap_parse_flags(struct _CamelIMAPXStream *stream, guint32 *flagsp) /* IO,PARSE */;
-void imap_write_flags(CamelStream *stream, guint32 flags) /* IO */;
+
+void imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_flagsp);
+void imap_write_flags(CamelStream *stream, guint32 flags, CamelFlag *user_flags);
 
 /* ********************************************************************** */
 enum {
@@ -108,6 +109,7 @@ struct _fetch_info {
 	guint32 size;		/* RFC822.SIZE */
 	guint32 offset;		/* start offset of a BODY[]<offset.length> request */
 	guint32 flags;		/* FLAGS */
+	CamelFlag *user_flags;
 	char *date;		/* INTERNALDATE */
 	char *section;		/* section for a BODY[section] request */
 	char *uid;		/* UID */
@@ -171,5 +173,28 @@ char *imapx_list_get_path(struct _list_info *li);
 void imap_free_list(struct _list_info *linfo);
 
 /* ********************************************************************** */
+
+extern unsigned char imapx_specials[256];
+
+#define IMAPX_TYPE_CHAR (1<<0)
+#define IMAPX_TYPE_TEXT_CHAR (1<<1)
+#define IMAPX_TYPE_QUOTED_CHAR (1<<2)
+#define IMAPX_TYPE_ATOM_CHAR (1<<3)
+#define IMAPX_TYPE_TOKEN_CHAR (1<<4)
+#define IMAPX_TYPE_NOTID_CHAR (1<<5)
+
+unsigned char imapx_is_mask(const char *p);
+
+#define imapx_is_text_char(c) ((imapx_specials[((unsigned char)(c))&0xff] & IMAPX_TYPE_TEXT_CHAR) != 0)
+#define imapx_is_quoted_char(c) ((imapx_specials[((unsigned char)(c))&0xff] & IMAPX_TYPE_QUOTED_CHAR) != 0)
+#define imapx_is_atom_char(c) ((imapx_specials[((unsigned char)(c))&0xff] & IMAPX_TYPE_ATOM_CHAR) != 0)
+#define imapx_is_token_char(c) ((imapx_specials[((unsigned char)(c))&0xff] & IMAPX_TYPE_TOKEN_CHAR) != 0)
+#define imapx_is_notid_char(c) ((imapx_specials[((unsigned char)(c))&0xff] & IMAPX_TYPE_NOTID_CHAR) != 0)
+
+#define imapx_is_atom(s) (imapx_is_mask(s) & IMAPX_TYPE_ATOM_CHAR)
+
+/* ********************************************************************** */
+
+void imapx_utils_init(void);
 
 #endif

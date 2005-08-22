@@ -55,6 +55,7 @@
 #include "camel-imapx-exception.h"
 #include "camel-imapx-utils.h"
 #include "camel-imapx-server.h"
+#include "camel-imapx-view-summary.h"
 #include "camel-net-utils.h"
 
 /* Specified in RFC 2060 section 2.1 */
@@ -85,12 +86,16 @@ imapx_name_equal(gconstpointer a, gconstpointer b)
 
 static void imap_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
 {
-	char *root, *summary;
+	char *base, *summary;
 	CamelIMAPXStore *store = (CamelIMAPXStore *)service;
 
 	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
 	if (camel_exception_is_set(ex))
 		return;
+
+	base = camel_session_get_storage_path(session, service, ex);
+	((CamelStore *)service)->view_summary = (CamelViewSummary *)camel_imapx_view_summary_new(base, ex);
+	g_free(base);
 
 #if 0
 	CAMEL_TRY {
@@ -218,10 +223,17 @@ static CamelFolder *
 imap_get_folder (CamelStore *store, const char *folder_name, guint32 flags, CamelException *ex)
 {
 //	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
-	CamelIMAPXFolder * volatile folder = NULL;
+	CamelIMAPXFolder *folder;
+	CamelIMAPXView *view;
 
-	/* FIXME: need to map the folder name to the server folder name */
-	folder = (CamelIMAPXFolder *)camel_imapx_folder_new(store, folder_name, folder_name);
+	view = (CamelIMAPXView *)camel_view_summary_get(store->view_summary, folder_name);
+	if (view == NULL) {
+		camel_exception_setv(ex, 2, "No such folder: %s", folder_name);
+		return NULL;
+	}
+
+	folder = (CamelIMAPXFolder *)camel_imapx_folder_new(store, folder_name, view->raw_name);
+	camel_view_unref((CamelView *)view);
 
 	return (CamelFolder *)folder;
 }
@@ -361,13 +373,36 @@ folder_info_dump(CamelFolderInfo *fi, int depth)
 	
 }
 
+// THIS IS VERY CRAP AND VERY TEMPORARY
+// we re-lookup the table, after we just looked it up
+// in the first place to create the list, to get the counts.
+static void
+folder_info_fill(CamelStore *store, CamelFolderInfo *fi)
+{
+	CamelView *view;
+
+	while (fi) {
+		view = camel_view_summary_get(store->view_summary, fi->full_name);
+		if (view) {
+			fi->total = view->total_count;
+			fi->unread = view->unread_count;
+			camel_view_unref(view);
+		}
+		if (fi->child)
+			folder_info_fill(store, fi->child);
+		fi = fi->next;
+	}
+}
+
 static CamelFolderInfo *
 imap_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelException *ex)
 {
 	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
 	CamelFolderInfo * fi= NULL;
-	GPtrArray *folders;
+	GPtrArray *folders = NULL;
 	CamelURL *base;
+	CamelIterator *iter;
+	const CamelIMAPXView *view;
 	int i;
 
 	if (istore->server == NULL) {
@@ -379,15 +414,56 @@ imap_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExc
 	if (top == NULL)
 		top = "";
 
-	/* FIXME: we need to get the list of folders some other way, and only
-	   got to the server sometimes */
+	/* TODO: this is just a first cut ...
 
-	folders = camel_imapx_server_list(istore->server, top, flags, ex);
+	   But basically we go to the summary and only go to the server
+	   if the summary is empty */
+
+	/* TODO: we need to only add folders that were asked for */
+
+	iter = camel_view_summary_search(store->view_summary, NULL, NULL, ex);
+	while ((view = camel_iterator_next(iter, NULL))) {
+		struct _list_info *li;
+
+		if (strchr(((CamelView *)view)->vid, 1) != NULL)
+			continue;
+
+		if (folders == NULL)
+			folders = g_ptr_array_new();
+
+		li = g_malloc0(sizeof(*li));
+		li->separator = view->separator;
+		li->name = g_strdup(view->raw_name);
+		g_ptr_array_add(folders, li);
+	}
+	camel_iterator_free(iter);
+
+	if (folders == NULL) {
+		folders = camel_imapx_server_list(istore->server, "", flags, ex);
+		for (i=0;!camel_exception_is_set(ex) && i<folders->len;i++) {
+			struct _list_info *li = folders->pdata[i];
+			CamelIMAPXView *iview;
+			char *name;
+
+			name = imapx_list_get_path(li);
+			iview = (CamelIMAPXView *)camel_view_new(store->view_summary, name);
+			iview->separator = li->separator;
+			iview->raw_name = g_strdup(li->name);
+			camel_view_summary_add(store->view_summary, (CamelView *)iview, ex);
+			g_free(name);
+		}
+		camel_view_summary_disk_sync((CamelViewSummaryDisk *)store->view_summary, ex);
+	}
 
 	i = 0;
 	base = camel_url_copy(((CamelService *)store)->url);
 	fi = folders_build_rec(base, folders, &i, NULL, NULL);
 	camel_url_free(base);
+
+	g_ptr_array_free(folders, TRUE);
+
+	// FIXME: temporary
+	folder_info_fill(store, fi);
 
 	return fi;
 }

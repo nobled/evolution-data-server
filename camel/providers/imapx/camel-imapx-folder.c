@@ -100,6 +100,8 @@ imapx_refresh_info (CamelFolder *folder, CamelException *ex)
 
 	if (is->server)
 		camel_imapx_server_refresh_info(is->server, folder, ex);
+
+	camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)folder->summary, ex);
 }
 
 static void
