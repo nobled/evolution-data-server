@@ -1,13 +1,3 @@
-2005-08-26  Jürg Billeter  <j@bitron.ch>
-
-	reviewed by: Christian Kellner  <gicmo@gnome.org>
-
-	* calendar/backends/caldav/e-cal-backend-caldav.c: (quote_etag),
-	(xp_object_get_etag), (caldav_server_get_object),
-	(caldav_server_put_object), (caldav_server_delete_object):
-	
-	Ensure to always use quoted ETags. Fixes #314493
-
 2005-06-20  Christian Kellner  <gicmo@gnom.org>
 
 	* configure.in:
