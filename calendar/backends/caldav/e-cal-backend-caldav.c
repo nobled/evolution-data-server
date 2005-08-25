@@ -283,6 +283,21 @@ e_cal_component_gen_href (ECalComponent *comp, const char *base_uri)
 	return href;	
 }	
 
+/* ensure etag is quoted (to workaround potential server bugs) */
+static char *
+quote_etag (const char *etag)
+{
+	char *ret;
+
+	if (etag && (strlen (etag) < 2 || etag[strlen (etag) - 1] != '\"')) {
+		ret = g_strdup_printf ("\"%s\"", etag);
+	} else {
+		ret = g_strdup (etag);
+	}
+	
+	return ret;
+}
+
 /* ************************************************************************* */
 static char **
 sm_join_and_split_header (SoupMessage *message, const char *header)
@@ -478,13 +493,7 @@ xp_object_get_etag (xmlXPathObjectPtr result)
 
 	str = (char *) result->stringval;
 
-	/* strip the leading and ending " (a bit hacky) */
-	if (str && str[0] == '\"' && str[strlen (str) -1] == '\"') {
-		str++;
-		ret = g_strndup (str, strlen (str) - 1);
-	} else {
-		ret = g_strdup (str);
-	}
+	ret = quote_etag (str);
 		
 	xmlXPathFreeObject (result);
 	return ret;
@@ -890,7 +899,7 @@ caldav_server_get_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 		g_warning ("UUHH no ETag, now that's bad!");
 		object->etag = NULL;
 	} else {
-		object->etag = g_strdup (hdr);
+		object->etag = quote_etag (hdr);
 	}
 	
 	/* Need to NULL terminate the string, do we? */
@@ -926,7 +935,6 @@ caldav_server_put_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 		soup_message_add_header (message->request_headers, 
 				         "If-None-Match", "*");
 	} else {
-		/* FIXME: add quotationmarks around the etag here? */
 		soup_message_add_header (message->request_headers, 
 				         "If-Match", object->etag);
 	}
@@ -965,7 +973,6 @@ caldav_server_delete_object (ECalBackendCalDAV *cbdav, CalDAVObject *object)
 				 "User-Agent", "Evolution/" VERSION);
 
 	if (object->etag != NULL) {
-		/* FIXME: again add quotationmarks ? */
 		soup_message_add_header (message->request_headers, 
 					"If-None-Match", object->etag);
 	}
