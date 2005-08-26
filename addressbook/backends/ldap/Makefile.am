@@ -17,7 +17,7 @@ libebookbackendldap_la_SOURCES =			\
 libebookbackendldap_la_LIBADD =						\
 	$(LDAP_LIBS)							\
 	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la	\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
 libebookbackendldap_la_LDFLAGS =	\
 	-module -avoid-version

@@ -48,7 +48,7 @@ libedata_cal_1_2_la_SOURCES =		\
 libedata_cal_1_2_la_LIBADD =					\
 	$(EVOLUTION_CALENDAR_LIBS)				\
 	$(top_builddir)/calendar/libecal/libecal-1.2.la		\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
 libedata_cal_1_2_la_LDFLAGS = 								\
 	-version-info $(LIBEDATACAL_CURRENT):$(LIBEDATACAL_REVISION):$(LIBEDATACAL_AGE)

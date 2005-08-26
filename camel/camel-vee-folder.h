@@ -30,7 +30,6 @@ extern "C" {
 
 #include <glib.h>
 #include <camel/camel-folder.h>
-#include <camel/camel-vee-summary.h>
 
 #define CAMEL_VEE_FOLDER(obj)         CAMEL_CHECK_CAST (obj, camel_vee_folder_get_type (), CamelVeeFolder)
 #define CAMEL_VEE_FOLDER_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_vee_folder_get_type (), CamelVeeFolderClass)

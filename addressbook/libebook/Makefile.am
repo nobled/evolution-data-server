@@ -49,8 +49,8 @@ libebook_1_2_la_SOURCES =					\
 
 libebook_1_2_la_LIBADD =					\
 	$(EVOLUTION_ADDRESSBOOK_LIBS)				\
-	$(top_builddir)/camel/libcamel-1.2.la			\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la
+	$(top_builddir)/camel/libcamel-$(API_VERSION).la			\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
 libebook_1_2_la_LDFLAGS = 							\
 	-version-info $(LIBEBOOK_CURRENT):$(LIBEBOOK_REVISION):$(LIBEBOOK_AGE)

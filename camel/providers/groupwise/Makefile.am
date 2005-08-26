@@ -38,7 +38,7 @@ noinst_HEADERS =         			\
 libcamelgroupwise_la_LDFLAGS = -avoid-version -module
 libcamelgroupwise_la_LIBADD =                                            \
         $(top_builddir)/servers/groupwise/libegroupwise-1.2.la           \
-	$(top_builddir)/libedataserver/libedataserver-1.2.la             \
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la             \
         $(SOUP_LIBS)
 
 EXTRA_DIST = libcamelgroupwise.urls

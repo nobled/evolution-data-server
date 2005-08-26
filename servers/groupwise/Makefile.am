@@ -10,7 +10,7 @@ noinst_PROGRAMS = create-account soap-test
 
 create_account_SOURCES = create-account.c
 create_account_LDADD = 						\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la	\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la	\
 	$(SOUP_LIBS)						\
 	$(E_DATA_SERVER_LIBS)
 

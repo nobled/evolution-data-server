@@ -10,14 +10,14 @@ INCLUDES =								\
 MARSHAL_GENERATED = e-data-server-ui-marshal.c e-data-server-ui-marshal.h
 @EVO_MARSHAL_RULE@
 
-lib_LTLIBRARIES = libedataserverui-1.2.la
+lib_LTLIBRARIES = libedataserverui-1.4.la
 noinst_PROGRAMS = 			\
 	test-source-selector		\
 	test-source-option-menu		\
 	test-contact-store		\
 	test-name-selector
 
-libedataserverui_1_2_la_SOURCES =	\
+libedataserverui_1_4_la_SOURCES =	\
 	$(MARSHAL_GENERATED)		\
 	e-categories-dialog.c		\
 	e-destination-store.c		\
@@ -33,11 +33,11 @@ libedataserverui_1_2_la_SOURCES =	\
 	e-source-option-menu.c		\
 	e-tree-model-generator.c
 
-libedataserverui_1_2_la_LIBADD = 				\
+libedataserverui_1_4_la_LIBADD = 				\
 	$(top_builddir)/addressbook/libebook/libebook-1.2.la	\
 	$(E_DATA_SERVER_LIBS)
 
-libedataserverui_1_2_la_LDFLAGS = 										\
+libedataserverui_1_4_la_LDFLAGS = 										\
 	-version-info $(LIBEDATASERVERUI_CURRENT):$(LIBEDATASERVERUI_REVISION):$(LIBEDATASERVERUI_AGE)
 
 libedataserveruiincludedir = $(privincludedir)/libedataserverui
@@ -60,26 +60,26 @@ libedataserveruiinclude_HEADERS =	\
 # Test programs
 test_source_selector_SOURCES = test-source-selector.c
 test_source_selector_LDADD = 					\
-	libedataserverui-1.2.la 				\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la	\
+	libedataserverui-$(API_VERSION).la 				\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la	\
 	$(E_DATA_SERVER_UI_LIBS)
 
 test_source_option_menu_SOURCES = test-source-option-menu.c
 test_source_option_menu_LDADD = 				\
-	libedataserverui-1.2.la 				\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la	\
+	libedataserverui-$(API_VERSION).la 				\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la	\
 	$(E_DATA_SERVER_UI_LIBS)
 
 test_contact_store_SOURCES = test-contact-store.c
 test_contact_store_LDADD =					\
-	libedataserverui-1.2.la 				\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la	\
+	libedataserverui-$(API_VERSION).la 				\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la	\
 	$(E_DATA_SERVER_UI_LIBS)
 
 test_name_selector_SOURCES = test-name-selector.c
 test_name_selector_LDADD =					\
-	libedataserverui-1.2.la 				\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la	\
+	libedataserverui-$(API_VERSION).la 				\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la	\
 	$(E_DATA_SERVER_UI_LIBS)
 
 %-$(API_VERSION).pc: %.pc

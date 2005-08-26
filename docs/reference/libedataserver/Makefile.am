@@ -6,7 +6,7 @@ content_files=
 HTML_IMAGES=
 
 # The top-level SGML file.
-DOC_MAIN_SGML_FILE = libedataserver-docs.sgml
+DOC_MAIN_SGML_FILE = libedataserver-$(API_VERSION)docs.sgml
 
 #SCANGOBJ_OPTIONS =
 SCAN_OPTIONS = 
@@ -25,7 +25,7 @@ GTKDOC_CFLAGS  =					\
 	-I$(top_srcdir) 				\
 	-I$(top_builddir)				\
 	$(E_DATA_SERVER_CFLAGS)
-GTKDOC_LIBS = $(top_builddir)/libedataserver/libedataserver-1.2.la $(E_DATA_SERVER_LIBS)
+GTKDOC_LIBS = $(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la $(E_DATA_SERVER_LIBS)
 
 ####################################
 # Everything below here is generic #

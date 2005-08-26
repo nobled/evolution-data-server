@@ -10,10 +10,10 @@ INCLUDES =								\
 MARSHAL_GENERATED = e-data-server-marshal.c e-data-server-marshal.h
 @EVO_MARSHAL_RULE@
 
-lib_LTLIBRARIES = libedataserver-1.2.la
+lib_LTLIBRARIES = libedataserver-1.4.la
 noinst_PROGRAMS = test-source-list
 
-libedataserver_1_2_la_SOURCES =		\
+libedataserver_1_4_la_SOURCES =		\
 	$(MARSHAL_GENERATED)		\
 	e-account-list.c		\
 	e-account.c			\
@@ -41,12 +41,12 @@ libedataserver_1_2_la_SOURCES =		\
 	e-xml-hash-utils.c		\
 	md5-utils.c
 
-libedataserver_1_2_la_LIBADD = 				\
+libedataserver_1_4_la_LIBADD = 				\
 	$(E_DATA_SERVER_LIBS)				\
 	$(ICONV_LIBS)					\
 	$(top_builddir)/libdb/dist/libdb-4.1.la
 
-libedataserver_1_2_la_LDFLAGS = 										\
+libedataserver_1_4_la_LDFLAGS = 										\
 	-version-info $(LIBEDATASERVER_CURRENT):$(LIBEDATASERVER_REVISION):$(LIBEDATASERVER_AGE)
 
 libedataserverincludedir = $(privincludedir)/libedataserver
@@ -79,7 +79,7 @@ libedataserverinclude_HEADERS =		\
 	md5-utils.h
 
 test_source_list_SOURCES = test-source-list.c
-test_source_list_LDADD = libedataserver-1.2.la $(E_DATA_SERVER_LIBS)
+test_source_list_LDADD = libedataserver-1.4.la $(E_DATA_SERVER_LIBS)
 
 %-$(API_VERSION).pc: %.pc
 	 cp $< $@

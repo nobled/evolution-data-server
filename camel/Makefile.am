@@ -13,9 +13,9 @@ libcamelincludedir = $(privincludedir)/camel
 libcamel_providerincludedir = $(privincludedir)/camel
 
 camellibexecdir = $(libexecdir)
-camellibexec_PROGRAMS =	camel-lock-helper-1.2 camel-index-control-1.2
+camellibexec_PROGRAMS =	camel-lock-helper-1.4 camel-index-control-1.4
 
-lib_LTLIBRARIES = libcamel-1.2.la libcamel-provider-1.2.la
+lib_LTLIBRARIES = libcamel-1.4.la libcamel-provider-1.4.la
 
 INCLUDES = -I.. -I$(srcdir)/.. 			 	\
 	-I$(top_srcdir)/libdb/dist					\
@@ -25,7 +25,7 @@ INCLUDES = -I.. -I$(srcdir)/.. 			 	\
 	-DG_LOG_DOMAIN=\"camel\"			\
 	$(CAMEL_CFLAGS)
 
-libcamel_provider_1_2_la_SOURCES = 		\
+libcamel_provider_1_4_la_SOURCES = 		\
 	camel-cipher-context.c			\
 	camel-disco-diary.c			\
 	camel-disco-folder.c			\
@@ -129,15 +129,15 @@ libcamel_providerinclude_HEADERS =			\
 #	camel-digest-store.h			\
 #	camel-digest-summary.h
 
-libcamel_provider_1_2_la_LDFLAGS = -version-info $(LIBCAMEL_CURRENT):$(LIBCAMEL_REVISION):$(LIBCAMEL_AGE)
+libcamel_provider_1_4_la_LDFLAGS = -version-info 0:0:0
 
-libcamel_provider_1_2_la_LIBADD =			\
-	$(top_builddir)/libedataserver/libedataserver-${API_VERSION}.la 	\
-	libcamel-1.2.la				\
+libcamel_provider_1_4_la_LIBADD =			\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la 	\
+	libcamel-1.4.la				\
 	$(top_builddir)/libdb/dist/libdb-4.1.la
 	$(CAMEL_LIBS)
 
-libcamel_1_2_la_SOURCES = 				\
+libcamel_1_4_la_SOURCES = 				\
 	broken-date-parser.c			\
 	camel-address.c				\
 	camel-arg.c				\
@@ -271,28 +271,28 @@ libcamelinclude_HEADERS =			\
 	camel-utf8.h				\
 	camel.h
 
-libcamel_1_2_la_LDFLAGS = -version-info 0:0:0
+libcamel_1_4_la_LDFLAGS = -version-info 0:0:0
 
-libcamel_1_2_la_LIBADD =				\
-	$(top_builddir)/libedataserver/libedataserver-${API_VERSION}.la 	\
+libcamel_1_4_la_LIBADD =				\
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la 	\
 	$(CAMEL_LIBS)
 
-camel_lock_helper_1_2_SOURCES = 		\
+camel_lock_helper_1_4_SOURCES = 		\
 	camel-lock-helper.c 			\
 	camel-lock-helper.h
 
 # NOTE: This needs to be cleaned up, it shouldn't link with all this crap,
 # because it might be setuid.
-camel_lock_helper_1_2_LDADD =			\
+camel_lock_helper_1_4_LDADD =			\
 	camel-lock.o				\
-	$(libcamel_1_2_la_LIBADD)
+	$(libcamel_1_4_la_LIBADD)
 
-camel_index_control_1_2_SOURCES =		\
+camel_index_control_1_4_SOURCES =		\
 	camel-index-control.c
 
-camel_index_control_1_2_LDADD =			\
-	libcamel-1.2.la				\
-	$(libcamel_1_2_la_LIBADD)
+camel_index_control_1_4_LDADD =			\
+	libcamel-1.4.la				\
+	$(libcamel_1_4_la_LIBADD)
 
 camel-mime-tables.c: gentables.pl
 	perl gentables.pl > $@

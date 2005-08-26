@@ -55,7 +55,7 @@ libecal_1_2_la_LIBADD =									\
 	$(top_builddir)/calendar/libical/src/libical/libical-evolution.la		\
 	$(top_builddir)/calendar/libical/src/libicalvcal/libicalvcal-evolution.la	\
 	$(top_builddir)/calendar/libical/src/libicalss/libicalss-evolution.la		\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la
+	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
 libecal_1_2_la_LDFLAGS = 								\
 	-version-info $(LIBECAL_CURRENT):$(LIBECAL_REVISION):$(LIBECAL_AGE)
