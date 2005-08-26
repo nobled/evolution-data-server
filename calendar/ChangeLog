@@ -1,3 +1,11 @@
+2005-08-25  Christian Kellner  <gicmo@gnome.org>
+
+	* backends/caldav/e-cal-backend-caldav.c: 
+	(caldav_modify_object), (caldav_remove_object):
+	Implementation of the function stubs. Patch
+	provided by Jürg Billeter <j@bitron.ch>.
+	This fixes bug #314494
+
 2005-08-26  Jürg Billeter  <j@bitron.ch>
 
 	reviewed by: Christian Kellner  <gicmo@gnome.org>

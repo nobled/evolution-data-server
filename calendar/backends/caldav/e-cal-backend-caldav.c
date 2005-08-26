@@ -1491,9 +1491,75 @@ caldav_modify_object (ECalBackendSync  *backend,
 		      char            **old_object,
 		      char            **new_object)
 {
-	/* FIXME: implement me! */
-	g_warning ("function not implemented %s", G_STRFUNC);
-	return GNOME_Evolution_Calendar_OtherError;		
+	ECalBackendCalDAV        *cbdav;
+	ECalBackendCalDAVPrivate *priv;
+	ECalBackendSyncStatus     status;
+	ECalComponent            *comp;
+	ECalComponent            *cache_comp;
+	gboolean                  online;
+	const char		 *uid = NULL;
+	
+	cbdav = E_CAL_BACKEND_CALDAV (backend);
+	priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
+
+	g_mutex_lock (priv->lock);
+
+	status = check_state (cbdav, &online);
+
+	if (status != GNOME_Evolution_Calendar_Success) {
+		g_mutex_unlock (priv->lock);
+		return status;
+	}
+
+	comp = e_cal_component_new_from_string (calobj);
+
+	if (comp == NULL) {
+		g_mutex_unlock (priv->lock);
+		return GNOME_Evolution_Calendar_InvalidObject;
+	}
+	
+	e_cal_component_get_uid (comp, &uid);
+	
+	cache_comp = e_cal_backend_cache_get_component (priv->cache, uid, NULL);
+	if (cache_comp == NULL) {
+		g_mutex_unlock (priv->lock);
+		return GNOME_Evolution_Calendar_ObjectNotFound;
+	}
+
+	if (online) {
+		CalDAVObject object;
+	
+		object.href  = g_strdup (e_cal_component_get_href (cache_comp));
+		object.etag  = g_strdup (e_cal_component_get_etag (cache_comp));
+		object.cdata = pack_cobj (calobj);
+
+		status = caldav_server_put_object (cbdav, &object);
+
+		e_cal_component_set_href (comp, object.href);
+		e_cal_component_set_etag (comp, object.etag);
+		caldav_object_free (&object, FALSE);
+		
+	} else {
+		/* mark component as out of synch */
+		e_cal_component_set_synch_state (comp, 
+				E_CAL_COMPONENT_LOCALLY_MODIFIED);
+	}
+
+	if (status != GNOME_Evolution_Calendar_Success) {
+		g_object_unref (comp);
+		g_mutex_unlock (priv->lock);
+		return status;	
+	}
+	
+	/* We should prolly check for cache errors
+	 * but when that happens we are kinda hosed anyway */
+	e_cal_backend_cache_put_component (priv->cache, comp);
+	*old_object = e_cal_component_get_as_string (cache_comp);
+	*new_object = e_cal_component_get_as_string (comp);
+	
+	g_mutex_unlock (priv->lock);
+	
+	return status;	
 }
 
 static ECalBackendSyncStatus
@@ -1505,9 +1571,63 @@ caldav_remove_object (ECalBackendSync  *backend,
 		      char            **old_object,
 		      char            **object)
 {
-	/* FIXME: implement me! */
-	g_warning ("function not implemented %s", G_STRFUNC);
-	return GNOME_Evolution_Calendar_OtherError;		
+	ECalBackendCalDAV        *cbdav;
+	ECalBackendCalDAVPrivate *priv;
+	ECalBackendSyncStatus     status;
+	ECalComponent            *cache_comp;
+	gboolean                  online;
+	
+	cbdav = E_CAL_BACKEND_CALDAV (backend);
+	priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
+
+	g_mutex_lock (priv->lock);
+
+	status = check_state (cbdav, &online);
+
+	if (status != GNOME_Evolution_Calendar_Success) {
+		g_mutex_unlock (priv->lock);
+		return status;
+	}
+
+	cache_comp = e_cal_backend_cache_get_component (priv->cache, uid, rid);
+	if (cache_comp == NULL) {
+		g_mutex_unlock (priv->lock);
+		return GNOME_Evolution_Calendar_ObjectNotFound;
+	}
+
+	if (online) {
+		CalDAVObject object;
+	
+		object.href  = g_strdup (e_cal_component_get_href (cache_comp));
+		object.etag  = g_strdup (e_cal_component_get_etag (cache_comp));
+		object.cdata = NULL;
+
+		status = caldav_server_delete_object (cbdav, &object);
+
+		caldav_object_free (&object, FALSE);
+		
+	} else {
+		/* mark component as out of synch */
+		e_cal_component_set_synch_state (cache_comp, 
+				E_CAL_COMPONENT_LOCALLY_DELETED);
+	}
+
+	if (status != GNOME_Evolution_Calendar_Success) {
+		g_mutex_unlock (priv->lock);
+		return status;	
+	}
+	
+	*old_object = e_cal_component_get_as_string (cache_comp);
+
+	/* We should prolly check for cache errors
+	 * but when that happens we are kinda hosed anyway */
+	e_cal_backend_cache_remove_component (priv->cache, uid, rid);
+
+	/* FIXME: set new_object when removing instances of a recurring appointment */
+	
+	g_mutex_unlock (priv->lock);
+	
+	return status;	
 }
 
 static ECalBackendSyncStatus
