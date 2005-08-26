@@ -6,9 +6,9 @@ builddir=.
 ##################################################
 # Installation directories and permissions.
 ##################################################
-prefix=	@prefix@
+prefix=	@prefix@/lib/evolution-data-server-1.4/libdb
 exec_prefix=@exec_prefix@
-bindir=	@bindir@
+bindir=	$(prefix)/bin
 includedir=@includedir@
 libdir=	@libdir@
 docdir=	$(prefix)/docs
@@ -404,8 +404,7 @@ LIB_INSTALL_FILE_LIST=\
 ##################################################
 all: @BUILD_TARGET@
 
-install-strip install: all
-	@echo "installation of embedded libdb has been disabled"
+install-strip install: all @INSTALL_TARGET@
 
 ##################################################
 # Library and standard utilities build.
