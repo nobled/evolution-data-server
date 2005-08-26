@@ -1,6 +1,15 @@
 2005-08-25  Christian Kellner  <gicmo@gnome.org>
 
 	* backends/caldav/e-cal-backend-caldav.c: 
+	(synch_slave_loop), (caldav_is_loaded), 
+	(e_cal_backend_caldav_dispose),
+	(e_cal_backend_caldav_finalize):
+	No need for locking foo in the dispose function.
+	Let the slave free the lock.
+
+2005-08-25  Christian Kellner  <gicmo@gnome.org>
+
+	* backends/caldav/e-cal-backend-caldav.c: 
 	(caldav_modify_object), (caldav_remove_object):
 	Implementation of the function stubs. Patch
 	provided by Jürg Billeter <j@bitron.ch>.
