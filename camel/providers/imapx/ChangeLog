@@ -1,5 +1,10 @@
 2005-08-22    <NotZed@Ximian.com>
 
+	* camel-imapx-utils.h: 
+	* camel-imapx-server.c: fix some compilation issues.
+	
+2005-08-22    <NotZed@Ximian.com>
+
 	* camel-imapx-server.c (imapx_command_addv): implement proper
 	string escaping.
 	(imapx_job_sync_changes_start): implement proper user-flag storage.

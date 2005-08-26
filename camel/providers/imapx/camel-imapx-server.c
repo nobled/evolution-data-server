@@ -1043,7 +1043,7 @@ imapx_untagged(CamelIMAPXServer *imap)
 				r.uid = finfo->uid;
 				finfo->uid = NULL;
 				r.server_flags = finfo->flags;
-				r.user_server_flags = finfo->user_flags;
+				r.server_user_flags = finfo->user_flags;
 				finfo->user_flags = NULL;
 				g_array_append_val(job->u.refresh_info.infos, r);
 			} else {
@@ -1082,7 +1082,7 @@ imapx_untagged(CamelIMAPXServer *imap)
 						if (r->uid && !strcmp(r->uid, finfo->uid)) {
 							((CamelMessageInfoBase *)mi)->flags = r->server_flags;
 							((CamelIMAPXMessageInfo *)mi)->server_flags = r->server_flags;
-							camel_flag_list_copy(&((CamelMessageInfoBase *)mi)->user_flags, r->server_user_flags);
+							camel_flag_list_copy(&((CamelMessageInfoBase *)mi)->user_flags, &r->server_user_flags);
 							((CamelIMAPXMessageInfo *)mi)->server_user_flags = r->server_user_flags;
 							break;
 						}
@@ -2092,6 +2092,8 @@ imapx_job_sync_changes_start(CamelIMAPXServer *is, CamelIMAPXJob *job)
 		}
 
 		if (user_set) {
+			CamelIMAPXCommand *ic = NULL;
+
 			for (j=0;j<user_set->len;j++) {
 				struct _imapx_flag_change *c = &g_array_index(user_set, struct _imapx_flag_change, i);
 
@@ -2614,7 +2616,7 @@ imapx_sync_free_user(GArray *user_set)
 		return;
 
 	for (i=0;i<user_set->len;i++)
-		g_ptr_array_free(g_array_index(user_set, struct _imapx_flag_change, i).infos);
+		g_ptr_array_free(g_array_index(user_set, struct _imapx_flag_change, i).infos, TRUE);
 	g_array_free(user_set, TRUE);
 }
 
@@ -2653,6 +2655,8 @@ camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrA
 		uflags = ((CamelMessageInfoBase *)info)->user_flags;
 		suflags = info->server_user_flags;
 		while (uflags || suflags) {
+			int res;
+
 			if (uflags) {
 				if (suflags)
 					res = strcmp(uflags->name, suflags->name);
@@ -2668,7 +2672,7 @@ camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrA
 			} else {
 				GArray *user_set;
 				CamelFlag *user_flag;
-				struct _user_flag_change *change, add;
+				struct _imapx_flag_change *change, add;
 
 				if (res < 0) {
 					if (on_user == NULL)
@@ -2686,13 +2690,13 @@ camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrA
 
 				/* Could sort this and binary search */
 				for (i=0;i<user_set->len;i++) {
-					change = &g_array_index(user_set, struct _user_flag_change, i);
+					change = &g_array_index(user_set, struct _imapx_flag_change, i);
 					if (strcmp(change->name, user_flag->name) == 0)
 						goto found;
 				}
 				add.name = g_strdup(user_flag->name);
 				add.infos = g_ptr_array_new();
-				g_array_add(user_set, &add);
+				g_array_append_val(user_set, add);
 				change = &add;
 			found:
 				g_ptr_array_add(change->infos, info);

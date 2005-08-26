@@ -5,6 +5,7 @@
 #include <camel/camel-mime-utils.h>
 
 struct _CamelIMAPXStream;
+struct _CamelFlag;
 
 /* list of strings we know about that can be *quickly* tokenised */
 typedef enum _camel_imapx_id_t {
@@ -52,8 +53,8 @@ enum {
 
 /* ********************************************************************** */
 
-void imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_flagsp);
-void imap_write_flags(CamelStream *stream, guint32 flags, CamelFlag *user_flags);
+void imap_parse_flags(struct _CamelIMAPXStream *stream, guint32 *flagsp, struct _CamelFlag **user_flagsp);
+void imap_write_flags(CamelStream *stream, guint32 flags, struct _CamelFlag *user_flags);
 
 /* ********************************************************************** */
 enum {
@@ -109,7 +110,7 @@ struct _fetch_info {
 	guint32 size;		/* RFC822.SIZE */
 	guint32 offset;		/* start offset of a BODY[]<offset.length> request */
 	guint32 flags;		/* FLAGS */
-	CamelFlag *user_flags;
+	struct _CamelFlag *user_flags;
 	char *date;		/* INTERNALDATE */
 	char *section;		/* section for a BODY[section] request */
 	char *uid;		/* UID */
