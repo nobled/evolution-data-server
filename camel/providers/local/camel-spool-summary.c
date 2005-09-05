@@ -60,7 +60,7 @@ camel_spool_summary_new(struct _CamelFolder *folder, const char *mbox_name)
 
 /* perform a full sync */
 static int
-spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
 {
 	int fd = -1, fdout = -1;
 	char *tmpname = NULL;
@@ -242,7 +242,7 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 }
 
 static int
-spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+spool_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changeinfo, CamelException *ex)
 {
 	struct stat st;
 	CamelMBOXView *root = (CamelMBOXView *)CFS(cls)->root_view->view;

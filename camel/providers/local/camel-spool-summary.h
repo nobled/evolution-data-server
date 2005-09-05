@@ -52,11 +52,11 @@ CamelSpoolSummary *camel_spool_summary_new(struct _CamelFolder *, const char *fi
 /* load/check the summary */
 int camel_spool_summary_load(CamelSpoolSummary *cls, int forceindex, CamelException *ex);
 /* check for new/removed messages */
-int camel_spool_summary_check(CamelSpoolSummary *cls, CamelFolderChangeInfo *, CamelException *ex);
+int camel_spool_summary_check(CamelSpoolSummary *cls, CamelChangeInfo *, CamelException *ex);
 /* perform a folder sync or expunge, if needed */
-int camel_spool_summary_sync(CamelSpoolSummary *cls, gboolean expunge, CamelFolderChangeInfo *, CamelException *ex);
+int camel_spool_summary_sync(CamelSpoolSummary *cls, gboolean expunge, CamelChangeInfo *, CamelException *ex);
 /* add a new message to the summary */
-CamelMessageInfo *camel_spool_summary_add(CamelSpoolSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *, CamelException *ex);
+CamelMessageInfo *camel_spool_summary_add(CamelSpoolSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelChangeInfo *, CamelException *ex);
 
 /* generate an X-Evolution header line */
 char *camel_spool_summary_encode_x_evolution(CamelSpoolSummary *cls, const CamelMessageInfo *info);

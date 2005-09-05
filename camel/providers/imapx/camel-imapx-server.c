@@ -200,7 +200,7 @@ struct _CamelIMAPXJob {
 			int last_index;
 			struct _uidset_state uidset;
 			/* changes during refresh */
-			CamelFolderChangeInfo *changes;
+			CamelChangeInfo *changes;
 		} refresh_info;
 		struct {
 			GPtrArray *infos;
@@ -1811,9 +1811,9 @@ imapx_job_refresh_info_step_done(CamelIMAPXServer *is, CamelIMAPXCommand *ic)
 	int i = job->u.refresh_info.index;
 	GArray *infos = job->u.refresh_info.infos;
 
-	if (camel_folder_change_info_changed(job->u.refresh_info.changes))
+	if (camel_change_info_changed(job->u.refresh_info.changes))
 		camel_object_trigger_event(job->folder, "folder_changed", job->u.refresh_info.changes);
-	camel_folder_change_info_clear(job->u.refresh_info.changes);
+	camel_change_info_clear(job->u.refresh_info.changes);
 
 	if (i<infos->len) {
 		ic = camel_imapx_command_new("FETCH", job->folder->full_name, "UID FETCH ");
@@ -1888,7 +1888,7 @@ imapx_job_refresh_info_done(CamelIMAPXServer *is, CamelIMAPXCommand *ic)
 
 			while (iterinfo && uid_cmp(camel_message_info_uid(iterinfo), r->uid, s) < 0) {
 				printf("Message %s vanished\n", iterinfo->uid);
-				camel_folder_change_info_remove_uid(job->u.refresh_info.changes, camel_message_info_uid(iterinfo));
+				camel_change_info_remove(job->u.refresh_info.changes, iterinfo);
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 				iterinfo = imapx_iterator_next(iter, NULL);
 			}
@@ -1899,7 +1899,7 @@ imapx_job_refresh_info_done(CamelIMAPXServer *is, CamelIMAPXCommand *ic)
 				info = (CamelIMAPXMessageInfo *)iterinfo;
 				if (info->server_flags !=  r->server_flags
 				    && camel_message_info_set_flags((CamelMessageInfo *)info, info->server_flags ^ r->server_flags, r->server_flags))
-					camel_folder_change_info_change_uid(job->u.refresh_info.changes, iterinfo->uid);
+					camel_change_info_change(job->u.refresh_info.changes, iterinfo);
 				iterinfo = imapx_iterator_next(iter, NULL);
 				g_free(r->uid);
 				r->uid = NULL;
@@ -1910,14 +1910,14 @@ imapx_job_refresh_info_done(CamelIMAPXServer *is, CamelIMAPXCommand *ic)
 
 		while (iterinfo) {
 			printf("Message %s vanished\n", iterinfo->uid);
-			camel_folder_change_info_remove_uid(job->u.refresh_info.changes, camel_message_info_uid(iterinfo));
+			camel_change_info_remove(job->u.refresh_info.changes, iterinfo);
 			camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 			iterinfo = imapx_iterator_next(iter, NULL);
 		}
 
-		if (camel_folder_change_info_changed(job->u.refresh_info.changes))
+		if (camel_change_info_changed(job->u.refresh_info.changes))
 			camel_object_trigger_event(job->folder, "folder_changed", job->u.refresh_info.changes);
-		camel_folder_change_info_clear(job->u.refresh_info.changes);
+		camel_change_info_clear(job->u.refresh_info.changes);
 
 		/* If we have any new messages, download their headers, but only a few (100?) at a time */
 		if (count) {
@@ -2581,13 +2581,13 @@ camel_imapx_server_refresh_info(CamelIMAPXServer *is, CamelFolder *folder, Camel
 	job->start = imapx_job_refresh_info_start;
 	job->folder = folder;
 	job->ex = ex;
-	job->u.refresh_info.changes = camel_folder_change_info_new();
+	job->u.refresh_info.changes = camel_change_info_new(NULL);
 
 	imapx_run_job(is, job);
 
-	if (camel_folder_change_info_changed(job->u.refresh_info.changes))
+	if (camel_change_info_changed(job->u.refresh_info.changes))
 		camel_object_trigger_event(folder, "folder_changed", job->u.refresh_info.changes);
-	camel_folder_change_info_free(job->u.refresh_info.changes);
+	camel_change_info_free(job->u.refresh_info.changes);
 
 	g_free(job);
 

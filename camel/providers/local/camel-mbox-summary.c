@@ -442,7 +442,7 @@ message_info_encode(CamelFolderSummaryDisk *s, CamelMessageInfoDisk *mi, CamelRe
 }
 
 static int
-summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *changes, CamelException *ex)
+summary_update(CamelFolderSummary *s, off_t offset, CamelChangeInfo *changes, CamelException *ex)
 {
 	CamelMimeParser *mp;
 	CamelIterator *iter;
@@ -543,7 +543,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 			while (iterinfo && uid_cmp(iterinfo->uid, uid, s) < 0) {
 				printf("Message %s vanished\n", iterinfo->uid);
-				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+				camel_change_info_remove(changes, iterinfo);
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 				iterinfo = camel_iterator_next(iter, NULL);
 			}
@@ -599,9 +599,10 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 
 		camel_folder_summary_add(s, info);
 
-		camel_folder_change_info_add_uid(changes, uid);
+		camel_change_info_add(changes, info);
+		// FIXME: set RECENT flag ...
 		if (xev == NULL)
-			camel_folder_change_info_recent_uid(changes, uid);
+			camel_change_info_recent(changes, info);
 	have_message:
 
 		// FIXME: check/perform indexing here
@@ -635,7 +636,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 		while (iterinfo) {
 			printf("trailing message '%s' removed too\n", iterinfo->uid);
 			camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
-			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+			camel_change_info_remove(changes, iterinfo);
 			iterinfo = camel_iterator_next(iter, NULL);
 		}
 	}
@@ -658,7 +659,7 @@ summary_update(CamelFolderSummary *s, off_t offset, CamelFolderChangeInfo *chang
 }
 
 static int
-mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, CamelException *ex)
+mbox_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changes, CamelException *ex)
 {
 	CamelFolderSummary *s = (CamelFolderSummary *)cls;
 	struct stat st;
@@ -697,7 +698,7 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 
 /* perform a full sync */
 static int
-mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
 {
 	CamelLocalSummary *cls = (CamelLocalSummary *)mbs;
 	int fd = -1, fdout = -1;
@@ -815,7 +816,7 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 
 /* perform a quick sync - only system flags have changed */
 static int
-mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
 {
 #if 0
 	CamelLocalSummary *cls = (CamelLocalSummary *)mbs;
@@ -835,7 +836,7 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 }
 
 static int
-mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
 {
 	struct stat st;
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
@@ -917,7 +918,7 @@ mbox_build_headers(CamelMboxSummary *mbs, GString *out, struct _camel_header_raw
 }
 
 int
-camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolderChangeInfo *changes, int fd, int fdout, CamelException *ex)
+camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelChangeInfo *changes, int fd, int fdout, CamelException *ex)
 {
 	CamelMboxSummary *mbs = (CamelMboxSummary *)cls;
 	CamelFolderSummary *s = (CamelFolderSummary *)mbs;
@@ -1010,7 +1011,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 
 			while (iterinfo && uid_cmp(camel_message_info_uid(iterinfo), uid, s) < 0) {
 				printf("Message %s vanished\n", iterinfo->uid);
-				camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+				camel_change_info_remove(changes, iterinfo);
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 				iterinfo = camel_iterator_next(iter, NULL);
 			}
@@ -1036,14 +1037,15 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 		((CamelMessageInfoBase *)info)->uid = uid;
 
 		camel_folder_summary_add(s, (CamelMessageInfo *)info);
-		camel_folder_change_info_add_uid(changes, uid);
+		camel_change_info_add(changes, (CamelMessageInfo *)info);
+		// FIXME: set recent flag for recent?
 		if (xev == NULL)
-			camel_folder_change_info_recent_uid(changes, uid);
+			camel_change_info_recent(changes, (CamelMessageInfo *)info);
 
 	have_message:
 		if ((inflags & 1) && ((CamelMessageInfoBase *)info)->flags & CAMEL_MESSAGE_DELETED) {
 			printf("%p: expunging deleted message %s\n", info, camel_message_info_uid(info));
-			camel_folder_change_info_remove_uid(changes, camel_message_info_uid(info));
+			camel_change_info_remove(changes, (CamelMessageInfo *)info);
 			camel_folder_summary_remove(s, (CamelMessageInfo *)info);
 			camel_mime_parser_drop_step(mp);
 			camel_mime_parser_drop_step(mp);
@@ -1100,7 +1102,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 inflags, CamelFolder
 	/* Anything else still in the summary isn't really there anymore, so discard it.
 	   Also happens if we renumbered messages */
 	while (iterinfo) {
-		camel_folder_change_info_remove_uid(changes, camel_message_info_uid(iterinfo));
+		camel_change_info_remove(changes, iterinfo);
 		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 		iterinfo = camel_iterator_next(iter, NULL);
 	}

@@ -1,3 +1,42 @@
+2005-09-05    <NotZed@Ximian.com>
+
+	* camel-view-summary-mem.c: purely memory based view-summary.
+
+	* camel-vtrash-folder.c: changed to operate off a view rather than
+	calculate anything ourself.
+
+	* camel-folder-summary.c (add, cfs_remove, info_changed):
+	propagate change events to the root view change set.
+
+2005-09-02    <NotZed@Ximian.com>
+
+	* camel-vee-summary.c: changed to inherit from
+	camel-folder-summary, changed to be a 'view' based folder, not an
+	expression based one.
+
+	* Makefile.am: removed all the vee and vtrash stuff, god knows
+	what i'm going to do about this crap.
+
+	* camel-folder-summary-disk.c (cds_update_view_remove) 
+	(cds_update_view_add): record the view changes in the changeinfo.
+
+	* camel-folder-summary.c (camel_change_info_clone): New function
+	to clone a changeinfo set, not quite the same as cat.
+
+	* camel-folder.c (camel_folder_change_info*): Chagned to
+	camel_change_info* and moved to camel-folder-summary.  Fixed
+	allllll callers.
+
+	* camel-folder-summary.h: added CamelChangeInfo structure, to
+	replace CamelFolderChangeInfo.
+
+2005-08-31    <NotZed@Ximian.com>
+
+	* camel-folder.c (folder_getv, folder_free): Implement
+	CAMEL_FOLDER_URI property.
+
+	* camel-folder.h: added CAMEL_FOLDER_URI property.
+
 2005-08-22    <NotZed@Ximian.com>
 
 	* camel-folder-summary-disk.c: cleaned up initialisation to use

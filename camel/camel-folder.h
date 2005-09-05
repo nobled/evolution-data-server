@@ -40,8 +40,6 @@ extern "C" {
 #define CAMEL_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_FOLDER_TYPE, CamelFolderClass))
 #define CAMEL_IS_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_FOLDER_TYPE))
 
-typedef struct _CamelFolderChangeInfo CamelFolderChangeInfo;
-
 enum {
 	CAMEL_FOLDER_ARG_FIRST = CAMEL_ARG_FIRST + 0x1000,
 	CAMEL_FOLDER_ARG_NAME = CAMEL_FOLDER_ARG_FIRST,
@@ -56,6 +54,7 @@ enum {
 	CAMEL_FOLDER_ARG_UID_ARRAY,
 	CAMEL_FOLDER_ARG_INFO_ARRAY,
 	CAMEL_FOLDER_ARG_PROPERTIES,
+	CAMEL_FOLDER_ARG_URI,	/* uri representing this folder */
 	CAMEL_FOLDER_ARG_LAST = CAMEL_ARG_FIRST + 0x2000,
 };
 
@@ -73,17 +72,10 @@ enum {
 	CAMEL_FOLDER_UID_ARRAY = CAMEL_FOLDER_ARG_UID_ARRAY | CAMEL_ARG_PTR,
 	CAMEL_FOLDER_INFO_ARRAY = CAMEL_FOLDER_ARG_INFO_ARRAY | CAMEL_ARG_PTR,
 
+	CAMEL_FOLDER_URI = CAMEL_FOLDER_ARG_URI | CAMEL_ARG_STR,
+
 	/* GSList of settable folder properties */
 	CAMEL_FOLDER_PROPERTIES = CAMEL_FOLDER_ARG_PROPERTIES | CAMEL_ARG_PTR,
-};
-
-struct _CamelFolderChangeInfo {
-	GPtrArray *uid_added;
-	GPtrArray *uid_removed;
-	GPtrArray *uid_changed;
-	GPtrArray *uid_recent;
-
-	struct _CamelFolderChangeInfoPrivate *priv;
 };
 
 struct _CamelFolder {
@@ -203,26 +195,6 @@ void               camel_folder_rename                 (CamelFolder *folder, con
 void               camel_folder_freeze                (CamelFolder *folder);
 void               camel_folder_thaw                  (CamelFolder *folder);
 gboolean           camel_folder_is_frozen             (CamelFolder *folder);
-
-/* update functions for change info */
-CamelFolderChangeInfo *	camel_folder_change_info_new		(void);
-void			camel_folder_change_info_clear		(CamelFolderChangeInfo *info);
-void			camel_folder_change_info_free		(CamelFolderChangeInfo *info);
-gboolean		camel_folder_change_info_changed	(CamelFolderChangeInfo *info);
-
-/* for building diff's automatically */
-void			camel_folder_change_info_add_source	(CamelFolderChangeInfo *info, const char *uid);
-void			camel_folder_change_info_add_source_list(CamelFolderChangeInfo *info, const GPtrArray *list);
-void			camel_folder_change_info_add_update	(CamelFolderChangeInfo *info, const char *uid);
-void			camel_folder_change_info_add_update_list(CamelFolderChangeInfo *info, const GPtrArray *list);
-void			camel_folder_change_info_build_diff	(CamelFolderChangeInfo *info);
-
-/* for manipulating diff's directly */
-void			camel_folder_change_info_cat		(CamelFolderChangeInfo *info, CamelFolderChangeInfo *src);
-void			camel_folder_change_info_add_uid	(CamelFolderChangeInfo *info, const char *uid);
-void			camel_folder_change_info_remove_uid	(CamelFolderChangeInfo *info, const char *uid);
-void			camel_folder_change_info_change_uid	(CamelFolderChangeInfo *info, const char *uid);
-void			camel_folder_change_info_recent_uid	(CamelFolderChangeInfo *info, const char *uid);
 
 #if 0
 //Potential ideas ...

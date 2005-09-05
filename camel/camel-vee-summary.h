@@ -23,7 +23,7 @@
 #ifndef _CAMEL_VEE_SUMMARY_H
 #define _CAMEL_VEE_SUMMARY_H
 
-#include <camel/camel-folder-summary-disk.h>
+#include <camel/camel-folder-summary.h>
 #include <libedataserver/e-msgport.h>
 
 /* Define to store each sub-folders details in a different database/summary?  UNIMPLEMENTED */
@@ -42,12 +42,6 @@ typedef struct _CamelVeeSummaryClass CamelVeeSummaryClass;
 
 typedef struct _CamelVeeMessageInfo CamelVeeMessageInfo;
 
-enum {
-	CVS_SECTION_FOLDERINFO = CFSD_SECTION_LAST,
-
-	CVS_SECTION_LAST = CFSD_SECTION_LAST+4
-};
-
 struct _CamelVeeMessageInfo {
 	CamelMessageInfo info;
 
@@ -57,6 +51,8 @@ struct _CamelVeeMessageInfo {
 struct _CamelVeeSummaryFolder {
 	struct _CamelVeeSummaryFolder *next;
 	struct _CamelVeeSummaryFolder *prev;
+
+	struct _CamelVeeSummary *summary;
 
 	/* Folder info/hooks */
 	struct _CamelFolder *folder;
@@ -73,11 +69,11 @@ struct _CamelVeeSummaryFolder {
 };
 
 struct _CamelVeeSummary {
-	CamelFolderSummaryDisk summary;
+	CamelFolderSummary summary;
 
 	struct _CamelVeeSummaryPrivate *priv;
 
-	char *expr;
+	char *vid;
 	EDList folders;
 
 	struct _CamelFolderChangeInfo *changes;
@@ -87,11 +83,11 @@ struct _CamelVeeSummary {
 };
 
 struct _CamelVeeSummaryClass {
-	CamelFolderSummaryDiskClass parent_class;
+	CamelFolderSummaryClass parent_class;
 };
 
 CamelType               camel_vee_summary_get_type     (void);
-CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *folder);
+CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *folder, const char *vid);
 
 void camel_vee_summary_add_folder(CamelVeeSummary *s, const char *uriin, struct _CamelFolder *folder);
 void camel_vee_summary_remove_folder(CamelVeeSummary *s, struct _CamelFolder *folder);

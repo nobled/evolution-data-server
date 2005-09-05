@@ -43,7 +43,7 @@ struct _CamelFolderPrivate {
 	EMutex *change_lock;
 	/* must require the 'change_lock' to access this */
 	int frozen;
-	struct _CamelFolderChangeInfo *changed_frozen; /* queues changed events */
+	struct _CamelChangeInfo *changed_frozen; /* queues changed events */
 };
 
 #define CAMEL_FOLDER_LOCK(f, l) (e_mutex_lock(((CamelFolder *)f)->priv->l))

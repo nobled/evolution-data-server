@@ -32,6 +32,7 @@
 
 #include "camel-vee-summary.h"
 #include "camel-folder.h"
+#include "camel-folder-search.h"
 
 #include "camel-record.h"
 
@@ -40,13 +41,35 @@
 
 #include "camel-session.h"
 #include "camel-service.h"
+#include "camel-view-summary-mem.h"
 
 #define d(x)
 
-#define CDS_CLASS(x) ((CamelFolderSummaryDiskClass *)((CamelObject *)x)->klass)
 #define CFS_CLASS(x) ((CamelFolderSummaryClass *)((CamelObject *)x)->klass)
+#define CFS(x) ((CamelFolderSummary *)x)
 
 static CamelFolderSummaryClass *camel_vee_summary_parent;
+
+/* Maps a messageinfo in folder f, to a messageinfo in summary s */
+static CamelMessageInfo *
+vee_info_map(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelMessageInfo *mi)
+{
+	char *uid;
+	CamelVeeMessageInfo *vmi;
+
+	uid = g_alloca(strlen(camel_message_info_uid(mi))+9);
+	memcpy(uid, f->hash, 8);
+	strcpy(uid+8, camel_message_info_uid(mi));
+
+	/* FIXME: if we already have this uid in memory, we need to access that instead */
+
+	vmi = camel_message_info_new((CamelFolderSummary *)s);
+	vmi->real = mi;
+	camel_message_info_ref(mi);
+	vmi->info.uid = g_strdup(uid);
+
+	return (CamelMessageInfo *)vmi;
+}
 
 static int
 vee_uid_cmp(const void *ap, const void *bp, void *data)
@@ -96,6 +119,28 @@ vee_info_cmp(const void *ap, const void *bp, void *data)
 		res = CFS_CLASS(a->info.summary)->info_cmp(a, b, a->info.summary);
 
 	return res;
+}
+
+static void *
+vee_get(CamelFolderSummary *s, const char *uid)
+{
+	CamelVeeSummaryFolder *f;
+	CamelMessageInfo *mi, *vmi;
+
+	if (strlen(uid) <=8)
+		return NULL;
+
+	f = (CamelVeeSummaryFolder *)((CamelVeeSummary *)s)->folders.head;
+	while (f->next && memcmp(f->hash, uid, 8) != 0)
+		f = f->next;
+
+	if (f->next == NULL || (mi = camel_folder_get_message_info(f->folder, uid+8)) == NULL)
+		return NULL;
+
+	vmi = vee_info_map((CamelVeeSummary *)s, f, mi);
+	camel_message_info_free(mi);
+
+	return vmi;
 }
 
 static CamelMessageInfo *
@@ -183,7 +228,8 @@ static gboolean
 vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 {
 	int res = FALSE;
-	guint32 old, diff, new;
+	guint32 old;
+//	guint32 old, diff, new;
 
 	old = camel_message_info_flags(((CamelVeeMessageInfo *)mi)->real);
 	res = camel_message_info_set_flags(((CamelVeeMessageInfo *)mi)->real, flags, set);
@@ -219,79 +265,117 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 	return res;
 }
 
-static void vee_encode_header(CamelFolderSummaryDisk *cds, CamelRecordEncoder *cde)
+typedef struct _CamelIteratorVee CamelIteratorVee;
+struct _CamelIteratorVee {
+	CamelIterator iter;
+
+	CamelVeeSummary *summary;
+
+	char *expr;
+
+	GPtrArray *mis;
+	int mis_index;
+
+	CamelMessageInfo *current;
+
+	CamelVeeSummaryFolder *subfolder;
+	CamelIterator *subiter;
+
+	int reset:1;
+};
+
+/* Search each subfolder's view in turn */
+static const void *cvs_iterator_next(void *mitin, CamelException *ex)
 {
-	CamelVeeSummaryFolder *f;
-	guint32 count;
+	CamelIteratorVee *mit = mitin;
+	const CamelMessageInfo *mi;
 
-	camel_record_encoder_start_section(cde, CVS_SECTION_FOLDERINFO, 0);
-	camel_record_encoder_string(cde, ((CamelVeeSummary *)cds)->expr);
-
-	/* a list of all folder uri's */
-	f = (CamelVeeSummaryFolder *)((CamelVeeSummary *)cds)->folders.head;
-	count = e_dlist_length(&((CamelVeeSummary *)cds)->folders);
-	camel_record_encoder_int32(cde, count);
-	while (f->next) {
-		camel_record_encoder_string(cde, f->uri);
-		f = f->next;
+	if (mit->current) {
+		camel_message_info_free(mit->current);
+		mit->current = NULL;
 	}
 
-	camel_record_encoder_end_section(cde);
-}
-
-static int vee_decode_header(CamelFolderSummaryDisk *cds, CamelRecordDecoder *crd)
-{
-	int tag, ver, count, i;
-
-	camel_record_decoder_reset(crd);
-	while ((tag = camel_record_decoder_next_section(crd, &ver)) != CR_SECTION_INVALID) {
-		switch (tag) {
-		case CVS_SECTION_FOLDERINFO:
-			g_free(((CamelVeeSummary *)cds)->expr);
-			((CamelVeeSummary *)cds)->expr = g_strdup(camel_record_decoder_string(crd));
-			count = camel_record_decoder_int32(crd);
-			for (i=0;i<count;i++) {
-				const char *uri = camel_record_decoder_string(crd);
-
-				camel_vee_summary_add_folder((CamelVeeSummary *)cds, uri, NULL);
-			}
-			break;
+nextiter:
+	if (mit->subiter) {
+		mi = camel_iterator_next(mit->subiter, ex);
+		if (mi) {
+			mit->current = vee_info_map(mit->summary, mit->subfolder->prev, (CamelMessageInfo *)mi);
+			return mit->current;
 		}
+		camel_iterator_free(mit->subiter);
+		mit->subiter = NULL;
 	}
 
-	return 0;
+	/* FIXME: subsearches? */
+	while (mit->subfolder->next) {
+		mit->subiter = camel_folder_search(mit->subfolder->folder, mit->summary->vid, mit->expr, NULL, ex);
+		mit->subfolder = mit->subfolder->next;
+		if (mit->subiter)
+			goto nextiter;
+	}
+
+	return NULL;
 }
 
-static void vee_encode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, CamelRecordEncoder *cde)
+static void cvs_iterator_reset(void *mitin)
 {
-	/* NOOP - we store nothing but the uid and that is stored elsewhere */
+	CamelIteratorVee *mit = mitin;
 
-	g_assert(strlen(mi->info.uid)>8);
+	if (mit->subiter) {
+		camel_iterator_free(mit->subiter);
+		mit->subiter = NULL;
+	}
+
+	mit->subfolder = (CamelVeeSummaryFolder *)mit->summary->folders.head;
 }
 
-static int vee_decode(CamelFolderSummaryDisk *cds, CamelMessageInfoDisk *mi, CamelRecordDecoder *cdd)
+static void cvs_iterator_free(void *mitin)
 {
-	/* FIXME: LOCK */
-	CamelVeeSummaryFolder *f = (CamelVeeSummaryFolder *)((CamelVeeSummary *)cds)->folders.head;
+	CamelIteratorVee *mit = mitin;
 
-	g_assert(strlen(mi->info.uid)>8);
+	if (mit->current)
+		camel_message_info_free(mit->current);
 
-	/* We try to convert the vuid into a a reference to the real folder.  If we can't
-	   or we dont know about it, it must be a dead reference, the superclass should clean it up */
+	if (mit->subiter)
+		camel_iterator_free(mit->subiter);
 
-	/* TODO: This is of course ... rather expensive if we have a lot of folders */
-	while (f->next && memcmp(f->hash, mi->info.uid, 8) != 0)
-		f = f->next;
+	camel_object_unref(((CamelFolderSummary *)mit->summary)->folder);
+}
 
-	if (f->next == NULL)
-		return -1;
-	if (f->folder == NULL)
-		// FIXME: load the folder from the uri we have?
-		return -1;
-	if ((((CamelVeeMessageInfo *)mi)->real = camel_folder_get_message_info(f->folder, mi->info.uid+8)) == NULL)
-		return -1;
+static CamelIteratorVTable cvs_iterator_vtable = {
+	cvs_iterator_free,
+	cvs_iterator_next,
+	cvs_iterator_reset,
+};
 
-	return 0;
+static struct _CamelIterator *cvs_search(CamelFolderSummary *s, const char *vid, const char *expr, CamelIterator *subset, CamelException *ex)
+{
+	CamelIteratorVee *mit;
+
+	/* 'view' folders don't support sub-views */
+	if (vid != NULL)
+		return camel_message_iterator_infos_new(g_ptr_array_new(), TRUE);
+
+	/* We assume subset is still in the summary, we should probably re-check? */
+
+	if (subset) {
+		/* we also assume subset is in the view ... */
+		if (expr && expr[0])
+			return (CamelIterator *)camel_folder_search_search(s->search, expr, subset, ex);
+		else
+			return subset;
+	} else {
+		/* The summary has no ref on the folder so we need to ref that instead */
+		mit = camel_iterator_new(&cvs_iterator_vtable, sizeof(*mit));
+		mit->summary = (CamelVeeSummary *)s;
+		camel_object_ref(s->folder);
+		mit->subfolder = (CamelVeeSummaryFolder *)((CamelVeeSummary *)s)->folders.head;
+
+		if (expr && expr[0])
+			return (CamelIterator *)camel_folder_search_search(s->search, expr, (CamelIterator *)mit, ex);
+		else
+			return (CamelIterator *)mit;
+	}
 }
 
 static void
@@ -310,6 +394,10 @@ camel_vee_summary_class_init (CamelVeeSummaryClass *klass)
 	((CamelFolderSummaryClass *)klass)->info_user_flag = vee_info_user_flag;
 	((CamelFolderSummaryClass *)klass)->info_user_tag = vee_info_user_tag;
 
+	((CamelFolderSummaryClass *)klass)->search = cvs_search;
+
+	((CamelFolderSummaryClass *)klass)->get = vee_get;
+
 #if 0
 	((CamelFolderSummaryClass *)klass)->info_set_string = vee_info_set_string;
 	((CamelFolderSummaryClass *)klass)->info_set_uint32 = vee_info_set_uint32;
@@ -320,19 +408,12 @@ camel_vee_summary_class_init (CamelVeeSummaryClass *klass)
 	((CamelFolderSummaryClass *)klass)->info_set_user_tag = vee_info_set_user_tag;
 
 	((CamelFolderSummaryClass *)klass)->info_set_flags = vee_info_set_flags;
-
-//	((CamelFolderSummaryDiskClass *)klass)->encode_header = vee_encode_header;
-//	((CamelFolderSummaryDiskClass *)klass)->decode_header = vee_decode_header;
-
-	((CamelFolderSummaryDiskClass *)klass)->encode = vee_encode;
-	((CamelFolderSummaryDiskClass *)klass)->decode = vee_decode;
 }
 
 static void
 camel_vee_summary_init (CamelVeeSummary *s)
 {
 	e_dlist_init(&s->folders);
-	s->changes = camel_folder_change_info_new();
 }
 
 CamelType
@@ -341,7 +422,7 @@ camel_vee_summary_get_type (void)
 	static CamelType type = CAMEL_INVALID_TYPE;
 
 	if (type == CAMEL_INVALID_TYPE) {
-		camel_vee_summary_parent = (CamelFolderSummaryClass *)camel_folder_summary_disk_get_type();
+		camel_vee_summary_parent = (CamelFolderSummaryClass *)camel_folder_summary_get_type();
 
 		type = camel_type_register(
 			(CamelType)camel_vee_summary_parent, "CamelVeeSummary",
@@ -359,6 +440,7 @@ camel_vee_summary_get_type (void)
 /**
  * camel_vee_summary_new:
  * @parent: Folder its attached to.
+ * @vid: View id this vee folder is looking at.
  *
  * This will create a new CamelVeeSummary object and read in the
  * summary data from disk, if it exists.
@@ -366,13 +448,24 @@ camel_vee_summary_get_type (void)
  * Return value: A new CamelVeeSummary object.
  **/
 CamelFolderSummary *
-camel_vee_summary_new(CamelFolder *parent)
+camel_vee_summary_new(CamelFolder *parent, const char *vid)
 {
 	CamelVeeSummary *s;
+	CamelView *view;
+	CamelFolderView *fview;
 
 	s = (CamelVeeSummary *)camel_object_new(camel_vee_summary_get_type());
+	((CamelFolderSummary *)s)->folder = parent;
+	s->vid = g_strdup(vid);
 
-	camel_folder_summary_disk_construct((CamelFolderSummaryDisk *)s, parent);
+	CFS(s)->search = camel_folder_search_new();
+	CFS(s)->view_summary = (CamelViewSummary *)camel_view_summary_mem_new();
+
+	/* FIXME: refcounts? */
+	view = camel_view_new(CFS(s)->view_summary, "");
+	camel_view_summary_add(CFS(s)->view_summary, view, NULL);
+	fview = camel_folder_view_new(CFS(s), view);
+	camel_folder_view_add(CFS(s), fview, NULL);
 
 	return (CamelFolderSummary *)s;
 }
@@ -416,6 +509,7 @@ hash_uri(const char *uri, char buffer[8])
 	}
 }
 
+#if 0
 static void
 cvs_remove_info(CamelVeeSummary *s, CamelVeeSummaryFolder *f, const CamelMessageInfo *mi)
 {
@@ -452,7 +546,7 @@ cvs_add_info(CamelVeeSummary *s, CamelVeeSummaryFolder *f, const CamelMessageInf
 	const char *uid = camel_message_info_uid(mi);
 	CamelVeeMessageInfo *vmi = camel_message_info_new((CamelFolderSummary *)s);
 
-	vmi->info.uid = g_malloc(8+strlen(uid));
+	vmi->info.uid = g_malloc(9+strlen(uid));
 	memcpy(vmi->info.uid, f->hash, 8);
 	strcpy(vmi->info.uid+8, uid);
 	vmi->real = (CamelMessageInfo *)mi;
@@ -525,128 +619,66 @@ cvs_change_infos(CamelVeeSummary *s, CamelVeeSummaryFolder *f, CamelIterator *al
 	camel_message_iterator_free(all);
 	camel_message_iterator_free(match);
 }
-
-struct _cvs_changed_msg {
-	CamelSessionThreadMsg msg;
-	CamelFolderChangeInfo *changes;
-	CamelVeeSummary *s;
-	CamelFolder *sub;
-};
-
-static int
-cvs_array_info_cmp(const void *ap, const void *bp, void *data)
-{
-	const CamelMessageInfo *a = ((const CamelMessageInfo **)ap)[0];
-	const CamelMessageInfo *b = ((const CamelMessageInfo **)bp)[0];
-
-	return CFS_CLASS(data)->info_cmp(a, b, data);
-}
+#endif
 
 static void
-cvs_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
+cvs_folder_changed(CamelFolder *folder, CamelChangeInfo *changes, CamelVeeSummaryFolder *f)
 {
-	struct _cvs_changed_msg *m = (struct _cvs_changed_msg *)msg;
-	CamelVeeSummaryFolder *f;
-	CamelVeeSummary *s = m->s;
-	CamelFolderChangeInfo *changes;
+	CamelChangeInfo *new;
+	int i;
 
-	/* FIXME: LOCKING! */
+	/* FIXME: view lock? */
 
-	/* Might have been removed while the thread job was in the queue */
-	if ((f = find_folder(s, NULL, m->sub)) == NULL)
-		return;
+	new = ((CamelFolderSummary *)f->summary)->root_view->changes;
 
-	/* Handle changed uid's, only if the search could change based on it */
-	if (!s->is_static && m->changes->uid_changed) {
-		GPtrArray *changed = m->changes->uid_changed;
-		int i;
+	/* Root view: removals always propagated */
+	if (changes->vid == NULL) {
+		for (i=0;i<changes->removed->len;i++) {
+			CamelMessageInfo *vmi = vee_info_map(f->summary, f, changes->removed->pdata[i]);
 
-		if (FALSE /*(vf->flags & CAMEL_STORE_VEE_FOLDER_AUTO) == 0*/) {
-			if (f->changes == NULL)
-				f->changes = camel_folder_change_info_new();
-			for (i=0;i<changed->len;i++)
-				camel_folder_change_info_change_uid(f->changes, changed->pdata[i]);
-		} else {
-			GPtrArray *infos = g_ptr_array_new();
-			CamelMessageInfo *mi;
-
-			for (i=0;i<changed->len;i++)
-				if ((mi = camel_folder_get_message_info(m->sub, changed->pdata[i])))
-					g_ptr_array_add(infos, mi);
-
-			g_qsort_with_data(infos->pdata, infos->len, sizeof(infos->pdata[0]), cvs_array_info_cmp, m->sub->summary);
-
-			cvs_change_infos(s, f,
-					 camel_message_iterator_infos_new(infos, FALSE),
-					 camel_folder_search(m->sub, NULL, s->expr, camel_message_iterator_infos_new(infos, TRUE), NULL));
+			camel_change_info_remove(new, vmi);
+			camel_message_info_free(vmi);
 		}
 	}
 
-	/* Remove all removed items if we have them */
-	if (m->changes->uid_removed->len)
-		cvs_remove_infos(s, f, camel_message_iterator_uids_new(m->sub, m->changes->uid_removed, FALSE));
+	if (changes->vid && strcmp(changes->vid, f->summary->vid) == 0) {
+		for (i=0;i<changes->added->len;i++) {
+			CamelMessageInfo *vmi = vee_info_map(f->summary, f, changes->added->pdata[i]);
 
-	/* Add newly matched */
-	if (m->changes->uid_added->len)
-		cvs_add_infos(s, f,
-			      camel_folder_search(m->sub, NULL, s->expr,
-						  camel_message_iterator_uids_new(m->sub, m->changes->uid_added, FALSE),
-						  NULL));
+			camel_change_info_add(new, vmi);
+			camel_message_info_free(vmi);
+		}
+		for (i=0;i<changes->changed->len;i++) {
+			CamelMessageInfo *vmi = vee_info_map(f->summary, f, changes->changed->pdata[i]);
 
-	if (camel_folder_change_info_changed(s->changes)) {
-		changes = s->changes;
-		s->changes = camel_folder_change_info_new();
-	} else
-		changes = NULL;
+			camel_change_info_change(new, vmi);
+			camel_message_info_free(vmi);
+		}
+		// FIXME: auto-update folders?
+		for (i=0;i<changes->removed->len;i++) {
+			CamelMessageInfo *vmi = vee_info_map(f->summary, f, changes->removed->pdata[i]);
 
-	// FIXME unlocking!
+			camel_change_info_remove(new, vmi);
+			camel_message_info_free(vmi);
+		}
+	}
 
-	if (changes) {
-		camel_object_trigger_event(((CamelFolderSummary *)s)->folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
+	if (camel_change_info_changed(new)) {
+		camel_object_trigger_event(((CamelFolderSummary *)f->summary)->folder, "folder_changed", new);
+		camel_change_info_clear(new);
 	}
 }
 
 static void
-cvs_changed_free(CamelSession *session, CamelSessionThreadMsg *msg)
+cvs_folder_deleted(CamelFolder *folder, void *dummy, CamelVeeSummaryFolder *f)
 {
-	struct _cvs_changed_msg *m = (struct _cvs_changed_msg *)msg;
-
-	camel_folder_change_info_free(m->changes);
-	camel_object_unref(m->s);
-	camel_object_unref(m->sub);
-}
-
-static CamelSessionThreadOps folder_changed_ops = {
-	cvs_changed_change,
-	cvs_changed_free,
-};
-
-static void
-cvs_folder_changed(CamelFolder *f, CamelFolderChangeInfo *changes, CamelVeeSummary *s)
-{
-	struct _cvs_changed_msg *m;
-	CamelSession *session = ((CamelService *)f->parent_store)->session;
-	
-	m = camel_session_thread_msg_new(session, &folder_changed_ops, sizeof(*m));
-	m->changes = camel_folder_change_info_new();
-	camel_folder_change_info_cat(m->changes, changes);
-	m->sub = f;
-	camel_object_ref(f);
-	m->s = s;
-	camel_object_ref(s);
-	camel_session_thread_queue(session, &m->msg, 0);
+	camel_vee_summary_remove_folder(f->summary, folder);
 }
 
 static void
-cvs_folder_deleted(CamelFolder *f, void *dummy, CamelVeeSummary *s)
+cvs_folder_renamed(CamelFolder *folder, const char *old, CamelVeeSummaryFolder *f)
 {
-	g_warning("deleted not implemented");
-}
-
-static void
-cvs_folder_renamed(CamelFolder *f, const char *old, CamelVeeSummary *s)
-{
+	/* FIXME: We need to change all the uid's since the hash will have changed */
 	g_warning("renamed not implemented");
 }
 
@@ -662,19 +694,7 @@ void camel_vee_summary_add_folder(CamelVeeSummary *s, const char *uriin, struct 
 		if (uriin) {
 			f->uri = g_strdup(uriin);
 		} else {
-			CamelURL *url;
-			char *uri, *tmp;
-
-			/* This will get our account-relative uri ... probably */
-			uri = camel_session_get_uri(((CamelService *)folder->parent_store)->session, (CamelService *)folder->parent_store);
-			url = camel_url_new(uri, NULL);
-			g_assert(url);
-			tmp = g_alloca(strlen(folder->full_name)+1);
-			sprintf(tmp, "/%s", folder->full_name);
-			camel_url_set_path(url, tmp);
-			f->uri = camel_url_to_string(url, 0);
-			camel_url_free(url);
-			g_free(uri);
+			camel_object_get(folder, NULL, CAMEL_FOLDER_URI, &f->uri, 0);
 		}
 		hash_uri(f->uri, f->hash);
 
@@ -683,20 +703,35 @@ void camel_vee_summary_add_folder(CamelVeeSummary *s, const char *uriin, struct 
 
 	if (f->folder == NULL && folder != NULL) {
 		f->folder = folder;
+		f->summary = s;
 		camel_object_ref(folder);
 
 		printf("vsummary adding folder '%s' uri '%s'\n", folder->full_name, f->uri);
 
-		f->changed_id = camel_object_hook_event(folder, "folder_changed", (CamelObjectEventHookFunc)cvs_folder_changed, s);
-		f->deleted_id = camel_object_hook_event(folder, "deleted", (CamelObjectEventHookFunc)cvs_folder_deleted, s);
-		f->renamed_id = camel_object_hook_event(folder, "renamed", (CamelObjectEventHookFunc)cvs_folder_renamed, s);
+		f->changed_id = camel_object_hook_event(folder, "folder_changed", (CamelObjectEventHookFunc)cvs_folder_changed, f);
+		f->deleted_id = camel_object_hook_event(folder, "deleted", (CamelObjectEventHookFunc)cvs_folder_deleted, f);
+		f->renamed_id = camel_object_hook_event(folder, "renamed", (CamelObjectEventHookFunc)cvs_folder_renamed, f);
 
-#if 0
-		/* This updates the whole folder; it will pick up any changes we had while offline, EXCEPT deleted */
-		cvs_change_infos(s, f,
-				 camel_folder_search(folder, NULL, NULL, NULL),
-				 camel_folder_search(folder, s->expr, NULL, NULL));
-#endif
+		{
+			CamelIterator *iter;
+			const CamelMessageInfo *mi;
+			CamelMessageInfo *vmi;
+			CamelChangeInfo *new;
+
+			iter = camel_folder_search(folder, s->vid, NULL, NULL, NULL);
+			while ((mi = camel_iterator_next(iter, NULL))) {
+				vmi = vee_info_map(s, f, (CamelMessageInfo *)mi);
+				camel_folder_summary_add((CamelFolderSummary *)s, vmi);
+				camel_message_info_free(vmi);
+			}
+			camel_iterator_free(iter);
+
+			new = ((CamelFolderSummary *)s)->root_view->changes;
+			if (camel_change_info_changed(new)) {
+				camel_object_trigger_event(((CamelFolderSummary *)s)->folder, "folder_changed", new);
+				camel_change_info_clear(new);
+			}
+		}
 	}
 }
 
@@ -713,6 +748,29 @@ void camel_vee_summary_remove_folder(CamelVeeSummary *s, struct _CamelFolder *fo
 		camel_object_remove_event(f->folder, f->renamed_id);
 		camel_object_remove_event(f->folder, f->deleted_id);
 		camel_object_remove_event(f->folder, f->changed_id);
+
+		/* FIXME: race clearing stuff? */
+		{
+			CamelIterator *iter;
+			const CamelMessageInfo *mi;
+			CamelMessageInfo *vmi;
+			CamelChangeInfo *new;
+
+			iter = camel_folder_search(folder, s->vid, NULL, NULL, NULL);
+			while ((mi = camel_iterator_next(iter, NULL))) {
+				vmi = vee_info_map(s, f, (CamelMessageInfo *)mi);
+				camel_folder_summary_remove((CamelFolderSummary *)s, vmi);
+				camel_message_info_free(vmi);
+			}
+			camel_iterator_free(iter);
+
+			new = ((CamelFolderSummary *)s)->root_view->changes;
+			if (camel_change_info_changed(new)) {
+				camel_object_trigger_event(((CamelFolderSummary *)s)->folder, "folder_changed", new);
+				camel_change_info_clear(new);
+			}
+		}
+
 		camel_object_unref(f->folder);
 
 		g_free(f);
@@ -735,24 +793,6 @@ void camel_vee_summary_set_folders(CamelVeeSummary *s, GList *folders)
 
 void camel_vee_summary_set_expression(CamelVeeSummary *s, const char *expr)
 {
-	CamelVeeSummaryFolder *f;
-
-	if (s->expr && expr && strcmp(s->expr, expr) == 0)
-		return;
-	if (s->expr == NULL && expr == NULL)
-		return;
-
-	g_free(s->expr);
-	s->expr = g_strdup(expr);
-
-	//s->is_static = blah blah;
-
-	printf("expression changed, re-calculating vfolders\n");
-	f = (CamelVeeSummaryFolder *)s->folders.head;
-	while (f->next) {
-		cvs_change_infos(s, f,
-				 camel_folder_search(f->folder, NULL, NULL, NULL, NULL),
-				 camel_folder_search(f->folder, NULL, s->expr, NULL, NULL));
-		f = f->next;
-	}
+	/* how to re-calculate the changed expression?  Do we, or do we just
+	   remove/add the folder? */
 }

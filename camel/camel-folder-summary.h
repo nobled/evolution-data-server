@@ -175,15 +175,29 @@ struct _CamelMessageInfoBase {
 	/* subclasses add additional fields as required */
 };
 
-/* probably do this as well, removing CamelFolderChangeInfo and interfaces 
 typedef struct _CamelChangeInfo CamelChangeInfo;
+
+/**
+ * struct _CamelChangeInfo - Folder change notification.
+ * 
+ * @vid: View id of this view, NULL for the root view.
+ * @added: Array of CamelMessageInfo's added.
+ * @removed: " removed.
+ * @changed: " changed.
+ * @recent: " recently added.
+ * 
+ **/
 struct _CamelChangeInfo {
+	char *vid;
+
 	GPtrArray *added;
 	GPtrArray *removed;
 	GPtrArray *changed;
 	GPtrArray *recent;
+
+	/* private */
+	GHashTable *uid_stored;
 };
-*/
 
 /* The CamelView view information record is wrapped in our own
    management object as well; we need to know when it was deleted,
@@ -203,7 +217,7 @@ struct _CamelFolderView {
 
 	struct _CamelView *view;
 	struct _CamelFolderSearchIterator *iter;
-	struct _CamelFolderChangeInfo *changes;
+	CamelChangeInfo *changes;
 };
 
 struct _CamelFolderSummary {
@@ -397,6 +411,19 @@ gboolean camel_tag_set(CamelTag **list, const char *name, const char *value);
 gboolean camel_tag_list_copy(CamelTag **to, CamelTag **from);
 int camel_tag_list_size(CamelTag **list);
 void camel_tag_list_free(CamelTag **list);
+
+/* change log utilities */
+CamelChangeInfo *camel_change_info_new(const char *vid);
+CamelChangeInfo *camel_change_info_clone(CamelChangeInfo *info);
+void camel_change_info_clear(CamelChangeInfo *info);
+void camel_change_info_free(CamelChangeInfo *info);
+gboolean camel_change_info_changed(CamelChangeInfo *info);
+
+void camel_change_info_cat(CamelChangeInfo *info, CamelChangeInfo *src);
+void camel_change_info_add(CamelChangeInfo *info, const CamelMessageInfo *);
+void camel_change_info_remove(CamelChangeInfo *info, const CamelMessageInfo *);
+void camel_change_info_change(CamelChangeInfo *info, const CamelMessageInfo *);
+void camel_change_info_recent(CamelChangeInfo *info, const CamelMessageInfo *);
 
 /* helpers */
 void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit);

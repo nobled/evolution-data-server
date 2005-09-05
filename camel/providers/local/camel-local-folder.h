@@ -64,7 +64,7 @@ typedef struct {
 	char *index_path;	/* where the index file lives */
 
 	CamelIndex *index;	   /* index for this folder */
-	CamelFolderChangeInfo *changes;	/* used to store changes to the folder during processing */
+	CamelChangeInfo *changes;  /* used to store changes to the folder during processing */
 } CamelLocalFolder;
 
 typedef struct {

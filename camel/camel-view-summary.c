@@ -32,6 +32,7 @@ camel_view_ref(CamelView *v)
 {
 	g_assert(v->refcount > 0);
 
+	/* FIXME: Locks? */
 	v->refcount++;
 }
 
@@ -40,6 +41,7 @@ camel_view_unref(CamelView *v)
 {
 	g_assert(v->refcount > 0);
 
+	/* FIXME: Locks? */
 	v->refcount--;
 	if (v->refcount == 0)
 		CVS_CLASS(v->summary)->free(v->summary, v);

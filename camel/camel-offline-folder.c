@@ -97,7 +97,7 @@ struct _offline_downsync_msg {
 	CamelSessionThreadMsg msg;
 	
 	CamelFolder *folder;
-	CamelFolderChangeInfo *changes;
+	CamelChangeInfo *changes;
 };
 
 static void
@@ -110,11 +110,12 @@ offline_downsync_sync (CamelSession *session, CamelSessionThreadMsg *mm)
 	camel_operation_start (NULL, _("Downloading new messages for offline mode"));
 	
 	if (m->changes) {
-		for (i = 0; i < m->changes->uid_added->len; i++) {
-			int pc = i * 100 / m->changes->uid_added->len;
+		for (i = 0; i < m->changes->added->len; i++) {
+			int pc = i * 100 / m->changes->added->len;
 			
 			camel_operation_progress (NULL, pc);
-			if ((message = camel_folder_get_message (m->folder, m->changes->uid_added->pdata[i], &mm->ex)))
+			/* FIXME: This in no way guarantees the message is actually fully cached ... */
+			if ((message = camel_folder_get_message (m->folder, camel_message_info_uid(m->changes->added->pdata[i]), &mm->ex)))
 				camel_object_unref (message);
 		}
 	} else {
@@ -130,7 +131,7 @@ offline_downsync_free (CamelSession *session, CamelSessionThreadMsg *mm)
 	struct _offline_downsync_msg *m = (struct _offline_downsync_msg *) mm;
 	
 	if (m->changes)
-		camel_folder_change_info_free (m->changes);
+		camel_change_info_free (m->changes);
 	
 	camel_object_unref (m->folder);
 }
@@ -141,18 +142,19 @@ static CamelSessionThreadOps offline_downsync_ops = {
 };
 
 static void
-offline_folder_changed (CamelFolder *folder, CamelFolderChangeInfo *changes, void *dummy)
+offline_folder_changed (CamelFolder *folder, CamelChangeInfo *changes, void *dummy)
 {
 	CamelOfflineFolder *offline = (CamelOfflineFolder *) folder;
 	CamelService *service = (CamelService *) folder->parent_store;
-	
-	if (changes->uid_added->len > 0 && (offline->sync_offline || camel_url_get_param (service->url, "sync_offline"))) {
+
+	if (changes->vid == NULL
+	    && changes->added->len > 0
+	    && (offline->sync_offline || camel_url_get_param (service->url, "sync_offline"))) {
 		CamelSession *session = service->session;
 		struct _offline_downsync_msg *m;
 		
 		m = camel_session_thread_msg_new (session, &offline_downsync_ops, sizeof (*m));
-		m->changes = camel_folder_change_info_new ();
-		camel_folder_change_info_cat (m->changes, changes);
+		m->changes = camel_change_info_clone(changes);
 		camel_object_ref (folder);
 		m->folder = folder;
 		

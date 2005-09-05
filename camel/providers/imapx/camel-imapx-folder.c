@@ -239,7 +239,7 @@ imap_folder_init(CamelObject *o, CamelObjectClass *klass)
 
 	/* FIXME: this is just a skeleton */
 
-	ifolder->changes = camel_folder_change_info_new();
+	ifolder->changes = camel_change_info_new(NULL);
 }
 
 static void
@@ -247,7 +247,7 @@ imap_finalise(CamelObject *object)
 {
 	CamelIMAPXFolder *folder = (CamelIMAPXFolder *)object;
 
-	camel_folder_change_info_free(folder->changes);
+	camel_change_info_free(folder->changes);
 }
 
 CamelType

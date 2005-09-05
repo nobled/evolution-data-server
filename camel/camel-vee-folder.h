@@ -50,7 +50,7 @@ struct _CamelVeeFolder {
 
 	guint32 flags;		/* folder open flags */
 
-	CamelFolderChangeInfo *changes;
+//	CamelFolderChangeInfo *changes;
 	struct _CamelFolderSearch *search;
 
 	/* only set-up if our parent is a vee-store, used also as a flag to
@@ -70,7 +70,7 @@ struct _CamelVeeFolderClass {
 	void (*set_expression)(CamelVeeFolder *, const char *);
 
 	/* Called for a folder-changed event on a source folder */
-	void (*folder_changed)(CamelVeeFolder *, CamelFolder *sub, CamelFolderChangeInfo *changes);
+	void (*folder_changed)(CamelVeeFolder *, CamelFolder *sub, CamelChangeInfo *changes);
 	/* Called for a folder-renamed event on a source folder */
 	void (*folder_renamed)(CamelVeeFolder *, CamelFolder *sub, const char *old);
 };
@@ -78,8 +78,8 @@ struct _CamelVeeFolderClass {
 #define CAMEL_UNMATCHED_NAME "UNMATCHED"
 
 CamelType	      camel_vee_folder_get_type		(void);
-CamelFolder  *camel_vee_folder_new		(CamelStore *parent_store, const char *name, guint32 flags);
-void         camel_vee_folder_construct		(CamelVeeFolder *vf, CamelStore *parent_store, const char *full, const char *name, guint32 flags);
+CamelFolder  *camel_vee_folder_new		(CamelStore *parent_store, const char *vid, const char *name, guint32 flags);
+void         camel_vee_folder_construct		(CamelVeeFolder *vf, CamelStore *parent_store, const char *vid, const char *full, const char *name, guint32 flags);
 
 CamelFolder *camel_vee_folder_get_location(CamelVeeFolder *vf, const struct _CamelVeeMessageInfo *vinfo, char **realuid);
 

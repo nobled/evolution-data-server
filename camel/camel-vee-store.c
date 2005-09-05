@@ -23,6 +23,7 @@
 #endif
 
 #include "camel-exception.h"
+#include "camel-session.h"
 #include "camel-vee-store.h"
 #include "camel-vee-folder.h"
 #include "camel-view-summary-disk.h"
@@ -31,6 +32,7 @@
 #include "camel-i18n.h"
 
 #include <string.h>
+#include <unistd.h>
 
 #define d(x)
 
@@ -193,7 +195,7 @@ vee_get_folder (CamelStore *store, const char *folder_name, guint32 flags, Camel
 	camel_exception_setv(ex, 1, "vfolders dont work, dont even try");
 	return NULL;
 
-	vf = (CamelVeeFolder *)camel_vee_folder_new(store, folder_name, flags);
+	vf = (CamelVeeFolder *)camel_vee_folder_new(store, "vid", folder_name, flags);
 	if ((vf->flags & CAMEL_STORE_FOLDER_PRIVATE) == 0) {
 		/* Check that parents exist, if not, create dummy ones */
 		name = alloca(strlen(((CamelFolder *)vf)->full_name)+1);
@@ -205,7 +207,7 @@ vee_get_folder (CamelStore *store, const char *folder_name, guint32 flags, Camel
 			folder = camel_object_bag_reserve(store->folders, name);
 			if (folder == NULL) {
 				/* create a dummy vFolder for this, makes get_folder_info simpler */
-				folder = camel_vee_folder_new(store, name, flags);
+				folder = camel_vee_folder_new(store, "vid", name, flags);
 				camel_object_bag_add(store->folders, name, folder);
 				change_folder(store, name, CHANGE_ADD|CHANGE_NOSELECT, 0);
 				/* FIXME: this sort of leaks folder, nobody owns a ref to it but us */
@@ -440,7 +442,7 @@ vee_rename_folder(CamelStore *store, const char *old, const char *new, CamelExce
 		folder = camel_object_bag_reserve(store->folders, name);
 		if (folder == NULL) {
 			/* create a dummy vFolder for this, makes get_folder_info simpler */
-			folder = camel_vee_folder_new(store, name, ((CamelVeeFolder *)oldfolder)->flags);
+			folder = camel_vee_folder_new(store, "vid", name, ((CamelVeeFolder *)oldfolder)->flags);
 			camel_object_bag_add(store->folders, name, folder);
 			change_folder(store, name, CHANGE_ADD|CHANGE_NOSELECT, 0);
 			/* FIXME: this sort of leaks folder, nobody owns a ref to it but us */

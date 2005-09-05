@@ -90,7 +90,7 @@ struct _cdf_sync_msg {
 	CamelSessionThreadMsg msg;
 
 	CamelFolder *folder;
-	CamelFolderChangeInfo *changes;
+	CamelChangeInfo *changes;
 };
 
 static void
@@ -102,12 +102,12 @@ cdf_sync_offline(CamelSession *session, CamelSessionThreadMsg *mm)
 	camel_operation_start(NULL, _("Downloading new messages for offline mode"));
 
 	if (m->changes) {
-		for (i=0;i<m->changes->uid_added->len;i++) {
-			int pc = i * 100 / m->changes->uid_added->len;
+		for (i=0;i<m->changes->added->len;i++) {
+			int pc = i * 100 / m->changes->added->len;
 
 			camel_operation_progress(NULL, pc);
 			camel_disco_folder_cache_message((CamelDiscoFolder *)m->folder,
-							 m->changes->uid_added->pdata[i],
+							 camel_message_info_uid(m->changes->added->pdata[i]),
 							 &mm->ex);
 		}
 	} else {
@@ -125,7 +125,7 @@ cdf_sync_free(CamelSession *session, CamelSessionThreadMsg *mm)
 	struct _cdf_sync_msg *m = (struct _cdf_sync_msg *)mm;
 
 	if (m->changes)
-		camel_folder_change_info_free(m->changes);
+		camel_change_info_free(m->changes);
 	camel_object_unref(m->folder);
 }
 
@@ -135,17 +135,17 @@ static CamelSessionThreadOps cdf_sync_ops = {
 };
 
 static void
-cdf_folder_changed(CamelFolder *folder, CamelFolderChangeInfo *changes, void *dummy)
+cdf_folder_changed(CamelFolder *folder, CamelChangeInfo *changes, void *dummy)
 {
-	if (changes->uid_added->len > 0
+	if (changes->vid == NULL
+	    && changes->added->len > 0
 	    && (((CamelDiscoFolder *)folder)->offline_sync
 		|| camel_url_get_param(((CamelService *)folder->parent_store)->url, "offline_sync"))) {
 		CamelSession *session = ((CamelService *)folder->parent_store)->session;
 		struct _cdf_sync_msg *m;
 
 		m = camel_session_thread_msg_new(session, &cdf_sync_ops, sizeof(*m));
-		m->changes = camel_folder_change_info_new();
-		camel_folder_change_info_cat(m->changes, changes);
+		m->changes = camel_change_info_clone(changes);
 		m->folder = folder;
 		camel_object_ref(folder);
 		camel_session_thread_queue(session, &m->msg, 0);

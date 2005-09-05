@@ -40,7 +40,7 @@ typedef struct _CamelIMAPXFolder {
 	CamelFolder parent_object;
 
 	char *raw_name;
-	CamelFolderChangeInfo *changes;
+	CamelChangeInfo *changes;
 } CamelIMAPXFolder;
 
 typedef struct _CamelIMAPXFolderClass {

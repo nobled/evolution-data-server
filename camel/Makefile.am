@@ -67,12 +67,14 @@ libcamel_provider_1_4_la_SOURCES = 		\
 	camel-tcp-stream.c			\
 	camel-transport.c			\
 	camel-uid-cache.c			\
-	camel-view-summary.c			\
-	camel-view-summary-disk.c		\
 	camel-vee-folder.c			\
 	camel-vee-store.c			\
 	camel-vee-summary.c			\
+	camel-view-summary.c			\
+	camel-view-summary-disk.c		\
+	camel-view-summary-mem.c		\
 	camel-vtrash-folder.c
+
 
 #	camel-digest-folder.c			\
 #	camel-digest-store.c			\
@@ -120,10 +122,11 @@ libcamel_providerinclude_HEADERS =			\
 	camel-uid-cache.h			\
 	camel-view-summary.h			\
 	camel-view-summary-disk.h		\
+	camel-view-summary-mem.h		\
 	camel-vee-folder.h			\
 	camel-vee-store.h			\
-	camel-vee-summary.h			\
-	camel-vtrash-folder.h
+	camel-vtrash-folder.h			\
+	camel-vee-summary.h
 
 #	camel-digest-folder.h			\
 #	camel-digest-store.h			\

@@ -90,6 +90,8 @@ add(CamelFolderSummary *s, void *o)
 		v->deleted_count++;
 	if (flags & CAMEL_MESSAGE_JUNK)
 		v->junk_count++;
+
+	camel_change_info_add(s->root_view->changes, mi);
 	camel_view_changed(v);
 
 	return 0;
@@ -125,6 +127,8 @@ cfs_remove(CamelFolderSummary *s, void *o)
 		v->deleted_count--;
 	if (flags & CAMEL_MESSAGE_JUNK)
 		v->junk_count--;
+
+	camel_change_info_remove(s->root_view->changes, mi);
 	camel_view_changed(v);
 
 	return 0;
@@ -190,7 +194,7 @@ cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
 	if (view->iter)
 		camel_iterator_free((CamelIterator *)view->iter);
 	if (view->changes)
-		camel_folder_change_info_free(view->changes);
+		camel_change_info_free(view->changes);
 	camel_view_unref(view->view);
 	g_free(view);
 }
@@ -601,14 +605,12 @@ info_set_user_tag(CamelMessageInfo *info, const char *name, const char *value)
 static void
 info_changed(CamelMessageInfo *mi, int sysonly)
 {
-	/* FIXME: Obviously we should batch-up these changes rather than
-	   emit them one at a time */
+	/* TODO: when/where should we propagate these change events? */
 	if (!sysonly && mi->summary && mi->summary->folder && mi->uid) {
-		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
+		CamelChangeInfo *changes = mi->summary->root_view->changes;
 
-		camel_folder_change_info_change_uid(changes, mi->uid);
 		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
-		camel_folder_change_info_free(changes);
+		camel_change_info_clear(changes);
 	}
 }
 
@@ -674,10 +676,10 @@ camel_folder_summary_finalise(CamelObject *obj)
 {
 	struct _CamelFolderSummaryPrivate *p;
 	CamelFolderSummary *s = (CamelFolderSummary *)obj;
-	CamelFolderView *v;
 
 	p = _PRIVATE(obj);
 #if 0
+	CamelFolderView *v;
 	/* must be freed by outer class */
 	/* ?? */
 	while ((v = (CamelFolderView *)e_dlist_remhead(&s->views)))
@@ -849,6 +851,8 @@ camel_folder_view_new(CamelFolderSummary *s, CamelView *vview)
 	view->view = vview;
 	camel_view_ref(vview);
 	view->summary = s;
+	/* FIXME: need to strip the .*\01 i think */
+	view->changes = camel_change_info_new(vview->vid);
 
 	return view;
 }
@@ -1705,6 +1709,303 @@ camel_system_flag_get (guint32 flags, const char *name)
 	g_return_val_if_fail (name != NULL, FALSE);
 	
 	return flags & camel_system_flag (name);
+}
+
+/* ********************************************************************** */
+
+/**
+ * camel_change_info_new:
+ *
+ * @vid: View id for this change set.
+ * 
+ * Create a new folder change info structure.
+ *
+ * Change info structures are not MT-SAFE and must be
+ * locked for exclusive access externally.
+ *
+ * Returns a new #CamelChangeInfo
+ **/
+CamelChangeInfo *
+camel_change_info_new(const char *vid)
+{
+	CamelChangeInfo *info;
+
+	info = g_malloc(sizeof(*info));
+	info->vid = g_strdup(vid);
+	info->added = g_ptr_array_new();
+	info->removed = g_ptr_array_new();
+	info->changed = g_ptr_array_new();
+	info->recent = g_ptr_array_new();
+	info->uid_stored = g_hash_table_new(g_str_hash, g_str_equal);
+
+	return info;
+}
+
+static void
+change_info_copy(GPtrArray *to, GPtrArray *from)
+{
+	int i;
+
+	g_ptr_array_set_size(to, from->len);
+	for (i=0;i<from->len;i++) {
+		CamelMessageInfo *mi = from->pdata[i];
+
+		to->pdata[i] = mi;
+		camel_message_info_ref(mi);
+	}
+}
+
+struct _glib_sux {
+	CamelChangeInfo *info;
+	CamelChangeInfo *new;
+};
+
+static void
+change_info_copy_hash(void *k, void *v, void *d)
+{
+	struct _glib_sux *sux = d;
+
+	if (v == sux->info->changed)
+		v = sux->new->changed;
+	else if (v == sux->info->added)
+		v = sux->new->added;
+	else if (v == sux->info->removed)
+		v = sux->new->removed;
+	else if (v == sux->info->recent)
+		v = sux->new->recent;
+	else
+		abort();
+
+	g_hash_table_insert(sux->new->uid_stored, k, v);
+}
+
+/**
+ * camel_change_info_clone:
+ * @info: 
+ * 
+ * Copy @info into a new changeset.  This is not quite the same
+ * as new + cat, as the vid is also copied, and it is more
+ * efficient.
+ * 
+ * Return value: A copy.
+ **/
+CamelChangeInfo *camel_change_info_clone(CamelChangeInfo *info)
+{
+	CamelChangeInfo *new = camel_change_info_new(info->vid);
+	struct _glib_sux sux = { info, new };
+
+	change_info_copy(new->added, info->added);
+	change_info_copy(new->removed, info->removed);
+	change_info_copy(new->changed, info->changed);
+	change_info_copy(new->recent, info->recent);
+	g_hash_table_foreach(info->uid_stored, change_info_copy_hash, &sux);
+
+	return new;
+}
+
+static void
+change_info_cat(CamelChangeInfo *info, GPtrArray *source, void (*add)(CamelChangeInfo *info, const CamelMessageInfo *mi))
+{
+	int i;
+
+	for (i=0;i<source->len;i++)
+		add(info, source->pdata[i]);
+}
+
+/**
+ * camel_change_info_cat:
+ * @info: a #CamelChangeInfo to append to
+ * @src: a #CamelChangeInfo to append from
+ * 
+ * Concatenate one change info onto another.
+ **/
+void
+camel_change_info_cat(CamelChangeInfo *info, CamelChangeInfo *source)
+{
+	g_assert(info != NULL);
+	g_assert(source != NULL);
+	
+	change_info_cat(info, source->added, camel_change_info_add);
+	change_info_cat(info, source->removed, camel_change_info_remove);
+	change_info_cat(info, source->changed, camel_change_info_change);
+	change_info_cat(info, source->recent, camel_change_info_recent);
+}
+
+/**
+ * camel_change_info_add:
+ * @info: a #CamelChangeInfo
+ * @mi: Message to add.
+ * 
+ * Add a message to the added list.
+ **/
+void
+camel_change_info_add(CamelChangeInfo *info, const CamelMessageInfo *mi)
+{
+	GPtrArray *oldinfos;
+	CamelMessageInfo *oldmi;
+	const char *uid;
+
+	g_assert(info != NULL);
+
+	uid = camel_message_info_uid(info);
+	if (g_hash_table_lookup_extended(info->uid_stored, uid, (void **)&oldmi, (void **)&oldinfos)) {
+		/* if it was removed then added, promote it to a changed */
+		/* if it was changed then added, leave as changed */
+		if (oldinfos == info->removed) {
+			g_ptr_array_remove_fast(oldinfos, oldmi);
+			g_ptr_array_add(info->changed, oldmi);
+			g_hash_table_insert(info->uid_stored, (void *)camel_message_info_uid(oldmi), info->changed);
+		}
+		return;
+	}
+
+	g_ptr_array_add(info->added, (void *)mi);
+	g_hash_table_insert(info->uid_stored, (void *)uid, info->added);
+	camel_message_info_ref((CamelMessageInfo *)mi);
+}
+
+/**
+ * camel_change_info_remove:
+ * @info: a #CamelChangeInfo
+ * @mi: Message to remove.
+ * 
+ * Add a message to the removed list.
+ **/
+void
+camel_change_info_remove(CamelChangeInfo *info, const CamelMessageInfo *mi)
+{
+	GPtrArray *oldinfos;
+	CamelMessageInfo *oldmi;
+	const char *uid;
+	
+	g_assert(info != NULL);
+	
+	uid = camel_message_info_uid(info);
+	if (g_hash_table_lookup_extended(info->uid_stored, uid, (void **)&oldmi, (void **)&oldinfos)) {
+		/* if it was added/changed them removed, then remove it */
+		if (oldinfos != info->removed) {
+			g_ptr_array_remove_fast(oldinfos, oldmi);
+			g_ptr_array_add(info->removed, oldmi);
+			g_hash_table_insert(info->uid_stored, (void *)camel_message_info_uid(oldmi), info->removed);
+		}
+		return;
+	}
+
+	g_ptr_array_add(info->removed, (void *)mi);
+	g_hash_table_insert(info->uid_stored, (void *)uid, info->removed);
+	camel_message_info_ref((CamelMessageInfo *)mi);
+}
+
+/**
+ * camel_change_info_change:
+ * @info: a #CamelChangeInfo
+ * @mi: Message to change.
+ * 
+ * Add a message to the changed list.
+ **/
+void
+camel_change_info_change(CamelChangeInfo *info, const CamelMessageInfo *mi)
+{
+	GPtrArray *oldinfos;
+	CamelMessageInfo *oldmi;
+	const char *uid;
+	
+	g_assert(info != NULL);
+	
+	uid = camel_message_info_uid(info);
+	if (g_hash_table_lookup_extended(info->uid_stored, uid, (void **)&oldmi, (void **)&oldinfos)) {
+		/* if we have it already, leave it as that */
+		return;
+	}
+
+	g_ptr_array_add(info->changed, (void *)mi);
+	g_hash_table_insert(info->uid_stored, (void *)uid, info->changed);
+	camel_message_info_ref((CamelMessageInfo *)mi);
+}
+
+/**
+ * camel_change_info_recent:
+ * @info: a #CamelChangeInfo
+ * @mi: Message to add to recent.
+ *
+ * Add a message to the recent list.
+ **/
+void
+camel_change_info_recent(CamelChangeInfo *info, const CamelMessageInfo *mi)
+{
+	g_assert(info != NULL);
+
+	/* For recent messages we just always add them here, we don't want to interact with
+	   the other lists */
+	g_ptr_array_add(info->recent, (void *)mi);
+	camel_message_info_ref((CamelMessageInfo *)mi);
+}
+
+/**
+ * camel_change_info_changed:
+ * @info: a #CamelChangeInfo
+ *
+ * Gets whether or not there have been any changes.
+ *
+ * Returns %TRUE if the changeset contains any changes or %FALSE
+ * otherwise
+ **/
+gboolean
+camel_change_info_changed(CamelChangeInfo *info)
+{
+	g_assert(info != NULL);
+	
+	return (info->added->len || info->removed->len || info->changed->len || info->recent->len);
+}
+
+static void
+change_info_clear(GPtrArray *infos)
+{
+	int i;
+
+	for (i=0;i<infos->len;i++)
+		camel_message_info_free(infos->pdata[i]);
+	g_ptr_array_set_size(infos, 0);
+}
+
+/**
+ * camel_change_info_clear:
+ * @info: a #CamelChangeInfo
+ * 
+ * Empty out the change info; called after changes have been
+ * processed.
+ **/
+void
+camel_change_info_clear(CamelChangeInfo *info)
+{
+	g_assert(info != NULL);
+
+	change_info_clear(info->added);
+	change_info_clear(info->removed);
+	change_info_clear(info->changed);
+	change_info_clear(info->recent);
+	g_hash_table_destroy(info->uid_stored);
+	info->uid_stored = g_hash_table_new(g_str_hash, g_str_equal);
+}
+
+/**
+ * camel_change_info_free:
+ * @info: a #CamelChangeInfo
+ * 
+ * Free memory associated with the folder change info lists.
+ **/
+void
+camel_change_info_free(CamelChangeInfo *info)
+{
+	g_assert(info != NULL);
+
+	camel_change_info_clear(info);
+	g_hash_table_destroy(info->uid_stored);
+	g_ptr_array_free(info->added, TRUE);
+	g_ptr_array_free(info->removed, TRUE);
+	g_ptr_array_free(info->changed, TRUE);
+	g_ptr_array_free(info->recent, TRUE);
+	g_free(info);
 }
 
 /* ********************************************************************** */

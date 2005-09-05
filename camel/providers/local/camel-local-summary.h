@@ -62,17 +62,17 @@ struct _CamelLocalSummary {
 struct _CamelLocalSummaryClass {
 	CamelFolderSummaryDiskClass parent_class;
 
-	int (*check)(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-	int (*sync)(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
+	int (*check)(CamelLocalSummary *cls, CamelChangeInfo *changeinfo, CamelException *ex);
+	int (*sync)(CamelLocalSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex);
 };
 
 CamelType	camel_local_summary_get_type	(void);
 void	camel_local_summary_construct	(CamelLocalSummary *new, CamelFolder *folder, const char *filename, const char *local_name, CamelIndex *index);
 
 /* check for new/removed messages */
-int camel_local_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *, CamelException *ex);
+int camel_local_summary_check(CamelLocalSummary *cls, CamelChangeInfo *, CamelException *ex);
 /* perform a folder sync or expunge, if needed */
-int camel_local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *, CamelException *ex);
+int camel_local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelChangeInfo *, CamelException *ex);
 
 /* force the next check to be a full check/rebuild */
 void camel_local_summary_check_force(CamelLocalSummary *cls);

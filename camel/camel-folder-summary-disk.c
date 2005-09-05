@@ -484,6 +484,8 @@ cds_update_view_add(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
 				d(printf("  just added a new match\n"));
 				view->view.view->total_count++;
 				// FIXME: update counts
+				// FIXME: Update change info?
+				camel_change_info_add(view->view.changes, mi);
 			}
 		} else
 			camel_exception_clear(&ex);
@@ -515,6 +517,7 @@ cds_update_view_remove(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
 			d(printf("  we had it, bye byte\n"));
 			view->view.view->total_count--;
 			// FIXME: update counts
+			camel_change_info_remove(view->view.changes, mi);
 		} else if (res != DB_NOTFOUND) {
 			/* I can fill some data integrity issues coming on ... */
 		}
@@ -546,6 +549,9 @@ static int cds_update_views_change(CamelFolderSummaryDisk *cds, CamelMessageInfo
 			else
 				res = cds_update_view_remove(view, mi);
 		}
+
+		/* FIXME: How do we detect values changed in the view, and emit appropriate changed events?
+		   Do we just leave it to the root view changed event? */
 	}
 
 	res = 0;

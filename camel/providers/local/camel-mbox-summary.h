@@ -48,7 +48,7 @@ typedef struct _CamelMboxMessageInfo {
 struct _CamelMboxSummary {
 	CamelLocalSummary parent;
 
-	CamelFolderChangeInfo *changes;	/* used to build change sets */
+	CamelChangeInfo *changes;	/* used to build change sets */
 
 	unsigned int xstatus:1;	/* do we store/honour xstatus/status headers */
 	unsigned int xstatus_changed:1;	/* fun, next sync requires a full sync */
@@ -58,9 +58,9 @@ struct _CamelMboxSummaryClass {
 	CamelLocalSummaryClass parent_class;
 
 	/* sync in-place */
-	int (*sync_quick)(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
+	int (*sync_quick)(CamelMboxSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex);
 	/* sync requires copy */
-	int (*sync_full)(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
+	int (*sync_full)(CamelMboxSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex);
 };
 
 CamelType		camel_mbox_summary_get_type	(void);
@@ -74,7 +74,7 @@ char *camel_mbox_summary_encode_xev(const char *uidstr, guint32 flags);
 char *camel_mbox_summary_decode_xev(const char *xev, guint32 *flagsp);
 
 /* build a new mbox from an existing mbox storing summary information */
-int camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderChangeInfo *changeinfo, int fd, int fdout, CamelException *ex);
+int camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelChangeInfo *changeinfo, int fd, int fdout, CamelException *ex);
 
 guint32 camel_mbox_summary_next_uid(CamelMboxSummary *);
 void camel_mbox_summary_last_uid(CamelMboxSummary *, guint32 uid);
