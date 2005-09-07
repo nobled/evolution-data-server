@@ -1,3 +1,13 @@
+2005-09-07    <NotZed@Ximian.com>
+
+	* camel-imapx-utils.c (imap_dump_fetch): remove bad stream reset
+	call.
+	(imap_parse_flags): use the right flag set func/fix warning.
+
+2005-09-06    <NotZed@Ximian.com>
+
+	* camel-imapx-utils.c (imap_free_fetch): fix flag_list_clear call.
+
 2005-08-22    <NotZed@Ximian.com>
 
 	* camel-imapx-utils.h: 

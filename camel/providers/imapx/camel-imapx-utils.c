@@ -76,8 +76,9 @@ imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_fla
 						goto found;
 					}
 				if (user_flagsp)
-					camel_user_tag_set(user_flagsp, token);
+					camel_flag_set(user_flagsp, token, TRUE);
 			found:
+				tok = tok; /* fixes stupid warning */
 			} else if (tok != ')') {
 				camel_exception_throw(1, "expecting flag");
 			}
@@ -894,7 +895,7 @@ imap_free_fetch(struct _fetch_info *finfo)
 		camel_message_info_free(finfo->minfo);
 	if (finfo->cinfo)
 		imap_free_body(finfo->cinfo);
-	camel_flag_list_clear(&finfo->user_flags);
+	camel_flag_list_free(&finfo->user_flags);
 	g_free(finfo->date);
 	g_free(finfo->section);
 	g_free(finfo->uid);
@@ -938,7 +939,6 @@ imap_dump_fetch(struct _fetch_info *finfo)
 	if (finfo->minfo) {
 		camel_stream_printf(sout, "Message Info:\n");
 		camel_message_info_dump(finfo->minfo);
-		camel_stream_reset(finfo->minfo);
 	}
 	if (finfo->cinfo) {
 		camel_stream_printf(sout, "Content Info:\n");
@@ -1347,7 +1347,7 @@ unsigned char imapx_specials[256] = {
 void imapx_utils_init(void)
 {
 	int i;
-	unsigned char *p, v;
+	unsigned char v;
 
 	for (i=0;i<128;i++) {
 		v = 0;
