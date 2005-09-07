@@ -249,6 +249,8 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 
 	/* FIXME: Need to run indexing off of the setv method */
 
+#if 0
+
 	/* if we have no/invalid index file, force it */
 	forceindex = camel_text_index_check(lf->index_path) == -1;
 	if (lf->flags & CAMEL_STORE_FOLDER_BODY_INDEX) {
@@ -271,6 +273,8 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 			camel_text_index_remove(lf->index_path);
 		forceindex = FALSE;
 	}
+
+#endif
 
 	folder->summary = (CamelFolderSummary *)CLOCALF_CLASS(lf)->create_summary(lf, lf->summary_path, lf->folder_path, lf->index);
 	
