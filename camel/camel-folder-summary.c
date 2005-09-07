@@ -94,6 +94,11 @@ add(CamelFolderSummary *s, void *o)
 	camel_change_info_add(s->root_view->changes, mi);
 	camel_view_changed(v);
 
+	if (!camel_folder_summary_frozen(s)) {
+		camel_object_trigger_event(mi->summary->folder, "folder_changed", s->root_view->changes);
+		camel_change_info_clear(s->root_view->changes);
+	}
+
 	return 0;
 }
 
@@ -130,6 +135,11 @@ cfs_remove(CamelFolderSummary *s, void *o)
 
 	camel_change_info_remove(s->root_view->changes, mi);
 	camel_view_changed(v);
+
+	if (!camel_folder_summary_frozen(s)) {
+		camel_object_trigger_event(mi->summary->folder, "folder_changed", s->root_view->changes);
+		camel_change_info_clear(s->root_view->changes);
+	}
 
 	return 0;
 }
@@ -191,7 +201,7 @@ cfs_view_remove(CamelFolderSummary *s, CamelFolderView *view)
 static void
 cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
 {
-	printf("View free '%s'\n", view->view->vid);
+	v(printf("View free '%s'\n", view->view->vid));
 	if (view->iter)
 		camel_iterator_free((CamelIterator *)view->iter);
 	camel_change_info_free(view->changes);
@@ -388,8 +398,6 @@ static void
 message_info_free(CamelMessageInfo *info)
 {
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
-
-	printf("%p: Free message info base '%s'\n", mi, mi->uid);
 
 	g_free(mi->uid);
 	camel_pstring_free(mi->subject);
@@ -612,8 +620,30 @@ info_changed(CamelMessageInfo *mi, int sysonly)
 	if (!sysonly && mi->summary && mi->summary->folder && mi->uid) {
 		CamelChangeInfo *changes = mi->summary->root_view->changes;
 
-		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
-		camel_change_info_clear(changes);
+		camel_change_info_change(changes, mi);
+		if (!camel_folder_summary_frozen(mi->summary)) {
+			camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
+			camel_change_info_clear(changes);
+		}
+	}
+}
+
+static void
+cfs_thawed(CamelFolderSummary *cfs)
+{
+	CamelFolderView *view;
+
+	/* FIXME: locking */
+	if (camel_change_info_changed(cfs->root_view->changes)) {
+		camel_object_trigger_event(cfs->folder, "folder_changed", cfs->root_view->changes);
+		camel_change_info_clear(cfs->root_view->changes);
+	}
+
+	for (view = (CamelFolderView *)cfs->views.head;view->next;view=view->next) {
+		if (camel_change_info_changed(view->changes)) {
+			camel_object_trigger_event(cfs->folder, "folder_changed", view->changes);
+			camel_change_info_clear(view->changes);
+		}
 	}
 }
 
@@ -660,6 +690,8 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->info_set_flags = info_set_flags;
 
 	klass->info_changed = info_changed;
+
+	klass->thawed = cfs_thawed;
 }
 
 static void
@@ -716,6 +748,25 @@ camel_folder_summary_get_type (void)
 	}
 	
 	return type;
+}
+
+void camel_folder_summary_freeze(CamelFolderSummary *s)
+{
+	/* FIXME: locks */
+	s->frozen++;
+}
+
+void camel_folder_summary_thaw(CamelFolderSummary *s)
+{
+	/* FIXME: locks */
+	s->frozen--;
+	if (s->frozen == 0)
+		CFS_CLASS(s)->thawed(s);
+}
+
+int camel_folder_summary_frozen(CamelFolderSummary *s)
+{
+	return s->frozen != 0;
 }
 
 int camel_folder_summary_rename(CamelFolderSummary *s, const char *newname)
@@ -1809,7 +1860,7 @@ CamelChangeInfo *camel_change_info_clone(CamelChangeInfo *info)
 	CamelChangeInfo *new = camel_change_info_new(info->vid);
 	struct _glib_sux sux = { info, new };
 
-	printf("%p: cloning = %p\n", info, new);
+	d(printf("%p: cloning = %p\n", info, new));
 
 	change_info_copy(new->added, info->added);
 	change_info_copy(new->removed, info->removed);

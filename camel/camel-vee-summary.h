@@ -76,7 +76,8 @@ struct _CamelVeeSummary {
 	char *vid;
 	EDList folders;
 
-	struct _CamelFolderChangeInfo *changes;
+	GMutex *lock;
+	GHashTable *cache;
 
 	/* this a static expression, so we ignore changed events */
 	int is_static:1;

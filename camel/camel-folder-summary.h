@@ -231,6 +231,8 @@ struct _CamelFolderSummary {
 	struct _CamelViewSummary *view_summary;
 
 	struct _CamelFolder *folder; /* parent folder, for events, not reffed */
+	// FIXME: needs locking
+	int frozen;		/* frozen count, for events */
 
 	/* needs locking - TBD */
 	struct _CamelFolderSearch *search;
@@ -307,10 +309,17 @@ struct _CamelFolderSummaryClass {
 
 	/* something in the mi changed, either system data or user info */
 	void (*info_changed)(CamelMessageInfo *mi, int sys);
+
+	/* event frozen state thawed */
+	void (*thawed)(CamelFolderSummary *);
 };
 
 CamelType			 camel_folder_summary_get_type	(void);
 CamelFolderSummary      *camel_folder_summary_new	(struct _CamelFolder *folder, struct _CamelViewSummary *);
+
+void camel_folder_summary_freeze(CamelFolderSummary *);
+void camel_folder_summary_thaw(CamelFolderSummary *);
+int camel_folder_summary_frozen(CamelFolderSummary *);
 
 int camel_folder_summary_rename(CamelFolderSummary *, const char *newname);
 

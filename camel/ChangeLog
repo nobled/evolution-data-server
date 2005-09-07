@@ -1,5 +1,25 @@
 2005-09-07    <NotZed@Ximian.com>
 
+	* camel-vee-summary.c (cvs_folder_changed): only emit if not
+	frozen.
+	(vee_info_map): use a cache so we always get the same pointer.
+
+	* camel-folder-summary.c (camel_folder_summary_freeze)
+	(camel_folder_summary_thaw, camel_folder_summary_frozen): control
+	event emission for folder and views.
+	(cfs_thawed): emit any stored events.
+
+	* camel-folder-summary-disk.c (cds_update_view_add): if the key
+	exists, transform into a changed event.
+	(cds_update_views_event): emit folder_changed events for anyv iews
+	that have changed.
+	(cds_sync, cds_remove, cds_add): emit changed events when done.
+
+2005-09-07    <NotZed@Ximian.com>
+
+	* camel-folder-summary-disk.c (cds_info_changed): call parent
+	class first.
+
 	* camel-folder-summary.c (camel_change_info*): Fix some busted
 	logic with the uid_stored table.
 

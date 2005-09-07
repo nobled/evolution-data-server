@@ -688,6 +688,12 @@ camel_folder_rename(CamelFolder *folder, const char *new)
 static void
 freeze (CamelFolder *folder)
 {
+	if (folder->summary)
+		camel_folder_summary_freeze(folder->summary);
+
+	/* TODO: since the folder-summary tracks frozen state,
+	   keeping a copy on the folder is redundant */
+
 	CAMEL_FOLDER_LOCK(folder, change_lock);
 
 	g_assert(folder->priv->frozen >= 0);
@@ -720,6 +726,12 @@ static void
 thaw (CamelFolder * folder)
 {
 	CamelChangeInfo *info = NULL;
+
+	if (folder->summary)
+		camel_folder_summary_thaw(folder->summary);
+
+	/* TODO: since the folder-summary tracks frozen state,
+	   keeping a copy on the folder is redundant */
 
 	CAMEL_FOLDER_LOCK(folder, change_lock);
 
@@ -762,9 +774,11 @@ camel_folder_thaw (CamelFolder *folder)
 static gboolean
 is_frozen (CamelFolder *folder)
 {
+	/* TODO: since the folder-summary tracks frozen state,
+	   keeping a copy on the folder is redundant */
+
 	return folder->priv->frozen != 0;
 }
-
 
 /**
  * camel_folder_is_frozen:
@@ -929,10 +943,12 @@ folder_changed (CamelObject *obj, gpointer event_data)
 	GPtrArray *recents = NULL;
 	int i;
 
-	d(printf ("folder_changed(%p:'%s', %p), frozen=%d\n", obj, folder->full_name, event_data, folder->priv->frozen));
-	d(printf(" added %d removed %d changed %d recent %d\n",
-		 changed->uid_added->len, changed->uid_removed->len,
-		 changed->uid_changed->len, changed->uid_recent->len));
+	(printf ("folder_changed(%p:'%s':'%s', %p), frozen=%d\n",
+		 obj, folder->full_name, changed->vid?changed->vid:"<root>",
+		 event_data, folder->priv->frozen));
+	(printf(" added %d removed %d changed %d recent %d\n",
+		 changed->added->len, changed->removed->len,
+		 changed->changed->len, changed->recent->len));
 
 	if (changed == NULL) {
 		w(g_warning ("Class %s is passing NULL to folder_changed event",

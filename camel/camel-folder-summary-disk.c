@@ -169,7 +169,7 @@ cds_view_usedb(CamelFolderSummary *s, CamelFolderView *fview, DB_TXN *txn, Camel
 		return;
 	}
 
-	printf("opening view db '%s'\n", fview->view->vid);
+	v(printf("opening view db '%s'\n", fview->view->vid));
 
 	db_create(&view->db, cvsd->env, 0);
 	view->db->app_private = view;
@@ -220,7 +220,7 @@ cds_view_unusedb(CamelFolderSummary *s, CamelFolderView *fview)
 			EDListNode *ln = e_dlist_remhead(&CDS(s)->unused);
 
 			view = CFSD_VIEW_FROM_UNUSED(ln);
-			printf("Flushing unused db for view '%s'\n", fview->view->vid);
+			v(printf("Flushing unused db for view '%s'\n", fview->view->vid));
 			g_assert(view->usecount == 0);
 			view->unused = 0;
 			view->db->close(view->db, 0);
@@ -484,9 +484,9 @@ cds_update_view_add(CamelFolderViewDisk *view, const CamelMessageInfo *mi)
 				d(printf("  just added a new match\n"));
 				view->view.view->total_count++;
 				// FIXME: update counts
-				// FIXME: Update change info?
 				camel_change_info_add(view->view.changes, mi);
-			}
+			} else if (res == DB_KEYEXIST)
+				camel_change_info_change(view->view.changes, mi);
 		} else
 			camel_exception_clear(&ex);
 		cds_view_unusedb(view->view.summary, (CamelFolderView *)view);
@@ -591,6 +591,21 @@ static int cds_update_views_remove(CamelFolderSummaryDisk *cds, CamelMessageInfo
 	return res;
 }
 
+static void
+cds_update_views_event(CamelFolderSummaryDisk *cds)
+{
+	if (!camel_folder_summary_frozen(CFS(cds))) {
+		CamelFolderView *view;
+
+		for (view = (CamelFolderView *)CFS(cds)->views.head;view->next;view=view->next) {
+			if (camel_change_info_changed(view->changes)) {
+				camel_object_trigger_event(CFS(cds)->folder, "folder_changed", view->changes);
+				camel_change_info_clear(view->changes);
+			}
+		}
+	}
+}
+
 static int cds_add(CamelFolderSummary *s, void *o)
 {
 	CamelMessageInfo *mi = o;
@@ -607,6 +622,7 @@ static int cds_add(CamelFolderSummary *s, void *o)
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		cds_parent->add(s, mi);
 		cds_update_views_add((CamelFolderSummaryDisk *)s, mi);
+		cds_update_views_event((CamelFolderSummaryDisk *)s);
 	}
 
 	/* TODO: if it failed, or maybe even otherwise, put it in a queue for later adding? */
@@ -649,6 +665,7 @@ static int cds_remove(CamelFolderSummary *s, void *o)
 
 	if (res == 0) {
 		res = cds_update_views_remove((CamelFolderSummaryDisk *)s, mi);
+		cds_update_views_event((CamelFolderSummaryDisk *)s);
 	} else {
 		/* failed, now what? */ ;
 		view->db->err(view->db, res, "removing info '%s' from database", mi->uid);
@@ -1118,6 +1135,8 @@ cds_info_changed(CamelMessageInfo *mi, int sysonly)
 	struct _CamelFolderSummaryDiskPrivate *p = _PRIVATE(mi->summary);
 	int dosync = 0;
 
+	cds_parent->info_changed(mi, sysonly);
+
 	CAMEL_SUMMARY_LOCK(mi->summary, ref_lock);
 	if (g_hash_table_lookup(p->changed, mi->uid) == NULL) {
 		mi->refcount++;
@@ -1282,6 +1301,8 @@ cds_sync(CamelFolderSummaryDisk *cds, GPtrArray *infos, CamelException *ex)
 		cds_save_info(cds, (CamelMessageInfo *)infos->pdata[i], 0);
 		cds_update_views_change(cds, (CamelMessageInfo *)infos->pdata[i]);
 	}
+
+	cds_update_views_event(cds);
 
 	LOCK_VIEW(root);
 	if (root->db)
