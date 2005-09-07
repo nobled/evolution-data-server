@@ -2624,7 +2624,7 @@ void
 camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrArray *infos, CamelException *ex)
 {
 	guint i, on_orset, off_orset;
-	GArray *on_user, *off_user;
+	GArray *on_user = NULL, *off_user = NULL;
 	CamelIMAPXMessageInfo *info;
 	CamelIMAPXJob *job;
 
