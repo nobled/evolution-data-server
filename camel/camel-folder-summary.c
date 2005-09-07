@@ -173,11 +173,11 @@ cfs_view_add(CamelFolderSummary *s, CamelFolderView *view, CamelException *ex)
 		view->is_static = 1;
 	}
 
-	if (strchr(view->view->vid, 1) == NULL) {
+	if (view->vid == NULL) {
 		g_assert(s->root_view == NULL);
 		s->root_view = view;
 	} else {
-		g_assert(camel_folder_view_get(s, view->view->vid) == NULL);
+		g_assert(camel_folder_view_get(s, view->vid) == NULL);
 		e_dlist_addtail(&s->views, (EDListNode *)view);
 	}
 }
@@ -191,11 +191,12 @@ cfs_view_remove(CamelFolderSummary *s, CamelFolderView *view)
 static void
 cfs_view_free(CamelFolderSummary *s, CamelFolderView *view)
 {
+	printf("View free '%s'\n", view->view->vid);
 	if (view->iter)
 		camel_iterator_free((CamelIterator *)view->iter);
-	if (view->changes)
-		camel_change_info_free(view->changes);
+	camel_change_info_free(view->changes);
 	camel_view_unref(view->view);
+	g_free(view->vid);
 	g_free(view);
 }
 
@@ -387,6 +388,8 @@ static void
 message_info_free(CamelMessageInfo *info)
 {
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
+
+	printf("%p: Free message info base '%s'\n", mi, mi->uid);
 
 	g_free(mi->uid);
 	camel_pstring_free(mi->subject);
@@ -845,14 +848,18 @@ CamelFolderView *
 camel_folder_view_new(CamelFolderSummary *s, CamelView *vview)
 {
 	CamelFolderView *view;
+	const char *tmp;
 
 	view = g_malloc0(CFS_CLASS(s)->folderview_sizeof);
 	view->refcount = 1;
 	view->view = vview;
 	camel_view_ref(vview);
 	view->summary = s;
-	/* FIXME: need to strip the .*\01 i think */
-	view->changes = camel_change_info_new(vview->vid);
+	tmp = vview->vid?strchr(vview->vid, 1):NULL;
+	if (tmp)
+		tmp += 1;
+	view->vid = g_strdup(tmp);
+	view->changes = camel_change_info_new(tmp);
 
 	return view;
 }
@@ -871,7 +878,7 @@ camel_folder_view_get(CamelFolderSummary *s, const char *vid)
 	v = (CamelFolderView *)s->views.head;
 
 	/* FIXME: lock, refcount? */
-	while (v->next && strcmp(v->view->vid, vid) != 0)
+	while (v->next && strcmp(v->vid, vid) != 0)
 		v = v->next;
 
 	if (v->next) {
@@ -904,7 +911,7 @@ const CamelFolderView *camel_folder_view_create(CamelFolderSummary *s, const cha
 
 	v(printf("Asking to create view '%s' %s\n", vid?vid:"<root>", expr?expr:"<empty>"));
 
-	view = camel_folder_view_get(s, vid);
+	view = camel_folder_view_get(s, name);
 	if (view) {
 		if (view->view->expr != expr
 		    && strcmp(view->view->expr, expr) != 0) {
@@ -1713,6 +1720,16 @@ camel_system_flag_get (guint32 flags, const char *name)
 
 /* ********************************************************************** */
 
+static guint cci_hash(const void *ap)
+{
+	return g_str_hash(camel_message_info_uid(ap));
+}
+
+static gboolean cci_equal(const void *ap, const void *bp)
+{
+	return g_str_equal(camel_message_info_uid(ap), camel_message_info_uid(bp));
+}
+
 /**
  * camel_change_info_new:
  *
@@ -1736,7 +1753,7 @@ camel_change_info_new(const char *vid)
 	info->removed = g_ptr_array_new();
 	info->changed = g_ptr_array_new();
 	info->recent = g_ptr_array_new();
-	info->uid_stored = g_hash_table_new(g_str_hash, g_str_equal);
+	info->uid_stored = g_hash_table_new(cci_hash, cci_equal);
 
 	return info;
 }
@@ -1771,8 +1788,6 @@ change_info_copy_hash(void *k, void *v, void *d)
 		v = sux->new->added;
 	else if (v == sux->info->removed)
 		v = sux->new->removed;
-	else if (v == sux->info->recent)
-		v = sux->new->recent;
 	else
 		abort();
 
@@ -1793,6 +1808,8 @@ CamelChangeInfo *camel_change_info_clone(CamelChangeInfo *info)
 {
 	CamelChangeInfo *new = camel_change_info_new(info->vid);
 	struct _glib_sux sux = { info, new };
+
+	printf("%p: cloning = %p\n", info, new);
 
 	change_info_copy(new->added, info->added);
 	change_info_copy(new->removed, info->removed);
@@ -1843,24 +1860,23 @@ camel_change_info_add(CamelChangeInfo *info, const CamelMessageInfo *mi)
 {
 	GPtrArray *oldinfos;
 	CamelMessageInfo *oldmi;
-	const char *uid;
 
 	g_assert(info != NULL);
+	g_assert(mi != NULL);
 
-	uid = camel_message_info_uid(info);
-	if (g_hash_table_lookup_extended(info->uid_stored, uid, (void **)&oldmi, (void **)&oldinfos)) {
+	if (g_hash_table_lookup_extended(info->uid_stored, mi, (void **)&oldmi, (void **)&oldinfos)) {
 		/* if it was removed then added, promote it to a changed */
 		/* if it was changed then added, leave as changed */
 		if (oldinfos == info->removed) {
 			g_ptr_array_remove_fast(oldinfos, oldmi);
 			g_ptr_array_add(info->changed, oldmi);
-			g_hash_table_insert(info->uid_stored, (void *)camel_message_info_uid(oldmi), info->changed);
+			g_hash_table_insert(info->uid_stored, oldmi, info->changed);
 		}
 		return;
 	}
 
 	g_ptr_array_add(info->added, (void *)mi);
-	g_hash_table_insert(info->uid_stored, (void *)uid, info->added);
+	g_hash_table_insert(info->uid_stored, (void *)mi, info->added);
 	camel_message_info_ref((CamelMessageInfo *)mi);
 }
 
@@ -1876,23 +1892,22 @@ camel_change_info_remove(CamelChangeInfo *info, const CamelMessageInfo *mi)
 {
 	GPtrArray *oldinfos;
 	CamelMessageInfo *oldmi;
-	const char *uid;
 	
 	g_assert(info != NULL);
+	g_assert(mi != NULL);
 	
-	uid = camel_message_info_uid(info);
-	if (g_hash_table_lookup_extended(info->uid_stored, uid, (void **)&oldmi, (void **)&oldinfos)) {
+	if (g_hash_table_lookup_extended(info->uid_stored, mi, (void **)&oldmi, (void **)&oldinfos)) {
 		/* if it was added/changed them removed, then remove it */
 		if (oldinfos != info->removed) {
 			g_ptr_array_remove_fast(oldinfos, oldmi);
 			g_ptr_array_add(info->removed, oldmi);
-			g_hash_table_insert(info->uid_stored, (void *)camel_message_info_uid(oldmi), info->removed);
+			g_hash_table_insert(info->uid_stored, oldmi, info->removed);
 		}
 		return;
 	}
 
 	g_ptr_array_add(info->removed, (void *)mi);
-	g_hash_table_insert(info->uid_stored, (void *)uid, info->removed);
+	g_hash_table_insert(info->uid_stored, (void *)mi, info->removed);
 	camel_message_info_ref((CamelMessageInfo *)mi);
 }
 
@@ -1908,18 +1923,17 @@ camel_change_info_change(CamelChangeInfo *info, const CamelMessageInfo *mi)
 {
 	GPtrArray *oldinfos;
 	CamelMessageInfo *oldmi;
-	const char *uid;
-	
+
 	g_assert(info != NULL);
-	
-	uid = camel_message_info_uid(info);
-	if (g_hash_table_lookup_extended(info->uid_stored, uid, (void **)&oldmi, (void **)&oldinfos)) {
+	g_assert(mi != NULL);
+
+	if (g_hash_table_lookup_extended(info->uid_stored, mi, (void **)&oldmi, (void **)&oldinfos)) {
 		/* if we have it already, leave it as that */
 		return;
 	}
 
 	g_ptr_array_add(info->changed, (void *)mi);
-	g_hash_table_insert(info->uid_stored, (void *)uid, info->changed);
+	g_hash_table_insert(info->uid_stored, (void *)mi, info->changed);
 	camel_message_info_ref((CamelMessageInfo *)mi);
 }
 
@@ -1934,6 +1948,7 @@ void
 camel_change_info_recent(CamelChangeInfo *info, const CamelMessageInfo *mi)
 {
 	g_assert(info != NULL);
+	g_assert(mi != NULL);
 
 	/* For recent messages we just always add them here, we don't want to interact with
 	   the other lists */
@@ -1985,7 +2000,7 @@ camel_change_info_clear(CamelChangeInfo *info)
 	change_info_clear(info->changed);
 	change_info_clear(info->recent);
 	g_hash_table_destroy(info->uid_stored);
-	info->uid_stored = g_hash_table_new(g_str_hash, g_str_equal);
+	info->uid_stored = g_hash_table_new(cci_hash, cci_equal);
 }
 
 /**

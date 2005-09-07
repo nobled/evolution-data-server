@@ -213,6 +213,8 @@ struct _CamelFolderView {
 	guint32 refcount:31;
 	guint32 is_static:1;
 
+	char *vid;		/* the folder-relative vid (strip .*\01) */
+
 	struct _CamelFolderSummary *summary;
 
 	struct _CamelView *view;

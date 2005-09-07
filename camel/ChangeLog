@@ -1,3 +1,17 @@
+2005-09-07    <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (camel_change_info*): Fix some busted
+	logic with the uid_stored table.
+
+2005-09-06    <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (camel_folder_view_new): strip the folder
+	name part of the vid from teh folderview vid.
+	(camel_folder_view_get): check the folderview vid, not the view
+	vid.
+	(camel_folder_view_create): use the view part not the name part.
+	(change_info_copy_hash): dont check recent.
+
 2005-09-05    <NotZed@Ximian.com>
 
 	* camel-view-summary-mem.c: purely memory based view-summary.

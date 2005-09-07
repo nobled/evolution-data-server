@@ -154,6 +154,8 @@ vee_message_info_free(CamelMessageInfo *info)
 {
 	CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)info;
 
+	printf("%p: Free vee message info '%s'\n", mi, info->uid);
+
 	g_free(info->uid);
 	camel_message_info_free(mi->real);
 
