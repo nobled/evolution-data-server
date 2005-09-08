@@ -26,7 +26,7 @@ test_ecal_INCLUDES =			\
 	$(INCLUDES)			\
 	-DG_LOG_DOMAIN=\"test-ecal\"
 test_ecal_LDADD =								\
-	$(top_builddir)/calendar/libecal/libecal-1.2.la				\
+	$(top_builddir)/calendar/libecal/libecal-$(API_VERSION).la				\
 	$(top_builddir)/calendar/libical/src/libical/libical-evolution.la	\
 	$(EVOLUTION_CALENDAR_LIBS)
 
@@ -35,7 +35,7 @@ test_recur_INCLUDES =			\
 	$(INCLUDES)			\
 	-DG_LOG_DOMAIN=\"test-ecal\"
 test_recur_LDADD =								\
-	$(top_builddir)/calendar/libecal/libecal-1.2.la				\
+	$(top_builddir)/calendar/libecal/libecal-$(API_VERSION).la				\
 	$(top_builddir)/calendar/libical/src/libical/libical-evolution.la	\
 	$(EVOLUTION_CALENDAR_LIBS)
 
@@ -44,6 +44,6 @@ test_search_INCLUDES =			\
 	$(INCLUDES)			\
 	-DG_LOG_DOMAIN=\"test-ecal\"
 test_search_LDADD =								\
-	$(top_builddir)/calendar/libecal/libecal-1.2.la				\
+	$(top_builddir)/calendar/libecal/libecal-$(API_VERSION).la				\
 	$(top_builddir)/calendar/libical/src/libical/libical-evolution.la	\
 	$(EVOLUTION_CALENDAR_LIBS)

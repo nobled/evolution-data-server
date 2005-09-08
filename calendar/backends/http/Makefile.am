@@ -22,7 +22,7 @@ libecalbackendhttp_la_SOURCES =		\
 	e-cal-backend-http.h
 
 libecalbackendhttp_la_LIBADD =							\
-	$(top_builddir)/calendar/libedata-cal/libedata-cal-1.2.la		\
+	$(top_builddir)/calendar/libedata-cal/libedata-cal-$(API_VERSION).la		\
 	$(top_builddir)/calendar/backends/file/libecalbackendfile.la		\
 	$(SOUP_LIBS)
 

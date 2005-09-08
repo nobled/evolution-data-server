@@ -29,9 +29,9 @@ MARSHAL_GENERATED = e-data-book-marshal.c e-data-book-marshal.h
 @EVO_MARSHAL_RULE@
 
 # The library
-lib_LTLIBRARIES = libedata-book-1.2.la
+lib_LTLIBRARIES = libedata-book-1.4.la
 
-libedata_book_1_2_la_SOURCES =				\
+libedata_book_1_4_la_SOURCES =				\
 	$(MARSHAL_GENERATED)				\
 	$(CORBA_GENERATED_C)				\
 	e-book-backend-factory.c			\
@@ -45,12 +45,12 @@ libedata_book_1_2_la_SOURCES =				\
 	e-data-book.c					\
 	ximian-vcard.h
 
-libedata_book_1_2_la_LIBADD =					\
+libedata_book_1_4_la_LIBADD =					\
 	$(EVOLUTION_ADDRESSBOOK_LIBS)				\
-	$(top_builddir)/addressbook/libebook/libebook-1.2.la	\
+	$(top_builddir)/addressbook/libebook/libebook-$(API_VERSION).la	\
 	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
-libedata_book_1_2_la_LDFLAGS = 									\
+libedata_book_1_4_la_LDFLAGS = 									\
 	-version-info $(LIBEDATABOOK_CURRENT):$(LIBEDATABOOK_REVISION):$(LIBEDATABOOK_AGE)
 
 libedata_bookincludedir = $(privincludedir)/libedata-book

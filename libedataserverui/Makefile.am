@@ -34,7 +34,7 @@ libedataserverui_1_4_la_SOURCES =	\
 	e-tree-model-generator.c
 
 libedataserverui_1_4_la_LIBADD = 				\
-	$(top_builddir)/addressbook/libebook/libebook-1.2.la	\
+	$(top_builddir)/addressbook/libebook/libebook-$(API_VERSION).la	\
 	$(E_DATA_SERVER_LIBS)
 
 libedataserverui_1_4_la_LDFLAGS = 										\

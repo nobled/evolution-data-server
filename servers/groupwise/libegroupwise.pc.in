@@ -12,5 +12,5 @@ Name: libegroupwise
 Description: Client library for accessing groupwise POA through SOAP interface
 Version: @VERSION@
 Requires: @LIBSOUP@ >= @LIBSOUP_REQUIRED@ 
-Libs: -L${libdir} -legroupwise-1.2
+Libs: -L${libdir} -legroupwise-@API_VERSION@
 Cflags: -I${privincludedir}/groupwise

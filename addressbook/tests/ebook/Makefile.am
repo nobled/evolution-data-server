@@ -6,7 +6,7 @@ INCLUDES = 				\
 	$(EVOLUTION_ADDRESSBOOK_CFLAGS)
 
 TEST_LIBS=							\
-	$(top_builddir)/addressbook/libebook/libebook-1.2.la	\
+	$(top_builddir)/addressbook/libebook/libebook-$(API_VERSION).la	\
 	$(EVOLUTION_ADDRESSBOOK_LIBS)
 
 noinst_PROGRAMS= test-changes test-categories test-date test-ebook test-ebook-async test-ebook-view test-nonexistent-id test-photo test-query test-self test-string test-undefinedfield test-untyped-phones test-search test-stress-bookviews

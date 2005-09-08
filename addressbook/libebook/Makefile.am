@@ -31,9 +31,9 @@ MARSHAL_GENERATED = e-book-marshal.c e-book-marshal.h
 @EVO_MARSHAL_RULE@
 
 # The library
-lib_LTLIBRARIES = libebook-1.2.la
+lib_LTLIBRARIES = libebook-1.4.la
 
-libebook_1_2_la_SOURCES =					\
+libebook_1_4_la_SOURCES =					\
 	$(CORBA_GENERATED_C)				\
 	$(MARSHAL_GENERATED)				\
 	e-address-western.c				\
@@ -47,12 +47,12 @@ libebook_1_2_la_SOURCES =					\
 	e-name-western.c				\
 	e-vcard.c
 
-libebook_1_2_la_LIBADD =					\
+libebook_1_4_la_LIBADD =					\
 	$(EVOLUTION_ADDRESSBOOK_LIBS)				\
 	$(top_builddir)/camel/libcamel-$(API_VERSION).la			\
 	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
-libebook_1_2_la_LDFLAGS = 							\
+libebook_1_4_la_LDFLAGS = 							\
 	-version-info $(LIBEBOOK_CURRENT):$(LIBEBOOK_REVISION):$(LIBEBOOK_AGE)
 
 libebookincludedir = $(privincludedir)/libebook

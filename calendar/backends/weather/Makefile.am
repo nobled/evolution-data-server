@@ -27,7 +27,7 @@ libecalbackendweather_la_SOURCES =	\
 	e-weather-source-ccf.h
 
 libecalbackendweather_la_LIBADD =	\
-	$(top_builddir)/calendar/libedata-cal/libedata-cal-1.2.la	\
+	$(top_builddir)/calendar/libedata-cal/libedata-cal-$(API_VERSION).la	\
 	$(SOUP_LIBS)
 
 libecalbackendweather_la_LDFLAGS =	\

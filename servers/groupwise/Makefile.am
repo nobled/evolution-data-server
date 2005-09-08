@@ -17,12 +17,12 @@ create_account_LDADD = 						\
 soap_test_SOURCES = soap-test.c
 soap_test_LDADD = 					\
 	$(SOUP_LIBS)					\
-	libegroupwise-1.2.la				\
+	libegroupwise-1.4.la				\
 	$(E_DATA_SERVER_LIBS) 
 
-lib_LTLIBRARIES = libegroupwise-1.2.la
+lib_LTLIBRARIES = libegroupwise-1.4.la
 
-libegroupwise_1_2_la_SOURCES =			\
+libegroupwise_1_4_la_SOURCES =			\
 	e-gw-connection.c			\
 	e-gw-connection.h			\
 	e-gw-container.c			\
@@ -36,11 +36,11 @@ libegroupwise_1_2_la_SOURCES =			\
 	e-gw-filter.c                           \
 	e-gw-filter.h                   
 
-libegroupwise_1_2_la_LIBADD =						\
+libegroupwise_1_4_la_LIBADD =						\
 	$(E_DATA_SERVER_LIBS)						\
 	$(SOUP_LIBS)
 
-libegroupwise_1_2_la_LDFLAGS =                                               \
+libegroupwise_1_4_la_LDFLAGS =                                               \
         -version-info $(LIBEGROUPWISE_CURRENT):$(LIBEGROUPWISE_REVISION):$(LIBEGROUPWISE_AGE)
 
 libegroupwiseincludedir = $(privincludedir)/groupwise

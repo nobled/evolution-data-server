@@ -27,9 +27,9 @@ libecalbackendgroupwise_la_SOURCES =		\
 	e-cal-backend-groupwise-utils.h
 
 libecalbackendgroupwise_la_LIBADD =					\
-	$(top_builddir)/calendar/libedata-cal/libedata-cal-1.2.la	\
+	$(top_builddir)/calendar/libedata-cal/libedata-cal-$(API_VERSION).la	\
 	$(top_builddir)/calendar/backends/file/libecalbackendfile.la\
-	$(top_builddir)/servers/groupwise/libegroupwise-1.2.la		\
+	$(top_builddir)/servers/groupwise/libegroupwise-$(API_VERSION).la		\
 	$(SOUP_LIBS)
 
 libecalbackendgroupwise_la_LDFLAGS =		\

@@ -11,6 +11,6 @@ privincludedir=@privincludedir@
 Name: libedata-cal
 Description: Backend library for evolution calendars
 Version: @VERSION@
-Requires: libgnome-2.0 libbonobo-2.0 >= @LIBBONOBO_REQUIRED@ gnome-vfs-2.0 libedataserver-1.2 libecal-1.2
-Libs: -L${libdir} -ledata-cal-1.2 -lecal-1.2
+Requires: libgnome-2.0 libbonobo-2.0 >= @LIBBONOBO_REQUIRED@ gnome-vfs-2.0 libedataserver-@API_VERSION@ libecal-@API_VERSION@
+Libs: -L${libdir} -ledata-cal-@API_VERSION@ -lecal-@API_VERSION@
 Cflags: -I${privincludedir}

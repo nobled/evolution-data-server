@@ -36,9 +36,9 @@ MARSHAL_GENERATED = e-cal-marshal.c e-cal-marshal.h
 @EVO_MARSHAL_RULE@
 
 # The library
-lib_LTLIBRARIES = libecal-1.2.la
+lib_LTLIBRARIES = libecal-1.4.la
 
-libecal_1_2_la_SOURCES =		\
+libecal_1_4_la_SOURCES =		\
 	$(CORBA_GENERATED_C)	\
 	$(MARSHAL_GENERATED)	\
 	e-cal.c			\
@@ -50,14 +50,14 @@ libecal_1_2_la_SOURCES =		\
 	e-cal-view.c		\
 	e-cal-view-listener.c
 
-libecal_1_2_la_LIBADD =									\
+libecal_1_4_la_LIBADD =									\
 	$(EVOLUTION_CALENDAR_LIBS)							\
 	$(top_builddir)/calendar/libical/src/libical/libical-evolution.la		\
 	$(top_builddir)/calendar/libical/src/libicalvcal/libicalvcal-evolution.la	\
 	$(top_builddir)/calendar/libical/src/libicalss/libicalss-evolution.la		\
 	$(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la
 
-libecal_1_2_la_LDFLAGS = 								\
+libecal_1_4_la_LDFLAGS = 								\
 	-version-info $(LIBECAL_CURRENT):$(LIBECAL_REVISION):$(LIBECAL_AGE)
 
 libecalincludedir = $(privincludedir)/libecal

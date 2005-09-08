@@ -15,7 +15,7 @@ libebookbackendgroupwise_la_SOURCES =			\
 	e-book-backend-groupwise-factory.c
 
 libebookbackendgroupwise_la_LIBADD =						\
-	$(top_builddir)/servers/groupwise/libegroupwise-1.2.la
+	$(top_builddir)/servers/groupwise/libegroupwise-$(API_VERSION).la
 	$(SOUP_LIBS)
 
 libebookbackendgroupwise_la_LDFLAGS =		\
@@ -24,8 +24,8 @@ libebookbackendgroupwise_la_LDFLAGS =		\
 noinst_PROGRAMS = create-account
 create_account_SOURCES = create-account.c
 
-create_account_LDADD =  $(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la      \
+create_account_LDADD =  $(top_builddir)/addressbook/libedata-book/libedata-book-$(API_VERSION).la      \
         $(top_builddir)/libedataserver/libedataserver-$(API_VERSION).la              \
-        $(top_builddir)/servers/groupwise/libegroupwise-1.2.la \
+        $(top_builddir)/servers/groupwise/libegroupwise-$(API_VERSION).la \
         $(E_DATA_SERVER_LIBS)
 

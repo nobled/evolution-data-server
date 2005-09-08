@@ -11,6 +11,6 @@ privincludedir=@privincludedir@
 Name: libebook
 Description: Client library for evolution address books
 Version: @VERSION@
-Requires: libbonobo-2.0 >= @LIBBONOBO_REQUIRED@ libgnome-2.0 libedataserver-1.2
-Libs: -L${libdir} -lebook-1.2
+Requires: libbonobo-2.0 >= @LIBBONOBO_REQUIRED@ libgnome-2.0 libedataserver-@API_VERSION@
+Libs: -L${libdir} -lebook-@API_VERSION@
 Cflags: -I${privincludedir}

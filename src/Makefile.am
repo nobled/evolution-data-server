@@ -52,8 +52,8 @@ evolution_data_server_SOURCES = \
 	offline-listener.h              
 
 evolution_data_server_LDADD =							\
-	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la		\
-	$(top_builddir)/calendar/libedata-cal/libedata-cal-1.2.la		\
+	$(top_builddir)/addressbook/libedata-book/libedata-book-$(API_VERSION).la		\
+	$(top_builddir)/calendar/libedata-cal/libedata-cal-$(API_VERSION).la		\
 	$(E_DATA_SERVER_LIBS)
 
 install-evolution-data-servers:
