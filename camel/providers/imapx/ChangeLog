@@ -1,3 +1,8 @@
+2005-09-08    <NotZed@Ximian.com>
+
+	* camel-imapx-utils.c: use the messageinfo recent flag, not the
+	imapx specific one.
+
 2005-09-07    <NotZed@Ximian.com>
 
 	* camel-imapx-server.c (camel_imapx_server_sync_changes): init
