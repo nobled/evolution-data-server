@@ -755,6 +755,8 @@ void camel_vee_summary_add_folder(CamelVeeSummary *s, const char *uriin, struct 
 			CamelMessageInfo *vmi;
 			CamelChangeInfo *new;
 
+			camel_folder_summary_freeze(CFS(s));
+
 			iter = camel_folder_search(folder, s->vid, NULL, NULL, NULL);
 			while ((mi = camel_iterator_next(iter, NULL))) {
 				vmi = vee_info_map(s, f, (CamelMessageInfo *)mi);
@@ -762,6 +764,8 @@ void camel_vee_summary_add_folder(CamelVeeSummary *s, const char *uriin, struct 
 				camel_message_info_free(vmi);
 			}
 			camel_iterator_free(iter);
+
+			camel_folder_summary_thaw(CFS(s));
 
 			new = ((CamelFolderSummary *)s)->root_view->changes;
 			if (camel_change_info_changed(new)) {

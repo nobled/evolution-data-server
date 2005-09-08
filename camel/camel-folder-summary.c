@@ -548,7 +548,7 @@ info_set_flags(CamelMessageInfo *info, guint32 mask, guint32 set)
 
 	/* diff will contain which flags have changed, set will contain what they are now */
 	diff = (set ^ old) & mask;
-	if (diff & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK|CAMEL_MESSAGE_SEEN)) {
+	if (info->summary && (diff & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK|CAMEL_MESSAGE_SEEN))) {
 		CamelView *v;
 
 		v = info->summary->root_view->view;
@@ -1803,7 +1803,6 @@ camel_change_info_new(const char *vid)
 	info->added = g_ptr_array_new();
 	info->removed = g_ptr_array_new();
 	info->changed = g_ptr_array_new();
-	info->recent = g_ptr_array_new();
 	info->uid_stored = g_hash_table_new(cci_hash, cci_equal);
 
 	return info;
@@ -1865,7 +1864,6 @@ CamelChangeInfo *camel_change_info_clone(CamelChangeInfo *info)
 	change_info_copy(new->added, info->added);
 	change_info_copy(new->removed, info->removed);
 	change_info_copy(new->changed, info->changed);
-	change_info_copy(new->recent, info->recent);
 	g_hash_table_foreach(info->uid_stored, change_info_copy_hash, &sux);
 
 	return new;
@@ -1896,7 +1894,6 @@ camel_change_info_cat(CamelChangeInfo *info, CamelChangeInfo *source)
 	change_info_cat(info, source->added, camel_change_info_add);
 	change_info_cat(info, source->removed, camel_change_info_remove);
 	change_info_cat(info, source->changed, camel_change_info_change);
-	change_info_cat(info, source->recent, camel_change_info_recent);
 }
 
 /**
@@ -1989,25 +1986,6 @@ camel_change_info_change(CamelChangeInfo *info, const CamelMessageInfo *mi)
 }
 
 /**
- * camel_change_info_recent:
- * @info: a #CamelChangeInfo
- * @mi: Message to add to recent.
- *
- * Add a message to the recent list.
- **/
-void
-camel_change_info_recent(CamelChangeInfo *info, const CamelMessageInfo *mi)
-{
-	g_assert(info != NULL);
-	g_assert(mi != NULL);
-
-	/* For recent messages we just always add them here, we don't want to interact with
-	   the other lists */
-	g_ptr_array_add(info->recent, (void *)mi);
-	camel_message_info_ref((CamelMessageInfo *)mi);
-}
-
-/**
  * camel_change_info_changed:
  * @info: a #CamelChangeInfo
  *
@@ -2021,7 +1999,7 @@ camel_change_info_changed(CamelChangeInfo *info)
 {
 	g_assert(info != NULL);
 	
-	return (info->added->len || info->removed->len || info->changed->len || info->recent->len);
+	return (info->added->len || info->removed->len || info->changed->len);
 }
 
 static void
@@ -2049,7 +2027,6 @@ camel_change_info_clear(CamelChangeInfo *info)
 	change_info_clear(info->added);
 	change_info_clear(info->removed);
 	change_info_clear(info->changed);
-	change_info_clear(info->recent);
 	g_hash_table_destroy(info->uid_stored);
 	info->uid_stored = g_hash_table_new(cci_hash, cci_equal);
 }
@@ -2070,7 +2047,6 @@ camel_change_info_free(CamelChangeInfo *info)
 	g_ptr_array_free(info->added, TRUE);
 	g_ptr_array_free(info->removed, TRUE);
 	g_ptr_array_free(info->changed, TRUE);
-	g_ptr_array_free(info->recent, TRUE);
 	g_free(info);
 }
 

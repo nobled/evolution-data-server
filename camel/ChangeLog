@@ -1,3 +1,11 @@
+2005-09-08    <NotZed@Ximian.com>
+
+	* camel-folder-summary.c (info_set_flags): check summary is set
+	before updating view counts.
+
+	* camel-folder-summary.h: added a RECENT flag to the message
+	flags.  Removed recent from the CamelChangeInfo and interfaces.
+
 2005-09-07    <NotZed@Ximian.com>
 
 	* camel-vee-summary.c (cvs_folder_changed): only emit if not

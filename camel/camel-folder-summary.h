@@ -47,7 +47,28 @@ typedef struct _CamelFolderView CamelFolderView;
 
 typedef struct _CamelMessageInfo CamelMessageInfo;
 
-/* system flag bits */
+/**
+ * enum _CamelMessageFlags - System message flags.
+ * 
+ * @CAMEL_MESSAGE_ANSWERED: Message has been answered.
+ * @CAMEL_MESSAGE_DELETED: Message is deleted.
+ * @CAMEL_MESSAGE_DRAFT: Message is a draft message.
+ * @CAMEL_MESSAGE_FLAGGED: Message is flagged.
+ * @CAMEL_MESSAGE_SEEN: Message has been read.
+ * @CAMEL_MESSAGE_ATTACHMENTS: Message may have attachments (hint only).
+ * @CAMEL_MESSAGE_ANSWERED_ALL: Message has been replied to everyone.
+ * @CAMEL_MESSAGE_JUNK: Message is junk.
+ * @CAMEL_MESSAGE_SECURE: Message is signed or encrypted (hint only).
+ * @CAMEL_MESSAGE_RECENT: Message is a new/recent message.
+ *
+ * @CAMEL_MESSAGE_FOLDER_FLAGGED: For internal use.  Signals to the
+ * backend the flags have changed (DEPRECATED).
+ * @CAMEL_MESSAGE_JUNK_LEARN: When setting the JUNK flag, indicates
+ * the message should be learnt.  Same applies for clearing/unleaning
+ * the junk.
+ * @CAMEL_MESSAGE_USER: For permanentflags, indicates the backend supports
+ * arbitrary user flags.
+ **/
 typedef enum _CamelMessageFlags {
 	CAMEL_MESSAGE_ANSWERED = 1<<0,
 	CAMEL_MESSAGE_DELETED = 1<<1,
@@ -55,11 +76,12 @@ typedef enum _CamelMessageFlags {
 	CAMEL_MESSAGE_FLAGGED = 1<<3,
 	CAMEL_MESSAGE_SEEN = 1<<4,
 	
-	/* these aren't really system flag bits, but are convenience flags */
 	CAMEL_MESSAGE_ATTACHMENTS = 1<<5,
 	CAMEL_MESSAGE_ANSWERED_ALL = 1<<6,
 	CAMEL_MESSAGE_JUNK = 1<<7,
 	CAMEL_MESSAGE_SECURE = 1<<8,
+
+	CAMEL_MESSAGE_RECENT = 1<<9,
 	
 	/* following flags are for the folder, and are not really permanent flags */
 	CAMEL_MESSAGE_FOLDER_FLAGGED = 1<<16, /* for use by the folder implementation */
@@ -184,7 +206,6 @@ typedef struct _CamelChangeInfo CamelChangeInfo;
  * @added: Array of CamelMessageInfo's added.
  * @removed: " removed.
  * @changed: " changed.
- * @recent: " recently added.
  * 
  **/
 struct _CamelChangeInfo {
@@ -193,7 +214,6 @@ struct _CamelChangeInfo {
 	GPtrArray *added;
 	GPtrArray *removed;
 	GPtrArray *changed;
-	GPtrArray *recent;
 
 	/* private */
 	GHashTable *uid_stored;
@@ -434,7 +454,6 @@ void camel_change_info_cat(CamelChangeInfo *info, CamelChangeInfo *src);
 void camel_change_info_add(CamelChangeInfo *info, const CamelMessageInfo *);
 void camel_change_info_remove(CamelChangeInfo *info, const CamelMessageInfo *);
 void camel_change_info_change(CamelChangeInfo *info, const CamelMessageInfo *);
-void camel_change_info_recent(CamelChangeInfo *info, const CamelMessageInfo *);
 
 /* helpers */
 void *camel_message_iterator_infos_new(GPtrArray *mis, int freeit);
