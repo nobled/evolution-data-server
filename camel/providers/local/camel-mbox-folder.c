@@ -137,7 +137,7 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	CamelLocalFolder *lf = (CamelLocalFolder *)folder;
 	CamelStream *output_stream = NULL, *filter_stream = NULL;
 	CamelMimeFilter *filter_from = NULL;
-	CamelMBOXView *root = (CamelMBOXView *)folder->summary->root_view;
+	CamelMBOXView *root = (CamelMBOXView *)folder->summary->root_view->view;
 	CamelMessageInfo *mi;
 	char *fromline = NULL;
 	int fd, retval;
@@ -152,7 +152,7 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 	d(printf("Appending message\n"));
 
 	/* first, check the summary is correct (updates folder_size too) */
-	retval = camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex);
+	retval = camel_local_summary_check((CamelLocalSummary *)folder->summary, ex);
 	if (retval == -1)
 		goto fail;
 
@@ -220,12 +220,6 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 
 	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
 
-	/* Need to lock lf->changes somehow */
-	if (camel_change_info_changed(lf->changes)) {
-		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
-		camel_change_info_clear(lf->changes);
-	}
-
 	if (appended_uid)
 		*appended_uid = g_strdup(camel_message_info_uid(mi));
 
@@ -270,12 +264,6 @@ fail_write:
 fail:
 	/* make sure we unlock the folder - before we start triggering events into appland */
 	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
-
-	/* cascade the changes through, anyway, if there are any outstanding */
-	if (camel_change_info_changed(lf->changes)) {
-		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
-		camel_change_info_clear(lf->changes);
-	}
 }
 
 static CamelMimeMessage *

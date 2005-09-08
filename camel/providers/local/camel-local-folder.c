@@ -150,8 +150,6 @@ local_finalize(CamelObject * object)
 	g_free(local_folder->summary_path);
 	g_free(local_folder->index_path);
 
-	camel_change_info_free(local_folder->changes);
-	
 	g_free(local_folder->priv);
 }
 
@@ -241,8 +239,6 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 		lf->folder_path = g_strdup (folder_path);
 	}
 	
-	lf->changes = camel_change_info_new(NULL);
-
 	/* TODO: Remove the following line, it is a temporary workaround to remove
 	   the old-format 'ibex' files that might be lying around */
 	unlink(lf->index_path);
@@ -477,18 +473,12 @@ local_refresh_info(CamelFolder *folder, CamelException *ex)
 	if (camel_local_folder_lock(lf, CAMEL_LOCK_WRITE, ex) == -1)
 		return;
 
-	if (camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex) == -1)
+	if (camel_local_summary_check((CamelLocalSummary *)folder->summary, ex) == -1)
 		return;
 
 	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
 
 	camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)folder->summary, ex);
-
-	/* FIXME: locking? */
-	if (camel_change_info_changed(lf->changes)) {
-		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
-		camel_change_info_clear(lf->changes);
-	}
 }
 
 static void
@@ -504,15 +494,10 @@ local_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 	camel_object_state_write(lf);
 
 	/* if sync fails, we'll pass it up on exit through ex */
-	camel_local_summary_sync((CamelLocalSummary *)folder->summary, expunge, lf->changes, ex);
+	camel_local_summary_sync((CamelLocalSummary *)folder->summary, expunge, ex);
 	camel_local_folder_unlock(lf, CAMEL_LOCK_WRITE);
 
 	camel_folder_summary_disk_sync((CamelFolderSummaryDisk *)folder->summary, ex);
-
-	if (camel_change_info_changed(lf->changes)) {
-		camel_object_trigger_event(CAMEL_OBJECT(folder), "folder_changed", lf->changes);
-		camel_change_info_clear(lf->changes);
-	}
 }
 
 static void

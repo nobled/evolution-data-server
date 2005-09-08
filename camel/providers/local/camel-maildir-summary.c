@@ -147,8 +147,7 @@ maildir_info_to_ext(CamelMaildirMessageInfo *info, char ext[16])
 	*p = 0;
 }
 
-/* returns 0 if the info matches (or there was none), otherwise we changed it */
-static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name, const char *ext, CamelChangeInfo *changes)
+static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name, const char *ext)
 {
 	const char *p;
 	char c;
@@ -179,9 +178,10 @@ static void maildir_name_to_info(CamelMaildirMessageInfo *info, const char *name
 		all = set = CAMEL_MESSAGE_FOLDER_FLAGGED;
 	}
 
-	if (all && camel_message_info_set_flags((CamelMessageInfo *)info, all, set) && changes)
-		camel_change_info_add(changes, (CamelMessageInfo *)info);
+	if (all)
+		camel_message_info_set_flags((CamelMessageInfo *)info, all, set);
 
+	/* set the uid after the flags, first time, otherwise we propagate unecessary changed events */
 	if (((CamelMessageInfoBase *)info)->uid == NULL)
 		((CamelMessageInfoBase *)info)->uid = g_strdup(name);
 }
@@ -214,7 +214,7 @@ maildir_info_new(CamelMaildirSummary *mds, const char *name, const char *ext)
 	camel_object_unref(mp);
 
 	if (info)
-		maildir_name_to_info((CamelMaildirMessageInfo *)info, name, ext, NULL);
+		maildir_name_to_info((CamelMaildirMessageInfo *)info, name, ext);
 
 	/* Make sure this isn't set, otherwise we never unset it */
 	((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
@@ -305,7 +305,7 @@ maildir_encode(CamelFolderSummaryDisk *s, CamelMessageInfoDisk *mi, CamelRecordE
 
 /* Checks for mail new.  We assume the names are in good format */
 static int
-maildir_summary_check_new(CamelLocalSummary *cls, CamelChangeInfo *changes, CamelException *ex)
+maildir_summary_check_new(CamelLocalSummary *cls, CamelException *ex)
 {
 	DIR *dir;
 	struct dirent *d;
@@ -343,8 +343,7 @@ maildir_summary_check_new(CamelLocalSummary *cls, CamelChangeInfo *changes, Came
 		unlink(new->str);
 
 		info = maildir_info_new((CamelMaildirSummary *)cls, d->d_name, "2,");
-		camel_change_info_add(changes, info);
-		camel_change_info_recent(changes, info);
+		((CamelMessageInfoBase *)info)->flags |= CAMEL_MESSAGE_RECENT;
 		camel_folder_summary_add((CamelFolderSummary *)cls, info);
 		camel_message_info_free(info);
 	}
@@ -366,7 +365,7 @@ maildir_uid_ptr_cmp(const void *a, const void *b, void *d)
 
 /* Checks for new mail that crept in unknowingly, or changed flags, optionally expunges */
 static int
-maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelChangeInfo *changes, CamelException *ex)
+maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelException *ex)
 {
 	DIR *dir;
 	struct dirent *d;
@@ -438,7 +437,6 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelChangeInfo *
 			ext = uid+strlen(uid)+1;
 
 		while (iterinfo && uid_cmp(iterinfo->uid, uid, s) < 0) {
-			camel_change_info_remove(changes, iterinfo);
 			camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 			iterinfo = camel_iterator_next(iter, NULL);
 		}
@@ -452,16 +450,14 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelChangeInfo *
 				else
 					g_string_printf(name, "%s/cur/%s", cls->folder_path, uid);
 				unlink(name->str);
-				camel_change_info_remove(changes, iterinfo);
 				camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 			} else {
-				maildir_name_to_info(mi, uid, ext, changes);
+				maildir_name_to_info(mi, uid, ext);
 			}
 			iterinfo = camel_iterator_next(iter, NULL);
 		} else {
 			/* TODO: do we fix no-extension names here?? */
 			info = maildir_info_new((CamelMaildirSummary *)cls, uid, ext);
-			camel_change_info_add(changes, info);
 			camel_folder_summary_add(s, info);
 			camel_message_info_free(info);
 		}
@@ -473,7 +469,6 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelChangeInfo *
 	g_ptr_array_free(names, TRUE);
 
 	while (iterinfo) {
-		camel_change_info_remove(changes, iterinfo);
 		camel_folder_summary_remove(s, (CamelMessageInfo *)iterinfo);
 		iterinfo = camel_iterator_next(iter, NULL);
 	}
@@ -485,20 +480,20 @@ maildir_summary_check_cur(CamelLocalSummary *cls, int expunge, CamelChangeInfo *
 }
 
 static int
-maildir_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changes, CamelException *ex)
+maildir_summary_check(CamelLocalSummary *cls, CamelException *ex)
 {
 	/* We only check for new mail */
-	maildir_summary_check_new(cls, changes, ex);
+	maildir_summary_check_new(cls, ex);
 
-	return ((CamelLocalSummaryClass *)parent_class)->check(cls, changes, ex);
+	return ((CamelLocalSummaryClass *)parent_class)->check(cls, ex);
 }
 
 /* sync the summary with the ondisk files. */
 static int
-maildir_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelChangeInfo *changes, CamelException *ex)
+maildir_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelException *ex)
 {
-	maildir_summary_check_cur(cls, expunge, changes, ex);
-	maildir_summary_check_new(cls, changes, ex);
+	maildir_summary_check_cur(cls, expunge, ex);
+	maildir_summary_check_new(cls, ex);
 
 	return 0;
 }

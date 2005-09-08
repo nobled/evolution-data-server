@@ -60,7 +60,7 @@ camel_spool_summary_new(struct _CamelFolder *folder, const char *mbox_name)
 
 /* perform a full sync */
 static int
-spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
+spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelException *ex)
 {
 	int fd = -1, fdout = -1;
 	char *tmpname = NULL;
@@ -102,7 +102,7 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelChangeInfo
 		goto error;
 	}
 
-	if (camel_mbox_summary_sync_mbox((CamelMboxSummary *)cls, flags, changeinfo, fd, fdout, ex) == -1)
+	if (camel_mbox_summary_sync_mbox((CamelMboxSummary *)cls, flags, fd, fdout, ex) == -1)
 		goto error;
 
 
@@ -242,7 +242,7 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelChangeInfo
 }
 
 static int
-spool_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changeinfo, CamelException *ex)
+spool_summary_check(CamelLocalSummary *cls, CamelException *ex)
 {
 	struct stat st;
 	CamelMBOXView *root = (CamelMBOXView *)CFS(cls)->root_view->view;
@@ -256,7 +256,7 @@ spool_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changeinfo, CamelEx
 	if (st.st_size == root->folder_size && st.st_mtime == root->time)
 		return 0;
 
-	if (((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full((CamelMboxSummary *)cls, FALSE, changeinfo, ex) == -1)
+	if (((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full((CamelMboxSummary *)cls, FALSE, ex) == -1)
 		return -1;
 
 	if (stat(cls->folder_path, &st) == 0) {

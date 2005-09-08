@@ -1,3 +1,22 @@
+2005-09-08    <NotZed@Ximian.com>
+
+	* camel-mbox-folder.c (mbox_append_message): use the correct
+	'view'.
+
+	* camel-mbox-summary.c (summary_update): set recent flag on new
+	messages.
+
+	* camel-maildir-summary.c (maildir_summary_check_new): set the
+	recent flag for new messages.
+
+	* camel-local-folder.h: remove the changeinfo from
+	CamelLocalFolder.
+
+	* camel-local-summary.c (camel_local_summary_check)
+	(camel_local_summary_sync): removed the changeinfo argument; fixed
+	all implementations.  Handled by camelfoldersummary directly.
+	Freeze/thaw around operation.
+
 2005-08-22    <NotZed@Ximian.com>
 
 	* *.c: update to use view summary stuff.

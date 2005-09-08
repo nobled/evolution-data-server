@@ -39,6 +39,7 @@
 #include "camel-maildir-summary.h"
 #include "camel-i18n.h"
 #include "camel-view-summary-disk.h"
+#include "camel-session.h"
 
 #define d(x)
 

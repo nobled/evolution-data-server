@@ -64,15 +64,27 @@ void camel_local_summary_check_force(CamelLocalSummary *cls)
 }
 
 int
-camel_local_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changeinfo, CamelException *ex)
+camel_local_summary_check(CamelLocalSummary *cls, CamelException *ex)
 {
-	return ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->check(cls, changeinfo, ex);
+	int res;
+
+	camel_folder_summary_freeze((CamelFolderSummary *)cls);
+	res = ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->check(cls, ex);
+	camel_folder_summary_thaw((CamelFolderSummary *)cls);
+
+	return res;
 }
 
 int
-camel_local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
+camel_local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelException *ex)
 {
-	return ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->sync(cls, expunge, changeinfo, ex);
+	int res;
+
+	camel_folder_summary_freeze((CamelFolderSummary *)cls);
+	res = ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->sync(cls, expunge, ex);
+	camel_folder_summary_thaw((CamelFolderSummary *)cls);
+
+	return res;
 }
 
 static CamelMessageInfo *
@@ -82,14 +94,14 @@ local_message_info_alloc(CamelFolderSummary *s)
 }
 
 static int
-local_summary_check(CamelLocalSummary *cls, CamelChangeInfo *changeinfo, CamelException *ex)
+local_summary_check(CamelLocalSummary *cls, CamelException *ex)
 {
 	/* FIXME: sync index here ? */
 	return 0;
 }
 
 static int
-local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelChangeInfo *changeinfo, CamelException *ex)
+local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelException *ex)
 {
 	int ret = 0;
 
