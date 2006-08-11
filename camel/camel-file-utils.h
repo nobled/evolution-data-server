@@ -54,6 +54,22 @@ int camel_file_util_encode_size_t (FILE *out, size_t);
 int camel_file_util_decode_size_t (FILE *in, size_t *);
 int camel_file_util_encode_string (FILE *out, const char *);
 int camel_file_util_decode_string (FILE *in, char **);
+int camel_file_util_encode_fixed_string (FILE *out, const char *str, size_t len);
+int camel_file_util_decode_fixed_string (FILE *in, char **str, size_t len);
+
+
+int camel_mmap_util_encode_fixed_int32 (char **out, gint32);
+int camel_mmap_util_decode_fixed_int32 (const char **in, gint32 *);
+int camel_mmap_util_encode_uint32 (char **out, guint32);
+int camel_mmap_util_decode_uint32 (const char **in, guint32 *);
+int camel_mmap_util_encode_time_t (char **out, time_t);
+int camel_mmap_util_decode_time_t (const char **in, time_t *);
+int camel_mmap_util_encode_off_t (char **out, off_t);
+int camel_mmap_util_decode_off_t (const char **in, off_t *);
+int camel_mmap_util_encode_size_t (char **out, size_t);
+int camel_mmap_util_decode_size_t (const char **in, size_t *);
+int camel_mmap_util_encode_string (char **out, const char *);
+int camel_mmap_util_decode_string (const char **in, const char **);
 
 char *camel_file_util_safe_filename (const char *name);
 

@@ -262,18 +262,18 @@ CFU_DECODE_T(size_t)
 int
 camel_file_util_encode_string (FILE *out, const char *str)
 {
-	register int len;
-
+	size_t len;
+	
 	if (str == NULL)
-		return camel_file_util_encode_uint32 (out, 1);
+		return camel_file_util_encode_size_t (out, 0);
 	
-	if ((len = strlen (str)) > 65536)
-		len = 65536;
-	
-	if (camel_file_util_encode_uint32 (out, len+1) == -1)
+	len = strlen (str);
+	if (camel_file_util_encode_size_t (out, len + 1) == -1)
 		return -1;
-	if (len == 0 || fwrite (str, len, 1, out) == 1)
+	
+	if (fwrite (str, len + 1, 1, out) == 1)
 		return 0;
+	
 	return -1;
 }
 
@@ -290,15 +290,370 @@ camel_file_util_encode_string (FILE *out, const char *str)
 int
 camel_file_util_decode_string (FILE *in, char **str)
 {
-	guint32 len;
-	register char *ret;
-
-	if (camel_file_util_decode_uint32 (in, &len) == -1) {
+	size_t len;
+	
+	if (camel_file_util_decode_size_t (in, &len) == -1) {
 		*str = NULL;
 		return -1;
 	}
+	
+	if (len == 0) {
+		*str = NULL;
+		return 0;
+	}
+	
+	if (!(*str = g_try_malloc (len))) {
+		*str = NULL;
+		return -1;
+	}
+	
+	if (fread (*str, len, 1, in) != 1) {
+		g_free (*str);
+		*str = NULL;
+		return -1;
+	}
+	
+	return 0;
+}
 
-	len--;
+
+/**
+ * camel_mmap_util_encode_uint32:
+ * @out: file to output to
+ * @value: value to output
+ * 
+ * Utility function to save an uint32 to a file.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_mmap_util_encode_uint32 (char **out, guint32 value)
+{
+	char *outptr = *out;
+	unsigned char c;
+	int i;
+	
+	for (i = 28; i > 0; i -= 7) {
+		if (value >= (1 << i)) {
+			c = (value >> i) & 0x7f;
+			*outptr++ = c;
+		}
+	}
+	
+	c = value & 0x7f;
+	*outptr++ = c | 0x80;
+	
+	*out = outptr;
+	
+	return 0;
+}
+
+
+/**
+ * camel_mmap_util_decode_uint32:
+ * @in: file to read from
+ * @dest: pointer to a variable to store the value in
+ * 
+ * Retrieve an encoded uint32 from a file.
+ * 
+ * Return value: 0 on success, -1 on error.  @*dest will contain the
+ * decoded value.
+ **/
+int
+camel_mmap_util_decode_uint32 (const char **in, guint32 *dest)
+{
+	const char *inptr = *in;
+        guint32 value = 0;
+	unsigned char v;
+	
+        /* until we get the last byte, keep decoding 7 bits at a time */
+	while (((v = *inptr++) & 0x80) == 0) {
+		value |= v;
+		value <<= 7;
+	}
+	
+	*dest = value | (v & 0x7f);
+	*in = inptr;
+	
+        return 0;
+}
+
+
+/**
+ * camel_mmap_util_encode_fixed_int32:
+ * @out: file to output to
+ * @value: value to output
+ * 
+ * Encode a gint32, performing no compression, but converting
+ * to network order.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_mmap_util_encode_fixed_int32 (char **out, gint32 value)
+{
+	gint32 save;
+	
+	save = GINT32_TO_LE (value);
+	memcpy (*out, &save, sizeof (gint32));
+	*out = *out + sizeof (gint32);
+	
+	return 0;
+}
+
+
+/**
+ * camel_mmap_util_decode_fixed_int32:
+ * @in: file to read from
+ * @dest: pointer to a variable to store the value in
+ * 
+ * Retrieve a gint32.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_mmap_util_decode_fixed_int32 (const char **in, gint32 *dest)
+{
+	const char *inptr = *in;
+	gint32 value = 0;
+	int i;
+	
+	for (i = 0; i < sizeof (guint32); i++, inptr++, value <<= 8)
+		value |= *inptr;
+	
+	*dest = GUINT32_FROM_LE (value);
+	*in = inptr;
+	
+	return 0;
+}
+
+#define MMAP_ENCODE_T(type)						\
+int									\
+camel_mmap_util_encode_##type(char **out, type value)			\
+{									\
+	type save;							\
+									\			
+	switch (sizeof (type)) {					\
+	case 4:								\
+		save = GUINT32_TO_LE (value);				\
+		break;							\
+	case 8:								\
+		save = GUINT64_TO_LE (value);				\
+		break;							\
+	default:							\
+		save = value;						\
+	}								\
+									\
+	memcpy (*out, &save, sizeof (type));				\
+	*out = *out + sizeof (type);					\
+									\
+	return 0;							\
+}
+
+#define MMAP_DECODE_T(type)						\
+int									\
+camel_mmap_util_decode_##type(const char **in, type *dest)		\
+{									\
+	const char *inptr = *in;					\
+	type value = 0;							\
+	int i;								\
+									\
+	for (i = 0; i < sizeof (type); i++, inptr++, value <<= 8)	\
+		value |= *inptr;					\
+									\
+	switch (sizeof (type)) {					\
+	case 4:								\
+		*dest = GUINT32_FROM_LE (value);			\
+		break;							\
+	case 8:								\
+		*dest = GUINT64_FROM_LE (value);			\
+		break;							\
+	default:							\
+		*dest = value;						\
+	}								\
+									\
+	*in = inptr;							\
+									\
+	return 0;							\
+}
+
+
+/**
+ * camel_mmap_util_encode_time_t:
+ * @out: file to output to
+ * @value: value to output
+ * 
+ * Encode a time_t value to the file.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+MMAP_ENCODE_T(time_t)
+
+/**
+ * camel_mmap_util_decode_time_t:
+ * @in: file to read from
+ * @dest: pointer to a variable to store the value in
+ * 
+ * Decode a time_t value.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+MMAP_DECODE_T(time_t)
+
+/**
+ * camel_mmap_util_encode_off_t:
+ * @out: file to output to
+ * @value: value to output
+ * 
+ * Encode an off_t type.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+MMAP_ENCODE_T(off_t)
+
+
+/**
+ * camel_mmap_util_decode_off_t:
+ * @in: file to read from
+ * @dest: pointer to a variable to put the value in
+ * 
+ * Decode an off_t type.
+ * 
+ * Return value: 0 on success, -1 on failure.
+ **/
+MMAP_DECODE_T(off_t)
+
+/**
+ * camel_mmap_util_encode_size_t:
+ * @out: file to output to
+ * @value: value to output
+ * 
+ * Encode an size_t type.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+MMAP_ENCODE_T(size_t)
+
+
+/**
+ * camel_mmap_util_decode_size_t:
+ * @in: file to read from
+ * @dest: pointer to a variable to put the value in
+ * 
+ * Decode an size_t type.
+ * 
+ * Return value: 0 on success, -1 on failure.
+ **/
+MMAP_DECODE_T(size_t)
+
+
+/**
+ * camel_mmap_util_encode_string:
+ * @out: file to output to
+ * @str: value to output
+ * 
+ * Encode a normal string and save it in the output file.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_mmap_util_encode_string (char **out, const char *str)
+{
+	size_t len;
+	
+	if (str == NULL)
+		return camel_mmap_util_encode_size_t (out, 0);
+	
+	len = strlen (str);
+	if (camel_mmap_util_encode_size_t (out, len + 1) == -1)
+		return -1;
+	
+	memcpy (*out, str, len + 1);
+	*out = *out + len + 1;
+	
+	return 0;
+}
+
+
+/**
+ * camel_mmap_util_decode_string:
+ * @in: file to read from
+ * @str: pointer to a variable to store the value in
+ * 
+ * Decode a normal string from the input file.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_mmap_util_decode_string (const char **in, const char **str)
+{
+	size_t len;
+	
+	if (camel_mmap_util_decode_size_t (in, &len) == -1) {
+		*str = NULL;
+		return -1;
+	}
+	
+	if (len != 0) {
+		*str = *in;
+		*in = *in + len;
+	} else {
+		*str = NULL;
+	}
+	
+	return 0;
+}
+
+/**
+ * camel_file_util_encode_fixed_string:
+ * @out: file to output to
+ * @str: value to output
+ * @len: total-len of str to store
+ * 
+ * Encode a normal string and save it in the output file.
+ * Unlike @camel_file_util_encode_string, it pads the
+ * @str with "NULL" bytes, if @len is > strlen(str)
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_file_util_encode_fixed_string (FILE *out, const char *str, size_t len)
+{
+	char buf[len];
+
+	/* Don't allow empty strings to be written */
+	if (len < 1)
+		return -1;
+
+	/* Max size is 64K */
+	if (len > 65536)
+		len = 65536;
+		
+	memset(buf, 0x00, len);
+	g_strlcpy(buf, str, len);
+
+	if (fwrite (buf, len, 1, out) == len)
+		return 0;
+
+	return -1;
+}
+
+
+/**
+ * camel_file_util_decode_fixed_string:
+ * @in: file to read from
+ * @str: pointer to a variable to store the value in
+ * @len: total-len to decode.  
+ * 
+ * Decode a normal string from the input file.
+ * 
+ * Return value: 0 on success, -1 on error.
+ **/
+int
+camel_file_util_decode_fixed_string (FILE *in, char **str, size_t len)
+{
+	register char *ret;
+
 	if (len > 65536) {
 		*str = NULL;
 		return -1;
@@ -315,7 +670,6 @@ camel_file_util_decode_string (FILE *in, char **str)
 	*str = ret;
 	return 0;
 }
-
 
 /**
  * camel_file_util_safe_filename:
@@ -334,7 +688,7 @@ camel_file_util_safe_filename (const char *name)
 #else
 	const char *unsafe_chars = "/?()'*";
 #endif
-
+	
 	if (name == NULL)
 		return NULL;
 	

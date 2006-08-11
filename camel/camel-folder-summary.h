@@ -219,7 +219,9 @@ struct _CamelFolderSummary {
 
 	char *summary_path;
 	gboolean build_content;	/* do we try and parse/index the content, or not? */
-
+	
+	GMappedFile *map;
+	
 	GPtrArray *messages;	/* CamelMessageInfo's */
 	GHashTable *messages_uid; /* CamelMessageInfo's by uid */
 
@@ -238,7 +240,7 @@ struct _CamelFolderSummaryClass {
 	CamelMessageInfo * (*message_info_new_from_parser)(CamelFolderSummary *, CamelMimeParser *);
 	CamelMessageInfo * (*message_info_new_from_message)(CamelFolderSummary *, CamelMimeMessage *);
 	CamelMessageInfo * (*message_info_load)(CamelFolderSummary *, FILE *);
-	int		   (*message_info_save)(CamelFolderSummary *, FILE *, CamelMessageInfo *);
+ 	int		   (*message_info_save)(CamelFolderSummary *, FILE *, CamelMessageInfo *);
 
 	void		   (*message_info_free)(CamelFolderSummary *, CamelMessageInfo *);
 	CamelMessageInfo * (*message_info_clone)(CamelFolderSummary *, const CamelMessageInfo *);

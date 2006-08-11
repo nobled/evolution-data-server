@@ -1,3 +1,13 @@
+2006-08-11  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-folder-summary.[c,h]: Initial work to make the code use
+	mmap, lots of work still left to be done.
+
+	* camel-file-utils.c (camel_mmap_util_encode_*): New functions to
+	encode to a byte stream.
+	(camel_mmap_util_decode_*): New functions to decode from a byte
+	stream.
+
 2006-07-07  Jeffrey Stedfast  <fejj@novell.com>
 
 	* camel-string-utils.c (camel_pstring_add): If the value is in the

@@ -74,7 +74,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 extern int strdup_count, malloc_count, free_count;
 #endif
 
-#define CAMEL_FOLDER_SUMMARY_VERSION (13)
+#define CAMEL_FOLDER_SUMMARY_VERSION (14)
 
 #define _PRIVATE(o) (((CamelFolderSummary *)(o))->priv)
 
@@ -137,7 +137,9 @@ camel_folder_summary_init (CamelFolderSummary *s)
 	s->flags = 0;
 	s->time = 0;
 	s->nextuid = 1;
-
+	
+	s->map = NULL;
+	
 	s->messages = g_ptr_array_new();
 	s->messages_uid = g_hash_table_new(g_str_hash, g_str_equal);
 	
@@ -150,7 +152,7 @@ camel_folder_summary_init (CamelFolderSummary *s)
 
 static void free_o_name(void *key, void *value, void *data)
 {
-	camel_object_unref((CamelObject *)value);
+	camel_object_unref (value);
 	g_free(key);
 }
 
@@ -161,7 +163,10 @@ camel_folder_summary_finalize (CamelObject *obj)
 	CamelFolderSummary *s = (CamelFolderSummary *)obj;
 
 	p = _PRIVATE(obj);
-
+	
+	if (s->map)
+		g_mapped_file_free (s->map);
+	
 	camel_folder_summary_clear(s);
 	g_ptr_array_free(s->messages, TRUE);
 	g_hash_table_destroy(s->messages_uid);
@@ -177,22 +182,22 @@ camel_folder_summary_finalize (CamelObject *obj)
 		e_memchunk_destroy(s->content_info_chunks);
 
 	if (p->filter_index)
-		camel_object_unref((CamelObject *)p->filter_index);
+		camel_object_unref (p->filter_index);
 	if (p->filter_64)
-		camel_object_unref((CamelObject *)p->filter_64);
+		camel_object_unref (p->filter_64);
 	if (p->filter_qp)
-		camel_object_unref((CamelObject *)p->filter_qp);
+		camel_object_unref (p->filter_qp);
 	if (p->filter_uu)
-		camel_object_unref((CamelObject *)p->filter_uu);
+		camel_object_unref (p->filter_uu);
 	if (p->filter_save)
-		camel_object_unref((CamelObject *)p->filter_save);
+		camel_object_unref (p->filter_save);
 	if (p->filter_html)
-		camel_object_unref((CamelObject *)p->filter_html);
+		camel_object_unref (p->filter_html);
 
 	if (p->filter_stream)
-		camel_object_unref((CamelObject *)p->filter_stream);
+		camel_object_unref (p->filter_stream);
 	if (p->index)
-		camel_object_unref((CamelObject *)p->index);
+		camel_object_unref (p->index);
 	
 	g_mutex_free(p->summary_lock);
 	g_mutex_free(p->io_lock);
@@ -255,7 +260,7 @@ camel_folder_summary_set_filename(CamelFolderSummary *s, const char *name)
 
 	g_free(s->summary_path);
 	s->summary_path = g_strdup(name);
-
+	
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
@@ -331,19 +336,19 @@ CamelMessageInfo *
 camel_folder_summary_index(CamelFolderSummary *s, int i)
 {
 	CamelMessageInfo *info = NULL;
-
+	
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
-
-	if (i<s->messages->len)
-		info = g_ptr_array_index(s->messages, i);
-
+	
+	if (i < s->messages->len)
+		info = g_ptr_array_index (s->messages, i);
+	
 	if (info)
 		info->refcount++;
-
+	
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-
+	
 	return info;
 }
 
@@ -499,24 +504,22 @@ camel_folder_summary_next_uid_string(CamelFolderSummary *s)
 
 /* loads the content descriptions, recursively */
 static CamelMessageContentInfo *
-perform_content_info_load(CamelFolderSummary *s, FILE *in)
+perform_content_info_load(CamelFolderSummary *s, const char **in)
 {
-	int i;
-	guint32 count;
 	CamelMessageContentInfo *ci, *part;
-
-	ci = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->content_info_load(s, in);
-	if (ci == NULL)
+	guint32 count;
+	int i;
+	
+	if (!(ci = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->content_info_load(s, in)))
 		return NULL;
-
+	
 	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500) {
 		camel_folder_summary_content_info_free(s, ci);
 		return NULL;
 	}
 
-	for (i=0;i<count;i++) {
-		part = perform_content_info_load(s, in);
-		if (part) {
+	for (i = 0; i < count; i++) {
+		if ((part = perform_content_info_load(s, in))) {
 			my_list_append((struct _node **)&ci->childs, (struct _node *)part);
 			part->parent = ci;
 		} else {
@@ -525,6 +528,7 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 			return NULL;
 		}
 	}
+	
 	return ci;
 }
 
@@ -540,57 +544,61 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 int
 camel_folder_summary_load(CamelFolderSummary *s)
 {
-	FILE *in;
-	int i;
 	CamelMessageInfo *mi;
-
+	const char *inptr;
+	int i;
+	
 	if (s->summary_path == NULL)
 		return 0;
-
-	in = g_fopen(s->summary_path, "rb");
-	if (in == NULL)
+	
+	if ((fd = g_open (s->summary_path, O_RDWR, 0)) == -1)
 		return -1;
-
+	
 	CAMEL_SUMMARY_LOCK(s, io_lock);
-	if ( ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_load(s, in) == -1)
+	
+	if (!s->map && !(s->map = g_mapped_file_new (s->summary_path, FALSE, NULL))) {
+		CAMEL_SUMMARY_UNLOCK (s, io_lock);
+		return -1;
+	}
+	
+	inptr = g_mapped_file_get_contents (s->map);
+	
+	if (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_load (s, &inptr) == -1)
 		goto error;
-
+	
 	/* now read in each message ... */
-	for (i=0;i<s->saved_count;i++) {
-		mi = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_load(s, in);
-
-		if (mi == NULL)
+	for (i = 0; i < s->saved_count; i++) {
+		if (!(mi = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_load (s, &inptr)))
 			goto error;
-
+		
 		/* FIXME: this should be done differently, how i don't know */
 		if (s->build_content) {
-			((CamelMessageInfoBase *)mi)->content = perform_content_info_load(s, in);
-			if (((CamelMessageInfoBase *)mi)->content == NULL) {
-				camel_message_info_free(mi);
+			((CamelMessageInfoBase *) mi)->content = perform_content_info_load (s, &inptr);
+			if (((CamelMessageInfoBase *) mi)->content == NULL) {
+				camel_message_info_free (mi);
 				goto error;
 			}
 		}
-
-		camel_folder_summary_add(s, mi);
+		
+		camel_folder_summary_add (s, mi);
 	}
-
+	
 	CAMEL_SUMMARY_UNLOCK(s, io_lock);
 	
-	if (fclose (in) != 0)
-		return -1;
-
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
-
+	
 	return 0;
-
+	
 error:
 	if (errno != EINVAL)
 		g_warning ("Cannot load summary file: `%s': %s", s->summary_path, g_strerror (errno));
 	
+	g_mapped_file_free (s->map);
+	s->map = NULL;
+	
 	CAMEL_SUMMARY_UNLOCK(s, io_lock);
-	fclose (in);
 	s->flags |= ~CAMEL_SUMMARY_DIRTY;
-
+	
 	return -1;
 }
 
@@ -629,36 +637,35 @@ perform_content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentI
 int
 camel_folder_summary_save(CamelFolderSummary *s)
 {
+	CamelMessageInfo *mi;
+	guint32 count;
+	char *path;
 	FILE *out;
 	int fd, i;
-	guint32 count;
-	CamelMessageInfo *mi;
-	char *path;
-
+	
 	g_assert(s->message_info_size >= sizeof(CamelMessageInfoBase));
 
-	if (s->summary_path == NULL
-	    || (s->flags & CAMEL_SUMMARY_DIRTY) == 0)
+	if (s->summary_path == NULL || (s->flags & CAMEL_SUMMARY_DIRTY) == 0)
 		return 0;
-
-	path = alloca(strlen(s->summary_path)+4);
-	sprintf(path, "%s~", s->summary_path);
-	fd = g_open(path, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
-	if (fd == -1)
+	
+	path = g_alloca (strlen (s->summary_path) + 4);
+	sprintf (path, "%s~", s->summary_path);
+	
+	if ((fd = g_open (path, O_RDWR | O_CREAT | O_TRUNC | O_BINARY, 0666)) == -1)
 		return -1;
-	out = fdopen(fd, "wb");
-	if (out == NULL) {
+	
+	if (!(out = fdopen (fd, "wb"))) {
 		i = errno;
-		g_unlink(path);
-		close(fd);
+		g_unlink (path);
+		close (fd);
 		errno = i;
 		return -1;
 	}
-
+	
 	io(printf("saving header\n"));
-
+	
 	CAMEL_SUMMARY_LOCK(s, io_lock);
-
+	
 	if (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_save(s, out) == -1)
 		goto exception;
 	
@@ -671,7 +678,7 @@ camel_folder_summary_save(CamelFolderSummary *s)
 			goto exception;
 		
 		if (s->build_content) {
-			if (perform_content_info_save (s, out, ((CamelMessageInfoBase *)mi)->content) == -1)
+			if (perform_content_info_save (s, out, ((CamelMessageInfoBase *) mi)->content) == -1)
 				goto exception;
 		}
 	}
@@ -684,9 +691,10 @@ camel_folder_summary_save(CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(s, io_lock);
 	
 #ifdef G_OS_WIN32
-	g_unlink(s->summary_path);
+	g_unlink (s->summary_path);
 #endif
-	if (g_rename(path, s->summary_path) == -1) {
+	
+	if (g_rename (path, s->summary_path) == -1) {
 		i = errno;
 		g_unlink(path);
 		errno = i;
@@ -724,22 +732,25 @@ camel_folder_summary_save(CamelFolderSummary *s)
 int
 camel_folder_summary_header_load(CamelFolderSummary *s)
 {
-	FILE *in;
+	const char *inptr;
 	int ret;
-
+	
 	if (s->summary_path == NULL)
 		return 0;
-
-	in = g_fopen(s->summary_path, "rb");
-	if (in == NULL)
-		return -1;
-
-	CAMEL_SUMMARY_LOCK(s, io_lock);
-	ret = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_load(s, in);
-	CAMEL_SUMMARY_UNLOCK(s, io_lock);
 	
-	fclose(in);
+	CAMEL_SUMMARY_LOCK(s, io_lock);
+	
+	if (!s->map && !(s->map = g_mapped_file_new (s->summary_path, FALSE, NULL))) {
+		CAMEL_SUMMARY_UNLOCK (s, io_lock);
+		return -1;
+	}
+	
+	inptr = g_mapped_file_get_contents (s->map);
+	ret = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS (s)))->summary_header_load (s, &inptr);
+	
+	CAMEL_SUMMARY_UNLOCK(s, io_lock);
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
+	
 	return ret;
 }
 
@@ -1105,7 +1116,7 @@ camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info)
 	g_ptr_array_remove(s->messages, info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-
+	
 	camel_message_info_free(info);
 }
 
@@ -1269,45 +1280,48 @@ token_search_cmp(char *key, char **index)
  * Returns %0 on success or %-1 on fail
  **/
 int
-camel_folder_summary_encode_token(FILE *out, const char *str)
+camel_folder_summary_encode_token (FILE *out, const char *str)
 {
+	int token = -1, i;
+	size_t len;
+	
 	io(printf("Encoding token: '%s'\n", str));
-
-	if (str == NULL) {
-		return camel_file_util_encode_uint32(out, 0);
-	} else {
-		int len = strlen(str);
-		int i, token=-1;
-
-		if (len <= 16) {
-			char lower[32];
-			char **match;
-
-			for (i=0;i<len;i++)
-				lower[i] = tolower(str[i]);
-			lower[i] = 0;
+	
+	if (str == NULL)
+		return camel_file_util_encode_uint32 (out, 0);
+	
+	len = strlen (str);
+	if (len <= 16) {
+		char lower[32];
+		char **match;
+		
+		for (i = 0; i < len; i++)
+			lower[i] = g_ascii_tolower (str[i]);
+		lower[i] = 0;
 #ifdef USE_BSEARCH
-			match = bsearch(lower, tokens, tokens_len, sizeof(char *), (int (*)(const void *, const void *))token_search_cmp);
-			if (match)
-				token = match-tokens;
+		match = bsearch(lower, tokens, tokens_len, sizeof(char *), (int (*)(const void *, const void *))token_search_cmp);
+		if (match)
+			token = match-tokens;
 #else
-			for (i=0;i<tokens_len;i++) {
-				if (!strcmp(tokens[i], lower)) {
-					token = i;
-					break;
-				}
+		for (i = 0; i < tokens_len; i++) {
+			if (!strcmp (tokens[i], lower)) {
+				token = i;
+				break;
 			}
+		}
 #endif
-		}
-		if (token != -1) {
-			return camel_file_util_encode_uint32(out, token+1);
-		} else {
-			if (camel_file_util_encode_uint32(out, len+32) == -1)
-				return -1;
-			if (fwrite(str, len, 1, out) != 1)
-				return -1;
-		}
 	}
+	
+	if (token != -1) {
+		return camel_file_util_encode_uint32 (out, token + 1);
+	} else {
+		if (camel_file_util_encode_uint32 (out, len + 32 + 1) == -1)
+			return -1;
+		
+		if (fwrite (str, len + 1, 1, out) != 1)
+			return -1;
+	}
+	
 	return 0;
 }
 
@@ -1322,24 +1336,24 @@ camel_folder_summary_encode_token(FILE *out, const char *str)
  * Returns %0 on success or %-1 on fail
  **/
 int
-camel_folder_summary_decode_token(FILE *in, char **str)
+camel_folder_summary_decode_token (const char **in, const char **str)
 {
-	char *ret;
-	guint32 len;
-
+	const char *token;
+	size_t len;
+	
 	io(printf("Decode token ...\n"));
 	
-	if (camel_file_util_decode_uint32(in, &len) == -1) {
+	if (camel_mmap_util_decode_uint32 (in, &len) == -1) {
 		io(printf ("Could not decode token from file"));
 		*str = NULL;
 		return -1;
 	}
-
-	if (len<32) {
+	
+	if (len < 32) {
 		if (len <= 0) {
-			ret = NULL;
+			token = NULL;
 		} else if (len<= tokens_len) {
-			ret = g_strdup(tokens[len-1]);
+			token = tokens[len - 1];
 		} else {
 			io(printf ("Invalid token encountered: %d", len));
 			*str = NULL;
@@ -1351,18 +1365,14 @@ camel_folder_summary_decode_token(FILE *in, char **str)
 		return -1;
 	} else {
 		len -= 32;
-		ret = g_malloc(len+1);
-		if (len > 0 && fread(ret, len, 1, in) != 1) {
-			g_free(ret);
-			*str = NULL;
-			return -1;
-		}
-		ret[len]=0;
+		token = *in;
+		*in = *in + len + 1;
 	}
-
-	io(printf("Token = '%s'\n", ret));
-
-	*str = ret;
+	
+	io(printf("Token = '%s'\n", token));
+	
+	*str = token;
+	
 	return 0;
 }
 
@@ -1390,43 +1400,41 @@ my_list_size(struct _node **list)
 }
 
 static int
-summary_header_load(CamelFolderSummary *s, FILE *in)
+summary_header_load(CamelFolderSummary *s, const char **in)
 {
-	fseek(in, 0, SEEK_SET);
-
 	io(printf("Loading header\n"));
-
-	if (camel_file_util_decode_fixed_int32(in, &s->version) == -1)
+	
+	if (camel_mmap_util_decode_fixed_int32(in, &s->version) == -1)
 		return -1;
-
+	
 	/* Legacy version check, before version 12 we have no upgrade knowledge */
 	if ((s->version > 0xff) && (s->version & 0xff) < 12) {
 		io(printf ("Summary header version mismatch"));
 		errno = EINVAL;
 		return -1;
 	}
-
+	
 	if (!(s->version < 0x100 && s->version >= 13))
 		io(printf("Loading legacy summary\n"));
 	else
 		io(printf("loading new-format summary\n"));
-
+	
 	/* legacy version */
-	if (camel_file_util_decode_fixed_int32(in, &s->flags) == -1
-	    || camel_file_util_decode_fixed_int32(in, &s->nextuid) == -1
-	    || camel_file_util_decode_time_t(in, &s->time) == -1
-	    || camel_file_util_decode_fixed_int32(in, &s->saved_count) == -1) {
+	if (camel_mmap_util_decode_fixed_int32 (in, &s->flags) == -1
+	    || camel_mmap_util_decode_fixed_int32 (in, &s->nextuid) == -1
+	    || camel_mmap_util_decode_time_t (in, &s->time) == -1
+	    || camel_mmap_util_decode_fixed_int32 (in, &s->saved_count) == -1) {
 		return -1;
 	}
-
+	
 	/* version 13 */
 	if (s->version < 0x100 && s->version >= 13
-	    && (camel_file_util_decode_fixed_int32(in, &s->unread_count) == -1
-		|| camel_file_util_decode_fixed_int32(in, &s->deleted_count) == -1
-		|| camel_file_util_decode_fixed_int32(in, &s->junk_count) == -1)) {
+	    && (camel_mmap_util_decode_fixed_int32 (in, &s->unread_count) == -1
+		|| camel_mmap_util_decode_fixed_int32 (in, &s->deleted_count) == -1
+		|| camel_mmap_util_decode_fixed_int32 (in, &s->junk_count) == -1)) {
 		return -1;
 	}
-
+	
 	return 0;
 }
 
@@ -1682,145 +1690,137 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 }
 
 static CamelMessageInfo *
-message_info_load(CamelFolderSummary *s, FILE *in)
+message_info_load(CamelFolderSummary *s, const char **in)
 {
 	CamelMessageInfoBase *mi;
 	guint count;
 	int i;
-	char *subject, *from, *to, *cc, *mlist, *uid;
-
-	mi = (CamelMessageInfoBase *)camel_message_info_new(s);
-
-	io(printf("Loading message info\n"));
-
-	camel_file_util_decode_string(in, &uid);
-	camel_file_util_decode_uint32(in, &mi->flags);
-	camel_file_util_decode_uint32(in, &mi->size);
-	camel_file_util_decode_time_t(in, &mi->date_sent);
-	camel_file_util_decode_time_t(in, &mi->date_received);
-	camel_file_util_decode_string(in, &subject);
-	camel_file_util_decode_string(in, &from);
-	camel_file_util_decode_string(in, &to);
-	camel_file_util_decode_string(in, &cc);
-	camel_file_util_decode_string(in, &mlist);
 	
-	mi->uid = uid;
-	mi->subject = camel_pstring_add (subject, TRUE);
-	mi->from = camel_pstring_add (from, TRUE);
-	mi->to = camel_pstring_add (to, TRUE);
-	mi->cc = camel_pstring_add (cc, TRUE);
-	mi->mlist = camel_pstring_add (mlist, TRUE);
+	mi = (CamelMessageInfoBase *)camel_message_info_new(s);
+	
+	io(printf("Loading message info\n"));
+	
+	camel_mmap_util_decode_string (in, &mi->uid);
+	camel_mmap_util_decode_uint32 (in, &mi->flags);
+	camel_mmap_util_decode_uint32 (in, &mi->size);
+	camel_mmap_util_decode_time_t (in, &mi->date_sent);
+	camel_mmap_util_decode_time_t (in, &mi->date_received);
+	camel_mmap_util_decode_string (in, &mi->subject);
+	camel_mmap_util_decode_string (in, &mi->from);
+	camel_mmap_util_decode_string (in, &mi->to);
+	camel_mmap_util_decode_string (in, &mi->cc);
+	camel_mmap_util_decode_string (in, &mi->mlist);
 	
 	mi->content = NULL;
-
-	camel_file_util_decode_fixed_int32(in, &mi->message_id.id.part.hi);
-	camel_file_util_decode_fixed_int32(in, &mi->message_id.id.part.lo);
-
-	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500)
+	
+	camel_mmap_util_decode_fixed_int32 (in, &mi->message_id.id.part.hi);
+	camel_mmap_util_decode_fixed_int32 (in, &mi->message_id.id.part.lo);
+	
+	if (camel_mmap_util_decode_uint32 (in, &count) == -1 || count > 500)
 		goto error;
-
+	
 	if (count > 0) {
 		mi->references = g_malloc(sizeof(*mi->references) + ((count-1) * sizeof(mi->references->references[0])));
 		mi->references->size = count;
-		for (i=0;i<count;i++) {
-			camel_file_util_decode_fixed_int32(in, &mi->references->references[i].id.part.hi);
-			camel_file_util_decode_fixed_int32(in, &mi->references->references[i].id.part.lo);
+		for (i = 0; i < count; i++) {
+			camel_mmap_util_decode_fixed_int32 (in, &mi->references->references[i].id.part.hi);
+			camel_mmap_util_decode_fixed_int32 (in, &mi->references->references[i].id.part.lo);
 		}
 	}
-
-	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500)
+	
+	if (camel_mmap_util_decode_uint32 (in, &count) == -1 || count > 500)
 		goto error;
-
-	for (i=0;i<count;i++) {
+	
+	for (i = 0; i < count; i++) {
 		char *name;
-		if (camel_file_util_decode_string(in, &name) == -1 || name == NULL)
+		
+		if (camel_mmap_util_decode_string (in, &name) == -1 || name == NULL)
 			goto error;
-		camel_flag_set(&mi->user_flags, name, TRUE);
-		g_free(name);
+		
+		camel_flag_set (&mi->user_flags, name, TRUE);
 	}
-
-	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500)
+	
+	if (camel_mmap_util_decode_uint32 (in, &count) == -1 || count > 500)
 		goto error;
-
-	for (i=0;i<count;i++) {
+	
+	for (i = 0; i < count; i++) {
 		char *name, *value;
-		if (camel_file_util_decode_string(in, &name) == -1 || name == NULL
-		    || camel_file_util_decode_string(in, &value) == -1)
+		
+		if (camel_mmap_util_decode_string (in, &name) == -1 || name == NULL
+		    || camel_mmap_util_decode_string(in, &value) == -1)
 			goto error;
-		camel_tag_set(&mi->user_tags, name, value);
-		g_free(name);
-		g_free(value);
+		
+		camel_tag_set (&mi->user_tags, name, value);
 	}
-
-	if (!ferror(in))
-		return (CamelMessageInfo *)mi;
-
+	
+	return (CamelMessageInfo *) mi;
+	
 error:
-	camel_message_info_free((CamelMessageInfo *)mi);
-
+	camel_message_info_free ((CamelMessageInfo *) mi);
+	
 	return NULL;
 }
 
 static int
 message_info_save(CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 {
-	guint32 count;
+	CamelMessageInfoBase *mi = (CamelMessageInfoBase *) info;
 	CamelFlag *flag;
 	CamelTag *tag;
+	guint32 count;
 	int i;
-	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
-
+	
 	io(printf("Saving message info\n"));
-
-	camel_file_util_encode_string(out, camel_message_info_uid(mi));
-	camel_file_util_encode_uint32(out, mi->flags);
-	camel_file_util_encode_uint32(out, mi->size);
-	camel_file_util_encode_time_t(out, mi->date_sent);
-	camel_file_util_encode_time_t(out, mi->date_received);
-	camel_file_util_encode_string(out, camel_message_info_subject(mi));
-	camel_file_util_encode_string(out, camel_message_info_from(mi));
-	camel_file_util_encode_string(out, camel_message_info_to(mi));
-	camel_file_util_encode_string(out, camel_message_info_cc(mi));
-	camel_file_util_encode_string(out, camel_message_info_mlist(mi));
-
-	camel_file_util_encode_fixed_int32(out, mi->message_id.id.part.hi);
-	camel_file_util_encode_fixed_int32(out, mi->message_id.id.part.lo);
-
+	
+	camel_file_util_encode_string (out, camel_message_info_uid (mi));
+	camel_file_util_encode_uint32 (out, mi->flags);
+	camel_file_util_encode_uint32 (out, mi->size);
+	camel_file_util_encode_time_t (out, mi->date_sent);
+	camel_file_util_encode_time_t (out, mi->date_received);
+	camel_file_util_encode_string (out, camel_message_info_subject (mi));
+	camel_file_util_encode_string (out, camel_message_info_from (mi));
+	camel_file_util_encode_string (out, camel_message_info_to (mi));
+	camel_file_util_encode_string (out, camel_message_info_cc (mi));
+	camel_file_util_encode_string (out, camel_message_info_mlist (mi));
+	
+	camel_file_util_encode_fixed_int32 (out, mi->message_id.id.part.hi);
+	camel_file_util_encode_fixed_int32 (out, mi->message_id.id.part.lo);
+	
 	if (mi->references) {
-		camel_file_util_encode_uint32(out, mi->references->size);
-		for (i=0;i<mi->references->size;i++) {
-			camel_file_util_encode_fixed_int32(out, mi->references->references[i].id.part.hi);
-			camel_file_util_encode_fixed_int32(out, mi->references->references[i].id.part.lo);
+		camel_file_util_encode_uint32 (out, mi->references->size);
+		for (i = 0; i < mi->references->size; i++) {
+			camel_file_util_encode_fixed_int32 (out, mi->references->references[i].id.part.hi);
+			camel_file_util_encode_fixed_int32 (out, mi->references->references[i].id.part.lo);
 		}
 	} else {
-		camel_file_util_encode_uint32(out, 0);
+		camel_file_util_encode_uint32 (out, 0);
 	}
-
-	count = camel_flag_list_size(&mi->user_flags);
-	camel_file_util_encode_uint32(out, count);
+	
+	count = camel_flag_list_size (&mi->user_flags);
+	camel_file_util_encode_uint32 (out, count);
 	flag = mi->user_flags;
 	while (flag) {
-		camel_file_util_encode_string(out, flag->name);
+		camel_file_util_encode_string (out, flag->name);
 		flag = flag->next;
 	}
-
-	count = camel_tag_list_size(&mi->user_tags);
-	camel_file_util_encode_uint32(out, count);
+	
+	count = camel_tag_list_size (&mi->user_tags);
+	camel_file_util_encode_uint32 (out, count);
 	tag = mi->user_tags;
 	while (tag) {
-		camel_file_util_encode_string(out, tag->name);
-		camel_file_util_encode_string(out, tag->value);
+		camel_file_util_encode_string (out, tag->name);
+		camel_file_util_encode_string (out, tag->value);
 		tag = tag->next;
 	}
-
-	return ferror(out);
+	
+	return ferror (out);
 }
 
 static void
 message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
-
+	
 	g_free(mi->uid);
 	camel_pstring_free(mi->subject);
 	camel_pstring_free(mi->from);
@@ -1854,33 +1854,36 @@ content_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 }
 
 static CamelMessageContentInfo *
-content_info_load(CamelFolderSummary *s, FILE *in)
+content_info_load(CamelFolderSummary *s, const char **in)
 {
 	CamelMessageContentInfo *ci;
+	CamelContentType *ct;
 	char *type, *subtype;
 	guint32 count, i;
-	CamelContentType *ct;
-
+	
 	io(printf("Loading content info\n"));
-
+	
 	ci = camel_folder_summary_content_info_new(s);
 	
-	camel_folder_summary_decode_token(in, &type);
-	camel_folder_summary_decode_token(in, &subtype);
-	ct = camel_content_type_new(type, subtype);
-	g_free(type);		/* can this be removed? */
-	g_free(subtype);
-	if (camel_file_util_decode_uint32(in, &count) == -1 || count > 500)
+	camel_folder_summary_decode_token (in, &type);
+	camel_folder_summary_decode_token (in, &subtype);
+	ct = camel_content_type_new (type, subtype);
+	g_free (type);
+	g_free (subtype);
+	
+	if (camel_mmap_util_decode_uint32 (in, &count) == -1 || count > 500)
 		goto error;
 	
-	for (i=0;i<count;i++) {
+	for (i = 0; i < count; i++) {
 		char *name, *value;
-		camel_folder_summary_decode_token(in, &name);
-		camel_folder_summary_decode_token(in, &value);
+		
+		camel_folder_summary_decode_token (in, &name);
+		camel_folder_summary_decode_token (in, &value);
+		
 		if (!(name && value))
 			goto error;
 		
-		camel_content_type_set_param(ct, name, value);
+		camel_content_type_set_param (ct, name, value);
 		/* TODO: do this so we dont have to double alloc/free */
 		g_free(name);
 		g_free(value);
