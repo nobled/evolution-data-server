@@ -1,5 +1,7 @@
 2006-08-11  Jeffrey Stedfast  <fejj@novell.com>
 
+	Based on pvanhoof's work.
+
 	* camel-folder-summary.[c,h]: Initial work to make the code use
 	mmap, lots of work still left to be done.
 
