@@ -37,9 +37,10 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
+#include "libebackend/e-db3-utils.h"
+
 #include "libedataserver/e-sexp.h"
 #include "libedataserver/e-data-server-util.h"
-#include "libedataserver/e-db3-utils.h"
 #include "libedataserver/e-flag.h"
 #include "libedataserver/e-url.h"
 #include "libebook/e-contact.h"
@@ -2241,6 +2242,9 @@ book_view_thread (gpointer data)
 			view = "name email";
 
 		if (search_string) {
+			if (filter)
+				g_object_unref (filter);
+
 			/* groupwise server supports only name, rebuild the filter */
 			filter = e_gw_filter_new ();
 			e_gw_filter_add_filter_component (filter, E_GW_FILTER_OP_BEGINS,
@@ -2297,6 +2301,8 @@ book_view_thread (gpointer data)
 					printf("reading contacts from cache took %ld.%03ld seconds\n",
 						diff/1000,diff%1000);
 				}
+				if (filter)
+					g_object_unref (filter);
 				return NULL;
 			}
 			else {
@@ -2337,9 +2343,12 @@ book_view_thread (gpointer data)
 				if (temp_list)
 					g_list_free (temp_list);
 				bonobo_object_unref (book_view);
-	
+				
+				if (filter)	
+					g_object_unref (filter);
+
 				return NULL;
-			}
+			} 
 		
 			/* no summary information found, read from server */
 			if (enable_debug)
@@ -2362,6 +2371,8 @@ book_view_thread (gpointer data)
 		if (status != E_GW_CONNECTION_STATUS_OK) {
 			e_data_book_view_notify_complete (book_view, GNOME_Evolution_Addressbook_OtherError);
 			bonobo_object_unref (book_view);
+			if (filter)
+				g_object_unref (filter);
 			return NULL;
 		}
 
@@ -2692,6 +2703,9 @@ build_cache (EBookBackendGroupwise *ebgw)
 			printf("e_gw_connection_read_cursor took %ld.%03ld seconds for %d contacts\n", diff / 1000, diff % 1000, CURSOR_ITEM_LIMIT);
 		}
 
+		if (status != E_GW_CONNECTION_STATUS_OK)
+		       	 break;	
+
 		for (l = gw_items; l != NULL; l = g_list_next (l)) {
 			contact_num++;
 
@@ -2830,12 +2844,6 @@ update_cache (EBookBackendGroupwise *ebgw)
 	mod_time = buf.st_mtime;
 	tm = gmtime (&mod_time);
 	strftime (cache_time_string, 100, "%Y-%m-%dT%H:%M:%SZ", tm);
-
-	if (e_book_backend_summary_load (ebgw->priv->summary) == FALSE ||
-	    e_book_backend_summary_is_up_to_date (ebgw->priv->summary, mod_time) == FALSE) {
-		/* build summary */
-		 build_summary (ebgw);
-	}
 
 	filter = e_gw_filter_new ();
 	e_gw_filter_add_filter_component (filter, E_GW_FILTER_OP_GREATERTHAN,
@@ -3000,11 +3008,6 @@ update_address_book_deltas (EBookBackendGroupwise *ebgw)
 	g_stat (cache_file_name, &buf);
 	g_free (cache_file_name);
 	mod_time = buf.st_mtime;
-	if (e_book_backend_summary_load (ebgw->priv->summary) == FALSE ||
-	    e_book_backend_summary_is_up_to_date (ebgw->priv->summary, mod_time) == FALSE) {
-		/* build summary */
-		 build_summary (ebgw);
-	}
 
 	if (cache_last_sequence != server_last_sequence) {
 
@@ -3331,6 +3334,13 @@ e_book_backend_groupwise_authenticate_user (EBookBackend *backend,
 		if (e_book_backend_db_cache_is_populated (ebgw->priv->file_db)) {
 			if (enable_debug)
 				printf("cache is populated\n");
+
+			if (!e_book_backend_summary_load (priv->summary))
+				build_summary (ebgw);
+			
+			ebgw->priv->is_cache_ready = TRUE;
+			ebgw->priv->is_summary_ready = TRUE;
+
 			if (priv->is_writable){
 				if (enable_debug) {
 					printf("is writable\n");
