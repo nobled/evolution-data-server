@@ -27,11 +27,10 @@
 #ifndef CAMEL_SESSION_H
 #define CAMEL_SESSION_H 1
 
+#include <camel/camel-msgport.h>
 #include <camel/camel-object.h>
 #include <camel/camel-provider.h>
 #include <camel/camel-junk-plugin.h>
-
-#include <libedataserver/e-msgport.h>
 
 #define CAMEL_SESSION_TYPE     (camel_session_get_type ())
 #define CAMEL_SESSION(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SESSION_TYPE, CamelSession))
@@ -101,7 +100,7 @@ typedef struct {
 	CamelFilterDriver * (*get_filter_driver) (CamelSession *session,
 						  const char *type,
 						  CamelException *ex);
-
+	
 	/* mechanism for creating and maintaining multiple threads of control */
 	void *          (*thread_msg_new)    (CamelSession *session,
 					      CamelSessionThreadOps *ops,
@@ -135,9 +134,9 @@ CamelService *  camel_session_get_service           (CamelSession *session,
 						     const char *url_string,
 						     CamelProviderType type,
 						     CamelException *ex);
-CamelService *  camel_session_get_service_connected (CamelSession *session,
+CamelService *  camel_session_get_service_connected (CamelSession *session, 
 						     const char *url_string,
-						     CamelProviderType type,
+						     CamelProviderType type, 
 						     CamelException *ex);
 
 #define camel_session_get_store(session, url_string, ex) \
@@ -191,7 +190,7 @@ struct _CamelSessionThreadOps {
 };
 
 struct _CamelSessionThreadMsg {
-	EMsg msg;
+	CamelMsg msg;
 
 	int id;
 

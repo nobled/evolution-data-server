@@ -35,9 +35,10 @@
 
 #include <glib.h>
 
-#include <libedataserver/e-msgport.h>
+#include <libedataserver/e-msgport.h>  /* for EDList */
 
 #include "camel-operation.h"
+#include "camel-msgport.h"
 
 #define d(x)
 
@@ -67,7 +68,7 @@ struct _CamelOperation {
 	GSList *status_stack;
 	struct _status_stack *lastreport;
 
-	EMsgPort *cancel_port;
+	CamelMsgPort *cancel_port;
 	int cancel_fd;
 #ifdef HAVE_NSS
 	PRFileDesc *cancel_prfd;
@@ -91,7 +92,7 @@ static pthread_key_t operation_key;
 static pthread_once_t operation_once = PTHREAD_ONCE_INIT;
 
 typedef struct _CamelOperationMsg {
-	EMsg msg;
+	CamelMsg msg;
 } CamelOperationMsg ;
 
 static void
@@ -113,13 +114,13 @@ co_getcc(void)
  * @status: Callback for receiving status messages.  This will always
  * be called with an internal lock held.
  * @status_data: User data.
- *
+ * 
  * Create a new camel operation handle.  Camel operation handles can
  * be used in a multithreaded application (or a single operation
  * handle can be used in a non threaded appliation) to cancel running
  * operations and to obtain notification messages of the internal
  * status of messages.
- *
+ * 
  * Return value: A new operation handle.
  **/
 CamelOperation *
@@ -134,20 +135,20 @@ camel_operation_new (CamelOperationStatusFunc status, void *status_data)
 	cc->refcount = 1;
 	cc->status = status;
 	cc->status_data = status_data;
-	cc->cancel_port = e_msgport_new();
+	cc->cancel_port = camel_msgport_new();
 	cc->cancel_fd = -1;
 
 	LOCK();
 	e_dlist_addtail(&operation_list, (EDListNode *)cc);
 	UNLOCK();
-
+	
 	return cc;
 }
 
 /**
  * camel_operation_mute:
- * @cc:
- *
+ * @cc: 
+ * 
  * mutes a camel operation permanently.  from this point on you will never
  * receive operation updates, even if more are sent.
  **/
@@ -179,7 +180,7 @@ camel_operation_registered (void)
 /**
  * camel_operation_ref:
  * @cc: operation context
- *
+ * 
  * Add a reference to the CamelOperation @cc.
  **/
 void
@@ -195,7 +196,7 @@ camel_operation_ref (CamelOperation *cc)
 /**
  * camel_operation_unref:
  * @cc: operation context
- *
+ * 
  * Unref and potentially free @cc.
  **/
 void
@@ -208,14 +209,14 @@ camel_operation_unref (CamelOperation *cc)
 	LOCK();
 	if (cc->refcount == 1) {
 		CamelOperationMsg *msg;
-
+		
 		e_dlist_remove((EDListNode *)cc);
 
-		while ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port)))
+		while ((msg = (CamelOperationMsg *)camel_msgport_try_pop(cc->cancel_port)))
 			g_free(msg);
 
-		e_msgport_destroy(cc->cancel_port);
-
+		camel_msgport_destroy(cc->cancel_port);
+		
 		n = cc->status_stack;
 		while (n) {
 			g_warning("Camel operation status stack non empty: %s", (char *)n->data);
@@ -234,7 +235,7 @@ camel_operation_unref (CamelOperation *cc)
 /**
  * camel_operation_cancel_block:
  * @cc: operation context
- *
+ * 
  * Block cancellation for this operation.  If @cc is NULL, then the
  * current thread is blocked.
  **/
@@ -254,7 +255,7 @@ camel_operation_cancel_block (CamelOperation *cc)
 /**
  * camel_operation_cancel_unblock:
  * @cc: operation context
- *
+ * 
  * Unblock cancellation, when the unblock count reaches the block
  * count, then this operation can be cancelled.  If @cc is NULL, then
  * the current thread is unblocked.
@@ -275,7 +276,7 @@ camel_operation_cancel_unblock (CamelOperation *cc)
 /**
  * camel_operation_cancel:
  * @cc: operation context
- *
+ * 
  * Cancel a given operation.  If @cc is NULL then all outstanding
  * operations are cancelled.
  **/
@@ -283,7 +284,7 @@ void
 camel_operation_cancel (CamelOperation *cc)
 {
 	CamelOperationMsg *msg;
-
+	
 	LOCK();
 
 	if (cc == NULL) {
@@ -294,7 +295,7 @@ camel_operation_cancel (CamelOperation *cc)
 		while (cn) {
 			cc->flags |= CAMEL_OPERATION_CANCELLED;
 			msg = g_malloc0(sizeof(*msg));
-			e_msgport_put(cc->cancel_port, (EMsg *)msg);
+			camel_msgport_push(cc->cancel_port, (CamelMsg *)msg);
 			cc = cn;
 			cn = cn->next;
 		}
@@ -303,7 +304,7 @@ camel_operation_cancel (CamelOperation *cc)
 
 		cc->flags |= CAMEL_OPERATION_CANCELLED;
 		msg = g_malloc0(sizeof(*msg));
-		e_msgport_put(cc->cancel_port, (EMsg *)msg);
+		camel_msgport_push(cc->cancel_port, (CamelMsg *)msg);
 	}
 
 	UNLOCK();
@@ -312,7 +313,7 @@ camel_operation_cancel (CamelOperation *cc)
 /**
  * camel_operation_uncancel:
  * @cc: operation context
- *
+ * 
  * Uncancel a cancelled operation.  If @cc is NULL then the current
  * operation is uncancelled.
  *
@@ -330,7 +331,7 @@ camel_operation_uncancel(CamelOperation *cc)
 		CamelOperationMsg *msg;
 
 		LOCK();
-		while ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port)))
+		while ((msg = (CamelOperationMsg *)camel_msgport_try_pop(cc->cancel_port)))
 			g_free(msg);
 
 		cc->flags &= ~CAMEL_OPERATION_CANCELLED;
@@ -341,7 +342,7 @@ camel_operation_uncancel(CamelOperation *cc)
 /**
  * camel_operation_register:
  * @cc: operation context
- *
+ * 
  * Register a thread or the main thread for cancellation through @cc.
  * If @cc is NULL, then a new cancellation is created for this thread.
  *
@@ -365,7 +366,7 @@ camel_operation_register (CamelOperation *cc)
 /**
  * camel_operation_unregister:
  * @cc: operation context
- *
+ * 
  * Unregister the current thread for all cancellations.
  **/
 void
@@ -378,10 +379,10 @@ camel_operation_unregister (CamelOperation *cc)
 /**
  * camel_operation_cancel_check:
  * @cc: operation context
- *
+ * 
  * Check if cancellation has been applied to @cc.  If @cc is NULL,
  * then the CamelOperation registered for the current thread is used.
- *
+ * 
  * Return value: TRUE if the operation has been cancelled.
  **/
 gboolean
@@ -403,11 +404,11 @@ camel_operation_cancel_check (CamelOperation *cc)
 	} else if (cc->flags & CAMEL_OPERATION_CANCELLED) {
 		d(printf("previously cancelled\n"));
 		cancelled = TRUE;
-	} else if ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port))) {
+	} else if ((msg = (CamelOperationMsg *)camel_msgport_try_pop(cc->cancel_port))) {
 		d(printf("Got cancellation message\n"));
 		do {
 			g_free(msg);
-		} while ((msg = (CamelOperationMsg *)e_msgport_get(cc->cancel_port)));
+		} while ((msg = (CamelOperationMsg *)camel_msgport_try_pop(cc->cancel_port)));
 		cc->flags |= CAMEL_OPERATION_CANCELLED;
 		cancelled = TRUE;
 	} else
@@ -421,10 +422,10 @@ camel_operation_cancel_check (CamelOperation *cc)
 /**
  * camel_operation_cancel_fd:
  * @cc: operation context
- *
+ * 
  * Retrieve a file descriptor that can be waited on (select, or poll)
  * for read, to asynchronously detect cancellation.
- *
+ * 
  * Return value: The fd, or -1 if cancellation is not available
  * (blocked, or has not been registered for this thread).
  **/
@@ -440,7 +441,7 @@ camel_operation_cancel_fd (CamelOperation *cc)
 	LOCK();
 
 	if (cc->cancel_fd == -1)
-		cc->cancel_fd = e_msgport_fd(cc->cancel_port);
+		cc->cancel_fd = camel_msgport_fd(cc->cancel_port);
 
 	UNLOCK();
 
@@ -451,10 +452,10 @@ camel_operation_cancel_fd (CamelOperation *cc)
 /**
  * camel_operation_cancel_prfd:
  * @cc: operation context
- *
+ * 
  * Retrieve a file descriptor that can be waited on (select, or poll)
  * for read, to asynchronously detect cancellation.
- *
+ * 
  * Return value: The fd, or NULL if cancellation is not available
  * (blocked, or has not been registered for this thread).
  **/
@@ -470,7 +471,7 @@ camel_operation_cancel_prfd (CamelOperation *cc)
 	LOCK();
 
 	if (cc->cancel_prfd == NULL)
-		cc->cancel_prfd = e_msgport_prfd(cc->cancel_port);
+		cc->cancel_prfd = camel_msgport_prfd(cc->cancel_port);
 
 	UNLOCK();
 
@@ -483,7 +484,7 @@ camel_operation_cancel_prfd (CamelOperation *cc)
  * @cc: operation context
  * @what: action being performed (printf-style format string)
  * @Varargs: varargs
- *
+ * 
  * Report the start of an operation.  All start operations should have
  * similar end operations.
  **/
@@ -529,7 +530,7 @@ camel_operation_start (CamelOperation *cc, char *what, ...)
  * @cc: operation context
  * @what: printf-style format string describing the action being performed
  * @Varargs: varargs
- *
+ * 
  * Start a transient event.  We only update this to the display if it
  * takes very long to process, and if we do, we then go back to the
  * previous state when finished.
@@ -579,7 +580,7 @@ static unsigned int stamp(void)
  * camel_operation_progress:
  * @cc: Operation to report to.
  * @pc: Percent complete, 0 to 100.
- *
+ * 
  * Report progress on the current operation.  If @cc is NULL, then the
  * currently registered operation is used.  @pc reports the current
  * percentage of completion, which should be in the range of 0 to 100.
@@ -653,8 +654,8 @@ camel_operation_progress_count (CamelOperation *cc, int sofar)
  * camel_operation_end:
  * @cc: operation context
  * @what: Format string.
- * @Varargs: varargs
- *
+ * @Varargs: varargs 
+ * 
  * Report the end of an operation.  If @cc is NULL, then the currently
  * registered operation is notified.
  **/

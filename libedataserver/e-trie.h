@@ -20,9 +20,12 @@
  *
  */
 
+/* This API has been moved to Camel. */
 
 #ifndef __E_TRIE_H__
 #define __E_TRIE_H__
+
+#ifndef EDS_DISABLE_DEPRECATED
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,5 +46,7 @@ const char *e_trie_search (ETrie *trie, const char *buffer, size_t buflen, int *
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* EDS_DISABLE_DEPRECATED */
 
 #endif /* __E_TRIE_H__ */

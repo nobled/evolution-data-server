@@ -26,19 +26,24 @@
 
 #include <sys/types.h>
 #include <iconv.h>
+#include <glib.h>
 
 G_BEGIN_DECLS
 
-const char *camel_iconv_locale_charset (void);
-const char *camel_iconv_locale_language (void);
+const gchar *	camel_iconv_locale_charset	(void);
+const gchar *	camel_iconv_locale_language	(void);
 
-const char *camel_iconv_charset_name (const char *charset);
+const gchar *	camel_iconv_charset_name	(const gchar *charset);
+const gchar *	camel_iconv_charset_language	(const gchar *charset);
 
-const char *camel_iconv_charset_language (const char *charset);
-
-iconv_t camel_iconv_open (const char *to, const char *from);
-size_t camel_iconv (iconv_t cd, const char **inbuf, size_t *inleft, char **outbuf, size_t *outleft);
-void camel_iconv_close (iconv_t cd);
+iconv_t		camel_iconv_open		(const gchar *to,
+						 const gchar *from);
+gsize		camel_iconv			(iconv_t cd,
+						 const gchar **inbuf,
+						 gsize *inleft,
+						 gchar **outbuf,
+						 gsize *outleft);
+void		camel_iconv_close		(iconv_t cd);
 
 G_END_DECLS
 

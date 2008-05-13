@@ -162,6 +162,7 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-exception.c			\
 	camel-file-utils.c			\
 	camel-html-parser.c			\
+	camel-iconv.c				\
 	camel-index.c				\
 	camel-internet-address.c		\
 	camel-junk-plugin.c			\
@@ -191,6 +192,7 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-mime-part.c			\
 	camel-mime-utils.c			\
 	camel-mime-tables.c			\
+	camel-msgport.c				\
 	camel-multipart-encrypted.c		\
 	camel-multipart-signed.c		\
 	camel-multipart.c			\
@@ -210,6 +212,7 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-stream.c				\
 	camel-string-utils.c			\
 	camel-text-index.c			\
+	camel-trie.c				\
 	camel-url-scanner.c			\
 	camel-url.c				\
 	camel-utf8.c				\
@@ -231,6 +234,7 @@ libcamelinclude_HEADERS =			\
 	camel-exception.h			\
 	camel-file-utils.h			\
 	camel-i18n.h				\
+	camel-iconv.h				\
 	camel-index.h				\
 	camel-internet-address.h		\
 	camel-junk-plugin.h			\
@@ -260,6 +264,7 @@ libcamelinclude_HEADERS =			\
 	camel-mime-part-utils.h			\
 	camel-mime-part.h			\
 	camel-mime-utils.h			\
+	camel-msgport.h				\
 	camel-multipart-encrypted.h		\
 	camel-multipart-signed.h		\
 	camel-multipart.h			\
@@ -281,6 +286,7 @@ libcamelinclude_HEADERS =			\
 	camel-stream.h				\
 	camel-string-utils.h			\
 	camel-text-index.h			\
+	camel-trie.h				\
 	camel-types.h				\
 	camel-url-scanner.h			\
 	camel-url.h				\
