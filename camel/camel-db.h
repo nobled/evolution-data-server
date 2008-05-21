@@ -5,6 +5,8 @@
 #include <sqlite3.h>
 #include <glib.h>
 #define CAMEL_DB_FILE "folders.db"
+
+#include <camel-exception.h>
 struct _CamelDB {
 	sqlite3 *db;
 	GMutex *lock;
@@ -14,7 +16,7 @@ typedef struct _CamelDB CamelDB;
 typedef int (*CamelDBSelectCB) (void *data, int ncol, char **colvalues, char **colnames);
 
 
-CamelDB * camel_db_open (const char *path);
+CamelDB * camel_db_open (const char *path, CamelException *ex);
 void camel_db_close (CamelDB *cdb);
 gboolean camel_db_command (CamelDB *cdb, const char *stmt);
 int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data);

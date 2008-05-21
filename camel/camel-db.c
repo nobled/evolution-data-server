@@ -20,18 +20,26 @@ cdb_sql_exec (sqlite3 *db, const char* stmt) {
 }
 
 CamelDB *
-camel_db_open (const char *path)
+camel_db_open (const char *path, CamelException *ex)
 {
 	CamelDB *cdb;
 	sqlite3 *db;
 	int ret;
 
 	ret = sqlite3_open(path, &db);
-	if(ret) {
-    		d(g_warning("Can't open database %s: %s\n", path, sqlite3_errmsg(db)));
-    		sqlite3_close(db);
+	if (ret) {
+
+		if (!db) {
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Insufficient memory"));
+		} else {
+			char *error;
+			error = sqlite3_errmsg (db);
+			d(printf("Can't open database %s: %s\n", path, error));
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(error));
+			sqlite3_close(db);
+		}
 		return NULL;
-  	}
+	}
 
 	cdb = g_new (CamelDB, 1);
 	cdb->db = db;

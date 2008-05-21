@@ -157,7 +157,13 @@ camel_store_finalize (CamelObject *object)
 		camel_object_bag_destroy(store->folders);
 	
 	g_static_rec_mutex_free (&store->priv->folder_lock);
-	
+
+	if (store->cdb) {
+		camel_db_close (store->cdb);
+		g_free (store->cdb);
+		store->cdb = NULL;
+	}
+
 	g_free (store->priv);
 }
 
@@ -200,10 +206,17 @@ construct (CamelService *service, CamelSession *session,
 	   CamelException *ex)
 {
 	CamelStore *store = CAMEL_STORE(service);
+	char *store_path, *store_db_path;
 
 	parent_class->construct(service, session, provider, url, ex);
 	if (camel_exception_is_set (ex))
 		return;
+
+	store_path = camel_session_get_storage_path (session, service, ex);
+	store_db_path = g_strdup_printf ("%s/%s", store_path, CAMEL_DB_FILE);
+	store->cdb = camel_db_open (store_db_path, ex);
+	g_free (store_path);
+	g_free (store_db_path);
 
 	if (camel_url_get_param(url, "filter"))
 		store->flags |= CAMEL_STORE_FILTER_INBOX;

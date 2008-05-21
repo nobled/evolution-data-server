@@ -299,6 +299,7 @@ libcamel_1_2_la_LIBADD =				\
 	$(top_builddir)/libedataserver/libedataserver-${API_VERSION}.la \
 	$(CAMEL_LIBS)							\
 	$(SOCKET_LIBS)							\
+	-lsqlite3							\
 	$(REGEX_LIBS)
 
 
