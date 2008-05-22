@@ -6,7 +6,8 @@
 #include <glib.h>
 #define CAMEL_DB_FILE "folders.db"
 
-#include <camel-exception.h>
+#include "camel-exception.h"
+
 struct _CamelDB {
 	sqlite3 *db;
 	GMutex *lock;

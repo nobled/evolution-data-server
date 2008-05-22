@@ -193,6 +193,35 @@ struct _CamelChangeInfo {
 };
 */
 
+/* The extensive DB format, supporting basic searching and sorting
+  uid, - Message UID
+  flags, - Camel Message info flags
+  unread/read, - boolean read/unread status
+  deleted, - boolean deleted status
+  replied, - boolean replied status
+  imp, - boolean important status
+  junk, - boolean junk status
+  size, - size of the mail
+  attachment, boolean attachment status
+  dsent, - sent date
+  dreceived, - received date
+  subject, - subject of the mail
+  from, - sender
+  to, - recipient
+  cc, - CC members
+  mlist, - message list headers
+  follow-up-flag, - followup flag / also can be queried to see for followup or not
+  completed-on-set, - completed date, can be used to see if completed
+  due-by,  - to see the due by date
+  Location  
+  label, - labels of mails
+  userflags, composite string of user flags
+  usertags, composite string of user tags
+  cinfo, content info string - composite string
+  bdata, provider specific data
+
+*/
+
 typedef enum _CamelFolderSummaryFlags {
 	CAMEL_SUMMARY_DIRTY = 1<<0
 } CamelFolderSummaryFlags;

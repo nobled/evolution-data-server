@@ -1,3 +1,9 @@
+2008-05-22  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.h: Fix compilter warning.
+	* camel/camel-store.c: Use g_build_filename
+	* camel/camel-folder-summary.h: Describe the storage format.
+
 2008-05-13  Tor Lillqvist  <tml@novell.com>
 
 	* camel-net-utils.h [Win32]: Define WIN32_LEAN_AND_MEAN around
