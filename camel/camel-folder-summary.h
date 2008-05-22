@@ -213,14 +213,56 @@ struct _CamelChangeInfo {
   follow-up-flag, - followup flag / also can be queried to see for followup or not
   completed-on-set, - completed date, can be used to see if completed
   due-by,  - to see the due by date
-  Location  
+  Location - This can be derived from the database location/name. No need to store.
   label, - labels of mails
   userflags, composite string of user flags
   usertags, composite string of user tags
   cinfo, content info string - composite string
   bdata, provider specific data
-
+  part, part/references/thread id
 */
+
+typedef struct _CamelMIRecord {
+	char *uid;
+	guint32 flags;
+	gboolean read;
+	gboolean deleted;
+	gboolean replied;
+	gboolean important;
+	gboolean junk;
+	gboolean attachment;
+	guint32 size;
+	time_t dsent;
+	time_t dreceived;
+	char *subject;
+	char *from;
+	char *to;
+	char *cc;
+	char *mlist;
+	char *followup_flag;
+	char *followup_completedon;
+	char *followup_dueby;
+	char *part;
+	char *labels;
+	char *userflags;
+	char *usertags;
+	char *cinfo;
+	char *bdata;
+} CamelMIRecord;
+
+typedef struct _CamelFIRecord {
+	char *folder;
+	guint32 version;
+	guint32 flags;
+	guint32 nextuid;
+	time_t time;
+	guint32 savedcount;
+	/* Are these three really required? Can we just query it*/
+	guint32 unread;
+	guint32 deleted;
+	guint32 junk;
+	char *bdata;
+} CamelFIRecord;
 
 typedef enum _CamelFolderSummaryFlags {
 	CAMEL_SUMMARY_DIRTY = 1<<0
@@ -265,7 +307,9 @@ struct _CamelFolderSummaryClass {
 	/* load/save the global info */
 	int (*summary_header_load)(CamelFolderSummary *, FILE *);
 	int (*summary_header_save)(CamelFolderSummary *, FILE *);
-
+	int (*summary_header_from_db)(CamelFolderSummary *, CamelFIRecord *);
+	CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *);
+				      
 	/* create/save/load an individual message info */
 	CamelMessageInfo * (*message_info_new_from_header)(CamelFolderSummary *, struct _camel_header_raw *);
 	CamelMessageInfo * (*message_info_new_from_parser)(CamelFolderSummary *, CamelMimeParser *);

@@ -1,5 +1,10 @@
 2008-05-22  Srinivasa Ragavan  <sragavan@novell.com>
 
+	* camel/camel-folder-summary.h: Add FIR, MIR details.
+	* camel/camel-store.c:
+
+2008-05-22  Srinivasa Ragavan  <sragavan@novell.com>
+
 	* camel/camel-db.h: Fix compilter warning.
 	* camel/camel-store.c: Use g_build_filename
 	* camel/camel-folder-summary.h: Describe the storage format.

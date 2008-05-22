@@ -213,7 +213,7 @@ construct (CamelService *service, CamelSession *session,
 		return;
 
 	store_path = camel_session_get_storage_path (session, service, ex);
-	store_db_path = g_strdup_printf ("%s/%s", store_path, CAMEL_DB_FILE);
+	store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
 	store->cdb = camel_db_open (store_db_path, ex);
 	g_free (store_path);
 	g_free (store_db_path);
