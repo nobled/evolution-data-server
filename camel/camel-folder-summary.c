@@ -1498,6 +1498,40 @@ summary_meta_header_load(CamelFolderSummary *s, FILE *in)
 	return 0;
 }
 
+static	int
+summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *record)
+{
+	io(printf("Loading header from db \n"));
+	
+	s->version = record->version;
+
+	/* We may not worry, as we are setting a new standard here */
+#if 0	
+	/* Legacy version check, before version 12 we have no upgrade knowledge */
+	if ((s->version > 0xff) && (s->version & 0xff) < 12) {
+		io(printf ("Summary header version mismatch"));
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (!(s->version < 0x100 && s->version >= 13))
+		io(printf("Loading legacy summary\n"));
+	else
+		io(printf("loading new-format summary\n"));
+#endif
+	
+	s->flags = record->flags;
+	s->nextuid = record->nextuid;
+	s->time = record->time;
+	s->saved_count = record->savedcount;
+
+	s->unread_count = record->unread;
+	s->deleted_count = record->deleted;
+	s->junk_count = record->junk;
+
+	return 0;	
+}
+
 static int
 summary_header_load(CamelFolderSummary *s, FILE *in)
 {
@@ -1540,6 +1574,37 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 	}
 
 	return 0;
+}
+
+#define DB_COUNT(lhs,var,cond) str =  g_strdup_printf ("select counts(%s) from %s%s", var, table_name, cond); \
+	ldh = camel_db_count (s->folder->parent_store->cdb, str); \
+	g_free (str);
+
+
+static	CamelFIRecord *
+summary_header_to_db (CamelFolderSummary *s)
+{
+	int unread = 0, deleted = 0, junk = 0, count, i;
+	struct _CamelFIRecord * record = g_new0 (struct _CamelFIRecord, 1);
+	char *table_name = safe_table (camel_file_util_safe_filename (s->folder->full_name));
+	char *str;
+	
+	io(printf("Savining header to db\n"));
+	
+	record->folder = table_name;
+	
+	/* we always write out the current version */
+	record->version = CAMEL_FOLDER_SUMMARY_VERSION;
+	record->flags  = s->flags;
+	record->nextuid = s->nextuid;
+	record->time = s->time;
+
+	DB_COUNT(record->savedcount, "uid", "");
+	DB_COUNT(record->unread, "read", " where read=0");
+	DB_COUNT(record->deleted, "deleted", " where deleted=1");
+	DB_COUNT(record->junk, "junk", "where junk=1");
+	
+	return record;	
 }
 
 static int
@@ -3279,6 +3344,9 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->summary_header_load = summary_header_load;
 	klass->summary_header_save = summary_header_save;
 
+	klass->summary_header_from_db = summary_header_from_db;
+	klass->summary_header_to_db = summary_header_to_db;
+	
 	klass->message_info_new_from_header  = message_info_new_from_header;
 	klass->message_info_new_from_parser = message_info_new_from_parser;
 	klass->message_info_new_from_message = message_info_new_from_message;

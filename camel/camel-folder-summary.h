@@ -307,6 +307,8 @@ struct _CamelFolderSummaryClass {
 	/* load/save the global info */
 	int (*summary_header_load)(CamelFolderSummary *, FILE *);
 	int (*summary_header_save)(CamelFolderSummary *, FILE *);
+
+	/* Load/Save folder summary from DB*/
 	int (*summary_header_from_db)(CamelFolderSummary *, CamelFIRecord *);
 	CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *);
 				      
