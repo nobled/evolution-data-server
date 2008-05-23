@@ -42,7 +42,7 @@
 #include "camel-store.h"
 #include "camel-vtrash-folder.h"
 
-#define d(x)
+#define d(x) x
 #define w(x)
 
 static CamelServiceClass *parent_class = NULL;
@@ -153,6 +153,7 @@ camel_store_finalize (CamelObject *object)
 {
 	CamelStore *store = CAMEL_STORE (object);
 
+	d(printf ("\n\acamel_store_finalize called \n\a"));
 	if (store->folders)
 		camel_object_bag_destroy(store->folders);
 	
@@ -219,7 +220,11 @@ construct (CamelService *service, CamelSession *session,
 	if (camel_exception_is_set (ex))
 		return;
 
-	camel_db_create_folders_table (store->cdb, ex);
+	if (camel_db_create_folders_table (store->cdb, ex))
+		printf ("something went wrong terribly\n");
+	else
+		printf ("folders table succesfully created \n");
+
 	if (camel_exception_is_set (ex))
 		return;
 

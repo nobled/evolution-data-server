@@ -312,6 +312,9 @@ void 	 camel_folder_summary_set_uid	      (CamelFolderSummary *summary, guint32 
 int camel_folder_summary_load(CamelFolderSummary *summary);
 int camel_folder_summary_save(CamelFolderSummary *summary);
 
+/* load/save the full summary from/to the db */
+int camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex);
+
 /* only load the header */
 int camel_folder_summary_header_load(CamelFolderSummary *summary);
 

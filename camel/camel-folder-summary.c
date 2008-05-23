@@ -34,6 +34,7 @@
 #include <sys/types.h>
 
 #include <glib.h>
+#include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
 #include <libedataserver/e-memory.h>
@@ -66,7 +67,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 /* this should probably be conditional on it existing */
 #define USE_BSEARCH
 
-#define d(x)
+#define d(x) x
 #define io(x)			/* io debug */
 #define w(x)
 
@@ -638,11 +639,13 @@ perform_content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentI
 
 
 int
-camel_folder_summary_save_db (CamelFolderSummary *s, CamelException *ex)
+camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 {
 	CamelDB *cdb = s->folder->parent_store->cdb;
 	CamelFIRecord *record;
 	int ret;
+
+	d(printf ("\n\acamel_folder_summary_save_to_db called \n\a"));
 
 	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s));
 	if (!record) {
@@ -1606,7 +1609,8 @@ static	CamelFIRecord *
 summary_header_to_db (CamelFolderSummary *s)
 {
 	CamelFIRecord * record = g_new0 (struct _CamelFIRecord, 1);
-	char *table_name = safe_table (camel_file_util_safe_filename (s->folder->full_name));
+	//char *table_name = safe_table (camel_file_util_safe_filename (s->folder->full_name));
+	char *table_name = s->folder->full_name;
 	char *str;
 	
 	io(printf("Savining header to db\n"));
