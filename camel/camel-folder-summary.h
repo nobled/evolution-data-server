@@ -314,6 +314,7 @@ int camel_folder_summary_save(CamelFolderSummary *summary);
 
 /* load/save the full summary from/to the db */
 int camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex);
+int camel_folder_summary_load_from_db (CamelFolderSummary *s);
 
 /* only load the header */
 int camel_folder_summary_header_load(CamelFolderSummary *summary);

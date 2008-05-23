@@ -42,7 +42,7 @@
 
 #define w(x)
 #define io(x)
-#define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
+#define d(x) x /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
 #define CAMEL_LOCAL_SUMMARY_VERSION (1)
 
@@ -140,7 +140,8 @@ camel_local_summary_construct(CamelLocalSummary *new, const char *filename, cons
 static int
 local_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex)
 {
-	return camel_folder_summary_load((CamelFolderSummary *)cls);
+	d(g_print ("\nlocal_summary_load called \n"));
+	return camel_folder_summary_load_from_db ((CamelFolderSummary *)cls);
 }
 
 /* load/check the summary */
@@ -153,7 +154,6 @@ camel_local_summary_load(CamelLocalSummary *cls, int forceindex, CamelException 
 	d(printf("Loading summary ...\n"));
 
 	if (forceindex
-	    || g_stat(s->summary_path, &st) == -1
 	    || ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->load(cls, forceindex, ex) == -1) {
 		w(g_warning("Could not load summary: flags may be reset"));
 		camel_folder_summary_clear((CamelFolderSummary *)cls);
@@ -424,7 +424,7 @@ local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMess
 	
 	mi = (CamelLocalMessageInfo *)camel_folder_summary_add_from_message((CamelFolderSummary *)cls, msg);
 	if (mi) {
-		d(printf("Added, uid = %s\n", mi->uid));
+		//d(printf("Added, uid = %s\n", mi->uid));
 		if (info) {
 			const CamelTag *tag = camel_message_info_user_tags(info);
 			const CamelFlag *flag = camel_message_info_user_flags(info);

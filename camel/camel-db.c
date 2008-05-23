@@ -54,7 +54,7 @@ camel_db_open (const char *path, CamelException *ex)
 	cdb = g_new (CamelDB, 1);
 	cdb->db = db;
 	cdb->lock = g_mutex_new ();
-	d(g_print ("\n\aDatabase succesfully opened  \n\a"));
+	d(g_print ("\nDatabase succesfully opened  \n"));
 	return cdb;
 }
 
@@ -65,7 +65,7 @@ camel_db_close (CamelDB *cdb)
 		sqlite3_close (cdb->db);
 		g_mutex_free (cdb->lock);
 		g_free (cdb);
-		d(g_print ("\n\aDatabase succesfully closed \n\a"));
+		d(g_print ("\nDatabase succesfully closed \n"));
 	}
 }
 
@@ -91,7 +91,7 @@ count_cb (void *data, int argc, char **argv, char **azColName)
 
   	for(i=0; i<argc; i++) {
 		if (strstr(azColName[i], "count")) {
-			*(int **)data = atol(argv[i]);
+			(*(int **)data) = atoi(argv[i]);
 		}
   	}
 
@@ -120,7 +120,7 @@ camel_db_count (CamelDB *cdb, const char *stmt)
 
 
 int
-camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data) 
+camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex) 
 {
   	char *errmsg;
   	//int nrecs = 0;
@@ -133,6 +133,7 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 
   	if(ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement '%s' [%s].\n", stmt, errmsg));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);
 		sqlite3_free (errmsg);
   	}
 	g_mutex_unlock (cdb->lock);
@@ -190,6 +191,70 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 
 	return 0;
 }
+
+static int 
+read_fir_callback (void * ref, int ncol, char ** cols, char ** name)
+{
+	CamelFIRecord *record = *(CamelFIRecord **) ref;
+
+	d(g_print ("\nread_fir_callback called \n"));
+#if 0
+	record->folder_name = cols [0];
+	record->version = cols [1];
+	/* Just a sequential mapping of struct members to columns is enough I guess. 
+	Needs some checking */
+#else
+	int i;
+	
+	for (i = 0; i < ncol; ++i) {
+		if (!strcmp (name [i], "folder_name"))
+			record->folder_name = g_strdup(cols [i]);
+
+		else if (!strcmp (name [i], "version"))
+			record->version = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "flags"))
+			record->flags = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "nextuid"))
+			record->nextuid = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "time"))
+			record->time = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "saved_count"))
+			record->saved_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "unread_count"))
+			record->unread_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "deleted_count"))
+			record->deleted_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "junk_count"))
+			record->junk_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+
+		else if (!strcmp (name [i], "bdata"))
+			record->bdata = g_strdup (cols [i]);
+	
+	}
+#endif 
+	return 0;
+}
+
+int
+camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord **record, CamelException *ex)
+{
+	char *query;
+
+	d(g_print ("\ncamel_db_read_folder_info_record called \n"));
+
+	query = g_strdup_printf ("SELECT * FROM folders WHERE folder_name = \"%s\"", folder_name);
+
+	return (camel_db_select (cdb, query, read_fir_callback, record, ex));
+}
+
+
 
 gboolean
 camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex)

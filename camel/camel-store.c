@@ -153,7 +153,7 @@ camel_store_finalize (CamelObject *object)
 {
 	CamelStore *store = CAMEL_STORE (object);
 
-	d(printf ("\n\acamel_store_finalize called \n\a"));
+	d(printf ("\ncamel_store_finalize called \n"));
 	if (store->folders)
 		camel_object_bag_destroy(store->folders);
 	

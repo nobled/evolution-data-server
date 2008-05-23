@@ -549,6 +549,38 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 }
 
 
+int
+camel_folder_summary_load_from_db (CamelFolderSummary *s)
+{
+	CamelDB *cdb;
+	CamelFIRecord *record;
+	CamelException ex;// May be this should come from the provider
+	char *folder_name;
+
+	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
+
+	s->flags &= ~CAMEL_SUMMARY_DIRTY;
+
+	folder_name = s->folder->full_name;
+	cdb = s->folder->parent_store->cdb;
+
+	record = g_new0 (CamelFIRecord, 1);
+	camel_db_read_folder_info_record (cdb, folder_name, &record, &ex);
+
+	if (record) {
+		if ( ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_from_db (s, record) == -1)
+			return -1;
+	} else {
+		return -1;
+	}
+
+
+	/* FIXME: What about message-info ? Ye Need to load them. */
+
+	return 0;
+
+}
+
 /**
  * camel_folder_summary_load:
  * @summary: a #CamelFolderSummary object
@@ -563,6 +595,8 @@ camel_folder_summary_load(CamelFolderSummary *s)
 	FILE *in;
 	int i;
 	CamelMessageInfo *mi;
+	
+	d(g_print ("\ncamel_folder_summary_load from FLAT FILE called \n"));
 
 	if (s->summary_path == NULL ||
 	    s->meta_summary->path == NULL)
@@ -645,7 +679,7 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	CamelFIRecord *record;
 	int ret;
 
-	d(printf ("\n\acamel_folder_summary_save_to_db called \n\a"));
+	d(printf ("\ncamel_folder_summary_save_to_db called \n"));
 
 	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s));
 	if (!record) {
