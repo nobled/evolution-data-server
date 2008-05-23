@@ -160,7 +160,6 @@ camel_store_finalize (CamelObject *object)
 
 	if (store->cdb) {
 		camel_db_close (store->cdb);
-		g_free (store->cdb);
 		store->cdb = NULL;
 	}
 
