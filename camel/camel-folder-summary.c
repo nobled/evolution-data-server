@@ -54,6 +54,7 @@
 #include "camel-stream-mem.h"
 #include "camel-stream-null.h"
 #include "camel-string-utils.h"
+#include "camel-store.h"
 
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -1576,16 +1577,15 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 	return 0;
 }
 
-#define DB_COUNT(lhs,var,cond) str =  g_strdup_printf ("select counts(%s) from %s%s", var, table_name, cond); \
-	ldh = camel_db_count (s->folder->parent_store->cdb, str); \
+#define DB_COUNT(lhs,var,cond) str =  g_strdup_printf ("select count(%s) from %s%s", var, table_name, cond); \
+	lhs = camel_db_count (s->folder->parent_store->cdb, str); \
 	g_free (str);
 
 
 static	CamelFIRecord *
 summary_header_to_db (CamelFolderSummary *s)
 {
-	int unread = 0, deleted = 0, junk = 0, count, i;
-	struct _CamelFIRecord * record = g_new0 (struct _CamelFIRecord, 1);
+	CamelFIRecord * record = g_new0 (struct _CamelFIRecord, 1);
 	char *table_name = safe_table (camel_file_util_safe_filename (s->folder->full_name));
 	char *str;
 	
