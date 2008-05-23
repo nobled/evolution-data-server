@@ -141,6 +141,51 @@ camel_db_delete_folder (CamelDB *cdb, char *folder)
 	return ret;
 }
 
+int
+camel_db_create_folders_table (CamelDB *cdb)
+{
+	char *query = "CREATE TABLE IF NOT EXISTS folders ( \
+			foldername TEXT PRIMARY KEY, \
+			version REAL, \
+			flags INTEGER, \
+			nextuid INTEGER, \
+			time NUMERIC, \
+			saved_count INTEGER, \
+			unread_count INTEGER, \
+			deleted_count INTEGER, \
+			junk_count INTEGER, \
+			bdata TEXT, \
+			)";
+
+	return ((camel_db_command (cdb, query)) == TRUE);
+}
+
+int
+camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex)
+{
+
+	char *query;
+
+	query = g_strdup_printf ("UPDATE folders SET \
+					version = %d, \
+					flags = %d, \
+					nextuid = %d, \
+					time = 14/6/83, \
+					saved_count = %d, \
+					unread_count = %d, \
+					deleted_count = %d, \
+					junk_count = %d, \
+					bdata = %s, \
+					WHERE foldername = %s",
+					record->version, record->flags, record->nextuid, 
+					record->saved_count, record->unread_count, 
+					record->deleted_count, record->junk_count,
+					"PROVIDER SPECIFIC DATA", record->folder_name );
+
+	camel_db_command (cdb, query);
+	g_free (query);
+}
+
 gboolean
 camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid)
 {

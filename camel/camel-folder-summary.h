@@ -27,6 +27,7 @@
 #include <camel/camel-mime-parser.h>
 #include <camel/camel-object.h>
 #include <camel/camel-index.h>
+#include <camel/camel-db.h>
 
 #define CAMEL_FOLDER_SUMMARY_TYPE         camel_folder_summary_get_type ()
 #define CAMEL_FOLDER_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_folder_summary_get_type (), CamelFolderSummary)
@@ -192,77 +193,6 @@ struct _CamelChangeInfo {
 	GPtrArray *recent;
 };
 */
-
-/* The extensive DB format, supporting basic searching and sorting
-  uid, - Message UID
-  flags, - Camel Message info flags
-  unread/read, - boolean read/unread status
-  deleted, - boolean deleted status
-  replied, - boolean replied status
-  imp, - boolean important status
-  junk, - boolean junk status
-  size, - size of the mail
-  attachment, boolean attachment status
-  dsent, - sent date
-  dreceived, - received date
-  subject, - subject of the mail
-  from, - sender
-  to, - recipient
-  cc, - CC members
-  mlist, - message list headers
-  follow-up-flag, - followup flag / also can be queried to see for followup or not
-  completed-on-set, - completed date, can be used to see if completed
-  due-by,  - to see the due by date
-  Location - This can be derived from the database location/name. No need to store.
-  label, - labels of mails
-  userflags, composite string of user flags
-  usertags, composite string of user tags
-  cinfo, content info string - composite string
-  bdata, provider specific data
-  part, part/references/thread id
-*/
-
-typedef struct _CamelMIRecord {
-	char *uid;
-	guint32 flags;
-	gboolean read;
-	gboolean deleted;
-	gboolean replied;
-	gboolean important;
-	gboolean junk;
-	gboolean attachment;
-	guint32 size;
-	time_t dsent;
-	time_t dreceived;
-	char *subject;
-	char *from;
-	char *to;
-	char *cc;
-	char *mlist;
-	char *followup_flag;
-	char *followup_completedon;
-	char *followup_dueby;
-	char *part;
-	char *labels;
-	char *userflags;
-	char *usertags;
-	char *cinfo;
-	char *bdata;
-} CamelMIRecord;
-
-typedef struct _CamelFIRecord {
-	char *folder;
-	guint32 version;
-	guint32 flags;
-	guint32 nextuid;
-	time_t time;
-	guint32 savedcount;
-	/* Are these three really required? Can we just query it*/
-	guint32 unread;
-	guint32 deleted;
-	guint32 junk;
-	char *bdata;
-} CamelFIRecord;
 
 typedef enum _CamelFolderSummaryFlags {
 	CAMEL_SUMMARY_DIRTY = 1<<0

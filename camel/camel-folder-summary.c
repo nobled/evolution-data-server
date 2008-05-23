@@ -637,6 +637,26 @@ perform_content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentI
 }
 
 
+int
+camel_folder_summary_save_db (CamelFolderSummary *s, CamelException *ex)
+{
+	CamelDB *cdb = s->folder->parent_store->cdb;
+	CamelFIRecord *record;
+	int ret;
+
+	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s));
+	if (!record) {
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create folder summary"));
+		return -1;
+	}
+
+	ret = camel_db_write_folder_info_record (cdb, record, ex);
+
+	g_free (record);
+	
+	return ret;
+}
+
 /**
  * camel_folder_summary_save:
  * @summary: a #CamelFolderSummary object
@@ -1524,11 +1544,11 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *record)
 	s->flags = record->flags;
 	s->nextuid = record->nextuid;
 	s->time = record->time;
-	s->saved_count = record->savedcount;
+	s->saved_count = record->saved_count;
 
-	s->unread_count = record->unread;
-	s->deleted_count = record->deleted;
-	s->junk_count = record->junk;
+	s->unread_count = record->unread_count;
+	s->deleted_count = record->deleted_count;
+	s->junk_count = record->junk_count;
 
 	return 0;	
 }
@@ -1591,7 +1611,7 @@ summary_header_to_db (CamelFolderSummary *s)
 	
 	io(printf("Savining header to db\n"));
 	
-	record->folder = table_name;
+	record->folder_name = table_name;
 	
 	/* we always write out the current version */
 	record->version = CAMEL_FOLDER_SUMMARY_VERSION;
@@ -1599,10 +1619,10 @@ summary_header_to_db (CamelFolderSummary *s)
 	record->nextuid = s->nextuid;
 	record->time = s->time;
 
-	DB_COUNT(record->savedcount, "uid", "");
-	DB_COUNT(record->unread, "read", " where read=0");
-	DB_COUNT(record->deleted, "deleted", " where deleted=1");
-	DB_COUNT(record->junk, "junk", "where junk=1");
+	DB_COUNT(record->saved_count, "uid", "");
+	DB_COUNT(record->unread_count, "read", " where read=0");
+	DB_COUNT(record->deleted_count, "deleted", " where deleted=1");
+	DB_COUNT(record->junk_count, "junk", "where junk=1");
 	
 	return record;	
 }

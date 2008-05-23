@@ -216,6 +216,12 @@ construct (CamelService *service, CamelSession *session,
 	store->cdb = camel_db_open (store_db_path, ex);
 	g_free (store_path);
 	g_free (store_db_path);
+	if (camel_exception_is_set (ex))
+		return;
+
+	camel_db_create_folders_table (store->cdb, ex);
+	if (camel_exception_is_set (ex))
+		return;
 
 	if (camel_url_get_param(url, "filter"))
 		store->flags |= CAMEL_STORE_FILTER_INBOX;
