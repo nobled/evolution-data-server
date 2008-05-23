@@ -556,6 +556,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	CamelFIRecord *record;
 	CamelException ex;// May be this should come from the provider
 	char *folder_name;
+	int ret = 0;
 
 	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
 
@@ -569,15 +570,16 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 
 	if (record) {
 		if ( ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_from_db (s, record) == -1)
-			return -1;
+			ret = -1;
 	} else {
-		return -1;
+		ret = -1;
 	}
 
+	g_free (record);
 
 	/* FIXME: What about message-info ? Ye Need to load them. */
 
-	return 0;
+	return ret;
 
 }
 
