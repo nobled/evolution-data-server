@@ -1,3 +1,28 @@
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #531439
+
+	* e-passwords.c (ep_keyring_uri_new):
+	Prevent GPG passphrases from destroying other passwords.  GPG
+	passphrases are only cached for the current session, not stored
+	permanently in the keyring (mainly because those types of keys
+	are not URIs with server and usernames).  We defer to third-party
+	GPG agents like Seahorse for persistent storage of passphrases.
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #354923
+
+	* e-passwords.c:
+	Store passwords in the keyring by server, username and protocol.
+	Storing the protocol allows us to handle situations where, for
+	example, you use the same server and username for IMAP and
+	authenticated SMTP but the passwords are different.
+
+	Also add sufficient backward-compatibility cruft that we can still
+	find existing passwords that are stored in the keyring by server
+	and username only.
+
 2008-05-16  Matthew Barnes  <mbarnes@redhat.com>
 
 	** Fixes bug #532286

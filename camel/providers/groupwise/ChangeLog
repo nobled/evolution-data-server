@@ -1,3 +1,40 @@
+2008-05-21  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-groupwise-store.c (convert_to_folder_info): Marking this
+	function as static.
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #531591
+
+	* camel-groupwise-utils.c:
+	* camel-groupwise-folder.c
+	* camel-groupwise-store.c:
+	Don't use TeX-style quotes in user-visible messages.
+
+2008-05-19  Sankar P  <psankar@novell.com>
+
+	* camel-groupwise-folder.c: (groupwise_transfer_messages_to):
+	Use the right iterator to prevent a crash in offline mail movement.
+
+	** Fix for bug #531009
+
+2008-05-19  Sankar P  <psankar@novell.com>
+
+	* camel-groupwise-folder.c: (gw_update_summary):
+	Added a necessary condition to handle a specific server response 
+	and to prevent a crash.
+
+	** Fix for bug #530514
+
+2008-05-19  Sankar P  <psankar@novell.com>
+
+	* camel-groupwise-folder.c: (groupwise_folder_get_message),
+	(gw_update_cache):
+	Large memory leak while syncing mails for offline usage.
+
+	** Fix for bug #530543
+
 2008-04-30  Chenthill Palanisamy  <pchenthill@novell.com>
 
 	** Fixes #338330 (bnc)

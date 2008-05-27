@@ -24,14 +24,14 @@
 #endif
 
 #include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include <glib.h>
 #include <glib/gi18n-lib.h>
@@ -642,7 +642,7 @@ camel_folder_summary_load(CamelFolderSummary *s)
 
 error:
 	if (errno != EINVAL)
-		g_warning ("Cannot load summary file: `%s': %s", s->summary_path, g_strerror (errno));
+		g_warning ("Cannot load summary file: '%s': %s", s->summary_path, g_strerror (errno));
 	
 	CAMEL_SUMMARY_UNLOCK(s, io_lock);
 	fclose (in);
@@ -1929,7 +1929,7 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	irt = camel_header_references_inreplyto_decode (camel_header_raw_find (&h, "in-reply-to", NULL));
 	if (refs || irt) {
 		if (irt) {
-			/* The References field is populated from the ``References'' and/or ``In-Reply-To''
+			/* The References field is populated from the "References" and/or "In-Reply-To"
 			   headers. If both headers exist, take the first thing in the In-Reply-To header
 			   that looks like a Message-ID, and append it to the References header. */
 			
@@ -3155,6 +3155,8 @@ info_ptr(const CamelMessageInfo *mi, int id)
 		return ((const CamelMessageInfoBase *)mi)->user_flags;
 	case CAMEL_MESSAGE_INFO_USER_TAGS:
 		return ((const CamelMessageInfoBase *)mi)->user_tags;
+	case CAMEL_MESSAGE_INFO_HEADERS:
+		return ((const CamelMessageInfoBase *)mi)->headers;
 	default:
 		abort();
 	}

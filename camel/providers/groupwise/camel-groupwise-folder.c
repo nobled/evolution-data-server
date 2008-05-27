@@ -201,6 +201,7 @@ groupwise_folder_get_message( CamelFolder *folder, const char *uid, CamelExcepti
 
 	camel_message_info_free (&mi->info);
 	g_free (container_id);
+	g_object_unref (item);
 	return msg;
 }
 
@@ -1449,6 +1450,7 @@ gw_update_cache (CamelFolder *folder, GList *list, CamelException *ex, gboolean 
 		}
 		/******************** Caching stuff ends *************************/
 		i++;
+		g_object_unref (item);
 	}
 	camel_operation_end (NULL);
 	g_free (container_id);
@@ -1568,7 +1570,7 @@ gw_update_summary ( CamelFolder *folder, GList *list,CamelException *ex)
 				str = g_string_append (str, " ");
 			}
 
-                        if (org->display_name[0] == '\0') { 
+                        if (org->display_name && org->display_name[0] == '\0') { 
 				
                                 str = g_string_append (str, org->email);
 				str = g_string_append (str, " ");
@@ -2031,7 +2033,7 @@ groupwise_append_message (CamelFolder *folder, CamelMimeMessage *message,
 		is_ok = TRUE;
 
 	if (!is_ok) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot append message to folder `%s': %s"),
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot append message to folder '%s': %s"),
 				folder->full_name, e_gw_connection_get_error_message (status));
 		return;
 	}
@@ -2073,7 +2075,7 @@ groupwise_append_message (CamelFolder *folder, CamelMimeMessage *message,
 	status = e_gw_connection_add_item (cnc, container_id, id);
 	g_message ("Adding %s to %s", id, container_id);
 	if (status != E_GW_CONNECTION_STATUS_OK) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot append message to folder `%s': %s"),
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot append message to folder '%s': %s"),
 				folder->full_name, e_gw_connection_get_error_message (status));
 
 		if (appended_uid)
@@ -2167,8 +2169,8 @@ groupwise_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 							_("This message is not available in offline mode."));
 
 				} else {
-					camel_folder_summary_remove_uid (source->summary, uids->pdata[index]);
-					camel_folder_change_info_remove_uid (changes, uids->pdata[index]);
+					camel_folder_summary_remove_uid (source->summary, uids->pdata[i]);
+					camel_folder_change_info_remove_uid (changes, uids->pdata[i]);
 				}
 			}
 		}

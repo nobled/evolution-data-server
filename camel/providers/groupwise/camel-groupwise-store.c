@@ -75,7 +75,7 @@ struct _CamelGroupwiseStorePrivate {
 static CamelOfflineStoreClass *parent_class = NULL;
 
 extern CamelServiceAuthType camel_groupwise_password_authtype; /*for the query_auth_types function*/
-CamelFolderInfo *convert_to_folder_info (CamelGroupwiseStore *store, EGwContainer *container, const char *url, CamelException *ex);
+static CamelFolderInfo *convert_to_folder_info (CamelGroupwiseStore *store, EGwContainer *container, const char *url, CamelException *ex);
 static void groupwise_folders_sync (CamelGroupwiseStore *store, CamelException *ex);
 static int match_path(const char *path, const char *name);
 
@@ -783,7 +783,7 @@ gw_store_reload_folder (CamelGroupwiseStore *gw_store, CamelFolder *folder, guin
 	return;
 }
 
-CamelFolderInfo *
+static CamelFolderInfo *
 convert_to_folder_info (CamelGroupwiseStore *store, EGwContainer *container, const char *url, CamelException *ex)
 {
 	const char *name = NULL, *id = NULL, *parent = NULL;
@@ -1304,7 +1304,7 @@ groupwise_rename_folder(CamelStore *store,
 	char *temp_new = NULL;
 	
 	if (groupwise_is_system_folder (old_name)) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot rename Groupwise folder `%s' to `%s'"),
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot rename Groupwise folder '%s' to '%s'"),
 				      old_name, new_name);
 		return;
 	}
@@ -1325,7 +1325,7 @@ groupwise_rename_folder(CamelStore *store,
 
 	if (!container_id || e_gw_connection_rename_folder (priv->cnc, container_id , temp_new) != E_GW_CONNECTION_STATUS_OK)
 	{
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot rename Groupwise folder `%s' to `%s'"),
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot rename Groupwise folder '%s' to '%s'"),
 				      old_name, new_name);
 		CAMEL_SERVICE_REC_UNLOCK (groupwise_store, connect_lock);
 		return;

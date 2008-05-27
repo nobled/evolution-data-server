@@ -1,13 +1,33 @@
-2008-05-22  Srinivasa Ragavan  <sragavan@novell.com>
+2008-05-27  Hiroyuki Ikezoe  <poincare@ikezoe.net>
 
-	* camel/camel-folder-summary.h: Add FIR, MIR details.
-	* camel/camel-store.c:
+	** Fixes bug #534294.
+	
+	* camel-folder-search.[ch]: Added accessor to _camel_header_param.
+	* camel-filter-search.c: Use camel_message_info_headers() instead of
+	direct access (i.e. ->headers) since the message does not have
+	headers' pointer if the message is in vitrual folder.
 
-2008-05-22  Srinivasa Ragavan  <sragavan@novell.com>
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
 
-	* camel/camel-db.h: Fix compilter warning.
-	* camel/camel-store.c: Use g_build_filename
-	* camel/camel-folder-summary.h: Describe the storage format.
+	** Fixes part of bug #531591
+
+	* camel-disco-diary.c:
+	* camel-disco-folder.c:
+	* camel-disco-store.c:
+	* camel-folder-summary.c:
+	* camel-folder.c:
+	* camel-gpg-context.c:
+	* camel-object.c:
+	* camel-offline-journal.c:
+	* camel-provider.c:
+	* camel-sasl-kerberos4.c:
+	* camel-service.c:
+	* camel-session.c:
+	* camel-smime-context.c:
+	* camel-store.c:
+	* camel-url.c:
+	* camel-vee-folder.c:
+	Don't use TeX-style quotes in user-visible messages.
 
 2008-05-13  Tor Lillqvist  <tml@novell.com>
 
