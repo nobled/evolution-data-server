@@ -2082,7 +2082,7 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	record->uid = g_strdup(camel_message_info_uid(mi));
 	record->flags = mi->flags;
 	
-	record->unread =  ((mi->flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)));
+	record->read =  ((mi->flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)));
 	record->deleted = mi->flags & CAMEL_MESSAGE_DELETED;
 	record->replied = mi->flags & CAMEL_MESSAGE_ANSWERED;	
 	record->important = mi->flags & CAMEL_MESSAGE_FLAGGED;		
@@ -2100,8 +2100,8 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	record->mlist = g_strdup(camel_message_info_mlist (mi));
 	
 	record->followup_flag = g_strdup(camel_message_info_user_tag(info, "follow-up"));
-	record->followup_completedon = g_strdup(camel_message_info_user_tag(info, "completed-on"));
-	record->followup_dueby = g_strdup(camel_message_info_user_tag(info, "due-by"));
+	record->followup_completed_on = g_strdup(camel_message_info_user_tag(info, "completed-on"));
+	record->followup_due_by = g_strdup(camel_message_info_user_tag(info, "due-by"));
 
 	tmp = g_string_new (NULL);
 	if (mi->references) {
