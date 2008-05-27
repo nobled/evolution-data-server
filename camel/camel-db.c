@@ -21,7 +21,7 @@ cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex)
   	ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
 
   	if (ret != SQLITE_OK) {
-    		d(g_warning ("Error in statement: %s [%s].\n", stmt, errmsg));
+    		d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
 		sqlite3_free (errmsg);
 		return -1;
@@ -69,10 +69,11 @@ camel_db_close (CamelDB *cdb)
 	}
 }
 
-gboolean
+/* Should this be really exposed ? */
+int
 camel_db_command (CamelDB *cdb, const char *stmt, CamelException *ex)
 {
-	gboolean ret;
+	int ret;
 	
 	if (!cdb)
 		return TRUE;
@@ -80,6 +81,41 @@ camel_db_command (CamelDB *cdb, const char *stmt, CamelException *ex)
 	d(g_print("Executing: %s\n", stmt));
 	ret = cdb_sql_exec (cdb->db, stmt, ex);
 	g_mutex_unlock (cdb->lock);
+	return ret;
+}
+
+
+int 
+camel_db_transaction_command (CamelDB *cdb, GSList *qry_list, CamelException *ex)
+{
+	int ret;
+	const char *query;
+
+	if (!cdb)
+		return -1;
+
+	g_mutex_lock (cdb->lock);
+
+	ret = cdb_sql_exec (cdb->db, "BEGIN", ex);
+	if (ret)
+		goto end;
+
+	d(g_print ("\nBEGIN Transaction\n"));
+
+	while (qry_list) {
+		query = qry_list->data;
+		d(g_print ("\nInside Transaction: [%s] \n", query));
+		ret = cdb_sql_exec (cdb->db, query, ex);
+		if (ret)
+			goto end;
+		qry_list = g_slist_next (qry_list);
+	}
+
+	ret = cdb_sql_exec (cdb->db, "COMMIT", ex);
+
+end:
+	g_mutex_unlock (cdb->lock);
+	d(g_print ("\nTransaction Result: [%d] \n", ret));
 	return ret;
 }
 
@@ -142,11 +178,11 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 }
 
 
-gboolean
+int
 camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex)
 {
 	char *tab = g_strdup_printf ("delete from folders where folder_name ='%s'", folder);
-	gboolean ret;
+	int ret;
 
 	ret = camel_db_command (cdb, tab, ex);
 	g_free (tab);
@@ -166,11 +202,13 @@ int
 camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex)
 {
 
+	int ret;
+
 	char *upd_query;
 	char *del_query;
 	char *ins_query;
 
-	ins_query = g_strdup_printf ("INSERT INTO folders VALUES ( \"%s\", %d, %d, %d, 143, %d, %d, %d, %d, \"%s\" ) ", record->folder_name, record->version, record->flags , record->nextuid , record->saved_count , record->unread_count , record->deleted_count , record->junk_count , record->bdata); 
+	ins_query = g_strdup_printf ("INSERT INTO folders VALUES ( \"%s\", %d, %d, %d, 143, %d, %d, %d, %d, \"%s\" ) ", record->folder_name, record->version, record->flags , record->nextuid , record->saved_count , record->unread_count , record->deleted_count , record->junk_count , "PROVIDER SPECIFIC DATA"); 
 
 	del_query = g_strdup_printf ("DELETE FROM folders WHERE folder_name = \"%s\"", record->folder_name);
 
@@ -179,17 +217,24 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 #if 0
 	camel_db_command (cdb, upd_query, ex);
 #else
-	camel_db_command (cdb, "BEGIN", ex);
-	camel_db_command (cdb, del_query, ex);
-	camel_db_command (cdb, ins_query, ex);
-	camel_db_command (cdb, "COMMIT", ex);
+
+	GSList *qry_list = NULL;
+
+	qry_list = g_slist_prepend (qry_list, ins_query);
+	qry_list = g_slist_prepend (qry_list, del_query);
+
+	qry_list = g_slist_reverse (qry_list);
+	
+	ret = camel_db_transaction_command (cdb, qry_list, ex);
+
+	g_slist_free (qry_list);
 #endif
 
 	g_free (upd_query);
 	g_free (del_query);
 	g_free (ins_query);
 
-	return 0;
+	return ret;
 }
 
 static int 

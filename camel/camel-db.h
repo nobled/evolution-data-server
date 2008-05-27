@@ -94,7 +94,9 @@ typedef int (*CamelDBSelectCB) (void *data, int ncol, char **colvalues, char **c
 
 CamelDB * camel_db_open (const char *path, CamelException *ex);
 void camel_db_close (CamelDB *cdb);
-gboolean camel_db_command (CamelDB *cdb, const char *stmt, CamelException *ex);
+int camel_db_command (CamelDB *cdb, const char *stmt, CamelException *ex);
+int camel_db_transaction_command (CamelDB *cdb, GSList *qry_list, CamelException *ex);
+
 gboolean camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex);
 gboolean camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex);
 int camel_db_create_folders_table (CamelDB *cdb, CamelException *ex);
