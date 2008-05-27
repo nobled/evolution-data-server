@@ -2071,11 +2071,12 @@ meta_message_info_save(CamelFolderSummary *s, FILE *out_meta, FILE *out, CamelMe
 static CamelMIRecord *
 message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 {
-	CamelRecord *record = g_new0(CamelRecord, 1);
+	CamelMIRecord *record = g_new0(CamelMIRecord, 1);
+	CamelMessageInfoBase *mi = (CamelMessageInfoBase *) info;
 	GString *tmp;
 	CamelFlag *flag;
 	CamelTag *tag;
-	int count;
+	int count, i;
 
 	/* Assume that we dont have to take care of DB Safeness. It will be done while doing the DB transaction */
 	record->uid = g_strdup(camel_message_info_uid(mi));
@@ -2086,12 +2087,11 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	record->replied = mi->flags & CAMEL_MESSAGE_ANSWERED;	
 	record->important = mi->flags & CAMEL_MESSAGE_FLAGGED;		
 	record->junk = mi->flags & CAMEL_MESSAGE_JUNK;
-	record->attachments = mi->flags & CAMEL_MESSAGE_ATTACHMENTS;
+	record->attachment = mi->flags & CAMEL_MESSAGE_ATTACHMENTS;
 	
 	record->size = mi->size;
 	record->dsent = mi->date_sent;
 	record->dreceived = mi->date_received;
-	labels = mail_config_get_labels ();
 
 	record->subject = g_strdup(camel_message_info_subject (mi));
 	record->from = g_strdup(camel_message_info_from (mi));
@@ -2099,11 +2099,11 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	record->cc = g_strdup(camel_message_info_cc (mi));
 	record->mlist = g_strdup(camel_message_info_mlist (mi));
 	
-	record->followup_flag = g_strdup(camel_message_info_user_tag(msg_info, "follow-up"));
-	record->followup_completedon = g_strdup(camel_message_info_user_tag(msg_info, "completed-on"));
-	record->followup_dueby = g_strdup(camel_message_info_user_tag(msg_info, "due-by"));
+	record->followup_flag = g_strdup(camel_message_info_user_tag(info, "follow-up"));
+	record->followup_completedon = g_strdup(camel_message_info_user_tag(info, "completed-on"));
+	record->followup_dueby = g_strdup(camel_message_info_user_tag(info, "due-by"));
 
-	tmp = g_string_new (NULL);r
+	tmp = g_string_new (NULL);
 	if (mi->references) {
 		g_string_append_printf (tmp, "%lu %lu %lu", mi->message_id.id.part.hi, mi->message_id.id.part.lo, mi->references->size);
 		for (i=0;i<mi->references->size;i++) 
@@ -2125,15 +2125,15 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 
 	tmp = g_string_new (NULL);	
 	count = camel_tag_list_size(&mi->user_tags);
-	g_string_append_printf (part, "%lu", count);	
+	g_string_append_printf (tmp, "%lu", count);	
 	tag = mi->user_tags;
 	while (tag) {
 		/* FIXME: Should we handle empty tags? Can it be empty? If it potential crasher ahead*/
-		g_string_append_printf (part, " %lu-%s %lu-%s", strlen(tag->name), tag->name, strlen(tag->value), tag->value);		
+		g_string_append_printf (tmp, " %lu-%s %lu-%s", strlen(tag->name), tag->name, strlen(tag->value), tag->value);		
 		tag = tag->next;
 	}
-	record->usertags = part->str;
-	g_string_free (part, FALSE);
+	record->usertags = tmp->str;
+	g_string_free (tmp, FALSE);
 		
 	record->usertags;
 }
