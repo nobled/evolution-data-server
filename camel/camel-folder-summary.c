@@ -67,7 +67,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 /* this should probably be conditional on it existing */
 #define USE_BSEARCH
 
-#define d(x) x
+#define d(x) 
 #define io(x)			/* io debug */
 #define w(x)
 
@@ -80,6 +80,11 @@ extern int strdup_count, malloc_count, free_count;
 #define _PRIVATE(o) (((CamelFolderSummary *)(o))->priv)
 
 #define META_SUMMARY_SUFFIX_LEN 5 /* strlen("-meta") */
+
+#define EXTRACT_FIRST_STRING(val) len=strtoul (part, &part, 10); part++; val=g_strndup (part, len);
+#define EXTRACT_STRING(val) part++; len=strtoul (part, &part, 10); part++; val=g_strndup (part, len);
+#define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
+#define EXTRACT_DIGIT(val) part++; val=strtoul (part, &part, 10);
 
 /* trivial lists, just because ... */
 struct _node {
@@ -1965,6 +1970,72 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 static CamelMessageInfo *
 message_info_from_db (CamelFolderSummary *s, struct _CamelMIRecord *record)
 {
+	CamelMessageInfoBase *mi;
+	int i;
+	int len, val, count;
+	char *part, *label;
+	
+	mi = (CamelMessageInfoBase *)camel_message_info_new(s);
+
+	io(printf("Loading message info from db\n"));
+
+	mi->flags = record->flags;
+	mi->size = record->size;
+	mi->date_sent = record->dsent;
+	mi->date_received = record->dreceived;
+
+	mi->uid = g_strdup (record->uid);
+	mi->subject = camel_pstring_add (record->subject, FALSE);
+	mi->from = camel_pstring_add (record->from, FALSE);
+	mi->to = camel_pstring_add (record->to, FALSE);
+	mi->cc = camel_pstring_add (record->cc, FALSE);
+	mi->mlist = camel_pstring_add (record->mlist, FALSE);
+
+	/* Extract Message id & References */
+	mi->content = NULL;
+	part = record->part;
+	if (part) {
+		EXTRACT_FIRST_DIGIT (mi->message_id.id.part.hi)
+		EXTRACT_DIGIT (mi->message_id.id.part.lo)
+		EXTRACT_DIGIT (count)
+	
+		if (count > 0) {
+			mi->references = g_malloc(sizeof(*mi->references) + ((count-1) * sizeof(mi->references->references[0])));
+			mi->references->size = count;
+			for (i=0;i<count;i++) {
+				EXTRACT_DIGIT (mi->references->references[i].id.part.hi)
+				EXTRACT_DIGIT (mi->references->references[i].id.part.lo)
+			}
+		} else
+			mi->references = NULL;
+		
+	}
+
+	/* Extract User flags/labels */
+	part = record->labels;
+	label = part;
+	for (i=0;part[i];i++) {
+
+		if (part[i] == ' ') {
+			part[i] = 0;
+			camel_flag_set(&mi->user_flags, label, TRUE);
+			label = part[i+1];
+		}
+	}
+	camel_flag_set(&mi->user_flags, label, TRUE);
+
+	/* Extract User tags */
+	part = record->usertags;
+	EXTRACT_FIRST_DIGIT (count)
+	for (i=0;i<count;i++) {
+		int len;
+		char *name, *value;
+		EXTRACT_STRING (name)
+		EXTRACT_STRING (value)
+		camel_tag_set(&mi->user_tags, name, value);
+		g_free(name);
+		g_free(value);
+	}	
 	
 }
 
@@ -2117,9 +2188,14 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	tmp = g_string_new (NULL);
 	flag = mi->user_flags;
 	while (flag) {
-		g_string_append_printf (tmp, flag->name);
+		g_string_append_printf (tmp, "%s ", flag->name);
 		flag = flag->next;
 	}
+
+	/* Strip off the last space */ 
+	if (tmp->len)
+		tmp->len--;
+	
 	record->labels = tmp->str;
 	g_string_free (tmp, FALSE);
 

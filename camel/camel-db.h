@@ -35,8 +35,7 @@ struct _CamelDB {
   completed-on-set, - completed date, can be used to see if completed
   due-by,  - to see the due by date
   Location - This can be derived from the database location/name. No need to store.
-  label, - labels of mails
-  userflags, composite string of user flags
+  label, - labels of mails also called as userflags
   usertags, composite string of user tags
   cinfo, content info string - composite string
   bdata, provider specific data
@@ -65,7 +64,6 @@ typedef struct _CamelMIRecord {
 	char *followup_due_by;
 	char *part;
 	char *labels;
-	char *userflags;
 	char *usertags;
 	char *cinfo;
 	char *bdata;
