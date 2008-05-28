@@ -11,6 +11,7 @@
 struct _CamelDB {
 	sqlite3 *db;
 	GMutex *lock;
+	GMutex *read_lock;
 };
 
 
@@ -93,14 +94,24 @@ typedef int (*CamelDBSelectCB) (void *data, int ncol, char **colvalues, char **c
 CamelDB * camel_db_open (const char *path, CamelException *ex);
 void camel_db_close (CamelDB *cdb);
 int camel_db_command (CamelDB *cdb, const char *stmt, CamelException *ex);
+
 int camel_db_transaction_command (CamelDB *cdb, GSList *qry_list, CamelException *ex);
+
+int camel_db_begin_transaction (CamelDB *cdb, CamelException *ex);
+int camel_db_add_to_transaction (CamelDB *cdb, const char *query, CamelException *ex);
+int camel_db_end_transaction (CamelDB *cdb, CamelException *ex);
+int camel_db_abort_transaction (CamelDB *cdb, CamelException *ex);
 
 gboolean camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex);
 gboolean camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex);
+
 int camel_db_create_folders_table (CamelDB *cdb, CamelException *ex);
 int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex);
+
 int camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex);
 int camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord **record, CamelException *ex);
+
+int camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex);
 guint32 camel_db_count (CamelDB *cdb, const char *stmt);
 #endif
 

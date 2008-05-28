@@ -54,6 +54,7 @@ camel_db_open (const char *path, CamelException *ex)
 	cdb = g_new (CamelDB, 1);
 	cdb->db = db;
 	cdb->lock = g_mutex_new ();
+	cdb->read_lock = g_mutex_new ();
 	d(g_print ("\nDatabase succesfully opened  \n"));
 	return cdb;
 }
@@ -64,6 +65,7 @@ camel_db_close (CamelDB *cdb)
 	if (cdb) {
 		sqlite3_close (cdb->db);
 		g_mutex_free (cdb->lock);
+		g_mutex_free (cdb->read_lock);
 		g_free (cdb);
 		d(g_print ("\nDatabase succesfully closed \n"));
 	}
@@ -84,6 +86,54 @@ camel_db_command (CamelDB *cdb, const char *stmt, CamelException *ex)
 	return ret;
 }
 
+
+int 
+camel_db_begin_transaction (CamelDB *cdb, CamelException *ex)
+{
+	if (!cdb)
+		return -1;
+
+	d(g_print ("\n\aBEGIN TRANSACTION \n\a"));
+	g_mutex_lock (cdb->lock);
+	return (cdb_sql_exec (cdb->db, "BEGIN", ex));
+}
+
+int 
+camel_db_end_transaction (CamelDB *cdb, CamelException *ex)
+{
+	int ret;
+	if (!cdb)
+		return -1;
+
+	d(g_print ("\nCOMMIT TRANSACTION \n"));
+	ret = cdb_sql_exec (cdb->db, "COMMIT", ex);
+	g_mutex_unlock (cdb->lock);
+
+	return ret;
+}
+
+int
+camel_db_abort_transaction (CamelDB *cdb, CamelException *ex)
+{
+	int ret;
+	
+	d(g_print ("\nABORT TRANSACTION \n"));
+	ret = cdb_sql_exec (cdb->db, "ABORT TRANSACTION", ex);
+	g_mutex_unlock (cdb->lock);
+
+	return ret;
+}
+
+int
+camel_db_add_to_transaction (CamelDB *cdb, const char *stmt, CamelException *ex)
+{
+	if (!cdb)
+		return -1;
+
+	d(g_print("Adding the following query to transaction: %s\n", stmt));
+
+	return (cdb_sql_exec (cdb->db, stmt, ex));
+}
 
 int 
 camel_db_transaction_command (CamelDB *cdb, GSList *qry_list, CamelException *ex)
@@ -143,13 +193,13 @@ camel_db_count (CamelDB *cdb, const char *stmt)
 
 	if (!cdb)
 		return 0;
-	g_mutex_lock (cdb->lock);
+	g_mutex_lock (cdb->read_lock);
 	ret = sqlite3_exec(cdb->db, stmt, count_cb, &count, &errmsg);
   	if(ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement %s [%s].\n", stmt, errmsg));
 		sqlite3_free (errmsg);
   	}
-	g_mutex_unlock (cdb->lock);
+	g_mutex_unlock (cdb->read_lock);
 	d(g_print("count of '%s' is %d\n", stmt, count));
 	return count;
 }
@@ -164,7 +214,7 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 
 	if (!cdb)
 		return TRUE;
-	g_mutex_lock (cdb->lock);	
+	g_mutex_lock (cdb->read_lock);	
   	ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
 
   	if(ret != SQLITE_OK) {
@@ -172,7 +222,7 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);
 		sqlite3_free (errmsg);
   	}
-	g_mutex_unlock (cdb->lock);
+	g_mutex_unlock (cdb->read_lock);
 
 	return ret;
 }
@@ -198,13 +248,52 @@ camel_db_create_folders_table (CamelDB *cdb, CamelException *ex)
 	return ((camel_db_command (cdb, query, ex)));
 }
 
+
 int
-camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex)
+camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex)
 {
 
 	int ret;
 
+	if (!cdb)
+		return -1;
+
+	char *table_creation_query;
+	
+	table_creation_query = g_strdup_printf ("CREATE TABLE IF NOT EXISTS %s (  uid TEXT PRIMARY KEY , flags INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
+
+	char *del_query;
+	char *ins_query;
+
+	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", folder_name, record->uid, record->flags, record->read, record->deleted, record->replied, record->important, record->junk, record->attachment, record->size, ctime (&(record->dsent)), ctime (&(record->dreceived)), record->subject, record->from, record->to, record->cc, record->mlist, record->followup_flag, record->followup_completed_on, record->followup_due_by, record->part, record->labels, record->usertags, record->cinfo, record->bdata);
+	
+	del_query = g_strdup_printf ("DELETE FROM %s WHERE uid = \"%s\"", folder_name, record->uid);
+
+#if 0
 	char *upd_query;
+
+	upd_query = g_strdup_printf ("IMPLEMENT AND THEN TRY");
+	camel_db_command (cdb, upd_query, ex);
+	g_free (upd_query);
+#else
+
+	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
+	ret = camel_db_add_to_transaction (cdb, del_query, ex);
+	ret = camel_db_add_to_transaction (cdb, ins_query, ex);
+
+#endif
+
+	g_free (del_query);
+	g_free (ins_query);
+
+	return ret;
+}
+
+int
+camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex)
+{
+	int ret;
+
 	char *del_query;
 	char *ins_query;
 
@@ -212,25 +301,20 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 
 	del_query = g_strdup_printf ("DELETE FROM folders WHERE folder_name = \"%s\"", record->folder_name);
 
-	upd_query = g_strdup_printf ("UPDATE folders SET version = %d, flags = %d, nextuid = %d, time = 143, saved_count = %d, unread_count = %d, deleted_count = %d, junk_count = %d, bdata = %s, WHERE folder_name = \"%s\"", record->version, record->flags, record->nextuid, record->saved_count, record->unread_count, record->deleted_count, record->junk_count, "PROVIDER SPECIFIC DATA", record->folder_name );
 
 #if 0
+	char *upd_query;
+	
+	upd_query = g_strdup_printf ("UPDATE folders SET version = %d, flags = %d, nextuid = %d, time = 143, saved_count = %d, unread_count = %d, deleted_count = %d, junk_count = %d, bdata = %s, WHERE folder_name = \"%s\"", record->version, record->flags, record->nextuid, record->saved_count, record->unread_count, record->deleted_count, record->junk_count, "PROVIDER SPECIFIC DATA", record->folder_name );
 	camel_db_command (cdb, upd_query, ex);
+	g_free (upd_query);
 #else
 
-	GSList *qry_list = NULL;
+	ret = camel_db_add_to_transaction (cdb, del_query, ex);
+	ret = camel_db_add_to_transaction (cdb, ins_query, ex);
 
-	qry_list = g_slist_prepend (qry_list, ins_query);
-	qry_list = g_slist_prepend (qry_list, del_query);
-
-	qry_list = g_slist_reverse (qry_list);
-	
-	ret = camel_db_transaction_command (cdb, qry_list, ex);
-
-	g_slist_free (qry_list);
 #endif
 
-	g_free (upd_query);
 	g_free (del_query);
 	g_free (ins_query);
 

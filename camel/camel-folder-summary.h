@@ -244,9 +244,11 @@ struct _CamelFolderSummaryClass {
 	int (*summary_header_from_db)(CamelFolderSummary *, CamelFIRecord *);
 	CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *);
 	CamelMessageInfo * (*message_info_from_db) (CamelFolderSummary *, struct _CamelMIRecord*);
-	CamelMIRecord * (*message_info_to_db) (CamelFolderSummary *, CamelMessageInfo *);
+	CamelMIRecord * (*message_info_to_db) (CamelMessageInfo *);
 	CamelMessageContentInfo * (*content_info_from_db) (CamelFolderSummary *, CamelMIRecord *);
 	int (*content_info_to_db) (CamelFolderSummary *, CamelMessageContentInfo *, CamelMIRecord *);
+	int (*save_message_infos_to_db) (CamelFolderSummary *s, CamelException *ex);
+
 	
 	/* create/save/load an individual message info */
 	CamelMessageInfo * (*message_info_new_from_header)(CamelFolderSummary *, struct _camel_header_raw *);
@@ -255,6 +257,8 @@ struct _CamelFolderSummaryClass {
 	CamelMessageInfo * (*message_info_load)(CamelFolderSummary *, FILE *);
  	int		   (*message_info_save)(CamelFolderSummary *, FILE *, CamelMessageInfo *);
 	int		   (*meta_message_info_save)(CamelFolderSummary *, FILE *, FILE *, CamelMessageInfo *);
+
+
 
 	void		   (*message_info_free)(CamelFolderSummary *, CamelMessageInfo *);
 	CamelMessageInfo * (*message_info_clone)(CamelFolderSummary *, const CamelMessageInfo *);
