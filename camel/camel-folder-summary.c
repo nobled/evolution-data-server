@@ -2072,7 +2072,8 @@ message_info_from_db (CamelFolderSummary *s, struct _CamelMIRecord *record)
 		g_free(name);
 		g_free(value);
 	}	
-	
+
+	return mi;
 }
 
 static CamelMessageInfo *
@@ -2247,7 +2248,6 @@ message_info_to_db (CamelMessageInfo *info)
 	record->usertags = tmp->str;
 	g_string_free (tmp, FALSE);
 		
-	//record->usertags;
 
 	return record;
 }
@@ -2349,6 +2349,55 @@ content_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 }
 
 static CamelMessageContentInfo *
+content_info_from_db(CamelFolderSummary *s, CamelMIRecord *record)
+{
+	CamelMessageContentInfo *ci;
+	char *type, *subtype;
+	guint32 count, i;
+	CamelContentType *ct;
+	char *part = record->cinfo;
+	int len;
+
+	io(printf("Loading content info from db\n"));
+	
+	if (!part)
+		return NULL;
+	
+	ci = camel_folder_summary_content_info_new(s);
+	if (*part == ' ') part++; /* Move off the space in the record*/
+
+	EXTRACT_FIRST_STRING (type)
+	EXTRACT_STRING (subtype)
+	ct = camel_content_type_new(type, subtype);
+	g_free(type);		/* can this be removed? */
+	g_free(subtype);
+	EXTRACT_DIGIT (count)
+
+	for (i = 0; i < count; i++) {
+		char *name, *value;
+		EXTRACT_STRING (name)
+		EXTRACT_STRING (value)
+
+		camel_content_type_set_param(ct, name, value);
+		/* TODO: do this so we dont have to double alloc/free */
+		g_free(name);
+		g_free(value);
+	}
+	ci->type = ct;
+
+	EXTRACT_STRING (ci->id);
+	EXTRACT_STRING (ci->description)
+	EXTRACT_STRING (ci->encoding)
+	EXTRACT_DIGIT (ci->size)
+
+	record->cinfo = part; /* Keep moving the cursor in the record */
+
+	ci->childs = NULL;
+
+	return ci;
+}
+
+static CamelMessageContentInfo *
 content_info_load(CamelFolderSummary *s, FILE *in)
 {
 	CamelMessageContentInfo *ci;
@@ -2397,6 +2446,71 @@ content_info_load(CamelFolderSummary *s, FILE *in)
  error:
 	camel_folder_summary_content_info_free(s, ci);
 	return NULL;
+}
+
+static int
+content_info_to_db(CamelFolderSummary *s, CamelMessageContentInfo *ci, CamelMIRecord *record)
+{
+	CamelContentType *ct;
+	struct _camel_header_param *hp;
+	GString *str = g_string_new (NULL);
+	char *oldr;
+	
+	io(printf("Saving content info to db\n"));
+
+	ct = ci->type;
+	if (ct) {
+		if (ct->type)
+			g_string_append_printf (str, " %lu-%s", strlen (ct->type), ct->type);
+		else 
+			g_string_append_printf (str, " 0-");
+		if (ct->subtype)
+			g_string_append_printf (str, " %lu-%s", strlen (ct->subtype), ct->subtype);
+		else 
+			g_string_append_printf (str, " 0-");
+		g_string_append_printf (str, " %lu", my_list_size((struct _node **)&ct->params));
+		hp = ct->params;
+		while (hp) {
+			if (hp->name)
+				g_string_append_printf (str, " %lu-%s", strlen(hp->name), hp->name);
+			else 
+				g_string_append_printf (str, " 0-");
+			if (hp->value)
+				g_string_append_printf (str, " %lu-%s", strlen (hp->value), hp->value);
+			else
+				g_string_append_printf (str, " 0-");
+			hp = hp->next;
+		}
+	} else {
+		g_string_append_printf (str, " %lu-", 0);
+		g_string_append_printf (str, " %lu-", 0);
+		g_string_append_printf (str, " %lu", 0);
+	}
+
+	if (ci->id)
+		g_string_append_printf (str, " %lu-%s", strlen (ci->id), ci->id);
+	else 
+		g_string_append_printf (str, " 0-");
+	if (ci->description)
+		g_string_append_printf (str, " %lu-%s", strlen (ci->description), ci->description);
+	else
+		g_string_append_printf (str, " 0-");
+	if (ci->encoding)
+		g_string_append_printf (str, " %lu-%s", strlen (ci->encoding), ci->encoding);
+	else
+		g_string_append_printf (str, " 0-");
+	g_string_append_printf (str, " %lu", ci->size);
+
+	if (record->cinfo) {
+		oldr = record->cinfo;
+		record->cinfo = g_strconcat(oldr, str->str, NULL);
+		g_free (oldr); g_string_free (str, TRUE);
+	} else {
+		record->cinfo = str->str;
+		g_string_free (str, FALSE);
+	}
+
+	return 0;	
 }
 
 static int
@@ -3599,6 +3713,10 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 
 	klass->summary_header_from_db = summary_header_from_db;
 	klass->summary_header_to_db = summary_header_to_db;
+	klass->message_info_from_db = message_info_from_db;
+	klass->message_info_to_db = message_info_to_db;
+	klass->content_info_from_db = content_info_from_db;
+	klass->content_info_to_db = content_info_to_db;
 	
 	klass->message_info_new_from_header  = message_info_new_from_header;
 	klass->message_info_new_from_parser = message_info_new_from_parser;
