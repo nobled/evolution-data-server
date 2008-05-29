@@ -46,6 +46,11 @@
 
 #define CAMEL_LOCAL_SUMMARY_VERSION (1)
 
+#define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
+
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *);
+static int summary_header_from_db (CamelFolderSummary *, CamelFIRecord *);
+
 static int summary_header_load (CamelFolderSummary *, FILE *);
 static int summary_header_save (CamelFolderSummary *, FILE *);
 
@@ -91,7 +96,10 @@ camel_local_summary_class_init(CamelLocalSummaryClass *klass)
 
 	sklass->summary_header_load = summary_header_load;
 	sklass->summary_header_save = summary_header_save;
-
+	
+	sklass->summary_header_from_db = summary_header_from_db;
+	sklass->summary_header_to_db = summary_header_to_db;
+	
 	sklass->message_info_new_from_header  = message_info_new_from_header;
 
 	klass->load = local_summary_load;
@@ -585,6 +593,28 @@ local_summary_decode_x_evolution(CamelLocalSummary *cls, const char *xev, CamelL
 	return 0;
 }
 
+
+static int 
+summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *fir)
+{
+	CamelLocalSummary *cls = (CamelLocalSummary *)s;
+	char *part;
+
+	/* We dont actually add our own headers, but version that we don't anyway */
+
+	if (((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_from_db(s, fir) == -1)
+		return -1;
+
+	part = fir->bdata;
+	if (part) {
+		EXTRACT_FIRST_DIGIT (cls->version)
+	}
+	fir->bdata = part;
+
+	return 0;
+}
+
+
 static int
 summary_header_load(CamelFolderSummary *s, FILE *in)
 {
@@ -603,6 +633,17 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 	return camel_file_util_decode_fixed_int32(in, &cls->version);
 }
 
+static struct _CamelFIRecord * 
+summary_header_to_db (CamelFolderSummary *s)
+{
+	struct _CamelFIRecord *fir;
+	
+	fir = ((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_to_db (s);
+	fir->bdata = g_strdup_printf ("%lu", CAMEL_LOCAL_SUMMARY_VERSION);
+	
+	return fir;
+}
+ 
 static int
 summary_header_save(CamelFolderSummary *s, FILE *out)
 {
