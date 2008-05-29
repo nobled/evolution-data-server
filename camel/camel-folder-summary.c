@@ -33,7 +33,11 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#define _XOPEN_SOURCE
+#include <time.h>
+
 #include <glib.h>
+#include <glib-object.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
@@ -67,7 +71,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 /* this should probably be conditional on it existing */
 #define USE_BSEARCH
 
-#define d(x) 
+#define d(x) x
 #define io(x)			/* io debug */
 #define w(x)
 
@@ -115,6 +119,7 @@ static int		         content_info_save(CamelFolderSummary *, FILE *, CamelMessag
 static void		         content_info_free(CamelFolderSummary *, CamelMessageContentInfo *);
 
 static int save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex);
+static int camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name);
 
 static char *next_uid_string(CamelFolderSummary *s);
 
@@ -584,10 +589,90 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 
 	g_free (record);
 
-	/* FIXME: What about message-info ? Ye Need to load them. */
+	camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
 
 	return ret;
 
+}
+
+static int 
+camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
+{
+	CamelFolderSummary *s = * (CamelFolderSummary **) ref;
+	CamelMIRecord *mir;
+	CamelMessageInfo *info;
+	int i;
+
+	mir = g_new0 (CamelMIRecord , 1);
+
+	for (i = 0; i < ncol; ++i) {
+
+		if ( !strcmp (name [i], "uid") ) 
+			mir->uid = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "flags") ) 
+			mir->flags = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+		else if ( !strcmp (name [i], "read") ) 
+			mir->read =  (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
+		else if ( !strcmp (name [i], "deleted") ) 
+			mir->deleted = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
+		else if ( !strcmp (name [i], "replied") ) 
+			mir->replied = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
+		else if ( !strcmp (name [i], "important") ) 
+			mir->important = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
+		else if ( !strcmp (name [i], "junk") ) 
+			mir->junk = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
+		else if ( !strcmp (name [i], "attachment") ) 
+			mir->attachment = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
+		else if ( !strcmp (name [i], "size") ) 
+			mir->size =  cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+		else if ( !strcmp (name [i], "dsent") ) {
+			struct tm tmm;
+			strptime (cols [i], "%F", &(tmm));
+			mir->dsent = mktime (&tmm);
+		} else if ( !strcmp (name [i], "dreceived") )  {
+			struct tm tmm;
+			strptime (cols [i], "%F", &(tmm));
+			mir->dreceived = mktime (&tmm);
+		} else if ( !strcmp (name [i], "subject") ) 
+			mir->subject = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "from") ) 
+			mir->from = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "to") ) 
+			mir->to = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "cc") ) 
+			mir->cc = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "mlist") ) 
+			mir->mlist = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "followup_flag") ) 
+			mir->followup_flag = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "followup_completed_on") ) 
+			mir->followup_completed_on = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "followup_due_by") ) 
+			mir->followup_due_by = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "part") ) 
+			mir->part = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "labels") ) 
+			mir->labels = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "usertags") ) 
+			mir->usertags = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "cinfo") ) 
+			mir->cinfo = g_strdup (cols [i]);
+		else if ( !strcmp (name [i], "bdata") ) 
+			mir->bdata = g_strdup (cols [i]);
+
+	}
+
+	info = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_from_db (s, mir);
+
+	if (info) {
+		camel_folder_summary_add (s, info);
+		d(g_print ("\nAdding messageinfo to db from db \n"));
+	} else
+		g_warning ("Loading messageinfo from db failed");
+
+	g_object_unref (mir);
+
+	return 0;
 }
 
 /**
@@ -696,7 +781,7 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 	count = s->messages->len;
 	for (i = 0; i < count; ++i) {
 		mi = s->messages->pdata [i];
-//		mir = message_info_to_db (mi);
+		mir = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_to_db (s, mi);
 		if (camel_db_write_message_info_record (cdb, folder_name, mir, ex) != 0)
 			return -1;
 	}	
@@ -728,7 +813,7 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 		return -1;
 	}
 
-	ret = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS (s)))->save_message_infos_to_db (s, ex));
+	ret = save_message_infos_to_db (s, ex);
 	if (ret != 0) {
 		camel_db_abort_transaction (cdb, ex);
 		return -1;
@@ -2220,7 +2305,7 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 		for (i=0;i<mi->references->size;i++) 
 			g_string_append_printf (tmp, " %lu %lu", (long unsigned)mi->references->references[i].id.part.hi, (long unsigned)mi->references->references[i].id.part.lo);
 	} else {
-		g_string_append_printf (tmp, "%lu %lu %lu", (long unsigned)mi->message_id.id.part.hi, (long unsigned)mi->message_id.id.part.lo, 0);		
+		g_string_append_printf (tmp, "%lu %lu %lu", (long unsigned)mi->message_id.id.part.hi, (long unsigned)mi->message_id.id.part.lo, (unsigned long) 0);
 	}
 	record->part = tmp->str;
 	g_string_free (tmp, FALSE);
@@ -2845,6 +2930,9 @@ gboolean
 camel_flag_set(CamelFlag **list, const char *name, gboolean value)
 {
 	CamelFlag *flag, *tmp;
+
+	if (!name)
+		return TRUE;
 
 	/* this 'trick' works because flag->next is the first element */
 	flag = (CamelFlag *)list;
@@ -3721,7 +3809,6 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->message_info_to_db = message_info_to_db;
 	klass->content_info_from_db = content_info_from_db;
 	klass->content_info_to_db = content_info_to_db;
-	klass->save_message_infos_to_db = save_message_infos_to_db;
 
 	klass->message_info_new_from_header  = message_info_new_from_header;
 	klass->message_info_new_from_parser = message_info_new_from_parser;

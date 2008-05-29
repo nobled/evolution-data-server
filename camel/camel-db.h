@@ -112,6 +112,8 @@ int camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, Came
 int camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord **record, CamelException *ex);
 
 int camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex);
+int camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex);
+
 guint32 camel_db_count (CamelDB *cdb, const char *stmt);
 #endif
 

@@ -177,7 +177,7 @@ count_cb (void *data, int argc, char **argv, char **azColName)
 
   	for(i=0; i<argc; i++) {
 		if (strstr(azColName[i], "count")) {
-			(*(int **)data) = atoi(argv[i]);
+			*(int **)data = atoi(argv[i]);
 		}
   	}
 
@@ -265,7 +265,19 @@ camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, Camel
 	char *del_query;
 	char *ins_query;
 
-	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", folder_name, record->uid, record->flags, record->read, record->deleted, record->replied, record->important, record->junk, record->attachment, record->size, ctime (&(record->dsent)), ctime (&(record->dreceived)), record->subject, record->from, record->to, record->cc, record->mlist, record->followup_flag, record->followup_completed_on, record->followup_due_by, record->part, record->labels, record->usertags, record->cinfo, record->bdata);
+	char date_sent [255];
+	char date_received [255];
+
+	struct tm sent;
+	struct tm received;
+
+	gmtime_r (&(record->dsent), &sent);
+	gmtime_r (&(record->dreceived), &received);
+
+	strftime (date_sent, sizeof (date_sent), "%F", &sent);
+	strftime (date_received, sizeof (date_received), "%F", &received);
+
+	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", folder_name, record->uid, record->flags, record->read, record->deleted, record->replied, record->important, record->junk, record->attachment, record->size, date_sent, date_received, record->subject, record->from, record->to, record->cc, record->mlist, record->followup_flag, record->followup_completed_on, record->followup_due_by, record->part, record->labels, record->usertags, record->cinfo, record->bdata);
 	
 	del_query = g_strdup_printf ("DELETE FROM %s WHERE uid = \"%s\"", folder_name, record->uid);
 
@@ -383,7 +395,15 @@ camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord
 	return (camel_db_select (cdb, query, read_fir_callback, record, ex));
 }
 
+int
+camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex)
+{
+	char *query;
 
+	query = g_strdup_printf ("SELECT * FROM \"%s\" ", folder_name);
+
+	return (camel_db_select (cdb, query, read_mir_callback, p, ex));
+}
 
 gboolean
 camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex)
