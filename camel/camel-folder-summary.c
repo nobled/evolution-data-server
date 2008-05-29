@@ -104,7 +104,6 @@ static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *, Cam
 static CamelMessageInfo * message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg);
 static CamelMessageInfo * message_info_load(CamelFolderSummary *, FILE *);
 static int		  message_info_save(CamelFolderSummary *, FILE *, CamelMessageInfo *);
-static int save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex);
 static int		  meta_message_info_save(CamelFolderSummary *s, FILE *out_meta, FILE *out, CamelMessageInfo *info);
 static void		  message_info_free(CamelFolderSummary *, CamelMessageInfo *);
 
@@ -115,6 +114,8 @@ static CamelMessageContentInfo * content_info_load(CamelFolderSummary *, FILE *)
 static int		         content_info_save(CamelFolderSummary *, FILE *, CamelMessageContentInfo *);
 static void		         content_info_free(CamelFolderSummary *, CamelMessageContentInfo *);
 
+static int save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex);
+
 static char *next_uid_string(CamelFolderSummary *s);
 
 static CamelMessageContentInfo * summary_build_content_info(CamelFolderSummary *s, CamelMessageInfo *msginfo, CamelMimeParser *mp);
@@ -123,8 +124,6 @@ static CamelMessageContentInfo * summary_build_content_info_message(CamelFolderS
 static void camel_folder_summary_class_init (CamelFolderSummaryClass *klass);
 static void camel_folder_summary_init       (CamelFolderSummary *obj);
 static void camel_folder_summary_finalize   (CamelObject *obj);
-
-static CamelMIRecord * message_info_to_db (CamelMessageInfo *info);
 
 static CamelObjectClass *camel_folder_summary_parent;
 
@@ -681,6 +680,7 @@ perform_content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentI
 	return 0;
 }
 
+
 static int
 save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 {
@@ -696,7 +696,7 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 	count = s->messages->len;
 	for (i = 0; i < count; ++i) {
 		mi = s->messages->pdata [i];
-		mir = message_info_to_db (mi);
+//		mir = message_info_to_db (mi);
 		if (camel_db_write_message_info_record (cdb, folder_name, mir, ex) != 0)
 			return -1;
 	}	
@@ -711,8 +711,9 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	int ret;
 
 	d(printf ("\ncamel_folder_summary_save_to_db called \n"));
-	camel_db_begin_transaction (cdb, ex);
 
+	camel_db_begin_transaction (cdb, ex);
+	
 	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s));
 	if (!record) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create folder summary"));
@@ -721,6 +722,7 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 
 	ret = camel_db_write_folder_info_record (cdb, record, ex);
 	g_free (record);
+	
 	if (ret != 0) {
 		camel_db_abort_transaction (cdb, ex);
 		return -1;
@@ -733,7 +735,8 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	}
 
 	camel_db_end_transaction (cdb, ex);
-
+ 
+	
 	return ret;
 }
 
@@ -2177,7 +2180,7 @@ meta_message_info_save(CamelFolderSummary *s, FILE *out_meta, FILE *out, CamelMe
 
 
 static CamelMIRecord *
-message_info_to_db (CamelMessageInfo *info)
+message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CamelMIRecord *record = g_new0(CamelMIRecord, 1);
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *) info;
@@ -2209,15 +2212,15 @@ message_info_to_db (CamelMessageInfo *info)
 	
 	record->followup_flag = g_strdup(camel_message_info_user_tag(info, "follow-up"));
 	record->followup_completed_on = g_strdup(camel_message_info_user_tag(info, "completed-on"));
-	record->followup_due_by = g_strdup(camel_message_info_user_tag(info, "due-by"));
+ 	record->followup_due_by = g_strdup(camel_message_info_user_tag(info, "due-by"));
 
 	tmp = g_string_new (NULL);
 	if (mi->references) {
-		g_string_append_printf (tmp, "%lu %lu %lu", (long unsigned) mi->message_id.id.part.hi, (long unsigned) mi->message_id.id.part.lo, (long unsigned) mi->references->size);
+		g_string_append_printf (tmp, "%lu %lu %lu", (long unsigned)mi->message_id.id.part.hi, (long unsigned)mi->message_id.id.part.lo, (long unsigned)mi->references->size);
 		for (i=0;i<mi->references->size;i++) 
-			g_string_append_printf (tmp, " %lu %lu", (long unsigned) mi->references->references[i].id.part.hi, (long unsigned) mi->references->references[i].id.part.lo);
+			g_string_append_printf (tmp, " %lu %lu", (long unsigned)mi->references->references[i].id.part.hi, (long unsigned)mi->references->references[i].id.part.lo);
 	} else {
-		g_string_append_printf (tmp, "%lu %lu %lu", (long unsigned) mi->message_id.id.part.hi, (long unsigned) mi->message_id.id.part.lo, (long unsigned) 0);		
+		g_string_append_printf (tmp, "%lu %lu %lu", (long unsigned)mi->message_id.id.part.hi, (long unsigned)mi->message_id.id.part.lo, 0);		
 	}
 	record->part = tmp->str;
 	g_string_free (tmp, FALSE);
@@ -2238,11 +2241,11 @@ message_info_to_db (CamelMessageInfo *info)
 
 	tmp = g_string_new (NULL);	
 	count = camel_tag_list_size(&mi->user_tags);
-	g_string_append_printf (tmp, "%lu", (long unsigned) count);	
+	g_string_append_printf (tmp, "%lu", (long unsigned)count);	
 	tag = mi->user_tags;
 	while (tag) {
 		/* FIXME: Should we handle empty tags? Can it be empty? If it potential crasher ahead*/
-		g_string_append_printf (tmp, " %lu-%s %lu-%s", (long unsigned) strlen(tag->name), tag->name, (long unsigned) strlen(tag->value), tag->value);		
+		g_string_append_printf (tmp, " %lu-%s %lu-%s", (long unsigned)strlen(tag->name), tag->name, (long unsigned)strlen(tag->value), tag->value);		
 		tag = tag->next;
 	}
 	record->usertags = tmp->str;
@@ -2251,6 +2254,7 @@ message_info_to_db (CamelMessageInfo *info)
 
 	return record;
 }
+
 
 static int
 message_info_save(CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
@@ -3717,13 +3721,13 @@ camel_folder_summary_class_init (CamelFolderSummaryClass *klass)
 	klass->message_info_to_db = message_info_to_db;
 	klass->content_info_from_db = content_info_from_db;
 	klass->content_info_to_db = content_info_to_db;
-	
+	klass->save_message_infos_to_db = save_message_infos_to_db;
+
 	klass->message_info_new_from_header  = message_info_new_from_header;
 	klass->message_info_new_from_parser = message_info_new_from_parser;
 	klass->message_info_new_from_message = message_info_new_from_message;
 	klass->message_info_load = message_info_load;
 	klass->message_info_save = message_info_save;
-	klass->save_message_infos_to_db = save_message_infos_to_db;
 	klass->meta_message_info_save = meta_message_info_save;
 	klass->message_info_free = message_info_free;
 	klass->message_info_clone = message_info_clone;

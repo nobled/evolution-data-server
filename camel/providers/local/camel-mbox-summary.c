@@ -49,6 +49,15 @@
 
 #define CAMEL_MBOX_SUMMARY_VERSION (1)
 
+#define EXTRACT_DIGIT(val) part++; val=strtoul (part, &part, 10);
+#define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
+ 
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *);
+static int summary_header_from_db (CamelFolderSummary *, CamelFIRecord *);
+static CamelMessageInfo * message_info_from_db(CamelFolderSummary *s, CamelMIRecord *record);
+static CamelMIRecord * message_info_to_db(CamelFolderSummary *s, CamelMessageInfo *info);
+
+
 static int summary_header_load (CamelFolderSummary *, FILE *);
 static int summary_header_save (CamelFolderSummary *, FILE *);
 
@@ -154,6 +163,11 @@ camel_mbox_summary_class_init(CamelMboxSummaryClass *klass)
 	sklass->summary_header_load = summary_header_load;
 	sklass->summary_header_save = summary_header_save;
 
+	sklass->summary_header_from_db = summary_header_from_db;
+	sklass->summary_header_to_db = summary_header_to_db;
+	sklass->message_info_from_db = message_info_from_db;
+	sklass->message_info_to_db = message_info_to_db;
+	
 	sklass->message_info_new_from_header  = message_info_new_from_header;
 	sklass->message_info_new_from_parser = message_info_new_from_parser;
 	sklass->message_info_load = message_info_load;
@@ -238,6 +252,24 @@ mbox_summary_encode_x_evolution (CamelLocalSummary *cls, const CamelLocalMessage
 	}
 }
 
+static int 
+summary_header_from_db (CamelFolderSummary *s, struct _CamelFIRecord *fir)
+{
+	CamelMboxSummary *mbs = CAMEL_MBOX_SUMMARY(s);
+	char *part;
+
+	((CamelFolderSummaryClass *)camel_mbox_summary_parent)->summary_header_from_db(s, fir);
+
+	part = fir->bdata;
+	if (part) {
+		EXTRACT_DIGIT(mbs->version)
+		EXTRACT_DIGIT(mbs->folder_size)
+	}
+	
+	return 0;
+}
+
+
 static int
 summary_header_load(CamelFolderSummary *s, FILE *in)
 {
@@ -256,6 +288,21 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 		return -1;
 
 	return 0;
+}
+
+static CamelFIRecord * 
+summary_header_to_db (CamelFolderSummary *s)
+{
+	CamelMboxSummary *mbs = CAMEL_MBOX_SUMMARY(s);
+	struct _CamelFIRecord *fir;
+	char *tmp;
+
+	fir = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->summary_header_to_db(s);
+	tmp = fir->bdata;
+	fir->bdata = g_strdup_printf ("%s %lu %lu", tmp ? tmp : "", CAMEL_MBOX_SUMMARY_VERSION, mbs->folder_size);
+	g_free (tmp);
+	
+	return fir;
 }
 
 static int
@@ -366,6 +413,25 @@ message_info_new_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
 	return mi;
 }
 
+static CamelMessageInfo * 
+message_info_from_db(CamelFolderSummary *s, struct _CamelMIRecord *mir)
+{
+	CamelMessageInfo *mi;
+	char *part;
+
+	mi = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->message_info_from_db(s, mir);
+
+	if (mi) {
+		CamelMboxMessageInfo *mbi = (CamelMboxMessageInfo *)mi;
+		part = mir->bdata;
+		if (part) {
+			EXTRACT_FIRST_DIGIT (mbi->frompos)
+		}
+	}
+
+	return mi;
+}
+
 static CamelMessageInfo *
 message_info_load(CamelFolderSummary *s, FILE *in)
 {
@@ -400,6 +466,19 @@ meta_message_info_save(CamelFolderSummary *s, FILE *out_meta, FILE *out, CamelMe
 
 	return 0;
 }
+
+static struct _CamelMIRecord * 
+message_info_to_db(CamelFolderSummary *s, CamelMessageInfo *info)
+{
+	CamelMboxMessageInfo *mbi = (CamelMboxMessageInfo *)info;
+	struct _CamelMIRecord *mir;
+
+	mir = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->message_info_to_db(s, info);
+	mir->bdata = g_strdup_printf("%lu", mbi->frompos);
+
+	return mir;
+}
+
 
 static int
 message_info_save(CamelFolderSummary *s, FILE *out, CamelMessageInfo *mi)
