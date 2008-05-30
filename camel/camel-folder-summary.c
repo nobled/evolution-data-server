@@ -1863,7 +1863,7 @@ summary_header_to_db (CamelFolderSummary *s)
 	DB_COUNT(record->saved_count, "uid", "");
 	DB_COUNT(record->unread_count, "read", " where read=0");
 	DB_COUNT(record->deleted_count, "deleted", " where deleted=1");
-	DB_COUNT(record->junk_count, "junk", "where junk=1");
+	DB_COUNT(record->junk_count, "junk", " where junk=1");
 	
 	return record;	
 }
