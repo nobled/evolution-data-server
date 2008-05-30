@@ -621,7 +621,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 
 	g_free (record);
 
-	camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
+	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
 
 	return ret;
 
@@ -709,7 +709,7 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 	} else
 		g_warning ("Loading messageinfo from db failed");
 
-	g_object_unref (mir);
+	g_free (mir);
 
 	return 0;
 }
