@@ -177,7 +177,7 @@ count_cb (void *data, int argc, char **argv, char **azColName)
 
   	for(i=0; i<argc; i++) {
 		if (strstr(azColName[i], "count")) {
-			*(int **)data = atoi(argv[i]);
+			*(int *)data = atoi(argv[i]);
 		}
   	}
 
@@ -260,24 +260,12 @@ camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, Camel
 
 	char *table_creation_query;
 	
-	table_creation_query = g_strdup_printf ("CREATE TABLE IF NOT EXISTS %s (  uid TEXT PRIMARY KEY , flags INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
+	table_creation_query = g_strdup_printf ("CREATE TABLE IF NOT EXISTS %s (  uid TEXT PRIMARY KEY , flags INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
 
 	char *del_query;
 	char *ins_query;
 
-	char date_sent [255];
-	char date_received [255];
-
-	struct tm sent;
-	struct tm received;
-
-	gmtime_r (&(record->dsent), &sent);
-	gmtime_r (&(record->dreceived), &received);
-
-	strftime (date_sent, sizeof (date_sent), "%F", &sent);
-	strftime (date_received, sizeof (date_received), "%F", &received);
-
-	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", folder_name, record->uid, record->flags, record->read, record->deleted, record->replied, record->important, record->junk, record->attachment, record->size, date_sent, date_received, record->subject, record->from, record->to, record->cc, record->mlist, record->followup_flag, record->followup_completed_on, record->followup_due_by, record->part, record->labels, record->usertags, record->cinfo, record->bdata);
+	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", folder_name, record->uid, record->flags, record->read, record->deleted, record->replied, record->important, record->junk, record->attachment, record->size, record->dsent, record->dreceived, record->subject, record->from, record->to, record->cc, record->mlist, record->followup_flag, record->followup_completed_on, record->followup_due_by, record->part, record->labels, record->usertags, record->cinfo, record->bdata);
 	
 	del_query = g_strdup_printf ("DELETE FROM %s WHERE uid = \"%s\"", folder_name, record->uid);
 
@@ -309,7 +297,7 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 	char *del_query;
 	char *ins_query;
 
-	ins_query = g_strdup_printf ("INSERT INTO folders VALUES ( \"%s\", %d, %d, %d, 143, %d, %d, %d, %d, \"%s\" ) ", record->folder_name, record->version, record->flags , record->nextuid , record->saved_count , record->unread_count , record->deleted_count , record->junk_count , "PROVIDER SPECIFIC DATA"); 
+	ins_query = g_strdup_printf ("INSERT INTO folders VALUES ( \"%s\", %d, %d, %d, 143, %d, %d, %d, %d, \"%s\" ) ", record->folder_name, record->version, record->flags , record->nextuid , record->saved_count , record->unread_count , record->deleted_count , record->junk_count , record->bdata); 
 
 	del_query = g_strdup_printf ("DELETE FROM folders WHERE folder_name = \"%s\"", record->folder_name);
 

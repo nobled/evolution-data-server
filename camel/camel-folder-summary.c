@@ -529,6 +529,38 @@ camel_folder_summary_next_uid_string(CamelFolderSummary *s)
 	return ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->next_uid_string(s);
 }
 
+static CamelMessageContentInfo *
+perform_content_info_load_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
+{
+	int i;
+	guint32 count;
+	CamelMessageContentInfo *ci, *pci;
+	char *part;
+	ci = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->content_info_from_db (s, mir);
+	if (ci == NULL)
+		return NULL;
+	part = mir->cinfo;
+	if (!part)
+		return ci;
+	if (*part == ' ') part++;
+	EXTRACT_DIGIT (count);
+
+	mir->cinfo = part;
+	for (i=0;i<count;i++) {
+		pci = perform_content_info_load_from_db (s, mir);
+		if (pci ) {
+			my_list_append((struct _node **)&ci->childs, (struct _node *)pci);
+			pci->parent = ci;
+		} else {
+			d(fprintf (stderr, "Summary file format messed up?"));
+			camel_folder_summary_content_info_free (s, ci);
+			return NULL;
+		}
+	}
+	return ci;
+}
+
+
 /* loads the content descriptions, recursively */
 static CamelMessageContentInfo *
 perform_content_info_load(CamelFolderSummary *s, FILE *in)
@@ -625,21 +657,17 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 			mir->attachment = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
 		else if ( !strcmp (name [i], "size") ) 
 			mir->size =  cols [i] ? strtoul (cols [i], NULL, 10) : 0;
-		else if ( !strcmp (name [i], "dsent") ) {
-			struct tm tmm;
-			strptime (cols [i], "%F", &(tmm));
-			mir->dsent = mktime (&tmm);
-		} else if ( !strcmp (name [i], "dreceived") )  {
-			struct tm tmm;
-			strptime (cols [i], "%F", &(tmm));
-			mir->dreceived = mktime (&tmm);
-		} else if ( !strcmp (name [i], "subject") ) 
+		else if ( !strcmp (name [i], "dsent") ) 
+			mir->dsent = cols [i] ? strtol (cols [i], NULL, 10) : 0;
+		else if ( !strcmp (name [i], "dreceived") ) 
+			mir->dreceived = cols [i] ? strtol (cols [i], NULL, 10) : 0;
+		else if ( !strcmp (name [i], "subject") ) 
 			mir->subject = g_strdup (cols [i]);
-		else if ( !strcmp (name [i], "from") ) 
+		else if ( !strcmp (name [i], "mail_from") ) 
 			mir->from = g_strdup (cols [i]);
-		else if ( !strcmp (name [i], "to") ) 
+		else if ( !strcmp (name [i], "mail_to") ) 
 			mir->to = g_strdup (cols [i]);
-		else if ( !strcmp (name [i], "cc") ) 
+		else if ( !strcmp (name [i], "mail_cc") ) 
 			mir->cc = g_strdup (cols [i]);
 		else if ( !strcmp (name [i], "mlist") ) 
 			mir->mlist = g_strdup (cols [i]);
@@ -665,7 +693,18 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 	info = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_from_db (s, mir);
 
 	if (info) {
+
+		if (s->build_content) {
+			/* FIXME: this should be done differently, how i don't know */
+			((CamelMessageInfoBase *)info)->content = perform_content_info_load_from_db (s, mir);
+			if (((CamelMessageInfoBase *)info)->content == NULL) {
+				camel_message_info_free(info);
+				info = NULL;
+			} 
+		}
+
 		camel_folder_summary_add (s, info);
+
 		d(g_print ("\nAdding messageinfo to db from db \n"));
 	} else
 		g_warning ("Loading messageinfo from db failed");
@@ -745,6 +784,30 @@ error:
 
 /* saves the content descriptions, recursively */
 static int
+perform_content_info_save_to_db (CamelFolderSummary *s, CamelMessageContentInfo *ci, CamelMIRecord *record)
+{
+	CamelMessageContentInfo *part;
+	char *oldr, *cnt;
+	if (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS (s)))->content_info_to_db (s, ci, record) == -1)
+		return -1;
+	
+	oldr = record->cinfo;
+	cnt = g_strdup_printf (" %d", my_list_size ((struct _node **)&ci->childs));
+	record->cinfo = g_strconcat (oldr, cnt, NULL);
+	g_free (oldr); g_free (cnt);
+
+	part = ci->childs;
+	while (part) {
+		if (perform_content_info_save_to_db (s, part, record) == -1)
+			return -1;
+		part = part->next;
+	}
+
+	return 0;
+}
+
+/* saves the content descriptions, recursively */
+static int
 perform_content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *ci)
 {
 	CamelMessageContentInfo *part;
@@ -782,6 +845,15 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 	for (i = 0; i < count; ++i) {
 		mi = s->messages->pdata [i];
 		mir = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_to_db (s, mi);
+
+		if (mir && s->build_content) {
+			if (perform_content_info_save_to_db (s, ((CamelMessageInfoBase *)mi)->content, mir) == -1) {
+				g_warning ("unable to save mir+cinfo for uid: %s\n", mir->uid);
+				/* FIXME: Add exception here */
+				return -1;
+			}
+		}
+
 		if (camel_db_write_message_info_record (cdb, folder_name, mir, ex) != 0)
 			return -1;
 	}	
@@ -2092,11 +2164,11 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 }
 
 static CamelMessageInfo *
-message_info_from_db (CamelFolderSummary *s, struct _CamelMIRecord *record)
+message_info_from_db (CamelFolderSummary *s, CamelMIRecord *record)
 {
 	CamelMessageInfoBase *mi;
 	int i;
-	int len, val, count;
+	int count;
 	char *part, *label;
 	
 	mi = (CamelMessageInfoBase *)camel_message_info_new(s);
@@ -2143,7 +2215,7 @@ message_info_from_db (CamelFolderSummary *s, struct _CamelMIRecord *record)
 		if (part[i] == ' ') {
 			part[i] = 0;
 			camel_flag_set(&mi->user_flags, label, TRUE);
-			label = part[i+1];
+			label = &(part[i+1]);
 		}
 	}
 	camel_flag_set(&mi->user_flags, label, TRUE);
@@ -2161,7 +2233,7 @@ message_info_from_db (CamelFolderSummary *s, struct _CamelMIRecord *record)
 		g_free(value);
 	}	
 
-	return mi;
+	return (CamelMessageInfo *) mi;
 }
 
 static CamelMessageInfo *
@@ -2550,45 +2622,45 @@ content_info_to_db(CamelFolderSummary *s, CamelMessageContentInfo *ci, CamelMIRe
 	ct = ci->type;
 	if (ct) {
 		if (ct->type)
-			g_string_append_printf (str, " %lu-%s", strlen (ct->type), ct->type);
+			g_string_append_printf (str, " %d-%s", strlen (ct->type), ct->type);
 		else 
 			g_string_append_printf (str, " 0-");
 		if (ct->subtype)
-			g_string_append_printf (str, " %lu-%s", strlen (ct->subtype), ct->subtype);
+			g_string_append_printf (str, " %d-%s", strlen (ct->subtype), ct->subtype);
 		else 
 			g_string_append_printf (str, " 0-");
-		g_string_append_printf (str, " %lu", my_list_size((struct _node **)&ct->params));
+		g_string_append_printf (str, " %d", my_list_size((struct _node **)&ct->params));
 		hp = ct->params;
 		while (hp) {
 			if (hp->name)
-				g_string_append_printf (str, " %lu-%s", strlen(hp->name), hp->name);
+				g_string_append_printf (str, " %d-%s", strlen(hp->name), hp->name);
 			else 
 				g_string_append_printf (str, " 0-");
 			if (hp->value)
-				g_string_append_printf (str, " %lu-%s", strlen (hp->value), hp->value);
+				g_string_append_printf (str, " %d-%s", strlen (hp->value), hp->value);
 			else
 				g_string_append_printf (str, " 0-");
 			hp = hp->next;
 		}
 	} else {
-		g_string_append_printf (str, " %lu-", 0);
-		g_string_append_printf (str, " %lu-", 0);
-		g_string_append_printf (str, " %lu", 0);
+		g_string_append_printf (str, " %d-", 0);
+		g_string_append_printf (str, " %d-", 0);
+		g_string_append_printf (str, " %d", 0);
 	}
 
 	if (ci->id)
-		g_string_append_printf (str, " %lu-%s", strlen (ci->id), ci->id);
+		g_string_append_printf (str, " %d-%s", strlen (ci->id), ci->id);
 	else 
 		g_string_append_printf (str, " 0-");
 	if (ci->description)
-		g_string_append_printf (str, " %lu-%s", strlen (ci->description), ci->description);
+		g_string_append_printf (str, " %d-%s", strlen (ci->description), ci->description);
 	else
 		g_string_append_printf (str, " 0-");
 	if (ci->encoding)
-		g_string_append_printf (str, " %lu-%s", strlen (ci->encoding), ci->encoding);
+		g_string_append_printf (str, " %d-%s", strlen (ci->encoding), ci->encoding);
 	else
 		g_string_append_printf (str, " 0-");
-	g_string_append_printf (str, " %lu", ci->size);
+	g_string_append_printf (str, " %u", ci->size);
 
 	if (record->cinfo) {
 		oldr = record->cinfo;
