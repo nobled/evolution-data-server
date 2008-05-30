@@ -571,7 +571,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	int ret = 0;
 
 	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
-
+	camel_exception_init (&ex);
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
 	folder_name = s->folder->full_name;
