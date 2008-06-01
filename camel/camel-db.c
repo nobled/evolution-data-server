@@ -54,7 +54,6 @@ camel_db_open (const char *path, CamelException *ex)
 	cdb = g_new (CamelDB, 1);
 	cdb->db = db;
 	cdb->lock = g_mutex_new ();
-	cdb->read_lock = g_mutex_new ();
 	d(g_print ("\nDatabase succesfully opened  \n"));
 	return cdb;
 }
@@ -65,7 +64,6 @@ camel_db_close (CamelDB *cdb)
 	if (cdb) {
 		sqlite3_close (cdb->db);
 		g_mutex_free (cdb->lock);
-		g_mutex_free (cdb->read_lock);
 		g_free (cdb);
 		d(g_print ("\nDatabase succesfully closed \n"));
 	}
@@ -193,13 +191,11 @@ camel_db_count (CamelDB *cdb, const char *stmt)
 
 	if (!cdb)
 		return 0;
-	g_mutex_lock (cdb->read_lock);
 	ret = sqlite3_exec(cdb->db, stmt, count_cb, &count, &errmsg);
   	if(ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement %s [%s].\n", stmt, errmsg));
 		sqlite3_free (errmsg);
   	}
-	g_mutex_unlock (cdb->read_lock);
 	d(g_print("count of '%s' is %d\n", stmt, count));
 	return count;
 }
@@ -214,7 +210,6 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 
 	if (!cdb)
 		return TRUE;
-	g_mutex_lock (cdb->read_lock);	
   	ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
 
   	if(ret != SQLITE_OK) {
@@ -222,7 +217,6 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);
 		sqlite3_free (errmsg);
   	}
-	g_mutex_unlock (cdb->read_lock);
 
 	return ret;
 }

@@ -11,7 +11,6 @@
 struct _CamelDB {
 	sqlite3 *db;
 	GMutex *lock;
-	GMutex *read_lock;
 };
 
 
