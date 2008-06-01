@@ -53,6 +53,14 @@ static CamelMessageContentInfo * gw_content_info_load (CamelFolderSummary *s, FI
 static int gw_content_info_save (CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *info) ;
 static gboolean gw_info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set);		
 
+static int summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s);
+static CamelMIRecord * message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info);
+static CamelMessageInfo * message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir);
+static int content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir);
+static CamelMessageContentInfo * content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir);
+
+
 static void camel_groupwise_summary_class_init (CamelGroupwiseSummaryClass *klass);
 static void camel_groupwise_summary_init       (CamelGroupwiseSummary *obj);
 
@@ -64,6 +72,8 @@ static CamelFolderSummaryClass *camel_groupwise_summary_parent ;
 
 
 CamelType
+#include <fcntl.h>
+#include <fcntl.h>
 camel_groupwise_summary_get_type (void)
 {
 	static CamelType type = CAMEL_INVALID_TYPE;
@@ -112,6 +122,14 @@ camel_groupwise_summary_class_init (CamelGroupwiseSummaryClass *klass)
 	cfs_class->content_info_load = gw_content_info_load;
 	cfs_class->content_info_save = gw_content_info_save;
 	cfs_class->info_set_flags = gw_info_set_flags;
+
+	cfs_class->summary_header_to_db = summary_header_to_db;
+	cfs_class->summary_header_from_db = summary_header_from_db;
+	cfs_class->message_info_to_db = message_info_to_db;
+	cfs_class->message_info_from_db = message_info_from_db;
+	cfs_class->content_info_to_db = content_info_to_db;
+	cfs_class->content_info_from_db = content_info_from_db;
+	
 }
 
 
@@ -157,6 +175,12 @@ camel_groupwise_summary_new (struct _CamelFolder *folder, const char *filename)
 }
 
 static int
+summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
+{
+	return 0;
+}
+
+static int
 gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 {
 	CamelGroupwiseSummary *ims = CAMEL_GROUPWISE_SUMMARY (s);
@@ -173,6 +197,13 @@ gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 	return 0 ;
 }
 
+static CamelFIRecord *
+summary_header_to_db (CamelFolderSummary *s)
+{
+	CamelFIRecord *fir;
+	GString *str = g_string_new (NULL);
+	
+}
 
 static int
 gw_summary_header_save (CamelFolderSummary *s, FILE *out)
