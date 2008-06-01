@@ -10,7 +10,7 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#define d(x) x
+#define d(x) 
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -116,7 +116,7 @@ camel_db_abort_transaction (CamelDB *cdb, CamelException *ex)
 	int ret;
 	
 	d(g_print ("\nABORT TRANSACTION \n"));
-	ret = cdb_sql_exec (cdb->db, "ABORT TRANSACTION", ex);
+	ret = cdb_sql_exec (cdb->db, "ABORT TRANSACTION;", ex);
 	g_mutex_unlock (cdb->lock);
 
 	return ret;
@@ -200,7 +200,6 @@ camel_db_count (CamelDB *cdb, const char *stmt)
 	return count;
 }
 
-
 int
 camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex) 
 {
@@ -220,7 +219,6 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 
 	return ret;
 }
-
 
 int
 camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex)
@@ -242,25 +240,38 @@ camel_db_create_folders_table (CamelDB *cdb, CamelException *ex)
 	return ((camel_db_command (cdb, query, ex)));
 }
 
-
-int
-camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex)
+int 
+camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, CamelException *ex)
 {
-
 	int ret;
-
-	if (!cdb)
-		return -1;
-
 	char *table_creation_query;
 	
 	table_creation_query = g_strdup_printf ("CREATE TABLE IF NOT EXISTS %s (  uid TEXT PRIMARY KEY , flags INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
 
+	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
+
+	g_free (table_creation_query);
+	return ret;
+}
+
+int
+camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex)
+{
+	int ret;
 	char *del_query;
 	char *ins_query;
 
-	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", folder_name, record->uid, record->flags, record->read, record->deleted, record->replied, record->important, record->junk, record->attachment, record->size, record->dsent, record->dreceived, record->subject, record->from, record->to, record->cc, record->mlist, record->followup_flag, record->followup_completed_on, record->followup_due_by, record->part, record->labels, record->usertags, record->cinfo, record->bdata);
-	
+	ins_query = g_strdup_printf ("INSERT INTO \"%s\" VALUES (\"%s\", %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\" )", 
+			folder_name, record->uid, record->flags,
+			record->read, record->deleted, record->replied,
+			record->important, record->junk, record->attachment,
+			record->size, record->dsent, record->dreceived,
+			record->subject, record->from, record->to,
+			record->cc, record->mlist, record->followup_flag,
+			record->followup_completed_on, record->followup_due_by, 
+			record->part, record->labels, record->usertags,
+			record->cinfo, record->bdata);
+
 	del_query = g_strdup_printf ("DELETE FROM %s WHERE uid = \"%s\"", folder_name, record->uid);
 
 #if 0
@@ -271,7 +282,6 @@ camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, Camel
 	g_free (upd_query);
 #else
 
-	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	ret = camel_db_add_to_transaction (cdb, del_query, ex);
 	ret = camel_db_add_to_transaction (cdb, ins_query, ex);
 
@@ -291,7 +301,11 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 	char *del_query;
 	char *ins_query;
 
-	ins_query = g_strdup_printf ("INSERT INTO folders VALUES ( \"%s\", %d, %d, %d, 143, %d, %d, %d, %d, \"%s\" ) ", record->folder_name, record->version, record->flags , record->nextuid , record->saved_count , record->unread_count , record->deleted_count , record->junk_count , record->bdata); 
+	ins_query = g_strdup_printf ("INSERT INTO folders VALUES ( \"%s\", %d, %d, %d, 143, %d, %d, %d, %d, \"%s\" ) ", 
+			record->folder_name, record->version,
+			record->flags, record->nextuid,
+			record->saved_count, record->unread_count,
+			record->deleted_count, record->junk_count, record->bdata); 
 
 	del_query = g_strdup_printf ("DELETE FROM folders WHERE folder_name = \"%s\"", record->folder_name);
 

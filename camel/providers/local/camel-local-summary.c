@@ -42,7 +42,7 @@
 
 #define w(x)
 #define io(x)
-#define d(x) x /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
+#define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
 #define CAMEL_LOCAL_SUMMARY_VERSION (1)
 

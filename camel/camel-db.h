@@ -110,6 +110,8 @@ int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, g
 int camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex);
 int camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord **record, CamelException *ex);
 
+int camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, CamelException *ex);
+
 int camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex);
 int camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex);
 

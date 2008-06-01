@@ -42,7 +42,7 @@
 #include "camel-store.h"
 #include "camel-vtrash-folder.h"
 
-#define d(x) x
+#define d(x) 
 #define w(x)
 
 static CamelServiceClass *parent_class = NULL;

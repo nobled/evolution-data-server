@@ -71,7 +71,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 /* this should probably be conditional on it existing */
 #define USE_BSEARCH
 
-#define d(x) x
+#define d(x) 
 #define io(x)			/* io debug */
 #define w(x)
 
@@ -839,8 +839,12 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 	int i, count;
 	char *folder_name;
 
-	/* Push MessageInfo-es */
 	folder_name = s->folder->full_name;
+	if (camel_db_prepare_message_info_table (cdb, folder_name, ex) != 0) {
+		return -1;
+	}
+
+	/* Push MessageInfo-es */
 	count = s->messages->len;
 	for (i = 0; i < count; ++i) {
 		mi = s->messages->pdata [i];
@@ -866,10 +870,16 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	CamelDB *cdb = s->folder->parent_store->cdb;
 	CamelFIRecord *record;
 	int ret;
+	GTimer *timer, *trans_timer;
+
+
+	timer = g_timer_new ();
+	trans_timer = g_timer_new ();
 
 	d(printf ("\ncamel_folder_summary_save_to_db called \n"));
 
 	camel_db_begin_transaction (cdb, ex);
+	g_timer_start (trans_timer);
 	
 	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s));
 	if (!record) {
@@ -877,22 +887,32 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 		return -1;
 	}
 
+	g_timer_start (timer);
 	ret = camel_db_write_folder_info_record (cdb, record, ex);
 	g_free (record);
-	
+	g_timer_stop (timer);
+
+	d(g_print ("\n Folderinfo record time taken : [%f] \n", g_timer_elapsed (timer, NULL)));
+
 	if (ret != 0) {
 		camel_db_abort_transaction (cdb, ex);
 		return -1;
 	}
 
+	g_timer_start (timer);
 	ret = save_message_infos_to_db (s, ex);
+	g_timer_stop (timer);
+
 	if (ret != 0) {
 		camel_db_abort_transaction (cdb, ex);
 		return -1;
 	}
 
+	d(g_print ("\n Messageinfo record time taken : [%f] \n", g_timer_elapsed (timer, NULL)));
 	camel_db_end_transaction (cdb, ex);
- 
+	g_timer_stop (trans_timer);
+
+	d(g_print ("\n Transaction time taken : [%f] \n", g_timer_elapsed (trans_timer, NULL)));
 	
 	return ret;
 }
