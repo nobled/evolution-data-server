@@ -72,8 +72,6 @@ static CamelFolderSummaryClass *camel_groupwise_summary_parent ;
 
 
 CamelType
-#include <fcntl.h>
-#include <fcntl.h>
 camel_groupwise_summary_get_type (void)
 {
 	static CamelType type = CAMEL_INVALID_TYPE;
@@ -197,11 +195,39 @@ gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 	return 0 ;
 }
 
+static CamelMIRecord * 
+message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
+{
+	return NULL;
+}
+
+static CamelMessageInfo * 
+message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
+{
+	return NULL;
+}
+
+static int 
+content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir)
+{
+
+	return -1;
+}
+
+static CamelMessageContentInfo * 
+content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
+{
+	return NULL;
+}
+
+
 static CamelFIRecord *
 summary_header_to_db (CamelFolderSummary *s)
 {
 	CamelFIRecord *fir;
 	GString *str = g_string_new (NULL);
+
+	return NULL;
 	
 }
 
@@ -216,8 +242,6 @@ gw_summary_header_save (CamelFolderSummary *s, FILE *out)
 	camel_file_util_encode_fixed_int32(out, CAMEL_GW_SUMMARY_VERSION);
 	camel_file_util_encode_fixed_int32(out, ims->validity);
 	return camel_file_util_encode_string (out, ims->time_string);
-
-
 }
 
 static CamelMessageInfo *
