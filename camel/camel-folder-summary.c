@@ -2229,16 +2229,18 @@ message_info_from_db (CamelFolderSummary *s, CamelMIRecord *record)
 
 	/* Extract User flags/labels */
 	part = record->labels;
-	label = part;
-	for (i=0;part[i];i++) {
+	if (part) {
+		label = part;
+		for (i=0;part[i];i++) {
 
-		if (part[i] == ' ') {
-			part[i] = 0;
-			camel_flag_set(&mi->user_flags, label, TRUE);
-			label = &(part[i+1]);
+			if (part[i] == ' ') {
+				part[i] = 0;
+				camel_flag_set(&mi->user_flags, label, TRUE);
+				label = &(part[i+1]);
+			}
 		}
+		camel_flag_set(&mi->user_flags, label, TRUE);
 	}
-	camel_flag_set(&mi->user_flags, label, TRUE);
 
 	/* Extract User tags */
 	part = record->usertags;

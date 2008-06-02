@@ -10,7 +10,7 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#define d(x) 
+#define d(x) x
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -19,7 +19,7 @@ cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex)
   	int   ret;
 
   	ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
-
+	d(g_print("%s\n", stmt));
   	if (ret != SQLITE_OK) {
     		d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
