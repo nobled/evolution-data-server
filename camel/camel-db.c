@@ -116,7 +116,7 @@ camel_db_abort_transaction (CamelDB *cdb, CamelException *ex)
 	int ret;
 	
 	d(g_print ("\nABORT TRANSACTION \n"));
-	ret = cdb_sql_exec (cdb->db, "ABORT ", ex);
+	ret = cdb_sql_exec (cdb->db, "ROLLBACK", ex);
 	g_mutex_unlock (cdb->lock);
 
 	return ret;
@@ -167,15 +167,14 @@ end:
 	return ret;
 }
 
-/* We enforce it to be count and not COUNT just to speed up */
 static int 
 count_cb (void *data, int argc, char **argv, char **azColName)
 {
   	int i;
 
   	for(i=0; i<argc; i++) {
-		if (strstr(azColName[i], "count")) {
-			*(int *)data = atoi(argv[i]);
+		if (strstr(azColName[i], "COUNT")) {
+			*(guint32 *)data = argv [i] ? strtoul (argv [i], NULL, 10) : 0;
 		}
   	}
 
@@ -190,7 +189,7 @@ camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, Ca
 
 	ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
 	if (ret != SQLITE_OK) {
-    		d(g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg));
+    		g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
 		sqlite3_free (errmsg);
  	}
@@ -203,7 +202,7 @@ camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 
 	int ret;
 
 	if (!cdb)
-		return 0;
+		return -1;
 
 	char *query;
 	query = sqlite3_mprintf ("SELECT COUNT (junk) FROM %Q WHERE junk = 1", table_name);
@@ -220,9 +219,9 @@ camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint3
 	int ret;
 
 	if (!cdb)
-		return 0;
+		return -1;
 
-	char *query ;
+	char *query;
 	query = sqlite3_mprintf ("SELECT COUNT (read) FROM %Q WHERE read = 0", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
@@ -238,7 +237,7 @@ camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint
 	int ret;
 
 	if (!cdb)
-		return 0;
+		return -1;
 
 	char *query ;
 	query = sqlite3_mprintf ("SELECT COUNT (deleted) FROM %Q WHERE deleted = 1", table_name);
@@ -253,12 +252,13 @@ camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint
 int
 camel_db_count_total_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
 {
+
 	int ret;
+	char *query;
 
 	if (!cdb)
-		return 0;
-
-	char *query ;
+		return -1;
+	
 	query = sqlite3_mprintf ("SELECT COUNT (uid) FROM %Q", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);

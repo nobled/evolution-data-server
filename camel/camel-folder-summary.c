@@ -883,6 +883,7 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	
 	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s, ex));
 	if (!record) {
+		camel_db_abort_transaction (cdb, ex);
 		return -1;
 	}
 
@@ -1876,13 +1877,13 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 	record->nextuid = s->nextuid;
 	record->time = s->time;
 
-	if (!camel_db_count_total_message_info (db, table_name, &(record->saved_count), ex))
+	if (camel_db_count_total_message_info (db, table_name, &(record->saved_count), ex))
 		return NULL;
-	if (!camel_db_count_junk_message_info (db, table_name, &(record->junk_count), ex))
+	if (camel_db_count_junk_message_info (db, table_name, &(record->junk_count), ex))
 		return NULL;
-	if (!camel_db_count_deleted_message_info (db, table_name, &(record->deleted_count), ex))
+	if (camel_db_count_deleted_message_info (db, table_name, &(record->deleted_count), ex))
 		return NULL;
-	if (!camel_db_count_unread_message_info (db, table_name, &(record->unread_count), ex))
+	if (camel_db_count_unread_message_info (db, table_name, &(record->unread_count), ex))
 		return NULL;
 
 	return record;	

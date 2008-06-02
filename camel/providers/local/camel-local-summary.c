@@ -411,6 +411,7 @@ local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeIn
 	ret = camel_folder_summary_save_to_db ((CamelFolderSummary *)cls, ex);
 	if (ret == -1) {
 		g_warning ("Could not save summary for local providers");
+		return -1;
 	}
 
 	if (cls->index && camel_index_sync(cls->index) == -1)
@@ -637,7 +638,7 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 	
 	fir = ((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_to_db (s, ex);
 	if (fir)
-		fir->bdata = g_strdup_printf ("%lu", CAMEL_LOCAL_SUMMARY_VERSION);
+		fir->bdata = g_strdup_printf ("%d", CAMEL_LOCAL_SUMMARY_VERSION);
 	
 	return fir;
 }
