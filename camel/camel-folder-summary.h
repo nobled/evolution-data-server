@@ -242,7 +242,7 @@ struct _CamelFolderSummaryClass {
 
 	/* Load/Save folder summary from DB*/
 	int (*summary_header_from_db)(CamelFolderSummary *, CamelFIRecord *);
-	CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *);
+	CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *, CamelException *ex);
 	CamelMessageInfo * (*message_info_from_db) (CamelFolderSummary *, struct _CamelMIRecord*);
 	CamelMIRecord * (*message_info_to_db) (CamelFolderSummary *, CamelMessageInfo *);
 	CamelMessageContentInfo * (*content_info_from_db) (CamelFolderSummary *, CamelMIRecord *);

@@ -115,6 +115,11 @@ int camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, 
 int camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex);
 int camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex);
 
-guint32 camel_db_count (CamelDB *cdb, const char *stmt);
+
+int camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
+int camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
+int camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
+int camel_db_count_total_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
+
 #endif
 

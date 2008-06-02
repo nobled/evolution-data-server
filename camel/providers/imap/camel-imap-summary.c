@@ -53,7 +53,7 @@ static int content_info_save (CamelFolderSummary *s, FILE *out,
 			      CamelMessageContentInfo *info);
 
 static int summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
-static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, CamelException *ex);
 static CamelMIRecord * message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info);
 static CamelMessageInfo * message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir);
 static int content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir);
@@ -228,13 +228,13 @@ summary_header_load (CamelFolderSummary *s, FILE *in)
 }
 
 static CamelFIRecord *
-summary_header_to_db (CamelFolderSummary *s)
+summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
 	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY(s);
 	struct _CamelFIRecord *fir;
 	GString *str = g_string_new (NULL);
 	
-	fir = camel_imap_summary_parent->summary_header_to_db (s);
+	fir = camel_imap_summary_parent->summary_header_to_db (s, ex);
 	if (!fir)
 		return NULL;
 

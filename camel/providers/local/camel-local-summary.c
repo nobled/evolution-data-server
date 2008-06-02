@@ -48,7 +48,7 @@
 
 #define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
 
-static CamelFIRecord * summary_header_to_db (CamelFolderSummary *);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *, CamelException *ex);
 static int summary_header_from_db (CamelFolderSummary *, CamelFIRecord *);
 
 static int summary_header_load (CamelFolderSummary *, FILE *);
@@ -156,9 +156,6 @@ local_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex)
 int
 camel_local_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex)
 {
-	struct stat st;
-	CamelFolderSummary *s = (CamelFolderSummary *)cls;
-
 	d(printf("Loading summary ...\n"));
 
 	if (forceindex
@@ -634,12 +631,13 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 }
 
 static struct _CamelFIRecord * 
-summary_header_to_db (CamelFolderSummary *s)
+summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
 	struct _CamelFIRecord *fir;
 	
-	fir = ((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_to_db (s);
-	fir->bdata = g_strdup_printf ("%lu", CAMEL_LOCAL_SUMMARY_VERSION);
+	fir = ((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_to_db (s, ex);
+	if (fir)
+		fir->bdata = g_strdup_printf ("%lu", CAMEL_LOCAL_SUMMARY_VERSION);
 	
 	return fir;
 }

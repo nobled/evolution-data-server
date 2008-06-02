@@ -881,9 +881,8 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	camel_db_begin_transaction (cdb, ex);
 	g_timer_start (trans_timer);
 	
-	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s));
+	record = (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_to_db (s, ex));
 	if (!record) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create folder summary"));
 		return -1;
 	}
 
@@ -1857,34 +1856,35 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 	return 0;
 }
 
-#define DB_COUNT(lhs,var,cond) str =  g_strdup_printf ("select count(%s) from %s%s", var, table_name, cond); \
-	lhs = camel_db_count (s->folder->parent_store->cdb, str); \
-	g_free (str);
-
-
 static	CamelFIRecord *
-summary_header_to_db (CamelFolderSummary *s)
+summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
-	CamelFIRecord * record = g_new0 (struct _CamelFIRecord, 1);
+	CamelFIRecord * record = g_new0 (CamelFIRecord, 1);
+	CamelDB *db;
+
+	db = s->folder->parent_store->cdb;
 	//char *table_name = safe_table (camel_file_util_safe_filename (s->folder->full_name));
 	char *table_name = s->folder->full_name;
-	char *str;
-	
+
 	io(printf("Savining header to db\n"));
-	
+
 	record->folder_name = table_name;
-	
+
 	/* we always write out the current version */
 	record->version = CAMEL_FOLDER_SUMMARY_VERSION;
 	record->flags  = s->flags;
 	record->nextuid = s->nextuid;
 	record->time = s->time;
 
-	DB_COUNT(record->saved_count, "uid", "");
-	DB_COUNT(record->unread_count, "read", " where read=0");
-	DB_COUNT(record->deleted_count, "deleted", " where deleted=1");
-	DB_COUNT(record->junk_count, "junk", " where junk=1");
-	
+	if (!camel_db_count_total_message_info (db, table_name, &(record->saved_count), ex))
+		return NULL;
+	if (!camel_db_count_junk_message_info (db, table_name, &(record->junk_count), ex))
+		return NULL;
+	if (!camel_db_count_deleted_message_info (db, table_name, &(record->deleted_count), ex))
+		return NULL;
+	if (!camel_db_count_unread_message_info (db, table_name, &(record->unread_count), ex))
+		return NULL;
+
 	return record;	
 }
 

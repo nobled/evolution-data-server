@@ -10,7 +10,7 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#define d(x) x
+#define d(x) 
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -116,7 +116,7 @@ camel_db_abort_transaction (CamelDB *cdb, CamelException *ex)
 	int ret;
 	
 	d(g_print ("\nABORT TRANSACTION \n"));
-	ret = cdb_sql_exec (cdb->db, "ABORT TRANSACTION;", ex);
+	ret = cdb_sql_exec (cdb->db, "ABORT ", ex);
 	g_mutex_unlock (cdb->lock);
 
 	return ret;
@@ -182,22 +182,89 @@ count_cb (void *data, int argc, char **argv, char **azColName)
   	return 0;
 }
 
-guint32
-camel_db_count (CamelDB *cdb, const char *stmt)
+static int
+camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, CamelException *ex)
 {
-	int count=0;
+	int ret;
 	char *errmsg;
+
+	ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
+	if (ret != SQLITE_OK) {
+    		d(g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg));
+		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
+		sqlite3_free (errmsg);
+ 	}
+	return ret;
+}
+
+int
+camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
 	int ret;
 
 	if (!cdb)
 		return 0;
-	ret = sqlite3_exec(cdb->db, stmt, count_cb, &count, &errmsg);
-  	if(ret != SQLITE_OK) {
-    		d(g_warning ("Error in select statement %s [%s].\n", stmt, errmsg));
-		sqlite3_free (errmsg);
-  	}
-	d(g_print("count of '%s' is %d\n", stmt, count));
-	return count;
+
+	char *query;
+	query = sqlite3_mprintf ("SELECT COUNT (junk) FROM %Q WHERE junk = 1", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
+}
+
+int
+camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
+	int ret;
+
+	if (!cdb)
+		return 0;
+
+	char *query ;
+	query = sqlite3_mprintf ("SELECT COUNT (read) FROM %Q WHERE read = 0", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
+}
+
+
+int
+camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
+	int ret;
+
+	if (!cdb)
+		return 0;
+
+	char *query ;
+	query = sqlite3_mprintf ("SELECT COUNT (deleted) FROM %Q WHERE deleted = 1", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
+}
+
+
+int
+camel_db_count_total_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
+	int ret;
+
+	if (!cdb)
+		return 0;
+
+	char *query ;
+	query = sqlite3_mprintf ("SELECT COUNT (uid) FROM %Q", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
 }
 
 int

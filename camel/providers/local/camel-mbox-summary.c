@@ -52,7 +52,7 @@
 #define EXTRACT_DIGIT(val) part++; val=strtoul (part, &part, 10);
 #define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
  
-static CamelFIRecord * summary_header_to_db (CamelFolderSummary *);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *, CamelException *ex);
 static int summary_header_from_db (CamelFolderSummary *, CamelFIRecord *);
 static CamelMessageInfo * message_info_from_db(CamelFolderSummary *s, CamelMIRecord *record);
 static CamelMIRecord * message_info_to_db(CamelFolderSummary *s, CamelMessageInfo *info);
@@ -291,16 +291,18 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 }
 
 static CamelFIRecord * 
-summary_header_to_db (CamelFolderSummary *s)
+summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
 	CamelMboxSummary *mbs = CAMEL_MBOX_SUMMARY(s);
 	struct _CamelFIRecord *fir;
 	char *tmp;
 
-	fir = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->summary_header_to_db(s);
-	tmp = fir->bdata;
-	fir->bdata = g_strdup_printf ("%s %lu %lu", tmp ? tmp : "", CAMEL_MBOX_SUMMARY_VERSION, mbs->folder_size);
-	g_free (tmp);
+	fir = ((CamelFolderSummaryClass *)camel_mbox_summary_parent)->summary_header_to_db (s, ex);
+	if (fir) {
+		tmp = fir->bdata;
+		fir->bdata = g_strdup_printf ("%s %d %d", tmp ? tmp : "", CAMEL_MBOX_SUMMARY_VERSION, mbs->folder_size);
+		g_free (tmp);
+	}
 	
 	return fir;
 }
