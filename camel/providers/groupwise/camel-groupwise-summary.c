@@ -175,6 +175,23 @@ camel_groupwise_summary_new (struct _CamelFolder *folder, const char *filename)
 static int
 summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 {
+	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY (s);
+	char *part;
+
+	if (camel_groupwise_summary_parent->summary_header_from_db (s, mir) == -1)
+		return -1 ;
+
+	part = mir->bdata;
+
+	if (part)
+		EXTRACT_FIRST_DIGIT(ims->version);
+
+	if (part)
+		EXTRACT_DIGIT (ims->validity);
+
+	if (part)
+		
+		
 	return 0;
 }
 
