@@ -175,7 +175,7 @@ camel_groupwise_summary_new (struct _CamelFolder *folder, const char *filename)
 static int
 summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 {
-	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY (s);
+	CamelGroupwiseSummary *gms = CAMEL_GROUPWISE_SUMMARY (s);
 	char *part;
 
 	if (camel_groupwise_summary_parent->summary_header_from_db (s, mir) == -1)
@@ -184,10 +184,10 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 	part = mir->bdata;
 
 	if (part)
-		EXTRACT_FIRST_DIGIT(ims->version);
+		EXTRACT_FIRST_DIGIT(gms->version);
 
 	if (part)
-		EXTRACT_DIGIT (ims->validity);
+		EXTRACT_DIGIT (gms->validity);
 
 	if (part)
 		
@@ -198,16 +198,16 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 static int
 gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 {
-	CamelGroupwiseSummary *ims = CAMEL_GROUPWISE_SUMMARY (s);
+	CamelGroupwiseSummary *gms = CAMEL_GROUPWISE_SUMMARY (s);
 
 	if (camel_groupwise_summary_parent->summary_header_load (s, in) == -1)
 		return -1 ;
 
-	if (camel_file_util_decode_fixed_int32(in, &ims->version) == -1
-			|| camel_file_util_decode_fixed_int32(in, &ims->validity) == -1)
+	if (camel_file_util_decode_fixed_int32(in, &gms->version) == -1
+			|| camel_file_util_decode_fixed_int32(in, &gms->validity) == -1)
 		return -1;
 	
-	if (camel_file_util_decode_string (in, &ims->time_string) == -1)
+	if (camel_file_util_decode_string (in, &gms->time_string) == -1)
 		return -1;
 	return 0 ;
 }
@@ -251,14 +251,14 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 static int
 gw_summary_header_save (CamelFolderSummary *s, FILE *out)
 {
-	CamelGroupwiseSummary *ims = CAMEL_GROUPWISE_SUMMARY(s);
+	CamelGroupwiseSummary *gms = CAMEL_GROUPWISE_SUMMARY(s);
 
 	if (camel_groupwise_summary_parent->summary_header_save (s, out) == -1)
 		return -1;
 
 	camel_file_util_encode_fixed_int32(out, CAMEL_GW_SUMMARY_VERSION);
-	camel_file_util_encode_fixed_int32(out, ims->validity);
-	return camel_file_util_encode_string (out, ims->time_string);
+	camel_file_util_encode_fixed_int32(out, gms->validity);
+	return camel_file_util_encode_string (out, gms->time_string);
 }
 
 static CamelMessageInfo *
