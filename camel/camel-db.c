@@ -462,6 +462,19 @@ camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord
 }
 
 int
+camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex)
+{
+	char *query;
+	int ret;
+
+	query = sqlite3_mprintf ("SELECT * FROM %Q WHERE uid = %Q", folder_name, uid);
+	ret = camel_db_select (cdb, query, read_mir_callback, p, ex);
+	sqlite3_free (query);
+
+	return (ret);
+}
+
+int
 camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex)
 {
 	char *query;
@@ -477,7 +490,7 @@ camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **
 gboolean
 camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex)
 {
-	char *tab = sqlite3_mprintf ("delete from %Q where uid=%Q", folder, uid);
+	char *tab = sqlite3_mprintf ("DELETE FROM %Q WHERE uid = %Q", folder, uid);
 	gboolean ret;
 
 	ret = camel_db_command (cdb, tab, ex);
