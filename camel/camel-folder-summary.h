@@ -233,7 +233,7 @@ struct _CamelFolderSummary {
 
 	/* New members to replace the above depreacted members */
 	GPtrArray *uids;
-	GHashTable *msginfo_hash;
+	GHashTable *loaded_infos;
 
 	struct _CamelFolder *folder; /* parent folder, for events */
 	struct _CamelFolderMetaSummary *meta_summary; /* Meta summary */
