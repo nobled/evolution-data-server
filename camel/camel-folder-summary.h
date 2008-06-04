@@ -227,8 +227,13 @@ struct _CamelFolderSummary {
 	char *summary_path;
 	gboolean build_content;	/* do we try and parse/index the content, or not? */
 
+	/* Deprecated */
 	GPtrArray *messages;	/* CamelMessageInfo's */
 	GHashTable *messages_uid; /* CamelMessageInfo's by uid */
+
+	/* New members to replace the above depreacted members */
+	GPtrArray *uids;
+	GHashTable *msginfo_hash;
 
 	struct _CamelFolder *folder; /* parent folder, for events */
 	struct _CamelFolderMetaSummary *meta_summary; /* Meta summary */
@@ -326,7 +331,7 @@ int camel_folder_summary_header_load(CamelFolderSummary *summary);
 void camel_folder_summary_touch(CamelFolderSummary *summary);
 
 /* add a new raw summary item */
-void camel_folder_summary_add(CamelFolderSummary *summary, CamelMessageInfo *info);
+void camel_folder_summary_add (CamelFolderSummary *summary, CamelMessageInfo *info);
 
 /* build/add raw summary items */
 CamelMessageInfo *camel_folder_summary_add_from_header(CamelFolderSummary *summary, struct _camel_header_raw *headers);

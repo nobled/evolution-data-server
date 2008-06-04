@@ -156,8 +156,8 @@ camel_folder_summary_init (CamelFolderSummary *s)
 	s->time = 0;
 	s->nextuid = 1;
 
-	s->messages = g_ptr_array_new();
-	s->messages_uid = g_hash_table_new(g_str_hash, g_str_equal);
+	s->uids = g_ptr_array_new ();
+	s->msginfo_hash = g_hash_table_new (g_str_hash, g_str_equal);
 	
 	p->summary_lock = g_mutex_new();
 	p->io_lock = g_mutex_new();
@@ -188,8 +188,8 @@ camel_folder_summary_finalize (CamelObject *obj)
 	p = _PRIVATE(obj);
 
 	camel_folder_summary_clear(s);
-	g_ptr_array_free(s->messages, TRUE);
-	g_hash_table_destroy(s->messages_uid);
+	g_ptr_array_free (s->uids, TRUE);
+	g_hash_table_destroy (s->msginfo_hash);
 
 	g_hash_table_foreach(p->filter_charset, free_o_name, NULL);
 	g_hash_table_destroy(p->filter_charset);
@@ -343,7 +343,7 @@ camel_folder_summary_set_build_content(CamelFolderSummary *s, gboolean state)
 int
 camel_folder_summary_count(CamelFolderSummary *s)
 {
-	return s->messages->len;
+	return s->uids->len;
 }
 
 
@@ -759,7 +759,7 @@ camel_folder_summary_load(CamelFolderSummary *s)
 			}
 		}
 
-		camel_folder_summary_add(s, mi);
+		camel_folder_summary_add (s, mi);
 	}
 
 	CAMEL_SUMMARY_UNLOCK(s, io_lock);
@@ -1157,7 +1157,7 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
  * class.  And MUST NOT be allocated directly using malloc.
  **/
 void
-camel_folder_summary_add(CamelFolderSummary *s, CamelMessageInfo *info)
+camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	if (info == NULL)
 		return;
@@ -1174,8 +1174,8 @@ camel_folder_summary_add(CamelFolderSummary *s, CamelMessageInfo *info)
 	info->strings = e_strv_pack(info->strings);
 #endif
 
-	g_ptr_array_add(s->messages, info);
-	g_hash_table_insert(s->messages_uid, (char *)camel_message_info_uid(info), info);
+	g_ptr_array_add (s->uids, (char *) camel_message_info_uid(info));
+	g_hash_table_insert (s->msginfo_hash, (char *) camel_message_info_uid(info), info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -1200,7 +1200,7 @@ camel_folder_summary_add_from_header(CamelFolderSummary *s, struct _camel_header
 {
 	CamelMessageInfo *info = camel_folder_summary_info_new_from_header(s, h);
 
-	camel_folder_summary_add(s, info);
+	camel_folder_summary_add (s, info);
 
 	return info;
 }
@@ -1229,7 +1229,7 @@ camel_folder_summary_add_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
 
 	info = camel_folder_summary_info_new_from_parser(s, mp);
 
-	camel_folder_summary_add(s, info);
+	camel_folder_summary_add (s, info);
 
 	return info;
 }
@@ -1245,11 +1245,11 @@ camel_folder_summary_add_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
  * Returns the newly added record
  **/
 CamelMessageInfo *
-camel_folder_summary_add_from_message(CamelFolderSummary *s, CamelMimeMessage *msg)
+camel_folder_summary_add_from_message (CamelFolderSummary *s, CamelMimeMessage *msg)
 {
 	CamelMessageInfo *info = camel_folder_summary_info_new_from_message(s, msg);
 
-	camel_folder_summary_add(s, info);
+	camel_folder_summary_add (s, info);
 
 	return info;
 }
@@ -1473,11 +1473,11 @@ camel_folder_summary_clear(CamelFolderSummary *s)
  * Remove a specific @info record from the summary.
  **/
 void
-camel_folder_summary_remove(CamelFolderSummary *s, CamelMessageInfo *info)
+camel_folder_summary_remove (CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	g_hash_table_remove(s->messages_uid, camel_message_info_uid(info));
-	g_ptr_array_remove(s->messages, info);
+	g_ptr_array_remove (s->uids, (char *) camel_message_info_uid (info));
+	g_hash_table_remove (s->msginfo_hash, info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 	s->meta_summary->msg_expunged = TRUE;
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
