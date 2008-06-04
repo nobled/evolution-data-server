@@ -469,6 +469,8 @@ camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **
 
 	query = sqlite3_mprintf ("SELECT * FROM %Q ", folder_name);
 	ret = camel_db_select (cdb, query, read_mir_callback, p, ex);
+	sqlite3_free (query);
+
 	return (ret);
 }
 
@@ -482,4 +484,28 @@ camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex)
 	sqlite3_free (tab);
 
 	return ret;
+}
+
+
+void
+camel_db_camel_mir_free (CamelMIRecord *record)
+{
+	if (record) {
+		g_free (record->uid);
+		g_free (record->subject);
+		g_free (record->from);
+		g_free (record->to);
+		g_free (record->cc);
+		g_free (record->mlist);
+		g_free (record->followup_flag);
+		g_free (record->followup_completed_on);
+		g_free (record->followup_due_by);
+		g_free (record->part);
+		g_free (record->labels);
+		g_free (record->usertags);
+		g_free (record->cinfo);
+		g_free (record->bdata);
+
+		g_free (record);
+	}
 }

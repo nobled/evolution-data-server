@@ -121,5 +121,7 @@ int camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, gu
 int camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
 int camel_db_count_total_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
 
+void camel_db_camel_mir_free (CamelMIRecord *record);
+
 #endif
 

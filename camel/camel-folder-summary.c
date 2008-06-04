@@ -709,7 +709,7 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 	} else
 		g_warning ("Loading messageinfo from db failed");
 
-	g_free (mir);
+	camel_db_camel_mir_free (mir);
 
 	return 0;
 }
@@ -853,18 +853,18 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 		if (mir && s->build_content) {
 			if (perform_content_info_save_to_db (s, ((CamelMessageInfoBase *)mi)->content, mir) == -1) {
 				g_warning ("unable to save mir+cinfo for uid: %s\n", mir->uid);
-				g_free (mir);
+				camel_db_camel_mir_free (mir);
 				/* FIXME: Add exception here */
 				return -1;
 			}
 		}
 
 		if (camel_db_write_message_info_record (cdb, folder_name, mir, ex) != 0) {
-			g_free (mir);
+			camel_db_camel_mir_free (mir);
 			return -1;
 		}
 
-		g_free (mir);
+		camel_db_camel_mir_free (mir);
 	}	
 	return 0;
 }
