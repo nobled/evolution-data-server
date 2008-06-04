@@ -360,18 +360,37 @@ camel_folder_summary_count(CamelFolderSummary *s)
  * Returns the summary item, or %NULL if @index is out of range
  **/
 CamelMessageInfo *
-camel_folder_summary_index(CamelFolderSummary *s, int i)
+camel_folder_summary_index (CamelFolderSummary *s, int i)
 {
 	CamelMessageInfo *info = NULL;
+	int ret;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 
-	if (i<s->messages->len)
-		info = g_ptr_array_index(s->messages, i);
+	while (i < s->uids->len && !info) {
+		char *uid;
 
-	if (info)
-		info->refcount++;
+		uid = g_ptr_array_index (s->uids, i);
+		info = g_hash_table_lookup (s->loaded_infos, uid);
+
+		if (!info) {
+			CamelDB *cdb;
+			CamelException ex;// May be this should come from the caller 
+			char *folder_name;
+
+			d(printf ("\ncamel_folder_summary_index called \n"));
+			camel_exception_init (&ex);
+			s->flags &= ~CAMEL_SUMMARY_DIRTY;
+
+			folder_name = s->folder->full_name;
+			cdb = s->folder->parent_store->cdb;
+
+			ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
+			if (ret != 0)
+				return NULL;
+		}
+	}
 
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
