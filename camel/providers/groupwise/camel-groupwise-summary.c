@@ -42,6 +42,9 @@
 
 #define CAMEL_GW_SUMMARY_VERSION (1)
 
+#define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
+#define EXTRACT_DIGIT(val) part++; val=strtoul (part, &part, 10);
+
 /*Prototypes*/
 static int gw_summary_header_load (CamelFolderSummary *, FILE *);
 static int gw_summary_header_save (CamelFolderSummary *, FILE *);
@@ -189,8 +192,9 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 	if (part)
 		EXTRACT_DIGIT (gms->validity);
 
-	if (part)
-		
+	if (part && part++) {
+		ims->time_string = g_strdup (part);
+	}
 		
 	return 0;
 }
@@ -212,39 +216,23 @@ gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 	return 0 ;
 }
 
-static CamelMIRecord * 
-message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
-{
-	return NULL;
-}
 
-static CamelMessageInfo * 
-message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
-{
-	return NULL;
-}
 
-static int 
-content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir)
-{
-
-	return -1;
-}
-
-static CamelMessageContentInfo * 
-content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
-{
-	return NULL;
-}
 
 
 static CamelFIRecord *
 summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
-	CamelFIRecord *fir;
-	GString *str = g_string_new (NULL);
+	CamelGroupwiseSummary *ims = CAMEL_GROUPWISE_SUMMARY(s);
+	struct _CamelFIRecord *fir;
+	
+	fir = camel_groupwise_summary_parent->summary_header_to_db (s, ex);
+	if (!fir)
+		return NULL;
+	
+	fir->bdata = g_strdup_printf ("%d %d %s", CAMEL_GW_SUMMARY_VERSION, ims->validity, ims->time_string);
 
-	return NULL;
+	return fir;
 	
 }
 
@@ -260,6 +248,21 @@ gw_summary_header_save (CamelFolderSummary *s, FILE *out)
 	camel_file_util_encode_fixed_int32(out, gms->validity);
 	return camel_file_util_encode_string (out, gms->time_string);
 }
+
+static CamelMessageInfo * 
+message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
+{
+	CamelMessageInfo *info;
+	CamelGroupwiseMessageInfo *iinfo;
+
+	info = camel_groupwise_summary_parent->message_info_from_db (s, mir);
+	if (info) {
+		char *part = mir->bdata;
+		iinfo = (CamelGroupwiseMessageInfo *)info;
+		EXTRACT_FIRST_DIGIT (iinfo->server_flags)
+	}
+
+	return info;}
 
 static CamelMessageInfo *
 gw_message_info_load (CamelFolderSummary *s, FILE *in)
@@ -281,6 +284,18 @@ error:
 	return NULL ;
 }
 
+static CamelMIRecord * 
+message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
+{
+	CamelGroupwiseMessageInfo *iinfo = (CamelGroupwiseMessageInfo *)info;
+	struct _CamelMIRecord *mir;
+
+	mir = camel_groupwise_summary_parent->message_info_to_db (s, info);
+	if (mir) 
+		mir->bdata = g_strdup_printf ("%u", iinfo->server_flags);
+
+	return mir;	
+}
 
 static int
 gw_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
@@ -293,6 +308,21 @@ gw_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 	return camel_file_util_encode_uint32 (out, gw_info->server_flags);
 }
 
+static CamelMessageContentInfo * 
+content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
+{
+	char *part = mir->cinfo;
+	guint32 type=0;
+	
+	if (part) {
+		EXTRACT_FIRST_DIGIT (type);
+	}
+	if (type)
+		return camel_groupwise_summary_parent->content_info_from_db (s, mir);
+	else
+		return camel_folder_summary_content_info_new (s);
+}
+
 
 static CamelMessageContentInfo *
 gw_content_info_load (CamelFolderSummary *s, FILE *in)
@@ -303,6 +333,18 @@ gw_content_info_load (CamelFolderSummary *s, FILE *in)
 		return camel_folder_summary_content_info_new (s);
 }
 
+static int 
+content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir)
+{
+
+	if (info->type) {
+		mir->cinfo = g_strdup ("1");
+		return camel_groupwise_summary_parent->content_info_to_db (s, info, mir);
+	} else {
+		mir->cinfo = g_strdup ("0");
+		return 0;
+	}
+}
 
 static int
 gw_content_info_save (CamelFolderSummary *s, FILE *out,

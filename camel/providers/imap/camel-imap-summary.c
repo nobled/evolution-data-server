@@ -232,16 +232,11 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
 	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY(s);
 	struct _CamelFIRecord *fir;
-	GString *str = g_string_new (NULL);
 	
 	fir = camel_imap_summary_parent->summary_header_to_db (s, ex);
 	if (!fir)
 		return NULL;
-
-	g_string_append_printf (str, "%d %u", CAMEL_IMAP_SUMMARY_VERSION, ims->validity);
-
-	fir->bdata = str->str;
-	g_string_free (str, FALSE);
+	fir->bdata = g_strdup_printf ("%d %u", CAMEL_IMAP_SUMMARY_VERSION, ims->validity);
 
 	return fir;
 }
