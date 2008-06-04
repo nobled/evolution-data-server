@@ -193,7 +193,7 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 		EXTRACT_DIGIT (gms->validity);
 
 	if (part && part++) {
-		ims->time_string = g_strdup (part);
+		gms->time_string = g_strdup (part);
 	}
 		
 	return 0;
