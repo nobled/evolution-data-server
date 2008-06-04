@@ -1882,14 +1882,15 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 	record->nextuid = s->nextuid;
 	record->time = s->time;
 
-	if (camel_db_count_total_message_info (db, table_name, &(record->saved_count), ex))
-		return NULL;
-	if (camel_db_count_junk_message_info (db, table_name, &(record->junk_count), ex))
-		return NULL;
-	if (camel_db_count_deleted_message_info (db, table_name, &(record->deleted_count), ex))
-		return NULL;
-	if (camel_db_count_unread_message_info (db, table_name, &(record->unread_count), ex))
-		return NULL;
+	/* FIXME: Ever heard of Constructors and initializing ? */
+	if (camel_db_count_total_message_info (db, table_name, &(record->saved_count), NULL))
+		record->saved_count = 0;
+	if (camel_db_count_junk_message_info (db, table_name, &(record->junk_count), NULL))
+		record->junk_count = 0;
+	if (camel_db_count_deleted_message_info (db, table_name, &(record->deleted_count), NULL))
+		record->deleted_count = 0;
+	if (camel_db_count_unread_message_info (db, table_name, &(record->unread_count), NULL))
+		record->unread_count = 0;
 
 	return record;	
 }

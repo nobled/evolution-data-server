@@ -278,7 +278,7 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 		return TRUE;
   	ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
 
-  	if(ret != SQLITE_OK) {
+  	if (ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement '%s' [%s].\n", stmt, errmsg));
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);
 		sqlite3_free (errmsg);
