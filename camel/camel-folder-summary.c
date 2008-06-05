@@ -1228,8 +1228,6 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 	const char *uid;
 	CamelMessageInfo *mi;
 
-#error "rewrite this with db design"
-	
 	uid = camel_message_info_uid (info);
 
 	if (uid == NULL || uid[0] == 0) {
@@ -1239,13 +1237,13 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 
-	while ((mi = g_hash_table_lookup(s->messages_uid, uid))) {
+	while ((mi = g_hash_table_lookup(s->loaded_infos, uid))) {
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 		if (mi == info)
 			return 0;
 
-		d(printf ("Trying to insert message with clashing uid (%s).  new uid re-assigned", camel_message_info_uid(info)));
+		d(printf ("Trying to insert message with clashing uid (%s).  new uid re-assigned", camel_message_info_uid (info)));
 
 		g_free(info->uid);
 		uid = info->uid = camel_folder_summary_next_uid_string(s);
