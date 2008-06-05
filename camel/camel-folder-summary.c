@@ -1704,7 +1704,6 @@ camel_folder_summary_remove_range(CamelFolderSummary *s, int start, int end)
 		int i;
 
 		end = MIN(end+1, s->uids->len);
-		infos = g_malloc((end-start)*sizeof(infos[0]));
 
 		for (i=start;i<end;i++) {
 			const char *uid= s->uids->pdata[i];

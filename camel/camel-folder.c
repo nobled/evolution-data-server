@@ -351,6 +351,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 				int j;
 				CamelMessageInfo *info;
 
+				#warning "Make direct calls to DB"
 				/* TODO: Locking? */
 				unread = 0;
 				count = camel_folder_summary_count (folder->summary);
@@ -441,7 +442,7 @@ folder_free(CamelObject *o, guint32 tag, void *val)
 		g_ptr_array_free(array, TRUE);
 		break; }
 	case CAMEL_FOLDER_ARG_INFO_ARRAY:
-		camel_folder_summary_array_free(folder->summary, val);
+		g_ptr_array_free((GPtrArray *)val, TRUE);
 		break;
 	case CAMEL_FOLDER_ARG_PROPERTIES:
 		g_slist_free(val);
@@ -1206,7 +1207,7 @@ free_summary(CamelFolder *folder, GPtrArray *summary)
 {
 	g_assert(folder->summary != NULL);
 
-	camel_folder_summary_array_free(folder->summary, summary);
+	g_ptr_array_free (summary, TRUE);
 }
 
 
