@@ -400,6 +400,34 @@ camel_folder_summary_index (CamelFolderSummary *s, int i)
 
 
 /**
+ * camel_folder_summary__uid_from_index:
+ * @summary: a #CamelFolderSummary object
+ * @index: item index
+ * 
+ * Retrieve a summary item's uid  by index number.
+ *
+ * A newly allocated uid is returned, which must be
+ * free'd as appropriate.
+ * 
+ * Returns the summary item's uid , or %NULL if @index is out of range   
+ **/
+char *
+camel_folder_summary_uid_from_index (CamelFolderSummary *s, int i)
+{
+	char *uid=NULL;
+	CAMEL_SUMMARY_LOCK(s, summary_lock);
+
+	if (i<s->uids->len)
+		uid = g_strdup (g_ptr_array_index(s->uids, i));
+
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+	
+	return uid;
+
+}
+
+
+/**
  * camel_folder_summary_array:
  * @summary: a #CamelFolderSummary object
  * 
@@ -412,6 +440,40 @@ camel_folder_summary_index (CamelFolderSummary *s, int i)
  **/
 GPtrArray *
 camel_folder_summary_array(CamelFolderSummary *s)
+{
+	CamelMessageInfo *info;
+	GPtrArray *res = g_ptr_array_new();
+	int i;
+
+#warning this is deprecated
+	CAMEL_SUMMARY_LOCK(s, summary_lock);
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
+
+	g_ptr_array_set_size(res, s->messages->len);
+	for (i=0;i<s->messages->len;i++) {
+		info = res->pdata[i] = g_ptr_array_index(s->messages, i);
+		info->refcount++;
+	}
+
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+
+	return res;
+}
+
+
+/**
+ * camel_folder_summary_uid_array:
+ * @summary: a #CamelFolderSummary object
+ * 
+ * Obtain a copy of the uid array.
+ *
+ * It must be freed using g_ptr_array_free
+ *
+ * Returns a #GPtrArray of uids which must be freed.
+ **/
+GPtrArray *
+camel_folder_summary_uid_array(CamelFolderSummary *s)
 {
 	CamelMessageInfo *info;
 	GPtrArray *res = g_ptr_array_new();
@@ -444,7 +506,7 @@ void
 camel_folder_summary_array_free(CamelFolderSummary *s, GPtrArray *array)
 {
 	int i;
-
+#warning this is deprecated
 	/* FIXME: do the locking around the whole lot to make it faster */
 	for (i=0;i<array->len;i++)
 		camel_message_info_free(array->pdata[i]);
@@ -472,12 +534,13 @@ camel_folder_summary_uid(CamelFolderSummary *s, const char *uid)
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
-
+#error "Implement this"
+#if 0	
 	info = g_hash_table_lookup(s->messages_uid, uid);
 
 	if (info)
 		info->refcount++;
-
+#endif
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
@@ -640,6 +703,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 
 	g_free (record);
 
+	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
 
 	return ret;
@@ -897,6 +961,7 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 	GTimer *timer, *trans_timer;
 
 
+	/* FIXME: Put these timers into a define or a env condition. */
 	timer = g_timer_new ();
 	trans_timer = g_timer_new ();
 
@@ -1083,6 +1148,8 @@ exception:
 }
 
 
+#warning "Implement summary header load from db. only then folder list shows the numbers"
+
 /**
  * camel_folder_summary_header_load:
  * @summary: a #CamelFolderSummary object
@@ -1131,6 +1198,8 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 	const char *uid;
 	CamelMessageInfo *mi;
 
+#error "rewrite this with db design"
+	
 	uid = camel_message_info_uid (info);
 
 	if (uid == NULL || uid[0] == 0) {
@@ -1193,6 +1262,7 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 	info->strings = e_strv_pack(info->strings);
 #endif
 
+	#error "should we dupe it ? or ref things ? Check the life cycle "
 	g_ptr_array_add (s->uids, (char *) camel_message_info_uid(info));
 	g_hash_table_insert (s->loaded_infos, (char *) camel_message_info_uid(info), info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
