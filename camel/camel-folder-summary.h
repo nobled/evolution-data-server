@@ -81,7 +81,7 @@ typedef enum _CamelMessageFlags {
 
 	/* following flags are for the folder, and are not really permanent flags */
 	CAMEL_MESSAGE_FOLDER_FLAGGED = 1<<16, /* for use by the folder implementation */
-
+	CAMEL_MESSAGE_DB_DIRTY = 1<<17, /* To say whether the changes are syned to db.*/
 	/* flags after 1<<16 are used by camel providers,
            if adding non permanent flags, add them to the end  */
 
@@ -163,7 +163,7 @@ struct _CamelMessageInfoBase {
 
 	guint32 refcount;	/* ??? */
 	char *uid;
-
+	
 	const char *subject;
 	const char *from;
 	const char *to;
@@ -228,8 +228,8 @@ struct _CamelFolderSummary {
 	gboolean build_content;	/* do we try and parse/index the content, or not? */
 
 	/* Deprecated */
-	GPtrArray *messages;	/* CamelMessageInfo's */
-	GHashTable *messages_uid; /* CamelMessageInfo's by uid */
+//	GPtrArray *messages;	/* CamelMessageInfo's */
+//	GHashTable *messages_uid; /* CamelMessageInfo's by uid */
 
 	/* New members to replace the above depreacted members */
 	GPtrArray *uids;
@@ -362,10 +362,7 @@ CamelMessageInfo *camel_folder_summary_index(CamelFolderSummary *summary, int in
 CamelMessageInfo *camel_folder_summary_uid(CamelFolderSummary *summary, const char *uid);
 char * camel_folder_summary_uid_from_index (CamelFolderSummary *s, int i);
 
-GPtrArray * camel_folder_summary_uid_array(CamelFolderSummary *s);
-
 GPtrArray *camel_folder_summary_array(CamelFolderSummary *summary);
-void camel_folder_summary_array_free(CamelFolderSummary *summary, GPtrArray *array);
 
 /* basically like strings, but certain keywords can be compressed and de-cased */
 int camel_folder_summary_encode_token(FILE *out, const char *str);

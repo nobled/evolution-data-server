@@ -445,61 +445,6 @@ camel_folder_summary_array(CamelFolderSummary *s)
 
 
 /**
- * camel_folder_summary_uid_array:
- * @summary: a #CamelFolderSummary object
- * 
- * Obtain a copy of the uid array.
- *
- * It must be freed using g_ptr_array_free
- *
- * Returns a #GPtrArray of uids which must be freed.
- **/
-GPtrArray *
-camel_folder_summary_uid_array(CamelFolderSummary *s)
-{
-	CamelMessageInfo *info;
-	GPtrArray *res = g_ptr_array_new();
-	int i;
-	
-	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	CAMEL_SUMMARY_LOCK(s, ref_lock);
-
-	g_ptr_array_set_size(res, s->messages->len);
-	for (i=0;i<s->messages->len;i++) {
-		info = res->pdata[i] = g_ptr_array_index(s->messages, i);
-		info->refcount++;
-	}
-
-	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-
-	return res;
-}
-
-
-/**
- * camel_folder_summary_array_free:
- * @summary: a #CamelFolderSummary object
- * @array: array of #CamelMessageInfo items as returned from #camel_folder_summary_array
- * 
- * Free the folder summary array.
- **/
-void
-camel_folder_summary_array_free(CamelFolderSummary *s, GPtrArray *array)
-{
-
-	g_assert (0);
-
-	int i;
-	/* FIXME: do the locking around the whole lot to make it faster */
-	for (i=0;i<array->len;i++)
-		camel_message_info_free(array->pdata[i]);
-
-	g_ptr_array_free(array, TRUE);
-}
-
-
-/**
  * camel_folder_summary_uid:
  * @summary: a #CamelFolderSummary object
  * @uid: a uid
@@ -782,6 +727,8 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 			} 
 		}
 
+		/* Just now we are reading from the DB, it can't be dirty. */
+		((CamelMessageInfoBase *)info)->flags &= CAMEL_MESSAGE_DB_DIRTY;
 		camel_folder_summary_add (s, info);
 
 		d(g_print ("\nAdding messageinfo to db from db \n"));
@@ -804,10 +751,11 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 int
 camel_folder_summary_load(CamelFolderSummary *s)
 {
+#if 0
 	FILE *in;
 	int i;
 	CamelMessageInfo *mi;
-	
+
 	d(g_print ("\ncamel_folder_summary_load from FLAT FILE called \n"));
 
 	if (s->summary_path == NULL ||
@@ -859,6 +807,7 @@ error:
 	s->flags |= ~CAMEL_SUMMARY_DIRTY;
 
 	return -1;
+#endif	
 }
 
 /* saves the content descriptions, recursively */
@@ -907,15 +856,44 @@ perform_content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentI
 	return 0;
 }
 
+static void
+save_to_db_cb (gpointer key, gpointer value, gpointer data)
+{
+	CamelException *ex = (CamelException *)data;
+	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)value;	
+	CamelFolderSummary *s = (CamelFolderSummary *)mi->summary;
+	char *folder_name = s->folder->full_name;
+	CamelDB *cdb = s->folder->parent_store->cdb;
+	CamelMIRecord *mir;
+	
+	if (!(mi->flags & CAMEL_MESSAGE_DB_DIRTY))
+		return;
+	mir = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_to_db (s, (CamelMessageInfo *)mi);
+	
+	if (mir && s->build_content) {
+		if (perform_content_info_save_to_db (s, ((CamelMessageInfoBase *)mi)->content, mir) == -1) {
+			g_warning ("unable to save mir+cinfo for uid: %s\n", mir->uid);
+			camel_db_camel_mir_free (mir);
+			/* FIXME: Add exception here */
+			return;
+		}
+	}
+
+	if (camel_db_write_message_info_record (cdb, folder_name, mir, ex) != 0) {
+		camel_db_camel_mir_free (mir);
+		return;
+	}
+
+	/* Reset the flags */
+	mi->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
+	
+	camel_db_camel_mir_free (mir);	
+}
 
 static int
 save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 {
-	CamelMIRecord *mir;
 	CamelDB *cdb = s->folder->parent_store->cdb;
-	CamelMessageInfo *mi;
-
-	int i, count;
 	char *folder_name;
 
 	folder_name = s->folder->full_name;
@@ -924,27 +902,10 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 	}
 
 	/* Push MessageInfo-es */
-	count = s->messages->len;
-	for (i = 0; i < count; ++i) {
-		mi = s->messages->pdata [i];
-		mir = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_to_db (s, mi);
+	g_hash_table_foreach (s->loaded_infos, save_to_db_cb, s);
 
-		if (mir && s->build_content) {
-			if (perform_content_info_save_to_db (s, ((CamelMessageInfoBase *)mi)->content, mir) == -1) {
-				g_warning ("unable to save mir+cinfo for uid: %s\n", mir->uid);
-				camel_db_camel_mir_free (mir);
-				/* FIXME: Add exception here */
-				return -1;
-			}
-		}
-
-		if (camel_db_write_message_info_record (cdb, folder_name, mir, ex) != 0) {
-			camel_db_camel_mir_free (mir);
-			return -1;
-		}
-
-		camel_db_camel_mir_free (mir);
-	}	
+#warning "make sure we free the message infos that are loaded are freed if not used anymore or should we leave that to the timer? "
+	
 	return 0;
 }
 
@@ -1014,6 +975,7 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 int
 camel_folder_summary_save(CamelFolderSummary *s)
 {
+#if 0
 	FILE *out;
 	FILE *out_meta;
 	int fd, i, fd_meta;
@@ -1139,7 +1101,7 @@ exception:
 	g_unlink (path);
 	g_unlink (path_meta);
 	errno = i;
-
+#endif
 	return -1;
 }
 
@@ -1185,9 +1147,11 @@ camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelException 
 int
 camel_folder_summary_header_load(CamelFolderSummary *s)
 {
+	int ret=-1;	
+#if 0	
 	FILE *in;
 	FILE *in_meta;
-	int ret;
+
 
 	if (s->summary_path == NULL ||
 	    s->meta_summary->path == NULL)
@@ -1211,6 +1175,7 @@ camel_folder_summary_header_load(CamelFolderSummary *s)
 	fclose(in);
 	fclose(in_meta);
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
+#endif	
 	return ret;
 }
 
@@ -1284,7 +1249,7 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 
 	/* Summary always holds a ref for the loaded infos */
 	//camel_message_info_ref(info); //FIXME: Check how things are loaded.
-
+	#warning "FIXME: SHould we ref it or redesign it later on"
 	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
 	g_ptr_array_add (s->uids, (char *) g_strdup(camel_message_info_uid(info)));
 	
@@ -1558,7 +1523,7 @@ void
 camel_folder_summary_clear(CamelFolderSummary *s)
 {
 	int i;
-
+#if 0
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	if (camel_folder_summary_count(s) == 0) {
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -1574,6 +1539,7 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 	s->meta_summary->msg_expunged = TRUE;
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+#endif	
 }
 
 /* FIXME: This is non-sense. Neither an exception is passed,
@@ -1603,10 +1569,11 @@ camel_folder_summary_clear_db (CamelFolderSummary *s)
 		 g_free (s->uids->pdata[i]);
 
 	camel_db_clear_folder_summary (cdb, folder_name, NULL);
+	#warning "free the to-be-lost memory"
 	g_ptr_array_set_size(s->uids, 0);
 
-	g_hash_table_destroy(s->messages_uid);
-	s->messages_uid = g_hash_table_new(g_str_hash, g_str_equal);
+	g_hash_table_destroy(s->loaded_infos);
+	s->loaded_infos = g_hash_table_new(g_str_hash, g_str_equal);
 
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -1633,7 +1600,7 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 	for (i=0; i<s->uids->len; i++) {
 		if (strcmp(s->uids->pdata[i], uid) == 0) {
 			/* FIXME: Does using fast remove affect anything ? */
-			g_ptr_array_remove_index(s->messages, i);
+			g_ptr_array_remove_index(s->uids, i);
 			break;
 		}
 
@@ -1965,8 +1932,7 @@ summary_meta_header_load(CamelFolderSummary *s, FILE *in)
 	io(printf("Loading meta-header\n"));
 
 	if (camel_file_util_decode_uint32(in, &s->meta_summary->major) == -1
-	    || camel_file_util_decode_uint32(in, &s->meta_summary->minor) == -1
-	    || camel_file_util_decode_uint32(in, &s->meta_summary->uid_len) == -1) {
+	    || camel_file_util_decode_uint32(in, &s->meta_summary->minor) == -1	    || camel_file_util_decode_uint32(in, &s->meta_summary->uid_len) == -1) {
 		return -1;
 	}
 	
@@ -3578,6 +3544,9 @@ camel_message_info_new (CamelFolderSummary *s)
 	info->refcount = 1;
 	info->summary = s;
 
+	/* We assume that mi is always dirty unless freshly read or just saved*/
+	((CamelMessageInfoBase *)info)->flags |= CAMEL_MESSAGE_DB_DIRTY;
+	
 	return info;
 }
 
