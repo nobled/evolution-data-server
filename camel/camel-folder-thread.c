@@ -621,12 +621,15 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 	fsummary = camel_folder_get_summary(folder);
 	thread->summary = summary = g_ptr_array_new();
 
-	for (i=0;i<fsummary->len;i++) {
-		CamelMessageInfo *info = fsummary->pdata[i];
+	for (i = 0 ; i < fsummary->len ; i++) {
+		CamelMessageInfo *info ;
+		char *uid = fsummary->pdata[i];
 
-		if (wanted == NULL || g_hash_table_lookup(wanted, camel_message_info_uid(info)) != NULL) {
-			camel_folder_ref_message_info(folder, info);
-			g_ptr_array_add(summary, info);
+		if (wanted == NULL || g_hash_table_lookup(wanted, uid) != NULL) {
+			info = camel_folder_get_message_info (folder, uid);
+			if (info)
+				g_ptr_array_add(summary, info);
+			/* FIXME: Check if the info is leaking */
 		}
 	}
 
