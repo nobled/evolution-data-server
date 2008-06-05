@@ -1602,8 +1602,8 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 		return ;
 
 	/* This could be slower, but no otherway really. FIXME: Callers have to effective and shouldn't call it recursively. */
-	for (i=0; i<s->uids->len) {
-		if (strcmp(s->uids->pdata[i], uid == 0)) {
+	for (i=0; i<s->uids->len; i++) {
+		if (strcmp(s->uids->pdata[i], uid) == 0) {
 			/* FIXME: Does using fast remove affect anything ? */
 			g_ptr_array_remove_index(s->messages, i);
 		}
