@@ -1556,7 +1556,6 @@ camel_folder_summary_touch(CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
-#error "Implement camel_folder_summary_db_clear"
 /**
  * camel_folder_summary_clear:
  * @summary: a #CamelFolderSummary object

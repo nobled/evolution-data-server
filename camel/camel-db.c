@@ -500,16 +500,54 @@ camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex)
 }
 
 int
-camel_db_delete_uids (CamelDB *cdb, char *folder, GSList *uids, CamelException *ex)
+camel_db_delete_uids (CamelDB *cdb, char *folder, CamelException *ex, int nargs, ... )
 {
-	char *tab = sqlite3_mprintf ("DELETE FROM %Q WHERE uid = %Q", folder, uid);
-	int ret;
+	char *query;
+	int ret, i;
+	GString *str = g_string_new ("DELETE FROM %Q WHERE uid IN (");
+	va_list listptr;
 
-	ret = camel_db_command (cdb, tab, ex);
-	sqlite3_free (tab);
+	for (i = 1; i < nargs; ++i) {
+		g_string_append (str, " %Q ,"); 
+	}
+
+	g_string_append (str, " %Q )" );
+
+	va_start (listptr, nargs);
+	query = sqlite3_vmprintf (str->str, listptr);
+	va_end (listptr);
+
+	//ret = camel_db_command (cdb, tab, ex);
+
+	g_print ("The delete_uids query is : [%s]\n", query);
+	sqlite3_free (query);
 
 	return ret;
 }
+
+int
+camel_db_clear_folder_summary (CamelDB *cdb, char *folder, CamelException *ex)
+{
+	int ret;
+
+	char *folders_del;
+	char *msginfo_del;
+
+	folders_del = sqlite3_mprintf ("DELETE FROM folders WHERE folder_name = %Q", folder);
+	msginfo_del = sqlite3_mprintf ("DELETE FROM %Q ", folder);
+
+	camel_db_begin_transaction (cdb, ex);
+	camel_db_add_to_transaction (cdb, msginfo_del, ex);
+	camel_db_add_to_transaction (cdb, folders_del, ex);
+	ret = camel_db_end_transaction (cdb, ex);
+
+	sqlite3_free (folders_del);
+	sqlite3_free (msginfo_del);
+
+	return ret;
+}
+
+
 
 void
 camel_db_camel_mir_free (CamelMIRecord *record)

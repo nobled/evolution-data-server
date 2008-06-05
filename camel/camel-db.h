@@ -100,10 +100,11 @@ int camel_db_begin_transaction (CamelDB *cdb, CamelException *ex);
 int camel_db_add_to_transaction (CamelDB *cdb, const char *query, CamelException *ex);
 int camel_db_end_transaction (CamelDB *cdb, CamelException *ex);
 int camel_db_abort_transaction (CamelDB *cdb, CamelException *ex);
+int camel_db_clear_folder_summary (CamelDB *cdb, char *folder, CamelException *ex);
 
-gboolean camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex);
-gboolean camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex);
-gboolean camel_db_delete_uids (CamelDB *cdb, char *folder, GSList *uids, CamelException *ex);
+int camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex);
+int camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex);
+int camel_db_delete_uids (CamelDB *cdb, char *folder, CamelException *ex, int nargs, ... );
 
 int camel_db_create_folders_table (CamelDB *cdb, CamelException *ex);
 int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex);
