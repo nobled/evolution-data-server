@@ -1585,23 +1585,33 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
-
 static void
 summary_remove_uid (CamelFolderSummary *s, const char *uid)
 {
 	int i;
-	
-#error "remove the uid from summary db"
-	
+	CamelDB *cdb;
+	CamelException ex;// May be this should come from the caller 
+	char *folder_name;
+
+	d(printf ("\nsummary_remove_uid called \n"));
+	camel_exception_init (&ex);
+
+	folder_name = s->folder->full_name;
+	cdb = s->folder->parent_store->cdb;
+
+	if (camel_db_remove_uid (cdb, folder_name, uid, &ex) != 0)
+		return ;
+
 	/* This could be slower, but no otherway really. FIXME: Callers have to effective and shouldn't call it recursively. */
 	for (i=0; i<s->uids->len) {
-		if (strcmp(s->uids->pdata[i], uid == 0) {
-			    /* FIXME: Does using fast remove affect anything ? */
-			    g_ptr_array_remove_index(s->messages, i);
+		if (strcmp(s->uids->pdata[i], uid == 0)) {
+			/* FIXME: Does using fast remove affect anything ? */
+			g_ptr_array_remove_index(s->messages, i);
 		}
-		
+
 	}	
 }
+
 /**
  * camel_folder_summary_remove:
  * @summary: a #CamelFolderSummary object

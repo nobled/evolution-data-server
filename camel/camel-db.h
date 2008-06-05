@@ -103,6 +103,7 @@ int camel_db_abort_transaction (CamelDB *cdb, CamelException *ex);
 
 gboolean camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex);
 gboolean camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex);
+gboolean camel_db_delete_uids (CamelDB *cdb, char *folder, GSList *uids, CamelException *ex);
 
 int camel_db_create_folders_table (CamelDB *cdb, CamelException *ex);
 int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex);
