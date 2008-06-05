@@ -363,33 +363,18 @@ CamelMessageInfo *
 camel_folder_summary_index (CamelFolderSummary *s, int i)
 {
 	CamelMessageInfo *info = NULL;
-	int ret;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 
-	while (i < s->uids->len && !info) {
+	if (i < s->uids->len) {
 		char *uid;
-
 		uid = g_ptr_array_index (s->uids, i);
-		info = g_hash_table_lookup (s->loaded_infos, uid);
 
-		if (!info) {
-			CamelDB *cdb;
-			CamelException ex;// May be this should come from the caller 
-			char *folder_name;
+		/* FIXME: Get exception from caller
+		and pass it on below */
 
-			d(printf ("\ncamel_folder_summary_index called \n"));
-			camel_exception_init (&ex);
-			s->flags &= ~CAMEL_SUMMARY_DIRTY;
-
-			folder_name = s->folder->full_name;
-			cdb = s->folder->parent_store->cdb;
-
-			ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
-			if (ret != 0)
-				return NULL;
-		}
+		info = camel_folder_summary_uid (s, uid);
 	}
 
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
@@ -528,19 +513,40 @@ camel_folder_summary_array_free(CamelFolderSummary *s, GPtrArray *array)
  * Returns the summary item, or %NULL if the uid @uid is not available
  **/
 CamelMessageInfo *
-camel_folder_summary_uid(CamelFolderSummary *s, const char *uid)
+camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 {
 	CamelMessageInfo *info;
+	int ret;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
-#error "Implement this"
-#if 0	
-	info = g_hash_table_lookup(s->messages_uid, uid);
 
-	if (info)
-		info->refcount++;
-#endif
+	info = g_hash_table_lookup (s->loaded_infos, uid);
+
+	if (!info) {
+		CamelDB *cdb;
+		CamelException ex;// May be this should come from the caller 
+		char *folder_name;
+
+		d(printf ("\ncamel_folder_summary_uid called \n"));
+		camel_exception_init (&ex);
+		s->flags &= ~CAMEL_SUMMARY_DIRTY;
+
+		folder_name = s->folder->full_name;
+		cdb = s->folder->parent_store->cdb;
+
+		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
+		if (ret != 0)
+			return NULL;
+		
+		info = g_hash_table_lookup (s->loaded_infos, uid);
+
+		if (!info) {
+			/* Makes no sense now as the exception is local as of now. FIXME: Pass exception from caller */
+			camel_exception_set (&ex, CAMEL_EXCEPTION_SYSTEM, _(g_strdup_printf ("no uid [%s] exists", uid)));
+		}
+	}
+
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 

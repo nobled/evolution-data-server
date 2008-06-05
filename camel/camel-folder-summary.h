@@ -359,6 +359,8 @@ void camel_folder_summary_clear(CamelFolderSummary *summary);
 int camel_folder_summary_count(CamelFolderSummary *summary);
 CamelMessageInfo *camel_folder_summary_index(CamelFolderSummary *summary, int index);
 CamelMessageInfo *camel_folder_summary_uid(CamelFolderSummary *summary, const char *uid);
+char * camel_folder_summary_uid_from_index (CamelFolderSummary *s, int i);
+
 GPtrArray *camel_folder_summary_array(CamelFolderSummary *summary);
 void camel_folder_summary_array_free(CamelFolderSummary *summary, GPtrArray *array);
 
