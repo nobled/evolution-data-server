@@ -103,6 +103,8 @@ static int summary_header_save(CamelFolderSummary *, FILE *);
 static int summary_meta_header_load(CamelFolderSummary *, FILE *);
 static int summary_meta_header_save(CamelFolderSummary *, FILE *);
 
+static int camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelException *ex);
+
 static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
 static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *, CamelMimeParser *);
 static CamelMessageInfo * message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg);
@@ -426,11 +428,13 @@ camel_folder_summary_uid_from_index (CamelFolderSummary *s, int i)
 GPtrArray *
 camel_folder_summary_array(CamelFolderSummary *s)
 {
+	
+	g_assert (0);
+
 	CamelMessageInfo *info;
 	GPtrArray *res = g_ptr_array_new();
 	int i;
 
-#warning this is deprecated
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
 
@@ -490,8 +494,10 @@ camel_folder_summary_uid_array(CamelFolderSummary *s)
 void
 camel_folder_summary_array_free(CamelFolderSummary *s, GPtrArray *array)
 {
+
+	g_assert (0);
+
 	int i;
-#warning this is deprecated
 	/* FIXME: do the locking around the whole lot to make it faster */
 	for (i=0;i<array->len;i++)
 		camel_message_info_free(array->pdata[i]);
@@ -685,8 +691,7 @@ int
 camel_folder_summary_load_from_db (CamelFolderSummary *s)
 {
 	CamelDB *cdb;
-	CamelFIRecord *record;
-	CamelException ex;// May be this should come from the provider
+	CamelException ex;// May be this should come from the caller 
 	char *folder_name;
 	int ret = 0;
 
@@ -694,20 +699,13 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	camel_exception_init (&ex);
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
+	ret = camel_folder_summary_header_load_from_db (s, &ex);
+
+	if (ret)
+		return ret;
+
 	folder_name = s->folder->full_name;
 	cdb = s->folder->parent_store->cdb;
-
-	record = g_new0 (CamelFIRecord, 1);
-	camel_db_read_folder_info_record (cdb, folder_name, &record, &ex);
-
-	if (record) {
-		if ( ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_from_db (s, record) == -1)
-			ret = -1;
-	} else {
-		ret = -1;
-	}
-
-	g_free (record);
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
@@ -1153,8 +1151,34 @@ exception:
 	return -1;
 }
 
+static int
+camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelException *ex)
+{
+	CamelDB *cdb;
+	CamelFIRecord *record;
+	char *folder_name;
+	int ret = 0;
 
-#warning "Implement summary header load from db. only then folder list shows the numbers"
+	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
+	s->flags &= ~CAMEL_SUMMARY_DIRTY;
+
+	folder_name = s->folder->full_name;
+	cdb = s->folder->parent_store->cdb;
+
+	record = g_new0 (CamelFIRecord, 1);
+	camel_db_read_folder_info_record (cdb, folder_name, &record, ex);
+
+	if (record) {
+		if ( ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->summary_header_from_db (s, record) == -1)
+			ret = -1;
+	} else {
+		ret = -1;
+	}
+
+	g_free (record);
+
+	return ret;
+}
 
 /**
  * camel_folder_summary_header_load:
