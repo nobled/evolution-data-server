@@ -102,20 +102,21 @@ int camel_db_end_transaction (CamelDB *cdb, CamelException *ex);
 int camel_db_abort_transaction (CamelDB *cdb, CamelException *ex);
 int camel_db_clear_folder_summary (CamelDB *cdb, char *folder, CamelException *ex);
 
-int camel_db_delete_folder (CamelDB *cdb, char *folder, CamelException *ex);
-int camel_db_delete_uid (CamelDB *cdb, char *folder, char *uid, CamelException *ex);
-int camel_db_delete_uids (CamelDB *cdb, char *folder, CamelException *ex, int nargs, ... );
+int camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex);
+int camel_db_delete_uid (CamelDB *cdb, const char *folder, const char *uid, CamelException *ex);
+/*int camel_db_delete_uids (CamelDB *cdb, CamelException *ex, int nargs, ... );*/
+int camel_db_delete_uids (CamelDB *cdb, const char* folder_name, GSList *uids, CamelException *ex);
 
 int camel_db_create_folders_table (CamelDB *cdb, CamelException *ex);
 int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex);
 
 int camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex);
-int camel_db_read_folder_info_record (CamelDB *cdb, char *folder_name, CamelFIRecord **record, CamelException *ex);
+int camel_db_read_folder_info_record (CamelDB *cdb, const char *folder_name, CamelFIRecord **record, CamelException *ex);
 
 int camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, CamelException *ex);
 
 int camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex);
-int camel_db_read_message_info_records (CamelDB *cdb, char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex);
+int camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex);
 int camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex);
 
 int camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);

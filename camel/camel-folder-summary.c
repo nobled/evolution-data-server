@@ -711,7 +711,6 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
 
 	return ret;
-
 }
 
 static int 
@@ -1584,6 +1583,42 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
+/* FIXME: This is non-sense. Neither an exception is passed,
+nor a value returned. How is the caller supposed to know, 
+whether the operation is succesful */
+
+void
+camel_folder_summary_clear_db (CamelFolderSummary *s)
+{
+	int i;
+	CamelDB *cdb;
+	char *folder_name;
+
+	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
+	s->flags &= ~CAMEL_SUMMARY_DIRTY;
+
+	folder_name = s->folder->full_name;
+	cdb = s->folder->parent_store->cdb;
+
+	CAMEL_SUMMARY_LOCK(s, summary_lock);
+	if (camel_folder_summary_count(s) == 0) {
+		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+		return;
+	}
+
+	for (i = 0; i < s->uids->len; i++)
+		 g_free (s->uids->pdata[i]);
+
+	camel_db_clear_folder_summary (cdb, folder_name, NULL);
+	g_ptr_array_set_size(s->uids, 0);
+
+	g_hash_table_destroy(s->messages_uid);
+	s->messages_uid = g_hash_table_new(g_str_hash, g_str_equal);
+
+	s->flags |= CAMEL_SUMMARY_DIRTY;
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+}
+
 static void
 summary_remove_uid (CamelFolderSummary *s, const char *uid)
 {
@@ -1598,7 +1633,7 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 	folder_name = s->folder->full_name;
 	cdb = s->folder->parent_store->cdb;
 
-	if (camel_db_remove_uid (cdb, folder_name, uid, &ex) != 0)
+	if (camel_db_delete_uid (cdb, folder_name, uid, &ex) != 0)
 		return ;
 
 	/* This could be slower, but no otherway really. FIXME: Callers have to effective and shouldn't call it recursively. */
@@ -1606,9 +1641,12 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 		if (strcmp(s->uids->pdata[i], uid) == 0) {
 			/* FIXME: Does using fast remove affect anything ? */
 			g_ptr_array_remove_index(s->messages, i);
+			break;
 		}
 
-	}	
+	}
+
+	return ;
 }
 
 /**
@@ -1621,8 +1659,6 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 void
 camel_folder_summary_remove (CamelFolderSummary *s, CamelMessageInfo *info)
 {
-	int i;
-	
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 
 	summary_remove_uid (s, camel_message_info_uid(info));
@@ -1694,26 +1730,47 @@ camel_folder_summary_remove_index(CamelFolderSummary *s, int index)
  * Removes an indexed range of info records.
  **/
 void
-camel_folder_summary_remove_range(CamelFolderSummary *s, int start, int end)
+camel_folder_summary_remove_range (CamelFolderSummary *s, int start, int end)
 {
+
+	g_print ("\ncamel_folder_summary_remove_range called \n");
 	if (end < start)
 		return;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
+
 	if (start < s->uids->len) {
+
 		int i;
+		CamelDB *cdb;
+		CamelException ex;// May be this should come from the caller 
+		char *folder_name;
+		GSList *uids = NULL;
 
 		end = MIN(end+1, s->uids->len);
 
-		for (i=start;i<end;i++) {
-			const char *uid= s->uids->pdata[i];
+		for (i = start; i < end; i++) {
+			const char *uid = s->uids->pdata[i];
+
+			uids = g_slist_prepend (uids, g_strdup (uid));
 
 			g_hash_table_remove(s->loaded_infos, uid);
 		}
+		camel_exception_init (&ex);
 
-		#error "remove the list of uids from db in a optimized way"
+		folder_name = s->folder->full_name;
+		cdb = s->folder->parent_store->cdb;
+
+		camel_db_delete_uids (cdb, folder_name, uids, &ex);
+
+		g_slist_foreach (uids, (GFunc) g_free, NULL);
+		g_slist_free (uids);
+
+		/* FIXME: GOK What it means. I'll fix this later 
 		memmove(s->messages->pdata+start, s->messages->pdata+end, (s->messages->len-end)*sizeof(s->messages->pdata[0]));
 		g_ptr_array_set_size(s->messages, s->messages->len - (end - start));
+		*/
+
 		s->flags |= CAMEL_SUMMARY_DIRTY;
 
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
