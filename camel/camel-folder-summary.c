@@ -421,30 +421,23 @@ camel_folder_summary_uid_from_index (CamelFolderSummary *s, int i)
  * Obtain a copy of the summary array.  This is done atomically,
  * so cannot contain empty entries.
  *
- * It must be freed using #camel_folder_summary_array_free.
+ * It must be freed using g_ptr_array_free
  *
- * Returns a #GPtrArray of #CamelMessageInfo items
+ * Returns a #GPtrArray of uids
  **/
 GPtrArray *
 camel_folder_summary_array(CamelFolderSummary *s)
 {
-	
-	g_assert (0);
-
-	CamelMessageInfo *info;
 	GPtrArray *res = g_ptr_array_new();
 	int i;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	CAMEL_SUMMARY_LOCK(s, ref_lock);
 
-	g_ptr_array_set_size(res, s->messages->len);
-	for (i=0;i<s->messages->len;i++) {
-		info = res->pdata[i] = g_ptr_array_index(s->messages, i);
-		info->refcount++;
-	}
+	g_ptr_array_set_size(res, s->uids->len);
+	for (i=0;i<s->uids->len;i++)
+		res->pdata[i] = g_ptr_array_index(s->uids, i);
+	
 
-	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 	return res;
