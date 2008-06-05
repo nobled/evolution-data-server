@@ -1290,8 +1290,12 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 	info->strings = e_strv_pack(info->strings);
 #endif
 
-	#error "should we dupe it ? or ref things ? Check the life cycle "
-	g_ptr_array_add (s->uids, (char *) camel_message_info_uid(info));
+	/* Summary always holds a ref for the loaded infos */
+	//camel_message_info_ref(info); //FIXME: Check how things are loaded.
+
+	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
+	g_ptr_array_add (s->uids, (char *) g_strdup(camel_message_info_uid(info)));
+	
 	g_hash_table_insert (s->loaded_infos, (char *) camel_message_info_uid(info), info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 
@@ -1552,7 +1556,7 @@ camel_folder_summary_touch(CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
-
+#error "Implement camel_folder_summary_db_clear"
 /**
  * camel_folder_summary_clear:
  * @summary: a #CamelFolderSummary object
@@ -1582,6 +1586,22 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 }
 
 
+static void
+summary_remove_uid (CamelFolderSummary *s, const char *uid)
+{
+	int i;
+	
+#error "remove the uid from summary db"
+	
+	/* This could be slower, but no otherway really. FIXME: Callers have to effective and shouldn't call it recursively. */
+	for (i=0; i<s->uids->len) {
+		if (strcmp(s->uids->pdata[i], uid == 0) {
+			    /* FIXME: Does using fast remove affect anything ? */
+			    g_ptr_array_remove_index(s->messages, i);
+		}
+		
+	}	
+}
 /**
  * camel_folder_summary_remove:
  * @summary: a #CamelFolderSummary object
@@ -1592,9 +1612,13 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 void
 camel_folder_summary_remove (CamelFolderSummary *s, CamelMessageInfo *info)
 {
+	int i;
+	
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	g_ptr_array_remove (s->uids, (char *) camel_message_info_uid (info));
+
+	summary_remove_uid (s, camel_message_info_uid(info));
 	g_hash_table_remove (s->loaded_infos, info);
+	
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 	s->meta_summary->msg_expunged = TRUE;
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -1618,7 +1642,7 @@ camel_folder_summary_remove_uid(CamelFolderSummary *s, const char *uid)
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	CAMEL_SUMMARY_LOCK(s, ref_lock);
-        if (g_hash_table_lookup_extended(s->messages_uid, uid, (void *)&olduid, (void *)&oldinfo)) {
+        if (g_hash_table_lookup_extended(s->loaded_infos, uid, (void *)&olduid, (void *)&oldinfo)) {
 		/* make sure it doesn't vanish while we're removing it */
 		oldinfo->refcount++;
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
@@ -1626,8 +1650,12 @@ camel_folder_summary_remove_uid(CamelFolderSummary *s, const char *uid)
 		camel_folder_summary_remove(s, oldinfo);
 		camel_message_info_free(oldinfo);
 	} else {
+		/* Info isn't loaded into the memory. We must just remove the UID*/
+		summary_remove_uid (s, uid);
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+
+		
 	}
 }
 
@@ -1642,19 +1670,9 @@ camel_folder_summary_remove_uid(CamelFolderSummary *s, const char *uid)
 void
 camel_folder_summary_remove_index(CamelFolderSummary *s, int index)
 {
-	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	if (index < s->messages->len) {
-		CamelMessageInfo *info = s->messages->pdata[index];
+	const char *uid = s->uids->pdata[index];
 
-		g_hash_table_remove(s->messages_uid, camel_message_info_uid(info));
-		g_ptr_array_remove_index(s->messages, index);
-		s->flags |= CAMEL_SUMMARY_DIRTY;
-
-		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-		camel_message_info_free(info);
-	} else {
-		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-	}
+	camel_folder_summary_remove_uid (s, uid);
 }
 
 
@@ -1673,29 +1691,25 @@ camel_folder_summary_remove_range(CamelFolderSummary *s, int start, int end)
 		return;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	if (start < s->messages->len) {
-		CamelMessageInfo **infos;
+	if (start < s->uids->len) {
 		int i;
 
-		end = MIN(end+1, s->messages->len);
+		end = MIN(end+1, s->uids->len);
 		infos = g_malloc((end-start)*sizeof(infos[0]));
 
 		for (i=start;i<end;i++) {
-			CamelMessageInfo *info = s->messages->pdata[i];
+			const char *uid= s->uids->pdata[i];
 
-			infos[i-start] = info;
-			g_hash_table_remove(s->messages_uid, camel_message_info_uid(info));
+			g_hash_table_remove(s->loaded_infos, uid);
 		}
 
+		#error "remove the list of uids from db in a optimized way"
 		memmove(s->messages->pdata+start, s->messages->pdata+end, (s->messages->len-end)*sizeof(s->messages->pdata[0]));
 		g_ptr_array_set_size(s->messages, s->messages->len - (end - start));
 		s->flags |= CAMEL_SUMMARY_DIRTY;
 
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
-		for (i=start;i<end;i++)
-			camel_message_info_free(infos[i-start]);
-		g_free(infos);
 	} else {
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 	}
