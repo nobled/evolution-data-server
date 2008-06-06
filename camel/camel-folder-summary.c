@@ -375,8 +375,11 @@ camel_folder_summary_index (CamelFolderSummary *s, int i)
 
 		/* FIXME: Get exception from caller
 		and pass it on below */
+		
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
-		info = camel_folder_summary_uid (s, uid);
+		return camel_folder_summary_uid (s, uid);
 	}
 
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
@@ -385,6 +388,7 @@ camel_folder_summary_index (CamelFolderSummary *s, int i)
 	return info;
 }
 
+#warning "Implement - camel_folder_summary_uid_exist - directly through db than manual strcmp"
 
 /**
  * camel_folder_summary__uid_from_index:
@@ -480,8 +484,11 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 		cdb = s->folder->parent_store->cdb;
 
 		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
-		if (ret != 0)
+		if (ret != 0) {
+			CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+			CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 			return NULL;
+		}
 		
 		info = g_hash_table_lookup (s->loaded_infos, uid);
 
@@ -491,6 +498,10 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 		}
 	}
 
+	#warning "this will help to find crash, so leave it just like this atm"
+	if (info)
+		info->refcount++;
+	
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
@@ -902,7 +913,7 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 	}
 
 	/* Push MessageInfo-es */
-	g_hash_table_foreach (s->loaded_infos, save_to_db_cb, s);
+	g_hash_table_foreach (s->loaded_infos, save_to_db_cb, ex);
 
 #warning "make sure we free the message infos that are loaded are freed if not used anymore or should we leave that to the timer? "
 	
@@ -1248,12 +1259,12 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 #endif
 
 	/* Summary always holds a ref for the loaded infos */
-	//camel_message_info_ref(info); //FIXME: Check how things are loaded.
+	camel_message_info_ref(info); //FIXME: Check how things are loaded.
 	#warning "FIXME: SHould we ref it or redesign it later on"
 	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
-	g_ptr_array_add (s->uids, (char *) g_strdup(camel_message_info_uid(info)));
+	g_ptr_array_add (s->uids, g_strdup(camel_message_info_uid(info)));
 	
-	g_hash_table_insert (s->loaded_infos, (char *) camel_message_info_uid(info), info);
+	g_hash_table_insert (s->loaded_infos, camel_message_info_uid (info), info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -1621,8 +1632,9 @@ camel_folder_summary_remove (CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 
+	g_hash_table_remove (s->loaded_infos, camel_message_info_uid(info));	
 	summary_remove_uid (s, camel_message_info_uid(info));
-	g_hash_table_remove (s->loaded_infos, info);
+
 	
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 	s->meta_summary->msg_expunged = TRUE;
@@ -1726,10 +1738,8 @@ camel_folder_summary_remove_range (CamelFolderSummary *s, int start, int end)
 		g_slist_foreach (uids, (GFunc) g_free, NULL);
 		g_slist_free (uids);
 
-		/* FIXME: GOK What it means. I'll fix this later 
-		memmove(s->messages->pdata+start, s->messages->pdata+end, (s->messages->len-end)*sizeof(s->messages->pdata[0]));
-		g_ptr_array_set_size(s->messages, s->messages->len - (end - start));
-		*/
+		memmove(s->uids->pdata+start, s->uids->pdata+end, (s->uids->len-end)*sizeof(s->uids->pdata[0]));
+		g_ptr_array_set_size(s->uids, s->uids->len - (end - start));
 
 		s->flags |= CAMEL_SUMMARY_DIRTY;
 
@@ -2657,6 +2667,7 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
 
+	g_hash_table_remove (s->loaded_infos, mi->uid);
 	g_free(mi->uid);
 	camel_pstring_free(mi->subject);
 	camel_pstring_free(mi->from);

@@ -1969,7 +1969,7 @@ gw_update_all_items (CamelFolder *folder, GList *item_list, CamelException *ex)
 	int index = 0;
 	GList *temp;
 	CamelFolderChangeInfo *changes = NULL;
-	CamelMessageInfo *info; 
+	char *uid;
 	changes = camel_folder_change_info_new ();
 
 	item_list = g_list_reverse (item_list);
@@ -1977,18 +1977,18 @@ gw_update_all_items (CamelFolder *folder, GList *item_list, CamelException *ex)
 	summary = camel_folder_get_summary (folder);
 	/*item_ids : List of ids from the summary*/
 	while (index < summary->len) {
-		info = g_ptr_array_index (summary, index);
+		uid = g_ptr_array_index (summary, index);
 		temp = NULL; 
 
 		if (item_list) {
-			temp = g_list_find_custom (item_list, (const char *)info->uid, (GCompareFunc) strcmp);
+			temp = g_list_find_custom (item_list, (const char *)uid, (GCompareFunc) strcmp);
 		}
 
 		if (!temp) {
 			CAMEL_GROUPWISE_FOLDER_REC_LOCK (folder, cache_lock);
-			camel_folder_summary_remove_uid (folder->summary, info->uid);
-			camel_data_cache_remove (gw_folder->cache, "cache", info->uid, NULL);
-			camel_folder_change_info_remove_uid (changes, info->uid);
+			camel_folder_summary_remove_uid (folder->summary, uid);
+			camel_data_cache_remove (gw_folder->cache, "cache", uid, NULL);
+			camel_folder_change_info_remove_uid (changes, uid);
 			CAMEL_GROUPWISE_FOLDER_REC_UNLOCK (folder, cache_lock);
 		} else { 
 			item_list = g_list_delete_link (item_list, temp);

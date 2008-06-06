@@ -984,6 +984,8 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
 
 		g_assert(info);
+//		if (!info)
+//			continue;
 		if ((expunge && (info->info.info.flags & CAMEL_MESSAGE_DELETED)) ||
 		    (info->info.info.flags & (CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_XEVCHANGE)))
 			quick = FALSE;

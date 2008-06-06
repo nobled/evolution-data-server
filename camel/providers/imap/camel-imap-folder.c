@@ -3070,21 +3070,24 @@ imap_update_summary (CamelFolder *folder, int exists,
 					      i + first);
 			break;
 		}
-		info = (CamelImapMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
-		if (info) {
-			for (seq = 0; seq < camel_folder_summary_count (folder->summary); seq++) {
-				if (folder->summary->messages->pdata[seq] == info)
-					break;
-			}
 
-			g_warning("Message already present? %s", camel_message_info_uid(mi));
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Unexpected server response: Identical UIDs provided for messages %d and %d"),
-					      seq + 1, i + first);
+		/* FIXME: If it enters if(info) it will always match the exception. So stupid */
+		#warning "Use a db query to see if the DB exists"
+/* 		info = (CamelImapMessageInfo *)camel_folder_summary_uid(folder->summary, uid); */
+/* 		if (info) { */
+/* 			for (seq = 0; seq < camel_folder_summary_count (folder->summary); seq++) { */
+/* 				if (folder->summary->messages->pdata[seq] == info) */
+/* 					break; */
+/* 			} */
 
-			camel_message_info_free(&info->info);
-			break;
-		} 
+/* 			g_warning("Message already present? %s", camel_message_info_uid(mi)); */
+/* 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, */
+/* 					      _("Unexpected server response: Identical UIDs provided for messages %d and %d"), */
+/* 					      seq + 1, i + first); */
+
+/* 			camel_message_info_free(&info->info); */
+/* 			break; */
+/* 		}  */
 
 		camel_folder_summary_add (folder->summary, (CamelMessageInfo *)mi);
 		camel_folder_change_info_add_uid (changes, camel_message_info_uid (mi));
