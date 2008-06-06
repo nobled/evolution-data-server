@@ -185,6 +185,9 @@ struct _CamelMessageInfoBase {
 	/* tree of content description - NULL if it is not available */
 	CamelMessageContentInfo *content;
 	struct _camel_header_param *headers;
+
+	/*FIXME: Make it work with the CAMEL_MESSADE_DB_DIRTY flag instead of another 4 bytes*/
+	gboolean dirty;
 };
 
 /* probably do this as well, removing CamelFolderChangeInfo and interfaces 
@@ -326,6 +329,7 @@ int camel_folder_summary_load_from_db (CamelFolderSummary *s);
 
 /* only load the header */
 int camel_folder_summary_header_load(CamelFolderSummary *summary);
+int camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelStore *store, const char *folder_name, CamelException *ex);
 
 /* set the dirty bit on the summary */
 void camel_folder_summary_touch(CamelFolderSummary *summary);

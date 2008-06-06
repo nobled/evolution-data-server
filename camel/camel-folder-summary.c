@@ -103,7 +103,7 @@ static int summary_header_save(CamelFolderSummary *, FILE *);
 static int summary_meta_header_load(CamelFolderSummary *, FILE *);
 static int summary_meta_header_save(CamelFolderSummary *, FILE *);
 
-static int camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelException *ex);
+
 
 static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
 static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *, CamelMimeParser *);
@@ -498,7 +498,6 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 		}
 	}
 
-	#warning "this will help to find crash, so leave it just like this atm"
 	if (info)
 		info->refcount++;
 	
@@ -648,7 +647,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	camel_exception_init (&ex);
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
-	ret = camel_folder_summary_header_load_from_db (s, &ex);
+	ret = camel_folder_summary_header_load_from_db (s, s->folder->parent_store, s->folder->full_name, &ex);
 
 	if (ret)
 		return ret;
@@ -739,7 +738,8 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 		}
 
 		/* Just now we are reading from the DB, it can't be dirty. */
-		((CamelMessageInfoBase *)info)->flags &= CAMEL_MESSAGE_DB_DIRTY;
+		((CamelMessageInfoBase *)info)->dirty = FALSE;
+//		((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
 		camel_folder_summary_add (s, info);
 
 		d(g_print ("\nAdding messageinfo to db from db \n"));
@@ -876,9 +876,10 @@ save_to_db_cb (gpointer key, gpointer value, gpointer data)
 	char *folder_name = s->folder->full_name;
 	CamelDB *cdb = s->folder->parent_store->cdb;
 	CamelMIRecord *mir;
-	
-	if (!(mi->flags & CAMEL_MESSAGE_DB_DIRTY))
+
+	if (!mi->dirty)
 		return;
+
 	mir = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_to_db (s, (CamelMessageInfo *)mi);
 	
 	if (mir && s->build_content) {
@@ -896,7 +897,7 @@ save_to_db_cb (gpointer key, gpointer value, gpointer data)
 	}
 
 	/* Reset the flags */
-	mi->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
+	mi->dirty = FALSE;
 	
 	camel_db_camel_mir_free (mir);	
 }
@@ -1116,19 +1117,17 @@ exception:
 	return -1;
 }
 
-static int
-camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelException *ex)
+int
+camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelStore *store, const char *folder_name, CamelException *ex)
 {
 	CamelDB *cdb;
 	CamelFIRecord *record;
-	char *folder_name;
 	int ret = 0;
 
 	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
-	folder_name = s->folder->full_name;
-	cdb = s->folder->parent_store->cdb;
+	cdb = store->cdb;
 
 	record = g_new0 (CamelFIRecord, 1);
 	camel_db_read_folder_info_record (cdb, folder_name, &record, ex);
@@ -1259,7 +1258,7 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 #endif
 
 	/* Summary always holds a ref for the loaded infos */
-	camel_message_info_ref(info); //FIXME: Check how things are loaded.
+	//camel_message_info_ref(info); //FIXME: Check how things are loaded.
 	#warning "FIXME: SHould we ref it or redesign it later on"
 	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
 	g_ptr_array_add (s->uids, g_strdup(camel_message_info_uid(info)));
@@ -3556,7 +3555,7 @@ camel_message_info_new (CamelFolderSummary *s)
 	info->summary = s;
 
 	/* We assume that mi is always dirty unless freshly read or just saved*/
-	((CamelMessageInfoBase *)info)->flags |= CAMEL_MESSAGE_DB_DIRTY;
+	((CamelMessageInfoBase *)info)->dirty = TRUE;
 	
 	return info;
 }
@@ -3896,6 +3895,7 @@ info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set)
 	mi->flags = (old & ~flags) | (set & flags);
 	if (old != mi->flags) {
 		mi->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
+		mi->dirty = TRUE;
 		if (mi->summary)
 			camel_folder_summary_touch(mi->summary);
 	}
@@ -3947,6 +3947,7 @@ info_set_user_flag(CamelMessageInfo *info, const char *name, gboolean value)
 		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
 
 		mi->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
+		mi->dirty = TRUE;
 		camel_folder_summary_touch(mi->summary);
 		camel_folder_change_info_change_uid(changes, camel_message_info_uid(info));
 		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
@@ -3988,6 +3989,7 @@ info_set_user_tag(CamelMessageInfo *info, const char *name, const char *value)
 		CamelFolderChangeInfo *changes = camel_folder_change_info_new();
 
 		mi->flags |= CAMEL_MESSAGE_FOLDER_FLAGGED;
+		mi->dirty = TRUE;		
 		camel_folder_summary_touch(mi->summary);
 		camel_folder_change_info_change_uid(changes, camel_message_info_uid(info));
 		camel_object_trigger_event(mi->summary->folder, "folder_changed", changes);
