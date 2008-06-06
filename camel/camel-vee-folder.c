@@ -421,7 +421,7 @@ camel_vee_folder_get_location(CamelVeeFolder *vf, const CamelVeeMessageInfo *vin
 {
 	CamelFolder *folder;
 
-	folder = vinfo->real->summary->folder;
+	folder = vinfo->summary->folder;
 
 	/* locking?  yes?  no?  although the vfolderinfo is valid when obtained
 	   the folder in it might not necessarily be so ...? */
@@ -521,7 +521,7 @@ vee_get_message(CamelFolder *folder, const char *uid, CamelException *ex)
 
 	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
 	if (mi) {
-		msg =  camel_folder_get_message(mi->real->summary->folder, camel_message_info_uid(mi)+8, ex);
+		msg =  camel_folder_get_message(mi->summary->folder, camel_message_info_uid(mi)+8, ex);
 		camel_message_info_free((CamelMessageInfo *)mi);
 	} else {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
@@ -695,14 +695,9 @@ static void vee_delete(CamelFolder *folder)
 static CamelVeeMessageInfo *
 vee_folder_add_uid(CamelVeeFolder *vf, CamelFolder *f, const char *inuid, const char hash[8])
 {
-	CamelMessageInfo *info;
 	CamelVeeMessageInfo *mi = NULL;
 
-	info = camel_folder_get_message_info(f, inuid);
-	if (info) {
-		mi = camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, info, hash);
-		camel_folder_free_message_info(f, info);
-	}
+	mi = camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, f->summary, (char *)inuid, hash);
 	return mi;
 }
 
@@ -749,7 +744,7 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 				CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(((CamelFolder *)folder_unmatched)->summary, i);
 				
 				if (mi) {
-					if (mi->real->summary == ssummary) {
+					if (mi->summary == ssummary) {
 						camel_folder_change_info_remove_uid(folder_unmatched->changes, camel_message_info_uid(mi));
 						if (last == -1) {
 							last = start = i;
@@ -775,7 +770,7 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 	for (i=0;i<count;i++) {
 		CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(folder->summary, i);
 		if (mi) {
-			if (mi->real->summary == ssummary) {
+			if (mi->summary == ssummary) {
 				const char *uid = camel_message_info_uid(mi);
 
 				camel_folder_change_info_remove_uid(vf->changes, uid);
@@ -955,7 +950,7 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 		CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(folder->summary, i);
 
 		if (mi) {
-			if (mi->real->summary == ssummary) {
+			if (mi->summary == ssummary) {
 				char *uid = (char *)camel_message_info_uid(mi), *oldkey;
 				void *oldval;
 				
@@ -1001,7 +996,7 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 			CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(((CamelFolder *)folder_unmatched)->summary, i);
 
 			if (mi) {
-				if (mi->real->summary == ssummary) {
+				if (mi->summary == ssummary) {
 					char *uid = (char *)camel_message_info_uid(mi);
 
 					if (g_hash_table_lookup(allhash, uid+8) == NULL) {
@@ -1499,7 +1494,7 @@ subfolder_renamed_update(CamelVeeFolder *vf, CamelFolder *sub, char hash[8])
 		if (mi == NULL)
 			continue;
 
-		if (mi->real->summary == ssummary) {
+		if (mi->summary == ssummary) {
 			char *uid = (char *)camel_message_info_uid(mi);
 			char *oldkey;
 			void *oldval;

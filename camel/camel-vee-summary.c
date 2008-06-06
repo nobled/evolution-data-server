@@ -40,15 +40,9 @@ static void
 vee_message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)info;
-	CamelFolderSummary *real_summary = mi->real->summary;
 
 	g_free(info->uid);
-	camel_message_info_free(mi->real);
-
-	/* and unref the real summary too */
-	/* FIXME: You may not need this during CamelDBSummary */
-	if (real_summary)
-		camel_object_unref (real_summary);
+	camel_object_unref (mi->summary);
 }
 
 static CamelMessageInfo *
@@ -59,42 +53,68 @@ vee_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
 
 	to = (CamelVeeMessageInfo *)camel_message_info_new(s);
 
-	to->real = camel_message_info_clone(from->real);
+	to->summary = from->summary;
 	/* FIXME: We may not need this during CamelDBSummary */
-	camel_object_ref (to->real->summary);
+	camel_object_ref (to->summary);
 	to->info.summary = s;
 	
 	return (CamelMessageInfo *)to;
 }
 
 static const void *
-vee_info_ptr(const CamelMessageInfo *mi, int id)
+vee_info_ptr (const CamelMessageInfo *mi, int id)
 {
-	return camel_message_info_ptr(((CamelVeeMessageInfo *)mi)->real, id);
+	CamelVeeMessageInfo *vmi = (CamelVeeMessageInfo *) mi;
+	CamelMessageInfo *info;
+	gpointer p;
+	
+	info = camel_folder_summary_uid (vmi->summary, mi->uid+8);
+	p = (gpointer) camel_message_info_ptr(info, id);
+	camel_message_info_free (info);
+
+	return p;
 }
 
 static guint32
 vee_info_uint32(const CamelMessageInfo *mi, int id)
 {
-	return camel_message_info_uint32(((CamelVeeMessageInfo *)mi)->real, id);
+	CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);
+	guint32 ret = camel_message_info_uint32 (rmi, id);
+
+	camel_message_info_free (rmi);
+
+	return ret;
+
 }
 
 static time_t
 vee_info_time(const CamelMessageInfo *mi, int id)
 {
-	return camel_message_info_time(((CamelVeeMessageInfo *)mi)->real, id);
+	CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);
+	time_t ret = camel_message_info_time (rmi, id);
+	camel_message_info_free (rmi);
+
+	return ret;
 }
 
 static gboolean
 vee_info_user_flag(const CamelMessageInfo *mi, const char *id)
 {
-	return camel_message_info_user_flag(((CamelVeeMessageInfo *)mi)->real, id);
+	CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);
+	gboolean ret = 	camel_message_info_user_flag (rmi, id);
+	camel_message_info_free (rmi);
+
+	return ret;
 }
 
 static const char *
 vee_info_user_tag(const CamelMessageInfo *mi, const char *id)
 {
-	return camel_message_info_user_tag(((CamelVeeMessageInfo *)mi)->real, id);
+	CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);
+	const char *ret = camel_message_info_user_tag (rmi, id);
+	camel_message_info_free (rmi);
+
+	return ret;
 }
 
 static gboolean
@@ -102,9 +122,12 @@ vee_info_set_user_flag(CamelMessageInfo *mi, const char *name, gboolean value)
 {
 	int res = FALSE;
 
-	if (mi->uid)
-		res = camel_message_info_set_user_flag(((CamelVeeMessageInfo *)mi)->real, name, value);
-
+	if (mi->uid) {
+		CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);
+		res = camel_message_info_set_user_flag(rmi, name, value);
+		camel_message_info_free (rmi);		
+	}
+ 
 	return res;
 }
 
@@ -113,9 +136,12 @@ vee_info_set_user_tag(CamelMessageInfo *mi, const char *name, const char *value)
 {
 	int res = FALSE;
 
-	if (mi->uid)
-		res = camel_message_info_set_user_tag(((CamelVeeMessageInfo *)mi)->real, name, value);
-
+	if (mi->uid) {
+		CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);
+		res = camel_message_info_set_user_tag(rmi, name, value);
+		camel_message_info_free (rmi);			
+	}
+ 
 	return res;
 }
 
@@ -124,9 +150,12 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 {
 	int res = FALSE;
 
-	if (mi->uid)
-		res = camel_message_info_set_flags(((CamelVeeMessageInfo *)mi)->real, flags, set);
-
+	if (mi->uid) {
+		CamelMessageInfo *rmi = camel_folder_summary_uid (((CamelVeeMessageInfo *)mi)->summary, mi->uid+8);		
+		res = camel_message_info_set_flags(rmi, flags, set);
+		camel_message_info_free (rmi);
+	}
+ 
 	return res;
 }
 
@@ -205,13 +234,11 @@ camel_vee_summary_new(CamelFolder *parent)
 }
 
 CamelVeeMessageInfo *
-camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char hash[8])
+camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const char *uid, const char hash[8])
 {
 	CamelVeeMessageInfo *mi;
 	char *vuid;
-	const char *uid;
 
-	uid = camel_message_info_uid(info);
 	vuid = g_malloc(strlen(uid)+9);
 	memcpy(vuid, hash, 8);
 	strcpy(vuid+8, uid);
@@ -224,14 +251,7 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char has
 	}
 
 	mi = (CamelVeeMessageInfo *)camel_message_info_new(&s->summary);
-	mi->real = info;
-	camel_message_info_ref(info);
-
-	/* Ensures the owner of the message info will not die before we free the mi->real;
-	   It's obvious that the real->summary should not be changed after this call. */
-	/* FIXME: We may not need this during CamelDBSummary */
-	if (info->summary)
-		camel_object_ref (info->summary);
+	mi->summary = summary;
 
 	mi->info.uid = vuid;
 
