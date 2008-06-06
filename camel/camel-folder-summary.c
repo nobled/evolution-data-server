@@ -482,13 +482,15 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 
 		folder_name = s->folder->full_name;
 		cdb = s->folder->parent_store->cdb;
-
+		
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
 		if (ret != 0) {
-			CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-			CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 			return NULL;
 		}
+		CAMEL_SUMMARY_LOCK(s, summary_lock);
+		CAMEL_SUMMARY_LOCK(s, ref_lock);
 		
 		info = g_hash_table_lookup (s->loaded_infos, uid);
 
@@ -634,6 +636,32 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 	return ci;
 }
 
+#warning "FIXME: I should have a better LRU algorithm "
+gboolean
+remove_item (char *key, CamelMessageInfo *info, CamelFolderSummary *s)
+{
+	printf("ref %d\t", info->refcount); //camel_message_info_dump (info);
+	if (info->refcount == 1) { 
+		/* Noone seems to need it. Why not free it then. */
+		//camel_message_info_free (info);
+		//return TRUE;
+	}	
+	return FALSE;
+}
+static gboolean      
+remove_cache (CamelFolderSummary *s)
+{
+	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
+	printf("removing cache... %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos));
+	#warning "hack. fix it"
+	if (g_hash_table_size(s->loaded_infos) == 0)
+		return;
+	CAMEL_SUMMARY_LOCK (s, summary_lock);
+	g_hash_table_foreach_remove (s->loaded_infos, remove_item, s);
+	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
+	printf("done .. now %d\n",g_hash_table_size (s->loaded_infos));
+	return TRUE;
+}
 
 int
 camel_folder_summary_load_from_db (CamelFolderSummary *s)
@@ -658,6 +686,8 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
 
+	#warning "LRU please and not timeouts"
+	//g_timeout_add_seconds (10, remove_cache, s);
 	return ret;
 }
 

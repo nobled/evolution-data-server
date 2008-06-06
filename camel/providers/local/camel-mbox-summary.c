@@ -656,7 +656,7 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 				ret = summary_update(cls, mbs->folder_size, changes, ex);
 			} else {
 				d(printf("folder shrank!  rebuilding from start\n"));
-				ret = summary_update(cls, 0, changes, ex);
+				 ret = summary_update(cls, 0, changes, ex);
 			}
 		} else {
 			d(printf("Folder unchanged, do nothing\n"));

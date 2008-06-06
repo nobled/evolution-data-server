@@ -370,7 +370,7 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 
 	ins_query = sqlite3_mprintf ("INSERT INTO folders VALUES ( %Q, %d, %d, %d, %d, %d, %d, %d, %d, %Q ) ", 
 			record->folder_name, record->version,
-								 record->flags, record->nextuid, 123,
+								 record->flags, record->nextuid, record->time,
 			record->saved_count, record->unread_count,
 			record->deleted_count, record->junk_count, record->bdata); 
 
