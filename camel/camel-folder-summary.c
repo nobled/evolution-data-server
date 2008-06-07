@@ -471,6 +471,8 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 
 	info = g_hash_table_lookup (s->loaded_infos, uid);
 
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 	if (!info) {
 		CamelDB *cdb;
 		CamelException ex;// May be this should come from the caller 
@@ -482,29 +484,26 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 
 		folder_name = s->folder->full_name;
 		cdb = s->folder->parent_store->cdb;
-		
-		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+
 		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
 		if (ret != 0) {
 			return NULL;
 		}
 		CAMEL_SUMMARY_LOCK(s, summary_lock);
 		CAMEL_SUMMARY_LOCK(s, ref_lock);
-		
+
 		info = g_hash_table_lookup (s->loaded_infos, uid);
 
 		if (!info) {
 			/* Makes no sense now as the exception is local as of now. FIXME: Pass exception from caller */
 			camel_exception_set (&ex, CAMEL_EXCEPTION_SYSTEM, _(g_strdup_printf ("no uid [%s] exists", uid)));
+			CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+			CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+			return NULL;
 		}
 	}
 
-	if (info)
-		info->refcount++;
-	
-	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+	info->refcount++;
 
 	return info;
 }

@@ -68,6 +68,7 @@ vee_info_ptr (const CamelMessageInfo *mi, int id)
 	CamelMessageInfo *info;
 	gpointer p;
 	
+	g_print ("vee_info_ptr is : [%s]\n", mi->uid);
 	info = camel_folder_summary_uid (vmi->summary, mi->uid+8);
 	p = (gpointer) camel_message_info_ptr(info, id);
 	camel_message_info_free (info);
@@ -255,7 +256,9 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 
 	mi->info.uid = vuid;
 
-	camel_folder_summary_add(&s->summary, (CamelMessageInfo *)mi);
+	camel_folder_summary_add (&s->summary, (CamelMessageInfo *) mi);
+
+	g_print ("Adding to vee summary : [%s]\n", ((CamelMessageInfo *) mi)->uid);
 
 	return mi;
 }

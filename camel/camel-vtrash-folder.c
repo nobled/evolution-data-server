@@ -441,7 +441,7 @@ static void
 vtrash_folder_changed(CamelVeeFolder *vf, CamelFolder *sub, CamelFolderChangeInfo *changes)
 {
 	CamelMessageInfo *info;
-	char hash[8];
+	char hash[8] = { '\0',  '\0', '\0', '\0', '\0', '\0', '\0' };
 	CamelFolderChangeInfo *vf_changes = NULL;
 	int i;
 
