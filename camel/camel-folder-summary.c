@@ -494,11 +494,12 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 
 		info = g_hash_table_lookup (s->loaded_infos, uid);
 
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+
 		if (!info) {
 			/* Makes no sense now as the exception is local as of now. FIXME: Pass exception from caller */
 			camel_exception_set (&ex, CAMEL_EXCEPTION_SYSTEM, _(g_strdup_printf ("no uid [%s] exists", uid)));
-			CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-			CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 			return NULL;
 		}
 	}
