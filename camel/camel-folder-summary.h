@@ -153,6 +153,8 @@ struct _CamelMessageInfo {
 
 	guint32 refcount;	/* ??? */
 	char *uid;
+	/*FIXME: Make it work with the CAMEL_MESSADE_DB_DIRTY flag instead of another 4 bytes*/
+	gboolean dirty;	
 };
 
 /* For classes wishing to do the provided i/o, or for anonymous users,
@@ -163,6 +165,8 @@ struct _CamelMessageInfoBase {
 
 	guint32 refcount;	/* ??? */
 	char *uid;
+	/*FIXME: Make it work with the CAMEL_MESSADE_DB_DIRTY flag instead of another 4 bytes*/
+	gboolean dirty;
 	
 	const char *subject;
 	const char *from;
@@ -186,8 +190,7 @@ struct _CamelMessageInfoBase {
 	CamelMessageContentInfo *content;
 	struct _camel_header_param *headers;
 
-	/*FIXME: Make it work with the CAMEL_MESSADE_DB_DIRTY flag instead of another 4 bytes*/
-	gboolean dirty;
+
 };
 
 /* probably do this as well, removing CamelFolderChangeInfo and interfaces 
