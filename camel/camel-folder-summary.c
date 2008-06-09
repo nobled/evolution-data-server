@@ -2692,9 +2692,11 @@ static void
 message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 {
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
-
-	g_hash_table_remove (s->loaded_infos, mi->uid);
-	g_free(mi->uid);
+	
+	if (mi->uid) {
+		g_hash_table_remove (s->loaded_infos, mi->uid);
+		g_free(mi->uid);
+	} 
 	camel_pstring_free(mi->subject);
 	camel_pstring_free(mi->from);
 	camel_pstring_free(mi->to);
