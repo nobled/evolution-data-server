@@ -438,11 +438,8 @@ camel_folder_summary_array(CamelFolderSummary *s)
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 
 	g_ptr_array_set_size(res, s->uids->len);
-	for (i=0;i<s->uids->len;i++) {
-		char *uid;
-		uid = g_ptr_array_index(s->uids, i);
-		res->pdata[i] = uid; 
-	}
+	for (i=0;i<s->uids->len;i++)
+		res->pdata[i] = g_ptr_array_index(s->uids, i);
 	
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -474,8 +471,6 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 
 	info = g_hash_table_lookup (s->loaded_infos, uid);
 
-	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 	if (!info) {
 		CamelDB *cdb;
 		CamelException ex;// May be this should come from the caller 
@@ -487,27 +482,29 @@ camel_folder_summary_uid (CamelFolderSummary *s, const char *uid)
 
 		folder_name = s->folder->full_name;
 		cdb = s->folder->parent_store->cdb;
-
+		
+		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_mir_callback, &ex);
 		if (ret != 0) {
 			return NULL;
 		}
 		CAMEL_SUMMARY_LOCK(s, summary_lock);
 		CAMEL_SUMMARY_LOCK(s, ref_lock);
-
+		
 		info = g_hash_table_lookup (s->loaded_infos, uid);
-
-		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
-		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 		if (!info) {
 			/* Makes no sense now as the exception is local as of now. FIXME: Pass exception from caller */
 			camel_exception_set (&ex, CAMEL_EXCEPTION_SYSTEM, _(g_strdup_printf ("no uid [%s] exists", uid)));
-			return NULL;
 		}
 	}
 
-	info->refcount++;
+	if (info)
+		info->refcount++;
+	
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 	return info;
 }
@@ -1291,15 +1288,12 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 #endif
 
 	/* Summary always holds a ref for the loaded infos */
-	camel_message_info_ref(info); //FIXME: Check how things are loaded.
+	//camel_message_info_ref(info); //FIXME: Check how things are loaded.
 	#warning "FIXME: SHould we ref it or redesign it later on"
-
-	d (g_print ("\n summary add: [%s]\n", camel_message_info_uid (info)));
-
 	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
 	g_ptr_array_add (s->uids, g_strdup(camel_message_info_uid(info)));
 	
-	g_hash_table_insert (s->loaded_infos, g_strdup (camel_message_info_uid (info)), info);
+	g_hash_table_insert (s->loaded_infos, camel_message_info_uid (info), info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);

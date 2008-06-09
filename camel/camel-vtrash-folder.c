@@ -133,7 +133,6 @@ vtrash_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 		case CAMEL_FOLDER_ARG_DELETED:
 		case CAMEL_FOLDER_ARG_JUNKED:
 		case CAMEL_FOLDER_ARG_VISIBLE:
-		break;
 			/* This is so we can get the values atomically, and also so we can calculate them only once */
 			if (unread == -1) {
 				int j;
@@ -431,9 +430,9 @@ vtrash_uid_added(CamelVTrashFolder *vf, const char *uid, CamelMessageInfo *info,
 	vinfo = (CamelVeeMessageInfo *)camel_folder_summary_uid(((CamelFolder *)vf)->summary, vuid);
 	if (vinfo == NULL) {
 		camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, binfo->summary, uid, hash);
-		//camel_folder_change_info_add_uid(((CamelVeeFolder *)vf)->changes, vuid);
+		camel_folder_change_info_add_uid(((CamelVeeFolder *)vf)->changes, vuid);
 	} else {
-		//camel_folder_change_info_change_uid(((CamelVeeFolder *)vf)->changes, vuid);
+		camel_folder_change_info_change_uid(((CamelVeeFolder *)vf)->changes, vuid);
 		camel_message_info_free(vinfo);
 	}
 }
@@ -442,7 +441,7 @@ static void
 vtrash_folder_changed(CamelVeeFolder *vf, CamelFolder *sub, CamelFolderChangeInfo *changes)
 {
 	CamelMessageInfo *info;
-	char hash[8] = { '\0',  '\0', '\0', '\0', '\0', '\0', '\0' };
+	char hash[8];
 	CamelFolderChangeInfo *vf_changes = NULL;
 	int i;
 
@@ -512,8 +511,7 @@ vtrash_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
 	infos = camel_folder_get_summary(sub);
 	for (i=0;i<infos->len;i++) {
 		CamelMessageInfo *info;
-		char *uid ;
-		uid = infos->pdata[i];
+		char *uid = infos->pdata[i];
 		info = camel_folder_summary_uid (sub->summary, uid);
 		if ((camel_message_info_flags(info) & ((CamelVTrashFolder *)vf)->bit))
 			vtrash_uid_added((CamelVTrashFolder *)vf, uid, info, hash);

@@ -1095,14 +1095,27 @@ camel_folder_get_message (CamelFolder *folder, const char *uid, CamelException *
 }
 
 static GPtrArray *
-get_uids (CamelFolder *folder)
+get_uids(CamelFolder *folder)
 {
 	GPtrArray *array;
 	int i, j, count;
 
+	array = g_ptr_array_new();
+
 	g_return_val_if_fail(folder->summary != NULL, array);
 
-	array = camel_folder_summary_array (folder->summary);
+	count = camel_folder_summary_count(folder->summary);
+	g_ptr_array_set_size(array, count);
+	for (i = 0, j = 0; i < count; i++) {
+		CamelMessageInfo *info = camel_folder_summary_index(folder->summary, i);
+		
+		if (info) {
+			array->pdata[j++] = g_strdup (camel_message_info_uid (info));
+			camel_message_info_free(info);
+		}
+	}
+	
+	g_ptr_array_set_size (array, j);
 	
 	return array;
 }

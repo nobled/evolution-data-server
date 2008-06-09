@@ -36,8 +36,8 @@ G_BEGIN_DECLS
 typedef struct _CamelVTrashFolder      CamelVTrashFolder;
 typedef struct _CamelVTrashFolderClass CamelVTrashFolderClass;
 
-#define CAMEL_VTRASH_NAME "evo_local/Trash"
-#define CAMEL_VJUNK_NAME "evo_local/Junk"
+#define CAMEL_VTRASH_NAME ".#evolution/Trash"
+#define CAMEL_VJUNK_NAME ".#evolution/Junk"
 
 typedef enum _camel_vtrash_folder_t {
 	CAMEL_VTRASH_FOLDER_TRASH,
