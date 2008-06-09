@@ -1731,8 +1731,7 @@ camel_folder_summary_remove_index(CamelFolderSummary *s, int index)
 void
 camel_folder_summary_remove_range (CamelFolderSummary *s, int start, int end)
 {
-
-	g_print ("\ncamel_folder_summary_remove_range called \n");
+	d(g_print ("\ncamel_folder_summary_remove_range called \n"));
 	if (end < start)
 		return;
 
