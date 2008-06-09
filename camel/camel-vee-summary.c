@@ -258,7 +258,7 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 
 	camel_folder_summary_add (&s->summary, (CamelMessageInfo *) mi);
 
-	g_print ("Adding to vee summary : [%s]\n", ((CamelMessageInfo *) mi)->uid);
+	d (g_print ("Adding to vee summary : [%s]\n", ((CamelMessageInfo *) mi)->uid));
 
 	return mi;
 }

@@ -623,7 +623,8 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 
 	for (i = 0 ; i < fsummary->len ; i++) {
 		CamelMessageInfo *info ;
-		char *uid = fsummary->pdata[i];
+		char *uid ;
+		uid = fsummary->pdata[i];
 
 		if (wanted == NULL || g_hash_table_lookup(wanted, uid) != NULL) {
 			info = camel_folder_get_message_info (folder, uid);
