@@ -252,7 +252,7 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 
 	mi = (CamelVeeMessageInfo *)camel_message_info_new(&s->summary);
 	mi->summary = summary;
-
+	camel_object_ref (summary);
 	mi->info.uid = vuid;
 
 	camel_folder_summary_add(&s->summary, (CamelMessageInfo *)mi);
