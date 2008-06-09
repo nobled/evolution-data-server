@@ -300,6 +300,7 @@ libcamel_1_2_la_LIBADD =				\
 	$(CAMEL_LIBS)							\
 	$(SOCKET_LIBS)							\
 	-lsqlite3							\
+	$(ICONV_LIBS)							\
 	$(REGEX_LIBS)
 
 
