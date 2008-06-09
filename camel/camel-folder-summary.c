@@ -654,8 +654,6 @@ remove_cache (CamelFolderSummary *s)
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
 	printf("removing cache... %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos));
 	#warning "hack. fix it"
-	if (g_hash_table_size(s->loaded_infos) == 0)
-		return;
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
 	g_hash_table_foreach_remove (s->loaded_infos, remove_item, s);
 	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
