@@ -206,16 +206,15 @@ construct (CamelService *service, CamelSession *session,
 	   CamelException *ex)
 {
 	CamelStore *store = CAMEL_STORE(service);
-	char *store_path, *store_db_path;
+	char *store_db_path;
 
 	parent_class->construct(service, session, provider, url, ex);
 	if (camel_exception_is_set (ex))
 		return;
 
-	store_path = camel_session_get_storage_path (session, service, ex);
-	store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
+	store_db_path = g_build_filename (service->url->path, CAMEL_DB_FILE, NULL);
 	store->cdb = camel_db_open (store_db_path, ex);
-	g_free (store_path);
+	printf("store_db_path %s", store_db_path);
 	g_free (store_db_path);
 	if (camel_exception_is_set (ex))
 		return;
