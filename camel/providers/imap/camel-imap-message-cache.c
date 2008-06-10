@@ -179,7 +179,7 @@ camel_imap_message_cache_new (const char *path, CamelFolderSummary *summary,
 		else
 			uid = g_strdup (dname);
 
-		if (g_hash_table_lookup (summary->uids, uid))
+		if (summary->loaded_infos && g_hash_table_lookup (summary->loaded_infos, uid))
 			cache_put (cache, uid, dname, NULL);
 
 		/*

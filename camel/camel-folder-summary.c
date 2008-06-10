@@ -1603,12 +1603,10 @@ camel_folder_summary_clear_db (CamelFolderSummary *s)
 		return;
 	}
 
-	for (i = 0; i < s->uids->len; i++)
-		 g_free (s->uids->pdata[i]);
 
 	camel_db_clear_folder_summary (cdb, folder_name, NULL);
-	#warning "free the to-be-lost memory"
-	g_ptr_array_set_size(s->uids, 0);
+	g_ptr_array_free (s->uids, TRUE);
+	s->uids = g_ptr_array_new ();
 
 	g_hash_table_destroy(s->loaded_infos);
 	s->loaded_infos = g_hash_table_new(g_str_hash, g_str_equal);
