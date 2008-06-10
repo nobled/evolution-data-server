@@ -214,7 +214,6 @@ construct (CamelService *service, CamelSession *session,
 
 	store_db_path = g_build_filename (service->url->path, CAMEL_DB_FILE, NULL);
 	store->cdb = camel_db_open (store_db_path, ex);
-	printf("store_db_path %s", store_db_path);
 	g_free (store_db_path);
 	if (camel_exception_is_set (ex))
 		return;
