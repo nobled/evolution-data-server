@@ -149,15 +149,18 @@ CamelFolderSummary *
 camel_imap_summary_new (struct _CamelFolder *folder, const char *filename)
 {
 	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (camel_object_new (camel_imap_summary_get_type ()));
+	CamelException ex;
+	camel_exception_init (&ex);
 
 	summary->folder = folder;
 
 	camel_folder_summary_set_build_content (summary, TRUE);
-	camel_folder_summary_set_filename (summary, filename);
 
-	if (camel_folder_summary_load (summary) == -1) {
-		camel_folder_summary_clear (summary);
-		camel_folder_summary_touch (summary);
+	if (camel_folder_summary_load_from_db (summary, &ex) == -1) {
+		/* FIXME: Isn't this dangerous ? We clear the summary
+		if it cannot be loaded, for some random reason.
+		We need to pass the ex and find out why it is not loaded etc. ? */
+		camel_folder_summary_clear_db (summary);
 	}
 
 	return summary;
@@ -262,7 +265,7 @@ message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
 
 	info = camel_imap_summary_parent->message_info_from_db (s, mir);
 	if (info) {
-		char *part = mir->bdata;
+		char *part = g_strdup (mir->bdata);
 		iinfo = (CamelImapMessageInfo *)info;
 		EXTRACT_FIRST_DIGIT (iinfo->server_flags)
 	}
@@ -337,6 +340,7 @@ content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
 	if (part) {
 		EXTRACT_FIRST_DIGIT (type);
 	}
+
 	if (type)
 		return camel_imap_summary_parent->content_info_from_db (s, mir);
 	else

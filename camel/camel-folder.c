@@ -1362,30 +1362,30 @@ transfer_message_to (CamelFolder *source, const char *uid, CamelFolder *dest,
 {
 	CamelMimeMessage *msg;
 	CamelMessageInfo *minfo, *info;
-	
+
 	/* Default implementation. */
-	
+
 	msg = camel_folder_get_message(source, uid, ex);
 	if (!msg)
 		return;
 
 	/* if its deleted we poke the flags, so we need to copy the messageinfo */
 	if ((source->folder_flags & CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY)
-	    && (minfo = camel_folder_get_message_info(source, uid))) {
+			&& (minfo = camel_folder_get_message_info(source, uid))) {
 		info = camel_message_info_clone(minfo);
 		camel_folder_free_message_info(source, minfo);
 	} else
 		info = camel_message_info_new_from_header(NULL, ((CamelMimePart *)msg)->headers);
-	
+
 	/* we don't want to retain the deleted flag */
 	camel_message_info_set_flags(info, CAMEL_MESSAGE_DELETED, 0);
-	
+
 	camel_folder_append_message (dest, msg, info, transferred_uid, ex);
 	camel_object_unref (msg);
-	
+
 	if (delete_original && !camel_exception_is_set (ex))
 		camel_folder_set_message_flags (source, uid, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN, ~0);
-	
+
 	camel_message_info_free (info);
 }
 

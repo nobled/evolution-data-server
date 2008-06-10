@@ -71,7 +71,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 /* this should probably be conditional on it existing */
 #define USE_BSEARCH
 
-#define d(x) 
+#define d(x)
 #define io(x)			/* io debug */
 #define w(x)
 
@@ -662,18 +662,16 @@ remove_cache (CamelFolderSummary *s)
 }
 
 int
-camel_folder_summary_load_from_db (CamelFolderSummary *s)
+camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 {
 	CamelDB *cdb;
-	CamelException ex;// May be this should come from the caller 
 	char *folder_name;
 	int ret = 0;
 
 	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
-	camel_exception_init (&ex);
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
-	ret = camel_folder_summary_header_load_from_db (s, s->folder->parent_store, s->folder->full_name, &ex);
+	ret = camel_folder_summary_header_load_from_db (s, s->folder->parent_store, s->folder->full_name, ex);
 
 	if (ret)
 		return ret;
@@ -682,7 +680,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s)
 	cdb = s->folder->parent_store->cdb;
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
-	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, &ex);
+	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
 
 	#warning "LRU please and not timeouts"
 	//g_timeout_add_seconds (10, remove_cache, s);
@@ -757,12 +755,15 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 	if (info) {
 
 		if (s->build_content) {
+			char *tmp;
+			tmp = mir->cinfo;
 			/* FIXME: this should be done differently, how i don't know */
 			((CamelMessageInfoBase *)info)->content = perform_content_info_load_from_db (s, mir);
 			if (((CamelMessageInfoBase *)info)->content == NULL) {
 				camel_message_info_free(info);
 				info = NULL;
 			} 
+			mir->cinfo = tmp;
 		}
 
 		/* Just now we are reading from the DB, it can't be dirty. */
@@ -770,7 +771,6 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 //		((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
 		camel_folder_summary_add (s, info);
 
-		d(g_print ("\nAdding messageinfo to db from db \n"));
 	} else
 		g_warning ("Loading messageinfo from db failed");
 

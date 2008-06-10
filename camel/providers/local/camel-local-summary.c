@@ -149,7 +149,7 @@ static int
 local_summary_load(CamelLocalSummary *cls, int forceindex, CamelException *ex)
 {
 	d(g_print ("\nlocal_summary_load called \n"));
-	return camel_folder_summary_load_from_db ((CamelFolderSummary *)cls);
+	return camel_folder_summary_load_from_db ((CamelFolderSummary *)cls, ex);
 }
 
 /* load/check the summary */

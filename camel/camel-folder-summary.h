@@ -314,7 +314,10 @@ struct _CamelFolderMetaSummary {
 CamelType			 camel_folder_summary_get_type	(void);
 CamelFolderSummary      *camel_folder_summary_new	(struct _CamelFolder *folder);
 
+/* Deprecated */
 void camel_folder_summary_set_filename(CamelFolderSummary *summary, const char *filename);
+
+
 void camel_folder_summary_set_index(CamelFolderSummary *summary, CamelIndex *index);
 void camel_folder_summary_set_build_content(CamelFolderSummary *summary, gboolean state);
 
@@ -328,7 +331,7 @@ int camel_folder_summary_save(CamelFolderSummary *summary);
 
 /* load/save the full summary from/to the db */
 int camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex);
-int camel_folder_summary_load_from_db (CamelFolderSummary *s);
+int camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex);
 
 /* only load the header */
 int camel_folder_summary_header_load(CamelFolderSummary *summary);
