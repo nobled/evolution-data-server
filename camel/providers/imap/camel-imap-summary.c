@@ -63,6 +63,8 @@ static CamelMessageContentInfo * content_info_from_db (CamelFolderSummary *s, Ca
 static void camel_imap_summary_class_init (CamelImapSummaryClass *klass);
 static void camel_imap_summary_init       (CamelImapSummary *obj);
 
+static int uid_compare (const void *va, const void *vb);
+
 static CamelFolderSummaryClass *camel_imap_summary_parent;
 
 CamelType
@@ -163,6 +165,7 @@ camel_imap_summary_new (struct _CamelFolder *folder, const char *filename)
 		camel_folder_summary_clear_db (summary);
 	}
 
+	g_ptr_array_sort (summary->uids, (GCompareFunc) uid_compare); 
 	return summary;
 }
 
@@ -340,7 +343,7 @@ content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
 	if (part) {
 		EXTRACT_FIRST_DIGIT (type);
 	}
-
+	mir->cinfo = part;
 	if (type)
 		return camel_imap_summary_parent->content_info_from_db (s, mir);
 	else
@@ -422,3 +425,21 @@ camel_imap_summary_add_offline_uncached (CamelFolderSummary *summary, const char
 
 	camel_folder_summary_add (summary, (CamelMessageInfo *)mi);
 }
+
+
+static int
+uid_compare (const void *va, const void *vb)
+{
+	const char **sa = (const char **)va, **sb = (const char **)vb;
+	unsigned long a, b;
+
+	a = strtoul (*sa, NULL, 10);
+	b = strtoul (*sb, NULL, 10);
+	if (a < b)
+		return -1;
+	else if (a == b)
+		return 0;
+	else
+		return 1;
+}
+
