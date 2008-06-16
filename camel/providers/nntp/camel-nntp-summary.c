@@ -427,28 +427,24 @@ camel_nntp_summary_check(CamelNNTPSummary *cns, CamelNNTPStore *store, char *lin
 	if (cns->low != f) {
 		count = camel_folder_summary_count(s);
 		for (i = 0; i < count; i++) {
-			CamelMessageInfo *mi = camel_folder_summary_index(s, i);
+			const char *uid;
+			const char *msgid;
 
-			if (mi) {
-				const char *uid = camel_message_info_uid(mi);
-				const char *msgid;
+			uid  = camel_folder_summary_uid_from_index(s, i);
+			n = strtoul(uid, NULL, 10);
 
-				n = strtoul(uid, NULL, 10);
-				if (n < f || n > l) {
-					dd(printf("nntp_summary: %u is lower/higher than lowest/highest article, removed\n", n));
-					/* Since we use a global cache this could prematurely remove
-					   a cached message that might be in another folder - not that important as
-					   it is a true cache */
-					msgid = strchr(uid, ',');
-					if (msgid)
-						camel_data_cache_remove(store->cache, "cache", msgid+1, NULL);
-					camel_folder_change_info_remove_uid(changes, uid);
-					camel_folder_summary_remove(s, mi);
-					count--;
-					i--;
-				}
-				
-				camel_message_info_free(mi);
+			if (n < f || n > l) {
+				dd(printf("nntp_summary: %u is lower/higher than lowest/highest article, removed\n", n));
+				/* Since we use a global cache this could prematurely remove
+				   a cached message that might be in another folder - not that important as
+				   it is a true cache */
+				msgid = strchr(uid, ',');
+				if (msgid)
+					camel_data_cache_remove(store->cache, "cache", msgid+1, NULL);
+				camel_folder_change_info_remove_uid(changes, uid);
+				camel_folder_summary_remove_uid (s, uid);
+				count--;
+				i--;
 			}
 		}
 		cns->low = f;
@@ -467,7 +463,7 @@ camel_nntp_summary_check(CamelNNTPSummary *cns, CamelNNTPStore *store, char *lin
 
 	/* TODO: not from here */
 	camel_folder_summary_touch(s);
-	camel_folder_summary_save(s);
+	camel_folder_summary_save_to_db (s, ex);
 update:
 	/* update store summary if we have it */
 	if (folder
