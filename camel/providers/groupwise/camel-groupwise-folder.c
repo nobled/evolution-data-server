@@ -673,6 +673,7 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 				const char *uid;
 
 				gw_info->info.flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
+				gw_info->info.dirty = 1;
 				gw_info->server_flags = gw_info->info.flags;
 				uid = camel_message_info_uid (info);
 				if (diff.bits & CAMEL_MESSAGE_DELETED) {
