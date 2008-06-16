@@ -42,8 +42,8 @@
 
 #define CAMEL_GW_SUMMARY_VERSION (1)
 
-#define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
-#define EXTRACT_DIGIT(val) part++; val=strtoul (part, &part, 10);
+#define EXTRACT_FIRST_DIGIT(val) part ? val=strtoul (part, &part, 10) : 0;
+#define EXTRACT_DIGIT(val) part++; part ? val=strtoul (part, &part, 10) : 0;
 
 /*Prototypes*/
 static int gw_summary_header_load (CamelFolderSummary *, FILE *);
@@ -160,16 +160,16 @@ camel_groupwise_summary_init (CamelGroupwiseSummary *obj)
 CamelFolderSummary *
 camel_groupwise_summary_new (struct _CamelFolder *folder, const char *filename)
 {
+	CamelException ex;
 	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (
 			camel_object_new (camel_groupwise_summary_get_type ()));
 	
 	summary->folder = folder ;
 	camel_folder_summary_set_build_content (summary, TRUE);
-	camel_folder_summary_set_filename (summary, filename);
 
-	if (camel_folder_summary_load (summary) == -1) {
+	camel_exception_init (&ex);
+	if (camel_folder_summary_load_from_db (summary, &ex) == -1) {
 		camel_folder_summary_clear (summary);
-		camel_folder_summary_touch (summary);
 	}
 
 	return summary;
@@ -469,7 +469,7 @@ groupwise_summary_clear (CamelFolderSummary *summary, gboolean uncache)
 	}
 
 	camel_folder_summary_clear (summary);
-	camel_folder_summary_save (summary);
+	//camel_folder_summary_save (summary);
 
 	if (uncache)
 		camel_data_cache_clear (((CamelGroupwiseFolder *) summary->folder)->cache, "cache", NULL);

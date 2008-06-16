@@ -590,7 +590,7 @@ move_to_junk (CamelFolder *folder, CamelMessageInfo *info, CamelException *ex)
 static void 
 groupwise_sync_summary (CamelFolder *folder, CamelException *ex)
 {
-	camel_folder_summary_save (folder->summary);
+	camel_folder_summary_save_to_db (folder->summary, ex);
 	camel_store_summary_touch ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary);
 	camel_store_summary_save ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary);
 }
@@ -1004,7 +1004,7 @@ groupwise_refresh_info(CamelFolder *folder, CamelException *ex)
 			}
 			camel_store_summary_info_free ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary, si);
 		}
-		camel_folder_summary_save (folder->summary);
+		//camel_folder_summary_save_to_db (folder->summary, ex);
 		camel_store_summary_save ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary);
 	} else {
 		/* We probably could not get the messages the first time. (get_folder) failed???!
@@ -1036,7 +1036,7 @@ groupwise_refresh_folder(CamelFolder *folder, CamelException *ex)
 
 	/* Sync-up the (un)read changes before getting updates,
 	so that the getFolderList will reflect the most recent changes too */
-	groupwise_sync (folder, FALSE, ex);
+	//groupwise_sync (folder, FALSE, ex);
 
 	if (((CamelOfflineStore *) gw_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
 		g_warning ("In offline mode. Cannot refresh!!!\n");
