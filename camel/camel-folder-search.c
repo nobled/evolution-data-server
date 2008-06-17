@@ -684,7 +684,7 @@ search_match_all(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFold
 	for (i=0;i<v->len;i++) {
 		const char *uid;
 
-		search->current = camel_folder_summary_index (search->folder->summary, i);
+		search->current = camel_folder_summary_uid (search->folder->summary, v->pdata[i]);
 		uid = camel_message_info_uid(search->current);
 
 		if (argc>0) {
