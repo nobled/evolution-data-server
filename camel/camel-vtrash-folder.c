@@ -292,6 +292,7 @@ vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 	}
 }
 
+#warning rewrite the same way as camel-vee-summary.c
 static GPtrArray *
 vtrash_search_by_expression(CamelFolder *folder, const char *expression, CamelException *ex)
 {
