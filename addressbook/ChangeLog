@@ -1,3 +1,28 @@
+2008-06-13  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #304029
+
+	* libedata-book/e-book-backend-sexp.c:
+	(func_contains): added helper functions for contains tester,
+	(endswith_helper): improved, it will work with more occurrences
+	* backends/ldap/e-book-backend-ldap.c:
+	(func_contains): added helper function 'extend_query_value' for
+	changing first space between words on stars '*'
+
+2008-06-13  Tor Lillqvist  <tml@novell.com>
+
+	* backends/ldap/Makefile.am (libebookbackendldap_la_LIBADD): Link
+	with libebackend.
+
+2008-06-12  Paul Smith  <psmith@gnu.org>
+
+	** Fix for bug #534111
+	Copying past the end of the buffer can cause core dumps.
+
+	* libebook/e-vcard.c (e_vcard_to_string_vcard_30): Loop on the # of
+	chars rather than the length of string, and break out before copying
+	past the end of the string.
+
 2008-05-13  Matthew Barnes  <mbarnes@redhat.com>
 
 	* libedata-book/libedata-book.pc.in: Require libebackend-1.2.

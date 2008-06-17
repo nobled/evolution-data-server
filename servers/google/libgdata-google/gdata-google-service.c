@@ -37,6 +37,7 @@ static gboolean     gdata_google_service_delete_entry (GDataService *service, GD
 static GDataFeed  * gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GError **error);
 static GDataEntry * gdata_google_service_update_entry (GDataService *service, GDataEntry *entry, GError **error);
 static void         gdata_google_service_set_credentials (GDataService *service, const gchar *username, const gchar *password);
+static void         gdata_google_service_set_proxy (GDataService *service, SoupURI *proxy);
 
 typedef struct _GDataGoogleServiceAuth GDataGoogleServiceAuth;
 struct _GDataGoogleServiceAuth {
@@ -75,7 +76,50 @@ gdata_google_error_quark (void)
 	return error ? error : (error = g_quark_from_static_string ("gdata_google_error_quark"));
 }
 
-void
+static void
+gdata_google_service_set_proxy (GDataService *service, SoupURI *proxy)
+{
+	GDataGoogleServicePrivate *priv;
+
+	g_return_if_fail (service != NULL);
+	g_return_if_fail (GDATA_IS_GOOGLE_SERVICE(service));
+
+	priv = GDATA_GOOGLE_SERVICE_GET_PRIVATE(GDATA_GOOGLE_SERVICE(service));
+	if (proxy && priv && priv->soup_session)
+		g_object_set (priv->soup_session, SOUP_SESSION_PROXY_URI, proxy, NULL);
+}
+
+/* send a message without redirection and if it was required, then redirects itself */
+static void
+send_and_handle_google_redirection (SoupSession *soup_session, SoupMessage *msg)
+{
+	soup_message_set_flags (msg, SOUP_MESSAGE_NO_REDIRECT);
+	soup_session_send_message (soup_session, msg);
+	soup_message_set_flags (msg, 0);
+
+	if (SOUP_STATUS_IS_REDIRECTION (msg->status_code)) {
+		SoupURI *new_uri;
+		const char *new_loc;
+
+		new_loc = soup_message_headers_get (msg->response_headers, "Location");
+		g_return_if_fail (new_loc != NULL);
+
+		new_uri = soup_uri_new_with_base (soup_message_get_uri (msg), new_loc);
+		if (!new_uri) {
+			soup_message_set_status_full (msg,
+						      SOUP_STATUS_MALFORMED,
+						      "Invalid Redirect URL");
+			return;
+		}
+
+		soup_message_set_uri (msg, new_uri);
+		soup_uri_free (new_uri);
+
+		soup_session_send_message (soup_session, msg);
+	}
+}
+
+static void
 gdata_google_service_set_credentials (GDataService *service, const gchar *username, const gchar *password)
 {
 	GDataGoogleServicePrivate *priv;
@@ -115,7 +159,6 @@ gdata_google_service_authenticate (GDataGoogleService *service, GError **error)
 	GHashTable *request_form;
 	gchar *request_body;
 	gchar *token = NULL;
-	int  http_status;
 
 	priv = GDATA_GOOGLE_SERVICE_GET_PRIVATE(service);
 	auth = (GDataGoogleServiceAuth *)priv->auth;
@@ -135,11 +178,11 @@ gdata_google_service_authenticate (GDataGoogleService *service, GError **error)
 				  SOUP_MEMORY_TAKE,
 				  request_body, strlen(request_body));
 
-	http_status = soup_session_send_message (priv->soup_session, msg);
+	soup_session_send_message (priv->soup_session, msg);
 
-    	if (http_status != 200) {
+    	if (msg->status_code != 200) {
 		g_set_error (error, SOUP_HTTP_ERROR,
-					 http_status, soup_status_get_phrase (http_status));
+					 msg->status_code, msg->reason_phrase);
 		g_object_unref(msg);
 		return (NULL != token);
 	}
@@ -180,7 +223,7 @@ gdata_google_service_authenticate (GDataGoogleService *service, GError **error)
  *
  **/
 
-GDataFeed *
+static GDataFeed *
 gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GError **error)
 {
 	GDataFeed *feed = NULL;
@@ -188,7 +231,6 @@ gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GEr
 	GDataGoogleServiceAuth *auth;
 	SoupSession *soup_session;
 	SoupMessage *msg;
-	int http_status;
 
 	g_return_val_if_fail(service != NULL, NULL);
 	g_return_val_if_fail(GDATA_IS_GOOGLE_SERVICE(service),NULL);
@@ -207,10 +249,10 @@ gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GEr
 	soup_message_headers_append(msg->request_headers,
 			"Authorization", (gchar *)g_strdup_printf("GoogleLogin auth=%s", auth->token));
 
-	http_status = soup_session_send_message(soup_session, msg);
-	if (http_status != 200) {
+	soup_session_send_message (soup_session, msg);
+	if (msg->status_code != 200) {
 		g_set_error (error, SOUP_HTTP_ERROR,
-					 http_status, soup_status_get_phrase (http_status));
+					 msg->status_code, msg->reason_phrase);
 		g_object_unref (msg);
 		return NULL;
 	}
@@ -240,7 +282,7 @@ gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GEr
  * returns the newly inserted entry
  *
  **/
-GDataEntry *
+static GDataEntry *
 gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url, GDataEntry *entry, GError **error)
 {
 	GDataGoogleServicePrivate *priv;
@@ -249,7 +291,6 @@ gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url,
 	SoupSession *soup_session;
 	SoupMessage *msg;
 	gchar *entry_xml;
-	int http_status;
 
 	g_return_val_if_fail(service != NULL, NULL);
 	g_return_val_if_fail(GDATA_IS_GOOGLE_SERVICE(service), NULL);
@@ -278,10 +319,12 @@ gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url,
 				entry_xml,
 				strlen(entry_xml));
 
-	http_status = soup_session_send_message(soup_session, msg);
-    	if (http_status != 201) {
+	/* Handle redirects ourself, since soup does not behave like google-api expects */
+	send_and_handle_google_redirection (soup_session, msg);
+
+	if (msg->status_code != 201) {
 		g_set_error (error, SOUP_HTTP_ERROR,
-					 http_status, soup_status_get_phrase (http_status));
+					 msg->status_code, msg->reason_phrase);
 		g_object_unref (msg);
 		return NULL;
 	}
@@ -309,7 +352,7 @@ gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url,
  * Removes the entry
  *
  **/
-gboolean
+static gboolean
 gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry, GError **error)
 {
 	GDataGoogleServiceAuth *auth;
@@ -317,7 +360,6 @@ gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry, GEr
 	SoupSession *soup_session;
 	SoupMessage *msg;
 	const gchar *entry_edit_url;
-	int http_status;
 	gboolean retval = FALSE;
 
 	g_return_val_if_fail (service !=NULL, FALSE);
@@ -338,11 +380,13 @@ gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry, GEr
 				     "Authorization",
 				     (gchar *)g_strdup_printf ("GoogleLogin auth=%s",
 				     auth->token));
-	http_status = soup_session_send_message (soup_session, msg);
 
-    	if (http_status != 200) {
+	/* Handle redirects ourself */
+	send_and_handle_google_redirection (soup_session, msg);
+
+    	if (msg->status_code != 200) {
 		g_set_error (error, SOUP_HTTP_ERROR,
-					 http_status, soup_status_get_phrase (http_status));
+					 msg->status_code, msg->reason_phrase);
 	} else {
 		retval = TRUE;
 	}
@@ -392,7 +436,6 @@ gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *
 	SoupSession *soup_session;
 	SoupMessage *msg;
 	gchar *entry_xml;
-	int http_status;
 	GDataEntry *updated_entry = NULL;
 
 	g_return_val_if_fail (service !=NULL, FALSE);
@@ -422,11 +465,12 @@ gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *
 				entry_xml,
 				strlen(entry_xml));
 
-	http_status = soup_session_send_message (soup_session, msg);
+	/* Handle redirects ourself */
+	send_and_handle_google_redirection (soup_session, msg);
 
-    	if (http_status != 200) {
+    	if (msg->status_code != 200) {
 		g_set_error (error, SOUP_HTTP_ERROR,
-					 http_status, soup_status_get_phrase (http_status));
+					 msg->status_code, msg->reason_phrase);
 		g_object_unref (msg);
 		return updated_entry;
 	}
@@ -448,6 +492,7 @@ static void gdata_google_service_iface_init(gpointer  g_iface, gpointer iface_da
 {
 	GDataServiceIface *iface = (GDataServiceIface *)g_iface;
 
+	iface->set_proxy = gdata_google_service_set_proxy;
 	iface->set_credentials = gdata_google_service_set_credentials;
 	iface->get_feed = gdata_google_service_get_feed;
 	iface->insert_entry = gdata_google_service_insert_entry;

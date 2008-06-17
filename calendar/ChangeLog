@@ -1,3 +1,24 @@
+2008-06-13  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #534080
+
+	* backends/file/e-cal-backend-file.c: (save_file_when_idle):
+	Use g_output_stream_write_all instead of g_output_stream_write.
+
+2008-06-13  Tor Lillqvist  <tml@novell.com>
+
+	* backends/google/Makefile.am (libecalbackendgoogle_la_LIBADD)
+	* backends/groupwise/Makefile.am (libecalbackendgroupwise_la_LIBADD)
+	* backends/http/Makefile.am (libecalbackendhttp_la_LIBADD)
+	* backends/weather/Makefile.am (libecalbackendweather_la_LIBADD):
+	Link with libebackend.
+
+2008-06-13  Wang Xin  <jedy.wang@sun.com>
+
+	** Fixes #527544.
+
+	* backends/google/e-cal-backend-google.c: Added proxy support.
+
 2008-05-29  Chenthill Palanisamy  <pchenthill@novell.com>
 
 	** Fixes #388579 (bnc)
