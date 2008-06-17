@@ -30,7 +30,9 @@
 #include <sys/stat.h>
 
 #include "camel-folder.h"
+#include "camel-store.h"
 #include "camel-vee-summary.h"
+#include "camel-private.h"
 
 #define d(x)
 
@@ -159,6 +161,27 @@ vee_info_set_flags(CamelMessageInfo *mi, guint32 flags, guint32 set)
 	return res;
 }
 
+static CamelMessageInfo *
+message_info_from_uid (CamelFolderSummary *s, const char *uid)
+{
+	CamelMessageInfoBase *info;
+	int ret;
+
+	#warning "too bad design. Need to peek it from cfs instead of hacking ugly like this"
+	CAMEL_SUMMARY_LOCK(s, summary_lock);
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
+
+	info = g_hash_table_lookup (s->loaded_infos, uid);
+
+	if (info)
+		info->refcount++;
+
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
+
+	return info;	
+}
+
 static void
 camel_vee_summary_class_init (CamelVeeSummaryClass *klass)
 {
@@ -181,6 +204,7 @@ camel_vee_summary_class_init (CamelVeeSummaryClass *klass)
 	((CamelFolderSummaryClass *)klass)->info_set_user_tag = vee_info_set_user_tag;
 
 	((CamelFolderSummaryClass *)klass)->info_set_flags = vee_info_set_flags;
+	((CamelFolderSummaryClass *)klass)->message_info_from_uid = message_info_from_uid;
 }
 
 static void
@@ -226,11 +250,32 @@ CamelFolderSummary *
 camel_vee_summary_new(CamelFolder *parent)
 {
 	CamelVeeSummary *s;
-
+	char *fname;
 	s = (CamelVeeSummary *)camel_object_new(camel_vee_summary_get_type());
 	s->summary.folder = parent;
 
+        #warning "fix exceptions and note return values"
+	#warning "if Evo's junk/trash vfolders make it VJunk VTrash instead of .#evolution/Junk-or-whatever"		
+	camel_db_create_vfolder (parent->parent_store->cdb, parent->full_name, NULL);
+
+	#warning "handle excep and ret"
+	camel_folder_summary_header_load_from_db ((CamelFolderSummary *)s, parent->parent_store, parent->full_name, NULL);	
 	return &s->summary;
+}
+
+GPtrArray *
+camel_vee_summary_get_ids (CamelVeeSummary *summary, char hash[8])
+{
+	char *shash = g_strdup_printf("%c%c%c%c%c%c%c%c", hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7]);
+	CamelFolderSummary *cfs = (CamelFolderSummary *)summary;
+	GPtrArray *array;
+
+	#warning "fix exception passing"
+	array = camel_db_get_vuids_from_vfolder(cfs->folder->parent_store->cdb, cfs->folder->full_name, shash, NULL);
+	
+	g_free(shash);
+
+	return array;
 }
 
 CamelVeeMessageInfo *
@@ -242,20 +287,22 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 	vuid = g_malloc(strlen(uid)+9);
 	memcpy(vuid, hash, 8);
 	strcpy(vuid+8, uid);
-	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(&s->summary, vuid);
-	if (mi) {
-		d(printf("w:clash, we already have '%s' in summary\n", vuid));
-		camel_message_info_free((CamelMessageInfo *)mi);
-		g_free(vuid);
-		return NULL;
-	}
+	
+	#warning do we need it really ?
+/* 	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(&s->summary, vuid); */
+/* 	if (mi) { */
+/* 		d(printf("w:clash, we already have '%s' in summary\n", vuid)); */
+/* 		camel_message_info_free((CamelMessageInfo *)mi); */
+/* 		g_free(vuid); */
+/* 		return NULL; */
+/* 	} */
 
 	mi = (CamelVeeMessageInfo *)camel_message_info_new(&s->summary);
 	mi->summary = summary;
 	camel_object_ref (summary);
 	mi->info.uid = vuid;
 
-	camel_folder_summary_add(&s->summary, (CamelMessageInfo *)mi);
+	camel_folder_summary_insert(&s->summary, (CamelMessageInfo *)mi, FALSE);
 
 	return mi;
 }
