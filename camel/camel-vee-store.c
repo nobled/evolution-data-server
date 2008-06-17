@@ -48,6 +48,7 @@ static CamelFolderInfo *vee_get_folder_info(CamelStore *store, const char *top, 
 static void camel_vee_store_class_init (CamelVeeStoreClass *klass);
 static void camel_vee_store_init       (CamelVeeStore *obj);
 static void camel_vee_store_finalise   (CamelObject *obj);
+static void construct (CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex);
 
 static CamelStoreClass *camel_vee_store_parent;
 
@@ -82,7 +83,8 @@ camel_vee_store_class_init (CamelVeeStoreClass *klass)
 	store_class->delete_folder = vee_delete_folder;
 	store_class->get_folder_info = vee_get_folder_info;
 	store_class->free_folder_info = camel_store_free_folder_info_full;
-
+	((CamelServiceClass *)store_class)->construct = construct;
+	
 	store_class->sync = vee_sync;
 	store_class->get_trash = vee_get_trash;
 	store_class->get_junk = vee_get_junk;
@@ -96,12 +98,23 @@ camel_vee_store_init (CamelVeeStore *obj)
 	/* we dont want a vtrash/vjunk on this one */
 	store->flags &= ~(CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK);	
 
+
+}
+
+static void
+construct (CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
+{
+	 CamelStore *store = (CamelStore *)service;
+	 CamelVeeStore *obj = (CamelVeeStore *)service;
+	 
+	 ((CamelServiceClass *) camel_vee_store_parent)->construct(service, session, provider, url, ex);
+	 
 	/* Set up unmatched folder */
 	obj->unmatched_uids = g_hash_table_new (g_str_hash, g_str_equal);
 	obj->folder_unmatched = (CamelVeeFolder *)camel_object_new (camel_vee_folder_get_type ());
 	camel_vee_folder_construct (obj->folder_unmatched, store, CAMEL_UNMATCHED_NAME, _("Unmatched"), CAMEL_STORE_FOLDER_PRIVATE);
+	camel_db_create_vfolder (store->cdb, _("Unmatched"), NULL);
 }
-
 static void
 cvs_free_unmatched(void *key, void *value, void *data)
 {
