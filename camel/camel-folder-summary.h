@@ -278,7 +278,7 @@ struct _CamelFolderSummaryClass {
 	CamelMessageContentInfo * (*content_info_load)(CamelFolderSummary *, FILE *);
 	int		          (*content_info_save)(CamelFolderSummary *, FILE *, CamelMessageContentInfo *);
 	void		          (*content_info_free)(CamelFolderSummary *, CamelMessageContentInfo *);
-
+	CamelMessageInfo * (*message_info_from_uid) (CamelFolderSummary *, char *);
 	/* get the next uid */
 	char *(*next_uid_string)(CamelFolderSummary *);
 
