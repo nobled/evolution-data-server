@@ -10,7 +10,7 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#define d(x) 
+#define d(x)
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -21,10 +21,11 @@ cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex)
   	ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
 	d(g_print("%s\n", stmt));
   	if (ret != SQLITE_OK) {
-    		d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
-		sqlite3_free (errmsg);
-		return -1;
+		 d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
+			if (ex)	
+				 camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
+			sqlite3_free (errmsg);
+			return -1;
  	}
 	return 0;
 }
@@ -299,6 +300,124 @@ camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex)
 	return ret;
 }
 
+#warning "add to .h file"
+int
+camel_db_create_vfolder (CamelDB *db, const char *folder_name, CamelException *ex)
+{
+	int ret;
+	char *table_creation_query, *safe_index;
+	
+	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS %Q (  vuid TEXT PRIMARY KEY)", folder_name);
+
+	ret = camel_db_command (db, table_creation_query, ex);	
+
+	sqlite3_free (table_creation_query);
+
+
+	safe_index = g_strdup_printf("VINDEX-%s", folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (vuid)", safe_index, folder_name);
+	ret = camel_db_command (db, table_creation_query, ex);
+
+	sqlite3_free (table_creation_query);	
+	return ret;	 
+}
+
+int
+camel_db_delete_uid_from_vfolder (CamelDB *db, char *folder_name, char *vuid, CamelException *ex)
+{
+	 char *del_query;
+	 int ret;
+	 
+	 del_query = sqlite3_mprintf ("DELETE FROM %Q WHERE vuid = %Q", folder_name, vuid);
+
+	 ret = camel_db_command (db, del_query, ex);
+	 
+	 sqlite3_free (del_query);
+
+	 return ret;
+}
+
+static int 
+read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
+{
+	 GPtrArray *array = (GPtrArray *)ref;
+	 int i;
+	 
+     #warning Sankar check if it is OK.
+	 for (i = 0; i < ncol; ++i) {
+		  if (!strcmp (name [i], "vuid"))
+			   g_ptr_array_add (array, g_strdup(cols [i]+8));
+	 }
+	 
+	 return 0;
+}
+
+GPtrArray *
+camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, CamelException *ex)
+{
+	 char *sel_query;
+	 char *cond = NULL;
+	 GPtrArray *array;
+	 char *tmp = g_strdup_printf("%s%%", filter ? filter:"");
+	 if(filter) 
+		  cond = sqlite3_mprintf("WHERE vuid LIKE %Q", tmp);
+	 g_free(tmp);
+	 sel_query = sqlite3_mprintf("SELECT vuid FROM %Q%s", folder_name, filter ? cond : "");
+
+	 if (cond)
+		  sqlite3_free (cond);
+	 printf("QUEY %s\n", sel_query);
+	 #warning "handle return values"
+	 array = g_ptr_array_new ();
+	 camel_db_select (db, sel_query, read_uids_callback, array, ex);
+	 sqlite3_free (sel_query);
+	 printf("result = %d\n", array->len);
+	 /* We make sure to return NULL if we don't get anything. Be good to your caller */ 
+	 if (!array->len) {
+		  g_ptr_array_free (array, FALSE);
+		  array = NULL;
+	 }
+
+	 return array;
+}
+
+int
+camel_db_add_to_vfolder (CamelDB *db, char *folder_name, char *vuid, CamelException *ex)
+{
+	 char *del_query, *ins_query;
+	 int ret;
+	 
+	 ins_query = sqlite3_mprintf ("INSERT INTO %Q VALUES (%Q)", folder_name, vuid);
+	 del_query = sqlite3_mprintf ("DELETE FROM %Q WHERE vuid = %Q", folder_name, vuid);
+
+	 ret = camel_db_command (db, del_query, ex);
+	 ret = camel_db_command (db, ins_query, ex);
+	 
+	 sqlite3_free (ins_query);
+	 sqlite3_free (del_query);
+
+	 return ret;
+}
+
+int
+camel_db_add_to_vfolder_transaction (CamelDB *db, char *folder_name, char *vuid, CamelException *ex)
+{
+	 char *del_query, *ins_query;
+	 int ret;
+	 
+	 ins_query = sqlite3_mprintf ("INSERT INTO %Q VALUES (%Q)", folder_name, vuid);
+	 del_query = sqlite3_mprintf ("DELETE FROM %Q WHERE vuid = %Q", folder_name, vuid);
+
+	 ret = camel_db_add_to_transaction (db, del_query, ex);
+	 ret = camel_db_add_to_transaction (db, ins_query, ex);
+	 
+	 sqlite3_free (ins_query);
+	 sqlite3_free (del_query);
+
+	 return ret;
+}
+
+
 int
 camel_db_create_folders_table (CamelDB *cdb, CamelException *ex)
 {
@@ -311,13 +430,20 @@ int
 camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, CamelException *ex)
 {
 	int ret;
-	char *table_creation_query;
+	char *table_creation_query, *safe_index;
 	
 	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS %Q (  uid TEXT PRIMARY KEY , flags INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
 
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 
 	sqlite3_free (table_creation_query);
+
+	safe_index = g_strdup_printf("INDEX-%s", folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (uid)", safe_index, folder_name);
+	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
+	g_free (safe_index);
+	sqlite3_free (table_creation_query);
+	
 	return ret;
 }
 
@@ -467,7 +593,7 @@ camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_nam
 	char *query;
 	int ret;
 
-	query = sqlite3_mprintf ("SELECT * FROM %Q WHERE uid = %Q", folder_name, uid);
+	query = sqlite3_mprintf ("SELECT uid, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo, bdata FROM %Q WHERE uid = %Q", folder_name, uid);
 	ret = camel_db_select (cdb, query, read_mir_callback, p, ex);
 	sqlite3_free (query);
 
@@ -480,7 +606,7 @@ camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpoin
 	char *query;
 	int ret;
 
-	query = sqlite3_mprintf ("SELECT * FROM %Q ", folder_name);
+	query = sqlite3_mprintf ("SELECT uid, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo, bdata FROM %Q ", folder_name);
 	ret = camel_db_select (cdb, query, read_mir_callback, p, ex);
 	sqlite3_free (query);
 
