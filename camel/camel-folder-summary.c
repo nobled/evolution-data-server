@@ -659,7 +659,7 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 static void
 remove_item (char *key, CamelMessageInfo *info, CamelFolderSummary *s)
 {
-	printf("%d\t", info->refcount); //camel_message_info_dump (info);
+	d(printf("%d\t", info->refcount)); //camel_message_info_dump (info);
 	CAMEL_SUMMARY_LOCK(info->summary, ref_lock);
 	if (info->refcount == 1 && !info->dirty) {
 		CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);		
@@ -674,12 +674,12 @@ static gboolean
 remove_cache (CamelFolderSummary *s)
 {
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
-	printf("removing cache for  %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos));
+	d(printf("removing cache for  %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos)));
 	#warning "hack. fix it"
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
 	g_hash_table_foreach  (s->loaded_infos, remove_item, s);
 	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
-	printf("done .. now %d\n",g_hash_table_size (s->loaded_infos));
+	d(printf("done .. now %d\n",g_hash_table_size (s->loaded_infos)));
 	return TRUE;
 }
 
