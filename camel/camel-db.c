@@ -60,7 +60,7 @@ camel_db_open (const char *path, CamelException *ex)
 	d(g_print ("\nDatabase succesfully opened  \n"));
 
 	#warning "make these under g_getenv"
-	camel_db_command (cdb, "PRAGMA cache_size=100", NULL) < 0);
+	camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
 	
 	return cdb;
 }
