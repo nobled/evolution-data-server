@@ -48,6 +48,8 @@
 #include "camel-multipart.h"
 #include "camel-search-private.h"
 #include "camel-stream-mem.h"
+#include "camel-db.h"
+#include "camel-store.h"
 
 #define d(x) 
 #define r(x) 
@@ -65,6 +67,7 @@ struct _CamelFolderSearchPrivate {
 static ESExpResult *search_not(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 
 static ESExpResult *search_header_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search);
+static ESExpResult * db_search_header_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 static ESExpResult *search_header_matches(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 static ESExpResult *search_header_starts_with(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 static ESExpResult *search_header_ends_with(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search);
@@ -87,6 +90,8 @@ static void camel_folder_search_class_init (CamelFolderSearchClass *klass);
 static void camel_folder_search_init       (CamelFolderSearch *obj);
 static void camel_folder_search_finalize   (CamelObject *obj);
 
+static int read_uid_callback (void * ref, int ncol, char ** cols, char **name);
+
 static CamelObjectClass *camel_folder_search_parent;
 
 static void
@@ -99,7 +104,7 @@ camel_folder_search_class_init (CamelFolderSearchClass *klass)
 	klass->match_all = search_match_all;
 	klass->match_threads = search_match_threads;
 	klass->body_contains = search_body_contains;
-	klass->header_contains = search_header_contains;
+	klass->header_contains = db_search_header_contains;
 	klass->header_matches = search_header_matches;
 	klass->header_starts_with = search_header_starts_with;
 	klass->header_ends_with = search_header_ends_with;
@@ -155,6 +160,9 @@ camel_folder_search_finalize (CamelObject *obj)
 	g_hash_table_foreach(p->mempool_hash, free_mempool, obj);
 	g_hash_table_destroy(p->mempool_hash);
 	g_free(p);
+
+	g_print ("\nFinalizing search query and the query is : \n%s\n", search->query->str);
+	g_string_free (search->query, TRUE);
 }
 
 CamelType
@@ -237,6 +245,8 @@ camel_folder_search_construct (CamelFolderSearch *search)
 			}
 		}
 	}
+
+	search->query = NULL;
 }
 
 /**
@@ -273,6 +283,13 @@ void
 camel_folder_search_set_folder(CamelFolderSearch *search, CamelFolder *folder)
 {
 	search->folder = folder;
+
+	if (search->query)
+		g_string_free (search->query, TRUE);
+
+	/* FIXME: Get this string done from camel-db by parsing with sqlite_mprintf etc. */
+	search->query = g_string_new ("SELECT uid FROM ");
+	g_string_append_printf (search->query, "%s ", folder->full_name);
 }
 
 /**
@@ -479,7 +496,15 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, GPtrArra
 		goto fail;
 	}
 
+	printf ("\nSomething is returned in the top-level caller : [%s]\n", search->query->str);
+
 	matches = g_ptr_array_new();
+
+	CamelStore *store = search->folder->parent_store;
+//	CamelDB *cdb = (CamelDB *) (search->folder->parent_store->cdb);
+	CamelDB *cdb = store->cdb;
+
+	camel_db_select (cdb, search->query->str, (CamelDBSelectCB) read_uid_callback, matches, ex);
 
 	/* now create a folder summary to return?? */
 	if (r->type == ESEXP_RES_ARRAY_PTR) {
@@ -680,32 +705,8 @@ search_match_all(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFold
 		return r;
 	}
 
-	v = search->summary_set?search->summary_set:search->summary;
-	for (i=0;i<v->len;i++) {
-		const char *uid;
-
-		search->current = camel_folder_summary_uid (search->folder->summary, v->pdata[i]);
-		uid = camel_message_info_uid(search->current);
-
-		if (argc>0) {
-			r1 = e_sexp_term_eval(f, argv[0]);
-			if (r1->type == ESEXP_RES_BOOL) {
-				if (r1->value.bool)
-					g_ptr_array_add(r->value.ptrarray, (char *)uid);
-			} else {
-				g_warning("invalid syntax, matches require a single bool result");
-				error_msg = g_strdup_printf(_("(%s) requires a single bool result"), "match-all");
-				e_sexp_fatal_error(f, error_msg);
-				g_free(error_msg);
-			}
-			e_sexp_result_free(f, r1);
-		} else {
-			g_ptr_array_add(r->value.ptrarray, (char *)uid);
-		}
-		camel_message_info_free (search->current);
-	}
+	e_sexp_term_eval (f, argv [0]);
 	search->current = NULL;
-
 	return r;
 }
 
@@ -931,6 +932,33 @@ static ESExpResult *
 search_header_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search)
 {
 	return check_header(f, argc, argv, search, CAMEL_SEARCH_MATCH_CONTAINS);
+}
+
+static ESExpResult *
+db_search_header_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSearch *search)
+{
+	/* FIXME: What to do for headers that are not stored in db */
+
+	ESExpResult *r;
+
+	char *column = camel_db_get_column_name (argv [0]->value.string);
+
+	char *temp = g_strdup_printf ("%%%s%%", argv [1]->value.string);
+	char *value = camel_db_sqlize_string (temp);
+	g_free (temp);
+
+	if (g_str_has_suffix (search->query->str, " "))
+		g_string_append_printf (search->query, "WHERE %s LIKE %s", column, value);
+	else 
+		g_string_append_printf (search->query, " OR %s LIKE %s", column, value);
+
+	g_free (column);
+	camel_db_free_sqlized_string (value);
+
+	r = e_sexp_result_new(f, ESEXP_RES_BOOL);
+	r->value.bool = FALSE;
+
+	return r;
 }
 
 static ESExpResult *
@@ -1420,4 +1448,24 @@ search_uid(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolderSe
 	}
 
 	return r;
+}
+
+static int 
+read_uid_callback (void * ref, int ncol, char ** cols, char **name)
+{
+	GPtrArray *matches;
+
+	matches = (GPtrArray *) ref;
+
+#if 0
+
+	int i;
+	for (i = 0; i < ncol; ++i) {
+		if ( !strcmp (name [i], "uid") ) 
+			g_ptr_array_add (matches, g_strdup (cols [i]));
+	}
+#else
+	g_ptr_array_add (matches, g_strdup (cols [0]));
+#endif
+	return 0;
 }

@@ -715,3 +715,30 @@ camel_db_camel_mir_free (CamelMIRecord *record)
 		g_free (record);
 	}
 }
+
+char * 
+camel_db_sqlize_string (const char *string)
+{
+	return sqlite3_mprintf ("%Q", string);
+}
+
+void 
+camel_db_free_sqlized_string (char *string)
+{
+	sqlite3_free (string);
+	string = NULL;
+}
+
+char * camel_db_get_column_name (const char *raw_name)
+{
+	if (g_ascii_strcasecmp (raw_name, "Subject"))
+		return g_strdup ("subject");
+	else if (g_ascii_strcasecmp (raw_name, "from"))
+		return g_strdup ("mail_from");
+	else {
+		/* Let it crash for all unknown columns for now. 
+		We need to load the messages into memory and search etc. */
+		return NULL;
+	}
+
+}

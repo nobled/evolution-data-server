@@ -48,6 +48,9 @@ struct _CamelFolderSearch {
 	CamelFolder *folder;	/* folder for current search */
 	GPtrArray *summary;	/* summary array for current search */
 	GPtrArray *summary_set;	/* subset of summary to actually include in search */
+
+	GString *query; /* shall contain the SQL quer that should be executed */
+
 // DEPRECATED	
 //	GHashTable *summary_hash; /* hashtable of summary items */
 	CamelMessageInfo *current; /* current message info, when searching one by one */

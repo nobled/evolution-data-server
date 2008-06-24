@@ -132,5 +132,10 @@ GPtrArray * camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, cha
 int camel_db_add_to_vfolder (CamelDB *db, char *folder_name, char *vuid, CamelException *ex);
 int camel_db_add_to_vfolder_transaction (CamelDB *db, char *folder_name, char *vuid, CamelException *ex);
 
+char * camel_db_sqlize_string (const char *string);
+void camel_db_free_sqlized_string (char *string);
+
+char * camel_db_get_column_name (const char *raw_name);
+
 #endif
 
