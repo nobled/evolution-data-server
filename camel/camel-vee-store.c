@@ -110,10 +110,13 @@ construct (CamelService *service, CamelSession *session, CamelProvider *provider
 	 ((CamelServiceClass *) camel_vee_store_parent)->construct(service, session, provider, url, ex);
 	 
 	/* Set up unmatched folder */
+#ifdef VEE_UNMATCHED_ENABLE
 	obj->unmatched_uids = g_hash_table_new (g_str_hash, g_str_equal);
 	obj->folder_unmatched = (CamelVeeFolder *)camel_object_new (camel_vee_folder_get_type ());
 	camel_vee_folder_construct (obj->folder_unmatched, store, CAMEL_UNMATCHED_NAME, _("Unmatched"), CAMEL_STORE_FOLDER_PRIVATE);
 	camel_db_create_vfolder (store->cdb, _("Unmatched"), NULL);
+#endif
+	 
 }
 static void
 cvs_free_unmatched(void *key, void *value, void *data)

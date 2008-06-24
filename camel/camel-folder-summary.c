@@ -194,7 +194,8 @@ camel_folder_summary_finalize (CamelObject *obj)
 
 	p = _PRIVATE(obj);
 
-	camel_folder_summary_clear(s);
+	//camel_folder_summary_clear(s);
+	g_ptr_array_foreach (s->uids, camel_pstring_free, NULL);
 	g_ptr_array_free (s->uids, TRUE);
 	g_hash_table_destroy (s->loaded_infos);
 
@@ -446,7 +447,7 @@ camel_folder_summary_array(CamelFolderSummary *s)
 
 	g_ptr_array_set_size(res, s->uids->len);
 	for (i=0;i<s->uids->len;i++)
-		res->pdata[i] = g_ptr_array_index(s->uids, i);
+		res->pdata[i] = camel_pstring_strdup (g_ptr_array_index(s->uids, i));
 	
 
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -655,20 +656,42 @@ perform_content_info_load(CamelFolderSummary *s, FILE *in)
 	return ci;
 }
 
-#warning "FIXME: I should have a better LRU algorithm "
 static void
+append_changed_uids (char *key, CamelMessageInfoBase *info, GPtrArray *array)
+{
+	if (info->dirty || info->flags & CAMEL_MESSAGE_FOLDER_FLAGGED)
+		g_ptr_array_add (array, camel_pstring_strdup((camel_message_info_uid(info))));
+}
+
+GPtrArray *
+camel_folder_summary_get_changed (CamelFolderSummary *s)
+{
+	GPtrArray *res = g_ptr_array_new();
+	
+	CAMEL_SUMMARY_LOCK (s, summary_lock);
+	g_hash_table_foreach (s->loaded_infos, append_changed_uids, res);
+	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
+
+	return res;
+}
+
+#warning "FIXME: I should have a better LRU algorithm "
+static gboolean
 remove_item (char *key, CamelMessageInfo *info, CamelFolderSummary *s)
 {
 	d(printf("%d\t", info->refcount)); //camel_message_info_dump (info);
 	CAMEL_SUMMARY_LOCK(info->summary, ref_lock);
 	if (info->refcount == 1 && !info->dirty) {
-		CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);		
+		CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);
+		/* Hackit so that hashtable isn;t corrupted. */
+		camel_pstring_free (info->uid);
+		info->uid = NULL;
 		/* Noone seems to need it. Why not free it then. */
 		camel_message_info_free (info);
-		return;
+		return TRUE;
 	}
 	CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);	
-	return ;
+	return FALSE;
 }
 static gboolean      
 remove_cache (CamelFolderSummary *s)
@@ -677,7 +700,7 @@ remove_cache (CamelFolderSummary *s)
 	d(printf("removing cache for  %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos)));
 	#warning "hack. fix it"
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
-	g_hash_table_foreach  (s->loaded_infos, remove_item, s);
+	g_hash_table_foreach_remove  (s->loaded_infos, remove_item, s);
 	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
 	d(printf("done .. now %d\n",g_hash_table_size (s->loaded_infos)));
 	return TRUE;
@@ -705,7 +728,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
 
 	#warning "LRU please and not timeouts"
-	g_timeout_add_seconds (30, remove_cache, s);
+	g_timeout_add_seconds (40, remove_cache, s);
 	return ret;
 }
 
@@ -717,7 +740,7 @@ mir_from_cols (CamelMIRecord *mir, CamelFolderSummary *s, int ncol, char ** cols
 	for (i = 0; i < ncol; ++i) {
 
 		if ( !strcmp (name [i], "uid") ) 
-			mir->uid = g_strdup (cols [i]);
+			mir->uid = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "flags") ) 
 			mir->flags = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
 		else if ( !strcmp (name [i], "read") ) 
@@ -739,31 +762,31 @@ mir_from_cols (CamelMIRecord *mir, CamelFolderSummary *s, int ncol, char ** cols
 		else if ( !strcmp (name [i], "dreceived") ) 
 			mir->dreceived = cols [i] ? strtol (cols [i], NULL, 10) : 0;
 		else if ( !strcmp (name [i], "subject") ) 
-			mir->subject = g_strdup (cols [i]);
+			mir->subject = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "mail_from") ) 
-			mir->from = g_strdup (cols [i]);
+			mir->from = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "mail_to") ) 
-			mir->to = g_strdup (cols [i]);
+			mir->to = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "mail_cc") ) 
-			mir->cc = g_strdup (cols [i]);
+			mir->cc = camel_pstring_strdup(cols [i]);
 		else if ( !strcmp (name [i], "mlist") ) 
-			mir->mlist = g_strdup (cols [i]);
+			mir->mlist = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "followup_flag") ) 
-			mir->followup_flag = g_strdup (cols [i]);
+			mir->followup_flag = camel_pstring_strdup(cols [i]);
 		else if ( !strcmp (name [i], "followup_completed_on") ) 
-			mir->followup_completed_on = g_strdup (cols [i]);
+			mir->followup_completed_on = camel_pstring_strdup(cols [i]);
 		else if ( !strcmp (name [i], "followup_due_by") ) 
-			mir->followup_due_by = g_strdup (cols [i]);
+			mir->followup_due_by = camel_pstring_strdup(cols [i]);
 		else if ( !strcmp (name [i], "part") ) 
-			mir->part = g_strdup (cols [i]);
+			mir->part = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "labels") ) 
-			mir->labels = g_strdup (cols [i]);
+			mir->labels = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "usertags") ) 
-			mir->usertags = g_strdup (cols [i]);
+			mir->usertags = camel_pstring_strdup (cols [i]);
 		else if ( !strcmp (name [i], "cinfo") ) 
-			mir->cinfo = g_strdup (cols [i]);
+			mir->cinfo = camel_pstring_strdup(cols [i]);
 		else if ( !strcmp (name [i], "bdata") ) 
-			mir->bdata = g_strdup (cols [i]);
+			mir->bdata = camel_pstring_strdup(cols [i]);
 
 	}	
 }
@@ -925,14 +948,13 @@ static int
 perform_content_info_save_to_db (CamelFolderSummary *s, CamelMessageContentInfo *ci, CamelMIRecord *record)
 {
 	CamelMessageContentInfo *part;
-	char *oldr, *cnt;
+	char *oldr;
 	if (((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS (s)))->content_info_to_db (s, ci, record) == -1)
 		return -1;
 	
 	oldr = record->cinfo;
-	cnt = g_strdup_printf (" %d", my_list_size ((struct _node **)&ci->childs));
-	record->cinfo = g_strconcat (oldr, cnt, NULL);
-	g_free (oldr); g_free (cnt);
+	record->cinfo = g_strdup_printf ("%s %d", oldr, my_list_size ((struct _node **)&ci->childs));
+	g_free (oldr);
 
 	part = ci->childs;
 	while (part) {
@@ -1222,6 +1244,9 @@ camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelStore *sto
 		ret = -1;
 	}
 
+	g_free (record->folder_name);
+	#warning "Crashes, take care"
+	//g_free (record->bdata); 
 	g_free (record);
 
 	return ret;
@@ -1281,8 +1306,8 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 	uid = camel_message_info_uid (info);
 
 	if (uid == NULL || uid[0] == 0) {
-		g_free (info->uid);
-		uid = info->uid = camel_folder_summary_next_uid_string(s);
+		camel_pstring_free (info->uid);
+		uid = info->uid = camel_pstring_add (camel_folder_summary_next_uid_string(s), TRUE);
 	}
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
@@ -1295,7 +1320,7 @@ summary_assign_uid(CamelFolderSummary *s, CamelMessageInfo *info)
 
 		d(printf ("Trying to insert message with clashing uid (%s).  new uid re-assigned", camel_message_info_uid (info)));
 
-		g_free(info->uid);
+		camel_pstring_free (info->uid);
 		uid = info->uid = camel_folder_summary_next_uid_string(s);
 
 		camel_message_info_set_flags(info, CAMEL_MESSAGE_FOLDER_FLAGGED, CAMEL_MESSAGE_FOLDER_FLAGGED);
@@ -1344,7 +1369,7 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 	//camel_message_info_ref(info); //FIXME: Check how things are loaded.
 	#warning "FIXME: SHould we ref it or redesign it later on"
 	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
-	g_ptr_array_add (s->uids, g_strdup(camel_message_info_uid(info)));
+	g_ptr_array_add (s->uids, camel_pstring_strdup((camel_message_info_uid(info))));
 	
 	g_hash_table_insert (s->loaded_infos, camel_message_info_uid (info), info);
 	s->flags |= CAMEL_SUMMARY_DIRTY;
@@ -1373,7 +1398,7 @@ camel_folder_summary_insert (CamelFolderSummary *s, CamelMessageInfo *info, gboo
 	#warning "FIXME: SHould we ref it or redesign it later on"
 	/* The uid array should have its own memory. We will unload the infos when not reqd.*/
 	if (!load)
-		g_ptr_array_add (s->uids, g_strdup(camel_message_info_uid(info)));
+		g_ptr_array_add (s->uids, camel_pstring_strdup(camel_message_info_uid(info)));
 	
 	g_hash_table_insert (s->loaded_infos, camel_message_info_uid (info), info);
 	if (!load)
@@ -1690,6 +1715,7 @@ camel_folder_summary_clear_db (CamelFolderSummary *s)
 
 
 	camel_db_clear_folder_summary (cdb, folder_name, NULL);
+	g_ptr_array_foreach (s->uids, camel_pstring_free, NULL);
 	g_ptr_array_free (s->uids, TRUE);
 	s->uids = g_ptr_array_new ();
 
@@ -1722,6 +1748,7 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 		if (strcmp(s->uids->pdata[i], uid) == 0) {
 			/* FIXME: Does using fast remove affect anything ? */
 			g_ptr_array_remove_index(s->uids, i);
+			camel_pstring_free (uid);
 			break;
 		}
 
@@ -1800,6 +1827,7 @@ camel_folder_summary_remove_index_fast (CamelFolderSummary *s, int index)
 	if (g_hash_table_lookup_extended(s->loaded_infos, uid, (void *)&olduid, (void *)&oldinfo)) {
 		/* make sure it doesn't vanish while we're removing it */
 		g_hash_table_remove (s->loaded_infos, uid);
+		camel_pstring_free (uid);
 		g_ptr_array_remove_index(s->uids, i);
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -1860,7 +1888,7 @@ camel_folder_summary_remove_range (CamelFolderSummary *s, int start, int end)
 		for (i = start; i < end; i++) {
 			const char *uid = s->uids->pdata[i];
 
-			uids = g_slist_prepend (uids, g_strdup (uid));
+			uids = g_slist_prepend (uids, uid);
 
 			g_hash_table_remove(s->loaded_infos, uid);
 		}
@@ -1869,9 +1897,10 @@ camel_folder_summary_remove_range (CamelFolderSummary *s, int start, int end)
 		folder_name = s->folder->full_name;
 		cdb = s->folder->parent_store->cdb;
 
+		#warning "lifecycle of infos should be checked. Add should add to db and del should del to db. Sync only the changes at interval and remove those full sync on folder switch"
 		camel_db_delete_uids (cdb, folder_name, uids, &ex);
 
-		g_slist_foreach (uids, (GFunc) g_free, NULL);
+		g_slist_foreach (uids, (GFunc) camel_pstring_free, NULL);
 		g_slist_free (uids);
 
 		memmove(s->uids->pdata+start, s->uids->pdata+end, (s->uids->len-end)*sizeof(s->uids->pdata[0]));
@@ -2512,7 +2541,7 @@ message_info_from_db (CamelFolderSummary *s, CamelMIRecord *record)
 	mi->date_sent = record->dsent;
 	mi->date_received = record->dreceived;
 
-	mi->uid = g_strdup (record->uid);
+	mi->uid = camel_pstring_strdup (record->uid);
 	mi->subject = camel_pstring_add (record->subject, FALSE);
 	mi->from = camel_pstring_add (record->from, FALSE);
 	mi->to = camel_pstring_add (record->to, FALSE);
@@ -2681,7 +2710,7 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	int count, i;
 
 	/* Assume that we dont have to take care of DB Safeness. It will be done while doing the DB transaction */
-	record->uid = g_strdup(camel_message_info_uid(mi));
+	record->uid = camel_pstring_strdup(camel_message_info_uid(mi));
 	record->flags = mi->flags;
 	
 	record->read =  ((mi->flags & (CAMEL_MESSAGE_SEEN|CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)));
@@ -2695,15 +2724,15 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	record->dsent = mi->date_sent;
 	record->dreceived = mi->date_received;
 
-	record->subject = g_strdup(camel_message_info_subject (mi));
-	record->from = g_strdup(camel_message_info_from (mi));
-	record->to = g_strdup(camel_message_info_to (mi));
-	record->cc = g_strdup(camel_message_info_cc (mi));
-	record->mlist = g_strdup(camel_message_info_mlist (mi));
+	record->subject = camel_pstring_strdup(camel_message_info_subject (mi));
+	record->from = camel_pstring_strdup(camel_message_info_from (mi));
+	record->to = camel_pstring_strdup(camel_message_info_to (mi));
+	record->cc = camel_pstring_strdup(camel_message_info_cc (mi));
+	record->mlist = camel_pstring_strdup(camel_message_info_mlist (mi));
 	
-	record->followup_flag = g_strdup(camel_message_info_user_tag(info, "follow-up"));
-	record->followup_completed_on = g_strdup(camel_message_info_user_tag(info, "completed-on"));
- 	record->followup_due_by = g_strdup(camel_message_info_user_tag(info, "due-by"));
+	record->followup_flag = camel_pstring_strdup(camel_message_info_user_tag(info, "follow-up"));
+	record->followup_completed_on = camel_pstring_strdup(camel_message_info_user_tag(info, "completed-on"));
+ 	record->followup_due_by = camel_pstring_strdup(camel_message_info_user_tag(info, "due-by"));
 
 	tmp = g_string_new (NULL);
 	if (mi->references) {
@@ -2809,7 +2838,7 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 	
 	if (mi->uid) {
 		g_hash_table_remove (s->loaded_infos, mi->uid);
-		g_free(mi->uid);
+		camel_pstring_free(mi->uid);
 	} 
 	camel_pstring_free(mi->subject);
 	camel_pstring_free(mi->from);
@@ -2887,6 +2916,7 @@ content_info_from_db(CamelFolderSummary *s, CamelMIRecord *record)
 	}
 	ci->type = ct;
 
+	#warning "move all these to camel pstring"
 	EXTRACT_STRING (ci->id);
 	EXTRACT_STRING (ci->description)
 	EXTRACT_STRING (ci->encoding)

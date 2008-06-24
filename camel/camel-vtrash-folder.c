@@ -36,7 +36,7 @@
 #include "camel-store.h"
 #include "camel-vee-store.h"
 #include "camel-vtrash-folder.h"
-
+#include "camel-string-utils.h"
 
 /* Returns the class for a CamelFolder */
 #define CF_CLASS(so) ((CamelFolderClass *)((CamelObject *)(so))->klass)
@@ -48,11 +48,12 @@ static struct {
 	guint32 bit;
 	guint32 flags;
 	const char *error_copy;
+	const char *db_col;
 } vdata[] = {
 	{ CAMEL_VTRASH_NAME, N_("Trash"), "(match-all (system-flag \"Deleted\"))", CAMEL_MESSAGE_DELETED, CAMEL_FOLDER_IS_TRASH,
-	  N_("Cannot copy messages to the Trash folder") },
+	  N_("Cannot copy messages to the Trash folder"), "deleted" },
 	{ CAMEL_VJUNK_NAME, N_("Junk"), "(match-all (system-flag \"Junk\"))", CAMEL_MESSAGE_JUNK, CAMEL_FOLDER_IS_JUNK,
-	  N_("Cannot copy messages to the Junk folder") },
+	  N_("Cannot copy messages to the Junk folder"), "junk" },
 };
 
 static CamelVeeFolderClass *camel_vtrash_folder_parent;
@@ -317,10 +318,12 @@ vtrash_search_by_expression(CamelFolder *folder, const char *expression, CamelEx
 				continue;
 			//if (camel_message_info_flags(mi) & ((CamelVTrashFolder *)folder)->bit)
 			if (vmi->summary == f->summary) /* Belongs to this folder */
-				g_ptr_array_add(uids, (void *)(infos->pdata[i]+8));
+				g_ptr_array_add(uids, (void *)camel_pstring_strdup(infos->pdata[i]+8));
 			camel_message_info_free (vmi);
 		}
 
+		camel_folder_free_summary (folder, infos);
+                #warning search in the DB of the folder, for the expression, with the vtrash bit (junk/trash)
 		if (uids->len > 0
 		    && (matches = camel_folder_search_by_uids(f, expression, uids, NULL))) {
 			for (i = 0; i < matches->len; i++) {
@@ -340,6 +343,7 @@ vtrash_search_by_expression(CamelFolder *folder, const char *expression, CamelEx
 
 	CAMEL_VEE_FOLDER_UNLOCK(folder, subfolder_lock);
 
+	g_ptr_array_foreach (uids, camel_pstring_free, NULL);
 	g_ptr_array_free(uids, TRUE);
 
 	return result;
@@ -363,19 +367,22 @@ vtrash_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *ui
 		camel_vee_folder_hash_folder(f, hash);
 
 		/* map the vfolder uid's to the source folder uid's first */
-		g_ptr_array_set_size(uids, 0);
+		#warning "check this. is it uids od folder_uids"
+		//g_ptr_array_set_size(uids, 0);
+		g_ptr_array_set_size (folder_uids, 0);
 		for (i=0;i<uids->len;i++) {
 			char *uid = uids->pdata[i];
 			
-			if (strlen(uid) >= 8 && strncmp(uid, hash, 8) == 0) {
-				CamelMessageInfo *mi;
-
-				mi = camel_folder_get_message_info(f, uid+8);
-				if (mi) {
-					if(camel_message_info_flags(mi) & ((CamelVTrashFolder *)folder)->bit)
+			//if (strlen(uid) >= 8 && strncmp(uid, hash, 8) == 0) {
+			if (strncmp(uid, hash, 8) == 0) {				
+				//CamelMessageInfo *mi;
+				#warning "is it really reqd, if so uncomment it"
+				//mi = camel_folder_get_message_info(f, uid+8);
+				//if (mi) {
+				//	if(camel_message_info_flags(mi) & ((CamelVTrashFolder *)folder)->bit)
 						g_ptr_array_add(folder_uids, uid+8);
-					camel_folder_free_message_info(f, mi);
-				}
+				//	camel_folder_free_message_info(f, mi);
+				//}
 			}
 		}
 
@@ -430,8 +437,12 @@ vtrash_uid_added(CamelVTrashFolder *vf, const char *uid, CamelMessageInfo *info,
 	strcpy(vuid+8, uid);
 	vinfo = (CamelVeeMessageInfo *)camel_folder_summary_uid(((CamelFolder *)vf)->summary, vuid);
 	if (vinfo == NULL) {
-		camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, binfo->summary, uid, hash);
-		camel_folder_change_info_add_uid(((CamelVeeFolder *)vf)->changes, vuid);
+		CamelMessageInfo *tinfo;
+		tinfo = camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, binfo->summary, uid, hash);
+		if (tinfo) {
+			camel_folder_change_info_add_uid(((CamelVeeFolder *)vf)->changes, vuid);
+			camel_message_info_free (tinfo);
+		}
 	} else {
 		camel_folder_change_info_change_uid(((CamelVeeFolder *)vf)->changes, vuid);
 		camel_message_info_free(vinfo);
@@ -509,6 +520,7 @@ vtrash_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
 
 	CAMEL_VEE_FOLDER_LOCK(vf, summary_lock);
 
+	#warning "Search for deleted /junk uids in the db and add them directly"
 	infos = camel_folder_get_summary(sub);
 	for (i=0;i<infos->len;i++) {
 		CamelMessageInfo *info;
@@ -518,7 +530,8 @@ vtrash_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
 			vtrash_uid_added((CamelVTrashFolder *)vf, uid, info, hash);
 		camel_message_info_free (info);
 	}
-	camel_folder_free_summary(sub, infos);
+	g_ptr_array_foreach (infos, camel_pstring_free, NULL);
+	g_ptr_array_free (infos, TRUE);
 
 	if (camel_folder_change_info_changed(vf->changes)) {
 		vf_changes = vf->changes;
@@ -553,7 +566,9 @@ vtrash_remove_folder(CamelVeeFolder *vf, CamelFolder *sub)
 	for (i=0;i<infos->len;i++) {
 
 		CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *) camel_folder_summary_uid (((CamelFolder *)vf)->summary, infos->pdata[i]);
-		if (mi == NULL || mi->summary == NULL) {
+		if (mi == NULL)
+			continue;
+		if (mi->summary == NULL) {
 			camel_message_info_free (mi);
 			continue;
 		}

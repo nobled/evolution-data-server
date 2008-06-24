@@ -52,10 +52,16 @@ camel_db_open (const char *path, CamelException *ex)
 		return NULL;
 	}
 
+
+
 	cdb = g_new (CamelDB, 1);
 	cdb->db = db;
 	cdb->lock = g_mutex_new ();
 	d(g_print ("\nDatabase succesfully opened  \n"));
+
+	#warning "make these under g_getenv"
+	camel_db_command (cdb, "PRAGMA cache_size=100", NULL) < 0);
+	
 	return cdb;
 }
 
@@ -318,7 +324,8 @@ camel_db_create_vfolder (CamelDB *db, const char *folder_name, CamelException *e
 	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (vuid)", safe_index, folder_name);
 	ret = camel_db_command (db, table_creation_query, ex);
 
-	sqlite3_free (table_creation_query);	
+	sqlite3_free (table_creation_query);
+	g_free (safe_index);
 	return ret;	 
 }
 
@@ -337,7 +344,7 @@ camel_db_delete_uid_from_vfolder (CamelDB *db, char *folder_name, char *vuid, Ca
 	 return ret;
 }
 
-static int 
+static int
 read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
 {
 	 GPtrArray *array = (GPtrArray *)ref;
@@ -346,7 +353,7 @@ read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
      #warning Sankar check if it is OK.
 	 for (i = 0; i < ncol; ++i) {
 		  if (!strcmp (name [i], "vuid"))
-			   g_ptr_array_add (array, g_strdup(cols [i]+8));
+			   g_ptr_array_add (array, camel_pstring_strdup(cols [i]+8));
 	 }
 	 
 	 return 0;
@@ -374,7 +381,7 @@ camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, C
 	 printf("result = %d\n", array->len);
 	 /* We make sure to return NULL if we don't get anything. Be good to your caller */ 
 	 if (!array->len) {
-		  g_ptr_array_free (array, FALSE);
+		  g_ptr_array_free (array, TRUE);
 		  array = NULL;
 	 }
 
@@ -690,20 +697,20 @@ void
 camel_db_camel_mir_free (CamelMIRecord *record)
 {
 	if (record) {
-		g_free (record->uid);
-		g_free (record->subject);
-		g_free (record->from);
-		g_free (record->to);
-		g_free (record->cc);
-		g_free (record->mlist);
-		g_free (record->followup_flag);
-		g_free (record->followup_completed_on);
-		g_free (record->followup_due_by);
-		g_free (record->part);
-		g_free (record->labels);
-		g_free (record->usertags);
-		g_free (record->cinfo);
-		g_free (record->bdata);
+		camel_pstring_free (record->uid);
+		camel_pstring_free (record->subject);
+		camel_pstring_free (record->from);
+		camel_pstring_free (record->to);
+		camel_pstring_free (record->cc);
+		camel_pstring_free (record->mlist);
+		camel_pstring_free (record->followup_flag);
+		camel_pstring_free (record->followup_completed_on);
+		camel_pstring_free (record->followup_due_by);
+		camel_pstring_free (record->part);
+		camel_pstring_free (record->labels);
+		camel_pstring_free (record->usertags);
+		camel_pstring_free (record->cinfo);
+		camel_pstring_free (record->bdata);
 
 		g_free (record);
 	}

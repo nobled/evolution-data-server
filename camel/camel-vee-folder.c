@@ -43,6 +43,7 @@
 #include "camel-vee-folder.h"
 #include "camel-vee-store.h"	/* for open flags */
 #include "camel-vee-summary.h"
+#include "camel-string-utils.h"
 
 #define d(x) 
 #define dd(x) (camel_debug("vfolder")?(x):0)
@@ -665,7 +666,7 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 			}
 			
 		}
-		
+		camel_folder_free_summary (folder, summary);		
 	}
 
 
@@ -878,9 +879,12 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 						if (g_hash_table_lookup_extended(unmatched_uids, uid, (void **)&oldkey, &oldval)) {
 							n = GPOINTER_TO_INT (oldval);
 							if (n == 1) {
+								CamelMessageInfo *tinfo;
 								g_hash_table_remove(unmatched_uids, oldkey);
-								if (vee_folder_add_uid(folder_unmatched, source, oldkey+8, hash))
+								if (tinfo = vee_folder_add_uid(folder_unmatched, source, oldkey+8, hash)) {
+									camel_message_info_free (tinfo);
 									camel_folder_change_info_add_uid(folder_unmatched->changes, oldkey);
+								}
 								g_free(oldkey);
 							} else {
 								g_hash_table_insert(unmatched_uids, oldkey, GINT_TO_POINTER(n-1));
@@ -1144,9 +1148,10 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 	g_hash_table_destroy(matchhash);
 	g_hash_table_destroy(allhash);
 	/* if expression not set, we only had a null list */
-	if (vf->expression == NULL || !rebuilded)
+	if (vf->expression == NULL || !rebuilded) {
+		g_ptr_array_foreach (match, camel_pstring_free, NULL);
 		g_ptr_array_free(match, TRUE);
-	else
+	} else
 		camel_folder_search_free(f, match);
 	camel_folder_free_uids(f, all);
 

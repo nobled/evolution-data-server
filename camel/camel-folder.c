@@ -43,6 +43,7 @@
 #include "camel-session.h"
 #include "camel-store.h"
 #include "camel-vtrash-folder.h"
+#include "camel-string-utils.h"
 
 #define d(x)
 #define w(x)
@@ -373,6 +374,11 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 						camel_message_info_free(info);
 					}
 				}
+
+				#warning "I added it for vfolders summary storage, does it harm ?"
+				folder->summary->junk_count = junked;
+				folder->summary->deleted_count = deleted;
+				folder->summary->unread_count = unread;
 			}
 
 			switch (tag & CAMEL_ARG_TAG) {
@@ -399,7 +405,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 			int j;
 			CamelMessageInfo *info;
 			GPtrArray *array;
-
+/*
 			count = camel_folder_summary_count(folder->summary);
 			array = g_ptr_array_new();
 			g_ptr_array_set_size(array, count);
@@ -409,7 +415,9 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 					camel_message_info_free(info);
 				}
 			}
-			*arg->ca_ptr = array;
+			*arg->ca_ptr = array;*/
+			// WTH this is reqd ?, let it crash to find out who uses this
+			printf("%s", 0);
 			break; }
 		case CAMEL_FOLDER_ARG_INFO_ARRAY:
 			*arg->ca_ptr = camel_folder_summary_array(folder->summary);
@@ -442,7 +450,7 @@ folder_free(CamelObject *o, guint32 tag, void *val)
 		g_ptr_array_free(array, TRUE);
 		break; }
 	case CAMEL_FOLDER_ARG_INFO_ARRAY:
-		g_ptr_array_free((GPtrArray *)val, TRUE);
+		camel_folder_summary_array_free(folder->summary, val);
 		break;
 	case CAMEL_FOLDER_ARG_PROPERTIES:
 		g_slist_free(val);
@@ -1110,7 +1118,7 @@ get_uids(CamelFolder *folder)
 		CamelMessageInfo *info = camel_folder_summary_index(folder->summary, i);
 		
 		if (info) {
-			array->pdata[j++] = g_strdup (camel_message_info_uid (info));
+			array->pdata[j++] = camel_pstring_strdup (camel_message_info_uid (info));
 			camel_message_info_free(info);
 		}
 	}
@@ -1151,7 +1159,7 @@ free_uids (CamelFolder *folder, GPtrArray *array)
 	int i;
 
 	for (i=0; i<array->len; i++)
-		g_free(array->pdata[i]);
+		camel_pstring_free(array->pdata[i]);
 	g_ptr_array_free(array, TRUE);
 }
 
@@ -1207,6 +1215,7 @@ free_summary(CamelFolder *folder, GPtrArray *summary)
 {
 	g_assert(folder->summary != NULL);
 
+	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
 	g_ptr_array_free (summary, TRUE);
 }
 

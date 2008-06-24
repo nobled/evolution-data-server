@@ -779,7 +779,7 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 	const char *xev;
 	int len;
 	off_t lastpos;
-
+	GPtrArray *summary = NULL;
 	int mbox_file_is_corrupt = 0;
 
 	d(printf("Performing quick summary sync\n"));
@@ -811,16 +811,15 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 	camel_mime_parser_scan_pre_from(mp, TRUE);
 	camel_mime_parser_init_with_fd(mp, pfd);
 
-	count = camel_folder_summary_count(s);
-	for (i = 0; i < count; i++) {
+	/* Sync only the changes */
+	summary = camel_folder_summary_get_changed ((CamelFolderSummary *)mbs);
+	for (i = 0; i < summary->len; i++) {
 		int xevoffset;
 		int pc = (i+1)*100/count;
 
 		camel_operation_progress(NULL, pc);
 
-		info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
-
-		g_assert(info);
+		info = (CamelMboxMessageInfo *)camel_folder_summary_uid(s, summary->pdata[i]);
 
 		d(printf("Checking message %s %08x\n", camel_message_info_uid(info), info->info.flags));
 
@@ -943,12 +942,16 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 		goto error;
 	}
 
+	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
+	g_ptr_array_free (summary, TRUE);
 	camel_object_unref((CamelObject *)mp);
 
 	camel_operation_end(NULL);
 	
 	return 0;
  error:
+	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
+	g_ptr_array_free (summary, TRUE);	
 	if (fd != -1)
 		close(fd);
 	if (mp)
@@ -970,28 +973,40 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 	int i, count;
 	int quick = TRUE, work=FALSE;
 	int ret;
-
+	GPtrArray *summary = NULL;
+	
 	/* first, sync ourselves up, just to make sure */
 	if (camel_local_summary_check(cls, changeinfo, ex) == -1)
 		return -1;
 
-	count = camel_folder_summary_count(s);
-	if (count == 0)
-		return 0;
+	/* Sync only the changes */
 
-	/* check what work we have to do, if any */
-	for (i=0;quick && i<count; i++) {
-		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
 
-		g_assert(info);
+	summary = camel_folder_summary_get_changed ((CamelFolderSummary *)mbs);
+	for (i=0; i<summary->len; i++) {
+		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_uids(s, summary->pdata[i]);
 		
 		if ((expunge && (info->info.info.flags & CAMEL_MESSAGE_DELETED)) ||
 		    (info->info.info.flags & (CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_XEVCHANGE)))
 			quick = FALSE;
 		else
 			work |= (info->info.info.flags & CAMEL_MESSAGE_FOLDER_FLAGGED) != 0;
-		camel_message_info_free(info);
+		camel_message_info_free(info);		
 	}
+
+	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
+	g_ptr_array_free (summary, TRUE);
+	
+	if (quick && expunge) {
+		int dcount =0;
+
+	
+		if (camel_db_count_deleted_message_info (s->folder->parent_store->cdb, s->folder->full_name, &dcount, ex) == -1)
+			return -1;
+		if (dcount)
+			quick = FALSE;
+	}
+	
 
 	/* yuck i hate this logic, but its to simplify the 'all ok, update summary' and failover cases */
 	ret = -1;

@@ -245,6 +245,7 @@ camel_pstring_free(const char *s)
 		}
 	} else {
 		g_warning("Trying to free string not allocated from the pool '%s'", s);
+		g_assert (0);
 	}
 	pthread_mutex_unlock(&pstring_lock);
 }

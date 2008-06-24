@@ -297,12 +297,19 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 /* 		return NULL; */
 /* 	} */
 
+	mi = message_info_from_uid(&s->summary, vuid); 
+	if (mi) {
+		g_warning ("%s - already there\n", vuid);
+		g_free (vuid);
+		return mi;
+	}
+
 	mi = (CamelVeeMessageInfo *)camel_message_info_new(&s->summary);
 	mi->summary = summary;
 	camel_object_ref (summary);
 	mi->info.uid = vuid;
-
+	camel_message_info_ref (mi);
 	camel_folder_summary_insert(&s->summary, (CamelMessageInfo *)mi, FALSE);
-
+	
 	return mi;
 }
