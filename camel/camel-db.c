@@ -731,9 +731,9 @@ camel_db_free_sqlized_string (char *string)
 
 char * camel_db_get_column_name (const char *raw_name)
 {
-	if (g_ascii_strcasecmp (raw_name, "Subject"))
+	if (!g_ascii_strcasecmp (raw_name, "Subject"))
 		return g_strdup ("subject");
-	else if (g_ascii_strcasecmp (raw_name, "from"))
+	else if (!g_ascii_strcasecmp (raw_name, "from"))
 		return g_strdup ("mail_from");
 	else {
 		/* Let it crash for all unknown columns for now. 
