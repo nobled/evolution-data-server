@@ -1,3 +1,8 @@
+2008-06-26  Johnny Jacob  <jjohnny@novell.com>
+
+	* exchange-mapi-defs.h (OlEditorType): Removed. Already
+	defined in mapidefs.h
+
 2008-06-26  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-connection.c

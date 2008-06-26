@@ -60,13 +60,6 @@ typedef enum {
 } OlMailRecipientType;
 
 typedef enum {
-    olEditorText = 1,
-    olEditorHTML = 2,
-    olEditorRTF = 3,
-    olEditorWord = 4
-} OlEditorType; /* PR_MESSAGE_EDITOR_FORMAT type */
-
-typedef enum {
     SingleAppt = 0x0400 ,
     RecurAppt = 0x0401 ,
     SingleMeet = 0x0402 , 
