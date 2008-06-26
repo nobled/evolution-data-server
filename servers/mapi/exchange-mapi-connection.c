@@ -384,7 +384,6 @@ exchange_mapi_util_set_generic_streams (mapi_object_t *obj_message, GSList *stre
 
 	TALLOC_CTX 	*mem_ctx;
 	GSList 		*l;
-	enum MAPISTATUS	retval;
 	gboolean 	status = TRUE;
 
 	mem_ctx = talloc_init ("ExchangeMAPI_Set_GenericStreams");
@@ -1980,9 +1979,6 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 	TALLOC_CTX *mem_ctx;
 	mapi_object_t obj_store;
 	mapi_object_t obj_folder;
-	mapi_object_t obj_message;
-	struct SPropValue *props = NULL;
-	gint propslen = 0;
 	gboolean result = FALSE;
 	mapi_id_t* messageIds = NULL;
 	gint16 messageIdCount = 0;
@@ -2099,17 +2095,11 @@ static gboolean
 get_child_folders_pf(TALLOC_CTX *mem_ctx, mapi_object_t *parent, mapi_id_t folder_id, GSList **mapi_folders)
 {
 	enum MAPISTATUS		retval;
-	bool			ret;
 	mapi_object_t		obj_folder;
 	mapi_object_t		obj_htable;
 	struct SPropTagArray	*SPropTagArray;
 	struct SRowSet		rowset;
-	const char	       	*name;
-	char			*newname;
-	const uint32_t		*child;
 	uint32_t		index;
-	const uint64_t		*fid;
-	int			i;
 	gboolean 		result = FALSE;
 
 	/* sanity check */

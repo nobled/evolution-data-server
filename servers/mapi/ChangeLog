@@ -1,4 +1,9 @@
 2008-06-26  Johnny Jacob  <jjohnny@novell.com>
+	
+	* exchange-mapi-connection.c (exchange_mapi_set_flags)
+	(get_child_folders_pf): Removed unused variables.
+
+2008-06-26  Johnny Jacob  <jjohnny@novell.com>
 
 	* exchange-mapi-connection.c (exchange_mapi_util_create_named_prop): 
 	Changes for struct MAPINAMEID.
