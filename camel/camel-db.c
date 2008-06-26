@@ -1,6 +1,7 @@
 /* Srinivasa Ragavan - <sragavan@novell.com> - GPL v2 or later */
 
 #include "camel-db.h"
+#include "camel-string-utils.h"
 
 #include <config.h>
 
@@ -12,29 +13,29 @@
 
 #define d(x)
 
-#define CAMEL_DB_SLEEP_INTERVAL 2
+#define CAMEL_DB_SLEEP_INTERVAL 1*1000 
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
 {
-  	char *errmsg;
-  	int   ret = -1;
+	char *errmsg;
+	int   ret = -1;
 
-	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
-		 if (ret != -1)
-			  sleep (CAMEL_DB_SLEEP_INTERVAL);
-		 
-		 ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
-	}
-	
 	d(g_print("%s\n", stmt));
-  	if (ret != SQLITE_OK) {
-		 d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
-			if (ex)	
-				 camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
-			sqlite3_free (errmsg);
-			return -1;
- 	}
+
+	ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
+	if (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
+		sqlite3_busy_timeout (db, CAMEL_DB_SLEEP_INTERVAL);
+		ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
+	}
+
+	if (ret != SQLITE_OK) {
+		d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
+		if (ex)	
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
+		sqlite3_free (errmsg);
+		return -1;
+	}
 	return 0;
 }
 
@@ -203,13 +204,12 @@ camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, Ca
 	int ret = -1;
 	char *errmsg;
 
-	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
-		 if (ret != -1)
-			  sleep (CAMEL_DB_SLEEP_INTERVAL);
-		 ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
-
+	ret = sqlite3_exec(cdb->db, query, 0, 0, &errmsg);
+	if (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
+		sqlite3_busy_timeout (cdb->db, CAMEL_DB_SLEEP_INTERVAL);
+		ret = sqlite3_exec (cdb->db, query, 0, 0, &errmsg);
 	}
-	
+
 	if (ret != SQLITE_OK) {
     		g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
@@ -348,13 +348,13 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 
 	if (!cdb)
 		return TRUE;
-	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
-		 if (ret != -1)
-			  sleep (CAMEL_DB_SLEEP_INTERVAL);
 	
-		 ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
+	ret = sqlite3_exec(cdb->db, stmt, 0, 0, &errmsg);
+	if (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
+		sqlite3_busy_timeout (cdb->db, CAMEL_DB_SLEEP_INTERVAL);
+		ret = sqlite3_exec (cdb->db, stmt, 0, 0, &errmsg);
 	}
-	
+
   	if (ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement '%s' [%s].\n", stmt, errmsg));
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);
@@ -376,7 +376,6 @@ camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex)
 	return ret;
 }
 
-#warning "add to .h file"
 int
 camel_db_create_vfolder (CamelDB *db, const char *folder_name, CamelException *ex)
 {
@@ -423,7 +422,7 @@ read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
      #warning Sankar check if it is OK.
 	 for (i = 0; i < ncol; ++i) {
 		  if (!strcmp (name [i], "vuid"))
-			   g_ptr_array_add (array, camel_pstring_strdup(cols [i]+8));
+			   g_ptr_array_add (array, (char *) (camel_pstring_strdup(cols [i]+8)));
 	 }
 	 
 	 return 0;
@@ -443,12 +442,12 @@ camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, C
 
 	 if (cond)
 		  sqlite3_free (cond);
-	 printf("QUEY %s\n", sel_query);
+	 g_print ("QUEY %s\n", sel_query);
 	 #warning "handle return values"
 	 array = g_ptr_array_new ();
 	 camel_db_select (db, sel_query, read_uids_callback, array, ex);
 	 sqlite3_free (sel_query);
-	 printf("result = %d\n", array->len);
+	 g_print ("result = %d\n", array->len);
 	 /* We make sure to return NULL if we don't get anything. Be good to your caller */ 
 	 if (!array->len) {
 		  g_ptr_array_free (array, TRUE);
