@@ -42,6 +42,9 @@
 #include "camel-private.h"
 
 #include "camel-mbox-summary.h"
+#include "camel-string-utils.h"
+#include "camel-store.h"
+#include "camel-folder.h"
 
 #define io(x)
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
@@ -815,7 +818,7 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 	summary = camel_folder_summary_get_changed ((CamelFolderSummary *)mbs);
 	for (i = 0; i < summary->len; i++) {
 		int xevoffset;
-		int pc = (i+1)*100/count;
+		int pc = (i+1)*100/summary->len;
 
 		camel_operation_progress(NULL, pc);
 
@@ -984,7 +987,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 
 	summary = camel_folder_summary_get_changed ((CamelFolderSummary *)mbs);
 	for (i=0; i<summary->len; i++) {
-		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_uids(s, summary->pdata[i]);
+		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_uid(s, summary->pdata[i]);
 		
 		if ((expunge && (info->info.info.flags & CAMEL_MESSAGE_DELETED)) ||
 		    (info->info.info.flags & (CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_XEVCHANGE)))

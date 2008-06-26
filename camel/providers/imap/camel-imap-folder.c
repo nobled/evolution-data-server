@@ -739,7 +739,7 @@ fillup_custom_flags (CamelMessageInfo *mi, char *custom_flags)
 	array_str = g_strsplit (custom_flags, " ", -1);
 
 	while (array_str[index] != NULL) {
-		camel_message_info_set_user_flag (mi, array_str[index], TRUE);
+		camel_flag_set(&((CamelMessageInfoBase *)mi)->user_flags, array_str[index], TRUE);
 		++ index;
 	}
 
@@ -2911,10 +2911,13 @@ imap_update_summary (CamelFolder *folder, int exists,
 	 */
 	fetch_data = g_ptr_array_new ();
 	messages = g_ptr_array_new ();
+	int k = 0, ct;
+	ct = exists - seq;
 	while ((type = camel_imap_command_response (store, &resp, ex)) ==
 	       CAMEL_IMAP_RESPONSE_UNTAGGED && !camel_application_is_exiting) {
 		data = parse_fetch_response (imap_folder, resp);
 		g_free (resp);
+		k++;
 		if (!data)
 			continue;
 		
@@ -2939,7 +2942,7 @@ imap_update_summary (CamelFolder *folder, int exists,
 			g_datalist_set_data (&data, "BODY_PART_STREAM", NULL);
 		}
 
-		camel_operation_progress (NULL, got * 100 / size);
+		camel_operation_progress (NULL, k * 100 / ct);
 		g_ptr_array_add (fetch_data, data);
 	}
 	camel_operation_end (NULL);
@@ -3067,7 +3070,7 @@ imap_update_summary (CamelFolder *folder, int exists,
 		
 		uid = g_datalist_get_data (&data, "UID");
 		if (uid)
-			mi->info.uid = g_strdup (uid);
+			mi->info.uid = camel_pstring_strdup (uid);
 		flags = GPOINTER_TO_INT (g_datalist_get_data (&data, "FLAGS"));
 		if (flags) {
 			char *custom_flags = NULL;
@@ -3137,6 +3140,7 @@ imap_update_summary (CamelFolder *folder, int exists,
 /* 			break; */
 /* 		}  */
 
+		((CamelMessageInfoBase *)mi)->dirty = TRUE;
 		camel_folder_summary_add (folder->summary, (CamelMessageInfo *)mi);
 		camel_folder_change_info_add_uid (changes, camel_message_info_uid (mi));
 
@@ -3146,10 +3150,10 @@ imap_update_summary (CamelFolder *folder, int exists,
 			camel_folder_change_info_recent_uid (changes, camel_message_info_uid (mi));
 	}
 
-	for ( ; i < messages->len; i++) {
-		if ((mi = messages->pdata[i]))
-			camel_message_info_free(&mi->info);
-	}
+/* 	for ( ; i < messages->len; i++) { */
+/* 		if ((mi = messages->pdata[i])) */
+/* 			camel_message_info_free(&mi->info); */
+/* 	} */
 	
 	g_ptr_array_free (messages, TRUE);
 	

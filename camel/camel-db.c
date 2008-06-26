@@ -60,7 +60,8 @@ camel_db_open (const char *path, CamelException *ex)
 	d(g_print ("\nDatabase succesfully opened  \n"));
 
 	#warning "make these under g_getenv"
-	camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
+	
+	//camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
 	
 	return cdb;
 }
@@ -706,11 +707,11 @@ camel_db_camel_mir_free (CamelMIRecord *record)
 		camel_pstring_free (record->followup_flag);
 		camel_pstring_free (record->followup_completed_on);
 		camel_pstring_free (record->followup_due_by);
-		camel_pstring_free (record->part);
-		camel_pstring_free (record->labels);
-		camel_pstring_free (record->usertags);
-		camel_pstring_free (record->cinfo);
-		camel_pstring_free (record->bdata);
+		g_free (record->part);
+		g_free (record->labels);
+		g_free (record->usertags);
+		g_free (record->cinfo);
+		g_free (record->bdata);
 
 		g_free (record);
 	}

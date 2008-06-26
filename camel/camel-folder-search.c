@@ -50,6 +50,7 @@
 #include "camel-stream-mem.h"
 #include "camel-db.h"
 #include "camel-store.h"
+#include "camel-vee-folder.h"
 
 #define d(x) 
 #define r(x) 
@@ -665,8 +666,42 @@ search_match_all(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFold
 		g_assert(0);
 		return r;
 	}
+#if 0
+	v = search->summary_set?search->summary_set:search->summary;
+	
+	if (v->len - g_hash_table_size (search->folder->summary->loaded_infos) > 100 && !CAMEL_IS_VEE_FOLDER (search->folder)) {
+		/* Load the DB contents. FIXME this 100 needs to be a better threshold to reload from DB. */
+		#warning "handle exception"
+		camel_folder_summary_reload_from_db (search->folder->summary, NULL);
+	} 
 
+#endif	
 	e_sexp_term_eval (f, argv [0]);
+#if 0
+	for (i=0;i<v->len;i++) {
+		const char *uid;
+
+		search->current = camel_folder_summary_uid (search->folder->summary, v->pdata[i]);
+		uid = camel_message_info_uid(search->current);
+
+		if (argc>0) {
+			r1 = e_sexp_term_eval(f, argv[0]);
+			if (r1->type == ESEXP_RES_BOOL) {
+				if (r1->value.bool)
+					g_ptr_array_add(r->value.ptrarray, (char *)uid);
+			} else {
+				g_warning("invalid syntax, matches require a single bool result");
+				error_msg = g_strdup_printf(_("(%s) requires a single bool result"), "match-all");
+				e_sexp_fatal_error(f, error_msg);
+				g_free(error_msg);
+			}
+			e_sexp_result_free(f, r1);
+		} else {
+			g_ptr_array_add(r->value.ptrarray, (char *)uid);
+		}
+		camel_message_info_free (search->current);
+	}
+#endif	
 	search->current = NULL;
 	return r;
 }
