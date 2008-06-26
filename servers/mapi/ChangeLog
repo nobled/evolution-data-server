@@ -1,5 +1,13 @@
 2008-06-26  Johnny Jacob  <jjohnny@novell.com>
 
+	* exchange-mapi-connection.c (exchange_mapi_util_create_named_prop): 
+	Changes for struct MAPINAMEID.
+	(exchange_mapi_connection_fetch_items): GetContentTable API changed.
+	(get_child_folders): Api change fix for GetHierarchyTable.
+	(get_child_folders_pf): Api change fix for GetHierarchyTable.
+
+2008-06-26  Johnny Jacob  <jjohnny@novell.com>
+
 	* exchange-mapi-defs.h (OlEditorType): Removed. Already
 	defined in mapidefs.h
 

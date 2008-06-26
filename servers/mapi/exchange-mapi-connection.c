@@ -945,7 +945,7 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 	}
 
 	/* Get a handle on the container */
-	retval = GetContentsTable(&obj_folder, &obj_table);
+	retval = GetContentsTable(&obj_folder, &obj_table, 0, NULL);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("GetContentsTable", GetLastError());
 		goto cleanup;
@@ -1666,8 +1666,7 @@ exchange_mapi_util_create_named_prop (uint32_t olFolder, mapi_id_t fid,
 
 	nameid[0].lpguid = guid;
 	nameid[0].ulKind = MNID_STRING;
-	nameid[0].kind.lpwstr.lpwstrName = named_prop_name;
-	nameid[0].kind.lpwstr.length = strlen(named_prop_name) * 2 + 2;
+	nameid[0].kind.lpwstr.Name = named_prop_name;
 
 	/* Open the message store */
 	retval = OpenMsgStore(&obj_store);
@@ -1985,6 +1984,9 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 	struct SPropValue *props = NULL;
 	gint propslen = 0;
 	gboolean result = FALSE;
+	mapi_id_t* messageIds = NULL;
+	gint16 messageIdCount = 0;
+	guint i;
 	GSList *l;
 
 	LOCK ();
@@ -2007,24 +2009,17 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 		goto cleanup;
 	}
 
-	for (l = mid_list; l != NULL; l = g_slist_next (l)) {
-		mapi_object_init(&obj_message);
-		mapi_id_t mid = *((mapi_id_t *)l->data);
+	messageIdCount = g_slist_length (mid_list);
+	messageIds = g_malloc0 (messageIdCount * sizeof (mapi_id_t));
 
-		retval = OpenMessage(&obj_folder, fid, mid, &obj_message, MAPI_MODIFY);
+	for (i = 0, l = mid_list; l != NULL; l = g_slist_next (l), i++) 
+		messageIds[i] = *((mapi_id_t *)l->data);
 
-		if (retval != MAPI_E_SUCCESS) {
-			mapi_errstr("OpenMessage", GetLastError());
-			goto cleanup;
-		}
+	retval = SetReadFlags(&obj_folder, flag, messageIdCount, messageIds);
 
-		retval = SetReadFlags(&obj_folder, &obj_message, flag);
-		if (retval != MAPI_E_SUCCESS) {
-			mapi_errstr("SetReadFlags", GetLastError());
-			goto cleanup;
-		}
-
-		mapi_object_release(&obj_message);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("SetReadFlags", GetLastError());
+		goto cleanup;
 	}
 
 	result = TRUE;
@@ -2130,7 +2125,7 @@ get_child_folders_pf(TALLOC_CTX *mem_ctx, mapi_object_t *parent, mapi_id_t folde
 		goto cleanup;
 	}
 
-	retval = GetHierarchyTable(&obj_folder, &obj_htable);
+	retval = GetHierarchyTable(&obj_folder, &obj_htable, 0, NULL);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("GetHierarchyTable", GetLastError());
 		goto cleanup;
@@ -2216,7 +2211,7 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 	}
 
 	/* Get the hierarchy table */
-	retval = GetHierarchyTable(&obj_folder, &obj_table);
+	retval = GetHierarchyTable(&obj_folder, &obj_table, 0, NULL);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("GetHierarchyTable", GetLastError());
 		goto cleanup;
