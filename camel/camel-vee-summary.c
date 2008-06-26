@@ -256,7 +256,7 @@ camel_vee_summary_new(CamelFolder *parent)
 
         #warning "fix exceptions and note return values"
 	#warning "if Evo's junk/trash vfolders make it VJunk VTrash instead of .#evolution/Junk-or-whatever"		
-	camel_db_create_vfolder (parent->parent_store->cdb, parent->full_name, NULL);
+	camel_db_create_vfolder (parent->cdb, parent->full_name, NULL);
 
 	#warning "handle excep and ret"
 	camel_folder_summary_header_load_from_db ((CamelFolderSummary *)s, parent->parent_store, parent->full_name, NULL);	
@@ -271,7 +271,7 @@ camel_vee_summary_get_ids (CamelVeeSummary *summary, char hash[8])
 	GPtrArray *array;
 
 	#warning "fix exception passing"
-	array = camel_db_get_vuids_from_vfolder(cfs->folder->parent_store->cdb, cfs->folder->full_name, shash, NULL);
+	array = camel_db_get_vuids_from_vfolder(cfs->folder->cdb, cfs->folder->full_name, shash, NULL);
 	
 	g_free(shash);
 

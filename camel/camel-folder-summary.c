@@ -477,7 +477,7 @@ message_info_from_uid (CamelFolderSummary *s, const char *uid)
 		s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
 		folder_name = s->folder->full_name;
-		cdb = s->folder->parent_store->cdb;
+		cdb = s->folder->cdb;
 		
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
@@ -717,7 +717,7 @@ camel_folder_summary_reload_from_db (CamelFolderSummary *s, CamelException *ex)
 	d(printf ("\ncamel_folder_summary_reload_from_db called \n"));
 
 	folder_name = s->folder->full_name;
-	cdb = s->folder->parent_store->cdb;
+	cdb = s->folder->cdb;
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
@@ -742,7 +742,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 		return ret;
 
 	folder_name = s->folder->full_name;
-	cdb = s->folder->parent_store->cdb;
+	cdb = s->folder->cdb;
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
@@ -1025,7 +1025,7 @@ save_to_db_cb (gpointer key, gpointer value, gpointer data)
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)value;	
 	CamelFolderSummary *s = (CamelFolderSummary *)mi->summary;
 	char *folder_name = s->folder->full_name;
-	CamelDB *cdb = s->folder->parent_store->cdb;
+	CamelDB *cdb = s->folder->cdb;
 	CamelMIRecord *mir;
 
 	if (!mi->dirty)
@@ -1056,7 +1056,7 @@ save_to_db_cb (gpointer key, gpointer value, gpointer data)
 static int
 save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 {
-	CamelDB *cdb = s->folder->parent_store->cdb;
+	CamelDB *cdb = s->folder->cdb;
 	char *folder_name;
 
 	folder_name = s->folder->full_name;
@@ -1075,7 +1075,7 @@ save_message_infos_to_db (CamelFolderSummary *s, CamelException *ex)
 int
 camel_folder_summary_save_to_db (CamelFolderSummary *s, CamelException *ex)
 {
-	CamelDB *cdb = s->folder->parent_store->cdb;
+	CamelDB *cdb = s->folder->cdb;
 	CamelFIRecord *record;
 	int ret;
 
@@ -1736,7 +1736,7 @@ camel_folder_summary_clear_db (CamelFolderSummary *s)
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
 	folder_name = s->folder->full_name;
-	cdb = s->folder->parent_store->cdb;
+	cdb = s->folder->cdb;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 	if (camel_folder_summary_count(s) == 0) {
@@ -1769,7 +1769,7 @@ summary_remove_uid (CamelFolderSummary *s, const char *uid)
 	camel_exception_init (&ex);
 
 	folder_name = s->folder->full_name;
-	cdb = s->folder->parent_store->cdb;
+	cdb = s->folder->cdb;
 
 	if (camel_db_delete_uid (cdb, folder_name, uid, &ex) != 0)
 		return ;
@@ -1926,7 +1926,7 @@ camel_folder_summary_remove_range (CamelFolderSummary *s, int start, int end)
 		camel_exception_init (&ex);
 
 		folder_name = s->folder->full_name;
-		cdb = s->folder->parent_store->cdb;
+		cdb = s->folder->cdb;
 
 		#warning "lifecycle of infos should be checked. Add should add to db and del should del to db. Sync only the changes at interval and remove those full sync on folder switch"
 		camel_db_delete_uids (cdb, folder_name, uids, &ex);
@@ -2229,7 +2229,7 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 	CamelFIRecord * record = g_new0 (CamelFIRecord, 1);
 	CamelDB *db;
 
-	db = s->folder->parent_store->cdb;
+	db = s->folder->cdb;
 	//char *table_name = safe_table (camel_file_util_safe_filename (s->folder->full_name));
 	char *table_name = s->folder->full_name;
 

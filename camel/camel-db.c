@@ -12,13 +12,21 @@
 
 #define d(x)
 
+#define CAMEL_DB_SLEEP_INTERVAL 2
+
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
 {
   	char *errmsg;
-  	int   ret;
+  	int   ret = -1;
 
-  	ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
+	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
+		 if (ret != -1)
+			  sleep (CAMEL_DB_SLEEP_INTERVAL);
+		 
+		 ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
+	}
+	
 	d(g_print("%s\n", stmt));
   	if (ret != SQLITE_OK) {
 		 d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
@@ -192,10 +200,16 @@ count_cb (void *data, int argc, char **argv, char **azColName)
 static int
 camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, CamelException *ex)
 {
-	int ret;
+	int ret = -1;
 	char *errmsg;
 
-	ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
+	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
+		 if (ret != -1)
+			  sleep (CAMEL_DB_SLEEP_INTERVAL);
+		 ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
+
+	}
+	
 	if (ret != SQLITE_OK) {
     		g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
@@ -213,7 +227,7 @@ camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 
 		return -1;
 
 	char *query;
-	query = sqlite3_mprintf ("SELECT COUNT (junk) FROM %Q WHERE junk = 1", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE junk = 1", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -230,7 +244,7 @@ camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint3
 		return -1;
 
 	char *query;
-	query = sqlite3_mprintf ("SELECT COUNT (read) FROM %Q WHERE read = 0", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE read = 0", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -238,6 +252,56 @@ camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint3
 	return ret;
 }
 
+int
+camel_db_count_visible_unread_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
+	int ret;
+
+	if (!cdb)
+		return -1;
+
+	char *query;
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE read = 0 AND junk = 0 AND deleted = 0", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
+}
+
+int
+camel_db_count_visible_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
+	int ret;
+
+	if (!cdb)
+		return -1;
+
+	char *query;
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE junk = 0 AND deleted = 0", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
+}
+
+int
+camel_db_count_junk_not_deleted_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
+{
+	int ret;
+
+	if (!cdb)
+		return -1;
+
+	char *query ;
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE junk = 1 AND deleted = 0", table_name);
+
+	ret = camel_db_count_message_info (cdb, query, count, ex);
+	sqlite3_free (query);
+
+	return ret;
+}
 
 int
 camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex)
@@ -248,7 +312,7 @@ camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint
 		return -1;
 
 	char *query ;
-	query = sqlite3_mprintf ("SELECT COUNT (deleted) FROM %Q WHERE deleted = 1", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE deleted = 1", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -267,7 +331,7 @@ camel_db_count_total_message_info (CamelDB *cdb, const char *table_name, guint32
 	if (!cdb)
 		return -1;
 	
-	query = sqlite3_mprintf ("SELECT COUNT (uid) FROM %Q", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -280,12 +344,17 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 {
   	char *errmsg;
   	//int nrecs = 0;
-	int ret;
+	int ret = -1;
 
 	if (!cdb)
 		return TRUE;
-  	ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
-
+	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
+		 if (ret != -1)
+			  sleep (CAMEL_DB_SLEEP_INTERVAL);
+	
+		 ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
+	}
+	
   	if (ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement '%s' [%s].\n", stmt, errmsg));
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);

@@ -285,6 +285,7 @@ camel_folder_search_new (void)
 void
 camel_folder_search_set_folder(CamelFolderSearch *search, CamelFolder *folder)
 {
+	char *tmp = camel_db_sqlize_string(folder->full_name);
 	search->folder = folder;
 
 	if (search->query)
@@ -292,7 +293,8 @@ camel_folder_search_set_folder(CamelFolderSearch *search, CamelFolder *folder)
 
 	/* FIXME: Get this string done from camel-db by parsing with sqlite_mprintf etc. */
 	search->query = g_string_new ("SELECT uid FROM ");
-	g_string_append_printf (search->query, "%s ", folder->full_name);
+	g_string_append_printf (search->query, "%s ", tmp);
+	camel_db_free_sqlized_string (tmp);
 }
 
 /**
@@ -500,7 +502,7 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, GPtrArra
 	printf ("\nSomething is returned in the top-level caller : [%s]\n", search->query->str);
 
 	matches = g_ptr_array_new();
-	cdb = (CamelDB *) (search->folder->parent_store->cdb);
+	cdb = (CamelDB *) (search->folder->cdb);
 	camel_db_select (cdb, search->query->str, (CamelDBSelectCB) read_uid_callback, matches, ex);
 	e_sexp_result_free(search->sexp, r);
 

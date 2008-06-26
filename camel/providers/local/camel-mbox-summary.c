@@ -1004,7 +1004,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 		int dcount =0;
 
 	
-		if (camel_db_count_deleted_message_info (s->folder->parent_store->cdb, s->folder->full_name, &dcount, ex) == -1)
+		if (camel_db_count_deleted_message_info (s->folder->cdb, s->folder->full_name, &dcount, ex) == -1)
 			return -1;
 		if (dcount)
 			quick = FALSE;

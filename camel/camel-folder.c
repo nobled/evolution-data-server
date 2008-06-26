@@ -199,6 +199,11 @@ camel_folder_finalize (CamelObject *object)
 		camel_object_unref (camel_folder->summary);
 
 	camel_folder_change_info_free(p->changed_frozen);
+
+	if (camel_folder->cdb) {
+		camel_db_close (camel_folder->cdb);
+		camel_folder->cdb = NULL;
+	}
 	
 	g_static_rec_mutex_free(&p->lock);
 	g_static_mutex_free(&p->change_lock);
@@ -238,6 +243,10 @@ void
 camel_folder_construct (CamelFolder *folder, CamelStore *parent_store,
 			const char *full_name, const char *name)
 {
+	char *store_db_path;
+	CamelService *service = (CamelService *) parent_store;
+	CamelException ex;
+	
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 	g_return_if_fail (CAMEL_IS_STORE (parent_store));
 	g_return_if_fail (folder->parent_store == NULL);
@@ -249,6 +258,23 @@ camel_folder_construct (CamelFolder *folder, CamelStore *parent_store,
 
 	folder->name = g_strdup (name);
 	folder->full_name = g_strdup (full_name);
+
+	store_db_path = g_build_filename (service->url->path, CAMEL_DB_FILE, NULL);
+	camel_exception_init(&ex);
+	if (strlen (store_db_path) < 2) {
+		g_free (store_db_path);
+		store_db_path = g_build_filename ( camel_session_get_storage_path ((CamelSession *)camel_service_get_session (service), service, &ex), CAMEL_DB_FILE, NULL);		
+	}
+
+
+	folder->cdb = camel_db_open (store_db_path, &ex);
+	g_free (store_db_path);
+	
+	if (camel_exception_is_set (&ex)) {
+		g_print ("Exiting without success for stire_db_path : [%s]: %s\n", store_db_path, camel_exception_get_description(&ex));
+		camel_exception_clear(&ex);
+		return;
+	}	
 }
 
 
@@ -352,9 +378,14 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 				int j;
 				CamelMessageInfo *info;
 
-				#warning "Make direct calls to DB"
 				/* TODO: Locking? */
-				unread = 0;
+				#warning "unread should be unread and not del/junk and take care of dirty infos also"
+				camel_db_count_visible_unread_message_info (folder->cdb, folder->full_name, &unread, ex);
+				camel_db_count_junk_message_info (folder->cdb, folder->full_name, &junked, ex);
+				camel_db_count_deleted_message_info (folder->cdb, folder->full_name, &deleted, ex);
+				camel_db_count_junk_not_deleted_message_info (folder->cdb, folder->full_name, &junked_not_deleted, ex);
+				camel_db_count_visible_message_info (folder->cdb, folder->full_name, &visible, ex);
+#if 0				
 				count = camel_folder_summary_count (folder->summary);
 				for (j = 0; j < count; j++) {
 					if ((info = camel_folder_summary_index (folder->summary, j))) {
@@ -374,7 +405,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 						camel_message_info_free(info);
 					}
 				}
-
+#endif
 				#warning "I added it for vfolders summary storage, does it harm ?"
 				folder->summary->junk_count = junked;
 				folder->summary->deleted_count = deleted;
