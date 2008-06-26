@@ -149,7 +149,6 @@ libcamel_provider_1_2_la_LIBADD =			\
 	$(REGEX_LIBS)
 
 libcamel_1_2_la_SOURCES = 			\
-	broken-date-parser.c			\
 	camel-address.c				\
 	camel-arg.c				\
 	camel-block-file.c			\
@@ -181,6 +180,7 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-mime-filter-index.c		\
 	camel-mime-filter-linewrap.c		\
 	camel-mime-filter-pgp.c			\
+	camel-mime-filter-progress.c		\
 	camel-mime-filter-save.c		\
 	camel-mime-filter-tohtml.c		\
 	camel-mime-filter-windows.c		\
@@ -220,7 +220,6 @@ libcamel_1_2_la_SOURCES = 			\
 	$(LIBCAMEL_PLATFORM_DEP_SOURCES)
 
 libcamelinclude_HEADERS =			\
-	broken-date-parser.h			\
 	camel-address.h				\
 	camel-arg.h				\
 	camel-block-file.h			\
@@ -254,6 +253,7 @@ libcamelinclude_HEADERS =			\
 	camel-mime-filter-index.h		\
 	camel-mime-filter-linewrap.h		\
 	camel-mime-filter-pgp.h			\
+	camel-mime-filter-progress.h		\
 	camel-mime-filter-save.h		\
 	camel-mime-filter-tohtml.h		\
 	camel-mime-filter-windows.h		\
@@ -357,7 +357,6 @@ install-exec-hook:
 	fi
 
 noinst_HEADERS =				\
-	broken-date-parser.h			\
 	camel-charset-map-private.h		\
 	camel-private.h				
 

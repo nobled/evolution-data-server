@@ -6,7 +6,7 @@
  *   Dan Winship <danw@ximian.com>
  *   Jeffrey Stedfast <fejj@ximian.com> 
  *
- * Copyright (C) 2000, 2001 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or 
  * modify it under the terms of version 2 of the GNU Lesser General Public 
@@ -1215,7 +1215,7 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 			flaglist = strdup ("(\\Seen)");
 
 			response = camel_imap_command (store, folder, &local_ex,
-					       "UID STORE %s FLAGS.SILENT %s",
+					       "UID STORE %s +FLAGS.SILENT %s",
 					       set, flaglist);
 			if (response)
 				camel_imap_response_free (store, response);

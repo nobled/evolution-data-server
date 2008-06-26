@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -372,7 +372,7 @@ http_method_invoke (CamelHttpStream *http)
 		 http->url->host));
 	if (camel_stream_printf (http->raw, "%s %s HTTP/1.0\r\nUser-Agent: %s\r\nHost: %s\r\n",
 				 method,
-				 http->proxy ? url : http->url->path,
+				 url,
 				 http->user_agent ? http->user_agent : "CamelHttpStream/1.0",
 				 http->url->host) == -1) {
 		http_disconnect(http);

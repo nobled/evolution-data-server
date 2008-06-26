@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright 2007 Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -190,7 +190,7 @@ trie_insert (CamelTrie *trie, int depth, struct _trie_state *q, gunichar c)
 }
 
 
-#if 1
+#if d(!)0
 static void 
 dump_trie (struct _trie_state *s, int depth)
 {

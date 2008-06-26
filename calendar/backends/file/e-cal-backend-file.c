@@ -1,6 +1,6 @@
 /* Evolution calendar - iCalendar file backend
  *
- * Copyright (C) 2000-2003 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Federico Mena-Quintero <federico@ximian.com>
  *          Rodrigo Moya <rodrigo@ximian.com>
@@ -38,6 +38,7 @@
 #include <libecal/e-cal-recur.h>
 #include <libecal/e-cal-time-util.h>
 #include <libecal/e-cal-util.h>
+#include <libecal/e-cal-check-timezones.h>
 #include <libedata-cal/e-cal-backend-util.h>
 #include <libedata-cal/e-cal-backend-sexp.h>
 #include "e-cal-backend-file-events.h"
@@ -2300,7 +2301,7 @@ e_cal_backend_file_remove_object (ECalBackendSync *backend, EDataCal *cal,
 }
 
 static gboolean
-cancel_received_object (ECalBackendFile *cbfile, icalcomponent *icalcomp)
+cancel_received_object (ECalBackendFile *cbfile, icalcomponent *icalcomp, char **old_object, char **new_object)
 {
 	ECalBackendFileObject *obj_data;
 	ECalBackendFilePrivate *priv;
@@ -2308,6 +2309,9 @@ cancel_received_object (ECalBackendFile *cbfile, icalcomponent *icalcomp)
 	ECalComponent *comp;
 
 	priv = cbfile->priv;
+
+	*old_object = NULL;
+	*new_object = NULL;
 
 	/* Find the old version of the component. */
 	obj_data = g_hash_table_lookup (priv->comp_uid_hash, icalcomponent_get_uid (icalcomp));
@@ -2321,10 +2325,14 @@ cancel_received_object (ECalBackendFile *cbfile, icalcomponent *icalcomp)
 		return FALSE;
 	}
 
+	*old_object = e_cal_component_get_as_string (obj_data->full_object);
+
+	/* new_object is kept NULL if not removing the instance */
 	rid = e_cal_component_get_recurid_as_string (comp);
-	if (rid && *rid)
+	if (rid && *rid) {
 		remove_instance (cbfile, obj_data, rid);
-	else
+		*new_object = e_cal_component_get_as_string (obj_data->full_object);
+	} else
 		remove_component (cbfile, icalcomponent_get_uid (icalcomp), obj_data);
 
 	g_free (rid);
@@ -2516,7 +2524,7 @@ e_cal_backend_file_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 	/* Now we manipulate the components we care about */
 	for (l = comps; l; l = l->next) {
 		const char *uid;
-		char *object, *old_object, *rid;
+		char *object, *old_object, *rid, *new_object;
 		ECalBackendFileObject *obj_data;
 
 		subcomp = l->data;
@@ -2584,26 +2592,22 @@ e_cal_backend_file_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 			goto error;
 			break;
 		case ICAL_METHOD_CANCEL:
-			if (cancel_received_object (cbfile, subcomp)) {
+			old_object = NULL;
+			new_object = NULL;
+			if (cancel_received_object (cbfile, subcomp, &old_object, &new_object)) {
 				ECalComponentId *id;
-				object =  icalcomponent_as_ical_string (subcomp);
-				obj_data = g_hash_table_lookup (priv->comp_uid_hash, uid);
-				if (obj_data)
-					old_object = e_cal_component_get_as_string (obj_data->full_object);
-				else
-					old_object = NULL;
 
 				id = e_cal_component_get_id (comp);
 
-				e_cal_backend_notify_object_removed (E_CAL_BACKEND (backend), id, old_object, object);
+				e_cal_backend_notify_object_removed (E_CAL_BACKEND (backend), id, old_object, new_object);
 
 				/* remove the component from the toplevel VCALENDAR */
 				icalcomponent_remove_component (toplevel_comp, subcomp);
 				icalcomponent_free (subcomp);
 				e_cal_component_free_id (id);
 
+				g_free (new_object);
 				g_free (old_object);
-				g_free (object);
 			}
 			g_free (rid);
 			break;
@@ -2625,6 +2629,27 @@ e_cal_backend_file_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 	}
 
 	g_list_free (del_comps);
+
+        /* check and patch timezones */
+        {
+            GError *error = NULL;
+            if (!e_cal_check_timezones(toplevel_comp,
+                                       NULL,
+                                       e_cal_tzlookup_icomp,
+                                       priv->icalcomp,
+                                       &error)) {
+                /*
+                 * This makes assumptions about what kind of
+                 * errors can occur inside e_cal_check_timezones().
+                 * We control it, so that should be safe, but
+                 * is the code really identical with the calendar
+                 * status?
+                 */
+                status = error->code;
+                g_clear_error(&error);
+                goto error;
+            }
+        }
 
 	/* Merge the iCalendar components with our existing VCALENDAR,
 	   resolving any conflicting TZIDs. */

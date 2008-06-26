@@ -3,7 +3,7 @@
  *
  * Authors: Michael Zucchi <notzed@ximian.com>
  *
- * Copyright (C) 2001 Ximian, Inc. (www.ximian.com)
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or 
  * modify it under the terms of version 2 of the GNU Lesser General Public 
@@ -59,7 +59,6 @@ extern int camel_verbose_debug;
 struct _CamelDataCachePrivate {
 	CamelObjectBag *busy_bag;
 
-	int expire_inc;
 	time_t expire_last[1<<CAMEL_DATA_CACHE_BITS];
 };
 
@@ -249,8 +248,7 @@ data_cache_path(CamelDataCache *cdc, int create, const char *path, const char *k
 #endif
 		if (create)
 			g_mkdir_with_parents (dir, 0700);
-	} else if (cdc->priv->expire_inc == hash
-		   && (cdc->expire_age != -1 || cdc->expire_access != -1)) {
+	} else if (cdc->expire_age != -1 || cdc->expire_access != -1) {
 		time_t now;
 
 		dd(printf("Checking expire cycle time on dir '%s'\n", dir));
@@ -261,7 +259,6 @@ data_cache_path(CamelDataCache *cdc, int create, const char *path, const char *k
 			cdc->priv->expire_last[hash] = now;
 			data_cache_expire(cdc, dir, key, now);
 		}
-		cdc->priv->expire_inc = (cdc->priv->expire_inc + 1) & CAMEL_DATA_CACHE_MASK;
 	}
 
 	tmp = camel_file_util_safe_filename(key);
