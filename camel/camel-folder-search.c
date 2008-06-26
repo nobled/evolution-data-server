@@ -162,8 +162,10 @@ camel_folder_search_finalize (CamelObject *obj)
 	g_hash_table_destroy(p->mempool_hash);
 	g_free(p);
 
-	g_print ("\nFinalizing search query and the query is : \n%s\n", search->query->str);
-	g_string_free (search->query, TRUE);
+	if (search->query) {
+		g_print ("\nFinalizing search query and the query is : \n%s\n", search->query->str);
+		g_string_free (search->query, TRUE);
+	}
 }
 
 CamelType
