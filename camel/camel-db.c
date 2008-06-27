@@ -69,7 +69,7 @@ camel_db_open (const char *path, CamelException *ex)
 
 	#warning "make these under g_getenv"
 	
-	//camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
+	camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
 	
 	sqlite3_busy_timeout (cdb->db, CAMEL_DB_SLEEP_INTERVAL);
 

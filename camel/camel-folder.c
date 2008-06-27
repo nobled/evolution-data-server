@@ -374,10 +374,13 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 		case CAMEL_FOLDER_ARG_JUNKED_NOT_DELETED:
 		case CAMEL_FOLDER_ARG_VISIBLE:
 			/* This is so we can get the values atomically, and also so we can calculate them only once */
+
+			#warning "Add a better base class function to get counts specific to normal/vee folder."
 			if (unread == -1) {
 				int j;
 				CamelMessageInfo *info;
 
+				if (!CAMEL_IS_VEE_FOLDER (folder)) {
 				/* TODO: Locking? */
 				#warning "unread should be unread and not del/junk and take care of dirty infos also"
 				camel_db_count_visible_unread_message_info (folder->cdb, folder->full_name, &unread, ex);
@@ -385,7 +388,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 				camel_db_count_deleted_message_info (folder->cdb, folder->full_name, &deleted, ex);
 				camel_db_count_junk_not_deleted_message_info (folder->cdb, folder->full_name, &junked_not_deleted, ex);
 				camel_db_count_visible_message_info (folder->cdb, folder->full_name, &visible, ex);
-#if 0				
+				} else {
 				count = camel_folder_summary_count (folder->summary);
 				for (j = 0; j < count; j++) {
 					if ((info = camel_folder_summary_index (folder->summary, j))) {
@@ -405,7 +408,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 						camel_message_info_free(info);
 					}
 				}
-#endif
+				}
 				#warning "I added it for vfolders summary storage, does it harm ?"
 				folder->summary->junk_count = junked;
 				folder->summary->deleted_count = deleted;

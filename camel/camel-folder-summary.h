@@ -243,6 +243,7 @@ struct _CamelFolderSummary {
 
 	struct _CamelFolder *folder; /* parent folder, for events */
 	struct _CamelFolderMetaSummary *meta_summary; /* Meta summary */
+	time_t cache_load_time;
 };
 
 struct _CamelFolderSummaryClass {

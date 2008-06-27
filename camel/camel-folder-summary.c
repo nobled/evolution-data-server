@@ -60,10 +60,11 @@
 #include "camel-stream-null.h"
 #include "camel-string-utils.h"
 #include "camel-store.h"
+#include "camel-vee-folder.h"
 
 /* To switch between e-memchunk and g-alloc */
 #define ALWAYS_ALLOC
-
+#define SUMMARY_CACHE_DROP 120
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* this lock is ONLY for the standalone messageinfo stuff */
@@ -178,6 +179,7 @@ camel_folder_summary_init (CamelFolderSummary *s)
 	   exceeding 20, has to override this value 
 	*/
 	s->meta_summary->uid_len = 20;
+	s->cache_load_time = 0;
 }
 
 static void free_o_name(void *key, void *value, void *data)
@@ -697,7 +699,10 @@ static gboolean
 remove_cache (CamelFolderSummary *s)
 {
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
-
+	/* Attempt to release 2MB*/
+	sqlite3_release_memory(2*1024*1024);
+	if (time(NULL) - s->cache_load_time < SUMMARY_CACHE_DROP)
+		return TRUE;
 	printf("removing cache for  %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos));
 	#warning "hack. fix it"
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
@@ -708,20 +713,33 @@ remove_cache (CamelFolderSummary *s)
 }
 
 int
+camel_folder_summary_cache_size (CamelFolderSummary *s)
+{
+	#warning "this is a timely hack. fix it well"
+	if (!CAMEL_IS_VEE_FOLDER(s->folder))
+		return g_hash_table_size (s->loaded_infos);
+	else
+		return s->uids->len;
+		    
+}
+
+int
 camel_folder_summary_reload_from_db (CamelFolderSummary *s, CamelException *ex)
 {
 	CamelDB *cdb;
 	char *folder_name;
 	int ret = 0;
 
+	#warning "baseclass this, and vfolders we may have to load better."
 	d(printf ("\ncamel_folder_summary_reload_from_db called \n"));
 
 	folder_name = s->folder->full_name;
 	cdb = s->folder->cdb;
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
-	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
+	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, NULL);
 
+	s->cache_load_time = time (NULL);
 	return ret;
 }
 
@@ -746,9 +764,9 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
-
+	s->cache_load_time = time (NULL);
 	#warning "LRU please and not timeouts"
-	g_timeout_add_seconds (5, remove_cache, s);
+	g_timeout_add_seconds (SUMMARY_CACHE_DROP, remove_cache, s);
 	return ret;
 }
 
