@@ -740,7 +740,7 @@ camel_folder_summary_reload_from_db (CamelFolderSummary *s, CamelException *ex)
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, NULL);
 
 	s->cache_load_time = time (NULL);
-	return ret;
+	return ret == 0 ? 0 : -1;
 }
 
 
@@ -767,7 +767,8 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 	s->cache_load_time = time (NULL);
 	#warning "LRU please and not timeouts"
 	g_timeout_add_seconds (SUMMARY_CACHE_DROP, remove_cache, s);
-	return ret;
+
+	return ret == 0 ? 0 : -1;
 }
 
 static void
