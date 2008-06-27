@@ -205,9 +205,9 @@ camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, Ca
 	int ret = -1;
 	char *errmsg;
 
-	ret = sqlite3_exec(cdb->db, query, 0, 0, &errmsg);
+	ret = sqlite3_exec(cdb->db, query, count_cb, count, &errmsg);
 	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED) {
-		ret = sqlite3_exec (cdb->db, query, 0, 0, &errmsg);
+		ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
 	}
 
 	if (ret != SQLITE_OK) {
@@ -349,9 +349,9 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 	if (!cdb)
 		return TRUE;
 	
-	ret = sqlite3_exec(cdb->db, stmt, 0, 0, &errmsg);
+	ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
 	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED) {
-		ret = sqlite3_exec (cdb->db, stmt, 0, 0, &errmsg);
+		ret = sqlite3_exec (cdb->db, stmt, callback, data, &errmsg);
 	}
 
   	if (ret != SQLITE_OK) {
