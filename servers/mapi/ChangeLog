@@ -1,3 +1,15 @@
+2008-06-29  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-connection.c:
+	(exchange_mapi_util_modify_recipients): LibMAPI upgrade needed one
+	more property to be fetched. 
+	(exchange_mapi_util_check_restriction): Added this utility function. 
+	(exchange_mapi_connection_fetch_items),
+	(exchange_mapi_connection_fetch_item): API changes, re-arrange the
+	params for better readability. 
+	* exchange-mapi-connection.h: Related changes
+	* exchange-mapi-defs.h: Added a new enumeration. 
+
 2008-06-26  Johnny Jacob  <jjohnny@novell.com>
 	
 	* exchange-mapi-connection.c (exchange_mapi_set_flags)

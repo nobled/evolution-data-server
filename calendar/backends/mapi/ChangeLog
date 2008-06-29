@@ -1,3 +1,32 @@
+2008-06-29  Suman Manjunath  <msuman@novell.com>
+
+	** Initial support for viewing/creating meetings. 
+
+	* e-cal-backend-mapi-factory.h:
+	* e-cal-backend-mapi-utils.c: (get_type_from_role),
+	(get_trackstatus_from_partstat),
+	(e_cal_backend_mapi_util_fetch_recipients),
+	(ical_attendees_from_props),
+	(e_cal_backend_mapi_util_generate_globalobjectid), (id_to_string),
+	(e_cal_backend_mapi_props_to_comp), (appt_build_name_id),
+	(mapi_cal_build_props):
+	* e-cal-backend-mapi-utils.h:
+	* e-cal-backend-mapi.c:
+	(e_cal_backend_mapi_get_static_capabilities),
+	(mapi_cal_get_changes_cb), (get_deltas),
+	(mapi_cal_cache_create_cb), (populate_cache),
+	(e_cal_backend_mapi_open), (get_new_appt_id),
+	(e_cal_backend_mapi_create_object),
+	(e_cal_backend_mapi_modify_object), (capture_req_props),
+	(get_server_data), (e_cal_backend_mapi_send_objects): Fix brokenness 
+	from previous API changes to fetch_item, fetch_items, create_item,
+	modify_item and FetchCallback. Support for viewing/creating meetings.
+	(e_cal_backend_mapi_get_owner_name),
+	(e_cal_backend_mapi_get_owner_email),
+	(e_cal_backend_mapi_get_user_name),
+	(e_cal_backend_mapi_get_user_email): Added these utility functions. 
+	* e-cal-backend-mapi.h: Related changes. 
+
 2008-06-23  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi-recur-utils.c (get_ical_weekday),

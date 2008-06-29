@@ -1,3 +1,10 @@
+2008-06-29  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-folder.c: (fetch_items_cb), (mapi_refresh_folder),
+	(fetch_item_cb), (mapi_folder_get_message):
+	Fix for API change in fetch_item, fetch_items and FetchCallback. 
+	NOTE: get_message seems to be broken by this. 
+
 2008-06-26  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-folder.c (fetch_items_cb), (fetch_item_cb): Fix for 

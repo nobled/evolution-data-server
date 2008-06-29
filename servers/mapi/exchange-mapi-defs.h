@@ -1,22 +1,24 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/*
+ *  Authors: 
+ *    Suman Manjunath <msuman@novell.com>
  *
- *  Authors:
- *  	Suman Manjunath <msuman@novell.com>
- *  Copyright (C) 2008 Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 3 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of version 2 of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  You should have received a copy of the GNU Lesser General Public 
+ *  License along with this program; if not, write to: 
+ *  Free Software Foundation, 51 Franklin Street, Fifth Floor,
+ *  Boston, MA 02110-1301, USA.
+ *
  */
 
 
@@ -73,6 +75,13 @@ typedef enum {
 } IconIndex;
 
 #if 0
+typedef enum {
+    olEditorText = 1,
+    olEditorHTML = 2,
+    olEditorRTF = 3,
+    olEditorWord = 4
+} OlEditorType; /* PR_MESSAGE_EDITOR_FORMAT type */
+
 typedef enum {
     olFolderDeletedItems = 3,
     olFolderOutbox = 4,
@@ -164,14 +173,6 @@ typedef enum {
     olTaskDelegationDeclined = 3
 } OlTaskDelegationState;
 
-#if 0
-typedef enum {
-    olNewTask = 0,
-    olDelegatedTask = 1,
-    olOwnTask = 2
-} OlTaskOwnership;
-#endif
-
 typedef enum {
     olUpdate = 2,
     olFinalStatus = 3
@@ -185,6 +186,12 @@ typedef enum {
 } OlTaskResponse;
 
 #if 0
+typedef enum {
+    olNewTask = 0,
+    olDelegatedTask = 1,
+    olOwnTask = 2
+} OlTaskOwnership;
+
 typedef enum {
     olTaskNotStarted = 0,
     olTaskInProgress = 1,
@@ -208,6 +215,14 @@ typedef enum {
 
 
 /* RECURRENCE (APPOINTMENTS/MEETINGS/TASKS) */
+typedef enum { 
+    rectypeNone = 0,
+    rectypeDaily = 1,
+    rectypeWeekly = 2,
+    rectypeMonthly = 3,
+    rectypeYearly = 4
+} OlRecurrenceType;
+
 typedef enum {
     olApptNotRecurring = 0,
     olApptMaster = 1,
@@ -222,7 +237,7 @@ typedef enum {
     olRecursMonthNth = 3,
     olRecursYearly = 5,
     olRecursYearNth = 6
-} OlRecurrenceType;
+} OlRecurrencePatternType;
 
 
 G_END_DECLS

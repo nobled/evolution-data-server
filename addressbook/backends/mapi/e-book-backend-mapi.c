@@ -1,21 +1,24 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/*
+ *  Authors: 
+ *    Srinivasa Ragavan <sragavan@novell.com>
  *
- *  Srinivasa Ragavan <sragavan@novell.com>
- *  Copyright (C) 2007 Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 3 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of version 2 of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  You should have received a copy of the GNU Lesser General Public 
+ *  License along with this program; if not, write to: 
+ *  Free Software Foundation, 51 Franklin Street, Fifth Floor,
+ *  Boston, MA 02110-1301, USA.
+ *
  */
 
 
@@ -365,9 +368,6 @@ mapi_book_build_name_id (struct mapi_nameid *nameid, gpointer data)
 
 	mapi_nameid_lid_add(nameid, 0x8094, PSETID_Address);
 	mapi_nameid_lid_add(nameid, 0x80A4, PSETID_Address);
-	
-
-	printf("NAMMMMMMMMMMMM %d\n", nameid->count);
 
 	return TRUE;
 }
@@ -671,8 +671,8 @@ e_book_backend_mapi_modify_contact (EBookBackend *backend,
 	}
 }
 
-static gpointer
-create_contact_item (struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, GSList *streams, GSList *recipients, GSList *attachments)
+static gboolean
+create_contact_item (struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
 {
 	EContact *contact;
 	char *suid;
@@ -682,11 +682,13 @@ create_contact_item (struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id
 	printf("got contact %s\n", suid);
 	if (contact) {
 		/* UID of the contact is nothing but the concatenated string of hex id of folder and the message.*/
-		e_contact_set (contact, E_CONTACT_UID, suid);		
+		e_contact_set (contact, E_CONTACT_UID, suid);
+		data = contact;
 	}
 
 	g_free (suid);
-	return (gpointer) contact;
+
+	return TRUE;
 }
 
 static void
@@ -748,7 +750,11 @@ e_book_backend_mapi_get_contact (EBookBackend *backend,
 			mapi_id_t fid, mid;
 			
 			exchange_mapi_util_mapi_ids_from_uid (id, &fid, &mid);
-			contact = exchange_mapi_connection_fetch_item (priv->fid, mid, NULL, 0, NULL, create_contact_item, NULL, MAPI_OPTIONS_FETCH_ALL);
+			exchange_mapi_connection_fetch_item (priv->fid, mid, 
+							NULL, 0, 
+							NULL, NULL, 
+							create_contact_item, contact, 
+							MAPI_OPTIONS_FETCH_ALL);
 
 			if (contact) {
 				e_contact_set (contact, E_CONTACT_BOOK_URI, priv->uri);
@@ -896,9 +902,11 @@ e_book_backend_mapi_get_contact_list (EBookBackend *backend,
 				return ;				
 			}
 
-			if (!exchange_mapi_connection_fetch_items (priv->fid, 
-								GetPropsList, n_GetPropsList, mapi_book_build_name_id_for_getprops, 
-								   &res, create_contact_list_cb, &vcard_str, MAPI_OPTIONS_FETCH_ALL)) {
+			if (!exchange_mapi_connection_fetch_items (priv->fid, &res, 
+								GetPropsList, n_GetPropsList, 
+								mapi_book_build_name_id_for_getprops, NULL, 
+								create_contact_list_cb, &vcard_str, 
+								MAPI_OPTIONS_FETCH_ALL)) {
 				e_data_book_respond_get_contact_list (book, opid, GNOME_Evolution_Addressbook_OtherError, NULL);
 				return ;
 			}
@@ -1285,7 +1293,11 @@ book_view_thread (gpointer data)
 
 		//FIXME: We need to fetch only the query from the server live and not everything.
 		/* execute the query */
-		if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 0, NULL, NULL, create_contact_cb, book_view, MAPI_OPTIONS_FETCH_ALL)) {
+		if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
+							NULL, 0, 
+							NULL, NULL, 
+							create_contact_cb, book_view, 
+							MAPI_OPTIONS_FETCH_ALL)) {
 			if (e_flag_is_set (closure->running))
 				e_data_book_view_notify_complete (book_view, 
 								  GNOME_Evolution_Addressbook_OtherError);	
@@ -1388,7 +1400,11 @@ build_cache (EBookBackendMAPI *ebmapi)
 	
 	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	
-	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 0, NULL, NULL, cache_contact_cb, ebmapi, MAPI_OPTIONS_FETCH_ALL)) {
+	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
+						NULL, 0, 
+						NULL, NULL, 
+						cache_contact_cb, ebmapi, 
+						MAPI_OPTIONS_FETCH_ALL)) {
 		printf("Error during caching addressbook\n");
 		e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
 		return NULL;
@@ -1430,7 +1446,11 @@ update_cache (EBookBackendMAPI *ebmapi)
 	
 	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	
-	if (!exchange_mapi_connection_fetch_items ( priv->fid, NULL, 0, NULL, &res, cache_contact_cb,ebmapi, MAPI_OPTIONS_FETCH_ALL)) {
+	if (!exchange_mapi_connection_fetch_items ( priv->fid, &res, 
+						NULL, 0, 
+						NULL, NULL, 
+						cache_contact_cb, ebmapi, 
+						MAPI_OPTIONS_FETCH_ALL)) {
 		printf("Error during caching addressbook\n");
 		e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
 		return NULL;

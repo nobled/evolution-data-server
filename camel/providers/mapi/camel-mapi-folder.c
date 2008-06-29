@@ -156,12 +156,11 @@ mapi_refresh_info(CamelFolder *folder, CamelException *ex)
 
 }
 
-/* here, there is no point setting 'out' param */
 static gboolean
 fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
-		GSList *streams, GSList *recipients, GSList *attachments, gpointer in, gpointer out)
+		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
 {
-	CamelMapiFolder *mapi_folder = CAMEL_MAPI_FOLDER(in);
+	CamelMapiFolder *mapi_folder = CAMEL_MAPI_FOLDER(data);
 	GSList *slist = mapi_folder->priv->item_list;
 	long *flags;
 	struct FILETIME *delivery_date;
@@ -541,9 +540,11 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 			goto end2;
 		}
 
-		status = exchange_mapi_connection_fetch_items (temp_folder_id, summary_prop_list, 
-							       G_N_ELEMENTS (summary_prop_list), NULL, NULL, 
-							       fetch_items_cb, folder, 0);
+		status = exchange_mapi_connection_fetch_items  (temp_folder_id, NULL, 
+								summary_prop_list, G_N_ELEMENTS (summary_prop_list), 
+								NULL, NULL, 
+								fetch_items_cb, folder, 
+								0);
 
 		if (!status) {
 			camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Fetch items failed"));
@@ -572,11 +573,9 @@ end1:
 
 }
 
-/* In a fetch_item_callback, the data would be returned with the 'out' param, 
- * while the 'in' param would always be NULL */
 static gboolean
 fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, 
-		GSList *streams, GSList *recipients, GSList *attachments, gpointer in, gpointer out)
+		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
 {
 	exchange_mapi_debug_property_dump (array);
 	long *flags;
@@ -616,7 +615,7 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	printf("%s(%d):%s:Number of Attachments : %d \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, g_slist_length (attachments));
 	item->attachments = attachments;
 
-	out = item; 
+	data = item; 
 	return TRUE;
 }
 
@@ -853,14 +852,16 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 
 	mapi_id_t id_folder;
 	mapi_id_t id_message;
-	MapiItem *item;
+	MapiItem *item = NULL;
 
 	exchange_mapi_util_mapi_ids_from_uid (uid, &id_folder, &id_message);
 
 	folder_id =  g_strdup (camel_mapi_store_folder_id_lookup (mapi_store, folder->full_name)) ;
-	item = exchange_mapi_connection_fetch_item (id_folder, id_message, NULL, 0, 
-						    NULL, fetch_item_cb, NULL, 
-						    MAPI_OPTIONS_FETCH_ATTACHMENTS | MAPI_OPTIONS_FETCH_BODY_STREAM | MAPI_OPTIONS_FETCH_BODY_STREAM);
+	exchange_mapi_connection_fetch_item (id_folder, id_message, 
+					NULL, 0, 
+					NULL, NULL, 
+					fetch_item_cb, item, 
+					MAPI_OPTIONS_FETCH_ATTACHMENTS | MAPI_OPTIONS_FETCH_BODY_STREAM | MAPI_OPTIONS_FETCH_BODY_STREAM);
 
 	if (item == NULL) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));

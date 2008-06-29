@@ -1,23 +1,25 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/*
+ *  Authors: 
+ *    Srinivasa Ragavan <sragavan@novell.com>
+ *    Suman Manjunath <msuman@novell.com>
  *
- *  Authors:
- *  	Srinivasa Ragavan <sragavan@novell.com>
- *  	Suman Manjunath <msuman@novell.com>
- *  Copyright (C) 2007 Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 3 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of version 2 of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  You should have received a copy of the GNU Lesser General Public 
+ *  License along with this program; if not, write to: 
+ *  Free Software Foundation, 51 Franklin Street, Fifth Floor,
+ *  Boston, MA 02110-1301, USA.
+ *
  */
 
 #ifndef EXCHANGE_MAPI_CONNECTION_H
@@ -88,7 +90,7 @@ struct id_list {
 };
 
 typedef gboolean (*FetchCallback) 	(struct mapi_SPropValue_array *, const mapi_id_t fid, const mapi_id_t mid, 
-					GSList *streams, GSList *recipients, GSList *attachments, gpointer in, gpointer out);
+					GSList *streams, GSList *recipients, GSList *attachments, gpointer data);
 typedef gboolean (*BuildNameID) 	(struct mapi_nameid *nameid, gpointer data);
 typedef int 	 (*BuildProps) 		(struct SPropValue **, struct SPropTagArray *, gpointer data);
 
@@ -101,16 +103,19 @@ exchange_mapi_connection_close (void);
 gboolean
 exchange_mapi_connection_exists (void);
 
-gpointer
+gboolean
 exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid, 
 				     const uint32_t *GetPropsList, const uint16_t cn_props, 
-				     BuildNameID build_name_id, FetchCallback cb, 
-				     gpointer data, guint32 options);
+				     BuildNameID build_name_id, gpointer build_name_data, 
+				     FetchCallback cb, gpointer data, 
+				     guint32 options);
 gboolean
-exchange_mapi_connection_fetch_items (mapi_id_t fid, 
-				      const uint32_t *GetPropsList, const uint16_t cn_props, BuildNameID build_name_id,  
-				      struct mapi_SRestriction *res, 
-				      FetchCallback cb, gpointer data, guint32 options);
+exchange_mapi_connection_fetch_items   (mapi_id_t fid, 
+					struct mapi_SRestriction *res,
+					const uint32_t *GetPropsList, const uint16_t cn_props, 
+					BuildNameID build_name_id, gpointer build_name_data, 
+					FetchCallback cb, gpointer data, 
+					guint32 options);
 
 mapi_id_t 
 exchange_mapi_create_folder (uint32_t olFolder, mapi_id_t pfid, const char *name);
@@ -118,6 +123,9 @@ gboolean
 exchange_mapi_remove_folder (uint32_t olFolder, mapi_id_t fid);
 gboolean 
 exchange_mapi_rename_folder (mapi_id_t fid, const char *new_name);
+
+guint32
+exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *res);
 
 mapi_id_t
 exchange_mapi_create_item (uint32_t olFolder, mapi_id_t fid, 

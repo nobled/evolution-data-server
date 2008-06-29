@@ -1,23 +1,25 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/*
+ *  Authors: 
+ *    Srinivasa Ragavan <sragavan@novell.com>
+ *    Suman Manjunath <msuman@novell.com>
  *
- *  Authors:
- *  	Srinivasa Ragavan <sragavan@novell.com>
- *  	Suman Manjunath <msuman@novell.com>
- *  Copyright (C) 2007 Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 3 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of version 2 of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  You should have received a copy of the GNU Lesser General Public 
+ *  License along with this program; if not, write to: 
+ *  Free Software Foundation, 51 Franklin Street, Fifth Floor,
+ *  Boston, MA 02110-1301, USA.
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -832,7 +834,7 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 	const char 		**users = NULL;
 	uint32_t 		i, j, count = 0;
 
-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x6,
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x7,
 					  PR_DISPLAY_TYPE,
 					  PR_OBJECT_TYPE, 
 //					  PR_ADDRTYPE,
@@ -840,7 +842,8 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 					  PR_SMTP_ADDRESS,
 					  PR_DISPLAY_NAME,
 					  PR_GIVEN_NAME,
-					  PR_SURNAME);
+					  PR_SURNAME, 
+					  PR_7BIT_DISPLAY_NAME);
 //					  PR_ENTRYID,
 //					  PR_SEARCH_KEY,
 //					  PR_TRANSMITTABLE_DISPLAY_NAME);
@@ -902,14 +905,106 @@ cleanup:
 	g_free (users);
 }
 
+guint32
+exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *res)
+{
+	enum MAPISTATUS retval;
+	TALLOC_CTX *mem_ctx;
+	mapi_object_t obj_store;
+	mapi_object_t obj_folder;
+	mapi_object_t obj_table;
+	struct SPropTagArray *SPropTagArray, *GetPropsTagArray;
+	uint32_t count = 0;
+
+	d(g_print("%s(%d): Entering %s: folder-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
+
+	LOCK ();
+	mem_ctx = talloc_init("ExchangeMAPI_CheckRestriction");
+	mapi_object_init(&obj_store);
+	mapi_object_init(&obj_folder);
+	mapi_object_init(&obj_table);
+
+	/* Open the message store */
+	retval = OpenMsgStore(&obj_store);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenMsgStore", GetLastError());
+		goto cleanup;
+	}
+
+	/* Attempt to open the folder */
+	retval = OpenFolder(&obj_store, fid, &obj_folder);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenFolder", GetLastError());
+		goto cleanup;
+	}
+
+	/* Get a handle on the container */
+	retval = GetContentsTable(&obj_folder, &obj_table, 0, NULL);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("GetContentsTable", GetLastError());
+		goto cleanup;
+	}
+
+	GetPropsTagArray = talloc_zero(mem_ctx, struct SPropTagArray);
+	GetPropsTagArray->cValues = 0;
+
+	// FIXME : Why are we fetching all these props ?
+
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0xA,
+					  PR_FID,
+					  PR_MID,
+					  PR_INST_ID,
+					  PR_INSTANCE_NUM,
+					  PR_SUBJECT,
+					  PR_MESSAGE_CLASS,
+					  PR_LAST_MODIFICATION_TIME,
+					  PR_HASATTACH,
+					  PR_RULE_MSG_PROVIDER,
+					  PR_RULE_MSG_NAME);
+
+	/* Set primary columns to be fetched */
+	retval = SetColumns(&obj_table, SPropTagArray);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("SetColumns", GetLastError());
+		goto cleanup;
+	}
+
+	if (res) {
+		/* Applying any restriction that are set. */
+		retval = Restrict(&obj_table, res);
+		if (retval != MAPI_E_SUCCESS) {
+			mapi_errstr("Restrict", GetLastError());
+			goto cleanup;
+		}
+	}
+
+	/* Number of items in the container */
+	retval = GetRowCount(&obj_table, &count);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("GetRowCount", GetLastError());
+		goto cleanup;
+	}
+
+cleanup:
+	mapi_object_release(&obj_folder);
+	mapi_object_release(&obj_table);
+	mapi_object_release(&obj_store);
+	talloc_free (mem_ctx);
+	UNLOCK ();
+
+	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	return count;
+}
+
 // FIXME: May be we need to support Restrictions/Filters here. May be after libmapi-0.7.
 gboolean
 exchange_mapi_connection_fetch_items   (mapi_id_t fid, 
-					const uint32_t *GetPropsList, const uint16_t cn_props, 
-					BuildNameID build_name_id, 
 					struct mapi_SRestriction *res,
-					FetchCallback cb, 
-					gpointer data, guint32 options)
+					const uint32_t *GetPropsList, const uint16_t cn_props, 
+					BuildNameID build_name_id, gpointer build_name_data, 
+					FetchCallback cb, gpointer data, 
+					guint32 options)
 {
 	enum MAPISTATUS retval;
 	TALLOC_CTX *mem_ctx;
@@ -1008,7 +1103,7 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 		NamedPropsTagArray->cValues = 0;
 		/* Add named props using callback */
 		if (build_name_id) {
-			if (!build_name_id (nameid, data)) {
+			if (!build_name_id (nameid, build_name_data)) {
 				g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 				goto GetProps_cleanup;
 			}
@@ -1098,7 +1193,7 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 			mapi_SPropValue_array_named(&obj_message, &properties_array);
 
 			/* NOTE: stream_list, recipient_list and attach_list should be freed by the callback */
-			if (!cb (&properties_array, *pfid, *pmid, stream_list, recip_list, attach_list, data, NULL)) {
+			if (!cb (&properties_array, *pfid, *pmid, stream_list, recip_list, attach_list, data)) {
 				g_warning ("%s(%d): %s: Callback failed for message-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, *pmid);
 			}
 		}
@@ -1124,11 +1219,12 @@ cleanup:
 	return result;
 }
 
-gpointer
+gboolean
 exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid, 
 				     const uint32_t *GetPropsList, const uint16_t cn_props, 
-				     BuildNameID build_name_id, FetchCallback cb, 
-				     gpointer data, guint32 options)
+				     BuildNameID build_name_id, gpointer build_name_data, 
+				     FetchCallback cb, gpointer data, 
+				     guint32 options)
 {
 	enum MAPISTATUS retval;
 	TALLOC_CTX *mem_ctx;
@@ -1140,7 +1236,7 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 	GSList *attach_list = NULL;
 	GSList *recip_list = NULL;
 	GSList *stream_list = NULL;
-	gpointer retobj = NULL;
+	gboolean result = FALSE;
 
 	d(g_print("%s(%d): Entering %s: folder-id %016llX message-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid, mid));
 
@@ -1178,7 +1274,7 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 		NamedPropsTagArray->cValues = 0;
 		/* Add named props using callback */
 		if (build_name_id) {
-			if (!build_name_id (nameid, data)) {
+			if (!build_name_id (nameid, build_name_data)) {
 				g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 				goto GetProps_cleanup;
 			}
@@ -1251,11 +1347,13 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 		mapi_SPropValue_array_named(&obj_message, &properties_array);
 
 		/* NOTE: stream_list, recipient_list and attach_list should be freed by the callback */
-		cb (&properties_array, fid, mid, stream_list, recip_list, attach_list, NULL, &retobj);
+		cb (&properties_array, fid, mid, stream_list, recip_list, attach_list, data);
 	}
 
 //	if (GetPropsTagArray->cValues) 
 //		talloc_free (properties_array.lpProps);
+
+	result = TRUE;
 
 cleanup:
 	mapi_object_release(&obj_message);
@@ -1266,7 +1364,7 @@ cleanup:
 
 	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	return retobj;
+	return result;
 }
 
 

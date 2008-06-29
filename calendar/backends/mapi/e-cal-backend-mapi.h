@@ -1,21 +1,24 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/*
+ *  Authors: 
+ *    Suman Manjunath <msuman@novell.com>
  *
- *  Suman Manjunath <msuman@novell.com>
- *  Copyright (C) 2007 Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 3 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of version 2 of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  You should have received a copy of the GNU Lesser General Public 
+ *  License along with this program; if not, write to: 
+ *  Free Software Foundation, 51 Franklin Street, Fifth Floor,
+ *  Boston, MA 02110-1301, USA.
+ *
  */
 
 
@@ -37,9 +40,10 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 
-#include "exchange-mapi-connection.h"
-#include "exchange-mapi-folder.h"
-#include "exchange-mapi-utils.h"
+#include <exchange-mapi-connection.h>
+#include <exchange-mapi-defs.h>
+#include <exchange-mapi-folder.h>
+#include <exchange-mapi-utils.h>
 
 #if 0
 #include <stdio.h>
@@ -77,6 +81,40 @@ GType	e_cal_backend_mapi_get_type(void);
 
 const char *	
 e_cal_backend_mapi_get_local_attachments_store (ECalBackendMAPI *cbmapi);
+
+const char *	
+e_cal_backend_mapi_get_owner_name (ECalBackendMAPI *cbmapi);
+const char *	
+e_cal_backend_mapi_get_owner_email (ECalBackendMAPI *cbmapi);
+
+const char *	
+e_cal_backend_mapi_get_user_name (ECalBackendMAPI *cbmapi);
+const char *	
+e_cal_backend_mapi_get_user_email (ECalBackendMAPI *cbmapi);
+
+typedef enum {
+	NOT_A_MEETING = 0, 
+	MEETING_OBJECT = (1 << 0),
+	MEETING_OBJECT_SENT = (1 << 1),
+	MEETING_REQUEST = (1 << 2), 
+	MEETING_RESPONSE = (1 << 3)
+} MAPIMeetingOptions;
+
+struct dup_data {
+	struct SBinary *globalid;
+	struct SBinary *cleanglobalid;
+	uint32_t owner_appt_id;
+	uint32_t appt_seq;
+};
+
+struct cbdata { 
+	ECalBackendMAPI *cbmapi;
+	ECalComponent *comp;
+	MAPIMeetingOptions meeting_type;
+	uint32_t msgflags;
+	uint32_t new_appt_id;
+	struct dup_data dup;
+};
 
 G_END_DECLS
 
