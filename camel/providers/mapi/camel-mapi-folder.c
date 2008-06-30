@@ -582,7 +582,7 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	struct FILETIME *delivery_date;
 	NTTIME ntdate;
 
-	MapiItem *item = g_new0(MapiItem , 1);
+	MapiItem *item = data;
 
 	item->fid = fid;
 	item->mid = mid;
@@ -615,7 +615,6 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	printf("%s(%d):%s:Number of Attachments : %d \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, g_slist_length (attachments));
 	item->attachments = attachments;
 
-	data = item; 
 	return TRUE;
 }
 
@@ -852,7 +851,7 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 
 	mapi_id_t id_folder;
 	mapi_id_t id_message;
-	MapiItem *item = NULL;
+	MapiItem *item = g_new0(MapiItem , 1);
 
 	exchange_mapi_util_mapi_ids_from_uid (uid, &id_folder, &id_message);
 
