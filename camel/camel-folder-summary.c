@@ -837,6 +837,7 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 	CamelMIRecord *mir;
 	CamelMessageInfo *info;
 	int i;
+	int ret = 0;
 
 	mir = g_new0 (CamelMIRecord , 1);
 	mir_from_cols (mir, s, ncol, cols, name);
@@ -846,7 +847,7 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 		/* Unlock and better return*/
 		CAMEL_SUMMARY_UNLOCK (s, summary_lock);
 		camel_db_camel_mir_free (mir);
-		return;
+		return ret;
 	}
 	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
 
@@ -872,12 +873,14 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 //		((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
 		camel_folder_summary_add (s, info);
 
-	} else
+	} else {
 		g_warning ("Loading messageinfo from db failed");
+		ret = -1;
+	}
 
 	camel_db_camel_mir_free (mir);
 
-	return 0;
+	return ret;
 }
 
 static int 
