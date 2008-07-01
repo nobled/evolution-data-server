@@ -13,7 +13,8 @@
 
 #define d(x)
 
-#define CAMEL_DB_SLEEP_INTERVAL 1*1000 
+#define CAMEL_DB_SLEEP_INTERVAL 1*10*10
+ 
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -663,7 +664,7 @@ camel_db_read_folder_info_record (CamelDB *cdb, const char *folder_name, CamelFI
 }
 
 int
-camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex)
+camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer p, CamelDBSelectCB read_mir_callback, CamelException *ex)
 {
 	char *query;
 	int ret;
@@ -676,7 +677,7 @@ camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_nam
 }
 
 int
-camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer **p, CamelDBSelectCB read_mir_callback, CamelException *ex)
+camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer p, CamelDBSelectCB read_mir_callback, CamelException *ex)
 {
 	char *query;
 	int ret;

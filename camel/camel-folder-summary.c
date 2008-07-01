@@ -63,7 +63,8 @@
 #include "camel-vee-folder.h"
 
 /* To switch between e-memchunk and g-alloc */
-#define ALWAYS_ALLOC
+#define ALWAYS_ALLOC 1
+#define USE_GSLICE 1
 #define SUMMARY_CACHE_DROP 120
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -137,7 +138,6 @@ static void camel_folder_summary_init       (CamelFolderSummary *obj);
 static void camel_folder_summary_finalize   (CamelObject *obj);
 
 static CamelObjectClass *camel_folder_summary_parent;
-static int camel_read_one_mir_callback (void * ref, int ncol, char ** cols, char ** name);
 static CamelMessageInfo * message_info_from_uid (CamelFolderSummary *s, const char *uid);
 
 static void
@@ -458,6 +458,12 @@ camel_folder_summary_array(CamelFolderSummary *s)
 }
 
 
+struct _db_pass_data {
+	CamelFolderSummary *summary;
+	gboolean double_ref;
+	gboolean add; /* or just insert to hashtable */
+};
+
 static CamelMessageInfo *
 message_info_from_uid (CamelFolderSummary *s, const char *uid)
 {
@@ -473,7 +479,8 @@ message_info_from_uid (CamelFolderSummary *s, const char *uid)
 		CamelDB *cdb;
 		CamelException ex;// May be this should come from the caller 
 		char *folder_name;
-
+		struct _db_pass_data data;
+		
 		d(printf ("\ncamel_folder_summary_uid called \n"));
 		camel_exception_init (&ex);
 		s->flags &= ~CAMEL_SUMMARY_DIRTY;
@@ -483,7 +490,13 @@ message_info_from_uid (CamelFolderSummary *s, const char *uid)
 		
 		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
-		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, (gpointer**) &s, camel_read_one_mir_callback, &ex);
+
+		data.summary = s;
+		data.double_ref = TRUE;
+		data.add = FALSE;
+
+	
+		ret = camel_db_read_message_info_record_with_uid (cdb, folder_name, uid, &data, camel_read_mir_callback, &ex);
 		if (ret != 0) {
 			// if (strcmp (folder_name, "UNMATCHED"))
 			g_warning ("Unable to read uid %s from folder %s: %s", uid, folder_name, camel_exception_get_description(&ex));
@@ -493,7 +506,7 @@ message_info_from_uid (CamelFolderSummary *s, const char *uid)
 		CAMEL_SUMMARY_LOCK(s, summary_lock);
 		CAMEL_SUMMARY_LOCK(s, ref_lock);
 
-		/* We would have double reffed at camel_read_one_mir_callback */
+		/* We would have double reffed at camel_read_mir_callback */
 		info = g_hash_table_lookup (s->loaded_infos, uid);
 		
 		if (!info) {
@@ -729,7 +742,8 @@ camel_folder_summary_reload_from_db (CamelFolderSummary *s, CamelException *ex)
 	CamelDB *cdb;
 	char *folder_name;
 	int ret = 0;
-
+	struct _db_pass_data data;
+	
 	#warning "baseclass this, and vfolders we may have to load better."
 	d(printf ("\ncamel_folder_summary_reload_from_db called \n"));
 
@@ -737,7 +751,10 @@ camel_folder_summary_reload_from_db (CamelFolderSummary *s, CamelException *ex)
 	cdb = s->folder->cdb;
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
-	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, NULL);
+	data.summary = s;
+	data.double_ref = FALSE;
+	data.add = FALSE;
+	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer)&data, camel_read_mir_callback, NULL);
 
 	s->cache_load_time = time (NULL);
 	return ret == 0 ? 0 : -1;
@@ -750,7 +767,8 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 	CamelDB *cdb;
 	char *folder_name;
 	int ret = 0;
-
+	struct _db_pass_data data;
+	
 	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
 
@@ -763,7 +781,10 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 	cdb = s->folder->cdb;
 
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
-	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer**) &s, camel_read_mir_callback, ex);
+	data.summary = s;
+	data.add = TRUE;
+	data.double_ref = FALSE;
+	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer) &data, camel_read_mir_callback, ex);
 	s->cache_load_time = time (NULL);
 	#warning "LRU please and not timeouts"
 	g_timeout_add_seconds (SUMMARY_CACHE_DROP, remove_cache, s);
@@ -833,7 +854,8 @@ mir_from_cols (CamelMIRecord *mir, CamelFolderSummary *s, int ncol, char ** cols
 static int 
 camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 {
-	CamelFolderSummary *s = * (CamelFolderSummary **) ref;
+	struct _db_pass_data *data = (struct _db_pass_data *) ref;
+	CamelFolderSummary *s = data->summary;
 	CamelMIRecord *mir;
 	CamelMessageInfo *info;
 	int i;
@@ -868,55 +890,18 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 			mir->cinfo = tmp;
 		}
 
+		if (data->double_ref)
+			/* double reffing, because, at times frees before, I could read it. so we dont ref and give it again, just use it */		
+			camel_message_info_ref(info);
+		
 		/* Just now we are reading from the DB, it can't be dirty. */
 		((CamelMessageInfoBase *)info)->dirty = FALSE;
-//		((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
-		camel_folder_summary_add (s, info);
+		//((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_DB_DIRTY;		
+		if (data->add)
+			camel_folder_summary_add (s, info);
+		else
+			camel_folder_summary_insert (s, info, TRUE);
 
-	} else {
-		g_warning ("Loading messageinfo from db failed");
-		ret = -1;
-	}
-
-	camel_db_camel_mir_free (mir);
-
-	return ret;
-}
-
-static int 
-camel_read_one_mir_callback (void * ref, int ncol, char ** cols, char ** name)
-{
-	CamelFolderSummary *s = * (CamelFolderSummary **) ref;
-	CamelMIRecord *mir;
-	CamelMessageInfo *info;
-	int i;
-
-	mir = g_new0 (CamelMIRecord , 1);
-
-	mir_from_cols (mir, s, ncol, cols, name);
-	
-	info = ((CamelFolderSummaryClass *)(CAMEL_OBJECT_GET_CLASS(s)))->message_info_from_db (s, mir);
-
-	if (info) {
-		if (s->build_content) {
-			char *tmp;
-			tmp = mir->cinfo;			
-			/* FIXME: this should be done differently, how i don't know */
-			((CamelMessageInfoBase *)info)->content = perform_content_info_load_from_db (s, mir);
-			if (((CamelMessageInfoBase *)info)->content == NULL) {
-				camel_message_info_free(info);
-				info = NULL;
-			}
-			mir->cinfo = tmp;			
-		}
-
-		/* Just now we are reading from the DB, it can't be dirty. */
-		((CamelMessageInfoBase *)info)->dirty = FALSE;
-		//((CamelMessageInfoBase *)info)->flags &= ~CAMEL_MESSAGE_DB_DIRTY;
-		/* double reffing, because, at times frees before, I could read it. */		
-		camel_message_info_ref(info);
-		d(g_print ("\nAdding messageinfo to db from db \n"));
-		camel_folder_summary_insert (s, info, TRUE);
 	} else
 		g_warning ("Loading messageinfo from db failed");
 
@@ -2465,7 +2450,11 @@ camel_folder_summary_content_info_new(CamelFolderSummary *s)
 		s->content_info_chunks = e_memchunk_new(32, s->content_info_size);
 	ci = e_memchunk_alloc(s->content_info_chunks);
 #else	
+#ifndef USE_GSLICE
 	ci = g_malloc (s->content_info_size);
+#else	
+	ci = g_slice_alloc (s->content_info_size);
+#endif	
 #endif	
 	CAMEL_SUMMARY_UNLOCK(s, alloc_lock);
 
@@ -2912,11 +2901,19 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 	if (s)
 #ifndef ALWAYS_ALLOC
 		e_memchunk_free(s->message_info_chunks, mi);		
-#else		
+#else
+#ifndef USE_GSLICE	
 		g_free(mi);
+#else		
+	        g_slice_free1 (s->message_info_size, mi);
+#endif		
 #endif
 	else
+#ifndef USE_GSLICE
 		g_free(mi);
+#else		
+		g_slice_free (CamelMessageInfoBase, mi);
+#endif		
 }
 
 static CamelMessageContentInfo *
@@ -3142,8 +3139,13 @@ content_info_free(CamelFolderSummary *s, CamelMessageContentInfo *ci)
 	g_free(ci->encoding);
 #ifndef ALWAYS_ALLOC	
 	e_memchunk_free(s->content_info_chunks, ci);
-#endif	
+#else
+#ifndef USE_GSLICE	
 	g_free(ci);
+#else	
+	g_slice_free1 (s->content_info_size, ci);
+#endif	
+#endif	
 }
 
 static char *
@@ -3784,12 +3786,22 @@ camel_message_info_new (CamelFolderSummary *s)
 		if (s->message_info_chunks == NULL)
 			s->message_info_chunks = e_memchunk_new(32, s->message_info_size);
 		info = e_memchunk_alloc0(s->message_info_chunks);
-#else		
+#else
+#ifndef USE_GSLICE		
 		info = g_malloc0(s->message_info_size);
+#else		
+		info = g_slice_alloc0 (s->message_info_size);
+#endif		
 #endif		
 		CAMEL_SUMMARY_UNLOCK(s, alloc_lock);
 	} else {
+#ifndef USE_GSLICE		
 		info = g_malloc0(sizeof(CamelMessageInfoBase));
+#else		
+		info = g_slice_alloc0 (sizeof(CamelMessageInfoBase));
+#endif
+
+		
 	}
 
 	info->refcount = 1;
