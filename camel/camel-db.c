@@ -28,6 +28,8 @@ cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex)
 	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
 		ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
 	}
+	
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 
 	if (ret != SQLITE_OK) {
 		d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
@@ -45,6 +47,8 @@ camel_db_open (const char *path, CamelException *ex)
 	CamelDB *cdb;
 	sqlite3 *db;
 	int ret;
+
+	sqlite3_enable_shared_cache(TRUE);
 
 	ret = sqlite3_open(path, &db);
 	if (ret) {
@@ -211,6 +215,8 @@ camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, Ca
 		ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
 	}
 
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+		
 	if (ret != SQLITE_OK) {
     		g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
@@ -355,6 +361,8 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 		ret = sqlite3_exec (cdb->db, stmt, callback, data, &errmsg);
 	}
 
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+		
   	if (ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement '%s' [%s].\n", stmt, errmsg));
 		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, errmsg);

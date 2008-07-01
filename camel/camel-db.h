@@ -13,6 +13,7 @@ struct _CamelDB {
 	GMutex *lock;
 };
 
+#define CAMEL_DB_FREE_CACHE_SIZE 2 * 1024 * 1024
 
 /* The extensive DB format, supporting basic searching and sorting
   uid, - Message UID

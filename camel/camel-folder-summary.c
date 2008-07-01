@@ -65,7 +65,7 @@
 /* To switch between e-memchunk and g-alloc */
 #define ALWAYS_ALLOC 1
 #define USE_GSLICE 1
-#define SUMMARY_CACHE_DROP 120
+#define SUMMARY_CACHE_DROP 180 
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* this lock is ONLY for the standalone messageinfo stuff */
@@ -712,16 +712,22 @@ static gboolean
 remove_cache (CamelFolderSummary *s)
 {
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
+	
 	/* Attempt to release 2MB*/
-	sqlite3_release_memory(2*1024*1024);
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	
 	if (time(NULL) - s->cache_load_time < SUMMARY_CACHE_DROP)
 		return TRUE;
+	
 	printf("removing cache for  %s %d\n", s->folder->full_name, g_hash_table_size (s->loaded_infos));
 	#warning "hack. fix it"
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
 	g_hash_table_foreach_remove  (s->loaded_infos, remove_item, s);
 	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
 	printf("done .. now %d\n",g_hash_table_size (s->loaded_infos));
+
+	s->cache_load_time = time(NULL);
+	
 	return TRUE;
 }
 

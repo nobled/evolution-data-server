@@ -154,7 +154,7 @@ struct _CamelMessageInfo {
 	guint32 refcount;	/* ??? */
 	char *uid;
 	/*FIXME: Make it work with the CAMEL_MESSADE_DB_DIRTY flag instead of another 4 bytes*/
-	gboolean dirty;	
+	int dirty:1;
 };
 
 /* For classes wishing to do the provided i/o, or for anonymous users,
@@ -166,7 +166,7 @@ struct _CamelMessageInfoBase {
 	guint32 refcount;	/* ??? */
 	char *uid;
 	/*FIXME: Make it work with the CAMEL_MESSADE_DB_DIRTY flag instead of another 4 bytes*/
-	gboolean dirty;
+	int dirty:1;
 	
 	const char *subject;
 	const char *from;
