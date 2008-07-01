@@ -29,8 +29,6 @@ cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex)
 		ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
 	}
 	
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
-
 	if (ret != SQLITE_OK) {
 		d(g_print ("Error in SQL EXEC statement: %s [%s].\n", stmt, errmsg));
 		if (ex)	
@@ -129,7 +127,7 @@ camel_db_end_transaction (CamelDB *cdb, CamelException *ex)
 	d(g_print ("\nCOMMIT TRANSACTION \n"));
 	ret = cdb_sql_exec (cdb->db, "COMMIT", ex);
 	g_mutex_unlock (cdb->lock);
-
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	return ret;
 }
 
@@ -141,7 +139,7 @@ camel_db_abort_transaction (CamelDB *cdb, CamelException *ex)
 	d(g_print ("\nABORT TRANSACTION \n"));
 	ret = cdb_sql_exec (cdb->db, "ROLLBACK", ex);
 	g_mutex_unlock (cdb->lock);
-
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	return ret;
 }
 
@@ -380,7 +378,7 @@ camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex)
 
 	ret = camel_db_command (cdb, tab, ex);
 	sqlite3_free (tab);
-
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	return ret;
 }
 
@@ -403,6 +401,7 @@ camel_db_create_vfolder (CamelDB *db, const char *folder_name, CamelException *e
 
 	sqlite3_free (table_creation_query);
 	g_free (safe_index);
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	return ret;	 
 }
 
@@ -417,7 +416,7 @@ camel_db_delete_uid_from_vfolder (CamelDB *db, char *folder_name, char *vuid, Ca
 	 ret = camel_db_command (db, del_query, ex);
 	 
 	 sqlite3_free (del_query);
-
+	 sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	 return ret;
 }
 
@@ -479,7 +478,7 @@ camel_db_add_to_vfolder (CamelDB *db, char *folder_name, char *vuid, CamelExcept
 	 
 	 sqlite3_free (ins_query);
 	 sqlite3_free (del_query);
-
+	 sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	 return ret;
 }
 
@@ -506,7 +505,7 @@ int
 camel_db_create_folders_table (CamelDB *cdb, CamelException *ex)
 {
 	char *query = "CREATE TABLE IF NOT EXISTS folders ( folder_name TEXT PRIMARY KEY, version REAL, flags INTEGER, nextuid INTEGER, time NUMERIC, saved_count INTEGER, unread_count INTEGER, deleted_count INTEGER, junk_count INTEGER, bdata TEXT )";
-
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	return ((camel_db_command (cdb, query, ex)));
 }
 
@@ -705,7 +704,7 @@ camel_db_delete_uid (CamelDB *cdb, const char *folder, const char *uid, CamelExc
 
 	ret = camel_db_command (cdb, tab, ex);
 	sqlite3_free (tab);
-
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	return ret;
 }
 
@@ -740,7 +739,7 @@ camel_db_delete_uids (CamelDB *cdb, const char * folder_name, GSList *uids, Came
 	g_string_append (str, ")");
 
 	ret = camel_db_command (cdb, str->str, ex);
-
+	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 	g_string_free (str, TRUE);
 
 	return ret;
