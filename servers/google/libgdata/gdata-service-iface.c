@@ -4,7 +4,7 @@
  *  Ebby Wiselyn <ebbywiselyn@gmail.com>
  *  Jason Willis <zenbrother@gmail.com>
  *
- * Copyright 2007, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -26,49 +26,51 @@
 #include <gdata-service-iface.h>
 
 void
-gdata_service_set_credentials (GDataService *self, const char *username, const gchar *password)
+gdata_service_set_proxy (GDataService *self, SoupURI *proxy)
 {
-	GDATA_SERVICE_GET_IFACE(self)->set_credentials(self, username, password);
-	return;
-}
-
-GDataFeed*
-gdata_service_get_feed (GDataService *self, const char* feedURL)
-{
-	return GDATA_SERVICE_GET_IFACE(self)->get_feed(self, feedURL);
-}
-
-GDataEntry*
-gdata_service_insert_entry (GDataService *self, const gchar *feed_postURL, GDataEntry *entry)
-{
-	return GDATA_SERVICE_GET_IFACE(self)->insert_entry(self, g_strdup(feed_postURL), entry);
-}
-
-GDataEntry*
-gdata_service_get_entry (GDataService *self, const gchar *entry_getURL)
-{
-	return	GDATA_SERVICE_GET_IFACE(self)->get_entry(self, entry_getURL);
-}
-
-GDataEntry*
-gdata_service_update_entry (GDataService *self, GDataEntry *entry)
-{
-	GDATA_SERVICE_GET_IFACE(self)->update_entry(self, entry);
-	return NULL;
-}
-
-GDataEntry*
-gdata_service_update_entry_with_link (GDataService *self, GDataEntry *entry, gchar *link)
-{
-	GDATA_SERVICE_GET_IFACE(self)->update_entry_with_link(self, entry, link);
-	return NULL;
+	GDATA_SERVICE_GET_IFACE(self)->set_proxy(self, proxy);
 }
 
 void
-gdata_service_delete_entry (GDataService *self, GDataEntry *entry)
+gdata_service_set_credentials (GDataService *self, const char *username, const gchar *password)
 {
-	GDATA_SERVICE_GET_IFACE(self)->delete_entry (self, entry);
-	return;
+	GDATA_SERVICE_GET_IFACE(self)->set_credentials(self, username, password);
+}
+
+GDataFeed*
+gdata_service_get_feed (GDataService *self, const char* feedURL, GError **error)
+{
+	return GDATA_SERVICE_GET_IFACE(self)->get_feed(self, feedURL, error);
+}
+
+GDataEntry*
+gdata_service_insert_entry (GDataService *self, const gchar *feed_postURL, GDataEntry *entry, GError **error)
+{
+	return GDATA_SERVICE_GET_IFACE(self)->insert_entry(self, feed_postURL, entry, error);
+}
+
+GDataEntry*
+gdata_service_get_entry (GDataService *self, const gchar *entry_getURL, GError **error)
+{
+	return	GDATA_SERVICE_GET_IFACE(self)->get_entry(self, entry_getURL, error);
+}
+
+GDataEntry*
+gdata_service_update_entry (GDataService *self, GDataEntry *entry, GError **error)
+{
+	return GDATA_SERVICE_GET_IFACE(self)->update_entry(self, entry, error);
+}
+
+GDataEntry*
+gdata_service_update_entry_with_link (GDataService *self, GDataEntry *entry, gchar *link, GError **error)
+{
+	return GDATA_SERVICE_GET_IFACE(self)->update_entry_with_link(self, entry, link, error);
+}
+
+gboolean
+gdata_service_delete_entry (GDataService *self, GDataEntry *entry, GError **error)
+{
+	return GDATA_SERVICE_GET_IFACE(self)->delete_entry (self, entry, error);
 }
 
 static void

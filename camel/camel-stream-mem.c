@@ -5,7 +5,7 @@
  * Authors: Bertrand Guiheneuf <bertrand@helixcode.com>
  *	    Michael Zucchi <notzed@ximian.com>
  *
- * Copyright 1999, 2000 Ximian, Inc. (www.ximian.com)
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -176,7 +176,7 @@ camel_stream_mem_new_with_byte_array (GByteArray *buffer)
 /**
  * camel_stream_mem_set_secure:
  * @mem: a #CamelStreamMem object
- *
+ * 
  * Mark the memory stream as secure.  At the very least this means the
  * data in the buffer will be cleared when the buffer is finalised.
  * This only applies to buffers owned by the stream.
@@ -277,7 +277,7 @@ stream_write (CamelStream *stream, const char *buffer, size_t n)
 	CamelStreamMem *stream_mem = CAMEL_STREAM_MEM (stream);
 	CamelSeekableStream *seekable = CAMEL_SEEKABLE_STREAM (stream);
 	ssize_t nwrite = n;
-
+	
 	if (seekable->bound_end != CAMEL_STREAM_UNBOUND)
 		nwrite = MIN(seekable->bound_end - seekable->position, n);
 

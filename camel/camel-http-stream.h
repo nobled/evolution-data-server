@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -52,32 +52,32 @@ typedef struct _CamelHttpStreamClass CamelHttpStreamClass;
 
 struct _CamelHttpStream {
 	CamelStream parent_object;
-
+	
 	CamelMimeParser *parser;
-
+	
 	CamelContentType *content_type;
 	struct _camel_header_raw *headers;
-
+	
 	CamelHttpMethod method;
 	struct _CamelSession *session;
 	CamelURL *url;
-
+	
 	char *user_agent;
-
+	
 	/* proxy info */
 	CamelURL *proxy;
 	char *authrealm;
 	char *authpass;
-
+	
 	int statuscode;
-
+	
 	CamelStream *raw;
 	CamelStream *read;
 };
 
 struct _CamelHttpStreamClass {
 	CamelStreamClass parent_class;
-
+	
 	/* Virtual methods */
 };
 

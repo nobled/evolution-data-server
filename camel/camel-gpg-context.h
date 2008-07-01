@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -38,13 +38,13 @@ typedef struct _CamelGpgContextClass CamelGpgContextClass;
 
 struct _CamelGpgContext {
 	CamelCipherContext parent_object;
-
+	
 	gboolean always_trust;
 };
 
 struct _CamelGpgContextClass {
 	CamelCipherContextClass parent_class;
-
+	
 };
 
 

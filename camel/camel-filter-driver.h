@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *           Jeffrey Stedfast <fejj@ximian.com>
@@ -39,7 +39,7 @@ typedef struct _CamelFilterDriverClass CamelFilterDriverClass;
 
 struct _CamelFilterDriver {
 	CamelObject parent;
-
+	
 	struct _CamelFilterDriverPrivate *priv;
 };
 

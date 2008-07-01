@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -55,9 +55,9 @@ static void
 camel_sasl_cram_md5_class_init (CamelSaslCramMd5Class *camel_sasl_cram_md5_class)
 {
 	CamelSaslClass *camel_sasl_class = CAMEL_SASL_CLASS (camel_sasl_cram_md5_class);
-
+	
 	parent_class = CAMEL_SASL_CLASS (camel_type_get_global_classfuncs (camel_sasl_get_type ()));
-
+	
 	/* virtual method overload */
 	camel_sasl_class->challenge = cram_md5_challenge;
 }
@@ -66,7 +66,7 @@ CamelType
 camel_sasl_cram_md5_get_type (void)
 {
 	static CamelType type = CAMEL_INVALID_TYPE;
-
+	
 	if (type == CAMEL_INVALID_TYPE) {
 		type = camel_type_register (camel_sasl_get_type (),
 					    "CamelSaslCramMd5",
@@ -77,7 +77,7 @@ camel_sasl_cram_md5_get_type (void)
 					    NULL,
 					    NULL);
 	}
-
+	
 	return type;
 }
 

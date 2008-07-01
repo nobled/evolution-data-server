@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*  Camel
- *  Copyright (C) 1999-2007 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *
@@ -45,31 +45,35 @@ struct _CamelIMAP4Journal;
 
 enum {
 	CAMEL_IMAP4_FOLDER_ARG_ENABLE_MLIST = CAMEL_OFFLINE_FOLDER_ARG_LAST,
+	CAMEL_IMAP4_FOLDER_ARG_EXPIRE_ACCESS,
+	CAMEL_IMAP4_FOLDER_ARG_EXPIRE_AGE,
 	CAMEL_IMAP4_FOLDER_ARG_LAST = CAMEL_OFFLINE_FOLDER_ARG_LAST + 0x100
 };
 
 enum {
 	CAMEL_IMAP4_FOLDER_ENABLE_MLIST = CAMEL_IMAP4_FOLDER_ARG_ENABLE_MLIST | CAMEL_ARG_BOO,
+	CAMEL_IMAP4_FOLDER_EXPIRE_ACCESS = CAMEL_IMAP4_FOLDER_ARG_EXPIRE_ACCESS | CAMEL_ARG_INT,
+	CAMEL_IMAP4_FOLDER_EXPIRE_AGE = CAMEL_IMAP4_FOLDER_ARG_EXPIRE_AGE | CAMEL_ARG_INT,
 };
 
 struct _CamelIMAP4Folder {
 	CamelOfflineFolder parent_object;
-
+	
 	CamelFolderSearch *search;
-
+	
 	CamelOfflineJournal *journal;
 	CamelDataCache *cache;
-
+	
 	char *cachedir;
 	char *utf7_name;
-
+	
 	unsigned int read_only:1;
 	unsigned int enable_mlist:1;
 };
 
 struct _CamelIMAP4FolderClass {
 	CamelOfflineFolderClass parent_class;
-
+	
 };
 
 

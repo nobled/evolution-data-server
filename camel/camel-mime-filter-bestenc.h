@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -48,7 +48,7 @@ typedef enum _CamelBestencEncoding {
 	CAMEL_BESTENC_7BIT,
 	CAMEL_BESTENC_8BIT,
 	CAMEL_BESTENC_BINARY,
-
+	
 	/* is the content stream to be treated as text? */
 	CAMEL_BESTENC_TEXT = 1<<8
 } CamelBestencEncoding;

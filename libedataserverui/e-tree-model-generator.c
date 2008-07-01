@@ -2,7 +2,7 @@
 
 /* e-tree-model-generator.c - Model wrapper that permutes underlying rows.
  *
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -26,8 +26,6 @@
 
 #include <string.h>
 #include <glib/gi18n-lib.h>
-#include <gtk/gtktreemodel.h>
-#include <gtk/gtksignal.h>
 #include "e-tree-model-generator.h"
 
 #define ETMG_DEBUG(x)

@@ -2,7 +2,7 @@
 
 /* e-name-selector-dialog.c - Dialog that lets user pick EDestinations.
  *
- * Copyright (C) 2004 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -23,16 +23,7 @@
 
 #include <config.h>
 #include <string.h>
-#include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
-#include <gtk/gtkalignment.h>
-#include <gtk/gtkbutton.h>
-#include <gtk/gtkentry.h>
-#include <gtk/gtklabel.h>
-#include <gtk/gtkscrolledwindow.h>
-#include <gtk/gtkstock.h>
-#include <gtk/gtkcellrenderertext.h>
-#include <glib/gstrfuncs.h>
 #include <glib/gi18n-lib.h>
 #include <libedataserverui/e-source-combo-box.h>
 #include <libedataserverui/e-destination-store.h>

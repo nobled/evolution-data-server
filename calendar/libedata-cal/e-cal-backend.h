@@ -1,8 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* Evolution calendar - generic backend class
  *
- * Copyright (C) 2000 Ximian, Inc.
- * Copyright (C) 2000 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Federico Mena-Quintero <federico@ximian.com>
  *          Rodrigo Moya <rodrigo@ximian.com>
@@ -123,6 +122,7 @@ void e_cal_backend_remove_client (ECalBackend *backend, EDataCal *cal);
 
 void e_cal_backend_add_query (ECalBackend *backend, EDataCalView *query);
 EList *e_cal_backend_get_queries (ECalBackend *backend);
+void e_cal_backend_remove_query (ECalBackend *backend, EDataCalView *query);
 
 void e_cal_backend_is_read_only (ECalBackend *backend, EDataCal *cal);
 void e_cal_backend_get_cal_address (ECalBackend *backend, EDataCal *cal);

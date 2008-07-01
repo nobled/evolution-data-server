@@ -78,6 +78,30 @@ camel-imap-types
 camel-local-private
 
 
+<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Title ##### -->
+camel-md5-utils
+
+
 <!-- ##### SECTION ./tmpl/camel-nntp-private.sgml:Long_Description ##### -->
 <para>
 
@@ -286,6 +310,12 @@ camel-types
 
 @search_lock: 
 
+<!-- ##### STRUCT CamelMD5Context ##### -->
+<para>
+
+</para>
+
+
 <!-- ##### STRUCT CamelMimeFilterChomp ##### -->
 <para>
 
@@ -458,6 +488,47 @@ camel-types
 
 @Returns: 
 
+<!-- ##### FUNCTION camel_md5_final ##### -->
+<para>
+
+</para>
+
+@ctx: 
+@digest: 
+
+<!-- ##### FUNCTION camel_md5_get_digest ##### -->
+<para>
+
+</para>
+
+@buffer: 
+@buffer_size: 
+@digest: 
+
+<!-- ##### FUNCTION camel_md5_get_digest_from_file ##### -->
+<para>
+
+</para>
+
+@filename: 
+@digest: 
+
+<!-- ##### FUNCTION camel_md5_init ##### -->
+<para>
+
+</para>
+
+@ctx: 
+
+<!-- ##### FUNCTION camel_md5_update ##### -->
+<para>
+
+</para>
+
+@ctx: 
+@buf: 
+@len: 
+
 <!-- ##### FUNCTION camel_partition_table_get_type ##### -->
 <para>
 
@@ -565,6 +636,14 @@ camel-types
 @len: 
 @type: 
 @words: 
+
+<!-- ##### FUNCTION camel_stream_vfs_new_with_handle ##### -->
+<para>
+
+</para>
+
+@handle: 
+@Returns: 
 
 <!-- ##### FUNCTION camel_text_index_get_type ##### -->
 <para>

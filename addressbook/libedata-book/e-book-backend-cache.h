@@ -2,7 +2,7 @@
 /*
  *  A class to cache address book conents on local file system
  *
- * Copyright (C) 2004 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Sivaiah Nallagatla <snallagatla@ximian.com>
  *
@@ -23,7 +23,7 @@
 #ifndef E_BOOK_BACKEND_CACHE_H
 #define E_BOOK_BACKEND_CACHE_H
 
-#include "libedataserver/e-file-cache.h"
+#include "libebackend/e-file-cache.h"
 #include <libebook/e-contact.h>
 
 G_BEGIN_DECLS

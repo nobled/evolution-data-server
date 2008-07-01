@@ -3,7 +3,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -59,7 +59,7 @@ camel_provider_module_init(void)
 	smtp_provider.url_hash = camel_url_hash;
 	smtp_provider.url_equal = camel_url_equal;
 	smtp_provider.translation_domain = GETTEXT_PACKAGE;
-
+	
 	camel_provider_register(&smtp_provider);
 }
 

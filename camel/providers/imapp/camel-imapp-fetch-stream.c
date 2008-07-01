@@ -3,7 +3,7 @@
  * Author:
  *  Michael Zucchi <notzed@ximian.com>
  *
- * Copyright 1999, 2000 Ximian, Inc. (www.ximian.com)
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -36,7 +36,7 @@
 #include "camel-imapp-exception.h"
 #include "camel-imapp-stream.h"
 
-#define t(x)
+#define t(x) 
 #define io(x) x
 
 static CamelObjectClass *parent_class = NULL;
@@ -71,7 +71,7 @@ stream_read(CamelStream *stream, char *buffer, size_t n)
 	}
 
 	is->literal -= max;
-
+	
 	return max;
 }
 

@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* A class to cache address  book conents on local file system
  *
- * Copyright (C) 2004 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Devashish Sharma <sdevashish@novell.com>
  *
@@ -287,6 +287,8 @@ e_book_backend_db_cache_get_contacts (DB *db, const char *query)
 	db_error = db->cursor (db, NULL, &dbc, 0);
 	if (db_error != 0) {
 		g_warning ("db->cursor failed with %d", db_error);
+		if (sexp)
+			g_object_unref (sexp);
 		return NULL;
 	}
 

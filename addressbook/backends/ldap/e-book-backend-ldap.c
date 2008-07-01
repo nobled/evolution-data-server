@@ -2,7 +2,7 @@
 
 /* e-book-backend-ldap.c - LDAP contact backend.
  *
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -2104,13 +2104,12 @@ get_contact_handler (LDAPOp *op, LDAPMessage *res)
 	msg_type = ldap_msgtype (res);
 	if (msg_type == LDAP_RES_SEARCH_ENTRY) {
 		LDAPMessage *e;
+		EContact *contact;
+		char *vcard;
 
 		g_static_rec_mutex_lock (&eds_ldap_handler_lock);
 		e = ldap_first_entry (bl->priv->ldap, res);
 		g_static_rec_mutex_unlock (&eds_ldap_handler_lock);
-
-		EContact *contact;
-		char *vcard;
 
 		if (!e) {
 			g_warning ("uh, this shouldn't happen");
@@ -3374,6 +3373,42 @@ rfc2254_escape(char *str)
 	}
 }
 
+/** for each first space in a sequence of spaces in @param str it will exchange
+ * that first with a '*' character, but only if that space is
+ * not at the beginning or at the end of the str.
+ * Return value is changed @param str. (ie. this function is changeing
+ * str itself, didn't alocate new memory.)
+ */
+static char *
+extend_query_value (char *str)
+{
+	if(str && g_utf8_strlen (str, -1) > 0){
+		char *next;
+		char *last_star = NULL;
+		gboolean have_nonspace = FALSE;
+
+		for (next = str; next && *next; next = g_utf8_next_char (next) ){
+			if (*next == ' '){
+				if (have_nonspace && !last_star){
+					/* exchange only first space after nonspace character */
+					*next = '*';
+					last_star = next;
+				}
+			}else{
+				have_nonspace = TRUE;
+				last_star = NULL;
+			}
+		}
+
+		if (last_star){
+			/* we placed a star at the end of str, so make it back a space */
+			*last_star = ' ';
+		}
+	}
+
+	return str;
+}
+
 static ESExpResult *
 func_and(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 {
@@ -3477,7 +3512,7 @@ func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 	    && argv[0]->type == ESEXP_RES_STRING
 	    && argv[1]->type == ESEXP_RES_STRING) {
 		char *propname = argv[0]->value.string;
-		char *str = rfc2254_escape(argv[1]->value.string);
+		char *str = extend_query_value( rfc2254_escape (argv[1]->value.string));
 		gboolean one_star = FALSE;
 
 		if (strlen(str) == 0)
@@ -3489,6 +3524,8 @@ func_contains(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data
 			char *big_query;
 			char *match_str;
 			if (one_star) {
+				g_free (str);
+
 				/* ignore NULL query */
 				r = e_sexp_result_new (f, ESEXP_RES_BOOL);
 				r->value.bool = FALSE;
@@ -3583,6 +3620,8 @@ func_beginswith(struct _ESExp *f, int argc, struct _ESExpResult **argv, void *da
 		char *ldap_attr = query_prop_to_ldap(propname);
 
 		if (strlen (str) == 0) {
+			g_free (str);
+
 			r = e_sexp_result_new (f, ESEXP_RES_BOOL);
 			r->value.bool = FALSE;
 			return r;

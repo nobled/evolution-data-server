@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- * Copyright (C) 2003 Novell Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -24,9 +24,7 @@
 
 #include <pthread.h>
 #include <sys/types.h>
-#include <glib/gmacros.h>
-#include <glib/gtypes.h>
-#include <glib/gunicode.h>
+#include <glib.h>
 
 G_BEGIN_DECLS
 

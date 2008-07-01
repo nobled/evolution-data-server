@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -20,7 +20,7 @@
 #ifndef __E_CATEGORIES_DIALOG__
 #define __E_CATEGORIES_DIALOG__
 
-#include <gtk/gtkdialog.h>
+#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 

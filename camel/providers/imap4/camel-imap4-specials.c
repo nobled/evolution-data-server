@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*  Camel
- *  Copyright (C) 1999-2007 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *
@@ -57,7 +57,7 @@ static void
 imap4_init_bits (unsigned short bit, unsigned short bitcopy, int remove, unsigned char *vals)
 {
 	int i, len = strlen (vals);
-
+	
 	if (!remove) {
 		for (i = 0; i < len; i++)
 			camel_imap4_specials[vals[i]] |= bit;
@@ -86,15 +86,15 @@ void
 camel_imap4_specials_init (void)
 {
 	int i;
-
+	
 	for (i = 0; i < 256; i++) {
 		camel_imap4_specials[i] = 0;
 		if (i <= 0x1f || i >= 0x7f)
 			camel_imap4_specials[i] |= IS_CTRL;
 	}
-
+	
 	camel_imap4_specials[' '] |= IS_SPACE;
-
+	
 	imap4_init_bits (IS_LWSP, 0, 0, CHARS_LWSP);
 	imap4_init_bits (IS_ASPECIAL, 0, 0, CHARS_ATOM_SPECIALS);
 	imap4_init_bits (IS_QSPECIAL, 0, 0, CHARS_QUOTED_SPECIALS);

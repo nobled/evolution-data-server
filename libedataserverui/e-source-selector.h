@@ -1,7 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 /* e-source-selector.h
  *
- * Copyright (C) 2003  Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License as
@@ -24,8 +24,7 @@
 #ifndef _E_SOURCE_SELECTOR_H_
 #define _E_SOURCE_SELECTOR_H_
 
-#include <gtk/gtkmenu.h>
-#include <gtk/gtktreeview.h>
+#include <gtk/gtk.h>
 #include "libedataserver/e-source-list.h"
 
 G_BEGIN_DECLS

@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* e-contact.c
  *
- * Copyright (C) 2003 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -29,7 +29,6 @@
 #include <ctype.h>
 #include <string.h>
 #include <glib/gi18n-lib.h>
-#include <libgnomevfs/gnome-vfs-mime-utils.h>
 #include "e-contact.h"
 #include "e-book.h"
 #include "e-name-western.h"

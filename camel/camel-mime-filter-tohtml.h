@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -48,12 +48,12 @@ typedef struct _CamelMimeFilterToHTML CamelMimeFilterToHTML;
 
 struct _CamelMimeFilterToHTML {
 	CamelMimeFilter parent;
-
+	
 	struct _CamelUrlScanner *scanner;
-
+	
 	guint32 flags;
 	guint32 colour;
-
+	
 	guint32 column   : 31;
 	guint32 pre_open : 1;
 };

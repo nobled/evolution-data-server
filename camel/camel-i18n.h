@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,7 @@
 #    ifdef CAMEL_EXPLICIT_TRANSLATION_DOMAIN
 #        undef _
 #        define _(String) dgettext (CAMEL_EXPLICIT_TRANSLATION_DOMAIN, String)
-#    else
+#    else 
 #        define _(String) gettext (String)
 #    endif
 #    ifdef gettext_noop

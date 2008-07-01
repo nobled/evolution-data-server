@@ -4,7 +4,7 @@
  *  Ebby Wiselyn <ebbywiselyn@gmail.com>
  *  Jason Willis <zenbrother@gmail.com>
  *
- * Copyright 2007, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -27,6 +27,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
+#include <libsoup/soup.h>
 
 #include "gdata-feed.h"
 #include "gdata-entry.h"
@@ -48,31 +49,33 @@ struct _GDataServiceIface {
   GTypeInterface parent;
 
   /* Public Methods */
+  void         (*set_proxy) (GDataService *self, SoupURI *proxy);
   void         (*set_credentials)(GDataService *self, const gchar *username, const gchar *password);
-  GDataFeed *  (*get_feed)    (GDataService *self, const gchar *feed_getURL);
-  GDataEntry*  (*insert_entry)(GDataService *self, const gchar *feed_postURL, GDataEntry *entry);
-  GDataEntry*  (*get_entry)   (GDataService *self, const gchar *entry_getURL);
-  GDataEntry*  (*update_entry)(GDataService *self, GDataEntry *entry);
-  GDataEntry*  (*update_entry_with_link)(GDataService *self, GDataEntry *entry, gchar *link);
-  void         (*delete_entry)(GDataService *self, GDataEntry *entry);
+  GDataFeed *  (*get_feed)    (GDataService *self, const gchar *feed_getURL, GError **error);
+  GDataEntry*  (*insert_entry)(GDataService *self, const gchar *feed_postURL, GDataEntry *entry, GError **error);
+  GDataEntry*  (*get_entry)   (GDataService *self, const gchar *entry_getURL, GError **error);
+  GDataEntry*  (*update_entry)(GDataService *self, GDataEntry *entry, GError **error);
+  GDataEntry*  (*update_entry_with_link)(GDataService *self, GDataEntry *entry, const gchar *link, GError **error);
+  gboolean     (*delete_entry)(GDataService *self, GDataEntry *entry, GError **error);
 };
 
 GType gdata_service_get_type(void);
 
 /* Function Prototypes */
+void        gdata_service_set_proxy (GDataService *self, SoupURI *proxy);
 void        gdata_service_set_credentials(GDataService *self, const gchar *username, const gchar *password);
 
-GDataFeed*  gdata_service_get_feed(GDataService *self, const gchar *feed_getURL);
+GDataFeed*  gdata_service_get_feed(GDataService *self, const gchar *feed_getURL, GError **error);
 
-GDataEntry* gdata_service_insert_entry(GDataService *self, const gchar *feed_postURL, GDataEntry *entry);
+GDataEntry* gdata_service_insert_entry(GDataService *self, const gchar *feed_postURL, GDataEntry *entry, GError **error);
 
-GDataEntry* gdata_service_get_entry(GDataService *self, const gchar *entry_getURL);
+GDataEntry* gdata_service_get_entry(GDataService *self, const gchar *entry_getURL, GError **error);
 
-GDataEntry* gdata_service_update_entry(GDataService *self, GDataEntry *entry);
+GDataEntry* gdata_service_update_entry(GDataService *self, GDataEntry *entry, GError **error);
 
-GDataEntry* gdata_service_update_entry_with_link(GDataService *self, GDataEntry *entry, gchar *link);
+GDataEntry* gdata_service_update_entry_with_link(GDataService *self, GDataEntry *entry, gchar *link, GError **error);
 
-void        gdata_service_delete_entry(GDataService *self, GDataEntry *entry);
+gboolean    gdata_service_delete_entry(GDataService *self, GDataEntry *entry, GError **error);
 
 G_END_DECLS
 

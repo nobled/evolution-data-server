@@ -1,3 +1,223 @@
+2008-06-26  Julien Puydt  <jpuydt@gnome.org>
+
+	* libedataserver/e-source-group.c: Added missing g_object_unref on
+	sources, fixing leaks and bug #540152.
+
+2008-06-23  Jeffrey Stedfast  <fejj@novell.com>
+
+	* configure.in: Doltify
+
+2008-06-17  Johnny Jacob  <jjohnny@novell.com>
+
+	* configure.in (eds_micro_version): Bumped to 2.23.5.
+
+	* NEWS: Evolution Data Server 2.23.4 release updates.
+
+2008-06-12  Tor Lillqvist  <tml@novell.com>
+
+	* libedataserver/e-proxy.c: Make it compile on Win32, too.
+
+2008-06-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Allow e-d-s to build with G_DISABLE_SINGLE_INCLUDES
+	   and GTK_DISABLE_SINGLE_INCLUDES defined. (#536636)
+
+2008-06-06  Tor Lillqvist  <tml@novell.com>
+
+	* configure.in: Add a couple of -Wl,--exclude-libs options on
+	Windows to avoid needlessly auto-exporting functions from static
+	libiconv and libdb-4.1 when linked into e-d-s's DLLs.
+
+	* libdb/env/env_open.c [Win32]: #define strcasecmp _stricmp, just
+	for cleanliness.
+
+2008-06-03  Tor Lillqvist  <tml@novell.com>
+
+	Bug 536154 - Camel sends bracketed hostname in SMTP HELO
+
+	* configure.in: Do use the Winsock getaddrinfo() and
+	getnameinfo(). It should be OK to ignore Windows 2000 by now.
+
+2008-06-02  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* NEWS: Evolution Data Server 2.23.3 release and version bump.
+
+2008-06-02  Tor Lillqvist  <tml@novell.com>
+
+	* libedataserver/e-data-server-util.c: Include <mbstring.h> on
+	Windows.
+	(get_prefixes): Drop the Win9x code. The GTK+ stack hasn't
+	supported Win9x for a while, so no point in attempting to do it
+	here either.
+
+2008-05-23  Ed Catmur  <ed@catmur.co.uk>
+
+	** Fix for bug #533780
+
+	* configure.in:
+	* libebackend/Makefile.am: 
+	Fix the link line for libebackend.
+
+2008-05-16  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #532836
+
+	* configure.in:
+	* libedataserver/libedataserver.pc.in:
+	EProxy adds a libsoup dependency to libedataserver.  Add
+	this new requirement to a couple places that were missed.
+
+2008-05-14  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #531713
+
+	* configure.in:
+	Split the evolution-data-server version into major/minor/micro
+	macros (wow, say that five times fast!) so we can pass them to
+	libedataserver/eds-version.c.
+
+	* libedataserver/Makefile.am:
+	* libedataserver/eds-version.c:
+	* libedataserver/eds-version.h:
+	New sources files provide macros and functions for checking the
+	version of evolution-data-server.  Would have been handy to have
+	in a couple recent API breaks.
+
+	* docs/references/libedataserver:
+	Add developer documentation for the new symbols.
+
+2008-05-13  Matthew Barnes  <mbarnes@redhat.com>
+
+	* libebackend/libebackend.pc.in: Fix a typo.
+
+2008-05-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* NEWS, configure.in: Evolution Data Server 2.23.2 release and version
+	bump.
+	* Makefile.am: Build fix for release.
+
+2008-05-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #424744
+
+	* libedataserver/e-iconv.[ch]:
+	Deprecate the e-iconv API.  Use camel-iconv instead.
+
+	* libedataserver/e-trie.[ch]:
+	Deprecate the ETrie API.  Use CamelTrie instead.
+
+	* libedataserver/e-msgport.[ch]:
+	Deprecate the EMsgPort API.  Use CamelMsgPort instead.
+
+2008-05-06  Jeffrey Stedfast  <fejj@novell.com>
+
+	* Reverted commit 8210
+
+2008-05-06  Sankar P  <psankar@novell.com>
+
+	* Revert changes committed by bad git-svn usage.
+
+2008-05-05  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #517244
+
+	* configure.in:
+	Add test for nl_langinfo(CODESET).  Defines HAVE_CODESET.
+
+2008-05-05  Wang Xin  <jedy.wang@sun.com>
+
+	* libedataserver/e-proxy.c: Fixes #530688.
+
+2008-05-04  Matthew Barnes  <mbarnes@redhat.com>
+
+	* configure.in: If --enable-gnome-keyring is given, require version
+	2.20.1 or later to pick up the GNOME_KEYRING_RESULT_NO_MATCH symbol.
+
+2008-04-30  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #316390
+
+	* libedataserver/e-categories.h:
+	(e_categories_register_change_listener),
+	(e_categories_unregister_change_listener):
+	* libedataserver/e-categories.c: (EChangedListener),
+	(idle_saver_cb), (finalize_categories), (initialize_categories),
+	(e_categories_set_color_for), (e_categories_set_icon_file_for),
+	(e_categories_register_change_listener), (e_categories_add),
+	(e_categories_unregister_change_listener), (e_categories_remove):
+	New API to support listening for changes in categories.
+
+2008-04-23  Rob Bradford  <rob@openedhand.com>
+
+	* Makefile.am:
+	* configure.in:
+	* libebackend/Makefile.am:
+	* libebackend/libebackend.pc.in:
+	Build framework for new libebackend library.
+
+	* libedataserver/Makefile.am:
+	Remove files that have moved to libebackend.
+
+	* libedataserver/e-data-server-module.[ch]:
+	* libedataserver/e-db3-utils.[ch]:
+	* libedataserver/e-dbhash.[ch]:
+	* libedataserer/e-file-cache.[ch]:
+	Moved to libebackend.
+
+	* src/Makefile.am:
+	* src/server.c:
+	Use libebackend headers and link to the library.
+
+	* docs/reference/Makefile.am:
+	* docs/reference/libebackend/Makefile.am:
+	* docs/reference/libebackend/libebackend-docs.xml:
+	* docs/reference/libebackend/libebackend-sections.txt:
+	* docs/reference/libebackend/libebackend.types:
+	Add documentation for new libebackend library.
+
+	* docs/reference/libedataserver/libedataserver.types:
+	Remove types that have been moved to libebackend.
+
+	* docs/reference/calendar/libedata-cal/Makefile.am:
+	Add libebackend to the gtk-doc scanner libraries.
+
+2008-04-23  Matthew Barnes  <mbarnes@redhat.com>
+
+	* README: Put it back.  Apparently Automake insists on it.
+
+2008-04-23  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	* configure.in: Version bump to 2.23.1
+
+2008-04-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* NEWS, configure.in: Evolution Data Server 2.23.1 release and version
+	bump.
+
+2008-04-22  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #441497
+
+	* README: File is empty, remove it.
+
+	* Makefile.am: Remove README.
+
+2008-04-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	* docs/reference: Add new symbols to the API docs.
+
+2008-04-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* MAINTAINERS: Updating the Camel guards.
+
+2008-04-17  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #526741
+
+	* src/server.c: (main):
+	* configure.in: Do not require gnome-vfs, use gio/gvfs instead.
+	Bumped LIBCAMEL_CURRENT to 12.
+
 2008-04-15  Milan Crha  <mcrha@redhat.com>
 
 	** Fix for bug #475616

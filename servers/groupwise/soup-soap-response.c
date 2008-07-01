@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- * Copyright (C) 2003, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  */
 
 #include <stdlib.h>
@@ -561,4 +561,20 @@ soup_xml_real_node (xmlNode *node)
 			xmlIsBlankNode (node)))
 		node = node->next;
 	return node;
+}
+
+
+int
+soup_soap_response_dump_response (SoupSoapResponse *response, FILE *buffer)
+{
+	xmlChar *xmlbuff;
+	int buffersize, ret;
+
+	SoupSoapResponsePrivate *priv = SOUP_SOAP_RESPONSE_GET_PRIVATE (response);
+	xmlDocDumpFormatMemory(priv->xmldoc, &xmlbuff, &buffersize, 1);
+	
+	ret = fputs ((char *) xmlbuff, buffer);
+	xmlFree (xmlbuff);
+
+	return ret;
 }

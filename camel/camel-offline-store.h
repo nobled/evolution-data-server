@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *
- *  Copyright 2005 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -49,13 +49,13 @@ enum {
 
 struct _CamelOfflineStore {
 	CamelStore parent_object;
-
+	
 	int state;
 };
 
 struct _CamelOfflineStoreClass {
 	CamelStoreClass parent_class;
-
+	
 	void (* set_network_state) (CamelOfflineStore *store, int state, CamelException *ex);
 };
 

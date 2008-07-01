@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -23,20 +23,7 @@
 
 #include <string.h>
 #include <glib/gi18n-lib.h>
-#include <gtk/gtkbox.h>
-#include <gtk/gtkbutton.h>
-#include <gtk/gtkcellrenderertext.h>
-#include <gtk/gtkcellrenderertoggle.h>
-#include <gtk/gtkcellrendererpixbuf.h>
-#include <gtk/gtkentry.h>
-#include <gtk/gtkfilechooserbutton.h>
-#include <gtk/gtkliststore.h>
-#include <gtk/gtkmain.h>
-#include <gtk/gtkmessagedialog.h>
-#include <gtk/gtktable.h>
-#include <gtk/gtkstock.h>
-#include <gtk/gtktreeselection.h>
-#include <gtk/gtktreeview.h>
+#include <gtk/gtk.h>
 #include <glade/glade-xml.h>
 #include "libedataserver/e-categories.h"
 #include "libedataserver/libedataserver-private.h"

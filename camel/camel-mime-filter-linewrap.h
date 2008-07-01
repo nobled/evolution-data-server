@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
@@ -35,7 +35,7 @@ typedef struct _CamelMimeFilterLinewrapClass CamelMimeFilterLinewrapClass;
 
 struct _CamelMimeFilterLinewrap {
 	CamelMimeFilter parent;
-
+	
 	guint wrap_len;
 	guint max_len;
 	char indent;

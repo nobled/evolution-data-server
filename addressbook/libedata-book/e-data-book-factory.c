@@ -4,7 +4,7 @@
  * Author:
  *   Nat Friedman (nat@ximian.com)
  *
- * Copyright 2000, Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  */
 
 #ifdef HAVE_CONFIG_H
@@ -16,7 +16,7 @@
 #include <bonobo-activation/bonobo-activation.h>
 #include <bonobo/bonobo-main.h>
 #include <bonobo/bonobo-arg.h>
-#include "libedataserver/e-data-server-module.h"
+#include "libebackend/e-data-server-module.h"
 #include "e-data-book-factory.h"
 
 #include <backends/groupwise/e-book-backend-groupwise.h>

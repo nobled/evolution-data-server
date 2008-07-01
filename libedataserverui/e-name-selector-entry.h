@@ -2,7 +2,7 @@
 
 /* e-name-selector-entry.c - Single-line text entry widget for EDestinations.
  *
- * Copyright (C) 2004 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -24,7 +24,7 @@
 #ifndef E_NAME_SELECTOR_ENTRY_H
 #define E_NAME_SELECTOR_ENTRY_H
 
-#include <gtk/gtkentry.h>
+#include <gtk/gtk.h>
 #include <libebook/e-contact.h>
 #include <libedataserverui/e-contact-store.h>
 #include <libedataserverui/e-destination-store.h>

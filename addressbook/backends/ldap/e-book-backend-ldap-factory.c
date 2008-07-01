@@ -2,7 +2,7 @@
 
 /* e-book-backend-file-factory.c - LDAP contact backend factory.
  *
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -25,7 +25,7 @@
 #include <config.h>
 #endif
 
-#include "libedataserver/e-data-server-module.h"
+#include "libebackend/e-data-server-module.h"
 #include "libedata-book/e-book-backend-factory.h"
 #include "e-book-backend-ldap.h"
 

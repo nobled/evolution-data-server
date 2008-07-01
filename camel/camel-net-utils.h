@@ -1,12 +1,12 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
- *
+ * 
  * Authors: Michael Zucchi <notzed@ximian.com>
  * 	    Jeffrey Stedfast <fejj@ximian.com>
  *
- * Copyright (C) 2004 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU Lesser General Public
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of version 2 of the GNU Lesser General Public 
  * License as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
@@ -29,7 +29,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #else
+#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
+#undef WIN32_LEAN_AND_MEAN
 #include <ws2tcpip.h>
 #endif
 

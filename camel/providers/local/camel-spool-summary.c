@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8; fill-column: 160 -*-
  *
- *  Copyright (C) 2001 Ximian Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -60,7 +60,7 @@ CamelType
 camel_spool_summary_get_type(void)
 {
 	static CamelType type = CAMEL_INVALID_TYPE;
-
+	
 	if (type == CAMEL_INVALID_TYPE) {
 		type = camel_type_register(camel_mbox_summary_get_type(), "CamelSpoolSummary",
 					   sizeof (CamelSpoolSummary),
@@ -70,7 +70,7 @@ camel_spool_summary_get_type(void)
 					   (CamelObjectInitFunc) camel_spool_summary_init,
 					   (CamelObjectFinalizeFunc) camel_spool_summary_finalise);
 	}
-
+	
 	return type;
 }
 
@@ -92,7 +92,7 @@ static void
 camel_spool_summary_init(CamelSpoolSummary *obj)
 {
 	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
-
+	
 	/* message info size is from mbox parent */
 
 	/* and a unique file version */
@@ -236,7 +236,7 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 		if (size == -1) {
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 					      _("Could not sync spool folder %s: %s\n"
-						"Folder may be corrupt, copy saved in `%s'"),
+						"Folder may be corrupt, copy saved in '%s'"),
 					      ((CamelLocalSummary *)cls)->folder_path,
 					      g_strerror (errno), tmpname);
 			/* so we dont delete it */
@@ -253,7 +253,7 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 	if (ftruncate(fd, outlen) == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Could not sync spool folder %s: %s\n"
-					"Folder may be corrupt, copy saved in `%s'"),
+					"Folder may be corrupt, copy saved in '%s'"),
 				      ((CamelLocalSummary *)cls)->folder_path,
 				      g_strerror (errno), tmpname);
 		tmpname[0] = '\0';
@@ -264,7 +264,7 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 		g_warning("Cannot close source folder: %s", strerror (errno));
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Could not sync spool folder %s: %s\n"
-					"Folder may be corrupt, copy saved in `%s'"),
+					"Folder may be corrupt, copy saved in '%s'"),
 				      ((CamelLocalSummary *)cls)->folder_path,
 				      g_strerror (errno), tmpname);
 		tmpname[0] = '\0';
@@ -278,15 +278,15 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 		unlink(tmpname);
 
 	camel_operation_end(NULL);
-
+		
 	return 0;
  error:
 	if (fd != -1)
 		close(fd);
-
+	
 	if (fdout != -1)
 		close(fdout);
-
+	
 	if (tmpname[0] != '\0')
 		unlink(tmpname);
 
@@ -320,7 +320,7 @@ spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, C
 		d(printf("Have to add new headers, re-syncing from the start to accomplish this\n"));
 		if (((CamelMboxSummaryClass *)((CamelObject *)cls)->klass)->sync_full((CamelMboxSummary *)cls, FALSE, changeinfo, ex) == -1)
 			return -1;
-
+		
 		if (stat(cls->folder_path, &st) == -1) {
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 					      _("Unknown error: %s"),

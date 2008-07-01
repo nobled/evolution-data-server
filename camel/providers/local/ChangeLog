@@ -1,3 +1,23 @@
+2008-05-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #318803 (Patch by Ilkka Tuohela)
+
+	* camel-maildir-store.c: (scan_dirs):
+	Do not show ".#evolution" directory in the UI.
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #531591
+
+	* camel-spool-summary.c:
+	* camel-local-provider.c:
+	* camel-local-store.c:
+	* camel-spool-store.c:
+	* camel-mh-store.c:
+	* camel-mbox-store.c:
+	* camel-maildir-store.c:
+	Don't use TeX-style quotes in user-visible messages.
+
 2008-04-04  Milan Crha  <mcrha@redhat.com>
 
 	** Fix for bug #522433

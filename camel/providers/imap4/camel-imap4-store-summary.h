@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*  Camel
- *  Copyright (C) 1999-2007 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *
@@ -52,12 +52,12 @@ struct _CamelIMAP4StoreInfo {
 
 struct _CamelIMAP4StoreSummary {
 	CamelStoreSummary summary;
-
+	
 	struct _CamelIMAP4StoreSummaryPrivate *priv;
-
+	
 	/* header info */
 	guint32 version;
-
+	
 	CamelIMAP4NamespaceList *namespaces;
 	guint32 capa;
 };

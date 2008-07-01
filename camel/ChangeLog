@@ -1,3 +1,233 @@
+2008-06-25  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-mime-utils.c (camel_header_decode_date): Don't crash if
+	the str argument is NULL.
+
+	* camel-folder-summary.c (message_info_new_from_header): Don't
+	allow ourselves to pass NULL as the str argument to
+	camel_header_decode_date().
+
+2008-06-21  Jeffrey Stedfast  <fejj@novell.com>
+
+	* broken-date-parser.[c,h]: Removed, more-or-less moved into
+	camel-mime-utils.c (this code was basically the same as the GMime
+	date parser code except that it might not have been as
+	up-to-date).
+
+	* camel-mime-utils.c (camel_header_decode_date): Copy/pasted
+	GMime's decode_date() code to replace really nasty code.
+
+2008-06-20  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-mime-filter-progress.[c,h]: New progress-reporting stream
+	filter.
+
+	* camel-mime-utils.c: Get rid of the CLEAN_DATE #define
+	usage... we can never trust that dates are always properly
+	formatted.
+
+2008-06-18  Priit Laes  <plaes@plaes.org>
+
+	** Fix a regression introduced with bug #534080
+
+	* camel-stream-vfs.c: (stream_write):
+	Return correct bytes_written on success and -1 on error.
+
+2008-06-18  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #340838
+
+	* camel-http-stream.c: (http_method_invoke):
+	Use the whole URL even when not the proxy set, because the URL can
+	contain parameters, which are not part of the path.
+
+2008-06-18  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #334160
+
+	* camel-data-cache.c: (struct _CamelDataCachePrivate),
+	(data_cache_path):
+	Changed the way when test the expiration of the cache.
+
+2008-06-13  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #534080
+
+	* camel-stream-vfs.c: (stream_write):
+	Use g_output_stream_write_all instead of g_output_stream_write.
+
+2008-06-13  Tor Lillqvist  <tml@novell.com>
+
+	* camel-msgport.c: Make it compile on Win32.
+
+2008-06-06  Tor Lillqvist  <tml@novell.com>
+
+	* camel-private.h
+	* camel-win32.c: Drop the Win32 fsync() implementation. Instead
+	just use _commit() in the Microsoft C library which does the same.
+
+	* Makefile.am: Link libcamel with ICONV_LIBS.
+
+2008-05-29  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #534312
+
+	* camel-folder-summary.h: (enum CamelMessageFlags):
+	Added new message flag CAMEL_MESSAGE_FORWARDED.
+
+2008-05-22  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-mime-utils.c (camel_header_param_list_format_append): Work
+	around the broken "Jive Forums" NNTP gateway. Fixes bug #518312.
+
+2008-05-27  Hiroyuki Ikezoe  <poincare@ikezoe.net>
+
+	** Fixes bug #534294.
+
+	* camel-folder-search.[ch]: Added accessor to _camel_header_param.
+	* camel-filter-search.c: Use camel_message_info_headers() instead of
+	direct access (i.e. ->headers) since the message does not have
+	headers' pointer if the message is in vitrual folder.
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #531591
+
+	* camel-disco-diary.c:
+	* camel-disco-folder.c:
+	* camel-disco-store.c:
+	* camel-folder-summary.c:
+	* camel-folder.c:
+	* camel-gpg-context.c:
+	* camel-object.c:
+	* camel-offline-journal.c:
+	* camel-provider.c:
+	* camel-sasl-kerberos4.c:
+	* camel-service.c:
+	* camel-session.c:
+	* camel-smime-context.c:
+	* camel-store.c:
+	* camel-url.c:
+	* camel-vee-folder.c:
+	Don't use TeX-style quotes in user-visible messages.
+
+2008-05-13  Tor Lillqvist  <tml@novell.com>
+
+	* camel-net-utils.h [Win32]: Define WIN32_LEAN_AND_MEAN around
+	including <winsock2.h> to reduce the namespace pollution,
+	especially DATADIR clashes.
+
+2008-05-07  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-uid-cache.c (camel_uid_cache_save): Check cache->fd after
+	we finish looping thru all of our uids; if cache->fd is -1, then
+	it means we failed somewhere along the lines and need to goto
+	exception.
+
+2008-05-07  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-operation.c (camel_operation_unref):
+	A typo broke the mailer.  Use camel_msgport_try_pop() (non-blocking)
+	instead of camel_msgport_pop() (blocking).
+
+2008-05-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #424744
+
+	* Makefile.am:
+	* camel-iconv.[ch]:
+	* camel-msgport.[ch]:
+	* camel-trie.[ch]:
+	Add camel-iconv.[ch], camel-msgport.[ch], camel-trie.[ch].
+	Essentially they're just renamed versions of equivalent but now
+	deprecated API in libedataserver.
+
+	* camel.h:
+	#include <camel/camel-msgport.h>
+	#include <camel/camel-trie.h>
+
+	* camel-charset-map.c:
+	* camel-filter-search.c:
+	* camel-mime-utils.c:
+	* camel-mime-part.c:
+	* camel-sasl-digest-md5.c:
+	* camel-mime-message.c:
+	* camel-gpg-context.c:
+	* camel-mime-filter-charset.c:
+	* camel-folder-summary.c:
+	Use camel-iconv.h instead of e-iconv.h.
+
+	* camel-net-utils.c:
+	* camel-operation.c:
+	* camel-session.h:
+	Use camel-msgport.h instead of e-msgport.h.
+
+	* camel-url-scanner.c:
+	Use camel-trie.h instead of e-trie.h.
+
+2008-05-06  Sankar P  <psankar@novell.com>
+
+	* Bad git-svn usage. Reverted.
+
+2008-05-01  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-folder-summary.c: Don't limit references while loading the
+	summary, etc to 500 entries - especially since we don't force the
+	limit when outputting the summary. Fixes bug #347061.
+
+2008-04-30  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-session.c:
+	* camel-session.h:
+	Replace assertions with g_return_val_if_fail().
+	Clean up coding style in the threading functions.
+
+2008-04-27  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #530139
+
+	* tests/Makefile.am: Do not ship .svn files.
+
+2008-04-22  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #529339
+
+	* camel-folder-summary.c: (camel_system_flag):
+	Do not access NULL pointer, aka recognize sentinel properly.
+
+2008-04-18  Sankar P  <psankar@novell.com>
+
+	* camel-mime-filter-pgp.c: (filter_run):
+	Fix a build break. Use different variable names 
+	for different purposes.
+
+2008-04-17  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-mime-filter-pgp.c (filter_run): Properly handle CRLF
+	line-endings and fixed the logic so that we could never read
+	beyond the end of the buffer. Also fixed the "blank line end of
+	headers" case which only allowed a single whitespace character.
+
+2008-04-17  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #526741
+
+	* camel-stream-vfs.h:
+	* camel-stream-vfs.c: Do not depend on gnomve-vfs, but use gio/gvfs
+	instead. Dropped camel_stream_vfs_new_with_handle, new function for
+	this is camel_stream_vfs_new_with_stream, also prototype for
+	camel_stream_vfs_new_with_uri has been changed. 
+	CamelStreamVFS is not seekable anymore.
+
+2008-04-16  Christian Kellner  <gicmo@gnome.org>
+
+	** Fixes bug #514300
+
+	* providers/imap/camel-imap-store.c:
+	Make sure we do the Inbox -> INBOX translation at the right place,
+	i.e. *after* we asked the camel_store_summary_path with the correct
+	folder_name that we got from the server.
+
 2008-04-14  Milan Crha  <mcrha@redhat.com>
 
 	** Part of fix for bug #270406

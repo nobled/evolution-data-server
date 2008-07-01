@@ -5,7 +5,7 @@
  *  Rodrigo Moya <rodrigo@ximian.com>
  *  Harish Krishnaswamy <kharish@novell.com>
  *
- * Copyright 2003, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -33,8 +33,6 @@
 #include <unistd.h>
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
-#include <libgnomevfs/gnome-vfs-uri.h>
-#include <libgnomevfs/gnome-vfs.h>
 #include "libedataserver/e-xml-hash-utils.h"
 #include "libedataserver/e-url.h"
 #include <libedata-cal/e-cal-backend-cache.h>
@@ -114,7 +112,7 @@ static ECalBackendClass *parent_class = NULL;
 #define CURSOR_ITEM_LIMIT 100
 #define CURSOR_ICALID_LIMIT 500
 
-static guint get_cache_refresh_interval (void);
+static guint get_cache_refresh_interval (ECalBackendGroupwise *cbgw);
 
 EGwConnection *
 e_cal_backend_groupwise_get_connection (ECalBackendGroupwise *cbgw) {
@@ -299,7 +297,7 @@ populate_cache (ECalBackendGroupwise *cbgw)
 		e_gw_connection_destroy_cursor (priv->cnc, priv->container_id, cursor);
 		g_object_unref (filter[i]);
 	}
-	e_cal_backend_notify_view_done (E_CAL_BACKEND (cbgw), GNOME_Evolution_Calendar_Success);
+	e_cal_backend_notify_view_progress (E_CAL_BACKEND (cbgw), "", 100);
 
 	g_mutex_unlock (mutex);
 	return E_GW_CONNECTION_STATUS_OK;
@@ -456,7 +454,7 @@ get_deltas (gpointer handle)
 	current_time = icaltime_as_timet_with_zone (temp, icaltimezone_get_utc_timezone ());
 	gmtime_r (&current_time, &tm);
 
-	time_interval = get_cache_refresh_interval () / 60000;
+	time_interval = get_cache_refresh_interval (cbgw) / 60000;
 	
 	if (attempts) {
 		tm.tm_min += (time_interval * g_ascii_strtod (attempts, NULL));
@@ -652,17 +650,28 @@ get_deltas (gpointer handle)
 }
 
 static guint
-get_cache_refresh_interval (void)
+get_cache_refresh_interval (ECalBackendGroupwise *cbgw)
 {
 	guint time_interval;
 	const char *time_interval_string = NULL;
+	char *temp = NULL;
+	ECalBackend *backend = E_CAL_BACKEND (cbgw);
+	ESource *source;
 	
 	time_interval = CACHE_REFRESH_INTERVAL;
+	source = e_cal_backend_get_source (backend);
+	
 	time_interval_string = g_getenv ("GETQM_TIME_INTERVAL");
+	
+	if (!time_interval_string)
+		time_interval_string = temp = e_source_get_duped_property (source, "refresh");
+
 	if (time_interval_string) {
 		time_interval = g_ascii_strtod (time_interval_string, NULL);
 		time_interval *= (60*1000);
 	}
+
+	g_free (temp);
 		
 	return time_interval;
 }
@@ -686,7 +695,7 @@ delta_thread (gpointer data)
 			break;
 
 		g_get_current_time (&timeout);
-		g_time_val_add (&timeout, get_cache_refresh_interval () * 1000);
+		g_time_val_add (&timeout, get_cache_refresh_interval (cbgw) * 1000);
 		g_cond_timed_wait (priv->dlock->cond, priv->dlock->mutex, &timeout);
 		
 		if (priv->dlock->exit) 
@@ -838,7 +847,7 @@ cache_init (ECalBackendGroupwise *cbgw)
 			int time_interval;
 			char *utc_str;
 
-			time_interval = get_cache_refresh_interval ();
+			time_interval = get_cache_refresh_interval (cbgw);
 			utc_str = (char *) e_gw_connection_get_server_time (priv->cnc);
 			e_cal_backend_cache_set_marker (priv->cache);
 			e_cal_backend_cache_put_server_utc_time (priv->cache, utc_str);
@@ -1367,6 +1376,9 @@ e_cal_backend_groupwise_open (ECalBackendSync *backend, EDataCal *cal, gboolean 
 				     mangled_uri,
 				     NULL);
 	g_free (mangled_uri);
+	if (priv->local_attachments_store)
+		g_free (priv->local_attachments_store);
+
 	priv->local_attachments_store =
 		g_filename_to_uri (filename, NULL, NULL);
 	g_free (filename);
@@ -1788,7 +1800,7 @@ e_cal_backend_groupwise_compute_changes (ECalBackendGroupwise *cbgw, const char 
 	cache = cbgw->priv->cache;
 
 	/* FIXME Will this always work? */
-	unescaped_uri = gnome_vfs_unescape_string (cbgw->priv->uri, "");
+	unescaped_uri = g_uri_unescape_string (cbgw->priv->uri, "");
 	filename = g_strdup_printf ("%s-%s.db", unescaped_uri, change_id);
 	ehash = e_xmlhash_new (filename);
 	g_free (filename);

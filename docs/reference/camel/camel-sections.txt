@@ -292,6 +292,7 @@ camel_filter_driver_filter_mbox
 camel_filter_driver_filter_folder
 camel_filter_driver_expand_option
 camel_filter_driver_rule_count
+camel_filter_driver_rule_get
 <SUBSECTION Standard>
 CAMEL_FILTER_DRIVER
 CAMEL_IS_FILTER_DRIVER
@@ -307,6 +308,7 @@ camel_filter_driver_get_type
 <TITLE>CamelFolder</TITLE>
 CamelFolder
 CamelFolderChangeInfo
+CamelFolderQuotaInfo
 CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY
 CAMEL_FOLDER_HAS_SEARCH_CAPABILITY
 CAMEL_FOLDER_FILTER_RECENT
@@ -352,6 +354,10 @@ camel_folder_rename
 camel_folder_freeze
 camel_folder_thaw
 camel_folder_is_frozen
+camel_folder_get_quota_info
+camel_folder_quota_info_new
+camel_folder_quota_info_clone
+camel_folder_quota_info_free
 camel_folder_free_nop
 camel_folder_free_shallow
 camel_folder_free_deep
@@ -482,6 +488,7 @@ camel_message_info_message_id
 camel_message_info_references
 camel_message_info_user_flags
 camel_message_info_user_tags
+camel_message_info_headers
 camel_message_info_user_flag
 camel_message_info_user_tag
 camel_message_info_set_flags
@@ -956,6 +963,20 @@ camel_mime_filter_get_type
 </SECTION>
 
 <SECTION>
+<FILE>camel-mime-filter-progress</FILE>
+<TITLE>CamelMimeFilterProgress</TITLE>
+CamelMimeFilterProgress
+camel_mime_filter_progress_new
+<SUBSECTION Standard>
+CAMEL_MIME_FILTER_PROGRESS
+CAMEL_MIME_FILTER_PROGRESS_CLASS
+CAMEL_IS_MIME_FILTER_PROGRESS
+CamelMimeFilterProgressClass
+<SUBSECTION Private>
+camel_mime_filter_progress_get_type
+</SECTION>
+
+<SECTION>
 <FILE>camel-mime-message</FILE>
 <TITLE>CamelMimeMessage</TITLE>
 CamelMimeMessage
@@ -1074,6 +1095,21 @@ CAMEL_MIME_PART_CLASS
 CamelMimePartClass
 <SUBSECTION Private>
 camel_mime_part_get_type
+</SECTION>
+
+<SECTION>
+<FILE>camel-msgport</FILE>
+<TITLE>CamelMsgPort</TITLE>
+CamelMsg
+CamelMsgPort
+camel_msgport_new
+camel_msgport_destroy
+camel_msgport_fd
+camel_msgport_push
+camel_msgport_pop
+camel_msgport_try_pop
+camel_msgport_reply
+camel_msgport_prfd
 </SECTION>
 
 <SECTION>
@@ -1840,8 +1876,10 @@ camel_stream_process_get_type
 <FILE>camel-stream-vfs</FILE>
 <TITLE>CamelStreamVFS</TITLE>
 CamelStreamVFS
+CamelStreamVFSOpenMethod
 camel_stream_vfs_new_with_uri
-camel_stream_vfs_new_with_handle
+camel_stream_vfs_new_with_stream
+camel_stream_vfs_is_writable
 <SUBSECTION Standard>
 CAMEL_STREAM_VFS_TYPE
 CAMEL_STREAM_VFS
@@ -1955,6 +1993,15 @@ CAMEL_TRANSPORT_CLASS
 CamelTransportClass
 <SUBSECTION Private>
 camel_transport_get_type
+</SECTION>
+
+<SECTION>
+<FILE>camel-trie</FILE>
+CamelTrie
+camel_trie_new
+camel_trie_free
+camel_trie_add
+camel_trie_search
 </SECTION>
 
 <SECTION>
@@ -2230,6 +2277,7 @@ IMAP_CAPABILITY_utf8_search
 IMAP_CAPABILITY_XGWEXTENSIONS
 IMAP_CAPABILITY_XGWMOVE
 IMAP_CAPABILITY_LOGINDISABLED
+IMAP_CAPABILITY_QUOTA
 IMAP_PARAM_OVERRIDE_NAMESPACE
 IMAP_PARAM_CHECK_ALL
 IMAP_PARAM_FILTER_INBOX
@@ -2419,6 +2467,7 @@ CamelIMAP4NamespaceList
 CamelIMAP4ReconnectFunc
 camel_imap4_engine_new
 camel_imap4_engine_take_stream
+camel_imap4_engine_disconnect
 camel_imap4_engine_capability
 camel_imap4_engine_namespace
 camel_imap4_engine_select_folder
@@ -3730,6 +3779,8 @@ NI_DGRAM
 camel_getaddrinfo
 camel_freeaddrinfo
 camel_getnameinfo
+<SUBSECTION Private>
+WIN32_LEAN_AND_MEAN
 </SECTION>
 
 <SECTION>
@@ -3811,6 +3862,7 @@ CamelIMAP4Command
 CamelIMAP4Literal
 CamelIMAP4PlusCallback
 CamelIMAP4UntaggedCallback
+CamelIMAP4CommandReset
 CamelIMAP4CommandPart
 camel_imap4_command_new
 camel_imap4_command_newv
@@ -3838,6 +3890,7 @@ flags_diff_t
 camel_imap4_flags_diff
 camel_imap4_flags_merge
 camel_imap4_merge_flags
+camel_imap4_build_folder_info_tree
 camel_imap4_namespace_clear
 camel_imap4_namespace_list_copy
 camel_imap4_namespace_list_free

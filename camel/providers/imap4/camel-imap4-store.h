@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*  Camel
- *  Copyright (C) 1999-2007 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *
@@ -41,7 +41,7 @@ struct _CamelIMAP4Engine;
 
 struct _CamelIMAP4Store {
 	CamelOfflineStore parent_object;
-
+	
 	struct _CamelIMAP4StoreSummary *summary;
 	struct _CamelIMAP4Engine *engine;
 	char *storage_path;
@@ -49,7 +49,7 @@ struct _CamelIMAP4Store {
 
 struct _CamelIMAP4StoreClass {
 	CamelOfflineStoreClass parent_class;
-
+	
 };
 
 

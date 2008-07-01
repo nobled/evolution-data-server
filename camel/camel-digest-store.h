@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -37,12 +37,12 @@ typedef struct _CamelDigestStoreClass CamelDigestStoreClass;
 
 struct _CamelDigestStore {
 	CamelStore parent;
-
+	
 };
 
 struct _CamelDigestStoreClass {
 	CamelStoreClass parent_class;
-
+	
 };
 
 CamelType camel_digest_store_get_type (void);

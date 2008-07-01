@@ -3,7 +3,7 @@
  * Authors :
  *  Ebby Wiselyn <ebbywiselyn@gmail.com>
  *  Jason Willis <zenbrother@gmail.com>
- * Copyright 2007, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -67,5 +67,7 @@ GDataFeed * gdata_feed_new(void);
 GDataFeed * gdata_feed_new_from_xml(const gchar *feedXML, const gint length);
 
 gchar * gdata_feed_generate_xml(GDataFeed *feed);
+
+gchar * gdata_feed_get_updated (GDataFeed *feed);
 
 GSList * gdata_feed_get_entries (GDataFeed *feed);

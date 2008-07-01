@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001 Ximian Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -93,9 +93,9 @@ struct _CamelPOP3Command {
 
 struct _CamelPOP3Engine {
 	CamelObject parent;
-
+	
 	guint32 flags;
-
+	
 	camel_pop3_engine_t state;
 
 	GList *auth;		/* authtypes supported */

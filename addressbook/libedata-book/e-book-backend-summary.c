@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
  * pas-backend-summary.c
- * Copyright 2000, 2001, Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors:
  *   Chris Toshok <toshok@ximian.com>
@@ -770,6 +770,10 @@ e_book_backend_summary_add_contact (EBookBackendSummary *summary, EContact *cont
 		g_warning ("found a contact with NULL uid");
 		return;
 	}
+
+	/* Ensure the duplicate contacts are not added */
+	if (e_book_backend_summary_check_contact (summary, id))
+		e_book_backend_summary_remove_contact (summary, id);
 
 	new_item = g_new0 (EBookBackendSummaryItem, 1);
 

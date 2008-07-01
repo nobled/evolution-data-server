@@ -1,11 +1,11 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
- *
+ * 
  * Authors: Michael Zucchi <notzed@ximian.com>
  *
- * Copyright (C) 2000 Ximian (www.ximian.com).
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU Lesser General Public
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of version 2 of the GNU Lesser General Public 
  * License as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@ static CamelProviderConfEntry mh_conf_entries[] = {
 	CAMEL_PROVIDER_CONF_DEFAULT_PATH,
 	{ CAMEL_PROVIDER_CONF_SECTION_START, "general", NULL, N_("Options") },
 	{ CAMEL_PROVIDER_CONF_CHECKBOX, "dotfolders", NULL,
-	  N_("_Use the `.folders' folder summary file (exmh)"), "0" },
+	  N_("_Use the '.folders' folder summary file (exmh)"), "0" },
 	{ CAMEL_PROVIDER_CONF_SECTION_END },
 	{ CAMEL_PROVIDER_CONF_END }
 };
@@ -167,9 +167,9 @@ local_url_hash (const void *v)
 {
 	const CamelURL *u = v;
 	guint hash = 0;
-
+	
 #define ADD_HASH(s) if (s) hash ^= g_str_hash (s);
-
+	
 	ADD_HASH (u->protocol);
 	ADD_HASH (u->user);
 	ADD_HASH (u->authmech);
@@ -179,7 +179,7 @@ local_url_hash (const void *v)
 	ADD_HASH (u->path);
 	ADD_HASH (u->query);
 	hash ^= u->port;
-
+	
 	return hash;
 }
 
@@ -192,7 +192,7 @@ check_equal (char *s1, char *s2)
 		else
 			return FALSE;
 	}
-
+	
 	if (s2 == NULL)
 		return FALSE;
 

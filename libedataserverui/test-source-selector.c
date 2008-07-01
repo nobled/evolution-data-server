@@ -2,7 +2,7 @@
 /* test-source-list-selector.c - Test program for the ESourceListSelector
  * widget.
  *
- * Copyright (C) 2002 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -27,11 +27,7 @@
 
 #include "e-source-selector.h"
 
-#include <gtk/gtkmain.h>
-#include <gtk/gtkcheckbutton.h>
-#include <gtk/gtkvbox.h>
-#include <gtk/gtkscrolledwindow.h>
-#include <gtk/gtkwindow.h>
+#include <gtk/gtk.h>
 
 static void
 dump_selection (ESourceSelector *selector)

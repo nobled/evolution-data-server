@@ -3,7 +3,7 @@
  * Author:
  *   Chris Toshok (toshok@ximian.com)
  *
- * Copyright (C) 2003, Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  */
 
 #ifdef CONFIG_H
@@ -544,9 +544,9 @@ e_cal_backend_sync_set_default_zone (ECalBackendSync *backend, EDataCal *cal, co
 			tzid = icaltimezone_get_tzid (zone);
 		}
 
-		icaltimezone_free (zone, 1);
-
  		LOCK_WRAPPER (set_default_timezone_sync, (backend, cal, tzid));
+
+		icaltimezone_free (zone, 1);
 
 		return status;
 	}

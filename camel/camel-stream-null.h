@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -35,7 +35,7 @@ typedef struct _CamelStreamNullClass CamelStreamNullClass;
 
 struct _CamelStreamNull {
 	CamelStream parent;
-
+	
 	size_t written;
 };
 
@@ -43,9 +43,9 @@ struct _CamelStreamNullClass {
 	CamelStreamClass parent_class;
 };
 
-CamelType			camel_stream_null_get_type	(void);
+CamelType camel_stream_null_get_type (void);
 
-CamelStream            *camel_stream_null_new		(void);
+CamelStream *camel_stream_null_new (void);
 
 G_END_DECLS
 

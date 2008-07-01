@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*  Camel
- *  Copyright (C) 1999-2007 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *           Michael Zucchi <notzed@novell.com>
@@ -43,14 +43,14 @@ struct _CamelIMAP4Engine;
 
 struct _CamelIMAP4Search {
 	CamelFolderSearch parent_object;
-
+	
 	struct _CamelIMAP4Engine *engine;
-
+	
 	guint32 lastuid;	/* current 'last uid' for the folder */
 	guint32 validity;	/* validity of the current folder */
-
+	
 	CamelDataCache *cache;	/* disk-cache for searches */
-
+	
 	/* cache of body search matches */
 	EDList matches;
 	GHashTable *matches_hash;
@@ -59,7 +59,7 @@ struct _CamelIMAP4Search {
 
 struct _CamelIMAP4SearchClass {
 	CamelFolderSearchClass parent_class;
-
+	
 };
 
 

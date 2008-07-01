@@ -1,7 +1,6 @@
 /* Evolution calendar client - test program
  *
- * Copyright (C) 2000 Ximian, Inc.
- * Copyright (C) 2000 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -137,8 +136,6 @@ client_destroy_cb (gpointer data, GObject *object)
 		client1 = NULL;
 	else if (E_CAL (object) == client2)
 		client2 = NULL;
-	else
-		g_assert_not_reached ();
 
 	if (!client1 && !client2)
 		g_main_loop_quit (loop);

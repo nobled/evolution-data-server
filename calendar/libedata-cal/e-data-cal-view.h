@@ -1,6 +1,6 @@
 /* Evolution calendar - Live search query implementation
  *
- * Copyright (C) 2001 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Author: Federico Mena-Quintero <federico@ximian.com>
  *
@@ -49,6 +49,9 @@ struct _EDataCalViewClass {
 	BonoboObjectClass parent_class;
 
 	POA_GNOME_Evolution_Calendar_CalView__epv epv;
+
+	/* Notification signals */
+	void (* last_listener_gone) (EDataCalView *query);
 };
 
 GType                 e_data_cal_view_get_type (void);

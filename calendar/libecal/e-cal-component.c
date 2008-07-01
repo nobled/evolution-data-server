@@ -1,7 +1,6 @@
 /* Evolution calendar - iCalendar component object
  *
- * Copyright (C) 2000 Ximian, Inc.
- * Copyright (C) 2000 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Author: Federico Mena-Quintero <federico@ximian.com>
  *
@@ -307,8 +306,15 @@ free_icalcomponent (ECalComponent *comp, gboolean free)
 
 	priv->status = NULL;
 
-	for (l = priv->attachment_list; l != NULL; l = l->next)
-		g_free (l->data);
+	for (l = priv->attachment_list; l != NULL; l = l->next) {
+		struct attachment *attachment;
+
+		attachment = l->data;
+
+		icalattach_unref (attachment->attach);
+		g_free (attachment);
+	}
+
 	g_slist_free (priv->attachment_list);
 	priv->attachment_list = NULL;
 
@@ -532,6 +538,7 @@ scan_attachment (GSList **attachment_list, icalproperty *prop)
 	attachment->prop = prop;
 
 	attachment->attach = icalproperty_get_attach (prop);
+	icalattach_ref (attachment->attach);
 
 	*attachment_list = g_slist_append (*attachment_list, attachment);
 }
@@ -1546,6 +1553,7 @@ set_attachment_list (icalcomponent *icalcomp,
 
 			icalcomponent_remove_property (icalcomp, attachment->prop);
 			icalproperty_free (attachment->prop);
+			icalattach_unref (attachment->attach);
 			g_free (attachment);
 		}
 

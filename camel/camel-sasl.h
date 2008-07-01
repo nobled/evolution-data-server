@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -37,7 +37,7 @@ G_BEGIN_DECLS
 
 typedef struct _CamelSasl {
 	CamelObject parent_object;
-
+	
 	char *service_name;
 	char *mech;		/* mechanism */
 	CamelService *service;
@@ -47,7 +47,7 @@ typedef struct _CamelSasl {
 
 typedef struct _CamelSaslClass {
 	CamelObjectClass parent_class;
-
+	
 	GByteArray *    (*challenge)   (CamelSasl *sasl, GByteArray *token, CamelException *ex);
 
 } CamelSaslClass;

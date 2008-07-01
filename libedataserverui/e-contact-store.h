@@ -2,7 +2,7 @@
 
 /* e-contact-store.h - Contacts store with GtkTreeModel interface.
  *
- * Copyright (C) 2004 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -23,7 +23,7 @@
 #ifndef E_CONTACT_STORE_H
 #define E_CONTACT_STORE_H
 
-#include <gtk/gtktreemodel.h>
+#include <gtk/gtk.h>
 #include <libebook/e-contact.h>
 #include <libebook/e-book.h>
 #include <libebook/e-book-query.h>

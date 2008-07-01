@@ -1,9 +1,9 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
  * Authors :
- *  Ebby Wiselyn <ebbywiselyn@gmail.com>
+ *  Ebby Wiselyn <ebbyw@gnome.org>
  *
- * Copyright 2007, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -38,8 +38,6 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gprintf.h>
-
-#include <libgnomevfs/gnome-vfs.h>
 
 #include <libedataserver/e-data-server-util.h>
 #include <libedataserver/e-xml-hash-utils.h>
@@ -204,7 +202,7 @@ e_cal_backend_google_utils_update (gpointer handle)
 	service = e_cal_backend_google_get_service (cbgo);
 	uri = e_cal_backend_google_get_uri (cbgo);
 
-	item->feed = gdata_service_get_feed (GDATA_SERVICE(service), uri);
+	item->feed = gdata_service_get_feed (GDATA_SERVICE(service), uri, NULL);
 	entries_list = gdata_feed_get_entries (item->feed);
 	cache_keys = e_cal_backend_cache_get_keys (cache);
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgo));
@@ -303,7 +301,7 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 	username = e_cal_backend_google_get_username (cbgo);
 	password = e_cal_backend_google_get_password (cbgo);
 	gdata_service_set_credentials (GDATA_SERVICE(service), username, password);
-	feed = gdata_service_get_feed (GDATA_SERVICE(service), uri);
+	feed = gdata_service_get_feed (GDATA_SERVICE(service), uri, NULL);
 
 	if (!feed) {
 		g_critical ("%s, Authentication Failed \n ", G_STRLOC);

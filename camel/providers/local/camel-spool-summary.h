@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2001 Ximian Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -38,7 +38,7 @@ typedef struct _CamelSpoolSummaryClass CamelSpoolSummaryClass;
 
 struct _CamelSpoolSummary {
 	CamelMboxSummary parent;
-
+	
 };
 
 struct _CamelSpoolSummaryClass {

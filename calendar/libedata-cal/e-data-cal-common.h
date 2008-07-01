@@ -1,7 +1,6 @@
 /* Evolution calendar server - common declarations
  *
- * Copyright (C) 2000 Ximian, Inc.
- * Copyright (C) 2000 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Author: Federico Mena-Quintero <federico@ximian.com>
  *
@@ -22,7 +21,7 @@
 #ifndef CAL_COMMON_H
 #define CAL_COMMON_H
 
-#include <glib/gmacros.h>
+#include <glib.h>
 
 G_BEGIN_DECLS
 

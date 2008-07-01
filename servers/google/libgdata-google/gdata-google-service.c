@@ -4,7 +4,7 @@
  *  Ebby Wiselyn <ebbywiselyn@gmail.com>
  *  Jason Willis <zenbrother@gmail.com>
  *
- * Copyright 2007, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -31,12 +31,13 @@
 
 #define GDATA_GOOGLE_SERVICE_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), GDATA_TYPE_GOOGLE_SERVICE, GDataGoogleServicePrivate))
 
-void gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *entry, gchar *edit_link);
-GDataEntry * gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url, GDataEntry *entry);
-void gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry);
-GDataFeed * gdata_google_service_get_feed (GDataService *service, const gchar *feed_url);
-void gdata_google_service_update_entry (GDataService *service, GDataEntry *entry);
-void gdata_google_service_set_credentials (GDataService *service, const gchar *username, const gchar *password);
+static GDataEntry * gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *entry, const gchar *edit_link, GError **error);
+static GDataEntry * gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url, GDataEntry *entry, GError **error);
+static gboolean     gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry, GError **error);
+static GDataFeed  * gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GError **error);
+static GDataEntry * gdata_google_service_update_entry (GDataService *service, GDataEntry *entry, GError **error);
+static void         gdata_google_service_set_credentials (GDataService *service, const gchar *username, const gchar *password);
+static void         gdata_google_service_set_proxy (GDataService *service, SoupURI *proxy);
 
 typedef struct _GDataGoogleServiceAuth GDataGoogleServiceAuth;
 struct _GDataGoogleServiceAuth {
@@ -65,9 +66,60 @@ enum {
 	PROP_AGENT,
 };
 
+
 static const gchar *GOOGLE_CLIENT_LOGIN = "https://www.google.com/accounts/ClientLogin";
 
-void
+GQuark
+gdata_google_error_quark (void)
+{
+	static GQuark error;
+	return error ? error : (error = g_quark_from_static_string ("gdata_google_error_quark"));
+}
+
+static void
+gdata_google_service_set_proxy (GDataService *service, SoupURI *proxy)
+{
+	GDataGoogleServicePrivate *priv;
+
+	g_return_if_fail (service != NULL);
+	g_return_if_fail (GDATA_IS_GOOGLE_SERVICE(service));
+
+	priv = GDATA_GOOGLE_SERVICE_GET_PRIVATE(GDATA_GOOGLE_SERVICE(service));
+	if (proxy && priv && priv->soup_session)
+		g_object_set (priv->soup_session, SOUP_SESSION_PROXY_URI, proxy, NULL);
+}
+
+/* send a message without redirection and if it was required, then redirects itself */
+static void
+send_and_handle_google_redirection (SoupSession *soup_session, SoupMessage *msg)
+{
+	soup_message_set_flags (msg, SOUP_MESSAGE_NO_REDIRECT);
+	soup_session_send_message (soup_session, msg);
+	soup_message_set_flags (msg, 0);
+
+	if (SOUP_STATUS_IS_REDIRECTION (msg->status_code)) {
+		SoupURI *new_uri;
+		const char *new_loc;
+
+		new_loc = soup_message_headers_get (msg->response_headers, "Location");
+		g_return_if_fail (new_loc != NULL);
+
+		new_uri = soup_uri_new_with_base (soup_message_get_uri (msg), new_loc);
+		if (!new_uri) {
+			soup_message_set_status_full (msg,
+						      SOUP_STATUS_MALFORMED,
+						      "Invalid Redirect URL");
+			return;
+		}
+
+		soup_message_set_uri (msg, new_uri);
+		soup_uri_free (new_uri);
+
+		soup_session_send_message (soup_session, msg);
+	}
+}
+
+static void
 gdata_google_service_set_credentials (GDataService *service, const gchar *username, const gchar *password)
 {
 	GDataGoogleServicePrivate *priv;
@@ -98,8 +150,8 @@ service_is_authenticated (GDataGoogleService *service)
 		return TRUE;
 }
 
-static gchar *
-service_authenticate (GDataGoogleService *service)
+static gboolean
+gdata_google_service_authenticate (GDataGoogleService *service, GError **error)
 {
 	GDataGoogleServicePrivate *priv;
 	GDataGoogleServiceAuth *auth;
@@ -107,8 +159,6 @@ service_authenticate (GDataGoogleService *service)
 	GHashTable *request_form;
 	gchar *request_body;
 	gchar *token = NULL;
-	gchar *auth_begin = NULL;
-	gchar *auth_end = NULL;
 
 	priv = GDATA_GOOGLE_SERVICE_GET_PRIVATE(service);
 	auth = (GDataGoogleServiceAuth *)priv->auth;
@@ -128,15 +178,24 @@ service_authenticate (GDataGoogleService *service)
 				  SOUP_MEMORY_TAKE,
 				  request_body, strlen(request_body));
 
-	soup_session_send_message(priv->soup_session, msg);
+	soup_session_send_message (priv->soup_session, msg);
 
-	if (msg->response_body->length) {
+    	if (msg->status_code != 200) {
+		g_set_error (error, SOUP_HTTP_ERROR,
+					 msg->status_code, msg->reason_phrase);
+		g_object_unref(msg);
+		return (NULL != token);
+	}
+	if (msg->response_body->data && strlen (msg->response_body->data) > 0) {
+		gchar *auth_begin = NULL;
+		gchar *auth_end = NULL;
+
 		auth_begin = strstr(msg->response_body->data, "Auth=");
 
-		if (!auth_begin)
-			return "FAILURE";
+		if (!auth_begin) {
+			return (NULL != token);
+		}
 
-		auth_begin = auth_begin;
 		auth_end  = strstr(auth_begin, "\n") - 5;
 
 		if (auth_begin && strlen(auth_begin) > 5) {
@@ -145,12 +204,12 @@ service_authenticate (GDataGoogleService *service)
 	}
 
 	auth->token = token;
-	if (!token)
-		return "FAILURE";
+	if (NULL == token) {
+		g_set_error (error, GDATA_GOOGLE_ERROR,
+					 -1, "GData protocol error");
+	}
 
-	g_object_unref(msg);
-
-	return "SUCCESS";
+	return (NULL != token);
 }
 
 
@@ -164,24 +223,21 @@ service_authenticate (GDataGoogleService *service)
  *
  **/
 
-GDataFeed *
-gdata_google_service_get_feed (GDataService *service, const gchar *feed_url)
+static GDataFeed *
+gdata_google_service_get_feed (GDataService *service, const gchar *feed_url, GError **error)
 {
 	GDataFeed *feed = NULL;
 	GDataGoogleServicePrivate *priv;
 	GDataGoogleServiceAuth *auth;
 	SoupSession *soup_session;
 	SoupMessage *msg;
-	gchar *status;
 
 	g_return_val_if_fail(service != NULL, NULL);
 	g_return_val_if_fail(GDATA_IS_GOOGLE_SERVICE(service),NULL);
 
 	if (!service_is_authenticated( GDATA_GOOGLE_SERVICE(service) )) {
-		status = service_authenticate(GDATA_GOOGLE_SERVICE(service));
-		if (g_ascii_strcasecmp(status, "SUCCESS")) {
+		if (FALSE == gdata_google_service_authenticate(GDATA_GOOGLE_SERVICE(service), error))
 			return NULL;
-		}
 	}
 
 	priv = GDATA_GOOGLE_SERVICE_GET_PRIVATE( GDATA_GOOGLE_SERVICE(service) );
@@ -193,10 +249,22 @@ gdata_google_service_get_feed (GDataService *service, const gchar *feed_url)
 	soup_message_headers_append(msg->request_headers,
 			"Authorization", (gchar *)g_strdup_printf("GoogleLogin auth=%s", auth->token));
 
-	soup_session_send_message(soup_session, msg);
-	if (msg->response_body->length) {
+	soup_session_send_message (soup_session, msg);
+	if (msg->status_code != 200) {
+		g_set_error (error, SOUP_HTTP_ERROR,
+					 msg->status_code, msg->reason_phrase);
+		g_object_unref (msg);
+		return NULL;
+	}
+
+	if (msg->response_body->data && strlen (msg->response_body->data) > 0) {
 		feed = gdata_feed_new_from_xml(msg->response_body->data,
 					       msg->response_body->length);
+	}
+
+	if (NULL == feed) {
+		g_set_error (error, GDATA_GOOGLE_ERROR,
+					 -1, "GData protocol error");
 	}
 
 	g_object_unref(msg);
@@ -214,24 +282,21 @@ gdata_google_service_get_feed (GDataService *service, const gchar *feed_url)
  * returns the newly inserted entry
  *
  **/
-GDataEntry *
-gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url, GDataEntry *entry)
+static GDataEntry *
+gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url, GDataEntry *entry, GError **error)
 {
 	GDataGoogleServicePrivate *priv;
 	GDataGoogleServiceAuth *auth;
-	GDataEntry *updated_entry;
+	GDataEntry *updated_entry = NULL;
 	SoupSession *soup_session;
 	SoupMessage *msg;
-	gchar *status;
 	gchar *entry_xml;
 
 	g_return_val_if_fail(service != NULL, NULL);
 	g_return_val_if_fail(GDATA_IS_GOOGLE_SERVICE(service), NULL);
 
-	if (!service_is_authenticated(GDATA_GOOGLE_SERVICE(service))) {
-		status = service_authenticate(GDATA_GOOGLE_SERVICE(service));
-
-		if (g_ascii_strcasecmp(status,"SUCCESS"))
+	if (!service_is_authenticated( GDATA_GOOGLE_SERVICE(service) )) {
+		if (FALSE == gdata_google_service_authenticate(GDATA_GOOGLE_SERVICE(service), error))
 			return NULL;
 	}
 
@@ -254,21 +319,26 @@ gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url,
 				entry_xml,
 				strlen(entry_xml));
 
-	soup_session_send_message(soup_session, msg);
+	/* Handle redirects ourself, since soup does not behave like google-api expects */
+	send_and_handle_google_redirection (soup_session, msg);
 
-	if (!msg->response_body->length) {
-		g_message ("\n %s, %s, Response Length NULL when inserting entry", G_STRLOC, G_STRFUNC);
+	if (msg->status_code != 201) {
+		g_set_error (error, SOUP_HTTP_ERROR,
+					 msg->status_code, msg->reason_phrase);
+		g_object_unref (msg);
 		return NULL;
 	}
 
-	updated_entry = gdata_entry_new_from_xml (msg->response_body->data);
-	if (!GDATA_IS_ENTRY(entry)) {
-		g_critical ("\n %s, %s, Error During Insert Entry ", G_STRLOC, G_STRFUNC);
-		return NULL;
+	if (msg->response_body->data && strlen (msg->response_body->data) > 0) {
+		updated_entry = gdata_entry_new_from_xml (msg->response_body->data);
+	}
+
+	if (NULL == updated_entry) {
+		g_set_error (error, GDATA_GOOGLE_ERROR,
+					 -1, "GData protocol error");
 	}
 
 	g_object_unref (msg);
-
 	return updated_entry;
 }
 
@@ -282,23 +352,22 @@ gdata_google_service_insert_entry (GDataService *service, const gchar *feed_url,
  * Removes the entry
  *
  **/
-void
-gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry)
+static gboolean
+gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry, GError **error)
 {
 	GDataGoogleServiceAuth *auth;
 	GDataGoogleServicePrivate *priv;
 	SoupSession *soup_session;
 	SoupMessage *msg;
 	const gchar *entry_edit_url;
-	xmlChar *status;
+	gboolean retval = FALSE;
 
-	g_return_if_fail (service !=NULL);
-	g_return_if_fail (GDATA_IS_GOOGLE_SERVICE(service));
+	g_return_val_if_fail (service !=NULL, FALSE);
+	g_return_val_if_fail (GDATA_IS_GOOGLE_SERVICE(service), FALSE);
 
-	if (!service_is_authenticated (GDATA_GOOGLE_SERVICE(service))) {
-		status = (xmlChar *)service_authenticate (GDATA_GOOGLE_SERVICE(service));
-		if (g_ascii_strcasecmp((gchar *)status, "SUCCESS"))
-			return ;
+	if (!service_is_authenticated( GDATA_GOOGLE_SERVICE(service) )) {
+		if (FALSE == gdata_google_service_authenticate(GDATA_GOOGLE_SERVICE(service), error))
+			return FALSE;
 	}
 
 	entry_edit_url = gdata_entry_get_edit_link (entry);
@@ -311,9 +380,20 @@ gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry)
 				     "Authorization",
 				     (gchar *)g_strdup_printf ("GoogleLogin auth=%s",
 				     auth->token));
-	soup_session_send_message (soup_session, msg);
+
+	/* Handle redirects ourself */
+	send_and_handle_google_redirection (soup_session, msg);
+
+    	if (msg->status_code != 200) {
+		g_set_error (error, SOUP_HTTP_ERROR,
+					 msg->status_code, msg->reason_phrase);
+	} else {
+		retval = TRUE;
+	}
 
 	g_object_unref (msg);
+
+	return retval;
 }
 
 /**
@@ -325,52 +405,17 @@ gdata_google_service_delete_entry (GDataService *service, GDataEntry *entry)
  * updates the entry
  *
  **/
-void
-gdata_google_service_update_entry (GDataService *service, GDataEntry *entry)
+static GDataEntry*
+gdata_google_service_update_entry (GDataService *service, GDataEntry *entry, GError **error)
 {
-	GDataGoogleServiceAuth *auth;
-	GDataGoogleServicePrivate *priv;
-	SoupSession *soup_session;
-	SoupMessage *msg;
-	gchar *status;
-	gchar *entry_xml;
-	const gchar *entry_edit_url;
+	const char *entry_edit_url;
 
-	g_return_if_fail (service !=NULL);
-	g_return_if_fail (GDATA_IS_GOOGLE_SERVICE (service));
+	g_return_val_if_fail (service !=NULL, FALSE);
+	g_return_val_if_fail (GDATA_IS_GOOGLE_SERVICE (service), FALSE);
 
-	if (!service_is_authenticated (GDATA_GOOGLE_SERVICE (service))) {
-		status = service_authenticate (GDATA_GOOGLE_SERVICE (service));
-		if (g_ascii_strcasecmp (status, "SUCCESS"))
-			return;
-	}
+	entry_edit_url = gdata_entry_get_edit_link (entry);
 
-	entry_xml = gdata_entry_generate_xml (entry);
-	priv = GDATA_GOOGLE_SERVICE_GET_PRIVATE (GDATA_GOOGLE_SERVICE (service));
-	auth = (GDataGoogleServiceAuth *)priv->auth;
-	soup_session = (SoupSession *)priv->soup_session;
-
-	entry_edit_url = g_strdup (gdata_entry_get_edit_link (entry));
-	msg = soup_message_new (SOUP_METHOD_PUT, entry_edit_url);
-
-	if (!msg) {
-		g_message ("\n MSG Fails %s", G_STRLOC);
-		return;
-	}
-
-	soup_message_headers_append (msg->request_headers,
-				     "Authorization",
-				     (gchar *)g_strdup_printf ("GoogleLogin auth=%s",
-				     auth->token));
-	soup_message_set_request (msg,
-			"application/atom+xml",
-			SOUP_MEMORY_TAKE,
-			entry_xml,
-			strlen(entry_xml));
-
-	soup_session_send_message (soup_session, msg);
-
-	g_object_unref (msg);
+	return gdata_google_service_update_entry_with_link (service, entry, entry_edit_url, error);
 }
 
 
@@ -383,23 +428,23 @@ gdata_google_service_update_entry (GDataService *service, GDataEntry *entry)
  * Updates the entry
  *
  **/
-void
-gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *entry, gchar *edit_link)
+static GDataEntry*
+gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *entry, const gchar *edit_link, GError **error)
 {
 	GDataGoogleServiceAuth *auth;
 	GDataGoogleServicePrivate *priv;
 	SoupSession *soup_session;
 	SoupMessage *msg;
-	gchar *status;
 	gchar *entry_xml;
+	GDataEntry *updated_entry = NULL;
 
-	g_return_if_fail (service !=NULL);
-	g_return_if_fail (GDATA_IS_GOOGLE_SERVICE (service));
+	g_return_val_if_fail (service !=NULL, FALSE);
+	g_return_val_if_fail (GDATA_IS_GOOGLE_SERVICE (service), FALSE);
+	g_return_val_if_fail (edit_link !=NULL, FALSE);
 
-	if (!service_is_authenticated (GDATA_GOOGLE_SERVICE(service))) {
-		status = service_authenticate (GDATA_GOOGLE_SERVICE(service));
-		if (g_ascii_strcasecmp (status, "SUCCESS"))
-			return;
+	if (!service_is_authenticated( GDATA_GOOGLE_SERVICE(service) )) {
+		if (FALSE == gdata_google_service_authenticate(GDATA_GOOGLE_SERVICE(service), error))
+			return NULL;
 	}
 
 	entry_xml = gdata_entry_generate_xml (entry);
@@ -409,11 +454,6 @@ gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *
 
 	msg = soup_message_new (SOUP_METHOD_PUT, edit_link);
 
-	if (!msg) {
-		g_message ("\n Message Corrupt %s", G_STRLOC);
-		return;
-	}
-
 	soup_message_headers_append (msg->request_headers,
 				     "Authorization",
 				     (gchar *)g_strdup_printf ("GoogleLogin auth=%s",
@@ -421,19 +461,38 @@ gdata_google_service_update_entry_with_link (GDataService *service, GDataEntry *
 
 	soup_message_set_request (msg,
 				"application/atom+xml",
-				SOUP_MEMORY_TAKE,
+				SOUP_MEMORY_COPY,
 				entry_xml,
 				strlen(entry_xml));
 
-	soup_session_send_message (soup_session, msg);
+	/* Handle redirects ourself */
+	send_and_handle_google_redirection (soup_session, msg);
+
+    	if (msg->status_code != 200) {
+		g_set_error (error, SOUP_HTTP_ERROR,
+					 msg->status_code, msg->reason_phrase);
+		g_object_unref (msg);
+		return updated_entry;
+	}
+
+	if (msg->response_body->data && strlen (msg->response_body->data) > 0) {
+		updated_entry = gdata_entry_new_from_xml (msg->response_body->data);
+	}
+
+	if (NULL == updated_entry) {
+		g_set_error (error, GDATA_GOOGLE_ERROR,
+					 -1, "GData protocol error");
+	}
 
 	g_object_unref (msg);
+	return updated_entry;
 }
 
 static void gdata_google_service_iface_init(gpointer  g_iface, gpointer iface_data)
 {
 	GDataServiceIface *iface = (GDataServiceIface *)g_iface;
 
+	iface->set_proxy = gdata_google_service_set_proxy;
 	iface->set_credentials = gdata_google_service_set_credentials;
 	iface->get_feed = gdata_google_service_get_feed;
 	iface->insert_entry = gdata_google_service_insert_entry;
@@ -477,8 +536,12 @@ static void gdata_google_service_dispose(GObject *obj)
 		/* Don't run dispose twice */
 		return;
 	}
-
 	priv->dispose_has_run = TRUE;
+
+	if (priv->soup_session) {
+		g_object_unref (priv->soup_session);
+		priv->soup_session = NULL;
+	}
 
 	/* Chain up to the parent class */
 	klass = GDATA_GOOGLE_SERVICE_CLASS(g_type_class_peek(GDATA_TYPE_GOOGLE_SERVICE));

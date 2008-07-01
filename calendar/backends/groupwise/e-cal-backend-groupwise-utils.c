@@ -4,7 +4,7 @@
  *  JP Rosevear <jpr@ximian.com>
  *  Rodrigo Moya <rodrigo@ximian.com>
  *  Harish Krishnaswamy <kharish@novell.com>
- *  Copyright 2003, Novell, Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -36,8 +36,8 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
+#include <gio/gio.h>
 
-#include <libgnomevfs/gnome-vfs-mime-utils.h>
 #include <e-gw-connection.h>
 #include <e-gw-message.h>
 #include <libecal/e-cal-recur.h>
@@ -262,6 +262,33 @@ add_send_options_data_to_item (EGwItem *item, ECalComponent *comp, icaltimezone 
 
 }
 
+static char *
+get_mime_type (const char *uri)
+{
+	GFile *file;
+	GFileInfo *fi;
+	char *mime_type;
+
+	g_return_val_if_fail (uri != NULL, NULL);
+
+	file = g_file_new_for_uri (uri);
+	if (!file)
+		return NULL;
+
+	fi = g_file_query_info (file, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE, G_FILE_QUERY_INFO_NONE, NULL, NULL);
+	if (!fi) {
+		g_object_unref (file);
+		return NULL;
+	}
+
+	mime_type = g_content_type_get_mime_type (g_file_info_get_content_type (fi));
+
+	g_object_unref (fi);
+	g_object_unref (file);
+
+	return mime_type;
+}
+
 static void
 e_cal_backend_groupwise_set_attachments_from_comp (ECalComponent *comp,
 		EGwItem *item)
@@ -299,11 +326,12 @@ e_cal_backend_groupwise_set_attachments_from_comp (ECalComponent *comp,
 			continue;
 		}
 
+		g_free (attach_filename_full);
+
 		attach_item = g_new0 (EGwItemAttachment, 1);
 		/* FIXME the member does not follow the naming convention.
 		 * Should be fixed in e-gw-item*/
-		attach_item->contentType = g_strdup (gnome_vfs_get_mime_type (attach_filename_full));
-		g_free (attach_filename_full);
+		attach_item->contentType = get_mime_type ((char *)l->data);
 
 		attach_item->name = g_strdup (filename + strlen(uid) + 1);
 		/* do a base64 encoding so it can be embedded in a soap
@@ -1071,7 +1099,6 @@ e_gw_item_to_cal_component (EGwItem *item, ECalBackendGroupwise *cbgw)
 			e_cal_component_set_dtstamp (comp, &itt_utc);
 		}
 	}
-	g_free (t);
 
 	/* categories */
 	category_ids = e_gw_item_get_categories (item);
@@ -1092,7 +1119,6 @@ e_gw_item_to_cal_component (EGwItem *item, ECalBackendGroupwise *cbgw)
 	is_allday = e_gw_item_get_is_allday_event (item);
 
 	/* start date */
-	/* should i duplicate here ? */
 	t = e_gw_item_get_start_date (item);
 	if (t) {
 		itt_utc = icaltime_from_string (t);
@@ -1144,8 +1170,6 @@ e_gw_item_to_cal_component (EGwItem *item, ECalBackendGroupwise *cbgw)
 			return NULL;
 		}
 	}
-
-	g_free (t);
 
 	/* classification */
 	description = e_gw_item_get_classification (item);
@@ -1282,6 +1306,7 @@ e_gw_item_to_cal_component (EGwItem *item, ECalBackendGroupwise *cbgw)
 			trigger.u.rel_duration = icaldurationtype_from_int (alarm_duration);
 			e_cal_component_alarm_set_trigger (alarm, trigger);
 			e_cal_component_add_alarm (comp, alarm);
+			e_cal_component_alarm_free (alarm);
 
 		} else
 			set_default_alarms (comp);
@@ -1678,7 +1703,7 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
         SoupSoapResponse *response;
         EGwConnectionStatus status;
         SoupSoapParameter *param, *subparam, *param_outstanding;
-        const char *session;
+        char *session;
 	char *outstanding = NULL;
 	gboolean resend_request = TRUE;
 	int request_iteration = 0;
@@ -1706,6 +1731,7 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
 	response = e_gw_connection_send_message (cnc, msg);
 	if (!response) {
 		g_object_unref (msg);
+		g_free (session);
 		return E_GW_CONNECTION_STATUS_NO_RESPONSE;
 	}
 
@@ -1713,6 +1739,7 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
         if (status != E_GW_CONNECTION_STATUS_OK) {
                 g_object_unref (msg);
                 g_object_unref (response);
+		g_free (session);
                 return status;
         }
 
@@ -1720,6 +1747,7 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
         if (!param) {
                 g_object_unref (response);
                 g_object_unref (msg);
+		g_free (session);
                 return E_GW_CONNECTION_STATUS_INVALID_RESPONSE;
         }
 
@@ -1860,7 +1888,10 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
 	} /* end of while loop */
 
         /* closeFreeBusySession*/
-        return close_freebusy_session (cnc, session);
+	status = close_freebusy_session (cnc, session);
+	g_free (session);
+
+        return status;
 }
 
 #define SET_DELTA(fieldname) G_STMT_START{                                                                \

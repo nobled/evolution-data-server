@@ -81,34 +81,6 @@ e_component_listener_get_type
 </SECTION>
 
 <SECTION>
-<FILE>e-file-cache</FILE>
-<TITLE>EFileCache</TITLE>
-EFileCache
-e_file_cache_new
-e_file_cache_remove
-e_file_cache_clean
-e_file_cache_get_object
-e_file_cache_get_objects
-e_file_cache_get_keys
-e_file_cache_add_object
-e_file_cache_replace_object
-e_file_cache_remove_object
-e_file_cache_freeze_changes
-e_file_cache_thaw_changes
-e_file_cache_get_filename
-<SUBSECTION Standard>
-E_FILE_CACHE
-E_IS_FILE_CACHE
-E_TYPE_FILE_CACHE
-E_FILE_CACHE_CLASS
-E_IS_FILE_CACHE_CLASS
-EFileCacheClass
-<SUBSECTION Private>
-EFileCachePrivate
-e_file_cache_get_type
-</SECTION>
-
-<SECTION>
 <FILE>e-flag</FILE>
 <TITLE>EFlag</TITLE>
 EFlag
@@ -189,6 +161,26 @@ E_IS_LIST_ITERATOR_CLASS
 EListIteratorClass
 <SUBSECTION Private>
 e_list_iterator_get_type
+</SECTION>
+
+<SECTION>
+<FILE>e-proxy</FILE>
+<TITLE>EProxy</TITLE>
+EProxy
+e_proxy_new
+e_proxy_peek_uri
+e_proxy_require_proxy_for_uri
+e_proxy_setup_proxy
+<SUBSECTION Standard>
+E_TYPE_PROXY
+E_PROXY
+E_PROXY_CLASS
+E_IS_PROXY
+E_IS_PROXY_CLASS
+EProxyClass
+<SUBSECTION Private>
+EProxyPrivate
+e_proxy_get_type
 </SECTION>
 
 <SECTION>
@@ -320,39 +312,8 @@ e_categories_set_color_for
 e_categories_get_icon_file_for
 e_categories_set_icon_file_for
 e_categories_is_searchable
-</SECTION>
-
-<SECTION>
-<FILE>e-data-server-module</FILE>
-e_data_server_module_init
-e_data_server_get_extensions_for_type
-e_data_server_extension_list_free
-e_data_server_module_remove_unused
-e_data_server_module_add_type
-eds_module_initialize
-eds_module_shutdown
-eds_module_list_types
-</SECTION>
-
-<SECTION>
-<FILE>e-db3-utils</FILE>
-e_db3_utils_maybe_recover
-e_db3_utils_upgrade_format
-</SECTION>
-
-<SECTION>
-<FILE>e-dbhash</FILE>
-EDbHashStatus
-EDbHash
-EDbHashPrivate
-EDbHashFunc
-e_dbhash_new
-e_dbhash_add
-e_dbhash_remove
-e_dbhash_compare
-e_dbhash_foreach_key
-e_dbhash_write
-e_dbhash_destroy
+e_categories_register_change_listener
+e_categories_unregister_change_listener
 </SECTION>
 
 <SECTION>
@@ -587,4 +548,17 @@ md5_final
 e_xml_parse_file
 e_xml_save_file
 e_xml_get_child_by_name
+</SECTION>
+
+<SECTION>
+<FILE>eds-version</FILE>
+<TITLE>Version Information</TITLE>
+eds_major_version
+eds_minor_version
+eds_micro_version
+eds_check_version
+EDS_MAJOR_VERSION
+EDS_MINOR_VERSION
+EDS_MICRO_VERSION
+EDS_CHECK_VERSION
 </SECTION>

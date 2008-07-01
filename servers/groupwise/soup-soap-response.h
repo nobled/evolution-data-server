@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- * Copyright (C) 2003, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  */
 
 #ifndef SOUP_SOAP_RESPONSE_H
@@ -60,6 +60,9 @@ SoupSoapParameter *soup_soap_response_get_next_parameter (SoupSoapResponse *resp
 SoupSoapParameter *soup_soap_response_get_next_parameter_by_name (SoupSoapResponse *response,
 								  SoupSoapParameter *from,
 								  const char *name);
+
+int soup_soap_response_dump_response (SoupSoapResponse *response, FILE *buffer);
+
 
 G_END_DECLS
 

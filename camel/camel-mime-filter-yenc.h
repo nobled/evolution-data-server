@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002-2004 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -64,11 +64,11 @@ typedef enum {
 
 struct _CamelMimeFilterYenc {
 	CamelMimeFilter parent_object;
-
+	
 	CamelMimeFilterYencDirection direction;
-
+	
 	int part;
-
+	
 	int state;
 	guint32 pcrc;
 	guint32 crc;
@@ -76,7 +76,7 @@ struct _CamelMimeFilterYenc {
 
 struct _CamelMimeFilterYencClass {
 	CamelMimeFilterClass parent_class;
-
+	
 };
 
 

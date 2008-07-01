@@ -2,7 +2,7 @@
 /*
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -40,7 +40,7 @@ typedef struct _CamelSaslPOPB4SMTP {
 
 typedef struct _CamelSaslPOPB4SMTPClass {
 	CamelSaslClass parent_class;
-
+	
 } CamelSaslPOPB4SMTPClass;
 
 

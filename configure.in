@@ -1,7 +1,15 @@
  Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.52)
 
-AC_INIT(evolution-data-server, 2.23.1)
+# Evolution-Data-Server version */
+m4_define([eds_major_version], [2])
+m4_define([eds_minor_version], [23])
+m4_define([eds_micro_version], [5])
+
+m4_define([eds_version],
+          [eds_major_version.eds_minor_version.eds_micro_version])
+
+AC_INIT(evolution-data-server, [eds_version])
 AC_CONFIG_SRCDIR(README)
 
 # Gross hack to enable 'make dist' on automake 1.9+tar 1.14.
@@ -16,13 +24,13 @@ AM_CONFIG_HEADER(config.h)
 m4_define([glib_minimum_version], [2.16.1])
 m4_define([gtk_minimum_version], [2.10.0])
 m4_define([ORBit_minimum_version], [2.9.8])
-m4_define([gnome_vfs_minimum_version], [2.4.0])
 m4_define([libbonobo_minimum_version], [2.20.3])
 m4_define([gconf_minimum_version], [2.0.0])             # XXX Just a Guess
 m4_define([libglade_minimum_version], [2.0.0])          # XXX Just a Guess
 m4_define([libgnome_minimum_version], [2.0.0])          # XXX Just a Guess
 m4_define([libxml_minimum_version], [2.0.0])            # XXX Just a Guess
 m4_define([libsoup_minimum_version], [2.3.0])
+m4_define([gnome_keyring_minimum_version], [2.20.1])
 
 dnl *************************************************************************************************
 dnl Base Version
@@ -38,18 +46,22 @@ AC_SUBST(API_VERSION)
 AC_DEFINE_UNQUOTED(BASE_VERSION, "$BASE_VERSION", [Base version (Major.Minor)])
 AC_DEFINE_UNQUOTED(API_VERSION, "$API_VERSION", [Api version (Major.Minor)])
 
+EDS_MAJOR_VERSION=eds_major_version
+EDS_MINOR_VERSION=eds_minor_version
+EDS_MICRO_VERSION=eds_micro_version
+
 # Libtool versioning
-LIBEDATASERVER_CURRENT=10
+LIBEDATASERVER_CURRENT=11
 LIBEDATASERVER_REVISION=0
-LIBEDATASERVER_AGE=1
+LIBEDATASERVER_AGE=0
 
 LIBEDATASERVERUI_CURRENT=9
 LIBEDATASERVERUI_REVISION=0
 LIBEDATASERVERUI_AGE=1
 
-LIBECAL_CURRENT=8
-LIBECAL_REVISION=0
-LIBECAL_AGE=1
+LIBECAL_CURRENT=9
+LIBECAL_REVISION=1
+LIBECAL_AGE=2
 
 LIBEDATACAL_CURRENT=6
 LIBEDATACAL_REVISION=2
@@ -60,14 +72,14 @@ LIBEDATABOOK_REVISION=1
 LIBEDATABOOK_AGE=4
 
 LIBEBOOK_CURRENT=10
-LIBEBOOK_REVISION=1
+LIBEBOOK_REVISION=2
 LIBEBOOK_AGE=1
 
 LIBEGROUPWISE_CURRENT=13
 LIBEGROUPWISE_REVISION=1
 LIBEGROUPWISE_AGE=0
 
-LIBCAMEL_CURRENT=11
+LIBCAMEL_CURRENT=12
 LIBCAMEL_REVISION=0
 LIBCAMEL_AGE=0
 
@@ -83,6 +95,13 @@ LIBGDATA_GOOGLE_CURRENT=1
 LIBGDATA_GOOGLE_REVISION=0
 LIBGDATA_GOOGLE_AGE=0
 
+LIBEBACKEND_CURRENT=0
+LIBEBACKEND_REVISION=0
+LIBEBACKEND_AGE=0
+
+AC_SUBST(EDS_MAJOR_VERSION)
+AC_SUBST(EDS_MINOR_VERSION)
+AC_SUBST(EDS_MICRO_VERSION)
 AC_SUBST(LIBEDATASERVER_CURRENT)
 AC_SUBST(LIBEDATASERVER_REVISION)
 AC_SUBST(LIBEDATASERVER_AGE)
@@ -116,6 +135,9 @@ AC_SUBST(LIBGDATA_AGE)
 AC_SUBST(LIBGDATA_GOOGLE_CURRENT)
 AC_SUBST(LIBGDATA_GOOGLE_REVISION)
 AC_SUBST(LIBGDATA_GOOGLE_AGE)
+AC_SUBST(LIBEBACKEND_CURRENT)
+AC_SUBST(LIBEBACKEND_REVISION)
+AC_SUBST(LIBEBACKEND_AGE)
 
 dnl Put the ACLOCAL flags in the Makefile
 ACLOCAL="$ACLOCAL $ACLOCAL_FLAGS"
@@ -166,6 +188,7 @@ dnl Initialize libtool
 AM_DISABLE_STATIC
 AC_LIBTOOL_WIN32_DLL
 AM_PROG_LIBTOOL
+DOLT
 
 PKG_PROG_PKG_CONFIG
 
@@ -182,9 +205,8 @@ case "$host" in
     DL_LIB=''
     SOFTOKN3_LIB=''
     LIBEXECDIR_IN_SERVER_FILE='../../../libexec'
-    # No, don't use Windows XP -only API
-    # AC_CACHE_VAL(have_addrinfo, [have_addrinfo=yes])
-    # AC_DEFINE(_WIN32_WINNT, 0x501, [To get getaddrinfo etc declarations])
+    AC_CACHE_VAL(have_addrinfo, [have_addrinfo=yes])
+    AC_DEFINE(_WIN32_WINNT, 0x501, [To get getaddrinfo etc declarations])
     ;;
 *)  os_win32=no
     NO_UNDEFINED=''
@@ -211,7 +233,6 @@ PKG_CHECK_MODULES(GNOME_PLATFORM,
         [glib-2.0 >= glib_minimum_version
          gtk+-2.0 >= gtk_minimum_version
          ORBit-2.0 >= ORBit_minimum_version
-         gnome-vfs-2.0 >= gnome_vfs_minimum_version
          libbonobo-2.0 >= libbonobo_minimum_version
          gconf-2.0 >= gconf_minimum_version
          libglade-2.0 >= libglade_minimum_version
@@ -256,6 +277,11 @@ if test "x${dynamic_libdb}" = "xyes"; then
 else
         DB_CFLAGS="-I\$(top_builddir)/libdb/dist"
         DB_LIBS="\$(top_builddir)/libdb/dist/libdb-4.1.la"
+	if test $os_win32 = yes; then
+		# Don't pointlessly auto-export the global symbols
+		# from the static libdb
+		DB_LIBS="$DB_LIBS -Wl,--exclude-libs=libdb-4.1.a"
+	fi
         AC_MSG_NOTICE(Using local libdb)
         msg_libdb="statically linked to local copy"
 fi
@@ -295,6 +321,11 @@ int main (int argc, char **argv)
 ], ac_cv_libiconv=yes, ac_cv_libiconv=no, ac_cv_libiconv=no))
 if test $ac_cv_libiconv = yes; then
 	ICONV_LIBS="$ICONV_LIBS -liconv"
+	if test $os_win32 = yes; then
+		# Don't pointlessly auto-export the global symbols
+		# from a potentially static libiconv.a
+		ICONV_LIBS="$ICONV_LIBS -Wl,--exclude-libs=libiconv.a"
+	fi
 	have_iconv=yes
 else
 	CFLAGS="$save_CFLAGS"
@@ -368,6 +399,17 @@ AC_TRY_RUN([
 
 CFLAGS="$save_CFLAGS"
 LIBS="$save_LIBS"
+
+dnl Check for nl_langinfo and CODESET
+AC_MSG_CHECKING([for nl_langinfo (CODESET)])
+AC_TRY_COMPILE([#include <langinfo.h>],
+	[char *codeset = nl_langinfo (CODESET);],
+	[ac_cv_langinfo_codeset=yes],
+	[ac_cv_langinfo_codeset=no])
+if test x$ac_cv_langinfo_codeset = xyes; then
+	AC_DEFINE(HAVE_CODESET, 1, [Have nl_langinfo (CODESET)])
+fi
+AC_MSG_RESULT($ac_cv_langinfo_codeset)
 
 dnl Check to see if strftime supports the use of %l and %k
 
@@ -448,7 +490,7 @@ AC_ARG_WITH(nss-libs,
   with_nss_libs="$withval")
 
 if test "x${enable_gnome_keyring}" = "xyes"; then
-	PKG_CHECK_MODULES(GNOME_KEYRING, gnome-keyring-1, with_gnome_keyring="yes", with_gnome_keyring="no");
+	PKG_CHECK_MODULES(GNOME_KEYRING, gnome-keyring-1 >= gnome_keyring_minimum_version, with_gnome_keyring="yes", with_gnome_keyring="no");
 	if test "x$with_gnome_keyring" = "xyes"; then
 		AC_DEFINE(WITH_GNOME_KEYRING, 1, [Gnome Keyring available])	
 		GNOME_KEYRING_REQUIREMENT="gnome-keyring-1"
@@ -1432,23 +1474,29 @@ dnl ****************************************
 dnl Flags for the various libraries we build
 dnl ****************************************
 
-dnl --- libedataserver and libedataserverui flags
+dnl --- libedataserver, libedataserverui, libebackend flags
 
-E_DATA_SERVER_DEPS="libxml-2.0 libbonobo-2.0 gconf-2.0 $mozilla_nspr"
+E_DATA_SERVER_DEPS="libxml-2.0 libbonobo-2.0 libsoup-2.4 gconf-2.0 $mozilla_nspr"
 
 EVO_SET_COMPILE_FLAGS(E_DATA_SERVER, $E_DATA_SERVER_DEPS, $THREADS_CFLAGS $MANUAL_NSPR_CFLAGS, $THREADS_LIBS $MANUAL_NSPR_LIBS)
 AC_SUBST(E_DATA_SERVER_CFLAGS)
 AC_SUBST(E_DATA_SERVER_LIBS)
 
-E_DATA_SERVER_UI_DEPS="gtk+-2.0 libglade-2.0 libgnome-2.0 gnome-vfs-2.0 $GNOME_KEYRING_REQUIREMENT"
+E_DATA_SERVER_UI_DEPS="gtk+-2.0 libglade-2.0 libgnome-2.0 gobject-2.0 gthread-2.0 gconf-2.0 $GNOME_KEYRING_REQUIREMENT"
 
 EVO_SET_COMPILE_FLAGS(E_DATA_SERVER_UI, $E_DATA_SERVER_UI_DEPS, $THREADS_CFLAGS, $THREADS_LIBS)
 AC_SUBST(E_DATA_SERVER_UI_CFLAGS)
 AC_SUBST(E_DATA_SERVER_UI_LIBS)
 
+E_BACKEND_DEPS="gobject-2.0 libxml-2.0 gmodule-2.0"
+
+EVO_SET_COMPILE_FLAGS(E_BACKEND, $E_BACKEND_DEPS)
+AC_SUBST(E_BACKEND_CFLAGS)
+AC_SUBST(E_BACKEND_LIBS)
+
 dnl --- evolution-addressbook flags
 
-EVOLUTION_ADDRESSBOOK_DEPS="libxml-2.0 libgnome-2.0 gnome-vfs-2.0"
+EVOLUTION_ADDRESSBOOK_DEPS="libxml-2.0 libgnome-2.0 gobject-2.0 gthread-2.0 gconf-2.0"
 
 EVO_SET_COMPILE_FLAGS(EVOLUTION_ADDRESSBOOK, $EVOLUTION_ADDRESSBOOK_DEPS)
 AC_SUBST(EVOLUTION_ADDRESSBOOK_CFLAGS)
@@ -1456,7 +1504,7 @@ AC_SUBST(EVOLUTION_ADDRESSBOOK_LIBS)
 
 dnl --- evolution-calendar flags
 if test "x${enable_calendar}" = "xyes"; then
-	EVOLUTION_CALENDAR_DEPS="libxml-2.0 libgnome-2.0 gnome-vfs-2.0"
+	EVOLUTION_CALENDAR_DEPS="libxml-2.0 libgnome-2.0 gio-2.0 gobject-2.0 gthread-2.0 gconf-2.0"
 
 	EVO_SET_COMPILE_FLAGS(EVOLUTION_CALENDAR, $EVOLUTION_CALENDAR_DEPS)
 	AC_SUBST(EVOLUTION_CALENDAR_CFLAGS)
@@ -1465,7 +1513,7 @@ fi
 
 dnl --- factory flags
 
-E_FACTORY_DEPS="gnome-vfs-2.0 libgnome-2.0 $mozilla_nspr"
+E_FACTORY_DEPS="libgnome-2.0 $mozilla_nspr"
 
 EVO_SET_COMPILE_FLAGS(E_FACTORY, $E_FACTORY_DEPS, $THREADS_CFLAGS $MANUAL_NSPR_CFLAGS, $THREADS_LIBS $MANUAL_NSPR_LIBS)
 AC_SUBST(E_FACTORY_CFLAGS)
@@ -1549,7 +1597,7 @@ fi
 
 AM_CONDITIONAL(ENABLE_LARGEFILE, test "x$enable_largefile" = "xyes")
 
-EVO_SET_COMPILE_FLAGS(CAMEL, $mozilla_nss gnome-vfs-2.0, 
+EVO_SET_COMPILE_FLAGS(CAMEL, $mozilla_nss gio-2.0, 
 		      $THREADS_CFLAGS $KRB4_CFLAGS $KRB5_CFLAGS $MANUAL_NSS_CFLAGS $LARGEFILE_CFLAGS,
 	              -lz $THREADS_LIBS $KRB4_LDFLAGS $KRB5_LDFLAGS $MANUAL_NSS_LIBS)
 AC_SUBST(CAMEL_CFLAGS)
@@ -1699,7 +1747,10 @@ camel/tests/stream/Makefile
 camel/camel.pc
 camel/camel-provider.pc
 libdb/Makefile
+libebackend/Makefile
+libebackend/libebackend.pc
 libedataserver/Makefile
+libedataserver/eds-version.h
 libedataserver/libedataserver.pc
 libedataserverui/Makefile
 libedataserverui/libedataserverui.pc
@@ -1731,6 +1782,7 @@ docs/reference/calendar/libedata-cal/Makefile
 docs/reference/camel/Makefile
 docs/reference/libedataserver/Makefile
 docs/reference/libedataserverui/Makefile
+docs/reference/libebackend/Makefile
 po/Makefile.in
 ])
 

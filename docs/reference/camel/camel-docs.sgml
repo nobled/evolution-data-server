@@ -20,6 +20,7 @@
 <!ENTITY CamelGPGContext SYSTEM "xml/camel-gpg-context.xml">
 <!ENTITY CamelHTMLParser SYSTEM "xml/camel-html-parser.xml">
 <!ENTITY CamelHTTPStream SYSTEM "xml/camel-http-stream.xml">
+<!ENTITY CamelIconv SYSTEM "xml/camel-iconv.xml">
 <!ENTITY CamelIndex SYSTEM "xml/camel-index.xml">
 <!ENTITY CamelInternetAddress SYSTEM "xml/camel-internet-address.xml">
 <!ENTITY CamelListUtils SYSTEM "xml/camel-list-utils.xml">
@@ -37,6 +38,7 @@
 <!ENTITY CamelMIMEFilterHTML SYSTEM "xml/camel-mime-filter-html.xml">
 <!ENTITY CamelMIMEFilterIndex SYSTEM "xml/camel-mime-filter-index.xml">
 <!ENTITY CamelMIMEFilterPgp SYSTEM "xml/camel-mime-filter-pgp.xml">
+<!ENTITY CamelMIMEFilterProgress SYSTEM "xml/camel-mime-filter-progress.xml">
 <!ENTITY CamelMIMEFilterSave SYSTEM "xml/camel-mime-filter-save.xml">
 <!ENTITY CamelMIMEFilterToHTML SYSTEM "xml/camel-mime-filter-tohtml.xml">
 <!ENTITY CamelMIMEFilterWindows SYSTEM "xml/camel-mime-filter-windows.xml">
@@ -46,6 +48,7 @@
 <!ENTITY CamelMIMEPart SYSTEM "xml/camel-mime-part.xml">
 <!ENTITY CamelMIMEPartUtils SYSTEM "xml/camel-mime-part-utils.xml">
 <!ENTITY CamelMIMEUtils SYSTEM "xml/camel-mime-utils.xml">
+<!ENTITY CamelMsgPort SYSTEM "xml/camel-msgport.xml">
 <!ENTITY CamelMultipart SYSTEM "xml/camel-multipart.xml">
 <!ENTITY CamelMultipartEncrypted SYSTEM "xml/camel-multipart-encrypted.xml">
 <!ENTITY CamelMultipartSigned SYSTEM "xml/camel-multipart-signed.xml">
@@ -88,6 +91,7 @@
 <!ENTITY CamelTcpStreamSSL SYSTEM "xml/camel-tcp-stream-ssl.xml">
 <!ENTITY CamelTextIndex SYSTEM "xml/camel-text-index.xml">
 <!ENTITY CamelTransport SYSTEM "xml/camel-transport.xml">
+<!ENTITY CamelTrie SYSTEM "xml/camel-trie.xml">
 <!ENTITY CamelUIDCache SYSTEM "xml/camel-uid-cache.xml">
 <!ENTITY CamelURL SYSTEM "xml/camel-url.xml">
 <!ENTITY CamelURLScanner SYSTEM "xml/camel-url-scanner.xml">
@@ -115,7 +119,7 @@
       </author>
     </authorgroup>
     <copyright>
-      <year>2000-2005</year>
+      <year>2000-2008</year>
       <holder>Novell, Inc.</holder>
     </copyright>
 

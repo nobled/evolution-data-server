@@ -1,14 +1,13 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
-
-/*
+/* 
  *
- * Author :
+ * Author : 
  *  Bertrand Guiheneuf <bertrand@helixcode.com>
  *
- * Copyright 1999, 2000 Ximian, Inc. (www.ximian.com)
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU Lesser General Public
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of version 2 of the GNU Lesser General Public 
  * License as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
@@ -82,6 +81,7 @@
 #include <camel/camel-mime-part-utils.h>
 #include <camel/camel-mime-utils.h>
 #include <camel/camel-movemail.h>
+#include <camel/camel-msgport.h>
 #include <camel/camel-multipart.h>
 #include <camel/camel-multipart-encrypted.h>
 #include <camel/camel-multipart-signed.h>
@@ -127,6 +127,7 @@
 #include <camel/camel-tcp-stream-ssl.h>
 #include <camel/camel-text-index.h>
 #include <camel/camel-transport.h>
+#include <camel/camel-trie.h>
 #include <camel/camel-types.h>
 #include <camel/camel-uid-cache.h>
 #include <camel/camel-url.h>

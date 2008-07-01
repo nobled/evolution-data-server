@@ -1,3 +1,66 @@
+2008-06-16  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes #394654 (bnc)
+
+	* e-gw-item.c: (e_gw_item_init),
+	(set_contact_fields_from_soap_parameter),
+	(set_organization_fields_from_soap_parameter): Fixes a EDS crasher.
+
+2008-06-12  Tor Lillqvist  <tml@novell.com>
+
+	* Makefile.am (libegroupwise_1_2_la_LIBADD): Link with
+	libedataserver because of the e-proxy functions.
+
+2008-06-02  Sankar P  <psankar@novell.com>
+
+	* e-gw-connection.c: (e_gw_connection_send_message):
+	Appropriately check the response before dumping it.
+	Fixes a crash.
+
+2008-05-14  Sankar P  <psankar@novell.com>
+
+	* e-gw-connection.c: (e_gw_connection_init),
+	(e_gw_connection_send_message):
+	* soup-soap-response.c: (soup_soap_response_dump_response):
+	* soup-soap-response.h:
+	Enable GROUPWISE_DEBUG logs.
+
+	** Fix for bug #533058
+
+2008-05-09  Sankar P  <psankar@novell.com>
+
+	* e-gw-container.c: (free_node):
+	Fixes a double free. 
+
+	** Fix for bug #532284
+
+2008-04-30  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes #338330 (bnc)
+	Internet Based Calendar Events Are Declined By Evolution/GroupWise
+
+	* e-gw-item.c: (e_gw_item_init),
+	(e_gw_item_new_from_soap_parameter), (e_gw_item_is_from_internet):
+	* e-gw-item.h:
+
+2008-04-30  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes part of #350143 (bnc)
+	Severe memory leak in evolution-data-server
+
+	* e-gw-container.c: (free_node):
+	* e-gw-item.c: (e_gw_item_dispose), (e_gw_item_init),
+	(set_organization_fields_from_soap_parameter),
+	(e_gw_item_new_from_soap_parameter):
+
+2008-04-30  Sankar P  <psankar@novell.com>
+
+	** Fixes #182380 (bnc)
+	Message classification and security cannot be viewed
+
+	* e-gw-item.c: (e_gw_item_get_security):
+	* e-gw-item.h:
+
 2008-03-26  Stanislav Brabec  <sbrabec@suse.cz>
 
 	** Fix for bug #522389

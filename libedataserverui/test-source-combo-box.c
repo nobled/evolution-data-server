@@ -1,7 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 /* test-source-combo-box.c - Test for ESourceComboBox.
  *
- * Copyright (C) 2003 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -26,8 +26,7 @@
 
 #include "e-source-combo-box.h"
 
-#include <gtk/gtkwindow.h>
-#include <gtk/gtkmain.h>
+#include <gtk/gtk.h>
 
 static void
 source_changed_cb (ESourceComboBox *combo_box)

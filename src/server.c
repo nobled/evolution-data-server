@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* server.c
  *
- * Copyright (C) 2000-2003, Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -37,13 +37,12 @@
 #include <glib/gi18n.h>
 #include <libgnome/gnome-init.h>
 #include <bonobo-activation/bonobo-activation.h>
-#include <libgnomevfs/gnome-vfs-init.h>
 #include <bonobo/bonobo-main.h>
 #include <bonobo/bonobo-exception.h>
 #include <bonobo/bonobo-generic-factory.h>
 #include <gconf/gconf-client.h>
 
-#include <libedataserver/e-data-server-module.h>
+#include <libebackend/e-data-server-module.h>
 #include <libedata-book/e-data-book-factory.h>
 #if ENABLE_CALENDAR
 #include <libedata-cal/e-data-cal-factory.h>
@@ -436,8 +435,6 @@ main (int argc, char **argv)
 
 	bonobo_object_unref (BONOBO_OBJECT (interface_check_iface));
 	interface_check_iface = NULL;
-
-	gnome_vfs_shutdown ();
 
 	return 0;
 }

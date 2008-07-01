@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001-2004 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -45,16 +45,16 @@ typedef enum {
 
 struct _CamelMimeFilterGZip {
 	CamelMimeFilter parent_object;
-
+	
 	struct _CamelMimeFilterGZipPrivate *priv;
-
+	
 	CamelMimeFilterGZipMode mode;
 	int level;
 };
 
 struct _CamelMimeFilterGZipClass {
 	CamelMimeFilterClass parent_class;
-
+	
 };
 
 

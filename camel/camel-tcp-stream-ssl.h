@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -41,15 +41,15 @@ struct _CamelSession;
 
 struct _CamelTcpStreamSSL {
 	CamelTcpStream parent_object;
-
+	
 	struct _CamelTcpStreamSSLPrivate *priv;
 };
 
 typedef struct {
 	CamelTcpStreamClass parent_class;
-
+	
 	/* virtual functions */
-
+	
 } CamelTcpStreamSSLClass;
 
 /* Standard Camel function */

@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* Evolution calendar - iCalendar http backend
  *
- * Copyright (C) 2003 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Hans Petter Jansson <hpj@ximian.com>
  *
@@ -323,9 +323,9 @@ retrieval_done (SoupSession *session, SoupMessage *msg, ECalBackendHttp *cbhttp)
 
 		subcomp_kind = icalcomponent_isa (subcomp);
 		prop = icalcomponent_get_first_property (subcomp, ICAL_UID_PROPERTY);
-		if (!prop) {
+		if (!prop && subcomp_kind == kind) {
 			g_warning (" The component does not have the  mandatory property UID \n");
-			subcomp = icalcomponent_get_next_component (icalcomp, kind);
+			subcomp = icalcomponent_get_next_component (icalcomp, ICAL_ANY_COMPONENT);
 			continue;
 		}
 
@@ -365,7 +365,7 @@ retrieval_done (SoupSession *session, SoupMessage *msg, ECalBackendHttp *cbhttp)
 			icaltimezone_free (zone, 1);
 		}
 
-		subcomp = icalcomponent_get_next_component (icalcomp, kind);
+		subcomp = icalcomponent_get_next_component (icalcomp, ICAL_ANY_COMPONENT);
 	}
 
 	e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));

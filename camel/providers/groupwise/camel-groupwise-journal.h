@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@novell.com>
  *
- *  Copyright 2004 Novell, Inc. (www.novell.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -53,7 +53,7 @@ enum {
 
 struct _CamelGroupwiseJournalEntry {
 	EDListNode node;
-
+	
 	int type;
 
 	char *uid;
@@ -63,12 +63,12 @@ struct _CamelGroupwiseJournalEntry {
 
 struct _CamelGroupwiseJournal {
 	CamelOfflineJournal parent_object;
-
+	
 };
 
 struct _CamelGroupwiseJournalClass {
 	CamelOfflineJournalClass parent_class;
-
+	
 };
 
 
@@ -79,7 +79,7 @@ CamelOfflineJournal *camel_groupwise_journal_new (struct _CamelGroupwiseFolder *
 /* interfaces for adding a journal entry */
 void camel_groupwise_journal_append (CamelGroupwiseJournal *journal, CamelMimeMessage *message, const CamelMessageInfo *mi,
 				     char **appended_uid, CamelException *ex);
-void camel_groupwise_journal_transfer (CamelGroupwiseJournal *journal, CamelGroupwiseFolder *source_folder, CamelMimeMessage *message,
+void camel_groupwise_journal_transfer (CamelGroupwiseJournal *journal, CamelGroupwiseFolder *source_folder, CamelMimeMessage *message, 
 				       const CamelMessageInfo *mi, const char *orginal_uid, char **transferred_uid, CamelException *ex);
 
 G_END_DECLS

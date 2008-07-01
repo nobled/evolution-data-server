@@ -1,7 +1,6 @@
 /* Evolution calendar - iCalendar component object
  *
- * Copyright (C) 2000 Ximian, Inc.
- * Copyright (C) 2000 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Author: Federico Mena-Quintero <federico@ximian.com>
  *
@@ -22,7 +21,6 @@
 #ifndef E_CAL_COMPONENT_H
 #define E_CAL_COMPONENT_H
 
-#include <glib/gmacros.h>
 #include <time.h>
 #include <glib-object.h>
 #include <libical/ical.h>

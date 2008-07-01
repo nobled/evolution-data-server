@@ -1,3 +1,184 @@
+2008-06-25  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #476640
+
+	* backends/file/e-cal-backend-file.c: (cancel_received_object):
+	Pass back old and new object after the remove.
+	* backends/file/e-cal-backend-file.c:
+	(e_cal_backend_file_receive_objects): Cancel event properly.
+
+2008-06-22  Patrick Ohly  <patrick.ohly@gmx.de>
+
+	* libecal/e-cal-check-timezones.c,
+	libecal/e-cal-check-timezones.h: added e_cal_check_timezones()
+	which matches time zone definitions to system time zones and
+	resolves conflicting definitions; bumped version and age to
+	matched the extended libecal API (bug #52890)
+
+	* backends/file/e-cal-backend-file.c: use e_cal_check_timezones()
+	to improve time zone handling (bug #52890)
+
+	* libecal/e-cal.c: use current system time zone definitions
+	instead of possibly out-dated custom definitions when exporting
+	events or retrieving the time zone information for an event (bug
+	#52890)
+
+2008-06-13  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #534080
+
+	* backends/file/e-cal-backend-file.c: (save_file_when_idle):
+	Use g_output_stream_write_all instead of g_output_stream_write.
+
+2008-06-13  Tor Lillqvist  <tml@novell.com>
+
+	* backends/google/Makefile.am (libecalbackendgoogle_la_LIBADD)
+	* backends/groupwise/Makefile.am (libecalbackendgroupwise_la_LIBADD)
+	* backends/http/Makefile.am (libecalbackendhttp_la_LIBADD)
+	* backends/weather/Makefile.am (libecalbackendweather_la_LIBADD):
+	Link with libebackend.
+
+2008-06-13  Wang Xin  <jedy.wang@sun.com>
+
+	** Fixes #527544.
+
+	* backends/google/e-cal-backend-google.c: Added proxy support.
+
+2008-05-29  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes #388579 (bnc)
+
+	* libecal/e-cal-component.c: (free_icalcomponent): Fix for Exchange 
+	crasher. Part of the fix was already committed. This is the last hunk.
+
+2008-05-23  Paul Smith  <psmith@gnu.org>
+
+	** Fix for bug #534077
+
+	* libedata-cal/e-cal-backend-sync.c:
+	(e_cal_backend_sync_set_default_zone): Don't use freed memory. 
+
+2008-05-23  Ed Catmur  <ed@catmur.co.uk>
+
+	** Fix for bug #533780
+
+	* libedata-cal/Makefile.am: Link against libebackend. 
+
+2008-05-13  Matthew Barnes  <mbarnes@redhat.com>
+
+	* libedata-cal/libedata-cal.pc.in: Require libebackend-1.2.
+
+2008-05-09  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes part of #382736 (bnc) 
+
+	* libecal/e-cal-component.c: (scan_attachment): Exchange crashed 
+	everytime at start up. This patch helps fixing it.
+
+2008-04-30  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes #358644 (bnc) 
+	Retracted groupwise appointments should disappear as soon as they are 
+	retracted.
+
+	* backends/groupwise/e-cal-backend-groupwise.c: (get_deltas),
+	(get_cache_refresh_interval), (delta_thread), (cache_init):
+
+2008-04-30  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes part of #350143 (bnc)
+	Severe memory leak in evolution-data-server
+
+	* backends/groupwise/e-cal-backend-groupwise-utils.c:
+	(e_gw_item_to_cal_component), (e_gw_connection_get_freebusy_info):
+	* backends/groupwise/e-cal-backend-groupwise.c:
+	(e_cal_backend_groupwise_open):
+	* libecal/e-cal-component.c: (set_attachment_list):
+
+2008-04-29  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes #358584 (bnc)
+	Display of web calendars ignores timezones
+
+	* backends/http/e-cal-backend-http.c: (retrieval_done):
+
+2008-04-29  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	** Fixes #358650 (bnc)
+	International clock applet is crashing
+
+	* backends/groupwise/e-cal-backend-groupwise.c: (populate_cache):
+
+2008-04-23  Rob Bradford  <rob@openedhand.com>
+
+	* libedata-cal/e-cal-backend-cache.h:
+	* libedata-cal/e-data-cal-factory.c:
+	Use new paths for header files that have been moved to libebackend.
+
+2008-04-29  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #330990
+
+	* backends/caldav/e-cal-backend-caldav.c: (caldav_remove_object):
+	Allow remove only one instance of the recurring event.
+
+2008-04-29  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	* calendar/tests/ecal/test-ecal.c: Remote g_asserts.
+
+2008-04-28  Sebastien Bacher  <seb128@ubuntu.com>
+
+	* backends/contacts/e-cal-backend-contacts.c: (book_record_new):
+	- don't free the same variable twice (#530323)
+
+2008-04-17  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #526741
+
+	* libedata-cal/libedata-cal.pc.in: Do not require gnomve-vfs,
+	require gio-2.0 instead.
+	* backends/file/e-cal-backend-file.c: (struct _ECalBackendFilePrivate),
+	(save_file_when_idle), (uri_to_path), (open_cal), (reload_cal),
+	(create_cal), (get_uri_string), (e_cal_backend_file_open),
+	(e_cal_backend_file_compute_changes), (e_cal_backend_file_init):
+	* backends/groupwise/e-cal-backend-groupwise-utils.c:
+	(get_mime_type), (e_cal_backend_groupwise_set_attachments_from_comp):
+	* backends/groupwise/e-cal-backend-groupwise.c:
+	(e_cal_backend_groupwise_compute_changes):
+	Do not use gnome-vfs, use gio/gvfs instead.
+	* backends/google/e-cal-backend-google-utils.c:
+	* backends/google/e-cal-backend-google.c: Do not include gnome-vfs.
+
+2008-04-16  Ebby wiselyn <ebbyw@gnome.org>
+	** Fix for bug #523630
+	
+	* backends/google/e-cal-backend-google.c: Error handling changes 
+	* backends/google/e-cal-backend-google-utils.c: Error handling changes for function prototypes 
+
+2008-04-16  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #524324
+
+	* libedata-cal/e-data-cal-view.h: (struct _EDataCalViewClass):
+	* libedata-cal/e-data-cal-view.c: (e_data_cal_view_class_init): 
+	New signal "last_listener_gone" to indicate noone is using the query.
+	* libedata-cal/e-data-cal-view.c: (listener_died_cb): Emit the signal.
+	* libedata-cal/e-data-cal-view.c: (e_data_cal_view_set_property):
+	Increase the reference counter for the backend property.
+	* libedata-cal/e-cal-backend.h: (e_cal_backend_remove_query):
+	* libedata-cal/e-cal-backend.c: (e_cal_backend_remove_query):
+	Pair function to e_cal_backend_add_query.
+	* libedata-cal/e-data-cal.c: (disconnect_query),
+	(query_last_listener_gone_cb): New helper functions to properly
+	disconnect/remove queries without listeners.
+	* libedata-cal/e-data-cal.c: (impl_Cal_getQuery):
+	Listen to "last_listener_gone" signal on new query.
+	* libedata-cal/e-data-cal.c: (e_data_cal_finalize):
+	Disconnect queries properly, before destroying the hash table.
+	* libedata-cal/e-cal-backend.c: (e_cal_backend_init):
+	* libedata-cal/e-data-cal.c: (e_data_cal_init):
+	Use bonobo_object_ref/unref for EDataCalView objects.
+
 2008-03-31  Ondrej Jirman  <megous@megous.com>
 
 	** Fix for bug #494311

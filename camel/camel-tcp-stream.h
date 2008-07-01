@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -24,7 +24,7 @@
 #ifndef CAMEL_TCP_STREAM_H
 #define CAMEL_TCP_STREAM_H
 
-#include <glibconfig.h>
+#include <glib.h>
 
 #ifndef G_OS_WIN32
 #include <sys/types.h>
@@ -54,16 +54,16 @@ typedef enum {
 	CAMEL_SOCKOPT_KEEPALIVE,       /* keep connections alive */
 	CAMEL_SOCKOPT_RECVBUFFERSIZE,  /* receive buffer size */
 	CAMEL_SOCKOPT_SENDBUFFERSIZE,  /* send buffer size */
-
+	
 	CAMEL_SOCKOPT_IPTIMETOLIVE,    /* time to live */
 	CAMEL_SOCKOPT_IPTYPEOFSERVICE, /* type of service and precedence */
-
+	
 	CAMEL_SOCKOPT_ADDMEMBER,       /* add an IP group membership */
 	CAMEL_SOCKOPT_DROPMEMBER,      /* drop an IP group membership */
 	CAMEL_SOCKOPT_MCASTINTERFACE,  /* multicast interface address */
 	CAMEL_SOCKOPT_MCASTTIMETOLIVE, /* multicast timetolive */
 	CAMEL_SOCKOPT_MCASTLOOPBACK,   /* multicast loopback */
-
+	
 	CAMEL_SOCKOPT_NODELAY,         /* don't delay send to coalesce packets */
 	CAMEL_SOCKOPT_MAXSEGMENT,      /* maximum segment size */
 	CAMEL_SOCKOPT_BROADCAST,       /* enable broadcast */
@@ -93,7 +93,7 @@ typedef struct _CamelSockOptData {
 
 struct _CamelTcpStream {
 	CamelStream parent_object;
-
+	
 };
 
 typedef struct {
@@ -103,7 +103,7 @@ typedef struct {
 	int (*connect)    (CamelTcpStream *stream, struct addrinfo *host);
 	int (*getsockopt) (CamelTcpStream *stream, CamelSockOptData *data);
 	int (*setsockopt) (CamelTcpStream *stream, const CamelSockOptData *data);
-
+	
 	struct sockaddr * (*get_local_address)  (CamelTcpStream *stream, socklen_t *len);
 	struct sockaddr * (*get_remote_address) (CamelTcpStream *stream, socklen_t *len);
 } CamelTcpStreamClass;

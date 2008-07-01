@@ -1,3 +1,76 @@
+2008-06-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #330838
+
+	* camel-imap-store.c: (get_folders_sync): Notify application about
+	server folder changes as soon as we know about them.
+
+2008-06-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #536486
+
+	* camel-imap-folder.c: (imap_expunge_uids_online):
+	Do full EXPUNGE in case the UID EXPUNGE fails. Just a fallback
+	for broken servers telling they know the UID EXPUNGE, but they
+	don't. The error is printed on the console too.
+
+2008-06-24  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #531712
+
+	* camel-imap-folder.c: (imap_sync_online):
+	Do not reset flags on no-flag situation, rather add and remove there
+	the \Seen flag, which will ensure to keep there flags set on the server
+	by other users in shared folders, for example.
+
+2008-06-05  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #530241
+
+	* camel-imap-folder.c: (imap_sync_online): Recognize no-flag situation
+	properly and in that case use two commands, one set and one unset,
+	because we do not track previously set user flags.
+
+2008-06-04  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #509721
+
+	* camel-imap-folder.c: (imap_transfer_offline),
+	(imap_transfer_resyncing):
+	Do not delete original message if exception occurred.
+
+2008-05-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #374616
+
+	* camel-imap-command.c: (camel_imap_command_response):
+	Show server's error message on "BYE" if available.
+
+2008-05-29  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #326149
+
+	* camel-imap-store-summary.c: (camel_imap_store_summary_add_from_full):
+	Set inbox flag only on real inboxes.
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #531591
+
+	* camel-imap-store.c:
+	* camel-imap-folder.c:
+	Don't use TeX-style quotes in user-visible messages.
+
+2008-04-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #274316
+
+	* camel-imap-folder.c: (any_has_user_tag), (do_copy):
+	Use XGWMOVE only when none of the messages has set any user tag.
+	* camel-imap-folder.c: (handle_copyuid_copy_user_tags):
+	Do NOOP on the destination folder before refreshing info so
+	server has enough time to propagate our last copy command there.
+
 2008-04-14  Milan Crha  <mcrha@redhat.com>
 
 	** Fix for bug #270406

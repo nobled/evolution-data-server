@@ -1,8 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* Evolution calendar - generic backend class
  *
- * Copyright (C) 2000 Ximian, Inc.
- * Copyright (C) 2000 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Federico Mena-Quintero <federico@ximian.com>
  *          JP Rosevear <jpr@ximian.com>
@@ -279,7 +278,7 @@ e_cal_backend_init (ECalBackend *backend)
 	priv->clients_mutex = g_mutex_new ();
 
 	/* FIXME bonobo_object_ref/unref? */
-	priv->queries = e_list_new((EListCopyFunc) g_object_ref, (EListFreeFunc) g_object_unref, NULL);
+	priv->queries = e_list_new ((EListCopyFunc) bonobo_object_ref, (EListFreeFunc) bonobo_object_unref, NULL);
 	priv->queries_mutex = g_mutex_new ();
 }
 
@@ -498,6 +497,25 @@ e_cal_backend_get_queries (ECalBackend *backend)
 	return backend->priv->queries;
 }
 
+/**
+ * e_cal_backend_remove_query
+ * @backend: An #ECalBackend object.
+ * @query: An #EDataCalView object, previously added with @ref e_cal_backend_add_query.
+ *
+ * Removes query from the list of live queries for the backend.
+ **/
+void
+e_cal_backend_remove_query (ECalBackend *backend, EDataCalView *query)
+{
+	g_return_if_fail (backend != NULL);
+	g_return_if_fail (E_IS_CAL_BACKEND (backend));
+
+	g_mutex_lock (backend->priv->queries_mutex);
+
+	e_list_remove (backend->priv->queries, query);
+
+	g_mutex_unlock (backend->priv->queries_mutex);
+}
 
 /**
  * e_cal_backend_get_cal_address:

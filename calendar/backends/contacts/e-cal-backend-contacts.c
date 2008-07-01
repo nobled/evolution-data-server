@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* Evolution calendar - iCalendar file backend
  *
- * Copyright (C) 2000-2003 Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  * Copyright (C) 2003 Gergõ Érdi
  *
  * Authors: Federico Mena-Quintero <federico@ximian.com>
@@ -102,7 +102,6 @@ book_record_new (ECalBackendContacts *cbc, ESource *source)
         query = e_book_query_any_field_contains ("");
 
         if (!e_book_get_book_view (book, query, fields, -1, &book_view, NULL)) {
-		g_list_free (fields);
                 e_book_query_unref (query);
                 g_object_unref (book);
                 g_list_free (fields);

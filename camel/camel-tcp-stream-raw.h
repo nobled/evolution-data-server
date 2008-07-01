@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2001 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -36,7 +36,7 @@ G_BEGIN_DECLS
 struct _CamelTcpStreamRaw
 {
 	CamelTcpStream parent_object;
-
+	
 	int sockfd;
 #ifdef G_OS_WIN32
 	int is_nonblocking;
@@ -45,9 +45,9 @@ struct _CamelTcpStreamRaw
 
 typedef struct {
 	CamelTcpStreamClass parent_class;
-
+	
 	/* virtual functions */
-
+	
 } CamelTcpStreamRawClass;
 
 /* Standard Camel function */

@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -44,17 +44,17 @@ enum {
 
 struct _CamelMultipartEncrypted {
 	CamelMultipart parent_object;
-
+	
 	CamelMimePart *version;
 	CamelMimePart *content;
 	CamelMimePart *decrypted;
-
+	
 	char *protocol;
 };
 
 struct _CamelMultipartEncryptedClass {
 	CamelMultipartClass parent_class;
-
+	
 };
 
 CamelType camel_multipart_encrypted_get_type (void);

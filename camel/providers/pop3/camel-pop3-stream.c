@@ -3,7 +3,7 @@
  * Author:
  *  Michael Zucchi <notzed@ximian.com>
  *
- * Copyright 2002 Ximian, Inc. (www.ximian.com)
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -54,7 +54,7 @@ stream_fill(CamelPOP3Stream *is)
 
 	if (is->source) {
 		left = is->end - is->ptr;
-		memcpy(is->buf, is->ptr, left);
+		memmove(is->buf, is->ptr, left);
 		is->end = is->buf + left;
 		is->ptr = is->buf;
 		left = camel_stream_read(is->source, (char *) is->end, CAMEL_POP3_STREAM_SIZE - (is->end - is->buf));
@@ -147,12 +147,12 @@ static ssize_t
 stream_write(CamelStream *stream, const char *buffer, size_t n)
 {
 	CamelPOP3Stream *is = (CamelPOP3Stream *)stream;
-
+	
 	if (strncmp (buffer, "PASS ", 5) != 0)
 		dd(printf("POP3_STREAM_WRITE(%d):\n%.*s\n", (int)n, (int)n, buffer));
 	else
 		dd(printf("POP3_STREAM_WRITE(%d):\nPASS xxxxxxxx\n", (int)n));
-
+	
 	return camel_stream_write(is->source, buffer, n);
 }
 

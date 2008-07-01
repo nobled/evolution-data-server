@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright(C) 2000 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors:
  *    Michael Zucchi <notzed@ximian.com>
@@ -135,7 +135,7 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 	}
 
 	return 0;
-}
+}	
 
 static int
 summary_header_save(CamelFolderSummary *s, FILE *out)

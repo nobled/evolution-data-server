@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* e-file-cache.c
  *
- * Copyright (C) 2003 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -27,8 +27,8 @@
 #include <glib/gstdio.h>
 
 #include "e-file-cache.h"
-#include "e-data-server-util.h"
-#include "e-xml-hash-utils.h"
+#include "libedataserver/e-data-server-util.h"
+#include "libedataserver/e-xml-hash-utils.h"
 
 struct _EFileCachePrivate {
 	char *filename;

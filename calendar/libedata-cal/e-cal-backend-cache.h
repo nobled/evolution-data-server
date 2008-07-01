@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /* Evolution calendar - generic backend class
  *
- * Copyright (C) 2003 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * Authors: Rodrigo Moya <rodrigo@ximian.com>
  *
@@ -22,7 +22,7 @@
 #ifndef E_CAL_BACKEND_CACHE_H
 #define E_CAL_BACKEND_CACHE_H
 
-#include "libedataserver/e-file-cache.h"
+#include "libebackend/e-file-cache.h"
 #include <libecal/e-cal-component.h>
 #include <libecal/e-cal.h>
 

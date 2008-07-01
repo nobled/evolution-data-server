@@ -1,7 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 /* e-source-selector.c
  *
- * Copyright (C) 2003  Ximian, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License as
@@ -26,12 +26,6 @@
 #endif
 
 #include <string.h>
-#include <gtk/gtkmenu.h>
-#include <gtk/gtktreeselection.h>
-#include <gtk/gtktreestore.h>
-#include <gtk/gtkcellrenderertoggle.h>
-#include <gtk/gtkcellrenderertext.h>
-#include <gtk/gtkcellrendererpixbuf.h>
 
 #include "e-data-server-ui-marshal.h"
 #include "e-source-selector.h"

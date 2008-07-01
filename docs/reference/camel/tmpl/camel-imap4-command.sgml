@@ -36,6 +36,7 @@ camel-imap4-command
 @part: 
 @untagged: 
 @plus: 
+@reset: 
 @user_data: 
 
 <!-- ##### STRUCT CamelIMAP4Literal ##### -->
@@ -69,6 +70,15 @@ camel-imap4-command
 @token: 
 @ex: 
 @Returns: 
+
+
+<!-- ##### USER_FUNCTION CamelIMAP4CommandReset ##### -->
+<para>
+
+</para>
+
+@ic: 
+@user_data: 
 
 
 <!-- ##### STRUCT CamelIMAP4CommandPart ##### -->

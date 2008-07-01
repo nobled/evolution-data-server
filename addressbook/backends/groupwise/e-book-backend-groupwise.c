@@ -2,7 +2,7 @@
 
 /* e-book-backend-groupwise.c - Groupwise contact backend.
  *
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -37,9 +37,10 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
+#include "libebackend/e-db3-utils.h"
+
 #include "libedataserver/e-sexp.h"
 #include "libedataserver/e-data-server-util.h"
-#include "libedataserver/e-db3-utils.h"
 #include "libedataserver/e-flag.h"
 #include "libedataserver/e-url.h"
 #include "libebook/e-contact.h"
@@ -55,6 +56,12 @@
 #include "e-gw-filter.h"
 
 G_DEFINE_TYPE (EBookBackendGroupwise, e_book_backend_groupwise, E_TYPE_BOOK_BACKEND);
+
+typedef struct {
+        GCond *cond;
+        GMutex *mutex;
+        gboolean exit;
+} SyncUpdate;
 
 struct _EBookBackendGroupwisePrivate {
 	EGwConnection *cnc;
@@ -72,12 +79,15 @@ struct _EBookBackendGroupwisePrivate {
 	gboolean marked_for_offline;
 	char *use_ssl;
 	int mode;
-	int cache_timeout;
 	EBookBackendSummary *summary;
 	GMutex *update_cache_mutex;
 	GMutex *update_mutex;
 	DB     *file_db;
 	DB_ENV *env;
+
+	guint cache_timeout;
+	GThread *dthread;
+        SyncUpdate *dlock;
 };
 
 static GStaticMutex global_env_lock = G_STATIC_MUTEX_INIT;
@@ -86,6 +96,7 @@ static struct {
 	DB_ENV *env;
 } global_env;
 
+#define CACHE_REFRESH_INTERVAL 600000
 #define ELEMENT_TYPE_SIMPLE 0x01
 #define ELEMENT_TYPE_COMPLEX 0x02 /* fields which require explicit functions to set values into EContact and EGwItem */
 #define SUMMARY_FLUSH_TIMEOUT 5000
@@ -2231,6 +2242,9 @@ book_view_thread (gpointer data)
 			view = "name email";
 
 		if (search_string) {
+			if (filter)
+				g_object_unref (filter);
+
 			/* groupwise server supports only name, rebuild the filter */
 			filter = e_gw_filter_new ();
 			e_gw_filter_add_filter_component (filter, E_GW_FILTER_OP_BEGINS,
@@ -2241,13 +2255,16 @@ book_view_thread (gpointer data)
 			g_free (search_string);
 		}
 
-		if (!gwb->priv->is_writable && !filter) {
-			e_data_book_view_notify_complete (book_view, GNOME_Evolution_Addressbook_Success);
-			bonobo_object_unref (book_view);
-			return NULL;
-		}
-		else
-			status =  E_GW_CONNECTION_STATUS_OK;
+		if (!gwb->priv->is_writable && !filter && (g_getenv ("GW_HIDE_SYSBOOK") || (!gwb->priv->is_cache_ready))) {
+
+				e_data_book_view_notify_complete (book_view, GNOME_Evolution_Addressbook_Success);
+				bonobo_object_unref (book_view);
+				if (filter)
+					g_object_unref (filter);
+				return NULL; 
+ 		}
+ 		else 
+ 			status =  E_GW_CONNECTION_STATUS_OK;
 
 		/* Check if the data is found on summary */
 		if (gwb->priv->is_summary_ready &&
@@ -2284,6 +2301,8 @@ book_view_thread (gpointer data)
 					printf("reading contacts from cache took %ld.%03ld seconds\n",
 						diff/1000,diff%1000);
 				}
+				if (filter)
+					g_object_unref (filter);
 				return NULL;
 			}
 			else {
@@ -2307,6 +2326,30 @@ book_view_thread (gpointer data)
 			g_ptr_array_free (ids, TRUE);
 		}
 		else {
+			if (gwb->priv->is_cache_ready) {
+				contacts = e_book_backend_db_cache_get_contacts (gwb->priv->file_db, query);
+				temp_list = contacts;
+				for (; contacts != NULL; contacts = g_list_next(contacts)) {
+					if (!e_flag_is_set (closure->running)) {
+						for (;contacts != NULL; contacts = g_list_next (contacts))
+							g_object_unref (contacts->data);
+						break;
+					}
+					e_data_book_view_notify_update (book_view, E_CONTACT(contacts->data));
+					g_object_unref (contacts->data);
+				}
+				if (e_flag_is_set (closure->running))
+					e_data_book_view_notify_complete (book_view, GNOME_Evolution_Addressbook_Success);
+				if (temp_list)
+					g_list_free (temp_list);
+				bonobo_object_unref (book_view);
+				
+				if (filter)	
+					g_object_unref (filter);
+
+				return NULL;
+			} 
+		
 			/* no summary information found, read from server */
 			if (enable_debug)
 				printf ("summary not found, reading the contacts from server\n");
@@ -2328,6 +2371,8 @@ book_view_thread (gpointer data)
 		if (status != E_GW_CONNECTION_STATUS_OK) {
 			e_data_book_view_notify_complete (book_view, GNOME_Evolution_Addressbook_OtherError);
 			bonobo_object_unref (book_view);
+			if (filter)
+				g_object_unref (filter);
 			return NULL;
 		}
 
@@ -2658,6 +2703,9 @@ build_cache (EBookBackendGroupwise *ebgw)
 			printf("e_gw_connection_read_cursor took %ld.%03ld seconds for %d contacts\n", diff / 1000, diff % 1000, CURSOR_ITEM_LIMIT);
 		}
 
+		if (status != E_GW_CONNECTION_STATUS_OK)
+		       	 break;	
+
 		for (l = gw_items; l != NULL; l = g_list_next (l)) {
 			contact_num++;
 
@@ -2797,12 +2845,6 @@ update_cache (EBookBackendGroupwise *ebgw)
 	tm = gmtime (&mod_time);
 	strftime (cache_time_string, 100, "%Y-%m-%dT%H:%M:%SZ", tm);
 
-	if (e_book_backend_summary_load (ebgw->priv->summary) == FALSE ||
-	    e_book_backend_summary_is_up_to_date (ebgw->priv->summary, mod_time) == FALSE) {
-		/* build summary */
-		 build_summary (ebgw);
-	}
-
 	filter = e_gw_filter_new ();
 	e_gw_filter_add_filter_component (filter, E_GW_FILTER_OP_GREATERTHAN,
 					  "modified", cache_time_string);
@@ -2847,7 +2889,6 @@ update_cache (EBookBackendGroupwise *ebgw)
 		g_object_unref(contact);
 		g_object_unref (gw_items->data);
 	}
-
 	ebgw->priv->is_cache_ready = TRUE;
 	ebgw->priv->is_summary_ready = TRUE;
 
@@ -2967,11 +3008,6 @@ update_address_book_deltas (EBookBackendGroupwise *ebgw)
 	g_stat (cache_file_name, &buf);
 	g_free (cache_file_name);
 	mod_time = buf.st_mtime;
-	if (e_book_backend_summary_load (ebgw->priv->summary) == FALSE ||
-	    e_book_backend_summary_is_up_to_date (ebgw->priv->summary, mod_time) == FALSE) {
-		/* build summary */
-		 build_summary (ebgw);
-	}
 
 	if (cache_last_sequence != server_last_sequence) {
 
@@ -3123,29 +3159,70 @@ update_address_book_deltas (EBookBackendGroupwise *ebgw)
 	return TRUE;
 }
 
-static gboolean
-update_address_book_cache (gpointer ebgw)
+static gpointer
+address_book_deltas_thread (gpointer data)
 {
-	GThread *thread;
-	GError *error = NULL;
+        EBookBackendGroupwise *ebgw = data;
+        EBookBackendGroupwisePrivate *priv = ebgw->priv;
+        GTimeVal timeout;
 
-	if (!ebgw)
-		return FALSE;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 0;
 
-	if (enable_debug)
-		printf("GroupWise system addressbook cache time out, updating.. \n");
+        while (TRUE)    {
+                gboolean succeeded = update_address_book_deltas (ebgw);
 
-	thread = g_thread_create ((GThreadFunc) update_address_book_deltas, ebgw, FALSE, NULL);
-	if (!thread) {
-		g_warning (G_STRLOC ": %s", error->message);
-		g_error_free (error);
-	}
+                g_mutex_lock (priv->dlock->mutex);
 
-	return TRUE;
+                if (!succeeded || priv->dlock->exit)
+                        break;
+
+                g_get_current_time (&timeout);
+                g_time_val_add (&timeout, CACHE_REFRESH_INTERVAL * 1000);
+                g_cond_timed_wait (priv->dlock->cond, priv->dlock->mutex, &timeout);
+
+                if (priv->dlock->exit)
+                        break;
+
+                g_mutex_unlock (priv->dlock->mutex);
+        }
+
+        g_mutex_unlock (priv->dlock->mutex);
+        priv->dthread = NULL;
+        return NULL;
 }
 
+static gboolean
+fetch_address_book_deltas (EBookBackendGroupwise *ebgw)
+{
+        EBookBackendGroupwisePrivate *priv = ebgw->priv;
+        GError *error = NULL;
 
-#define CACHE_REFRESH_INTERVAL 600000
+        /* If the thread is already running just return back */
+        if (priv->dthread)
+                return FALSE;
+
+        priv->dlock->exit = FALSE;
+        priv->dthread = g_thread_create ((GThreadFunc) address_book_deltas_thread, ebgw, TRUE, &error);
+        if (!priv->dthread) {
+                g_warning (G_STRLOC ": %s", error->message);
+                g_error_free (error);
+        }
+
+        return TRUE;
+}
+
+static gboolean
+update_address_book_cache (gpointer data)
+{
+	EBookBackendGroupwise *ebgw = data;
+
+	fetch_address_book_deltas (ebgw);
+
+        ebgw->priv->cache_timeout = 0;
+        return FALSE;
+}
+
 static void
 e_book_backend_groupwise_authenticate_user (EBookBackend *backend,
 					    EDataBook    *book,
@@ -3257,6 +3334,13 @@ e_book_backend_groupwise_authenticate_user (EBookBackend *backend,
 		if (e_book_backend_db_cache_is_populated (ebgw->priv->file_db)) {
 			if (enable_debug)
 				printf("cache is populated\n");
+
+			if (!e_book_backend_summary_load (priv->summary))
+				build_summary (ebgw);
+			
+			ebgw->priv->is_cache_ready = TRUE;
+			ebgw->priv->is_summary_ready = TRUE;
+
 			if (priv->is_writable){
 				if (enable_debug) {
 					printf("is writable\n");
@@ -3581,6 +3665,8 @@ e_book_backend_groupwise_load_source (EBookBackend           *backend,
 	}
 
 	e_book_backend_db_cache_set_filename (ebgw->priv->file_db, filename);
+	if (priv->marked_for_offline)
+		ebgw->priv->is_cache_ready = TRUE;
 	g_free(filename);
 	g_free(dirname);
 	g_free (uri);
@@ -3706,10 +3792,36 @@ e_book_backend_groupwise_dispose (GObject *object)
 {
 	EBookBackendGroupwise *bgw;
 
+        EBookBackendGroupwisePrivate *priv;
+
+	bgw = E_BOOK_BACKEND_GROUPWISE (object);
+        priv = bgw->priv;
+
 	if (enable_debug)
 		printf ("\ne_book_backend_groupwise_dispose...\n");
 
-	bgw = E_BOOK_BACKEND_GROUPWISE (object);
+	/* Clean up */
+
+        if (priv->cache_timeout) {
+                g_source_remove (priv->cache_timeout);
+                priv->cache_timeout = 0;
+        }
+
+        if (priv->dlock) {
+                g_mutex_lock (priv->dlock->mutex);
+                priv->dlock->exit = TRUE;
+                g_mutex_unlock (priv->dlock->mutex);
+
+                g_cond_signal (priv->dlock->cond);
+
+                if (priv->dthread)
+                        g_thread_join (priv->dthread);
+
+                g_mutex_free (priv->dlock->mutex);
+                g_cond_free (priv->dlock->cond);
+                g_free (priv->dlock);
+                priv->dthread = NULL;
+        }
 
 	if (bgw->priv) {
 		if (bgw->priv->file_db)
@@ -3821,6 +3933,12 @@ e_book_backend_groupwise_init (EBookBackendGroupwise *backend)
 	priv->update_mutex = g_mutex_new();
 	priv->update_cache_mutex = g_mutex_new();
        	backend->priv = priv;
+
+	if (!priv->dlock) {
+                priv->dlock = g_new0 (SyncUpdate, 1);
+                priv->dlock->mutex = g_mutex_new ();
+                priv->dlock->cond = g_cond_new ();
+        }
 
 	if (g_getenv ("GROUPWISE_DEBUG")) {
 		if (atoi (g_getenv ("GROUPWISE_DEBUG")) == 2)

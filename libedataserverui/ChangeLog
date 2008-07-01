@@ -1,3 +1,93 @@
+2008-06-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #534946
+
+	* e-passwords.c: (ep_get_password_keyring), (ep_ask_password),
+	(e_passwords_shutdown):
+
+2008-06-03  Matthew Barnes  <mbarnes@redhat.com>
+
+	* e-source-option-menu.c:
+	Use g_object_get_data() instead of gtk_object_get_data().
+	Use g_object_set_data_full() instead of gtk_object_set_data_full().
+	Use gtk_menu_shell_append() instead of gtk_menu_append().
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #531439
+
+	* e-passwords.c (ep_keyring_uri_new):
+	Prevent GPG passphrases from destroying other passwords.  GPG
+	passphrases are only cached for the current session, not stored
+	permanently in the keyring (mainly because those types of keys
+	are not URIs with server and usernames).  We defer to third-party
+	GPG agents like Seahorse for persistent storage of passphrases.
+
+2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #354923
+
+	* e-passwords.c:
+	Store passwords in the keyring by server, username and protocol.
+	Storing the protocol allows us to handle situations where, for
+	example, you use the same server and username for IMAP and
+	authenticated SMTP but the passwords are different.
+
+	Also add sufficient backward-compatibility cruft that we can still
+	find existing passwords that are stored in the keyring by server
+	and username only.
+
+2008-05-16  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #532286
+
+	* e-passwords.c (update_capslock_state), (ep_ask_password):
+	Fix some whitespace issues, and make the Caps Lock label smaller.
+
+2008-05-05  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #325882
+
+	* e-passwords.c (ep_ask_password):
+	If a parent window was given, make the password dialog transient for
+	the parent and center it over the parent.
+
+2008-04-30  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #520532
+
+	* e-passwords.c (ep_keyring_migrate_from_keyfile):
+	Implement a migration path from the ~/.gnome2_private/Evolution
+	password file to gnome-keyring.  If the keyring is available and
+	a get_password() operation fails to find a password in the keyring,
+	it will look for the password in the password file.  If found, it
+	will copy the password to the keyring and (if the copy is successful)
+	remove the password from the password file.
+
+	* e-passwords.c (EPassMsg):
+	Add a GError to the message structure.  Instead of logging a warning
+	to stderr themselves, operations will propagate errors to the message
+	structure.  This is enough for the migration code to detect errors.
+	As far as how we handle the error, for now we simply dump it to stderr
+	as a warning when the message structure is destroyed.  But ultimately
+	I want to propagate the error back to the caller of the password
+	operation, which will require an API break.  The current API provides
+	no feedback about whether a password operation was successful, so
+	callers can only assume it was.
+
+2008-04-26  Matthew Barnes  <mbarnes@redhat.com>
+
+	* e-passwords.c (ep_ask_password):
+	Use "dialog-password" icon instead of "dialog-question" in the
+	password dialog (HIG compliance).
+
+2008-04-25  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #301980
+
+	* e-passwords.c: (update_capslock_state), (ep_ask_password):
+	Warn user when Caps Lock is on.
+
 2008-04-14  Matthew Barnes  <mbarnes@redhat.com>
 
 	* e-passwords.c (pass_response):

@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -49,10 +49,10 @@ typedef struct _CamelFolderMetaSummary CamelFolderMetaSummary;
    describe the content structure of the message (if it has any) */
 struct _CamelMessageContentInfo {
 	struct _CamelMessageContentInfo *next;
-
+	
 	struct _CamelMessageContentInfo *childs;
 	struct _CamelMessageContentInfo *parent;
-
+	
 	CamelContentType *type;
 	char *id;
 	char *description;
@@ -67,7 +67,7 @@ typedef enum _CamelMessageFlags {
 	CAMEL_MESSAGE_DRAFT = 1<<2,
 	CAMEL_MESSAGE_FLAGGED = 1<<3,
 	CAMEL_MESSAGE_SEEN = 1<<4,
-
+	
 	/* these aren't really system flag bits, but are convenience flags */
 	CAMEL_MESSAGE_ATTACHMENTS = 1<<5,
 	CAMEL_MESSAGE_ANSWERED_ALL = 1<<6,
@@ -76,6 +76,7 @@ typedef enum _CamelMessageFlags {
 	CAMEL_MESSAGE_USER_NOT_DELETABLE = 1<<9,
 	CAMEL_MESSAGE_HIDDEN = 1<<10,
 	CAMEL_MESSAGE_NOTJUNK = 1<<11,
+	CAMEL_MESSAGE_FORWARDED = 1<<12,
 
 	/* following flags are for the folder, and are not really permanent flags */
 	CAMEL_MESSAGE_FOLDER_FLAGGED = 1<<16, /* for use by the folder implementation */
@@ -140,6 +141,8 @@ enum {
 	CAMEL_MESSAGE_INFO_USER_FLAGS,
 	CAMEL_MESSAGE_INFO_USER_TAGS,
 
+	CAMEL_MESSAGE_INFO_HEADERS,
+
 	CAMEL_MESSAGE_INFO_LAST
 };
 
@@ -183,7 +186,7 @@ struct _CamelMessageInfoBase {
 	struct _camel_header_param *headers;
 };
 
-/* probably do this as well, removing CamelFolderChangeInfo and interfaces
+/* probably do this as well, removing CamelFolderChangeInfo and interfaces 
 typedef struct _CamelChangeInfo CamelChangeInfo;
 struct _CamelChangeInfo {
 	GPtrArray *added;
@@ -393,6 +396,8 @@ time_t camel_message_info_time(const CamelMessageInfo *mi, int id);
 #define camel_message_info_references(mi) ((const CamelSummaryReferences *)camel_message_info_ptr((const CamelMessageInfo *)mi, CAMEL_MESSAGE_INFO_REFERENCES))
 #define camel_message_info_user_flags(mi) ((const CamelFlag *)camel_message_info_ptr((const CamelMessageInfo *)mi, CAMEL_MESSAGE_INFO_USER_FLAGS))
 #define camel_message_info_user_tags(mi) ((const CamelTag *)camel_message_info_ptr((const CamelMessageInfo *)mi, CAMEL_MESSAGE_INFO_USER_TAGS))
+
+#define camel_message_info_headers(mi) ((const struct _camel_header_param *)camel_message_info_ptr((const CamelMessageInfo *)mi, CAMEL_MESSAGE_INFO_HEADERS))
 
 gboolean camel_message_info_user_flag(const CamelMessageInfo *mi, const char *id);
 const char *camel_message_info_user_tag(const CamelMessageInfo *mi, const char *id);

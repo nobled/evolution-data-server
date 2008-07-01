@@ -1,9 +1,9 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
  * Authors :
- *  Ebby Wiselyn <ebbywiselyn@gmail.com>
+ *  Ebby Wiselyn <ebbyw@gnome.org>
  *
- * Copyright 2007, Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -37,9 +37,9 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
-#include <libgnomevfs/gnome-vfs.h>
 #include <libedataserver/e-data-server-util.h>
 #include <libedataserver/e-xml-hash-utils.h>
+#include <libedataserver/e-proxy.h>
 
 
 #include <libedata-cal/e-cal-backend-util.h>
@@ -83,6 +83,7 @@ struct _ECalBackendGooglePrivate {
 	gboolean read_only;
 	gboolean mode_changed;
 
+	EProxy *proxy;
 };
 
 gint compare_ids (gconstpointer cache_id, gconstpointer modified_cache_id);
@@ -539,7 +540,7 @@ static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *ic
 {
 	ECalBackendGooglePrivate *priv;
 	EGoItem *item = NULL;
-	GDataEntry *entry = NULL;
+	GDataEntry *entry = NULL, *updated_entry = NULL;
 	ECalComponent *comp, *modif_comp;
 	GSList *comps = NULL, *l = NULL;
 	icalproperty_method method;
@@ -577,11 +578,15 @@ static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *ic
 	if (!GDATA_IS_ENTRY(entry))
 		return GNOME_Evolution_Calendar_InvalidObject;	
 
-	gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry);
+	updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL);
+
+	if (updated_entry) {
+		/* FIXME */
+		g_object_unref (updated_entry);	
+	}
 
 	/* Update the Cache */
 
-	/* FIXME get the modified entry after insertion*/
 	modif_comp = g_object_ref (comp);
 	if (instances) {
 		const char *uid;
@@ -886,7 +891,7 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 	ECalComponent *comp = NULL, *cache_comp = NULL;
 	EGoItem *item;
 	const char *uid=NULL, *rid=NULL;
-	GDataEntry *entry, *entry_from_server=NULL;
+	GDataEntry *entry, *entry_from_server=NULL, *updated_entry=NULL;
 	gchar *edit_link;
 	GSList *l;
 
@@ -923,7 +928,7 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 			}
 
 			item = e_go_item_from_cal_component (cbgo, comp);
-			item->feed = gdata_service_get_feed (GDATA_SERVICE(priv->service), priv->uri);
+			item->feed = gdata_service_get_feed (GDATA_SERVICE(priv->service), priv->uri, NULL);
 			entry = item->entry;
 
 			if (!item->feed) {
@@ -941,7 +946,15 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 			}
 
 			edit_link = gdata_entry_get_edit_link (entry_from_server);
-			gdata_service_update_entry_with_link (GDATA_SERVICE (priv->service), entry, edit_link);
+			updated_entry = gdata_service_update_entry_with_link (GDATA_SERVICE (priv->service), 
+					entry, edit_link, NULL);
+
+			if (updated_entry) {
+				/* FIXME Response from server contains, additional info about GDataEntry 
+				 * Store and use them later
+				 */
+			}
+
 			break;
 		case CAL_MODE_LOCAL:
 			e_cal_backend_cache_put_component (priv->cache, comp);
@@ -978,7 +991,7 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 
 	*old_object = *object = NULL;
 	/* FIXME */
-	item->feed = gdata_service_get_feed (GDATA_SERVICE(priv->service), priv->uri);
+	item->feed = gdata_service_get_feed (GDATA_SERVICE(priv->service), priv->uri, NULL);
 
 	entries = gdata_feed_get_entries (item->feed);
 
@@ -1023,7 +1036,7 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 			return GNOME_Evolution_Calendar_InvalidObject;
 		}
 
-	        gdata_service_delete_entry (GDATA_SERVICE(priv->service), entry);
+	        gdata_service_delete_entry (GDATA_SERVICE(priv->service), entry, NULL);
 		*object = NULL;
 		*old_object = strdup (calobj);
 	}
@@ -1081,7 +1094,8 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 			item = e_go_item_from_cal_component (cbgo, comp);
 			entry = e_go_item_get_entry (item);
 
-			updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry);
+			updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service),
+					priv->uri, entry, NULL);
 			if (!GDATA_IS_ENTRY (updated_entry)) {
 				g_message ("\n Entry Insertion Failed %s \n", G_STRLOC);
 			}
@@ -1280,6 +1294,11 @@ e_cal_backend_google_finalize (GObject *object)
 		priv->timeout_id = 0;
 	}
 
+	if (priv->proxy) {
+		g_object_unref (priv->proxy);
+		priv->proxy = NULL;
+	}
+
 	g_free (priv);
 	cbgo->priv = NULL;
 
@@ -1288,6 +1307,22 @@ e_cal_backend_google_finalize (GObject *object)
 	}
 }
 
+static void
+proxy_settings_changed (EProxy *proxy, gpointer user_data)
+{
+	SoupURI *proxy_uri = NULL;
+
+	ECalBackendGooglePrivate *priv = (ECalBackendGooglePrivate *)user_data;
+	if (!priv || !priv->uri)
+		return;
+
+	/* use proxy if necessary */
+	if (e_proxy_require_proxy_for_uri (proxy, priv->uri)) {
+		proxy_uri = e_proxy_peek_uri (proxy);
+	}
+	gdata_service_set_proxy (GDATA_SERVICE (priv->service), proxy_uri);
+}
+ 
 /* Object initialisation function for google backend */
 static void
 e_cal_backend_google_init (ECalBackendGoogle *cbgo, ECalBackendGoogleClass *class)
@@ -1303,6 +1338,10 @@ e_cal_backend_google_init (ECalBackendGoogle *cbgo, ECalBackendGoogleClass *clas
 	priv->service = NULL;
 	priv->timeout_id = 0;
 	cbgo->priv = priv;
+
+	priv->proxy = e_proxy_new ();
+	e_proxy_setup_proxy (priv->proxy);
+	g_signal_connect (priv->proxy, "changed", G_CALLBACK (proxy_settings_changed), priv);
 
 	/* FIXME set a lock */
 	e_cal_backend_sync_set_lock (E_CAL_BACKEND_SYNC (cbgo), TRUE);
@@ -1467,6 +1506,13 @@ e_cal_backend_google_set_uri (ECalBackendGoogle *cbgo, gchar *uri)
 
 	priv = cbgo->priv;
 	priv->uri = uri;
+
+	/* use proxy if necessary */
+	if (e_proxy_require_proxy_for_uri (priv->proxy, priv->uri)) {
+		SoupURI *proxy_uri = e_proxy_peek_uri (priv->proxy);
+
+		gdata_service_set_proxy (GDATA_SERVICE (priv->service), proxy_uri);
+	}
 }
 
 /**

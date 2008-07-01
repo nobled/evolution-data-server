@@ -1,7 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 /* e-source-selector-dialog.c
  *
- * Copyright (C) 2004  Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License as
@@ -27,12 +27,6 @@
 
 #include <glib/gi18n-lib.h>
 #include <glib-object.h>
-#include <gtk/gtkhbox.h>
-#include <gtk/gtklabel.h>
-#include <gtk/gtkscrolledwindow.h>
-#include <gtk/gtkstock.h>
-#include <gtk/gtktreeview.h>
-#include <gtk/gtkvbox.h>
 #include "e-source-selector.h"
 #include "e-source-selector-dialog.h"
 

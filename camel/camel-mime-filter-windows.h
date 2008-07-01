@@ -2,7 +2,7 @@
 /*
  *  Authors: Jeffrey Stedfast <fejj@ximian.com>
  *
- *  Copyright 2002 Ximian, Inc. (www.ximian.com)
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -37,14 +37,14 @@ typedef struct _CamelMimeFilterWindows CamelMimeFilterWindows;
 
 struct _CamelMimeFilterWindows {
 	CamelMimeFilter parent;
-
+	
 	gboolean is_windows;
 	char *claimed_charset;
 };
 
 struct _CamelMimeFilterWindowsClass {
 	CamelMimeFilterClass parent_class;
-
+	
 };
 
 

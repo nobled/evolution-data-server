@@ -2,7 +2,7 @@
 
 /* e-book-backend-file.c - File contact backend.
  *
- * Copyright (C) 2005 Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -40,8 +40,9 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
-#include "libedataserver/e-dbhash.h"
-#include "libedataserver/e-db3-utils.h"
+#include "libebackend/e-dbhash.h"
+#include "libebackend/e-db3-utils.h"
+
 #include "libedataserver/e-data-server-util.h"
 #include "libedataserver/e-flag.h"
 

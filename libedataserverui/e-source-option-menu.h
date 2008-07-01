@@ -1,7 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 /* e-source-option-menu.h
  *
- * Copyright (C) 2003  Novell, Inc.
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -27,7 +27,7 @@
 
 #include "libedataserver/e-source-list.h"
 
-#include <gtk/gtkoptionmenu.h>
+#include <gtk/gtk.h>
 
 #define E_TYPE_SOURCE_OPTION_MENU			(e_source_option_menu_get_type ())
 #define E_SOURCE_OPTION_MENU(obj)			(G_TYPE_CHECK_INSTANCE_CAST ((obj), E_TYPE_SOURCE_OPTION_MENU, ESourceOptionMenu))

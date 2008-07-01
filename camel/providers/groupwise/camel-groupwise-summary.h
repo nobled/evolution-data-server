@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2000 Novell Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors:
  *	parthasarathi susarla <sparthasarathi@novell.com>
@@ -52,7 +52,7 @@ struct _CamelGroupwiseMessageInfo {
 
 struct _CamelGroupwiseMessageContentInfo {
 	CamelMessageContentInfo info ;
-} ;
+} ; 
 
 
 struct _CamelGroupwiseSummary {

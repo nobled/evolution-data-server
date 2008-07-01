@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
 /*
- *  Copyright (C) 2000-2003 Ximian Inc.
+ *  Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
  *
  *  Authors: Michael Zucchi <notzed@ximian.com>
  *
@@ -47,7 +47,7 @@ struct _CamelMimeFilterBasic {
 	struct _CamelMimeFilterBasicPrivate *priv;
 
 	CamelMimeFilterBasicType type;
-
+	
 	unsigned char uubuf[60];
 	int state;
 	int save;
