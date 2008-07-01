@@ -902,12 +902,14 @@ camel_read_mir_callback (void * ref, int ncol, char ** cols, char ** name)
 		else
 			camel_folder_summary_insert (s, info, TRUE);
 
-	} else
+	} else {
 		g_warning ("Loading messageinfo from db failed");
+		ret = -1;
+	}
 
 	camel_db_camel_mir_free (mir);
 
-	return 0;
+	return ret;
 }
 
 /**
