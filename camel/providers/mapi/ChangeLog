@@ -1,3 +1,8 @@
+2008-07-01  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (mapi_sync): Delete Messages support : Move to 
+	Deleted Items folder.
+
 2008-06-30  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (fetch_item_cb, mapi_folder_get_message): Adjusted 

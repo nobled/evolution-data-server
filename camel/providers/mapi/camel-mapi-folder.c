@@ -352,7 +352,7 @@ mapi_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 	GSList *read_items = NULL, *unread_items = NULL;
 	flags_diff_t diff, unset_flags;
 	const char *folder_id;
-	mapi_id_t fid;
+	mapi_id_t fid, deleted_items_fid;
 	int count, i;
 
 	GSList *deleted_items, *deleted_head;
@@ -443,7 +443,14 @@ mapi_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 
 	if (deleted_items) {
 		CAMEL_SERVICE_REC_LOCK (mapi_store, connect_lock);
-		exchange_mapi_remove_items(0, fid, deleted_items);
+
+		if (!strcmp (folder->full_name, "Deleted Items")) {
+			exchange_mapi_remove_items(0, fid, deleted_items);
+		} else {
+			exchange_mapi_util_mapi_id_from_string (camel_mapi_store_folder_id_lookup (mapi_store, "Deleted Items"), &deleted_items_fid);
+			exchange_mapi_move_items(fid, deleted_items_fid, deleted_items);
+		}
+
 		CAMEL_SERVICE_REC_UNLOCK (mapi_store, connect_lock);
 	}
 	/*Remove them from cache*/
