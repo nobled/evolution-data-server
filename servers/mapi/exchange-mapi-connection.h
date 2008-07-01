@@ -146,6 +146,13 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 gboolean
 exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids);
 
+gboolean
+exchange_mapi_copy_items ( mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids);
+
+gboolean
+exchange_mapi_move_items ( mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids);
+
+
 gboolean exchange_mapi_get_folders_list (GSList **mapi_folders); 
 gboolean exchange_mapi_get_pf_folders_list (GSList **mapi_folders); 
 

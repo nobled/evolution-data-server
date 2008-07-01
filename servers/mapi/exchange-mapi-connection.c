@@ -2127,6 +2127,77 @@ cleanup:
 	return result;
 }
 
+static gboolean
+mapi_move_items ( mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mid_list, gboolean do_copy)
+{
+	gboolean ret = true;
+	mapi_object_t obj_store;
+	mapi_object_t obj_folder_src;
+	mapi_object_t obj_folder_dst;
+	mapi_id_array_t msg_id_array;
+
+	enum MAPISTATUS	retval;
+	guint i;
+	GSList *l;
+
+	mapi_id_array_init(&msg_id_array);
+	for (i = 0, l = mid_list; l != NULL; l = g_slist_next (l), i++) {
+		mapi_id_array_add_id (&msg_id_array, *((mapi_id_t *)l->data));
+	}
+
+	LOCK ();
+
+	mapi_object_init(&obj_store);
+	retval = OpenMsgStore(&obj_store);
+	if (GetLastError() != MAPI_E_SUCCESS) {
+		ret = false;
+		goto cleanup;
+	}
+
+	mapi_object_init(&obj_folder_src);
+	retval = OpenFolder(&obj_store, src_fid, &obj_folder_src);
+	if (GetLastError() != MAPI_E_SUCCESS) {
+		ret = false;
+		goto cleanup;
+	}
+		
+	mapi_object_init(&obj_folder_dst);
+	retval = OpenFolder(&obj_store, dest_fid, &obj_folder_dst);
+	if (GetLastError() != MAPI_E_SUCCESS) {
+		ret = false;
+		goto cleanup;
+	}
+
+	retval = MoveCopyMessages(&obj_folder_src, &obj_folder_dst, &msg_id_array, do_copy);
+	if (retval != MAPI_E_SUCCESS) {
+		ret = false;
+		goto cleanup;
+	}
+
+	ret = true;
+
+cleanup:
+	UNLOCK ();
+	mapi_object_release(&obj_folder_src);
+	mapi_object_release(&obj_folder_dst);
+	mapi_object_release(&obj_store);
+	mapi_id_array_release(&msg_id_array);
+
+	return ret;
+}
+
+gboolean
+exchange_mapi_copy_items (mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids)
+{
+	return mapi_move_items (src_fid, dest_fid, mids, TRUE);
+}
+
+gboolean
+exchange_mapi_move_items (mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids)
+{
+	return mapi_move_items (src_fid, dest_fid, mids, FALSE);
+}
+
 /* FIXME: param olFolder is never used in the routine. Remove it and cleanup at the backends */
 gboolean
 exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids)

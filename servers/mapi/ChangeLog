@@ -1,3 +1,8 @@
+2008-06-30  Johnny Jacob  <jjohnny@novell.com>
+
+	* exchange-mapi-connection.c (mapi_move_items)
+	(exchange_mapi_copy_items, exchange_mapi_move_items): Added.
+
 2008-06-29  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-connection.c:
