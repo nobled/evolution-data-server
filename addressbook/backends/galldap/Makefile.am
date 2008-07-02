@@ -37,7 +37,8 @@ libebookbackendgalldap_la_LIBADD = 	\
 	-lexchange-storage-1.2		\
 	$(top_builddir)/addressbook/libebook/libebook-1.2.la		\
 	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la	\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la		
+	$(top_builddir)/libedataserver/libedataserver-1.2.la		\
+	$(top_builddir)/libebackend/libebackend-1.2.la
 
 libebookbackendgalldap_la_LDFLAGS =	\
 	-module -avoid-version $(NO_UNDEFINED)

@@ -47,7 +47,7 @@
 
 #include <sys/time.h>
 #include <libedataserver/e-sexp.h>
-#include <libedataserver/e-db3-utils.h>
+#include <libebackend/e-db3-utils.h>
 #include <libedataserver/e-data-server-util.h>
 #include <libebook/e-contact.h>
 
