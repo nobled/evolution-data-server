@@ -1375,7 +1375,7 @@ search_free (CamelFolder *folder, GPtrArray *result)
 	int i;
 
 	for (i = 0; i < result->len; i++)
-		g_free (g_ptr_array_index (result, i));
+		camel_pstring_free (g_ptr_array_index (result, i));
 	g_ptr_array_free (result, TRUE);
 }
 
