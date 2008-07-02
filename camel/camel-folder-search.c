@@ -499,7 +499,7 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, GPtrArra
 	}
 
 	d(printf ("\nsexp is : [%s]\n", expr));
-	printf ("\nSomething is returned in the top-level caller : [%s]\n", search->query->str);
+	printf ("Something is returned in the top-level caller : [%s]\n", search->query->str);
 
 	matches = g_ptr_array_new();
 	cdb = (CamelDB *) (search->folder->cdb);

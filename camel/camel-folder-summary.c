@@ -65,7 +65,7 @@
 /* To switch between e-memchunk and g-alloc */
 #define ALWAYS_ALLOC 1
 #define USE_GSLICE 1
-#define SUMMARY_CACHE_DROP 180 
+#define SUMMARY_CACHE_DROP 180
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* this lock is ONLY for the standalone messageinfo stuff */
@@ -714,7 +714,7 @@ remove_cache (CamelFolderSummary *s)
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
 	
 	/* Attempt to release 2MB*/
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+        /* sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE); */
 	
 	if (time(NULL) - s->cache_load_time < SUMMARY_CACHE_DROP)
 		return TRUE;

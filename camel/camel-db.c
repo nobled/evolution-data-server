@@ -454,7 +454,6 @@ camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, C
 	 array = g_ptr_array_new ();
 	 camel_db_select (db, sel_query, read_uids_callback, array, ex);
 	 sqlite3_free (sel_query);
-	 g_print ("result = %d\n", array->len);
 	 /* We make sure to return NULL if we don't get anything. Be good to your caller */ 
 	 if (!array->len) {
 		  g_ptr_array_free (array, TRUE);
