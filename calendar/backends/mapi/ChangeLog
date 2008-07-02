@@ -1,3 +1,16 @@
+2008-07-02  Suman Manjunath  <msuman@novell.com>
+
+	* e-cal-backend-mapi-utils.c (get_role_from_type),
+	(get_type_from_role), (get_trackstatus_from_partstat),
+	(get_transp_from_prop), (get_prop_from_transp),
+	(get_taskstatus_from_prop), (get_prop_from_taskstatus),
+	(get_class_from_prop), (get_prop_from_class),
+	(get_priority_from_prop), (get_prop_from_priority),
+	(e_cal_backend_mapi_props_to_comp), (mapi_cal_build_props):
+	Modularise the code, use small helper functions instead of cramming 
+	everything in one huge function. 
+	* e-cal-backend-mapi.c: Don't fetch unnecessary props. 
+
 2008-06-29  Suman Manjunath  <msuman@novell.com>
 
 	** Initial support for viewing/creating meetings. 

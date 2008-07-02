@@ -28,7 +28,6 @@ extension_LTLIBRARIES = libebookbackendgalldap.la
 
 libebookbackendgalldap_la_SOURCES =	\
 	e-book-backend-galldap-factory.c	\
-	e-book-backend-galldap-factory.h	\
 	e-book-backend-galldap.c		\
 	e-book-backend-galldap.h		
 

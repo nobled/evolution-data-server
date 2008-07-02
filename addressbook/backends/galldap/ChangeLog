@@ -1,3 +1,8 @@
+2008-07-02  Suman Manjunath  <msuman@novell.com>
+
+	* e-book-backend-galldap-factory.h: Removed this empty file. 
+	* Makefile.am: Related change. 
+
 2008-06-23  Suman Manjunath  <msuman@novell.com>
 
 	* e-book-backend-galldap.c (authenticate_user): Use different 

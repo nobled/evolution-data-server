@@ -184,10 +184,10 @@ static icalparameter_role
 get_role_from_type (OlMailRecipientType type)
 {
 	switch (type) {
+		case olCC   : return ICAL_ROLE_OPTPARTICIPANT;
 		case olOriginator : 
 		case olTo   : 
-		case olBCC  : return ICAL_ROLE_REQPARTICIPANT;
-		case olCC   : return ICAL_ROLE_OPTPARTICIPANT;
+		case olBCC  : 
 		default     : return ICAL_ROLE_REQPARTICIPANT;
 	}
 }
@@ -196,10 +196,10 @@ static OlMailRecipientType
 get_type_from_role (icalparameter_role role)
 {
 	switch (role) {
+		case ICAL_ROLE_OPTPARTICIPANT 	: return olCC;
 		case ICAL_ROLE_CHAIR 		:
 		case ICAL_ROLE_REQPARTICIPANT 	:
-		case ICAL_ROLE_NONPARTICIPANT 	: return olTo;
-		case ICAL_ROLE_OPTPARTICIPANT 	: return olCC;
+		case ICAL_ROLE_NONPARTICIPANT 	: 
 		default 			: return olTo;
 	}
 } 
@@ -219,11 +219,109 @@ static uint32_t
 get_trackstatus_from_partstat (icalparameter_partstat partstat)
 {
 	switch (partstat) {
-		case ICAL_PARTSTAT_TENTATIVE 	: return olMeetingTentative;
 		case ICAL_PARTSTAT_ACCEPTED 	: return olMeetingAccepted;
 		case ICAL_PARTSTAT_DECLINED 	: return olMeetingDeclined;
+		case ICAL_PARTSTAT_TENTATIVE 	: 
 		default 			: return olMeetingTentative;
 	}
+}
+
+static icalproperty_transp
+get_transp_from_prop (uint32_t prop) 
+{
+	/* FIXME: is this mapping correct ? */
+	switch (prop) {
+		case olFree 		:
+		case olTentative 	: return ICAL_TRANSP_TRANSPARENT;
+		case olBusy 		:
+		case olOutOfOffice 	:
+		default 		: return ICAL_TRANSP_OPAQUE;
+	}
+}
+
+static uint32_t 
+get_prop_from_transp (icalproperty_transp transp)
+{
+	/* FIXME: is this mapping correct ? */
+	switch (transp) {
+		case ICAL_TRANSP_TRANSPARENT 		:
+		case ICAL_TRANSP_TRANSPARENTNOCONFLICT 	: return olFree; 
+		case ICAL_TRANSP_OPAQUE 		: 
+		case ICAL_TRANSP_OPAQUENOCONFLICT 	:
+		default 				: return olBusy;
+	}
+}
+
+static icalproperty_status
+get_taskstatus_from_prop (uint32_t prop)
+{
+	/* FIXME: is this mapping correct ? */
+	switch (prop) {
+		case olTaskComplete 	: return ICAL_STATUS_COMPLETED;
+		case olTaskWaiting 	:
+		case olTaskInProgress 	: return ICAL_STATUS_INPROCESS;
+		case olTaskDeferred 	: return ICAL_STATUS_CANCELLED;
+		case olTaskNotStarted 	: 
+		default 		: return ICAL_STATUS_NEEDSACTION;
+	}
+}
+
+static uint32_t
+get_prop_from_taskstatus (icalproperty_status status)
+{
+	/* FIXME: is this mapping correct ? */
+	switch (status) {
+		case ICAL_STATUS_INPROCESS 	: return olTaskInProgress;
+		case ICAL_STATUS_COMPLETED 	: return olTaskComplete;
+		case ICAL_STATUS_CANCELLED 	: return olTaskDeferred;
+		default 			: return olTaskNotStarted;
+	}
+}
+
+static icalproperty_class
+get_class_from_prop (uint32_t prop)
+{
+	/* FIXME: is this mapping correct ? */
+	switch (prop) {
+		case olPersonal 	:
+		case olPrivate 		: return ICAL_CLASS_PRIVATE;
+		case olConfidential 	: return ICAL_CLASS_CONFIDENTIAL;
+		case olNormal 		: 
+		default 		: return ICAL_CLASS_PUBLIC;
+	}
+}
+
+static uint32_t 
+get_prop_from_class (icalproperty_class class)
+{
+	/* FIXME: is this mapping correct ? */
+	switch (class) {
+		case ICAL_CLASS_PRIVATE 	: return olPrivate;
+		case ICAL_CLASS_CONFIDENTIAL 	: return olConfidential;
+		default 			: return olNormal;
+	}
+}
+
+static int
+get_priority_from_prop (uint32_t prop)
+{
+	switch (prop) {
+		case PRIORITY_LOW 	: return 7;
+		case PRIORITY_HIGH 	: return 1;
+		case PRIORITY_NORMAL 	: 
+		default 		: return 5;
+	}
+}
+
+static uint32_t
+get_prop_from_priority (int priority)
+{
+	if (priority > 0 && priority <= 4)
+		return PRIORITY_HIGH;
+	else if (priority > 5 && priority <= 9)
+		return PRIORITY_LOW;
+	else
+		return PRIORITY_NORMAL;
 }
 
 void
@@ -484,19 +582,10 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 		default:
 			return NULL;
 	}
-	
-	subject = (const gchar *)find_mapi_SPropValue_data(properties, PR_SUBJECT);
+
+	subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_SUBJECT);
 	if (!subject)
-		subject = (const gchar *)find_mapi_SPropValue_data(properties, PR_NORMALIZED_SUBJECT);
-	/* FIXME: you gotta better way to do this ?? */
-	if (!subject) {
-		const gchar *tmp;
-		tmp = (const char *)find_mapi_SPropValue_data(properties, PR_URL_COMP_NAME);
-		/* the PR_URL_COMP_NAME would end with ".EML". Remove that portion. */
-		if (tmp && g_str_has_suffix (tmp, ".EML")) {
-			subject = g_strndup (tmp, (strlen(tmp) - 4));
-		}
-	} 
+		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_NORMALIZED_SUBJECT);
 
 	body = exchange_mapi_util_find_stream (streams, PR_BODY);
 	if (!body)
@@ -576,23 +665,7 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 
 		ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8205));
 		if (ui32) {
-			icalproperty_transp ical_transp;
-			switch (*ui32) {
-				/* FIXME: is this mapping correct ? */
-				case olFree:
-				case olTentative:
-					ical_transp = ICAL_TRANSP_TRANSPARENT;
-					break;
-				/* FIXME: is this mapping correct ? */
-				case olBusy:
-				case olOutOfOffice:
-					ical_transp = ICAL_TRANSP_OPAQUE;
-					break;
-				default:
-					ical_transp = ICAL_TRANSP_OPAQUE;
-					break;
-			}
-			prop = icalproperty_new_transp (ical_transp);
+			prop = icalproperty_new_transp (get_transp_from_prop (*ui32));
 			icalcomponent_add_property (ical_comp, prop);
 		}
 
@@ -673,27 +746,7 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 
 		ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8101));
 		if (ui32) {
-			icalproperty_status ical_status;
-			switch (*ui32) {
-				case olTaskNotStarted:
-					ical_status = ICAL_STATUS_NEEDSACTION;
-					break;
-				/* FIXME: is this mapping correct ? */
-				case olTaskWaiting:
-				case olTaskInProgress:
-					ical_status = ICAL_STATUS_INPROCESS;
-					break;
-				case olTaskComplete:
-					ical_status = ICAL_STATUS_COMPLETED;
-					break;
-				case olTaskDeferred:
-					ical_status = ICAL_STATUS_CANCELLED;
-					break;
-				default:
-					ical_status = ICAL_STATUS_NEEDSACTION;
-					break;
-			}
-			icalcomponent_set_status (ical_comp, ical_status);
+			icalcomponent_set_status (ical_comp, get_taskstatus_from_prop(*ui32));
 			if (*ui32 == olTaskComplete 
 			&& get_mapi_SPropValue_array_date_timeval (&t, properties, PROP_TAG(PT_SYSTIME, 0x810F)) == MAPI_E_SUCCESS) {
 				prop = icalproperty_new_completed (foo (t.tv_sec, 1, default_zone));
@@ -741,22 +794,7 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 		/* priority */
 		ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_PRIORITY);
 		if (ui32) {
-			int ical_priority;
-			switch (*ui32) {
-				case PRIORITY_LOW:
-					ical_priority = 7;
-					break;
-				case PRIORITY_NORMAL:
-					ical_priority = 5;
-					break;
-				case PRIORITY_HIGH:
-					ical_priority = 1;
-					break;
-				default: 
-					ical_priority = 5;
-					break;
-			}
-			prop = icalproperty_new_priority (ical_priority);
+			prop = icalproperty_new_priority (get_priority_from_prop (*ui32));
 			icalcomponent_add_property (ical_comp, prop);
 		}
 	}
@@ -764,24 +802,7 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 	/* classification */
 	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_SENSITIVITY);
 	if (ui32) {
-		icalproperty_class ical_class = ICAL_CLASS_NONE;
-		switch (*ui32) {
-			case olNormal:
-				ical_class = ICAL_CLASS_PUBLIC;
-				break;
-			/* FIXME: is this mapping correct ? */
-			case olPersonal:
-			case olPrivate:
-				ical_class = ICAL_CLASS_PRIVATE;
-				break;
-			case olConfidential:
-				ical_class = ICAL_CLASS_CONFIDENTIAL;
-				break;
-			default: 
-				ical_class = ICAL_CLASS_PUBLIC;
-				break;
-		}
-		prop = icalproperty_new_class (ical_class);
+		prop = icalproperty_new_class (get_class_from_prop (*ui32));
 		icalcomponent_add_property (ical_comp, prop);
 	}
 
@@ -1117,15 +1138,9 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 	/* Priority */
 	flag32 = PRIORITY_NORMAL; 	/* default */
 	prop = icalcomponent_get_first_property (ical_comp, ICAL_PRIORITY_PROPERTY);
-	if (prop) {
-		int priority = icalproperty_get_priority (prop);
-		if (priority > 0 && priority <= 4)
-			flag32 = PRIORITY_HIGH;
-		else if (priority > 5 && priority <= 9)
-			flag32 = PRIORITY_LOW;
-	} 
+	if (prop) 
+		flag32 = get_prop_from_priority (icalproperty_get_priority (prop));
 	set_SPropValue_proptag(&props[i++], PR_PRIORITY, (const void *) &flag32); 		/* prop count: 7 */
-
 
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME, 
 		(const void *) e_cal_backend_mapi_get_owner_name (cbmapi));
@@ -1195,19 +1210,9 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 	b = 0; 			/* default */
 	prop = icalcomponent_get_first_property (ical_comp, ICAL_CLASS_PROPERTY);
 	if (prop) 
-		switch (icalproperty_get_class (prop)) {
-			/* FIXME: is this mapping correct ? */
-			case ICAL_CLASS_PRIVATE:
-				flag32 = olPrivate;
-				b = 1;
-				break;
-			case ICAL_CLASS_CONFIDENTIAL:
-				flag32 = olConfidential;
-				b = 1;
-				break;
-			default: 
-				break;
-		}
+		flag32 = get_prop_from_class (icalproperty_get_class (prop));
+	if (flag32 == olPrivate || flag32 == olConfidential)
+		b = 1;
 	set_SPropValue_proptag(&props[i++], PR_SENSITIVITY, (const void *) &flag32); 		/* prop count: 15 */
 	set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_ISPRIVATE], (const void *) &b);
 
@@ -1238,19 +1243,7 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 		flag32 = olBusy; 	/* default */
 		prop = icalcomponent_get_first_property (ical_comp, ICAL_TRANSP_PROPERTY);
 		if (prop)
-			switch (icalproperty_get_transp (prop)) {
-				/* FIXME: is this mapping correct ? */
-				case ICAL_TRANSP_TRANSPARENT:
-				case ICAL_TRANSP_TRANSPARENTNOCONFLICT:
-					flag32 = olFree;
-					break;
-				case ICAL_TRANSP_OPAQUE:
-				case ICAL_TRANSP_OPAQUENOCONFLICT:
-					flag32 = olBusy;
-					break;
-				default:
-					break;
-			}
+			flag32 = get_prop_from_transp (icalproperty_get_transp (prop));
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INTENDEDBUSY], (const void *) &flag32);
 		if (cbdata->meeting_type == MEETING_REQUEST) {
 			flag32 = olTentative;
@@ -1421,7 +1414,7 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 		double d;
 
 		/* Context menu flags */ /* FIXME: for assigned tasks */
-		flag32 = 272; 
+		flag32 = 0x0110; 
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
 
 		/* Status, Percent complete, IsComplete */
@@ -1432,21 +1425,10 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 		if (prop)
 			d = 0.01 * icalproperty_get_percentcomplete (prop);
 
-		switch (icalcomponent_get_status (ical_comp)) {
-			/* FIXME: is this mapping correct ? */
-			case ICAL_STATUS_INPROCESS:
-				flag32 = olTaskInProgress;
-				break;
-			case ICAL_STATUS_COMPLETED:
-				flag32 = olTaskComplete;
-				b = 1;
-				d = 1.0;
-				break;
-			case ICAL_STATUS_CANCELLED:
-				flag32 = olTaskDeferred;
-				break;
-			default:
-				break;
+		flag32 = get_prop_from_taskstatus (icalcomponent_get_status (ical_comp));
+		if (flag32 == olTaskComplete) {
+			b = 1;
+			d = 1.0;
 		}
 
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_STATUS], (const void *) &flag32);
@@ -1480,9 +1462,11 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 
 	} else if (kind == ICAL_VJOURNAL_COMPONENT) {
 		/* Context menu flags */
-		flag32 = 272; 
+		flag32 = 0x0110; 
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
 
+		flag32 = 0x0300; 
+		set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
 	}
 
 	*value = props;
