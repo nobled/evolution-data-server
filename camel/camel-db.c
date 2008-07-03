@@ -14,7 +14,9 @@
 #define d(x)
 
 #define CAMEL_DB_SLEEP_INTERVAL 1*10*10
- 
+#define CAMEL_DB_RELEASE_SQLITE_MEMORY if(!g_getenv("CAMEL_SQLITE_PRESERVE_CACHE")) sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+#define CAMEL_DB_USE_SHARED_CACHE if(!g_getenv("CAMEL_SQLITE_SHARED_CACHE_OFF")) sqlite3_enable_shared_cache(TRUE);
+#define CAMEL_DB_SET_CACHE_SIZE if(!g_getenv("CAMEL_SQLITE_DEFAULT_CACHE_SIZE")) camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -46,6 +48,8 @@ camel_db_open (const char *path, CamelException *ex)
 	sqlite3 *db;
 	int ret;
 
+	CAMEL_DB_USE_SHARED_CACHE;
+	
 	sqlite3_enable_shared_cache(TRUE);
 
 	ret = sqlite3_open(path, &db);
@@ -71,8 +75,8 @@ camel_db_open (const char *path, CamelException *ex)
 	d(g_print ("\nDatabase succesfully opened  \n"));
 
 	#warning "make these under g_getenv"
-	
-	camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
+
+	CAMEL_DB_SET_CACHE_SIZE;
 	
 	sqlite3_busy_timeout (cdb->db, CAMEL_DB_SLEEP_INTERVAL);
 
@@ -127,7 +131,8 @@ camel_db_end_transaction (CamelDB *cdb, CamelException *ex)
 	d(g_print ("\nCOMMIT TRANSACTION \n"));
 	ret = cdb_sql_exec (cdb->db, "COMMIT", ex);
 	g_mutex_unlock (cdb->lock);
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
+	
 	return ret;
 }
 
@@ -139,7 +144,8 @@ camel_db_abort_transaction (CamelDB *cdb, CamelException *ex)
 	d(g_print ("\nABORT TRANSACTION \n"));
 	ret = cdb_sql_exec (cdb->db, "ROLLBACK", ex);
 	g_mutex_unlock (cdb->lock);
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
+	
 	return ret;
 }
 
@@ -213,7 +219,7 @@ camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, Ca
 		ret = sqlite3_exec (cdb->db, query, count_cb, count, &errmsg);
 	}
 
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 		
 	if (ret != SQLITE_OK) {
     		g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
@@ -359,7 +365,7 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 		ret = sqlite3_exec (cdb->db, stmt, callback, data, &errmsg);
 	}
 
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 		
   	if (ret != SQLITE_OK) {
     		d(g_warning ("Error in select statement '%s' [%s].\n", stmt, errmsg));
@@ -378,7 +384,7 @@ camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex)
 
 	ret = camel_db_command (cdb, tab, ex);
 	sqlite3_free (tab);
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 	return ret;
 }
 
@@ -401,7 +407,8 @@ camel_db_create_vfolder (CamelDB *db, const char *folder_name, CamelException *e
 
 	sqlite3_free (table_creation_query);
 	g_free (safe_index);
-	sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
+	
 	return ret;	 
 }
 
@@ -416,7 +423,7 @@ camel_db_delete_uid_from_vfolder (CamelDB *db, char *folder_name, char *vuid, Ca
 	 ret = camel_db_command (db, del_query, ex);
 	 
 	 sqlite3_free (del_query);
-	 sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
+	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 	 return ret;
 }
 
