@@ -1,3 +1,19 @@
+2008-06-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #330838
+
+	* camel-imap-store.c: (get_folders_sync): Notify application about
+	server folder changes as soon as we know about them.
+
+2008-06-30  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #536486
+
+	* camel-imap-folder.c: (imap_expunge_uids_online):
+	Do full EXPUNGE in case the UID EXPUNGE fails. Just a fallback
+	for broken servers telling they know the UID EXPUNGE, but they
+	don't. The error is printed on the console too.
+
 2008-06-24  Milan Crha  <mcrha@redhat.com>
 
 	** Fix for bug #531712
