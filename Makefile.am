@@ -5,12 +5,17 @@ if ! WITH_LIBDB
 LIBDB = libdb
 endif
 
+if ENABLE_LIBICAL
+LIBICAL = libical
+endif
+
 if ENABLE_CALENDAR
 CALENDAR_DIR = calendar
 endif
 
-SUBDIRS = $(LIBDB) win32 libedataserver libebackend servers camel addressbook $(CALENDAR_DIR) libedataserverui src docs art po
-DIST_SUBDIRS= win32 libedataserver libebackend servers camel addressbook calendar libedataserverui src docs art po	
+SUBDIRS = $(LIBDB) $(LIBICAL) win32 libedataserver libebackend servers camel addressbook $(CALENDAR_DIR) libedataserverui src docs art po
+DIST_SUBDIRS = $(LIBICAL) win32 libedataserver libebackend servers camel addressbook calendar libedataserverui src docs art po	
+
 changelogs =			\
 	ChangeLog
 

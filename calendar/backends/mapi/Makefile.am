@@ -4,10 +4,10 @@ INCLUDES =						\
 	-I$(top_builddir)				\
 	-I$(top_srcdir)/calendar			\
 	-I$(top_builddir)/calendar			\
-	-I$(top_srcdir)/calendar/libical/src		\
-	-I$(top_builddir)/calendar/libical/src		\
-	-I$(top_srcdir)/calendar/libical/src/libical	\
-	-I$(top_builddir)/calendar/libical/src/libical	\
+	-I$(top_srcdir)/libical/src			\
+	-I$(top_builddir)/libical/src			\
+	-I$(top_srcdir)/libical/src/libical		\
+	-I$(top_builddir)/libical/src/libical		\
 	-I$(top_srcdir)/servers/mapi			\
 	-I$(top_builddir)/servers/mapi			\
 	-DMAPI_DATADIR=\""$(mapidatadir)"\"		\
