@@ -907,6 +907,10 @@ imap_rescan (CamelFolder *folder, int exists, CamelException *ex)
 	 * from the summary.
 	 */
 	removed = g_array_new (FALSE, FALSE, sizeof (int));
+	
+	if (summary_len - camel_folder_summary_cache_size (folder->summary) > 50)
+		camel_folder_summary_reload_from_db (folder->summary);
+	
 	for (i = 0; i < summary_len && new[i].uid; i++) {
 		gboolean changed = FALSE;
 
@@ -998,7 +1002,7 @@ imap_rescan (CamelFolder *folder, int exists, CamelException *ex)
  * caller must free the infos, the array, and the set string.
  */
 static GPtrArray *
-get_matching (CamelFolder *folder, guint32 flags, guint32 mask, CamelMessageInfo *master_info, char **set)
+get_matching (CamelFolder *folder, guint32 flags, guint32 mask, CamelMessageInfo *master_info, char **set, GPtrArray *summary)
 {
 	GPtrArray *matches;
 	CamelImapMessageInfo *info;
@@ -1019,14 +1023,13 @@ get_matching (CamelFolder *folder, guint32 flags, guint32 mask, CamelMessageInfo
 
 	matches = g_ptr_array_new ();
 	gset = g_string_new ("");
-	max = camel_folder_summary_count (folder->summary);
+	max = summary->len;	
 	range = -1;
 	for (i = 0; i < max && !UID_SET_FULL (gset->len, UID_SET_LIMIT); i++) {
-		uid = camel_folder_summary_uid_from_index (folder->summary, i);
+		uid = summary->pdata[i];
 
 		if (uid) {
 			info = (CamelImapMessageInfo *) camel_folder_summary_uid (folder->summary, uid);
-			g_free (uid);
 		} else
 			continue;
 		
@@ -1081,6 +1084,10 @@ get_matching (CamelFolder *folder, guint32 flags, guint32 mask, CamelMessageInfo
 		}
 		
 		g_ptr_array_add (matches, info);
+		/* Remove the uid from the list, to optimize*/
+		camel_pstring_free(summary->pdata[i]);
+		summary->pdata[i] = NULL;
+		
 		if (range != -1)
 			continue;
 		range = i;
@@ -1148,7 +1155,7 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapMessageInfo *info;
 	CamelException local_ex;
-	GPtrArray *matches;
+	GPtrArray *matches, *summary;
 	char *set, *flaglist, *uid;
 	int i, j, max;
 	
@@ -1164,14 +1171,16 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 	 * messages like it, sync them as a group, mark them as
 	 * updated, and continue.
 	 */
-	max = camel_folder_summary_count (folder->summary);
+	summary = camel_folder_summary_get_changed (folder->summary); /* These should be in memory anyways*/
+	max = summary->len;
+		
 	for (i = 0; i < max; i++) {
 		gboolean unset = FALSE;
 		CamelImapResponse *response = NULL;
 
-		uid = camel_folder_summary_uid_from_index (folder->summary, i);
+		uid = summary->pdata[i];
 
-		if (!uid)
+		if (!uid) /* Possibly it was sync by matching flags, which we NULLify */
 			continue;
 
 		if (!(info = (CamelImapMessageInfo *) camel_folder_summary_uid (folder->summary, uid))) {
@@ -1179,8 +1188,6 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 			continue;
 		}
 
-		g_free (uid);
-		
 		if (!(info->info.flags & CAMEL_MESSAGE_FOLDER_FLAGGED)) {
 			camel_message_info_free((CamelMessageInfo *)info);
 			continue;
@@ -1192,7 +1199,7 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 		   they will be scooped up later by our parent loop (I
 		   think?). -- Jeff */
 		matches = get_matching (folder, info->info.flags & (folder->permanent_flags | CAMEL_MESSAGE_FOLDER_FLAGGED),
-					folder->permanent_flags | CAMEL_MESSAGE_FOLDER_FLAGGED, (CamelMessageInfo *)info, &set);
+					folder->permanent_flags | CAMEL_MESSAGE_FOLDER_FLAGGED, (CamelMessageInfo *)info, &set, summary);
 		camel_message_info_free(info);
 		if (matches == NULL)
 			continue;
@@ -1262,6 +1269,9 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 		/* Re-lock the connect_lock */
 		CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 	}
+
+	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
+	g_ptr_array_free (summary, TRUE);
 	
 	/* Save the summary */
 	imap_sync_offline (folder, ex);

@@ -383,6 +383,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 				if (!CAMEL_IS_VEE_FOLDER (folder)) {
 				/* TODO: Locking? */
 				#warning "unread should be unread and not del/junk and take care of dirty infos also"
+				// camel_folder_summary_save_to_db (folder->summary, NULL);
 				camel_db_count_visible_unread_message_info (folder->cdb, folder->full_name, &unread, ex);
 				camel_db_count_junk_message_info (folder->cdb, folder->full_name, &junked, ex);
 				camel_db_count_deleted_message_info (folder->cdb, folder->full_name, &deleted, ex);

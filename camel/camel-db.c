@@ -521,7 +521,7 @@ camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, Came
 	sqlite3_free (table_creation_query);
 
 	safe_index = g_strdup_printf("INDEX-%s", folder_name);
-	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (uid)", safe_index, folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (uid, read, junk, deleted)", safe_index, folder_name);
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	g_free (safe_index);
 	sqlite3_free (table_creation_query);

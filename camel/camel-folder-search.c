@@ -673,7 +673,7 @@ search_match_all(struct _ESExp *f, int argc, struct _ESExpTerm **argv, CamelFold
 #if 0
 	v = search->summary_set?search->summary_set:search->summary;
 	
-	if (v->len - g_hash_table_size (search->folder->summary->loaded_infos) > 100 && !CAMEL_IS_VEE_FOLDER (search->folder)) {
+	if (v->len - g_hash_table_size (search->folder->summary->loaded_infos) > 50 && !CAMEL_IS_VEE_FOLDER (search->folder)) {
 		/* Load the DB contents. FIXME this 100 needs to be a better threshold to reload from DB. */
 		#warning "handle exception"
 		camel_folder_summary_reload_from_db (search->folder->summary, NULL);

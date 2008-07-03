@@ -692,11 +692,11 @@ camel_folder_summary_get_changed (CamelFolderSummary *s)
 
 #warning "FIXME: I should have a better LRU algorithm "
 static gboolean
-remove_item (char *key, CamelMessageInfo *info, CamelFolderSummary *s)
+remove_item (char *key, CamelMessageInfoBase *info, CamelFolderSummary *s)
 {
 	d(printf("%d(%d)\t", info->refcount, info->dirty)); //camel_message_info_dump (info);
 	CAMEL_SUMMARY_LOCK(info->summary, ref_lock);
-	if (info->refcount == 1 && !info->dirty) {
+	if (info->refcount == 1 && !info->dirty && !(info->flags & CAMEL_MESSAGE_FOLDER_FLAGGED)) {
 		CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);
 		/* Hackit so that hashtable isn;t corrupted. */
 		camel_pstring_free (info->uid);
