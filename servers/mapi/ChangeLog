@@ -1,5 +1,12 @@
-2008-07-03  Suman Manjunath  <msuman@novell.com>
+2008-07-03  Johnny Jacob  <jjohnny@novell.com>	
+	
+	API to empty the contents of the folder. This will *not* delete
+	the folder.
+	
+	* exchange-mapi-connection.ch (exchange_mapi_empty_folder): Added.
 
+2008-07-03  Suman Manjunath  <msuman@novell.com>
+	
 	** Move the calendar utility files to servers.
 
 	* Makefile.am:
@@ -34,7 +41,7 @@
 	* exchange-mapi-cal-utils.h:
 	* tz-ical-to-mapi:
 	* tz-mapi-to-ical:
-
+	
 2008-06-30  Johnny Jacob  <jjohnny@novell.com>
 
 	* exchange-mapi-connection.c (mapi_move_items)

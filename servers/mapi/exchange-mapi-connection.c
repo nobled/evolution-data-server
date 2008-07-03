@@ -1453,6 +1453,59 @@ cleanup:
 	return fid;
 }
 
+gboolean
+exchange_mapi_empty_folder (mapi_id_t fid)
+{
+	enum MAPISTATUS retval;
+	mapi_object_t obj_store;
+	mapi_object_t obj_top;
+	mapi_object_t obj_folder;
+	ExchangeMAPIFolder *folder;
+	gboolean result = FALSE;
+
+	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	folder = exchange_mapi_folder_get_folder (fid);
+	g_return_val_if_fail (folder != NULL, FALSE);
+
+	LOCK ();
+	LOGALL ();
+	mapi_object_init(&obj_store);
+	mapi_object_init(&obj_folder);
+
+	retval = OpenMsgStore(&obj_store);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenMsgStore", GetLastError());
+		goto cleanup;
+	}
+
+	/* Attempt to open the folder to be emptied */
+	retval = OpenFolder(&obj_store, fid, &obj_folder);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenFolder", GetLastError());
+		goto cleanup;
+	}
+
+	/* Empty the contents of the folder */
+	retval = EmptyFolder(&obj_folder);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("EmptyFolder", GetLastError());
+		goto cleanup;
+	}
+
+	g_print("Folder with id %016llX was emptied\n", fid);
+
+	result = TRUE;
+
+cleanup:
+	mapi_object_release(&obj_folder);
+	mapi_object_release(&obj_store);
+	LOGNONE();
+	UNLOCK ();
+
+	return result;
+}
+
 /* FIXME: param olFolder is never used in the routine. Remove it and cleanup at the backends */
 gboolean
 exchange_mapi_remove_folder (uint32_t olFolder, mapi_id_t fid)
