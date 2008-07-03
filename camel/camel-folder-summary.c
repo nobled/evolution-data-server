@@ -180,6 +180,7 @@ camel_folder_summary_init (CamelFolderSummary *s)
 	*/
 	s->meta_summary->uid_len = 20;
 	s->cache_load_time = 0;
+	s->timeout_handle = 0;
 }
 
 static void free_o_name(void *key, void *value, void *data)
@@ -196,6 +197,8 @@ camel_folder_summary_finalize (CamelObject *obj)
 
 	p = _PRIVATE(obj);
 
+	if (s->timeout_handle)
+		g_source_remove (s->timeout_handle);
 	//camel_folder_summary_clear(s);
 	g_ptr_array_foreach (s->uids, camel_pstring_free, NULL);
 	g_ptr_array_free (s->uids, TRUE);
@@ -793,7 +796,7 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer) &data, camel_read_mir_callback, ex);
 	s->cache_load_time = time (NULL);
 	#warning "LRU please and not timeouts"
-	g_timeout_add_seconds (SUMMARY_CACHE_DROP, remove_cache, s);
+	s->timeout_handle = g_timeout_add_seconds (SUMMARY_CACHE_DROP, remove_cache, s);
 
 	return ret == 0 ? 0 : -1;
 }
