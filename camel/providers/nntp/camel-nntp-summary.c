@@ -51,6 +51,9 @@
 
 #define CAMEL_NNTP_SUMMARY_VERSION (1)
 
+#define EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
+#define EXTRACT_DIGIT(val) part++; val=strtoul (part, &part, 10);
+
 struct _CamelNNTPSummaryPrivate {
 	char *uid;
 
@@ -63,6 +66,8 @@ struct _CamelNNTPSummaryPrivate {
 static CamelMessageInfo * message_info_new_from_header (CamelFolderSummary *, struct _camel_header_raw *);
 static int summary_header_load(CamelFolderSummary *, FILE *);
 static int summary_header_save(CamelFolderSummary *, FILE *);
+static int summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, CamelException *ex);
 
 static void camel_nntp_summary_class_init (CamelNNTPSummaryClass *klass);
 static void camel_nntp_summary_init       (CamelNNTPSummary *obj);
@@ -97,6 +102,8 @@ camel_nntp_summary_class_init(CamelNNTPSummaryClass *klass)
 	sklass->message_info_new_from_header  = message_info_new_from_header;
 	sklass->summary_header_load = summary_header_load;
 	sklass->summary_header_save = summary_header_save;
+	sklass->summary_header_from_db = summary_header_from_db;
+	sklass->summary_header_to_db = summary_header_to_db;
 }
 
 static void
@@ -160,6 +167,33 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 }
 
 static int
+summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
+{
+	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY(s);
+	char *part;
+
+	
+	if (camel_nntp_summary_parent->summary_header_from_db (s, mir) == -1)
+		return -1;
+
+	part = mir->bdata;
+
+	if (part) {
+		EXTRACT_FIRST_DIGIT (cns->version)
+	}
+	
+	if (part) {
+		EXTRACT_DIGIT (cns->high)
+	}
+
+	if (part) {
+		EXTRACT_DIGIT (cns->low)
+	}
+
+	return 0;
+}
+
+static int
 summary_header_load(CamelFolderSummary *s, FILE *in)
 {
 	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY(s);
@@ -187,6 +221,21 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 		return -1;
 
 	return 0;
+}
+
+
+static CamelFIRecord *
+summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
+{
+	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY(s);
+	struct _CamelFIRecord *fir;
+	
+	fir = camel_nntp_summary_parent->summary_header_to_db (s, ex);
+	if (!fir)
+		return NULL;
+	fir->bdata = g_strdup_printf ("%d %d %d", CAMEL_NNTP_SUMMARY_VERSION, cns->high, cns->low);
+
+	return fir;
 }
 
 static int
