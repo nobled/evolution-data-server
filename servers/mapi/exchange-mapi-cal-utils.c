@@ -23,24 +23,14 @@
 
 
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
 
 #include <glib/gstdio.h>
-
 #include <fcntl.h>
-
-#include "e-cal-backend-mapi.h"
-#include "e-cal-backend-mapi-utils.h"
-#include "e-cal-backend-mapi-tz-utils.h"
-#if 0
-#include "e-cal-backend-mapi-recur-utils.h"
-#endif
+#include <libecal/e-cal-util.h>
+#include "exchange-mapi-cal-utils.h"
 
 #define d(x) 
 
@@ -71,114 +61,6 @@ foo (const time_t tm, const int is_date, const icaltimezone *comp_zone)
 
 	return itt;
 }
-
-void
-e_cal_backend_mapi_util_fetch_attachments (ECalBackendMAPI *cbmapi, ECalComponent *comp, GSList **attach_list)
-{
-	GSList *comp_attach_list = NULL, *new_attach_list = NULL;
-	GSList *l;
-	char *dest_file;
-	int fd;
-	const char *uid;
-	const char *local_store = e_cal_backend_mapi_get_local_attachments_store (cbmapi);
-
-	e_cal_component_get_attachment_list (comp, &comp_attach_list);
-	e_cal_component_get_uid (comp, &uid);
-	
-	for (l = comp_attach_list; l ; l = l->next) {
-		gchar *sfname = (gchar *) l->data;
-		gchar *filename, *new_filename;
-		GMappedFile *mapped_file;
-		GError *error = NULL;
-		guint filelength = 0;
-
-		mapped_file = g_mapped_file_new (sfname, FALSE, &error);
-		if (!mapped_file) {
-			g_message ("DEBUG: could not map %s: %s\n", sfname, error->message);
-			g_error_free (error);
-			continue;
-		}
-
-		filename = g_path_get_basename (sfname);
-		new_filename = g_strconcat (uid, "-", filename, NULL);
-		g_free (filename);
-		dest_file = g_build_filename (local_store, new_filename, NULL);
-		g_free (new_filename);
-
-		filelength = g_mapped_file_get_length (mapped_file);
-
-		fd = g_open (dest_file, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
-		if (fd == -1) {
-			/* skip gracefully */
-			g_message ("DEBUG: could not open %s for writing\n", dest_file);
-		} else if (write (fd, g_mapped_file_get_contents (mapped_file), filelength) == -1) {
-			/* skip gracefully */
-			g_message ("DEBUG: attachment write failed.\n");
-		}
-		if (fd != -1) {
-			ExchangeMAPIAttachment *attach_item;
-
-			close (fd);
-			new_attach_list = g_slist_append (new_attach_list, g_filename_to_uri (dest_file, NULL, NULL));
-
-			attach_item = g_new0 (ExchangeMAPIAttachment, 1);
-			attach_item->filename = g_path_get_basename (sfname);
-			attach_item->value = g_byte_array_sized_new (filelength);
-			attach_item->value = g_byte_array_append (attach_item->value, g_mapped_file_get_contents (mapped_file), filelength);
-			*attach_list = g_slist_append (*attach_list, attach_item);
-		}
-
-		g_mapped_file_free (mapped_file);
-		g_free (dest_file);
-	}
-
-	e_cal_component_set_attachment_list (comp, new_attach_list);
-
-	for (l = new_attach_list; l != NULL; l = l->next)
-		g_free (l->data);
-	g_slist_free (new_attach_list);
-}
-
-static void
-set_attachments_to_cal_component (ECalBackendMAPI *cbmapi, ECalComponent *comp, GSList *attach_list)
-{
-	GSList *comp_attach_list = NULL, *l;
-	const char *uid;
-	const char *local_store = e_cal_backend_mapi_get_local_attachments_store (cbmapi);
-	
-	e_cal_component_get_uid (comp, &uid);
-	for (l = attach_list; l ; l = l->next) {
-		ExchangeMAPIAttachment *attach_item = (ExchangeMAPIAttachment *) (l->data);
-		gchar *attach_file_url, *filename;
-		struct stat st;
-
-		attach_file_url = g_strconcat (local_store, "/", uid, "-", attach_item->filename, NULL);
-		filename = g_filename_from_uri (attach_file_url, NULL, NULL);
-
-		if (g_stat (filename, &st) == -1) {
-			int fd = g_open (filename, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
-			if (fd == -1) { 
-				/* skip gracefully */
-				g_message ("DEBUG: could not open %s for writing\n", filename);
-			} else if (write (fd, attach_item->value->data, attach_item->value->len) == -1) {
-				/* skip gracefully */
-				g_message ("DEBUG: attachment write failed.\n");
-			}
-			if (fd != -1) {
-				close (fd);
-				comp_attach_list = g_slist_append (comp_attach_list, g_strdup (attach_file_url));
-			}
-		}
-
-		g_free (filename);
-		g_free (attach_file_url);
-	}
-
-	e_cal_component_set_attachment_list (comp, comp_attach_list);
-}
-
-#define RECIP_SENDABLE  0x1
-#define RECIP_ORGANIZER 0x2
 
 static icalparameter_role
 get_role_from_type (OlMailRecipientType type)
@@ -325,7 +207,76 @@ get_prop_from_priority (int priority)
 }
 
 void
-e_cal_backend_mapi_util_fetch_recipients (ECalBackendMAPI *cbmapi, ECalComponent *comp, GSList **recip_list)
+exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_list, const char *local_store)
+{
+	GSList *comp_attach_list = NULL, *new_attach_list = NULL;
+	GSList *l;
+	char *dest_file;
+	int fd;
+	const char *uid;
+
+	e_cal_component_get_attachment_list (comp, &comp_attach_list);
+	e_cal_component_get_uid (comp, &uid);
+
+	for (l = comp_attach_list; l ; l = l->next) {
+		gchar *sfname = (gchar *) l->data;
+		gchar *filename, *new_filename;
+		GMappedFile *mapped_file;
+		GError *error = NULL;
+		guint filelength = 0;
+
+		mapped_file = g_mapped_file_new (sfname, FALSE, &error);
+		if (!mapped_file) {
+			g_message ("DEBUG: could not map %s: %s\n", sfname, error->message);
+			g_error_free (error);
+			continue;
+		}
+
+		filename = g_path_get_basename (sfname);
+		new_filename = g_strconcat (uid, "-", filename, NULL);
+		g_free (filename);
+		dest_file = g_build_filename (local_store, new_filename, NULL);
+		g_free (new_filename);
+
+		filelength = g_mapped_file_get_length (mapped_file);
+
+		fd = g_open (dest_file, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
+		if (fd == -1) {
+			/* skip gracefully */
+			g_message ("DEBUG: could not open %s for writing\n", dest_file);
+		} else if (write (fd, g_mapped_file_get_contents (mapped_file), filelength) == -1) {
+			/* skip gracefully */
+			g_message ("DEBUG: attachment write failed.\n");
+		}
+		if (fd != -1) {
+			ExchangeMAPIAttachment *attach_item;
+
+			close (fd);
+			new_attach_list = g_slist_append (new_attach_list, g_filename_to_uri (dest_file, NULL, NULL));
+
+			attach_item = g_new0 (ExchangeMAPIAttachment, 1);
+			attach_item->filename = g_path_get_basename (sfname);
+			attach_item->value = g_byte_array_sized_new (filelength);
+			attach_item->value = g_byte_array_append (attach_item->value, g_mapped_file_get_contents (mapped_file), filelength);
+			*attach_list = g_slist_append (*attach_list, attach_item);
+		}
+
+		g_mapped_file_free (mapped_file);
+		g_free (dest_file);
+	}
+
+	e_cal_component_set_attachment_list (comp, new_attach_list);
+
+	for (l = new_attach_list; l != NULL; l = l->next)
+		g_free (l->data);
+	g_slist_free (new_attach_list);
+}
+
+#define RECIP_SENDABLE  0x1
+#define RECIP_ORGANIZER 0x2
+
+void
+exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_list)
 {
 	GSList *al = NULL, *l;
 
@@ -362,6 +313,43 @@ e_cal_backend_mapi_util_fetch_recipients (ECalBackendMAPI *cbmapi, ECalComponent
 	e_cal_component_free_attendee_list (al);
 }
 
+static void
+set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, const char *local_store)
+{
+	GSList *comp_attach_list = NULL, *l;
+	const char *uid;
+
+	e_cal_component_get_uid (comp, &uid);
+	for (l = attach_list; l ; l = l->next) {
+		ExchangeMAPIAttachment *attach_item = (ExchangeMAPIAttachment *) (l->data);
+		gchar *attach_file_url, *filename;
+		struct stat st;
+
+		attach_file_url = g_strconcat (local_store, "/", uid, "-", attach_item->filename, NULL);
+		filename = g_filename_from_uri (attach_file_url, NULL, NULL);
+
+		if (g_stat (filename, &st) == -1) {
+			int fd = g_open (filename, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
+			if (fd == -1) { 
+				/* skip gracefully */
+				g_message ("DEBUG: could not open %s for writing\n", filename);
+			} else if (write (fd, attach_item->value->data, attach_item->value->len) == -1) {
+				/* skip gracefully */
+				g_message ("DEBUG: attachment write failed.\n");
+			}
+			if (fd != -1) {
+				close (fd);
+				comp_attach_list = g_slist_append (comp_attach_list, g_strdup (attach_file_url));
+			}
+		}
+
+		g_free (filename);
+		g_free (attach_file_url);
+	}
+
+	e_cal_component_set_attachment_list (comp, comp_attach_list);
+}
+
 static void 
 ical_attendees_from_props (icalcomponent *ical_comp, GSList *recipients, gboolean rsvp)
 {
@@ -373,7 +361,7 @@ ical_attendees_from_props (icalcomponent *ical_comp, GSList *recipients, gboolea
 		gchar *val;
 		const uint32_t *ui32;
 		const char *str;
-		uint32_t *flags; 
+		const uint32_t *flags; 
 
 		if (recip->email_id)
 			val = g_strdup_printf ("MAILTO:%s", recip->email_id);
@@ -435,7 +423,7 @@ static const uint8_t GID_START_SEQ[] = {
 };
 
 void
-e_cal_backend_mapi_util_generate_globalobjectid (gboolean is_clean, const char *uid, struct SBinary *sb)
+exchange_mapi_cal_util_generate_globalobjectid (gboolean is_clean, const char *uid, struct SBinary *sb)
 {
 	GByteArray *ba;
 	guint32 flag32;
@@ -556,8 +544,9 @@ id_to_string (GByteArray *ba)
 }
 
 ECalComponent *
-e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, struct mapi_SPropValue_array *properties, 
-				  GSList *streams, GSList *recipients, GSList *attachments, const icaltimezone *default_zone)
+exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar *mid, struct mapi_SPropValue_array *properties, 
+					   GSList *streams, GSList *recipients, GSList *attachments, 
+					   const char *local_store, const icaltimezone *default_zone)
 {
 	ECalComponent *comp = NULL;
 	struct timeval t;
@@ -569,12 +558,12 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 	icalparameter *param = NULL;
 	ExchangeMAPIStream *body;
 
-	switch (e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi))) {
+	switch (kind) {
 		case ICAL_VEVENT_COMPONENT:
 		case ICAL_VTODO_COMPONENT:
 		case ICAL_VJOURNAL_COMPONENT:
 			comp = e_cal_component_new ();
-			ical_comp = icalcomponent_new (e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi)));
+			ical_comp = icalcomponent_new (kind);
 			e_cal_component_set_icalcomponent (comp, ical_comp);
 			icalcomponent_set_uid (ical_comp, mid);
 			e_cal_component_set_uid (comp, mid);
@@ -645,8 +634,8 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 
 		stream = exchange_mapi_util_find_stream (streams, PROP_TAG(PT_BINARY, 0x825E));
 		if (stream) {
-			gchar *buf = e_cal_backend_mapi_util_bin_to_mapi_tz (stream->value);
-			dtstart_tz = e_cal_backend_mapi_tz_util_get_ical_equivalent (buf);
+			gchar *buf = exchange_mapi_cal_util_bin_to_mapi_tz (stream->value);
+			dtstart_tz = exchange_mapi_cal_tz_util_get_ical_equivalent (buf);
 			g_free (buf);
 		}
 
@@ -655,8 +644,8 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 
 		stream = exchange_mapi_util_find_stream (streams, PROP_TAG(PT_BINARY, 0x825F));
 		if (stream) {
-			gchar *buf = e_cal_backend_mapi_util_bin_to_mapi_tz (stream->value);
-			dtend_tz = e_cal_backend_mapi_tz_util_get_ical_equivalent (buf);
+			gchar *buf = exchange_mapi_cal_util_bin_to_mapi_tz (stream->value);
+			dtend_tz = exchange_mapi_cal_tz_util_get_ical_equivalent (buf);
 			g_free (buf);
 		}
 
@@ -808,7 +797,7 @@ e_cal_backend_mapi_props_to_comp (ECalBackendMAPI *cbmapi, const gchar *mid, str
 
 	/* FIXME: categories */
 
-	set_attachments_to_cal_component (cbmapi, comp, attachments);
+	set_attachments_to_cal_component (comp, attachments, local_store);
 
 	e_cal_component_rescan (comp);
 
@@ -830,10 +819,9 @@ typedef enum
 } CommonNamedPropsIndex;
 
 gboolean
-mapi_cal_build_name_id (struct mapi_nameid *nameid, gpointer data)
+exchange_mapi_cal_util_build_name_id (struct mapi_nameid *nameid, gpointer data)
 {
-	ECalBackendMAPI *cbmapi	= E_CAL_BACKEND_MAPI (data);
-	icalcomponent_kind kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
+	icalcomponent_kind kind = GPOINTER_TO_INT (data);
 
 	/* NOTE: Avoid using mapi_nameid_OOM_add because: 
 	 * a) its inefficient (uses strcmp) 
@@ -1044,10 +1032,9 @@ note_build_name_id (struct mapi_nameid *nameid)
 #define REGULAR_PROPS_N    21
 
 int
-mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_array, gpointer data)
+exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagArray *proptag_array, gpointer data)
 {
 	struct cbdata *cbdata = (struct cbdata *) data;
-	ECalBackendMAPI *cbmapi = cbdata->cbmapi;
 	ECalComponent *comp = cbdata->comp;
 	icalcomponent *ical_comp = e_cal_component_get_icalcomponent (comp);
 	icalcomponent_kind  kind = icalcomponent_isa (ical_comp);
@@ -1143,19 +1130,19 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 	set_SPropValue_proptag(&props[i++], PR_PRIORITY, (const void *) &flag32); 		/* prop count: 7 */
 
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME, 
-		(const void *) e_cal_backend_mapi_get_owner_name (cbmapi));
+		(const void *) cbdata->ownerid);
 	text = "SMTP";
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE, 
 		(const void *) text);
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
-		(const void *) e_cal_backend_mapi_get_owner_email (cbmapi));
+		(const void *) cbdata->ownername);
 	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME, 
-		(const void *) e_cal_backend_mapi_get_user_name (cbmapi));
+		(const void *) cbdata->username);
 	text = "SMTP";
 	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE, 
 		(const void *) text);
 	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS, 
-		(const void *) e_cal_backend_mapi_get_user_email (cbmapi)); 			/* prop count: 13 */
+		(const void *) cbdata->userid); 						/* prop count: 13 */
 
 	flag32 = cbdata->msgflags;
 	set_SPropValue_proptag(&props[i++], PR_MESSAGE_FLAGS, (const void *) &flag32); 		/* prop count: 14 */
@@ -1270,9 +1257,9 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 		set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_APPT_CLIPSTART], &t);
 
 		/* Start TZ */
-		mapi_tzid = e_cal_backend_mapi_tz_util_get_mapi_equivalent ((dtstart_tzid && *dtstart_tzid) ? dtstart_tzid : "UTC");
+		mapi_tzid = exchange_mapi_cal_tz_util_get_mapi_equivalent ((dtstart_tzid && *dtstart_tzid) ? dtstart_tzid : "UTC");
 		if (mapi_tzid && *mapi_tzid) {
-			e_cal_backend_mapi_util_mapi_tz_to_bin (mapi_tzid, &start_tz);
+			exchange_mapi_cal_util_mapi_tz_to_bin (mapi_tzid, &start_tz);
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_STARTTZBLOB], (const void *) &start_tz);
 		}
 
@@ -1284,9 +1271,9 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 		set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_APPT_CLIPEND], &t);
 
 		/* End TZ */
-		mapi_tzid = e_cal_backend_mapi_tz_util_get_mapi_equivalent ((dtend_tzid && *dtend_tzid) ? dtend_tzid : "UTC");
+		mapi_tzid = exchange_mapi_cal_tz_util_get_mapi_equivalent ((dtend_tzid && *dtend_tzid) ? dtend_tzid : "UTC");
 		if (mapi_tzid && *mapi_tzid) {
-			e_cal_backend_mapi_util_mapi_tz_to_bin (mapi_tzid, &end_tz);
+			exchange_mapi_cal_util_mapi_tz_to_bin (mapi_tzid, &end_tz);
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_ENDTZBLOB], (const void *) &end_tz);
 		}
 
@@ -1327,7 +1314,7 @@ mapi_cal_build_props (struct SPropValue **value, struct SPropTagArray *proptag_a
 			set_SPropValue_proptag(&props[i++], PR_OWNER_APPT_ID, (const void *) &flag32);
 
 			e_cal_component_get_uid (comp, &uid);
-			e_cal_backend_mapi_util_generate_globalobjectid (TRUE, uid, &globalid);
+			exchange_mapi_cal_util_generate_globalobjectid (TRUE, uid, &globalid);
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_CLEANGUID], (const void *) &globalid);
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_GUID], (const void *) &globalid);
 

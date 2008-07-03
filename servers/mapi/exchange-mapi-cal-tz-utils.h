@@ -23,33 +23,34 @@
 
 
 
-#ifndef E_CAL_BACKEND_MAPI_TZ_UTILS_H
-#define E_CAL_BACKEND_MAPI_TZ_UTILS_H
+#ifndef EXCHANGE_MAPI_CAL_TZ_UTILS_H
+#define EXCHANGE_MAPI_CAL_TZ_UTILS_H
 
 #include <glib.h>
+#include "exchange-mapi-cal-utils.h"
 
 G_BEGIN_DECLS
 
 const gchar *
-e_cal_backend_mapi_tz_util_get_mapi_equivalent (const gchar *ical_tzid);
+exchange_mapi_cal_tz_util_get_mapi_equivalent (const gchar *ical_tzid);
 
 const gchar *
-e_cal_backend_mapi_tz_util_get_ical_equivalent (const gchar *mapi_tzid);
+exchange_mapi_cal_tz_util_get_ical_equivalent (const gchar *mapi_tzid);
 
 gboolean
-e_cal_backend_mapi_tz_util_populate (void);
+exchange_mapi_cal_tz_util_populate (void);
 
 void
-e_cal_backend_mapi_tz_util_destroy (void);
+exchange_mapi_cal_tz_util_destroy (void);
 
 void
-e_cal_backend_mapi_tz_util_dump (void);
+exchange_mapi_cal_tz_util_dump (void);
 
 void
-e_cal_backend_mapi_util_mapi_tz_to_bin (const char *mapi_tzid, struct SBinary *sb);
+exchange_mapi_cal_util_mapi_tz_to_bin (const char *mapi_tzid, struct SBinary *sb);
 
 gchar *
-e_cal_backend_mapi_util_bin_to_mapi_tz (GByteArray *ba);
+exchange_mapi_cal_util_bin_to_mapi_tz (GByteArray *ba);
 
 G_END_DECLS
 

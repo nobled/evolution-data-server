@@ -23,9 +23,7 @@
 
 
 
-#include "e-cal-backend-mapi.h"
-//#include "e-cal-backend-mapi-constants.h"
-#include "e-cal-backend-mapi-recur-utils.h"
+#include "exchange-mapi-cal-recur-utils.h"
 
 #define ZERO_BYTE 	0x00
 
@@ -72,7 +70,7 @@ get_ical_weekday (uint32_t olWeekday) {
 }
 
 gboolean
-e_cal_backend_mapi_util_bin_to_rrule (GByteArray *ba, ECalComponent *comp)
+exchange_mapi_cal_util_bin_to_rrule (GByteArray *ba, ECalComponent *comp)
 {
 	struct icalrecurrencetype rt;
 	guint16 flag16;

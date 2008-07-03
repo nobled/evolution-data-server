@@ -23,8 +23,7 @@
 
 
 
-#include "e-cal-backend-mapi.h"
-#include "e-cal-backend-mapi-tz-utils.h"
+#include "exchange-mapi-cal-tz-utils.h"
 
 #define d(x) 
 
@@ -39,7 +38,7 @@ static const gchar *lru_mapi_id = NULL;
 static const gchar *lru_ical_id = NULL;
 
 const gchar *
-e_cal_backend_mapi_tz_util_get_mapi_equivalent (const gchar *ical_tzid)
+exchange_mapi_cal_tz_util_get_mapi_equivalent (const gchar *ical_tzid)
 {
 	g_return_val_if_fail ((ical_tzid && *ical_tzid), NULL);
 
@@ -66,7 +65,7 @@ e_cal_backend_mapi_tz_util_get_mapi_equivalent (const gchar *ical_tzid)
 }
 
 const gchar *
-e_cal_backend_mapi_tz_util_get_ical_equivalent (const gchar *mapi_tzid)
+exchange_mapi_cal_tz_util_get_ical_equivalent (const gchar *mapi_tzid)
 {
 	g_return_val_if_fail ((mapi_tzid && *mapi_tzid), NULL);
 
@@ -93,7 +92,7 @@ e_cal_backend_mapi_tz_util_get_ical_equivalent (const gchar *mapi_tzid)
 }
 
 void
-e_cal_backend_mapi_tz_util_destroy ()
+exchange_mapi_cal_tz_util_destroy ()
 {
 	g_static_rec_mutex_lock(&mutex);
 	if (!(mapi_to_ical && ical_to_mapi)) {
@@ -134,7 +133,7 @@ file_contents_to_hashtable (const char *contents, GHashTable *table)
 }
 
 gboolean
-e_cal_backend_mapi_tz_util_populate ()
+exchange_mapi_cal_tz_util_populate ()
 {
 	gchar *mtoi_fn = NULL, *itom_fn = NULL;
 	GMappedFile *mtoi_mf = NULL, *itom_mf = NULL;
@@ -183,7 +182,7 @@ e_cal_backend_mapi_tz_util_populate ()
 	if (!(g_hash_table_size (mapi_to_ical) && g_hash_table_size (ical_to_mapi))) {
 		g_warning ("Exchange MAPI timezone files are not valid.");
 
-		e_cal_backend_mapi_tz_util_destroy ();
+		exchange_mapi_cal_tz_util_destroy ();
 
 		g_mapped_file_free (mtoi_mf);
 		g_mapped_file_free (itom_mf);
@@ -200,7 +199,7 @@ e_cal_backend_mapi_tz_util_populate ()
 }
 
 static void 
-e_cal_backend_mapi_tz_util_dump_ical_tzs ()
+exchange_mapi_cal_tz_util_dump_ical_tzs ()
 {
 	guint i;
 	icalarray *zones;
@@ -235,14 +234,14 @@ e_cal_backend_mapi_tz_util_dump_ical_tzs ()
 }
 
 void
-e_cal_backend_mapi_tz_util_dump ()
+exchange_mapi_cal_tz_util_dump ()
 {
 	guint i;
 	GList *keys, *values, *l, *m;
 
 	g_static_rec_mutex_lock(&mutex);
 
-	e_cal_backend_mapi_tz_util_dump_ical_tzs ();
+	exchange_mapi_cal_tz_util_dump_ical_tzs ();
 
 	if (!(mapi_to_ical && ical_to_mapi)) {
 		g_static_rec_mutex_unlock(&mutex);
@@ -449,7 +448,7 @@ TZDEFINITION* BinToTZDEFINITION(ULONG cbDef, LPBYTE lpbDef)
 #define TZ_BIN_VERSION_MINOR  0x01 
 
 void
-e_cal_backend_mapi_util_mapi_tz_to_bin (const char *mapi_tzid, struct SBinary *sb)
+exchange_mapi_cal_util_mapi_tz_to_bin (const char *mapi_tzid, struct SBinary *sb)
 {
 	GByteArray *ba;
 	guint8 flag8;
@@ -501,7 +500,7 @@ e_cal_backend_mapi_util_mapi_tz_to_bin (const char *mapi_tzid, struct SBinary *s
 }
 
 gchar *
-e_cal_backend_mapi_util_bin_to_mapi_tz (GByteArray *ba)
+exchange_mapi_cal_util_bin_to_mapi_tz (GByteArray *ba)
 {
 	guint8 flag8;
 	guint16 flag16, cbHeader = 0;

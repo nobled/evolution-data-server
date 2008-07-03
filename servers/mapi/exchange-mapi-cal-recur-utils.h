@@ -23,15 +23,15 @@
 
 
 
-#ifndef E_CAL_BACKEND_MAPI_RECUR_UTILS_H
-#define E_CAL_BACKEND_MAPI_RECUR_UTILS_H
+#ifndef EXCHANGE_MAPI_CAL_RECUR_UTILS_H
+#define EXCHANGE_MAPI_CAL_RECUR_UTILS_H
 
 #include <glib.h>
 
 G_BEGIN_DECLS
 
 gboolean
-e_cal_backend_mapi_util_bin_to_rrule (GByteArray *ba, ECalComponent *comp);
+exchange_mapi_cal_util_bin_to_rrule (GByteArray *ba, ECalComponent *comp);
 
 G_END_DECLS
 

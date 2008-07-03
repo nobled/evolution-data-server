@@ -1,3 +1,40 @@
+2008-07-03  Suman Manjunath  <msuman@novell.com>
+
+	** Move the calendar utility files to servers.
+
+	* Makefile.am:
+	* exchange-mapi-cal-recur-utils.c (get_ical_weekday),
+	(exchange_mapi_cal_util_bin_to_rrule):
+	* exchange-mapi-cal-recur-utils.h:
+	* exchange-mapi-cal-tz-utils.c
+	(exchange_mapi_cal_tz_util_get_mapi_equivalent),
+	(exchange_mapi_cal_tz_util_get_ical_equivalent),
+	(exchange_mapi_cal_tz_util_destroy), (file_contents_to_hashtable),
+	(exchange_mapi_cal_tz_util_populate),
+	(exchange_mapi_cal_tz_util_dump_ical_tzs),
+	(exchange_mapi_cal_tz_util_dump), (BinToTZDEFINITION),
+	(exchange_mapi_cal_util_mapi_tz_to_bin),
+	(exchange_mapi_cal_util_bin_to_mapi_tz):
+	* exchange-mapi-cal-tz-utils.h:
+	* exchange-mapi-cal-utils.c (foo), (get_role_from_type),
+	(get_type_from_role), (get_partstat_from_trackstatus),
+	(get_trackstatus_from_partstat), (get_transp_from_prop),
+	(get_prop_from_transp), (get_taskstatus_from_prop),
+	(get_prop_from_taskstatus), (get_class_from_prop),
+	(get_prop_from_class), (get_priority_from_prop),
+	(get_prop_from_priority),
+	(exchange_mapi_cal_util_fetch_attachments),
+	(exchange_mapi_cal_util_fetch_recipients),
+	(set_attachments_to_cal_component), (ical_attendees_from_props),
+	(exchange_mapi_cal_util_generate_globalobjectid), (id_to_string),
+	(exchange_mapi_cal_util_mapi_props_to_comp),
+	(exchange_mapi_cal_util_build_name_id), (appt_build_name_id),
+	(task_build_name_id), (note_build_name_id),
+	(exchange_mapi_cal_util_build_props):
+	* exchange-mapi-cal-utils.h:
+	* tz-ical-to-mapi:
+	* tz-mapi-to-ical:
+
 2008-06-30  Johnny Jacob  <jjohnny@novell.com>
 
 	* exchange-mapi-connection.c (mapi_move_items)

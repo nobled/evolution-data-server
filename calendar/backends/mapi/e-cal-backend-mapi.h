@@ -42,6 +42,7 @@
 
 #include <exchange-mapi-connection.h>
 #include <exchange-mapi-defs.h>
+#include <exchange-mapi-cal-utils.h>
 #include <exchange-mapi-folder.h>
 #include <exchange-mapi-utils.h>
 
@@ -91,30 +92,6 @@ const char *
 e_cal_backend_mapi_get_user_name (ECalBackendMAPI *cbmapi);
 const char *	
 e_cal_backend_mapi_get_user_email (ECalBackendMAPI *cbmapi);
-
-typedef enum {
-	NOT_A_MEETING = 0, 
-	MEETING_OBJECT = (1 << 0),
-	MEETING_OBJECT_SENT = (1 << 1),
-	MEETING_REQUEST = (1 << 2), 
-	MEETING_RESPONSE = (1 << 3)
-} MAPIMeetingOptions;
-
-struct dup_data {
-	struct SBinary *globalid;
-	struct SBinary *cleanglobalid;
-	uint32_t owner_appt_id;
-	uint32_t appt_seq;
-};
-
-struct cbdata { 
-	ECalBackendMAPI *cbmapi;
-	ECalComponent *comp;
-	MAPIMeetingOptions meeting_type;
-	uint32_t msgflags;
-	uint32_t new_appt_id;
-	struct dup_data dup;
-};
 
 G_END_DECLS
 

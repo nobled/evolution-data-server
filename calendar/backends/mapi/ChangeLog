@@ -1,3 +1,25 @@
+2008-07-03  Suman Manjunath  <msuman@novell.com>
+
+	** Move the calendar utility files to servers. 
+
+	* Makefile.am:
+	* e-cal-backend-mapi-factory.c (eds_module_initialize),
+	(eds_module_shutdown):
+	* e-cal-backend-mapi-recur-utils.c:
+	* e-cal-backend-mapi-recur-utils.h:
+	* e-cal-backend-mapi-tz-utils.c:
+	* e-cal-backend-mapi-tz-utils.h:
+	* e-cal-backend-mapi-utils.c:
+	* e-cal-backend-mapi-utils.h:
+	* e-cal-backend-mapi.c (mapi_cal_get_changes_cb), (get_deltas),
+	(mapi_cal_cache_create_cb), (populate_cache),
+	(e_cal_backend_mapi_create_object),
+	(e_cal_backend_mapi_modify_object), (get_server_data),
+	(e_cal_backend_mapi_send_objects):
+	* e-cal-backend-mapi.h:
+	* tz-ical-to-mapi:
+	* tz-mapi-to-ical:
+
 2008-07-02  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi-utils.c (get_role_from_type),

@@ -27,7 +27,7 @@
 #include <gio/gio.h>
 
 #include "e-cal-backend-mapi.h"
-#include "e-cal-backend-mapi-utils.h"
+
 #define d(x) x
 
 #ifdef G_OS_WIN32
@@ -346,59 +346,13 @@ e_cal_backend_mapi_remove (ECalBackendSync *backend, EDataCal *cal)
 	return GNOME_Evolution_Calendar_Success;
 }
 
-/* we don't have to specify the PR_BODY_* tags since it is fetched by default */
-static const uint32_t GetPropsList[] = {
-	PR_FID, 
-	PR_MID, 
-	PR_SUBJECT, 
-	PR_SUBJECT_UNICODE, 
-	PR_SUBJECT_ERROR, 
-	PR_NORMALIZED_SUBJECT, 
-	PR_NORMALIZED_SUBJECT_UNICODE, 
-	PR_NORMALIZED_SUBJECT_ERROR, 
-	PR_CREATION_TIME, 
-	PR_LAST_MODIFICATION_TIME, 
-	PR_PRIORITY, 
-	PR_SENSITIVITY, 
-	PR_START_DATE, 
-	PR_END_DATE, 
-	PR_RESPONSE_REQUESTED, 
-
-	PR_SENT_REPRESENTING_NAME, 
-	PR_SENT_REPRESENTING_NAME_UNICODE, 
-	PR_SENT_REPRESENTING_ADDRTYPE, 
-	PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
-	PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
-	PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
-
-	PR_SENDER_NAME, 
-	PR_SENDER_NAME_UNICODE, 
-	PR_SENDER_ADDRTYPE, 
-	PR_SENDER_ADDRTYPE_UNICODE, 
-	PR_SENDER_EMAIL_ADDRESS, 
-	PR_SENDER_EMAIL_ADDRESS_UNICODE, 
-
-	PR_RCVD_REPRESENTING_NAME, 
-	PR_RCVD_REPRESENTING_NAME_UNICODE, 
-	PR_RCVD_REPRESENTING_ADDRTYPE, 
-	PR_RCVD_REPRESENTING_ADDRTYPE_UNICODE, 
-	PR_RCVD_REPRESENTING_EMAIL_ADDRESS, 
-	PR_RCVD_REPRESENTING_EMAIL_ADDRESS_UNICODE
-};
-static const uint16_t n_GetPropsList = G_N_ELEMENTS (GetPropsList);
-
-static const uint32_t IDList[] = {
-	PR_FID, 
-	PR_MID
-};
-static const uint16_t n_IDList = G_N_ELEMENTS (IDList);
-
 static gboolean
 mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
 			 GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
 {
 	ECalBackendMAPI *cbmapi	= data;
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
+	icalcomponent_kind kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
 	gchar *tmp = NULL;
 	ECalComponent *cache_comp = NULL;
 	const bool *recurring;
@@ -431,7 +385,9 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 	cache_comp = e_cal_backend_cache_get_component (priv->cache, tmp, NULL);
 
 	if (cache_comp == NULL) {
-		ECalComponent *comp = e_cal_backend_mapi_props_to_comp (cbmapi, tmp, array, streams, recipients, attachments, priv->default_zone);
+		ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, array, 
+									streams, recipients, attachments, 
+									priv->local_attachments_store, priv->default_zone);
 
 		if (E_IS_CAL_COMPONENT (comp)) {
 			char *comp_str;
@@ -462,8 +418,9 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 				e_cal_component_commit_sequence (cache_comp);
 				cache_comp_str = e_cal_component_get_as_string (cache_comp);
 
-				comp = e_cal_backend_mapi_props_to_comp (cbmapi, tmp, array, 
-									streams, recipients, attachments, priv->default_zone);
+				comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, array, 
+									streams, recipients, attachments, 
+									priv->local_attachments_store, priv->default_zone);
 
 				e_cal_component_commit_sequence (comp);
 				modif_comp_str = e_cal_component_get_as_string (comp);
@@ -533,8 +490,8 @@ get_deltas (gpointer handle)
 		return FALSE;
 
 	cbmapi = (ECalBackendMAPI *) handle;
-	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
 	priv= cbmapi->priv;
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
 
 	if (priv->mode == CAL_MODE_LOCAL)
 		return FALSE;
@@ -566,8 +523,8 @@ get_deltas (gpointer handle)
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	if (!exchange_mapi_connection_fetch_items (priv->fid, use_restriction ? &res : NULL, 
-						GetPropsList, n_GetPropsList, 
-						mapi_cal_build_name_id, cbmapi, 
+						cal_GetPropsList, n_cal_GetPropsList, 
+						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						mapi_cal_get_changes_cb, cbmapi, 
 						MAPI_OPTIONS_FETCH_ALL)) {
 		/* FIXME: better string please... */
@@ -590,7 +547,7 @@ get_deltas (gpointer handle)
 	 * so should not be freed, only the list should. */
 	priv->cache_keys = e_cal_backend_cache_get_keys (priv->cache);
 	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
-						IDList, n_IDList, 
+						cal_IDList, n_cal_IDList, 
 						NULL, NULL, 
 						handle_deleted_items_cb, cbmapi, 
 						0)) {
@@ -863,13 +820,14 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 {
 	ECalBackendMAPI *cbmapi	= E_CAL_BACKEND_MAPI (data);
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
+	icalcomponent_kind kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
         ECalComponent *comp = NULL;
 	gchar *tmp = NULL;
 	const bool *recurring = NULL;
 
 //	exchange_mapi_debug_property_dump (properties);
 
-	switch (e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi))) {
+	switch (kind) {
 		case ICAL_VEVENT_COMPONENT:
 			/* FIXME: Provide backend support for recurrence */
 			recurring = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8223));
@@ -899,7 +857,9 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 	}
 	
 	tmp = exchange_mapi_util_mapi_id_to_string (mid);
-	comp = e_cal_backend_mapi_props_to_comp (cbmapi, tmp, properties, streams, recipients, attachments, priv->default_zone);
+	comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, properties, 
+							streams, recipients, attachments, 
+							priv->local_attachments_store, priv->default_zone);
 	g_free (tmp);
 
 	if (E_IS_CAL_COMPONENT (comp)) {
@@ -948,8 +908,8 @@ populate_cache (ECalBackendMAPI *cbmapi)
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
-						GetPropsList, n_GetPropsList, 
-						mapi_cal_build_name_id, cbmapi, 
+						cal_GetPropsList, n_cal_GetPropsList, 
+						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						mapi_cal_cache_create_cb, cbmapi, 
 						MAPI_OPTIONS_FETCH_ALL)) {
 		e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Could not create cache file"));
@@ -1222,6 +1182,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 {
 	ECalBackendMAPI *cbmapi;
 	ECalBackendMAPIPrivate *priv;
+	icalcomponent_kind kind;
 	icalcomponent *icalcomp;
 	ECalComponent *comp;
 	mapi_id_t mid = 0;
@@ -1232,6 +1193,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 
 	cbmapi = E_CAL_BACKEND_MAPI (backend);
 	priv = cbmapi->priv;
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (backend));
 
 	g_return_val_if_fail (E_IS_CAL_BACKEND_MAPI (cbmapi), GNOME_Evolution_Calendar_InvalidObject);
 	g_return_val_if_fail (calobj != NULL && *calobj != NULL, GNOME_Evolution_Calendar_InvalidObject);
@@ -1244,7 +1206,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 	if (!icalcomp)
 		return GNOME_Evolution_Calendar_InvalidObject;
 
-	if (e_cal_backend_get_kind (E_CAL_BACKEND (backend)) != icalcomponent_isa (icalcomp)) {
+	if (kind != icalcomponent_isa (icalcomp)) {
 		icalcomponent_free (icalcomp);
 		return GNOME_Evolution_Calendar_InvalidObject;
 	}
@@ -1260,22 +1222,29 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 
 	/* FIXME: [WIP] Add support for meetings/assigned tasks */
 	if (e_cal_component_has_attendees (comp)) 
-		e_cal_backend_mapi_util_fetch_recipients (cbmapi, comp, &recipients);
+		exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 
 	if (e_cal_component_has_attachments (comp))
-		e_cal_backend_mapi_util_fetch_attachments (cbmapi, comp, &attachments);
+		exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
+
+	cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+	cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
+	cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+	cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 	/* Check if object exists */
 	switch (priv->mode) {
 		case CAL_MODE_ANY:
 		case CAL_MODE_REMOTE:
 			/* Create an appointment */
-			cbdata.cbmapi = cbmapi;
 			cbdata.comp = comp;
 			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
 			cbdata.msgflags = MSGFLAG_READ;
 			cbdata.new_appt_id = get_new_appt_id (cbmapi);
-			mid = exchange_mapi_create_item (priv->olFolder, priv->fid, mapi_cal_build_name_id, cbmapi, mapi_cal_build_props, &cbdata, recipients, attachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+			mid = exchange_mapi_create_item (priv->olFolder, priv->fid, 
+							exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
+							exchange_mapi_cal_util_build_props, &cbdata, 
+							recipients, attachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
 			if (!mid) {
 				g_object_unref (comp);
 				exchange_mapi_util_free_recipient_list (&recipients);
@@ -1309,6 +1278,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 {
 	ECalBackendMAPI *cbmapi;
         ECalBackendMAPIPrivate *priv;
+	icalcomponent_kind kind;
 	icalcomponent *icalcomp;
 	ECalComponent *comp, *cache_comp = NULL;
 	gboolean status;
@@ -1323,6 +1293,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	*old_object = *new_object = NULL;
 	cbmapi = E_CAL_BACKEND_MAPI (backend);
 	priv = cbmapi->priv;
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (backend));
 
 	g_return_val_if_fail (E_IS_CAL_BACKEND_MAPI (cbmapi), GNOME_Evolution_Calendar_InvalidObject);
 	g_return_val_if_fail (calobj != NULL, GNOME_Evolution_Calendar_InvalidObject);
@@ -1346,13 +1317,18 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 
 	/* FIXME: [WIP] Add support for meetings/assigned tasks */
 	if (e_cal_component_has_attendees (comp)) 
-		e_cal_backend_mapi_util_fetch_recipients (cbmapi, comp, &recipients);
+		exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 
 	if (e_cal_component_has_attachments (comp))
-		e_cal_backend_mapi_util_fetch_attachments (cbmapi, comp, &attachments);
+		exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
 	e_cal_component_get_uid (comp, &uid);
 	rid = e_cal_component_get_recurid_as_string (comp);
+
+	cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+	cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
+	cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+	cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 	switch (priv->mode) {
 	case CAL_MODE_ANY :
@@ -1366,12 +1342,14 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		}
 		exchange_mapi_util_mapi_id_from_string (uid, &mid);
 
-		cbdata.cbmapi = cbmapi;
 		cbdata.comp = comp;
 //		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
 		cbdata.msgflags = MSGFLAG_READ;
 		cbdata.new_appt_id = 0x0;
-		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, mapi_cal_build_name_id, cbmapi, mapi_cal_build_props, &cbdata, NULL, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, 
+						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
+						exchange_mapi_cal_util_build_props, &cbdata, 
+						NULL, NULL, MAPI_OPTIONS_DONT_SUBMIT);
 		if (!status) {
 			g_object_unref (comp);
 			g_object_unref (cache_comp);
@@ -1547,7 +1525,7 @@ get_server_data (ECalBackendMAPI *cbmapi, icalcomponent *comp, struct cbdata *cb
 	res.res.resProperty.relop = RELOP_EQ;
 	res.res.resProperty.ulPropTag = proptag;
 
-	e_cal_backend_mapi_util_generate_globalobjectid (TRUE, uid, &sb);
+	exchange_mapi_cal_util_generate_globalobjectid (TRUE, uid, &sb);
 
 	set_SPropValue_proptag (&sprop, proptag, (const void *) &sb);
 	cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
@@ -1566,10 +1544,12 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 	ECalBackendSyncStatus status = GNOME_Evolution_Calendar_OtherError;
 	ECalBackendMAPI *cbmapi;
 	ECalBackendMAPIPrivate *priv;
+	icalcomponent_kind kind;
 	icalcomponent *icalcomp;
 
 	cbmapi = E_CAL_BACKEND_MAPI (backend);
 	priv = cbmapi->priv;
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (backend));
 
 	g_return_val_if_fail (E_IS_CAL_BACKEND_MAPI (cbmapi), GNOME_Evolution_Calendar_InvalidObject);
 	g_return_val_if_fail (calobj != NULL, GNOME_Evolution_Calendar_InvalidObject);
@@ -1587,8 +1567,7 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 
 	if (icalcomponent_isa (icalcomp) == ICAL_VCALENDAR_COMPONENT) {
 		icalproperty_method method = icalcomponent_get_method (icalcomp);
-		icalcomponent *subcomp = icalcomponent_get_first_component (icalcomp,
-							     e_cal_backend_get_kind (E_CAL_BACKEND (backend)));
+		icalcomponent *subcomp = icalcomponent_get_first_component (icalcomp, kind);
 		while (subcomp) {
 			ECalComponent *comp = e_cal_component_new ();
 			struct cbdata cbdata;
@@ -1606,14 +1585,18 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 
 			/* FIXME: [WIP] Add support for meetings/assigned tasks */
 			if (e_cal_component_has_attendees (comp)) {
-				e_cal_backend_mapi_util_fetch_recipients (cbmapi, comp, &recipients);
+				exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 				method = icalcomponent_get_method (icalcomp);
 			}
 
 			if (e_cal_component_has_attachments (comp))
-				e_cal_backend_mapi_util_fetch_attachments (cbmapi, comp, &attachments);
+				exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
-			cbdata.cbmapi = cbmapi;
+			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
+			cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
+
 			cbdata.comp = comp;
 			cbdata.new_appt_id = 0x0;
 			switch (method) {
@@ -1633,7 +1616,10 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 
 			get_server_data (cbmapi, subcomp, &cbdata);
 
-			mid = exchange_mapi_create_item (olFolderOutbox, 0, mapi_cal_build_name_id, cbmapi, mapi_cal_build_props, &cbdata, recipients, attachments, NULL, 0);
+			mid = exchange_mapi_create_item (olFolderOutbox, 0, 
+							exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
+							exchange_mapi_cal_util_build_props, &cbdata, 
+							recipients, attachments, NULL, 0);
 			if (!mid) {
 				g_object_unref (comp);
 				exchange_mapi_util_free_recipient_list (&recipients);
