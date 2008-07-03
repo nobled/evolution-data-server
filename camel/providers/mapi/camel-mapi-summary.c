@@ -189,3 +189,33 @@ mapi_content_info_save (CamelFolderSummary *s, FILE *out, CamelMessageContentInf
 	return 0;
 }
 
+void
+mapi_summary_clear (CamelFolderSummary *summary, gboolean uncache)
+{
+	CamelFolderChangeInfo *changes;
+	CamelMessageInfo *info;
+	int i, count;
+	const char *uid;
+
+	changes = camel_folder_change_info_new ();
+	count = camel_folder_summary_count (summary);
+	for (i = 0; i < count; i++) {
+		if (!(info = camel_folder_summary_index (summary, i)))
+			continue;
+
+		uid = camel_message_info_uid (info);
+		camel_folder_change_info_remove_uid (changes, uid);
+		camel_folder_summary_remove_uid (summary, uid);
+		camel_message_info_free(info);
+	}
+
+	camel_folder_summary_clear (summary);
+	camel_folder_summary_save (summary);
+
+	if (uncache)
+		camel_data_cache_clear (((CamelMapiFolder *) summary->folder)->cache, "cache", NULL);
+
+	if (camel_folder_change_info_changed (changes))
+		camel_object_trigger_event (summary->folder, "folder_changed", changes);
+	camel_folder_change_info_free (changes);
+}
