@@ -883,6 +883,11 @@ imap_rescan (CamelFolder *folder, int exists, CamelException *ex)
 		g_datalist_clear (&data);
 	}
 
+	if (summary_got == 0) {
+		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
+		g_free(new);
+		return;
+	}
 	camel_operation_end (NULL);
 	if (type == CAMEL_IMAP_RESPONSE_ERROR || camel_application_is_exiting) {
 		for (i = 0; i < summary_len && new[i].uid; i++) {
@@ -922,13 +927,13 @@ imap_rescan (CamelFolder *folder, int exists, CamelException *ex)
 
 		info = camel_folder_summary_uid (folder->summary, uid);
 		iinfo = (CamelImapMessageInfo *)info;
-		
 		if (strcmp (uid, new[i].uid) != 0) {
 			g_free (uid);
 			seq = i + 1;
 			g_array_append_val (removed, seq);
 			i--;
 			summary_len--;
+			camel_message_info_free(info);
 			continue;
 		}
 		
@@ -1185,7 +1190,6 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 			continue;
 
 		if (!(info = (CamelImapMessageInfo *) camel_folder_summary_uid (folder->summary, uid))) {
-			g_free (uid);
 			continue;
 		}
 

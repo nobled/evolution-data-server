@@ -51,6 +51,7 @@
 #include "camel-db.h"
 #include "camel-store.h"
 #include "camel-vee-folder.h"
+#include "camel-string-utils.h"
 
 #define d(x) 
 #define r(x) 
@@ -402,14 +403,16 @@ camel_folder_search_execute_expression(CamelFolderSearch *search, const char *ex
 			for (i=0;i<search->summary->len;i++) {
 				char *uid = g_ptr_array_index(search->summary, i);
 				if (g_hash_table_lookup(results, uid)) {
-					g_ptr_array_add(matches, e_mempool_strdup(pool, uid));
+//					g_ptr_array_add(matches, e_mempool_strdup(pool, uid));
+					g_ptr_array_add(matches, camel_pstring_strdup(uid));
 				}
 			}
 			g_hash_table_destroy(results);
 		} else {
 			for (i=0;i<r->value.ptrarray->len;i++) {
 				d(printf("adding match: %s\n", (char *)g_ptr_array_index(r->value.ptrarray, i)));
-				g_ptr_array_add(matches, e_mempool_strdup(pool, g_ptr_array_index(r->value.ptrarray, i)));
+//				g_ptr_array_add(matches, e_mempool_strdup(pool, g_ptr_array_index(r->value.ptrarray, i)));
+				g_ptr_array_add(matches, camel_pstring_strdup(g_ptr_array_index(r->value.ptrarray, i)));
 			}
 		}
 		/* instead of putting the mempool_hash in the structure, we keep the api clean by
@@ -532,7 +535,7 @@ void camel_folder_search_free_result(CamelFolderSearch *search, GPtrArray *resul
 	int i;
 	struct _CamelFolderSearchPrivate *p = _PRIVATE(search);
 	EMemPool *pool;
-
+#if 0
 	pool = g_hash_table_lookup(p->mempool_hash, result);
 	if (pool) {
 		e_mempool_destroy(pool);
@@ -541,6 +544,8 @@ void camel_folder_search_free_result(CamelFolderSearch *search, GPtrArray *resul
 		for (i=0;i<result->len;i++)
 			g_free(g_ptr_array_index(result, i));
 	}
+#endif
+	g_ptr_array_foreach (result, camel_pstring_free, NULL);
 	g_ptr_array_free(result, TRUE);
 }
 
@@ -1495,7 +1500,7 @@ read_uid_callback (void * ref, int ncol, char ** cols, char **name)
 			g_ptr_array_add (matches, g_strdup (cols [i]));
 	}
 #else
-	g_ptr_array_add (matches, g_strdup (cols [0]));
+	g_ptr_array_add (matches, camel_pstring_strdup (cols [0]));
 #endif
 	return 0;
 }

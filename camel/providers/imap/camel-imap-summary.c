@@ -163,6 +163,8 @@ camel_imap_summary_new (struct _CamelFolder *folder, const char *filename)
 		if it cannot be loaded, for some random reason.
 		We need to pass the ex and find out why it is not loaded etc. ? */
 		camel_folder_summary_clear_db (summary);
+		g_warning ("Unable to load summary %s\n", camel_exception_get_description (&ex));
+		camel_exception_clear (&ex);
 	}
 
 	g_ptr_array_sort (summary->uids, (GCompareFunc) uid_compare); 
@@ -421,7 +423,7 @@ camel_imap_summary_add_offline_uncached (CamelFolderSummary *summary, const char
 	CamelImapMessageInfo *mi;
 
 	mi = camel_message_info_clone(info);
-	mi->info.uid = g_strdup(uid);
+	mi->info.uid = camel_pstring_strdup(uid);
 
 	camel_folder_summary_add (summary, (CamelMessageInfo *)mi);
 }

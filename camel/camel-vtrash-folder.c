@@ -332,7 +332,8 @@ vtrash_search_by_expression(CamelFolder *folder, const char *expression, CamelEx
 				vuid = g_malloc(strlen(uid)+9);
 				memcpy(vuid, hash, 8);
 				strcpy(vuid+8, uid);
-				g_ptr_array_add(result, vuid);
+				g_ptr_array_add(result, camel_pstring_strdup(vuid));
+				g_free (vuid);
 			}
 			camel_folder_search_free(f, matches);
 		}
@@ -394,7 +395,8 @@ vtrash_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *ui
 				vuid = g_malloc(strlen(uid)+9);
 				memcpy(vuid, hash, 8);
 				strcpy(vuid+8, uid);
-				g_ptr_array_add(result, vuid);
+				g_ptr_array_add(result, camel_pstring_strdup(vuid));
+				g_free (vuid);
 			}
 			camel_folder_search_free(f, matches);
 		}

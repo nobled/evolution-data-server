@@ -1291,8 +1291,6 @@ camel_folder_get_summary (CamelFolder *folder)
 static void
 free_summary(CamelFolder *folder, GPtrArray *summary)
 {
-	g_assert(folder->summary != NULL);
-
 	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
 	g_ptr_array_free (summary, TRUE);
 }
@@ -1308,8 +1306,6 @@ free_summary(CamelFolder *folder, GPtrArray *summary)
 void
 camel_folder_free_summary(CamelFolder *folder, GPtrArray *array)
 {
-	g_return_if_fail(CAMEL_IS_FOLDER(folder));
-
 	CF_CLASS(folder)->free_summary(folder, array);
 }
 
