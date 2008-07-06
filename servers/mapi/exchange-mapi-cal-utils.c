@@ -374,7 +374,7 @@ ical_attendees_from_props (icalcomponent *ical_comp, GSList *recipients, gboolea
 			prop = icalproperty_new_organizer (val);
 
 			/* CN */
-			str = (const char *) get_SPropValue(recip->out.all_lpProps, PR_RECIPIENT_DISPLAY_NAME);
+			str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(recip->out.all_lpProps, PR_RECIPIENT_DISPLAY_NAME);
 			if (str) {
 				param = icalparameter_new_cn (str);
 				icalproperty_add_parameter (prop, param);
@@ -383,7 +383,7 @@ ical_attendees_from_props (icalcomponent *ical_comp, GSList *recipients, gboolea
 			prop = icalproperty_new_attendee (val);
 
 			/* CN */
-			str = (const char *) get_SPropValue(recip->out.all_lpProps, PR_RECIPIENT_DISPLAY_NAME);
+			str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(recip->out.all_lpProps, PR_RECIPIENT_DISPLAY_NAME);
 			if (str) {
 				param = icalparameter_new_cn (str);
 				icalproperty_add_parameter (prop, param);
@@ -1130,12 +1130,12 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	set_SPropValue_proptag(&props[i++], PR_PRIORITY, (const void *) &flag32); 		/* prop count: 7 */
 
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME, 
-		(const void *) cbdata->ownerid);
+		(const void *) cbdata->ownername);
 	text = "SMTP";
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE, 
 		(const void *) text);
 	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
-		(const void *) cbdata->ownername);
+		(const void *) cbdata->ownerid);
 	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME, 
 		(const void *) cbdata->username);
 	text = "SMTP";
@@ -1224,7 +1224,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 	if (kind == ICAL_VEVENT_COMPONENT) {
 		const char *mapi_tzid;
-		struct SBinary start_tz, end_tz, globalid; 
+		struct SBinary start_tz, end_tz; 
 
 		/* Busy Status */
 		flag32 = olBusy; 	/* default */
@@ -1290,6 +1290,15 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		flag32 = rectypeNone ;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RECURTYPE], (const void *) &flag32);
 
+		flag32 = cbdata->appt_id;
+		set_SPropValue_proptag(&props[i++], PR_OWNER_APPT_ID, (const void *) &flag32);
+
+		flag32 = cbdata->appt_seq;
+		set_SPropValue_proptag(&props[i++],  proptag_array->aulPropTag[I_APPT_SEQ], (const void *) &flag32);
+
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_CLEANGUID], (const void *) cbdata->cleanglobalid);
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_GUID], (const void *) cbdata->globalid);
+
 		switch (cbdata->meeting_type) {
 		case MEETING_OBJECT :
 			flag32 = e_cal_component_has_recurrences (comp) ? RecurMeet : SingleMeet; 
@@ -1310,14 +1319,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			b = 0;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
 
-			flag32 = cbdata->new_appt_id;
-			set_SPropValue_proptag(&props[i++], PR_OWNER_APPT_ID, (const void *) &flag32);
-
-			e_cal_component_get_uid (comp, &uid);
-			exchange_mapi_cal_util_generate_globalobjectid (TRUE, uid, &globalid);
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_CLEANGUID], (const void *) &globalid);
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_GUID], (const void *) &globalid);
-
 			break;
 		case MEETING_REQUEST :
 			flag32 = 0xFFFFFFFF;  /* no idea why this has to be -1, but that's what the docs say */
@@ -1329,7 +1330,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			flag32 = olMeetingReceived;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_MEETINGSTATUS], (const void *) &flag32);
 
-			flag32 = mtgRequest; 
+			flag32 = (cbdata->appt_seq == 0) ? mtgRequest : mtgFull; 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
 
 			flag32 = olResponseNotResponded;
@@ -1337,12 +1338,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 			b = 1;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
-
-			flag32 = cbdata->dup.owner_appt_id;
-			set_SPropValue_proptag(&props[i++], PR_OWNER_APPT_ID, (const void *) &flag32);
-
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_CLEANGUID], (const void *) cbdata->dup.cleanglobalid);
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_GUID], (const void *) cbdata->dup.globalid);
 
 			break;
 		case MEETING_RESPONSE : 
@@ -1457,6 +1452,8 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	}
 
 	*value = props;
+	/* Free this memory at the backends. */
+	cbdata->props = props;
 
 	g_print ("\nEnded up setting %d props\n", i);
 

@@ -103,6 +103,43 @@ exchange_mapi_util_mapi_ids_from_uid (const char *str, mapi_id_t *fid, mapi_id_t
 }
 
 /*
+ * Retrieve the property value for a given SPropValue and property tag.  
+ *
+ * If the property type is a string: fetch PT_STRING8 then PT_UNICODE
+ * in case the desired property is not available in first choice.
+ *
+ * Fetch property normally for any others properties
+ */
+/* NOTE: For now, since this function has special significance only for
+ * 'string' type properties, callers should (preferably) use it for fetching 
+ * such properties alone. If callers are sure that proptag would, for instance, 
+ * return an 'int' or a 'systime', they should prefer find_SPropValue_data.
+ */
+void *
+exchange_mapi_util_find_SPropVal_array_propval (struct SPropValue *values, uint32_t proptag)
+{
+	if (((proptag & 0xFFFF) == PT_STRING8) ||
+	    ((proptag & 0xFFFF) == PT_UNICODE)) {
+		const char 	*str;
+
+		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
+		str = (const char *)get_SPropValue(values, proptag);
+		if (str) 
+			return (void *)str;
+
+		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
+		str = (const char *)get_SPropValue(values, proptag);
+		return (void *)str;
+	} 
+
+	/* NOTE: Similar generalizations (if any) for other property types 
+	 * can be made here. 
+	 */
+
+	return (void *)get_SPropValue(values, proptag);
+}
+
+/*
  * Retrieve the property value for a given SRow and property tag.  
  *
  * If the property type is a string: fetch PT_STRING8 then PT_UNICODE

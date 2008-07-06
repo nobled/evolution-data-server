@@ -1,5 +1,13 @@
 2008-07-03  Suman Manjunath  <msuman@novell.com>
 
+	* e-cal-backend-mapi.c (capture_req_props), (get_server_data),
+	(e_cal_backend_mapi_create_object),
+	(e_cal_backend_mapi_modify_object),
+	(e_cal_backend_mapi_send_objects): Changes to support sending meeting
+	updates. Fix for ABI change in struct cbdata. 
+
+2008-07-03  Suman Manjunath  <msuman@novell.com>
+
 	** Move the calendar utility files to servers. 
 
 	* Makefile.am:

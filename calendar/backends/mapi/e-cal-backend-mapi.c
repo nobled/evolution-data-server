@@ -1176,6 +1176,65 @@ get_new_appt_id (ECalBackendMAPI *cbmapi)
 	return id;
 }
 
+static gboolean 
+capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
+		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+{
+	struct cbdata *cbdata = (struct cbdata *) data;
+	const uint32_t *ui32;
+
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID);
+	if (ui32)
+		cbdata->appt_id = *ui32;
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+	if (ui32)
+		cbdata->appt_seq = *ui32;
+	cbdata->cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+	cbdata->globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
+
+	return TRUE;
+}
+
+static void
+get_server_data (ECalBackendMAPI *cbmapi, icalcomponent *comp, struct cbdata *cbdata)
+{
+	ECalBackendMAPIPrivate *priv = cbmapi->priv;
+	const char *uid;
+	mapi_id_t mid;
+	struct mapi_SRestriction res;
+	struct SPropValue sprop;
+	struct SBinary sb;
+	uint32_t proptag = 0x00000000;
+	struct SPropTagArray *array;
+
+	uid = icalcomponent_get_uid (comp);
+	exchange_mapi_util_mapi_id_from_string (uid, &mid);
+	if (exchange_mapi_connection_fetch_item (priv->fid, mid, 
+					NULL, 0, 
+					NULL, NULL, 
+					capture_req_props, cbdata, 
+					MAPI_OPTIONS_FETCH_GENERIC_STREAMS))
+
+		return;
+
+	array = exchange_mapi_util_resolve_named_prop (priv->olFolder, priv->fid, 0x0023, PSETID_Meeting);
+	proptag = array->aulPropTag[0];
+
+	res.rt = RES_PROPERTY;
+	res.res.resProperty.relop = RELOP_EQ;
+	res.res.resProperty.ulPropTag = proptag;
+
+	exchange_mapi_cal_util_generate_globalobjectid (TRUE, uid, &sb);
+
+	set_SPropValue_proptag (&sprop, proptag, (const void *) &sb);
+	cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
+
+	exchange_mapi_connection_fetch_items (priv->fid, &res, 
+					NULL, 0, 
+					NULL, NULL, 
+					capture_req_props, cbdata, 
+					MAPI_OPTIONS_FETCH_GENERIC_STREAMS);
+}
 
 static ECalBackendSyncStatus 
 e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char **calobj, char **uid)
@@ -1185,11 +1244,13 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 	icalcomponent_kind kind;
 	icalcomponent *icalcomp;
 	ECalComponent *comp;
+	const char *compuid;
 	mapi_id_t mid = 0;
 	gchar *tmp = NULL;
 	GSList *recipients = NULL;
 	GSList *attachments = NULL;
 	struct cbdata cbdata;
+	struct SBinary globalid;
 
 	cbmapi = E_CAL_BACKEND_MAPI (backend);
 	priv = cbmapi->priv;
@@ -1238,13 +1299,22 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 		case CAL_MODE_REMOTE:
 			/* Create an appointment */
 			cbdata.comp = comp;
-			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
+			cbdata.is_modify = FALSE;
 			cbdata.msgflags = MSGFLAG_READ;
-			cbdata.new_appt_id = get_new_appt_id (cbmapi);
+			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
+			cbdata.appt_id = get_new_appt_id (cbmapi);
+			cbdata.appt_seq = 0;
+			e_cal_component_get_uid (comp, &compuid);
+			exchange_mapi_cal_util_generate_globalobjectid (TRUE, compuid, &globalid);
+			cbdata.globalid = &globalid;
+			cbdata.cleanglobalid = &globalid;
+
 			mid = exchange_mapi_create_item (priv->olFolder, priv->fid, 
 							exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 							exchange_mapi_cal_util_build_props, &cbdata, 
 							recipients, attachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+			g_free (cbdata.props);
+//			g_free (globalid.lpb);
 			if (!mid) {
 				g_object_unref (comp);
 				exchange_mapi_util_free_recipient_list (&recipients);
@@ -1343,13 +1413,18 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		exchange_mapi_util_mapi_id_from_string (uid, &mid);
 
 		cbdata.comp = comp;
-//		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
+		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
 		cbdata.msgflags = MSGFLAG_READ;
-		cbdata.new_appt_id = 0x0;
+		cbdata.is_modify = TRUE;
+
+		get_server_data (cbmapi, icalcomp, &cbdata);
+		cbdata.appt_seq += 1;
+
 		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						exchange_mapi_cal_util_build_props, &cbdata, 
 						NULL, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+		g_free (cbdata.props);
 		if (!status) {
 			g_object_unref (comp);
 			g_object_unref (cache_comp);
@@ -1477,66 +1552,6 @@ e_cal_backend_mapi_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 	return GNOME_Evolution_Calendar_Success;
 }
 
-static gboolean 
-capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
-		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
-{
-	struct cbdata *cbdata = (struct cbdata *) data;
-	const uint32_t *ui32;
-
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID);
-	if (ui32)
-		cbdata->dup.owner_appt_id = *ui32;
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
-	if (ui32)
-		cbdata->dup.appt_seq = *ui32;
-	cbdata->dup.cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
-	cbdata->dup.globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
-
-	return TRUE;
-}
-
-static void
-get_server_data (ECalBackendMAPI *cbmapi, icalcomponent *comp, struct cbdata *cbdata)
-{
-	ECalBackendMAPIPrivate *priv = cbmapi->priv;
-	const char *uid;
-	mapi_id_t mid;
-	struct mapi_SRestriction res;
-	struct SPropValue sprop;
-	struct SBinary sb;
-	uint32_t proptag = 0x00000000;
-	struct SPropTagArray *array;
-
-	uid = icalcomponent_get_uid (comp);
-	exchange_mapi_util_mapi_id_from_string (uid, &mid);
-	if (exchange_mapi_connection_fetch_item (priv->fid, mid, 
-					NULL, 0, 
-					NULL, NULL, 
-					capture_req_props, cbdata, 
-					MAPI_OPTIONS_FETCH_GENERIC_STREAMS))
-
-		return;
-
-	array = exchange_mapi_util_resolve_named_prop (priv->olFolder, priv->fid, 0x0023, PSETID_Meeting);
-	proptag = array->aulPropTag[0];
-
-	res.rt = RES_PROPERTY;
-	res.res.resProperty.relop = RELOP_EQ;
-	res.res.resProperty.ulPropTag = proptag;
-
-	exchange_mapi_cal_util_generate_globalobjectid (TRUE, uid, &sb);
-
-	set_SPropValue_proptag (&sprop, proptag, (const void *) &sb);
-	cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
-
-	exchange_mapi_connection_fetch_items (priv->fid, &res, 
-					NULL, 0, 
-					NULL, NULL, 
-					capture_req_props, cbdata, 
-					MAPI_OPTIONS_FETCH_GENERIC_STREAMS);
-}
-
 static ECalBackendSyncStatus 
 e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const char *calobj, 
 				 GList **users, char **modified_calobj)
@@ -1598,7 +1613,7 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 			cbdata.comp = comp;
-			cbdata.new_appt_id = 0x0;
+			cbdata.is_modify = TRUE;
 			switch (method) {
 			case ICAL_METHOD_REQUEST : 
 				cbdata.meeting_type = MEETING_REQUEST;
@@ -1620,6 +1635,7 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 							exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 							exchange_mapi_cal_util_build_props, &cbdata, 
 							recipients, attachments, NULL, 0);
+			g_free (cbdata.props);
 			if (!mid) {
 				g_object_unref (comp);
 				exchange_mapi_util_free_recipient_list (&recipients);

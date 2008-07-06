@@ -44,6 +44,8 @@ gboolean
 exchange_mapi_util_mapi_ids_from_uid (const char *str, mapi_id_t *fid, mapi_id_t *mid);
 
 void *
+exchange_mapi_util_find_SPropVal_array_propval (struct SPropValue *values, uint32_t proptag);
+void *
 exchange_mapi_util_find_row_propval (struct SRow *aRow, uint32_t proptag);
 void *
 exchange_mapi_util_find_array_propval (struct mapi_SPropValue_array *properties, uint32_t proptag);

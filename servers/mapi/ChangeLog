@@ -1,3 +1,14 @@
+2008-07-03  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c (ical_attendees_from_props),
+	(exchange_mapi_cal_util_build_props): Changes for modifying 
+	appointments/meetings. Minor typo fix. 
+	* exchange-mapi-cal-utils.h: 
+	* exchange-mapi-utils.c
+	(exchange_mapi_util_find_SPropVal_array_propval): Added this utility 
+	function. 
+	* exchange-mapi-utils.h: Declaration for the same. 
+
 2008-07-03  Johnny Jacob  <jjohnny@novell.com>	
 	
 	API to empty the contents of the folder. This will *not* delete

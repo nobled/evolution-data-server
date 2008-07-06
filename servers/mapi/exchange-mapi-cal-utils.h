@@ -42,19 +42,20 @@ typedef enum {
 	MEETING_RESPONSE = (1 << 3)
 } MAPIMeetingOptions;
 
-struct dup_data {
-	struct SBinary *globalid;
-	struct SBinary *cleanglobalid;
-	uint32_t owner_appt_id;
-	uint32_t appt_seq;
-};
-
 struct cbdata { 
 	ECalComponent *comp;
-	MAPIMeetingOptions meeting_type;
+	struct SPropValue *props;
+	gboolean is_modify;
+
 	uint32_t msgflags;
-	uint32_t new_appt_id;
-	struct dup_data dup;
+
+	/* These are appt specific data */ 
+	MAPIMeetingOptions meeting_type;
+	uint32_t appt_id;
+	uint32_t appt_seq;
+	struct SBinary *globalid;
+	struct SBinary *cleanglobalid;
+
 	const char *username;
 	const char *userid;
 	const char *ownername;
