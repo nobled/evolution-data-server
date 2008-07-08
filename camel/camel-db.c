@@ -1,4 +1,28 @@
-/* Srinivasa Ragavan - <sragavan@novell.com> - GPL v2 or later */
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/* camel-imap-folder.c: class for an imap folder */
+
+/* 
+ * Authors:
+ *   Sankar P <psankar@novell.com>
+ *   Srinivasa Ragavan <sragavan@novell.com> 
+ *
+ * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
+ *
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of version 2 of the GNU Lesser General Public 
+ * License as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
+ * USA
+ */
+
 
 #include "camel-db.h"
 #include "camel-string-utils.h"
@@ -11,7 +35,7 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#define d(x)
+#define d(x) 
 
 #define CAMEL_DB_SLEEP_INTERVAL 1*10*10
 #define CAMEL_DB_RELEASE_SQLITE_MEMORY if(!g_getenv("CAMEL_SQLITE_PRESERVE_CACHE")) sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
@@ -360,6 +384,8 @@ camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpoin
 	if (!cdb)
 		return TRUE;
 	
+	d(g_print ("\n%s:\n%s \n", __FUNCTION__, stmt));
+
 	ret = sqlite3_exec(cdb->db, stmt, callback, data, &errmsg);
 	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED) {
 		ret = sqlite3_exec (cdb->db, stmt, callback, data, &errmsg);
@@ -667,8 +693,6 @@ camel_db_read_folder_info_record (CamelDB *cdb, const char *folder_name, CamelFI
 	char *query;
 	int ret;
 
-	d(g_print ("\ncamel_db_read_folder_info_record called \n"));
-
 	query = sqlite3_mprintf ("SELECT * FROM folders WHERE folder_name = %Q", folder_name);
 	ret = camel_db_select (cdb, query, read_fir_callback, record, ex);
 
@@ -813,14 +837,20 @@ camel_db_free_sqlized_string (char *string)
 
 char * camel_db_get_column_name (const char *raw_name)
 {
+	d(g_print ("\n\aRAW name is : [%s] \n\a", raw_name));
 	if (!g_ascii_strcasecmp (raw_name, "Subject"))
 		return g_strdup ("subject");
 	else if (!g_ascii_strcasecmp (raw_name, "from"))
 		return g_strdup ("mail_from");
+	else if (!g_ascii_strcasecmp (raw_name, "Cc"))
+		return g_strdup ("mail_cc");
+	else if (!g_ascii_strcasecmp (raw_name, "To"))
+		return g_strdup ("mail_to");
 	else {
 		/* Let it crash for all unknown columns for now. 
 		We need to load the messages into memory and search etc. */
-		return NULL;
+
+		return g_strdup ("");
 	}
 
 }
