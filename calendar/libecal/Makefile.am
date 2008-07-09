@@ -6,7 +6,7 @@ INCLUDES =						\
 	-I.. 						\
 	-I$(top_builddir)				\
 	-I$(top_builddir)/calendar/libecal		\
-	-I$(top_srcdir)/calendar/libical/src		\
+	-I$(top_srcdir)/libical/src			\
 	-I$(top_builddir)/libical/src			\
 	-I$(top_srcdir)/libical/src/libical		\
 	-I$(top_builddir)/libical/src/libical		\

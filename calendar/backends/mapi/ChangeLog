@@ -1,3 +1,13 @@
+2008-07-09  Suman Manjunath  <msuman@novell.com>
+
+	* Makefile.am: Remove unnecessary linkages, use dynamic linkages.
+	* e-cal-backend-mapi-factory.c:
+	* e-cal-backend-mapi.c
+	(e_cal_backend_mapi_get_static_capabilities), (get_server_data),
+	(e_cal_backend_mapi_modify_object): Include only required headers. 
+	(e_cal_backend_mapi_send_objects): Don't send the comp back to composer
+	* e-cal-backend-mapi.h: Remove unnecessary include headers. 
+
 2008-07-03  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi.c (capture_req_props), (get_server_data),

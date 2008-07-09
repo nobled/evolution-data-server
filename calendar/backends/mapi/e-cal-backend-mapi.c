@@ -23,10 +23,18 @@
 
 
 
-#include <libecal/e-cal-time-util.h>
+#include <glib/gi18n.h>
 #include <gio/gio.h>
 
 #include "e-cal-backend-mapi.h"
+
+#include <libedata-cal/e-cal-backend-cache.h>
+#include <libedataserver/e-xml-hash-utils.h>
+
+#include <exchange-mapi-connection.h>
+#include <exchange-mapi-cal-utils.h>
+#include <exchange-mapi-folder.h>
+#include <exchange-mapi-utils.h>
 
 #define d(x) x
 
@@ -300,7 +308,7 @@ e_cal_backend_mapi_get_static_capabilities (ECalBackendSync *backend, EDataCal *
 //				CAL_STATIC_CAPABILITY_DELEGATE_SUPPORTED ","
 //				CAL_STATIC_CAPABILITY_NO_ORGANIZER ","
 //				CAL_STATIC_CAPABILITY_DELEGATE_TO_MANY ","
-//				CAL_STATIC_CAPABILITY_HAS_UNACCEPTED_MEETING
+				CAL_STATIC_CAPABILITY_HAS_UNACCEPTED_MEETING
 				  );
 
 	return GNOME_Evolution_Calendar_Success;
@@ -1204,7 +1212,7 @@ get_server_data (ECalBackendMAPI *cbmapi, icalcomponent *comp, struct cbdata *cb
 	struct mapi_SRestriction res;
 	struct SPropValue sprop;
 	struct SBinary sb;
-	uint32_t proptag = 0x00000000;
+	uint32_t proptag = 0x0;
 	struct SPropTagArray *array;
 
 	uid = icalcomponent_get_uid (comp);
@@ -1353,8 +1361,6 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	ECalComponent *comp, *cache_comp = NULL;
 	gboolean status;
 	mapi_id_t mid;
-//	EGwConnectionStatus status;
-//	EGwItem *item, *cache_item;
 	const char *uid = NULL, *rid = NULL;
 	GSList *recipients = NULL;
 	GSList *attachments = NULL;
@@ -1652,7 +1658,8 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 								    e_cal_backend_get_kind (E_CAL_BACKEND (backend)));
 		}
 	}
-
+	/* We need another static capability to say the backend has already sent the requests. */
+#if 0
 	if (status == GNOME_Evolution_Calendar_Success) {
 		ECalComponent *comp;
 
@@ -1673,7 +1680,7 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 		}
 		*modified_calobj = g_strdup (calobj);
 	}
-
+#endif
 	icalcomponent_free (icalcomp);
 
 	return GNOME_Evolution_Calendar_Success;

@@ -26,34 +26,9 @@
 #ifndef E_CAL_BACKEND_MAPI_H
 #define E_CAL_BACKEND_MAPI_H
 
-#include <libedata-cal/e-cal-backend.h>
-#include <libedata-cal/e-cal-backend-sync.h>
-#include <libedata-cal/e-cal-backend-cache.h>
-#include <libedata-cal/e-cal-backend-util.h>
-#include <libedata-cal/e-cal-backend-factory.h>
-#include <libecal/e-cal-component.h>
-#include <libecal/e-cal-util.h>
-#include <libecal/e-cal-time-util.h>
-#include <libedataserver/e-xml-hash-utils.h>
-#include <libedataserver/e-url.h>
-
 #include <glib.h>
-#include <glib/gi18n.h>
 
-#include <exchange-mapi-connection.h>
-#include <exchange-mapi-defs.h>
-#include <exchange-mapi-cal-utils.h>
-#include <exchange-mapi-folder.h>
-#include <exchange-mapi-utils.h>
-
-#if 0
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
+#include <libedata-cal/e-cal-backend-sync.h>
 
 G_BEGIN_DECLS
 
@@ -95,4 +70,5 @@ e_cal_backend_mapi_get_user_email (ECalBackendMAPI *cbmapi);
 
 G_END_DECLS
 
-#endif
+#endif /* E_CAL_BACKEND_MAPI_H */
+

@@ -26,8 +26,6 @@
 #ifndef EXCHANGE_MAPI_UTILS_H
 #define EXCHANGE_MAPI_UTILS_H 
 
-#include <libmapi/libmapi.h>
-#include <glib.h>
 #include "exchange-mapi-connection.h"
 
 gchar *
@@ -72,3 +70,4 @@ struct SBinary *
 exchange_mapi_util_entryid_generate_local (TALLOC_CTX *mem_ctx, const char *exchange_dn);
 
 #endif
+

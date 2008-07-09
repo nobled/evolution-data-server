@@ -26,11 +26,13 @@
 #define EXCHANGE_MAPI_CAL_UTILS_H
 
 #include <libecal/e-cal-component.h>
+
 #include "exchange-mapi-connection.h"
+#include "exchange-mapi-defs.h"
 #include "exchange-mapi-utils.h"
+
 #include "exchange-mapi-cal-tz-utils.h"
 #include "exchange-mapi-cal-recur-utils.h"
-#include "exchange-mapi-cal-tz-utils.h"
 
 G_BEGIN_DECLS
 

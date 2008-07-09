@@ -1,17 +1,12 @@
 INCLUDES =					\
 	-DG_LOG_DOMAIN=\"libexchangemapi\"	\
-	-I$(top_srcdir)				\
-	-I$(top_builddir)			\
-	-I$(top_srcdir)/calendar		\
-	-I$(top_builddir)/calendar		\
-	-I$(top_srcdir)/libical/src		\
-	-I$(top_builddir)/libical/src		\
-	-I$(top_srcdir)/libical/src/libical	\
-	-I$(top_builddir)/libical/src/libical	\
-	$(LIBMAPI_CFLAGS)			\
-	$(E_DATA_SERVER_CFLAGS)			\
 	-DMAPI_DATADIR=\""$(mapidatadir)"\"	\
-	$(EVOLUTION_CALENDAR_CFLAGS)
+	$(E_DATA_SERVER_CFLAGS)			\
+	-I$(top_srcdir)				\
+	$(EVOLUTION_CALENDAR_CFLAGS)		\
+	-I$(top_srcdir)/calendar		\
+	-I$(top_srcdir)/libical/src		\
+	$(LIBMAPI_CFLAGS)
 
 
 lib_LTLIBRARIES = libexchangemapi-1.0.la
@@ -34,9 +29,9 @@ libexchangemapi_1_0_la_SOURCES =		\
 	exchange-mapi-cal-tz-utils.h
 
 libexchangemapi_1_0_la_LIBADD =			\
-	$(LIBMAPI_LIBS)				\
 	$(E_DATA_SERVER_LIBS)			\
-	$(EVOLUTION_CALENDAR_LIBS)
+	$(EVOLUTION_CALENDAR_LIBS)		\
+	$(LIBMAPI_LIBS)
 
 libexchangemapiincludedir = $(privincludedir)/mapi
 

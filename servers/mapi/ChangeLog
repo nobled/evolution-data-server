@@ -1,3 +1,15 @@
+2008-07-09  Suman Manjunath  <msuman@novell.com>
+
+	* Makefile.am: Remove unnecessary linkages, use dynamic linking. 
+	* exchange-mapi-cal-utils.h:
+	* exchange-mapi-connection.c:
+	* exchange-mapi-connection.h:
+	* exchange-mapi-folder.c:
+	* exchange-mapi-folder.h:
+	* exchange-mapi-utils.c:
+	* exchange-mapi-utils.h:
+	Remove unnecessary headers. 
+
 2008-07-03  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-cal-utils.c (ical_attendees_from_props),

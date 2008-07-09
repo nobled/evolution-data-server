@@ -22,7 +22,6 @@
  */
 
 
-#include <glib.h>
 #include "exchange-mapi-connection.h"
 #include "exchange-mapi-folder.h"
 

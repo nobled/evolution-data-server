@@ -24,6 +24,8 @@
 #ifndef EXCHANGE_MAPI_FOLDER_H
 #define EXCHANGE_MAPI_FOLDER_H
 
+#include <glib.h>
+
 typedef enum  {
 	MAPI_FOLDER_TYPE_MAIL=1,
 	MAPI_FOLDER_TYPE_APPOINTMENT,

@@ -23,9 +23,7 @@
 
 
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include "exchange-mapi-utils.h"
 
 #ifdef G_OS_WIN32
 /* Undef the similar macro from pthread.h, it doesn't check if
@@ -36,10 +34,6 @@
 /* The gmtime() in Microsoft's C library is MT-safe */
 #define gmtime_r(tp,tmp) (gmtime(tp)?(*(tmp)=*gmtime(tp),(tmp)):0)
 #endif
-
-#include "exchange-mapi-utils.h"
-#include <stdint.h>
-
 
 /* Converts a string from Windows-UTF8 to classic-UTF8.
  * NOTE: If the returned value is non-NULL, the caller has to free the newly

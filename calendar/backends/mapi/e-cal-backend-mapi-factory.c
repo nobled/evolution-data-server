@@ -23,12 +23,9 @@
 
 
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "e-cal-backend-mapi-factory.h"
 #include "e-cal-backend-mapi.h"
+#include <exchange-mapi-cal-tz-utils.h>
 
 #define d(x) 
 

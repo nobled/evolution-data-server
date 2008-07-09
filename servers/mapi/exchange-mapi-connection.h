@@ -25,8 +25,9 @@
 #ifndef EXCHANGE_MAPI_CONNECTION_H
 #define EXCHANGE_MAPI_CONNECTION_H 
 
+#include <glib.h>
+
 #include <libmapi/libmapi.h>
-#include "exchange-mapi-defs.h"
 
 typedef enum _ExchangeMapiOptions {
 	MAPI_OPTIONS_FETCH_ATTACHMENTS = 1<<0,
