@@ -1,3 +1,7 @@
+2008-07-09  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-transport.c: Missed this in the last commit. 
+
 2008-07-03  Johnny Jacob  <jjohnny@novell.com>
 
 	Support for Expunge.

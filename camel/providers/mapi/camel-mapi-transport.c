@@ -64,6 +64,7 @@
 #define d(x) x
 
 #include <camel/camel-seekable-stream.h>
+#include <exchange-mapi-defs.h>
 
 #define STREAM_SIZE 4000
 
