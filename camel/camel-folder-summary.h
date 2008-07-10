@@ -282,7 +282,7 @@ struct _CamelFolderSummaryClass {
 	CamelMessageContentInfo * (*content_info_load)(CamelFolderSummary *, FILE *);
 	int		          (*content_info_save)(CamelFolderSummary *, FILE *, CamelMessageContentInfo *);
 	void		          (*content_info_free)(CamelFolderSummary *, CamelMessageContentInfo *);
-	CamelMessageInfo * (*message_info_from_uid) (CamelFolderSummary *, char *);
+	CamelMessageInfo * (*message_info_from_uid) (CamelFolderSummary *, const char *);
 	/* get the next uid */
 	char *(*next_uid_string)(CamelFolderSummary *);
 
@@ -346,6 +346,17 @@ void camel_folder_summary_touch(CamelFolderSummary *summary);
 
 /* add a new raw summary item */
 void camel_folder_summary_add (CamelFolderSummary *summary, CamelMessageInfo *info);
+
+/* Get only the uids of dirty/changed things to sync to server/db */
+GPtrArray * camel_folder_summary_get_changed (CamelFolderSummary *s);
+/* Gets the size of loaded mi's */
+int camel_folder_summary_cache_size (CamelFolderSummary *s);
+/* reload the summary at any required point if required */
+int camel_folder_summary_reload_from_db (CamelFolderSummary *s, CamelException *ex);
+/* insert mi to summary */
+void camel_folder_summary_insert (CamelFolderSummary *s, CamelMessageInfo *info, gboolean load);
+
+void camel_folder_summary_remove_index_fast (CamelFolderSummary *s, int index);
 
 /* build/add raw summary items */
 CamelMessageInfo *camel_folder_summary_add_from_header(CamelFolderSummary *summary, struct _camel_header_raw *headers);

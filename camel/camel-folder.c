@@ -452,10 +452,10 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 			*arg->ca_int = count;
 			break;
 		case CAMEL_FOLDER_ARG_UID_ARRAY: {
-			int j;
+/*			int j;
 			CamelMessageInfo *info;
 			GPtrArray *array;
-/*
+
 			count = camel_folder_summary_count(folder->summary);
 			array = g_ptr_array_new();
 			g_ptr_array_set_size(array, count);
@@ -467,7 +467,7 @@ folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 			}
 			*arg->ca_ptr = array;*/
 			// WTH this is reqd ?, let it crash to find out who uses this
-			printf("%s", 0);
+			g_assert (0);
 			break; }
 		case CAMEL_FOLDER_ARG_INFO_ARRAY:
 			*arg->ca_ptr = camel_folder_summary_array(folder->summary);
@@ -500,7 +500,7 @@ folder_free(CamelObject *o, guint32 tag, void *val)
 		g_ptr_array_free(array, TRUE);
 		break; }
 	case CAMEL_FOLDER_ARG_INFO_ARRAY:
-		camel_folder_summary_array_free(folder->summary, val);
+		camel_folder_free_summary (folder, val);
 		break;
 	case CAMEL_FOLDER_ARG_PROPERTIES:
 		g_slist_free(val);
@@ -1168,7 +1168,7 @@ get_uids(CamelFolder *folder)
 		CamelMessageInfo *info = camel_folder_summary_index(folder->summary, i);
 		
 		if (info) {
-			array->pdata[j++] = camel_pstring_strdup (camel_message_info_uid (info));
+			array->pdata[j++] = (char *)camel_pstring_strdup (camel_message_info_uid (info));
 			camel_message_info_free(info);
 		}
 	}
@@ -1303,7 +1303,7 @@ camel_folder_get_summary (CamelFolder *folder)
 static void
 free_summary(CamelFolder *folder, GPtrArray *summary)
 {
-	g_ptr_array_foreach (summary, camel_pstring_free, NULL);
+	g_ptr_array_foreach (summary, (GFunc) camel_pstring_free, NULL);
 	g_ptr_array_free (summary, TRUE);
 }
 

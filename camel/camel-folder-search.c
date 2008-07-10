@@ -943,7 +943,7 @@ check_header (struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFolde
 	if (strlen (argv [1]->value.string) > 1) {
 
 		char *value;
-		char *temp;
+		char *temp=NULL;
 		char *column;
 
 		column = camel_db_get_column_name (argv [0]->value.string);

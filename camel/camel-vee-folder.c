@@ -601,7 +601,7 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 					vuid = g_malloc(strlen(uid)+9);
 					memcpy(vuid, hash, 8);
 					strcpy(vuid+8, uid);
-					g_ptr_array_add(result, camel_pstring_strdup(vuid));
+					g_ptr_array_add(result, (gpointer) camel_pstring_strdup(vuid));
 					g_free (vuid);
 				}
 				camel_folder_search_free(f, matches);
@@ -625,8 +625,8 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 		node = p->folders;
 		while (node) {
 			CamelFolder *f = node->data;
-			int i;
 			char hash[9];
+
 			camel_vee_folder_hash_folder(f, hash);
 			hash[8] = 0;
 			g_hash_table_insert(hashes, hash, f);
@@ -883,7 +883,7 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 							if (n == 1) {
 								CamelMessageInfo *tinfo;
 								g_hash_table_remove(unmatched_uids, oldkey);
-								if (tinfo = vee_folder_add_uid(folder_unmatched, source, oldkey+8, hash)) {
+								if (tinfo = (CamelMessageInfo *) vee_folder_add_uid(folder_unmatched, source, oldkey+8, hash)) {
 									camel_message_info_free (tinfo);
 									camel_folder_change_info_add_uid(folder_unmatched->changes, oldkey);
 								}
@@ -979,7 +979,7 @@ folder_added_uid(char *uidin, void *value, struct _update_data *u)
 		#warning "Handle exceptions"
 		#warning "Make all these as transactions, just testing atm"
 		if (u->rebuilt)
-			camel_db_add_to_vfolder_transaction (((CamelFolder *) u->vf)->parent_store->cdb, ((CamelFolder *) u->vf)->full_name, camel_message_info_uid(mi), NULL);
+			camel_db_add_to_vfolder_transaction (((CamelFolder *) u->vf)->parent_store->cdb, ((CamelFolder *) u->vf)->full_name, (char *) camel_message_info_uid(mi), NULL);
 		if (!CAMEL_IS_VEE_FOLDER(u->source) && u->unmatched_uids != NULL) {
 			if (g_hash_table_lookup_extended(u->unmatched_uids, camel_message_info_uid(mi), (void **)&oldkey, &oldval)) {
 				n = GPOINTER_TO_INT (oldval);
@@ -1151,7 +1151,7 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 	g_hash_table_destroy(allhash);
 	/* if expression not set, we only had a null list */
 	if (vf->expression == NULL || !rebuilded) {
-		g_ptr_array_foreach (match, camel_pstring_free, NULL);
+		g_ptr_array_foreach (match, (GFunc) camel_pstring_free, NULL);
 		g_ptr_array_free(match, TRUE);
 	} else
 		camel_folder_search_free(f, match);
@@ -1849,12 +1849,12 @@ camel_vee_folder_finalise (CamelObject *obj)
 			camel_object_unref(node->data);
 	} else {
 		#warning "See if it is really reqd"
-		camel_folder_freeze (vf);
+		camel_folder_freeze ((CamelFolder *)vf);
 		while (p->folders) {
 			CamelFolder *f = p->folders->data;
 			camel_vee_folder_remove_folder(vf, f);
 		}
-		camel_folder_thaw (vf);
+		camel_folder_thaw ((CamelFolder *)vf);
 	}
 
 	g_free(vf->expression);

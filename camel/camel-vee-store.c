@@ -104,8 +104,8 @@ camel_vee_store_init (CamelVeeStore *obj)
 static void
 construct (CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
 {
-	 CamelStore *store = (CamelStore *)service;
-	 CamelVeeStore *obj = (CamelVeeStore *)service;
+	/*  CamelStore *store = (CamelStore *)service;
+	 CamelVeeStore *obj = (CamelVeeStore *)service; */
 	 
 	 ((CamelServiceClass *) camel_vee_store_parent)->construct(service, session, provider, url, ex);
 	 

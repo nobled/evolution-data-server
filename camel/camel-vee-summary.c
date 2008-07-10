@@ -33,6 +33,7 @@
 #include "camel-store.h"
 #include "camel-vee-summary.h"
 #include "camel-private.h"
+#include "camel-string-utils.h"
 
 #define d(x)
 
@@ -165,7 +166,6 @@ static CamelMessageInfo *
 message_info_from_uid (CamelFolderSummary *s, const char *uid)
 {
 	CamelMessageInfoBase *info;
-	int ret;
 
 	#warning "too bad design. Need to peek it from cfs instead of hacking ugly like this"
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
@@ -179,7 +179,7 @@ message_info_from_uid (CamelFolderSummary *s, const char *uid)
 	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
-	return info;	
+	return (CamelMessageInfo *) info;	
 }
 
 static void
@@ -250,7 +250,7 @@ CamelFolderSummary *
 camel_vee_summary_new(CamelFolder *parent)
 {
 	CamelVeeSummary *s;
-	char *fname;
+
 	s = (CamelVeeSummary *)camel_object_new(camel_vee_summary_get_type());
 	s->summary.folder = parent;
 
@@ -297,7 +297,7 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 /* 		return NULL; */
 /* 	} */
 
-	mi = message_info_from_uid(&s->summary, vuid); 
+	mi = (CamelVeeMessageInfo *) message_info_from_uid(&s->summary, vuid); 
 	if (mi) {
 		g_warning ("%s - already there\n", vuid);
 		g_free (vuid);
@@ -307,7 +307,7 @@ camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const cha
 	mi = (CamelVeeMessageInfo *)camel_message_info_new(&s->summary);
 	mi->summary = summary;
 	camel_object_ref (summary);
-	mi->info.uid = camel_pstring_strdup (vuid);
+	mi->info.uid = (char *) camel_pstring_strdup (vuid);
 	g_free (vuid);
 	camel_message_info_ref (mi);
 	camel_folder_summary_insert(&s->summary, (CamelMessageInfo *)mi, FALSE);
