@@ -620,9 +620,10 @@ camel_folder_thread_messages_new (CamelFolder *folder, GPtrArray *uids, gboolean
 
 	fsummary = camel_folder_summary_array (folder->summary);
 	thread->summary = summary = g_ptr_array_new();
-	if (fsummary->len - camel_folder_summary_cache_size (folder->summary) > 50)
-		camel_folder_summary_reload_from_db (folder->summary);
-
+	if (fsummary->len - camel_folder_summary_cache_size (folder->summary) > 50) {
+	    CamelException ex;
+		camel_folder_summary_reload_from_db (folder->summary, &ex);
+    }
 	for (i = 0 ; i < fsummary->len ; i++) {
 		CamelMessageInfo *info ;
 		char *uid = fsummary->pdata[i];

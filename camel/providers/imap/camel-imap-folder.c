@@ -914,9 +914,11 @@ imap_rescan (CamelFolder *folder, int exists, CamelException *ex)
 	 */
 	removed = g_array_new (FALSE, FALSE, sizeof (int));
 	
-	if (summary_len - camel_folder_summary_cache_size (folder->summary) > 50)
-		camel_folder_summary_reload_from_db (folder->summary);
-	
+	if (summary_len - camel_folder_summary_cache_size (folder->summary) > 50) {
+		CamelException ex;
+		camel_folder_summary_reload_from_db (folder->summary, &ex);
+	}
+
 	for (i = 0; i < summary_len && new[i].uid; i++) {
 		gboolean changed = FALSE;
 
