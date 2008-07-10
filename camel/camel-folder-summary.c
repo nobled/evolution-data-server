@@ -404,7 +404,7 @@ camel_folder_summary_index (CamelFolderSummary *s, int i)
 #warning "Implement - camel_folder_summary_uid_exist - directly through db than manual strcmp"
 
 /**
- * camel_folder_summary__uid_from_index:
+ * camel_folder_summary_uid_from_index:
  * @summary: a #CamelFolderSummary object
  * @index: item index
  * 
@@ -711,6 +711,7 @@ remove_item (char *key, CamelMessageInfoBase *info, CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);	
 	return FALSE;
 }
+
 static gboolean      
 remove_cache (CamelFolderSummary *s)
 {
@@ -740,7 +741,6 @@ camel_folder_summary_cache_size (CamelFolderSummary *s)
 		return g_hash_table_size (s->loaded_infos);
 	else
 		return s->uids->len;
-		    
 }
 
 int
