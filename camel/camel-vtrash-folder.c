@@ -322,7 +322,6 @@ vtrash_search_by_expression(CamelFolder *folder, const char *expression, CamelEx
 			camel_message_info_free (vmi);
 		}
 
-		camel_folder_free_summary (folder, infos);
                 #warning search in the DB of the folder, for the expression, with the vtrash bit (junk/trash)
 		if (uids->len > 0
 		    && (matches = camel_folder_search_by_uids(f, expression, uids, NULL))) {
@@ -341,7 +340,7 @@ vtrash_search_by_expression(CamelFolder *folder, const char *expression, CamelEx
 
 		node = g_list_next(node);
 	}
-
+	camel_folder_free_summary (folder, infos);
 	CAMEL_VEE_FOLDER_UNLOCK(folder, subfolder_lock);
 
 	g_ptr_array_foreach (uids, camel_pstring_free, NULL);
