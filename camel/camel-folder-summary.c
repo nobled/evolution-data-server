@@ -65,7 +65,7 @@
 /* To switch between e-memchunk and g-alloc */
 #define ALWAYS_ALLOC 1
 #define USE_GSLICE 1
-#define SUMMARY_CACHE_DROP 180
+#define SUMMARY_CACHE_DROP 120
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* this lock is ONLY for the standalone messageinfo stuff */
@@ -84,7 +84,7 @@ static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
 extern int strdup_count, malloc_count, free_count;
 #endif
 
-#define CAMEL_FOLDER_SUMMARY_VERSION (13)
+#define CAMEL_FOLDER_SUMMARY_VERSION (14)
 
 #define _PRIVATE(o) (((CamelFolderSummary *)(o))->priv)
 
@@ -717,7 +717,7 @@ remove_cache (CamelFolderSummary *s)
 	struct _CamelFolderSummaryPrivate *p = _PRIVATE(s);
 	
 	/* Attempt to release 2MB*/
-        /* sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE); */
+        sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE); 
 	
 	if (time(NULL) - s->cache_load_time < SUMMARY_CACHE_DROP)
 		return TRUE;
@@ -788,12 +788,13 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 
 	folder_name = s->folder->full_name;
 	cdb = s->folder->cdb;
-
+#if 0
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	data.summary = s;
 	data.add = TRUE;
 	data.double_ref = FALSE;
 	ret = camel_db_read_message_info_records (cdb, folder_name, (gpointer) &data, camel_read_mir_callback, ex);
+#endif	
 	s->cache_load_time = time (NULL);
 	#warning "LRU please and not timeouts"
 	s->timeout_handle = g_timeout_add_seconds (SUMMARY_CACHE_DROP, remove_cache, s);
@@ -2193,7 +2194,9 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *record)
 	s->unread_count = record->unread_count;
 	s->deleted_count = record->deleted_count;
 	s->junk_count = record->junk_count;
-
+	s->visible_count = record->visible_count;
+	s->junk_not_deleted_count = record->jnd_count;
+	
 	return 0;	
 }
 
@@ -2270,7 +2273,11 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 		record->deleted_count = 0;
 	if (camel_db_count_unread_message_info (db, table_name, &(record->unread_count), NULL))
 		record->unread_count = 0;
-
+	if (camel_db_count_visible_message_info (db, table_name, &(record->visible_count), NULL))
+		record->visible_count = 0;
+	if (camel_db_count_junk_not_deleted_message_info (db, table_name, &(record->jnd_count), NULL))
+		record->jnd_count = 0;
+	
 	return record;	
 }
 
@@ -4152,9 +4159,18 @@ info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set)
 {
 	guint32 old;
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
-
+	int read=0, deleted=0, junk=0;
 	/* TODO: locking? */
 
+	if (flags & CAMEL_MESSAGE_SEEN && ((set & CAMEL_MESSAGE_SEEN) != (mi->flags & CAMEL_MESSAGE_SEEN)))
+	{ read = set & CAMEL_MESSAGE_SEEN ? 1 : -1; printf("Setting read as %d\n", set & CAMEL_MESSAGE_SEEN ? 1 : 0);}
+
+	if (flags & CAMEL_MESSAGE_DELETED && ((set & CAMEL_MESSAGE_DELETED) != (mi->flags & CAMEL_MESSAGE_DELETED)))
+	{ deleted = set & CAMEL_MESSAGE_DELETED ? 1 : -1; ;printf("Setting deleted as %d\n", set & CAMEL_MESSAGE_DELETED ? 1 : 0);}
+
+	if (flags & CAMEL_MESSAGE_JUNK && ((set & CAMEL_MESSAGE_JUNK) != (mi->flags & CAMEL_MESSAGE_JUNK)))
+	{ junk = set & CAMEL_MESSAGE_JUNK ? 1 : -1; ;printf("Setting junk as %d\n", set & CAMEL_MESSAGE_JUNK ? 1 : 0);}
+	
 	old = mi->flags;
 	mi->flags = (old & ~flags) | (set & flags);
 	if (old != mi->flags) {
@@ -4175,6 +4191,20 @@ info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set)
 		camel_folder_change_info_free(changes);
 	}
 
+	if (mi->summary) {
+		if (read)
+			mi->summary->unread_count -= read;
+		if (deleted)
+			mi->summary->deleted_count += deleted;
+		if (junk)
+			mi->summary->junk_count += junk;
+		if (junk && !deleted)
+			mi->summary->junk_not_deleted_count += junk;
+		if (junk ||  deleted) 
+			mi->summary->visible_count -= junk ? junk : deleted;
+	}
+
+	d(printf("%d %d %d %d %d\n", mi->summary->unread_count, mi->summary->deleted_count, mi->summary->junk_count, mi->summary->junk_not_deleted_count, mi->summary->visible_count));
 	return TRUE;
 }
 

@@ -221,7 +221,9 @@ struct _CamelFolderSummary {
 	guint32 unread_count;	/* handy totals */
 	guint32 deleted_count;
 	guint32 junk_count;
-
+	guint32 junk_not_deleted_count;
+	guint32 visible_count;
+	
 	/* sizes of memory objects */
 	guint32 message_info_size;
 	guint32 content_info_size;

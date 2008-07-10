@@ -77,10 +77,11 @@ typedef struct _CamelFIRecord {
 	guint32 nextuid;
 	time_t time;
 	guint32 saved_count;
-	/* Are these three really required? Can we just query it*/
 	guint32 unread_count;
 	guint32 deleted_count;
 	guint32 junk_count;
+	guint32 visible_count;
+	guint32 jnd_count;  /* Junked not deleted */
 	char *bdata;
 } CamelFIRecord;
 

@@ -482,7 +482,7 @@ camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, C
 
 	 if (cond)
 		  sqlite3_free (cond);
-	 g_print ("QUEY %s\n", sel_query);
+	 g_print ("QUERY %s\n", sel_query);
 	 #warning "handle return values"
 	 array = g_ptr_array_new ();
 	 camel_db_select (db, sel_query, read_uids_callback, array, ex);
@@ -536,7 +536,7 @@ camel_db_add_to_vfolder_transaction (CamelDB *db, char *folder_name, char *vuid,
 int
 camel_db_create_folders_table (CamelDB *cdb, CamelException *ex)
 {
-	char *query = "CREATE TABLE IF NOT EXISTS folders ( folder_name TEXT PRIMARY KEY, version REAL, flags INTEGER, nextuid INTEGER, time NUMERIC, saved_count INTEGER, unread_count INTEGER, deleted_count INTEGER, junk_count INTEGER, bdata TEXT )";
+	char *query = "CREATE TABLE IF NOT EXISTS folders ( folder_name TEXT PRIMARY KEY, version REAL, flags INTEGER, nextuid INTEGER, time NUMERIC, saved_count INTEGER, unread_count INTEGER, deleted_count INTEGER, junk_count INTEGER, visible_count INTEGER, jnd_count INTEGER, bdata TEXT )";
 	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 	return ((camel_db_command (cdb, query, ex)));
 }
@@ -553,8 +553,8 @@ camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, Came
 
 	sqlite3_free (table_creation_query);
 
-	safe_index = g_strdup_printf("INDEX-%s", folder_name);
-	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (uid, read, junk, deleted)", safe_index, folder_name);
+	safe_index = g_strdup_printf("SINDEX-%s", folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (uid, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo)", safe_index, folder_name);
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	g_free (safe_index);
 	sqlite3_free (table_creation_query);
@@ -609,11 +609,11 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 	char *del_query;
 	char *ins_query;
 
-	ins_query = sqlite3_mprintf ("INSERT INTO folders VALUES ( %Q, %d, %d, %d, %d, %d, %d, %d, %d, %Q ) ", 
+	ins_query = sqlite3_mprintf ("INSERT INTO folders VALUES ( %Q, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %Q ) ", 
 			record->folder_name, record->version,
 								 record->flags, record->nextuid, record->time,
 			record->saved_count, record->unread_count,
-			record->deleted_count, record->junk_count, record->bdata); 
+								 record->deleted_count, record->junk_count, record->visible_count, record->jnd_count, record->bdata); 
 
 	del_query = sqlite3_mprintf ("DELETE FROM folders WHERE folder_name = %Q", record->folder_name);
 
@@ -678,7 +678,10 @@ read_fir_callback (void * ref, int ncol, char ** cols, char ** name)
 
 		else if (!strcmp (name [i], "junk_count"))
 			record->junk_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
-
+		else if (!strcmp (name [i], "visible_count"))
+			record->visible_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
+		else if (!strcmp (name [i], "jnd_count"))
+			record->jnd_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
 		else if (!strcmp (name [i], "bdata"))
 			record->bdata = g_strdup (cols [i]);
 	
