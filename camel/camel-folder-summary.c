@@ -785,6 +785,8 @@ camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *ex)
 
 	folder_name = s->folder->full_name;
 	cdb = s->folder->cdb;
+
+	ret = camel_db_get_folder_uids (cdb, folder_name, s->uids, ex);
 #if 0
 	/* FIXME FOR SANKAR: No need to pass the address of summary here. */
 	data.summary = s;

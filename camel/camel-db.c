@@ -456,6 +456,80 @@ camel_db_delete_uid_from_vfolder (CamelDB *db, char *folder_name, char *vuid, Ca
 static int
 read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
 {
+	GPtrArray *array = (GPtrArray *) ref;
+	int i;
+	 
+        #warning Sankar check if it is OK.
+	for (i = 0; i < ncol; ++i) {
+		if (!strcmp (name [i], "uid"))
+			g_ptr_array_add (array, (char *) (camel_pstring_strdup(cols [i])));
+	}
+	 
+	 return 0;
+}
+
+int
+camel_db_get_folder_uids (CamelDB *db, char *folder_name, GPtrArray *array, CamelException *ex)
+{
+	 char *sel_query;
+	 int ret;
+	 
+	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q", folder_name);
+
+	 g_print ("QUERY %s\n", sel_query);
+	 #warning "handle return values"
+	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
+	 sqlite3_free (sel_query);
+
+	 return ret;
+}
+
+GPtrArray *
+camel_db_get_folder_junk_uids (CamelDB *db, char *folder_name, CamelException *ex)
+{
+	 char *sel_query;
+	 int ret;
+	 GPtrArray *array = g_ptr_array_new();
+	 
+	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q where junk=1", folder_name);
+
+	 g_print ("QUERY %s\n", sel_query);
+	 #warning "handle return values"
+	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
+	 sqlite3_free (sel_query);
+
+	 if (!array->len) {
+		 g_ptr_array_free (array, TRUE);
+		 array = NULL;
+	 } 
+	 return ret;
+}
+
+GPtrArray *
+camel_db_get_folder_deleted_uids (CamelDB *db, char *folder_name, CamelException *ex)
+{
+	 char *sel_query;
+	 int ret;
+	 GPtrArray *array = g_ptr_array_new();
+	 
+	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q where deleted=1", folder_name);
+
+	 g_print ("QUERY %s\n", sel_query);
+	 #warning "handle return values"
+	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
+	 sqlite3_free (sel_query);
+
+	 if (!array->len) {
+		 g_ptr_array_free (array, TRUE);
+		 array = NULL;
+	 }
+		 
+	 return ret;
+}
+
+static int
+read_vuids_callback (void *ref, int ncol, char ** cols, char ** name)
+{
 	 GPtrArray *array = (GPtrArray *)ref;
 	 int i;
 	 
@@ -485,7 +559,7 @@ camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, C
 	 g_print ("QUERY %s\n", sel_query);
 	 #warning "handle return values"
 	 array = g_ptr_array_new ();
-	 camel_db_select (db, sel_query, read_uids_callback, array, ex);
+	 camel_db_select (db, sel_query, read_vuids_callback, array, ex);
 	 sqlite3_free (sel_query);
 	 /* We make sure to return NULL if we don't get anything. Be good to your caller */ 
 	 if (!array->len) {
