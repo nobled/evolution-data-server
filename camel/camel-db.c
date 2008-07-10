@@ -40,7 +40,6 @@
 #define CAMEL_DB_SLEEP_INTERVAL 1*10*10
 #define CAMEL_DB_RELEASE_SQLITE_MEMORY if(!g_getenv("CAMEL_SQLITE_PRESERVE_CACHE")) sqlite3_release_memory(CAMEL_DB_FREE_CACHE_SIZE);
 #define CAMEL_DB_USE_SHARED_CACHE if(!g_getenv("CAMEL_SQLITE_SHARED_CACHE_OFF")) sqlite3_enable_shared_cache(TRUE);
-#define CAMEL_DB_SET_CACHE_SIZE if(!g_getenv("CAMEL_SQLITE_DEFAULT_CACHE_SIZE")) camel_db_command (cdb, "PRAGMA cache_size=100", NULL);
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -48,7 +47,7 @@ cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex)
 	char *errmsg;
 	int   ret = -1;
 
-	d(g_print("%s\n", stmt));
+	d(g_print("Camel SQL Exec:\n%s\n", stmt));
 
 	ret = sqlite3_exec(db, stmt, 0, 0, &errmsg);
 	while (ret == SQLITE_BUSY || ret == SQLITE_LOCKED || ret == -1) {
@@ -70,6 +69,7 @@ camel_db_open (const char *path, CamelException *ex)
 {
 	CamelDB *cdb;
 	sqlite3 *db;
+	char *cache;
 	int ret;
 
 	CAMEL_DB_USE_SHARED_CACHE;
@@ -98,10 +98,16 @@ camel_db_open (const char *path, CamelException *ex)
 	cdb->lock = g_mutex_new ();
 	d(g_print ("\nDatabase succesfully opened  \n"));
 
-	#warning "make these under g_getenv"
+	/* Which is big / costlier ? A Stack frame or a pointer */
+	if(!g_getenv("CAMEL_SQLITE_DEFAULT_CACHE_SIZE")) 
+		cache = g_strdup_printf ("PRAGMA cache_size=%s", g_getenv("CAMEL_SQLITE_DEFAULT_CACHE_SIZE"));
+	else 
+		cache = g_strdup ("PRAGMA cache_size=100");
 
-	CAMEL_DB_SET_CACHE_SIZE;
-	
+	camel_db_command (cdb, cache, NULL);
+
+	g_free (cache);
+
 	sqlite3_busy_timeout (cdb->db, CAMEL_DB_SLEEP_INTERVAL);
 
 	return cdb;
@@ -246,10 +252,10 @@ camel_db_count_message_info (CamelDB *cdb, const char *query, guint32 *count, Ca
 	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 		
 	if (ret != SQLITE_OK) {
-    		g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
-		sqlite3_free (errmsg);
- 	}
+			g_print ("Error in SQL SELECT statement: %s [%s]\n", query, errmsg);
+			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _(errmsg));
+			sqlite3_free (errmsg);
+	}
 	return ret;
 }
 
@@ -457,13 +463,16 @@ static int
 read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
 {
 	GPtrArray *array = (GPtrArray *) ref;
-	int i;
 	 
-        #warning Sankar check if it is OK.
+	#if 0
+	int i;
 	for (i = 0; i < ncol; ++i) {
 		if (!strcmp (name [i], "uid"))
 			g_ptr_array_add (array, (char *) (camel_pstring_strdup(cols [i])));
 	}
+	#else
+			g_ptr_array_add (array, (char *) (camel_pstring_strdup(cols [0])));
+	#endif
 	 
 	 return 0;
 }
@@ -476,8 +485,6 @@ camel_db_get_folder_uids (CamelDB *db, char *folder_name, GPtrArray *array, Came
 	 
 	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q", folder_name);
 
-	 g_print ("QUERY %s\n", sel_query);
-	 #warning "handle return values"
 	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
 	 sqlite3_free (sel_query);
 
@@ -493,8 +500,6 @@ camel_db_get_folder_junk_uids (CamelDB *db, char *folder_name, CamelException *e
 	 
 	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q where junk=1", folder_name);
 
-	 g_print ("QUERY %s\n", sel_query);
-	 #warning "handle return values"
 	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
 	 sqlite3_free (sel_query);
 
@@ -502,7 +507,7 @@ camel_db_get_folder_junk_uids (CamelDB *db, char *folder_name, CamelException *e
 		 g_ptr_array_free (array, TRUE);
 		 array = NULL;
 	 } 
-	 return ret;
+	 return array;
 }
 
 GPtrArray *
@@ -514,8 +519,6 @@ camel_db_get_folder_deleted_uids (CamelDB *db, char *folder_name, CamelException
 	 
 	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q where deleted=1", folder_name);
 
-	 g_print ("QUERY %s\n", sel_query);
-	 #warning "handle return values"
 	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
 	 sqlite3_free (sel_query);
 
@@ -524,21 +527,26 @@ camel_db_get_folder_deleted_uids (CamelDB *db, char *folder_name, CamelException
 		 array = NULL;
 	 }
 		 
-	 return ret;
+	 return array;
 }
 
 static int
 read_vuids_callback (void *ref, int ncol, char ** cols, char ** name)
 {
 	 GPtrArray *array = (GPtrArray *)ref;
+	 
+	 #if 0
 	 int i;
 	 
-     #warning Sankar check if it is OK.
+
 	 for (i = 0; i < ncol; ++i) {
 		  if (!strcmp (name [i], "vuid"))
 			   g_ptr_array_add (array, (char *) (camel_pstring_strdup(cols [i]+8)));
 	 }
-	 
+	 #else
+			   g_ptr_array_add (array, (char *) (camel_pstring_strdup(cols [0]+8)));
+	 #endif
+
 	 return 0;
 }
 
@@ -556,8 +564,8 @@ camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, char *filter, C
 
 	 if (cond)
 		  sqlite3_free (cond);
-	 g_print ("QUERY %s\n", sel_query);
 	 #warning "handle return values"
+	 #warning "No The caller should parse the ex in case of NULL returns" 
 	 array = g_ptr_array_new ();
 	 camel_db_select (db, sel_query, read_vuids_callback, array, ex);
 	 sqlite3_free (sel_query);
