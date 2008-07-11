@@ -69,5 +69,10 @@ exchange_mapi_util_entryid_generate_oneoff (TALLOC_CTX *mem_ctx, const char *dis
 struct SBinary *
 exchange_mapi_util_entryid_generate_local (TALLOC_CTX *mem_ctx, const char *exchange_dn);
 
+char *
+exchange_lf_to_crlf (const char *in);
+char *
+exchange_crlf_to_lf (const char *in);
+
 #endif
 

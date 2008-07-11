@@ -526,3 +526,68 @@ exchange_mapi_util_entryid_generate_local (TALLOC_CTX *mem_ctx, const char *exch
 	return entryid;
 }
 
+/**
+ * exchange_lf_to_crlf:
+ * @in: input text in UNIX ("\n") format
+ *
+ * Creates a copy of @in with all LFs converted to CRLFs.
+ *
+ * Return value: the converted text, which the caller must free.
+ **/
+char *
+exchange_lf_to_crlf (const char *in)
+{
+	int len;
+	const char *s;
+	char *out, *d;
+
+	g_return_val_if_fail (in != NULL, NULL);
+
+	len = strlen (in);
+	for (s = strchr (in, '\n'); s; s = strchr (s + 1, '\n'))
+		len++;
+
+	out = g_malloc (len + 1);
+	for (s = in, d = out; *s; s++) {
+		if (*s == '\n')
+			*d++ = '\r';
+		*d++ = *s;
+	}
+	*d = '\0';
+
+	return out;
+}
+
+/**
+ * exchange_crlf_to_lf:
+ * @in: input text in network ("\r\n") format
+ *
+ * Creates a copy of @in with all CRLFs converted to LFs. (Actually,
+ * it just strips CRs, so any raw CRs will be removed.)
+ *
+ * Return value: the converted text, which the caller must free.
+ **/
+char *
+exchange_crlf_to_lf (const char *in)
+{
+	int len;
+	const char *s;
+	char *out;
+	GString *str;
+
+	g_return_val_if_fail (in != NULL, NULL);
+
+	str = g_string_new ("");
+
+	len = strlen (in);
+	for (s = in; *s; s++) {
+		if (*s != '\r')
+			str = g_string_append_c (str, *s);
+	}
+
+	out = str->str;
+	g_string_free (str, FALSE);
+
+	return out;
+}
+

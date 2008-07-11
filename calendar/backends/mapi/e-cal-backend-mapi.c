@@ -507,7 +507,8 @@ get_deltas (gpointer handle)
 	g_static_mutex_lock (&updating);
 
 	serv_time = e_cal_backend_cache_get_server_utc_time (priv->cache);
-	itt_cache = icaltime_from_string (serv_time); 
+	if (serv_time)
+		itt_cache = icaltime_from_string (serv_time); 
 	if (!icaltime_is_null_time (itt_cache)) {
 		struct SPropValue sprop;
 		struct timeval t;
@@ -985,6 +986,9 @@ e_cal_backend_mapi_connect (ECalBackendMAPI *cbmapi)
 
 	priv = cbmapi->priv;
 
+	if (!priv->fid)
+		return GNOME_Evolution_Calendar_OtherError;
+
 	source = e_cal_backend_get_source (E_CAL_BACKEND (cbmapi));
 
 	if (!authenticated) {
@@ -1126,7 +1130,7 @@ e_cal_backend_mapi_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 	exchange_mapi_util_mapi_id_from_string (fid, &priv->fid);
 	priv->olFolder = olFolder;
 
-	/* Set the local attachment store*/
+	/* Set the local attachment store */
 	mangled_uri = g_strdup (e_cal_backend_get_uri (E_CAL_BACKEND (cbmapi)));
 	/* mangle the URI to not contain invalid characters */
 	for (i = 0; i < strlen (mangled_uri); i++) {
@@ -1340,7 +1344,9 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 			e_cal_backend_notify_object_created (E_CAL_BACKEND (cbmapi), *calobj);
 			break;
 		default:
-			break;	
+			exchange_mapi_util_free_recipient_list (&recipients);
+			exchange_mapi_util_free_attachment_list (&attachments);
+			return GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
 	}
 
 	g_object_unref (comp);
@@ -1413,6 +1419,8 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		cache_comp = e_cal_backend_cache_get_component (priv->cache, uid, rid);
 		if (!cache_comp) {
 			g_message ("CRITICAL : Could not find the object in cache");
+			g_object_unref (comp);
+			exchange_mapi_util_free_recipient_list (&recipients);
 			exchange_mapi_util_free_attachment_list (&attachments);
 			return GNOME_Evolution_Calendar_ObjectNotFound;
 		}
@@ -1429,16 +1437,20 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						exchange_mapi_cal_util_build_props, &cbdata, 
-						NULL, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+						recipients, attachments, MAPI_OPTIONS_DONT_SUBMIT);
 		g_free (cbdata.props);
 		if (!status) {
 			g_object_unref (comp);
 			g_object_unref (cache_comp);
+			exchange_mapi_util_free_recipient_list (&recipients);
 			exchange_mapi_util_free_attachment_list (&attachments);
 			return GNOME_Evolution_Calendar_OtherError;
 		}
 		break;
 	default : 
+		g_object_unref (comp);
+		g_object_unref (cache_comp);
+		exchange_mapi_util_free_recipient_list (&recipients);
 		exchange_mapi_util_free_attachment_list (&attachments);
 		return GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
 	}
@@ -1446,8 +1458,9 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	*old_object = e_cal_component_get_as_string (cache_comp);
 	*new_object = e_cal_component_get_as_string (comp);
 
-	g_object_unref (cache_comp);
 	g_object_unref (comp);
+	g_object_unref (cache_comp);
+	exchange_mapi_util_free_recipient_list (&recipients);
 	exchange_mapi_util_free_attachment_list (&attachments);
 
 	return GNOME_Evolution_Calendar_Success;

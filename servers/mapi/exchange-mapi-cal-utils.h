@@ -67,12 +67,12 @@ struct cbdata {
 void
 exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_list);
 void
-exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_list, const char *local_store);
+exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_list, const char *local_store_uri);
 
 ECalComponent *
 exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar *mid, struct mapi_SPropValue_array *properties, 
 					   GSList *streams, GSList *recipients, GSList *attachments, 
-					   const char *local_store, const icaltimezone *default_zone);
+					   const char *local_store_uri, const icaltimezone *default_zone);
 gboolean
 exchange_mapi_cal_util_build_name_id (struct mapi_nameid *nameid, gpointer data);
 

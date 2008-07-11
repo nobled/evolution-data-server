@@ -1,3 +1,16 @@
+2008-07-11  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_attachments),
+	(set_attachments_to_cal_component),
+	(exchange_mapi_cal_util_mapi_props_to_comp): Get the attachments 
+	working again. 
+	* exchange-mapi-cal-utils.h:
+	* exchange-mapi-utils.c (exchange_lf_to_crlf),
+	(exchange_crlf_to_lf): Added these utility functions. (copied from the 
+	current Exchange connector). 
+	* exchange-mapi-utils.h: Declarations for the same. 
+
 2008-07-09  Suman Manjunath  <msuman@novell.com>
 
 	* Makefile.am: Remove unnecessary linkages, use dynamic linking. 

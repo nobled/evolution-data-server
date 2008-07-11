@@ -1,3 +1,10 @@
+2008-07-11  Suman Manjunath  <msuman@novell.com>
+
+	* e-cal-backend-mapi.c (get_deltas), (e_cal_backend_mapi_connect),
+	(e_cal_backend_mapi_open), (e_cal_backend_mapi_create_object),
+	(e_cal_backend_mapi_modify_object): Get the attachments working again, 
+	fixed a few memory leaks in modify_object. 
+
 2008-07-09  Suman Manjunath  <msuman@novell.com>
 
 	* Makefile.am: Remove unnecessary linkages, use dynamic linkages.

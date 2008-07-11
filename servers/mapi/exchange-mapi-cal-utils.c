@@ -207,62 +207,47 @@ get_prop_from_priority (int priority)
 }
 
 void
-exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_list, const char *local_store)
+exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_list, const char *local_store_uri)
 {
 	GSList *comp_attach_list = NULL, *new_attach_list = NULL;
 	GSList *l;
-	char *dest_file;
-	int fd;
 	const char *uid;
 
 	e_cal_component_get_attachment_list (comp, &comp_attach_list);
 	e_cal_component_get_uid (comp, &uid);
 
 	for (l = comp_attach_list; l ; l = l->next) {
-		gchar *sfname = (gchar *) l->data;
-		gchar *filename, *new_filename;
+		gchar *sfname_uri = (gchar *) l->data;
+		gchar *sfname = g_filename_from_uri (sfname_uri, NULL, NULL);
+		gchar *filename;
 		GMappedFile *mapped_file;
 		GError *error = NULL;
-		guint filelength = 0;
 
 		mapped_file = g_mapped_file_new (sfname, FALSE, &error);
-		if (!mapped_file) {
-			g_message ("DEBUG: could not map %s: %s\n", sfname, error->message);
-			g_error_free (error);
-			continue;
-		}
-
 		filename = g_path_get_basename (sfname);
-		new_filename = g_strconcat (uid, "-", filename, NULL);
-		g_free (filename);
-		dest_file = g_build_filename (local_store, new_filename, NULL);
-		g_free (new_filename);
 
-		filelength = g_mapped_file_get_length (mapped_file);
-
-		fd = g_open (dest_file, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
-		if (fd == -1) {
-			/* skip gracefully */
-			g_message ("DEBUG: could not open %s for writing\n", dest_file);
-		} else if (write (fd, g_mapped_file_get_contents (mapped_file), filelength) == -1) {
-			/* skip gracefully */
-			g_message ("DEBUG: attachment write failed.\n");
-		}
-		if (fd != -1) {
+		if (mapped_file && g_str_has_prefix (filename, uid)) {
 			ExchangeMAPIAttachment *attach_item;
+			gchar *attach_crlf = exchange_lf_to_crlf (g_mapped_file_get_contents (mapped_file));
+			guint filelength = strlen (attach_crlf);
+			const gchar *split_name = (filename + strlen (uid) + strlen ("-"));
 
-			close (fd);
-			new_attach_list = g_slist_append (new_attach_list, g_filename_to_uri (dest_file, NULL, NULL));
+			new_attach_list = g_slist_append (new_attach_list, g_strdup (sfname_uri));
 
 			attach_item = g_new0 (ExchangeMAPIAttachment, 1);
-			attach_item->filename = g_path_get_basename (sfname);
+			attach_item->filename = g_strdup(split_name);
 			attach_item->value = g_byte_array_sized_new (filelength);
-			attach_item->value = g_byte_array_append (attach_item->value, g_mapped_file_get_contents (mapped_file), filelength);
+			attach_item->value = g_byte_array_append (attach_item->value, attach_crlf, filelength + 1);
 			*attach_list = g_slist_append (*attach_list, attach_item);
+
+			g_mapped_file_free (mapped_file);
+			g_free (attach_crlf);
+		} else {
+			g_message ("DEBUG: could not map %s: %s\n", sfname, error->message);
+			g_error_free (error);
 		}
 
-		g_mapped_file_free (mapped_file);
-		g_free (dest_file);
+		g_free (filename);
 	}
 
 	e_cal_component_set_attachment_list (comp, new_attach_list);
@@ -314,7 +299,7 @@ exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_lis
 }
 
 static void
-set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, const char *local_store)
+set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, const char *local_store_uri)
 {
 	GSList *comp_attach_list = NULL, *l;
 	const char *uid;
@@ -323,28 +308,30 @@ set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, cons
 	for (l = attach_list; l ; l = l->next) {
 		ExchangeMAPIAttachment *attach_item = (ExchangeMAPIAttachment *) (l->data);
 		gchar *attach_file_url, *filename;
-		struct stat st;
+		guint len;
+		int fd = -1;
+		gchar *attach_lf = exchange_crlf_to_lf((const char *)attach_item->value->data);
 
-		attach_file_url = g_strconcat (local_store, "/", uid, "-", attach_item->filename, NULL);
+		len = (attach_lf != NULL) ? strlen (attach_lf) : 0;
+		attach_file_url = g_strconcat (local_store_uri, G_DIR_SEPARATOR_S, uid, "-", attach_item->filename, NULL);
 		filename = g_filename_from_uri (attach_file_url, NULL, NULL);
 
-		if (g_stat (filename, &st) == -1) {
-			int fd = g_open (filename, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
-			if (fd == -1) { 
-				/* skip gracefully */
-				g_message ("DEBUG: could not open %s for writing\n", filename);
-			} else if (write (fd, attach_item->value->data, attach_item->value->len) == -1) {
-				/* skip gracefully */
-				g_message ("DEBUG: attachment write failed.\n");
-			}
-			if (fd != -1) {
-				close (fd);
-				comp_attach_list = g_slist_append (comp_attach_list, g_strdup (attach_file_url));
-			}
+		fd = g_open (filename, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
+		if (fd == -1) { 
+			/* skip gracefully */
+			g_message ("DEBUG: could not open %s for writing\n", filename);
+		} else if (len && write (fd, attach_lf, len) == -1) {
+			/* skip gracefully */
+			g_message ("DEBUG: attachment write failed.\n");
+		}
+		if (fd != -1) {
+			close (fd);
+			comp_attach_list = g_slist_append (comp_attach_list, g_strdup (attach_file_url));
 		}
 
 		g_free (filename);
 		g_free (attach_file_url);
+		g_free (attach_lf);
 	}
 
 	e_cal_component_set_attachment_list (comp, comp_attach_list);
@@ -546,7 +533,7 @@ id_to_string (GByteArray *ba)
 ECalComponent *
 exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar *mid, struct mapi_SPropValue_array *properties, 
 					   GSList *streams, GSList *recipients, GSList *attachments, 
-					   const char *local_store, const icaltimezone *default_zone)
+					   const char *local_store_uri, const icaltimezone *default_zone)
 {
 	ECalComponent *comp = NULL;
 	struct timeval t;
@@ -797,7 +784,7 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 
 	/* FIXME: categories */
 
-	set_attachments_to_cal_component (comp, attachments, local_store);
+	set_attachments_to_cal_component (comp, attachments, local_store_uri);
 
 	e_cal_component_rescan (comp);
 
