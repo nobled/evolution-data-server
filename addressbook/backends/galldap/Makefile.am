@@ -34,10 +34,10 @@ libebookbackendgalldap_la_SOURCES =	\
 
 libebookbackendgalldap_la_LIBADD = 	\
 	$(DB_LIBS)	\
-	-lexchange-storage-1.2		\
-	$(top_builddir)/addressbook/libebook/libebook-1.2.la		\
-	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la	\
-	$(top_builddir)/libedataserver/libedataserver-1.2.la		\
+	$(top_builddir)/servers/exchange/storage/libexchange-storage-1.2.la	\
+	$(top_builddir)/addressbook/libebook/libebook-1.2.la			\
+	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la		\
+	$(top_builddir)/libedataserver/libedataserver-1.2.la			\
 	$(top_builddir)/libebackend/libebackend-1.2.la
 
 libebookbackendgalldap_la_LDFLAGS =	\
