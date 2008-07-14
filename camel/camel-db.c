@@ -628,13 +628,16 @@ camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, Came
 {
 	int ret;
 	char *table_creation_query, *safe_index;
-	
-	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS %Q (  uid TEXT PRIMARY KEY , flags INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
+
+	/* README: It is possible to compress all system flags into a single column and use just as userflags but that makes querying for other applications difficult an d bloats the parsing code. Instead, it is better to bloat the tables. Sqlite should have some optimizations for sparse columns etc. */
+
+	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS %Q (  uid TEXT PRIMARY KEY , flags INTEGER , msg_type INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , msg_security INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
 
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 
 	sqlite3_free (table_creation_query);
 
+	/* FIXME: sqlize folder_name before you create the index */
 	safe_index = g_strdup_printf("SINDEX-%s", folder_name);
 	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON %Q (uid, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo)", safe_index, folder_name);
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
@@ -651,10 +654,10 @@ camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, Camel
 	char *del_query;
 	char *ins_query;
 
-	ins_query = sqlite3_mprintf ("INSERT INTO %Q VALUES (%Q, %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q )", 
+	ins_query = sqlite3_mprintf ("INSERT INTO %Q VALUES (%Q, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q )", 
 			folder_name, record->uid, record->flags,
-			record->read, record->deleted, record->replied,
-			record->important, record->junk, record->attachment,
+			record->msg_type, record->read, record->deleted, record->replied,
+			record->important, record->junk, record->attachment, record->msg_security,
 			record->size, record->dsent, record->dreceived,
 			record->subject, record->from, record->to,
 			record->cc, record->mlist, record->followup_flag,
@@ -933,7 +936,9 @@ char * camel_db_get_column_name (const char *raw_name)
 		return g_strdup ("mail_to");
 	else {
 		/* Let it crash for all unknown columns for now. 
-		We need to load the messages into memory and search etc. */
+		We need to load the messages into memory and search etc. 
+		We should extend this for camel-folder-search system flags search as well 
+		otherwise, search-for-signed-messages will not work etc.*/
 
 		return g_strdup ("");
 	}

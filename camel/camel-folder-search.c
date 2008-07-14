@@ -501,8 +501,8 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, GPtrArra
 		goto fail;
 	}
 
-	r(printf ("\nsexp is : [%s]\n", expr));
-	r(printf ("Something is returned in the top-level caller : [%s]\n", search->query->str));
+	printf ("\nsexp is : [%s]\n", expr);
+	printf ("Something is returned in the top-level caller : [%s]\n", search->query->str);
 
 	matches = g_ptr_array_new();
 	cdb = (CamelDB *) (search->folder->cdb);
@@ -1335,6 +1335,7 @@ search_user_flag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFo
 						} else {
 								if (f->operators) {
 										g_string_append_printf (search->query, " %s labels LIKE %s", (char *) (g_slist_nth_data (f->operators, 0)), value);
+										f->operators = g_slist_remove_link (f->operators, g_slist_nth (f->operators, 0));
 								} else {
 										g_string_append_printf (search->query, " OR labels LIKE %s", value);
 								}
@@ -1344,7 +1345,7 @@ search_user_flag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFo
 						camel_db_free_sqlized_string (value);
 				}
 		} else
-				g_warning ("Makes no sense to search for multiple things in user flag. A flag is either set or not that's all");
+				g_warning ("Makes no sense to search for multiple things in user flag. A flag is either set or not that's all: [%d]", argc);
 
 		r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 		r->value.bool = FALSE;
@@ -1368,13 +1369,16 @@ search_system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 		r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 		r->value.bool = truth;
 	} else {
+			/* FIXME: You need to complete the camel-db.c:camel_db_get_column_name function and use those return values */
 			char * value = argv[0]->value.string;
 
 			if (g_str_has_suffix (search->query->str, " "))
-					g_string_append_printf (search->query, "WHERE %s = 0", value);
+					g_string_append_printf (search->query, "WHERE (%s = 0)", value);
 			else {
+
+					search->query->len -= 1;
 					if (f->operators)
-							g_string_append_printf (search->query, " %s %s = 0", (char *) (g_slist_nth_data (f->operators, 0)), value);
+							g_string_append_printf (search->query, " %s %s = 0)", (char *) (g_slist_nth_data (f->operators, 0)), value);
 					else
 							g_string_append_printf (search->query, " OR %s = 0", value);
 			}
@@ -1419,10 +1423,10 @@ search_user_tag(struct _ESExp *f, int argc, struct _ESExpResult **argv, CamelFol
 
 				}
 		} else
-				g_warning ("Makes no sense to search for multiple things in user tag as it can hold only one string data");
+				g_warning ("Makes no sense to search for multiple things in user tag as it can hold only one string data : [%d] ", argc);
 
 		r = e_sexp_result_new(f, ESEXP_RES_BOOL);
-		r->value.bool = FALSE;
+		r->value.bool = TRUE;
 
 		return r;
 }

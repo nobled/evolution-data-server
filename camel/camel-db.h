@@ -46,6 +46,8 @@ struct _CamelDB {
 typedef struct _CamelMIRecord {
 	char *uid;
 	guint32 flags;
+	guint32 msg_type;
+	guint32 msg_security;
 	gboolean read;
 	gboolean deleted;
 	gboolean replied;
