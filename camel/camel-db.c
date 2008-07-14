@@ -934,6 +934,16 @@ char * camel_db_get_column_name (const char *raw_name)
 		return g_strdup ("mail_cc");
 	else if (!g_ascii_strcasecmp (raw_name, "To"))
 		return g_strdup ("mail_to");
+	else if (!g_ascii_strcasecmp (raw_name, "Flagged"))
+		return g_strdup ("important");
+	else if (!g_ascii_strcasecmp (raw_name, "deleted"))
+		return g_strdup ("deleted");
+	else if (!g_ascii_strcasecmp (raw_name, "junk"))
+		return g_strdup ("junk");
+	else if (!g_ascii_strcasecmp (raw_name, "Seen"))
+		return g_strdup ("read");
+	else if (!g_ascii_strcasecmp (raw_name, "Attachments"))
+		return g_strdup ("attachment");
 	else {
 		/* Let it crash for all unknown columns for now. 
 		We need to load the messages into memory and search etc. 

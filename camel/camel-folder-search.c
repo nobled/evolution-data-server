@@ -1370,18 +1370,25 @@ search_system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 		r->value.bool = truth;
 	} else {
 			/* FIXME: You need to complete the camel-db.c:camel_db_get_column_name function and use those return values */
-			char * value = argv[0]->value.string;
+			char * value = camel_db_get_column_name (argv[0]->value.string);
+			char *connector = "=";
+
+			if (argc > 1) {
+				if (! strcmp(argv[1]->value.string, "set") )
+					connector = "!=";
+			}
 
 			if (g_str_has_suffix (search->query->str, " "))
-					g_string_append_printf (search->query, "WHERE (%s = 0)", value);
+					g_string_append_printf (search->query, "WHERE (%s %s 0)", value, connector);
 			else {
-
 					search->query->len -= 1;
 					if (f->operators)
-							g_string_append_printf (search->query, " %s %s = 0)", (char *) (g_slist_nth_data (f->operators, 0)), value);
+							g_string_append_printf (search->query, " %s %s %s 0)", (char *) (g_slist_nth_data (f->operators, 0)), value, connector);
 					else
-							g_string_append_printf (search->query, " OR %s = 0", value);
+							g_string_append_printf (search->query, " OR %s %s 0", value, connector);
 			}
+
+			g_free (value);
 
 			r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 			r->value.bool = FALSE; 
