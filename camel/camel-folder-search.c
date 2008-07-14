@@ -1362,14 +1362,25 @@ search_system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 	if (search->current) {
 		gboolean truth = FALSE;
 		
-		if (argc == 1)
-			truth = camel_system_flag_get (camel_message_info_flags(search->current), argv[0]->value.string);
+		if (argc == 1) 
+				truth = camel_system_flag_get (camel_message_info_flags(search->current), argv[0]->value.string);
 		
 		r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 		r->value.bool = truth;
 	} else {
-		r = e_sexp_result_new(f, ESEXP_RES_ARRAY_PTR);
-		r->value.ptrarray = g_ptr_array_new ();
+			char * value = argv[0]->value.string;
+
+			if (g_str_has_suffix (search->query->str, " "))
+					g_string_append_printf (search->query, "WHERE %s = 0", value);
+			else {
+					if (f->operators)
+							g_string_append_printf (search->query, " %s %s = 0", (char *) (g_slist_nth_data (f->operators, 0)), value);
+					else
+							g_string_append_printf (search->query, " OR %s = 0", value);
+			}
+
+			r = e_sexp_result_new(f, ESEXP_RES_BOOL);
+			r->value.bool = FALSE; 
 	}
 	
 	return r;
