@@ -1,3 +1,13 @@
+2008-07-16  Johnny Jacob  <jjohnny@novell.com>	
+	
+	Initial support for Copy / Move Messages.
+	
+	* camel-mapi-folder.c (mapi_transfer_messages_to): Added. Copies / 
+	Moves messages.
+	
+	* camel-mapi-folder.c (camel_mapi_folder_class_init): Enabled 
+	mapi_transfer_messages_to .
+	
 2008-07-09  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-transport.c: Missed this in the last commit. 

@@ -1066,6 +1066,65 @@ mapi_expunge (CamelFolder *folder, CamelException *ex)
 	camel_folder_change_info_free (changes);
 }
 
+static void
+mapi_transfer_messages_to (CamelFolder *source, GPtrArray *uids, 
+		CamelFolder *destination, GPtrArray **transferred_uids, 
+		gboolean delete_originals, CamelException *ex)
+{
+	mapi_id_t src_fid, dest_fid;
+
+	CamelOfflineStore *offline = (CamelOfflineStore *) destination->parent_store;
+	CamelMapiStore *mapi_store= CAMEL_MAPI_STORE(source->parent_store);
+	CamelFolderChangeInfo *changes = NULL;
+
+	char *folder_id = NULL;
+	int i = 0;
+
+	GSList *src_msg_ids = NULL;
+
+
+	/* check for offline operation */
+	if (offline->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
+		printf("%s(%d):%s:WARNING : offline op not implemented \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		return;
+	}
+
+	folder_id =  camel_mapi_store_folder_id_lookup (mapi_store, source->full_name) ;
+	exchange_mapi_util_mapi_id_from_string (folder_id, &src_fid);
+
+	folder_id =  camel_mapi_store_folder_id_lookup (mapi_store, destination->full_name) ;
+	exchange_mapi_util_mapi_id_from_string (folder_id, &dest_fid);
+
+	for (i=0; i < uids->len; i++) {
+		mapi_id_t *mid = g_new0 (mapi_id_t, 1); /* FIXME : */
+		if (!exchange_mapi_util_mapi_ids_from_uid (g_ptr_array_index (uids, i), &src_fid, mid)) 
+			continue;
+
+		src_msg_ids = g_slist_prepend (src_msg_ids, mid);
+	}
+
+	if (delete_originals) {
+		if (!exchange_mapi_move_items (src_fid, dest_fid, src_msg_ids)) {
+			//TODO : Set exception. 
+		} else {
+			changes = camel_folder_change_info_new ();
+
+			for (i=0; i < uids->len; i++) {
+				camel_folder_summary_remove_uid (source->summary, uids->pdata[i]);
+				camel_folder_change_info_remove_uid (changes, uids->pdata[i]);
+			}
+			camel_object_trigger_event (source, "folder_changed", changes);
+			camel_folder_change_info_free (changes);
+
+		}
+	} else {
+		if (!exchange_mapi_copy_items (src_fid, dest_fid, src_msg_ids)) {
+			//TODO : Set exception. 
+		}
+	}
+
+	return;
+}
 
 static void
 camel_mapi_folder_class_init (CamelMapiFolderClass *camel_mapi_folder_class)
@@ -1086,7 +1145,7 @@ camel_mapi_folder_class_init (CamelMapiFolderClass *camel_mapi_folder_class)
 	camel_folder_class->refresh_info = mapi_refresh_info;
 	camel_folder_class->sync = mapi_sync;
 	camel_folder_class->expunge = mapi_expunge;
-/* 	camel_folder_class->transfer_messages_to = mapi_transfer_messages_to; */
+	camel_folder_class->transfer_messages_to = mapi_transfer_messages_to;
 }
 
 static void
