@@ -71,11 +71,11 @@ mapi_profile_load (const char *profname, const char *password)
 	gchar *profpath = NULL;
 	const char *profile = NULL;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	profpath = g_build_filename (g_getenv("HOME"), DEFAULT_PROF_PATH, NULL);
 	if (!g_file_test (profpath, G_FILE_TEST_EXISTS)) {
-		g_warning ("MAPI profile database @ %s not found", profpath);
+		g_warning ("\nMAPI profile database @ %s not found ", profpath);
 		goto cleanup;
 	}
 
@@ -85,7 +85,7 @@ mapi_profile_load (const char *profname, const char *password)
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("MAPIInitialize", GetLastError());
 		if (retval == MAPI_E_SESSION_LIMIT)
-			g_print("%s(%d): %s: Already connected \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+			g_print("\n%s(%d): %s: Already connected ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 		goto cleanup;
 	}
 
@@ -101,7 +101,7 @@ mapi_profile_load (const char *profname, const char *password)
 		}
 	}
 
-	g_print ("Loading profile %s \n", profile);
+	g_print("\nLoading profile %s ", profile);
 
 	retval = MapiLogonEx(&session, profile, password);
 	if (retval != MAPI_E_SUCCESS) {
@@ -114,7 +114,7 @@ cleanup:
 		MAPIUninitialize ();
 	g_free (profpath);
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return session;
 }
@@ -128,15 +128,15 @@ exchange_mapi_connection_exists ()
 gboolean 
 exchange_mapi_connection_new (const char *profile, const char *password)
 {
-	LOCK ();
+	LOCK();
 	if (!global_mapi_session)
 		global_mapi_session = mapi_profile_load (profile, password);
-	UNLOCK ();
+	UNLOCK();
 
 	if (!global_mapi_session)
-		g_warning ("%s(%d): %s: Login failed", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		g_warning ("\n%s(%d): %s: Login failed ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 	else
-		g_message ("%s(%d): %s: Connected", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		g_message ("\n%s(%d): %s: Connected ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
 	return global_mapi_session != NULL;
 }
@@ -166,6 +166,8 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 
 	/* if compressed RTF stream, then return */
 	g_return_val_if_fail (proptag != PR_RTF_COMPRESSED, FALSE);
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mem_ctx = talloc_init ("ExchangeMAPI_ReadGenericStream");
 
@@ -240,6 +242,8 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 
 	talloc_free (mem_ctx);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return (retval == MAPI_E_SUCCESS);
 }
 
@@ -266,6 +270,8 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 
 	/* sanity check */
 	g_return_val_if_fail (obj_message, FALSE);
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mem_ctx = talloc_init ("ExchangeMAPI_ReadBodyStream");
 
@@ -371,6 +377,8 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 
 	talloc_free (mem_ctx);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return (retval == MAPI_E_SUCCESS);
 }
 
@@ -384,6 +392,8 @@ exchange_mapi_util_set_generic_streams (mapi_object_t *obj_message, GSList *stre
 	TALLOC_CTX 	*mem_ctx;
 	GSList 		*l;
 	gboolean 	status = TRUE;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mem_ctx = talloc_init ("ExchangeMAPI_Set_GenericStreams");
 
@@ -440,6 +450,8 @@ exchange_mapi_util_set_generic_streams (mapi_object_t *obj_message, GSList *stre
 
 	talloc_free (mem_ctx);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return status;
 }
 
@@ -454,6 +466,8 @@ exchange_mapi_util_delete_attachments (mapi_object_t *obj_message)
 	uint32_t		attach_count;
 	uint32_t		i_row_attach;
 	gboolean 		status = TRUE;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mem_ctx = talloc_init ("ExchangeMAPI_DeleteAttachments");
 
@@ -516,6 +530,8 @@ cleanup:
 	mapi_object_release(&obj_tb_attach);
 	talloc_free (mem_ctx);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return status;
 }
 
@@ -528,6 +544,8 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 	GSList 		*l;
 	enum MAPISTATUS	retval;
 	gboolean 	status = TRUE;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	if (remove_existing)
 		exchange_mapi_util_delete_attachments (obj_message);
@@ -623,6 +641,8 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 
 	talloc_free (mem_ctx);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return status;
 }
 
@@ -638,6 +658,8 @@ exchange_mapi_util_get_attachments (mapi_object_t *obj_message, GSList **attach_
 	uint32_t		attach_count;
 	uint32_t		i_row_attach;
 	gboolean 		status = TRUE;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mem_ctx = talloc_init ("ExchangeMAPI_GetAttachments");
 
@@ -760,6 +782,8 @@ cleanup:
 	mapi_object_release(&obj_tb_attach);
 	talloc_free (mem_ctx);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return status;
 }
 
@@ -773,6 +797,8 @@ exchange_mapi_util_get_recipients (mapi_object_t *obj_message, GSList **recip_li
 	struct SRowSet		rows_recip;
 	uint32_t		i_row_recip;
 	gboolean 		status = TRUE;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 //	mem_ctx = talloc_init ("ExchangeMAPI_GetRecipients");
 
@@ -789,7 +815,7 @@ exchange_mapi_util_get_recipients (mapi_object_t *obj_message, GSList **recip_li
 
 			recipient->email_id = (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_SMTP_ADDRESS);
 			if (!recipient->email_id)
-				g_warning ("%s:%d %s() - object has a recipient without a PR_SMTP_ADDRESS\n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+				g_warning ("\n%s:%d %s() - object has a recipient without a PR_SMTP_ADDRESS ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
 			recipient->out.all_lpProps = rows_recip.aRow[i_row_recip].lpProps;
 			recipient->out.all_cValues = rows_recip.aRow[i_row_recip].cValues;
@@ -802,6 +828,8 @@ cleanup:
 	if (retval != MAPI_E_SUCCESS)
 		status = FALSE;
 //	talloc_free (mem_ctx);
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return status;
 }
@@ -830,6 +858,8 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 	GSList 			*l;
 	const char 		**users = NULL;
 	uint32_t 		i, j, count = 0;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	SPropTagArray = set_SPropTagArray(mem_ctx, 0x7,
 					  PR_DISPLAY_TYPE,
@@ -872,7 +902,7 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 		case MAPI_AMBIGUOUS:
 		/* We should never get an ambiguous resolution as we use the email-id for resolving. 
 		 * However, if we do still get an ambiguous entry, we can't handle it :-( */
-			g_warning ("%s:%d %s() - '%s' is ambiguous \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, recipient->email_id);
+			g_warning ("\n%s:%d %s() - '%s' is ambiguous ", __FILE__, __LINE__, __PRETTY_FUNCTION__, recipient->email_id);
 			break;
 		case MAPI_UNRESOLVED:
 		/* This is currently a bug in libmapi that unresolved recipients are not added to the SRowSet. 
@@ -900,6 +930,8 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 
 cleanup:
 	g_free (users);
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 }
 
 guint32
@@ -913,9 +945,9 @@ exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *r
 	struct SPropTagArray *SPropTagArray, *GetPropsTagArray;
 	uint32_t count = 0;
 
-	d(g_print("%s(%d): Entering %s: folder-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
+	d(g_print("\n%s(%d): Entering %s: folder-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
 
-	LOCK ();
+	LOCK();
 	mem_ctx = talloc_init("ExchangeMAPI_CheckRestriction");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -987,9 +1019,9 @@ cleanup:
 	mapi_object_release(&obj_table);
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
-	UNLOCK ();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return count;
 }
@@ -1013,9 +1045,10 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 	uint32_t count, i;
 	gboolean result = FALSE;
 
-	d(g_print("%s(%d): Entering %s: folder-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
+	d(g_print("\n%s(%d): Entering %s: folder-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
 
-	LOCK ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_FetchItems");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1101,7 +1134,7 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 		/* Add named props using callback */
 		if (build_name_id) {
 			if (!build_name_id (nameid, build_name_data)) {
-				g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+				g_warning ("\n%s(%d): (%s): Could not build named props ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 				goto GetProps_cleanup;
 			}
 
@@ -1150,7 +1183,6 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 		}
 
 		if (has_attach && *has_attach && (MAPI_OPTIONS_FETCH_ATTACHMENTS & options)) {
-			g_print ("%s(%d): %s: Fetching Attachments \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 			exchange_mapi_util_get_attachments (&obj_message, &attach_list);
 		}
 
@@ -1191,7 +1223,7 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 
 			/* NOTE: stream_list, recipient_list and attach_list should be freed by the callback */
 			if (!cb (&properties_array, *pfid, *pmid, stream_list, recip_list, attach_list, data)) {
-				g_warning ("%s(%d): %s: Callback failed for message-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, *pmid);
+				g_warning ("\n%s(%d): %s: Callback failed for message-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, *pmid);
 			}
 		}
 
@@ -1209,9 +1241,10 @@ cleanup:
 	mapi_object_release(&obj_table);
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
-	UNLOCK ();
+	LOGNONE();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s: folder-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
 
 	return result;
 }
@@ -1235,9 +1268,9 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 	GSList *stream_list = NULL;
 	gboolean result = FALSE;
 
-	d(g_print("%s(%d): Entering %s: folder-id %016llX message-id %016llX \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid, mid));
+	d(g_print("\n%s(%d): Entering %s: folder-id %016llX message-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid, mid));
 
-	LOCK ();
+	LOCK();
 	mem_ctx = talloc_init("ExchangeMAPI_FetchItem");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1272,7 +1305,7 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 		/* Add named props using callback */
 		if (build_name_id) {
 			if (!build_name_id (nameid, build_name_data)) {
-				g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+				g_warning ("\n%s(%d): (%s): Could not build named props ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 				goto GetProps_cleanup;
 			}
 
@@ -1357,9 +1390,9 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
-	UNLOCK ();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -1376,10 +1409,10 @@ exchange_mapi_create_folder (uint32_t olFolder, mapi_id_t pfid, const char *name
 	const char *type;
 	mapi_id_t fid = 0;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_top);
 	mapi_object_init(&obj_folder);
@@ -1435,16 +1468,16 @@ exchange_mapi_create_folder (uint32_t olFolder, mapi_id_t pfid, const char *name
 	}
 
 	fid = mapi_object_get_id (&obj_folder);
-	g_print("Folder %s created with id %016llX\n", name, fid);
+	g_print("\nFolder %s created with id %016llX ", name, fid);
 
 cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_top);
 	mapi_object_release(&obj_store);
 	LOGNONE();
-	UNLOCK ();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	/* Shouldn't we return (ExchangeMAPIFolder *) instead of a plain fid ? */
 	return fid;
@@ -1460,13 +1493,13 @@ exchange_mapi_empty_folder (mapi_id_t fid)
 	ExchangeMAPIFolder *folder;
 	gboolean result = FALSE;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	folder = exchange_mapi_folder_get_folder (fid);
 	g_return_val_if_fail (folder != NULL, FALSE);
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
 
@@ -1490,7 +1523,7 @@ exchange_mapi_empty_folder (mapi_id_t fid)
 		goto cleanup;
 	}
 
-	g_print("Folder with id %016llX was emptied\n", fid);
+	g_print("\nFolder with id %016llX was emptied ", fid);
 
 	result = TRUE;
 
@@ -1498,7 +1531,9 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	LOGNONE();
-	UNLOCK ();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -1514,13 +1549,13 @@ exchange_mapi_remove_folder (uint32_t olFolder, mapi_id_t fid)
 	ExchangeMAPIFolder *folder;
 	gboolean result = FALSE;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	folder = exchange_mapi_folder_get_folder (fid);
 	g_return_val_if_fail (folder != NULL, FALSE);
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_top);
 	mapi_object_init(&obj_folder);
@@ -1549,7 +1584,7 @@ exchange_mapi_remove_folder (uint32_t olFolder, mapi_id_t fid)
 		goto cleanup;
 	}
 
-	g_print("Folder with id %016llX was emptied\n", fid);
+	g_print("\nFolder with id %016llX was emptied ", fid);
 
 	/* Attempt to open the top/parent folder */
 	retval = OpenFolder(&obj_store, folder->parent_folder_id, &obj_top);
@@ -1565,7 +1600,7 @@ exchange_mapi_remove_folder (uint32_t olFolder, mapi_id_t fid)
 		goto cleanup;
 	}
 
-	g_print("Folder with id %016llX was deleted\n", fid);
+	g_print("\nFolder with id %016llX was deleted ", fid);
 
 	result = TRUE;
 
@@ -1574,9 +1609,9 @@ cleanup:
 	mapi_object_release(&obj_top);
 	mapi_object_release(&obj_store);
 	LOGNONE();
-	UNLOCK ();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -1592,13 +1627,15 @@ exchange_mapi_rename_folder (mapi_id_t fid, const char *new_name)
 	TALLOC_CTX *mem_ctx;
 	gboolean result = FALSE;
 
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	mem_ctx = talloc_init("ExchangeMAPI_RenameFolder");
 
 	folder = exchange_mapi_folder_get_folder (fid);
 
 	g_return_val_if_fail (folder != NULL, FALSE);
 
-	LOCK ();
+	LOCK();
 
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1631,7 +1668,9 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	UNLOCK ();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -1648,10 +1687,10 @@ exchange_mapi_util_resolve_named_props (uint32_t olFolder, mapi_id_t fid,
 	struct SPropTagArray *SPropTagArray, *ret_array = NULL;
 	uint32_t i;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_ResolveNamedProps");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1685,7 +1724,7 @@ exchange_mapi_util_resolve_named_props (uint32_t olFolder, mapi_id_t fid,
 	/* Add named props using callback */
 	if (build_name_id) {
 		if (!build_name_id (nameid, ni_data)) {
-			g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+			g_warning ("\n%s(%d): (%s): Could not build named props ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 			goto cleanup;
 		}
 
@@ -1706,10 +1745,10 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	LOGNONE ();
-	UNLOCK ();
+	LOGNONE();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return ret_array;
 }
@@ -1725,10 +1764,10 @@ exchange_mapi_util_resolve_named_prop (uint32_t olFolder, mapi_id_t fid, uint16_
 	struct SPropTagArray *SPropTagArray, *ret_array = NULL;
 	uint32_t i;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_ResolveNamedProp");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1777,10 +1816,10 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	LOGNONE ();
-	UNLOCK ();
+	LOGNONE();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return ret_array;
 }
@@ -1798,10 +1837,10 @@ exchange_mapi_util_create_named_prop (uint32_t olFolder, mapi_id_t fid,
 	struct SPropTagArray *SPropTagArray;
 	uint32_t propID = 0x00000000;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_CreateNamedProp");
 
 	mapi_object_init(&obj_store);
@@ -1851,12 +1890,54 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	LOGNONE ();
-	UNLOCK ();
+	LOGNONE();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return propID; 
+}
+
+mapi_id_t
+exchange_mapi_get_default_folder_id (uint32_t olFolder)
+{
+	enum MAPISTATUS retval;
+	TALLOC_CTX *mem_ctx;
+	mapi_object_t obj_store;
+	mapi_object_t obj_folder;
+	mapi_id_t fid = 0;
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	LOCK();
+	LOGALL();
+	mem_ctx = talloc_init("ExchangeMAPI_GetDefaultFolderID");
+	mapi_object_init(&obj_store);
+	mapi_object_init(&obj_folder);
+
+	/* Open the message store */
+	retval = OpenMsgStore(&obj_store);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenMsgStore", GetLastError());
+		goto cleanup;
+	}
+
+	retval = GetDefaultFolder(&obj_store, &fid, olFolder);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("GetDefaultFolder", GetLastError());
+		goto cleanup;
+	}
+
+cleanup:
+	mapi_object_release(&obj_folder);
+	mapi_object_release(&obj_store);
+	talloc_free(mem_ctx);
+	LOGNONE();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	return (retval == MAPI_E_SUCCESS ? fid : 0);
 }
 
 mapi_id_t
@@ -1877,10 +1958,10 @@ exchange_mapi_create_item (uint32_t olFolder, mapi_id_t fid,
 	gint propslen = 0;
 	mapi_id_t mid = 0;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_CreateItem");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1924,7 +2005,7 @@ exchange_mapi_create_item (uint32_t olFolder, mapi_id_t fid,
 	/* Add named props using callback */
 	if (build_name_id) {
 		if (!build_name_id (nameid, ni_data)) {
-			g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+			g_warning ("\n%s(%d): (%s): Could not build named props ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 			goto cleanup;
 		}
 
@@ -1939,7 +2020,7 @@ exchange_mapi_create_item (uint32_t olFolder, mapi_id_t fid,
 	if (build_props) {
 		propslen = build_props (&props, SPropTagArray, p_data);
 		if (propslen < 1) {
-			g_warning ("%s(%d): (%s): build_props failed! propslen = %d \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, propslen);
+			g_warning ("\n%s(%d): (%s): build_props failed! propslen = %d ", __FILE__, __LINE__, __PRETTY_FUNCTION__, propslen);
 			goto cleanup;
 		}
 	}
@@ -1988,10 +2069,10 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	LOGNONE ();
-	UNLOCK ();
+	LOGNONE();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return mid;
 }
@@ -2014,10 +2095,10 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 	gint propslen = 0;
 	gboolean result = FALSE;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_ModifyItem");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -2052,7 +2133,7 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 	/* Add named props using callback */
 	if (build_name_id) {
 		if (!build_name_id (nameid, ni_data)) {
-			g_warning ("%s(%d): (%s): Could not build named props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+			g_warning ("\n%s(%d): (%s): Could not build named props ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 			goto cleanup;
 		}
 
@@ -2067,7 +2148,7 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 	if (build_props) {
 		propslen = build_props (&props, SPropTagArray, p_data);
 		if (propslen < 1) {
-			g_warning ("%s(%d): (%s): Could not build props \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+			g_warning ("\n%s(%d): (%s): Could not build props ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 			goto cleanup;
 		}
 	}
@@ -2112,10 +2193,10 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	LOGNONE ();
-	UNLOCK ();
+	LOGNONE();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -2133,7 +2214,9 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 	guint i;
 	GSList *l;
 
-	LOCK ();
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	LOCK();
 
 	mem_ctx = talloc_init("ExchangeMAPI_ModifyItem");
 	mapi_object_init(&obj_store);
@@ -2172,7 +2255,9 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
-	UNLOCK ();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -2195,7 +2280,7 @@ mapi_move_items ( mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mid_list, gbool
 		mapi_id_array_add_id (&msg_id_array, *((mapi_id_t *)l->data));
 	}
 
-	LOCK ();
+	LOCK();
 
 	mapi_object_init(&obj_store);
 	retval = OpenMsgStore(&obj_store);
@@ -2227,7 +2312,7 @@ mapi_move_items ( mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mid_list, gbool
 	ret = true;
 
 cleanup:
-	UNLOCK ();
+	UNLOCK();
 	mapi_object_release(&obj_folder_src);
 	mapi_object_release(&obj_folder_dst);
 	mapi_object_release(&obj_store);
@@ -2261,10 +2346,10 @@ exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids)
 	GSList *tmp = mids;
 	gboolean result = FALSE;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	LOCK ();
-	LOGALL ();
+	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_RemoveItems");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -2303,9 +2388,9 @@ cleanup:
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
 	LOGNONE();
-	UNLOCK ();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -2324,6 +2409,8 @@ get_child_folders_pf(TALLOC_CTX *mem_ctx, mapi_object_t *parent, mapi_id_t folde
 	/* sanity check */
 	g_return_val_if_fail (mem_ctx != NULL, FALSE);
 	g_return_val_if_fail (parent != NULL, FALSE);
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mapi_object_init(&obj_folder);
 	mapi_object_init(&obj_htable);
@@ -2389,6 +2476,8 @@ cleanup:
 	mapi_object_release (&obj_folder);
 	mapi_object_release (&obj_htable);
 
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
 	return result;
 }
 
@@ -2408,6 +2497,8 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 	/* sanity check */
 	g_return_val_if_fail (mem_ctx != NULL, FALSE);
 	g_return_val_if_fail (parent != NULL, FALSE);
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mapi_object_init(&obj_folder);
 	mapi_object_init(&obj_table);
@@ -2470,7 +2561,7 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 			class = IPF_NOTE;
 
 		newname = utf8tolinux (name);
-		g_print("|---+ %-15s : (Container class: %s %016llX) UnRead : %d Total : %d\n", newname, class, *fid, *unread, *total);
+		g_print("\n|---+ %-15s : (Container class: %s %016llX) UnRead : %d Total : %d", newname, class, *fid, *unread, *total);
 
 		folder = exchange_mapi_folder_new (newname, parent_name, class, MAPI_PERSONAL_FOLDER, *fid, folder_id, *child, *unread, *total);
 		*mapi_folders = g_slist_prepend (*mapi_folders, folder);
@@ -2485,6 +2576,8 @@ cleanup:
 	MAPIFreeBuffer (SPropTagArray);
 	mapi_object_release (&obj_folder);
 	mapi_object_release (&obj_table);
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -2552,8 +2645,9 @@ exchange_mapi_get_folders_list (GSList **mapi_folders)
 	const char 		*mailbox_owner_name = NULL;
 	const char 		*mailbox_user_name = NULL;
 
-	d(g_print("%s(%d): Entering %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
-	LOCK ();
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	LOCK();
 	mem_ctx = talloc_init("ExchangeMAPI_GetFoldersList");
 	mapi_object_init(&obj_store);
 
@@ -2618,9 +2712,9 @@ exchange_mapi_get_folders_list (GSList **mapi_folders)
 cleanup:
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
-	UNLOCK ();
+	UNLOCK();
 
-	d(g_print("%s(%d): Leaving %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -2634,7 +2728,9 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 	mapi_id_t id_mailbox;
 	gboolean result = FALSE;
 
-	LOCK ();
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	LOCK();
 
 	mem_ctx = talloc_init("ExchangeMAPI_PF_GetFoldersList");
 	mapi_object_init(&obj_store);
@@ -2642,7 +2738,7 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 	retval = OpenPublicFolder(&obj_store);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenPublicFolder", GetLastError());
-		UNLOCK ();
+		UNLOCK();
 		goto cleanup;
 	}
 
@@ -2650,7 +2746,7 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 	retval = GetDefaultPublicFolder(&obj_store, &id_mailbox, olFolderPublicIPMSubtree);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr(__PRETTY_FUNCTION__, GetLastError());				
-		UNLOCK ();
+		UNLOCK();
 		goto cleanup;
 	}
 
@@ -2661,7 +2757,9 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 cleanup:
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
-	UNLOCK ();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }

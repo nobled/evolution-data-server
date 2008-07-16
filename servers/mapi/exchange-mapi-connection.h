@@ -134,6 +134,9 @@ guint32
 exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *res);
 
 mapi_id_t
+exchange_mapi_get_default_folder_id (uint32_t olFolder);
+
+mapi_id_t
 exchange_mapi_create_item (uint32_t olFolder, mapi_id_t fid, 
 			   BuildNameID build_name_id, gpointer ni_data, 
 			   BuildProps build_props, gpointer p_data, 
