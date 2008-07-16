@@ -1184,6 +1184,7 @@ get_summary_uid_numeric (CamelFolderSummary *summary, int index)
 	suid = camel_folder_summary_uid_from_index (summary, index);
 	uid = strtoul (suid, NULL, 10);
 	g_free (suid);
+
 	return uid;
 }
 

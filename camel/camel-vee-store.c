@@ -97,8 +97,6 @@ camel_vee_store_init (CamelVeeStore *obj)
 
 	/* we dont want a vtrash/vjunk on this one */
 	store->flags &= ~(CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK);	
-
-
 }
 
 static void

@@ -1364,7 +1364,7 @@ search_system_flag (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 		gboolean truth = FALSE;
 		
 		if (argc == 1) 
-				truth = camel_system_flag_get (camel_message_info_flags(search->current), argv[0]->value.string);
+			truth = camel_system_flag_get (camel_message_info_flags(search->current), argv[0]->value.string);
 		
 		r = e_sexp_result_new(f, ESEXP_RES_BOOL);
 		r->value.bool = truth;

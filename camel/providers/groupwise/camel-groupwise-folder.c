@@ -1971,6 +1971,7 @@ gw_update_all_items (CamelFolder *folder, GList *item_list, CamelException *ex)
 	GList *temp;
 	CamelFolderChangeInfo *changes = NULL;
 	char *uid;
+
 	changes = camel_folder_change_info_new ();
 
 	item_list = g_list_reverse (item_list);

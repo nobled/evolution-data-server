@@ -576,8 +576,6 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 	GHashTable *searched = g_hash_table_new(NULL, NULL);
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
 	
-
-	
 	if (vf != folder_unmatched)
 		expr = g_strdup_printf ("(and %s %s)", vf->expression ? vf->expression : "", expression);
 	else

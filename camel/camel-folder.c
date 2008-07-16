@@ -207,7 +207,7 @@ camel_folder_finalize (CamelObject *object)
 		camel_db_close (camel_folder->cdb);
 		camel_folder->cdb = NULL;
 	}
-	
+
 	g_static_rec_mutex_free(&p->lock);
 	g_static_mutex_free(&p->change_lock);
 	
@@ -332,10 +332,10 @@ camel_folder_refresh_info (CamelFolder *folder, CamelException *ex)
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
 
 	CAMEL_FOLDER_REC_LOCK(folder, lock);
-	
+
 	CF_CLASS (folder)->refresh_info (folder, ex);
 	
-	CAMEL_FOLDER_REC_UNLOCK(folder, lock);	
+	CAMEL_FOLDER_REC_UNLOCK(folder, lock);
 }
 
 static int
@@ -1461,9 +1461,9 @@ transfer_message_to (CamelFolder *source, const char *uid, CamelFolder *dest,
 {
 	CamelMimeMessage *msg;
 	CamelMessageInfo *minfo, *info;
-
+	
 	/* Default implementation. */
-
+	
 	msg = camel_folder_get_message(source, uid, ex);
 	if (!msg)
 		return;
@@ -1475,16 +1475,16 @@ transfer_message_to (CamelFolder *source, const char *uid, CamelFolder *dest,
 		camel_folder_free_message_info(source, minfo);
 	} else
 		info = camel_message_info_new_from_header(NULL, ((CamelMimePart *)msg)->headers);
-
+	
 	/* we don't want to retain the deleted flag */
 	camel_message_info_set_flags(info, CAMEL_MESSAGE_DELETED, 0);
-
+	
 	camel_folder_append_message (dest, msg, info, transferred_uid, ex);
 	camel_object_unref (msg);
-
+	
 	if (delete_original && !camel_exception_is_set (ex))
 		camel_folder_set_message_flags (source, uid, CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_SEEN, ~0);
-
+	
 	camel_message_info_free (info);
 }
 

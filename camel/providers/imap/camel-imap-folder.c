@@ -926,9 +926,12 @@ imap_rescan (CamelFolder *folder, int exists, CamelException *ex)
 			continue; 
 
 		info = camel_folder_summary_uid (folder->summary, uid);
+
 		iinfo = (CamelImapMessageInfo *)info;
+
 		if (strcmp (uid, new[i].uid) != 0) {
 			g_free (uid);
+
 			seq = i + 1;
 			g_array_append_val (removed, seq);
 			i--;
@@ -1161,6 +1164,7 @@ imap_sync_online (CamelFolder *folder, CamelException *ex)
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapMessageInfo *info;
 	CamelException local_ex;
+
 	GPtrArray *matches, *summary;
 	char *set, *flaglist, *uid;
 	int i, j, max;
@@ -3180,11 +3184,6 @@ imap_update_summary (CamelFolder *folder, int exists,
 			camel_folder_change_info_recent_uid (changes, camel_message_info_uid (mi));
 	}
 
-/* 	for ( ; i < messages->len; i++) { */
-/* 		if ((mi = messages->pdata[i])) */
-/* 			camel_message_info_free(&mi->info); */
-/* 	} */
-	
 	g_ptr_array_free (messages, TRUE);
 	
 	return;
@@ -3217,7 +3216,7 @@ camel_imap_folder_changed (CamelFolder *folder, int exists,
 	CamelMessageInfo *info;
 	int len;
 	char *uid;
-	
+
 	changes = camel_folder_change_info_new ();
 	if (expunged) {
 		int i, id;

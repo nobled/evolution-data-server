@@ -1,3 +1,16 @@
+2008-07-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #213072
+
+	* camel-folder.c: (camel_folder_refresh_info): Lock while rebuilding
+	summaries.
+
+2008-07-07  Matt McCutchen 2  <matt@mattmccutchen.net>
+
+	** Fix for bug #503922
+
+	* camel-folder-summary.c: Fix typo in mapping flag name "draft".
+
 2008-07-02  Jeffrey Stedfast  <fejj@novell.com>
 
 	* camel-folder.c (camel_folder_sort_uids): New method to sort an
@@ -88,7 +101,11 @@
 2008-05-27  Hiroyuki Ikezoe  <poincare@ikezoe.net>
 
 	** Fixes bug #534294.
+<<<<<<< HEAD:camel/ChangeLog
 	
+=======
+
+>>>>>>> trunk:camel/ChangeLog
 	* camel-folder-search.[ch]: Added accessor to _camel_header_param.
 	* camel-filter-search.c: Use camel_message_info_headers() instead of
 	direct access (i.e. ->headers) since the message does not have

@@ -33,9 +33,6 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define _XOPEN_SOURCE
-#include <time.h>
-
 #include <glib.h>
 #include <glib-object.h>
 #include <glib/gi18n-lib.h>
@@ -447,7 +444,7 @@ camel_folder_summary_array(CamelFolderSummary *s)
 {
 	GPtrArray *res = g_ptr_array_new();
 	int i;
-
+	
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 
 	g_ptr_array_set_size(res, s->uids->len);
@@ -459,7 +456,6 @@ camel_folder_summary_array(CamelFolderSummary *s)
 
 	return res;
 }
-
 
 struct _db_pass_data {
 	CamelFolderSummary *summary;
@@ -3732,7 +3728,7 @@ static struct flag_names_t {
 } flag_names[] = {
 	{ "answered", CAMEL_MESSAGE_ANSWERED },
 	{ "deleted", CAMEL_MESSAGE_DELETED },
-	{ "draft", CAMEL_MESSAGE_DELETED },
+	{ "draft", CAMEL_MESSAGE_DRAFT },
 	{ "flagged", CAMEL_MESSAGE_FLAGGED },
 	{ "seen", CAMEL_MESSAGE_SEEN },
 	{ "attachments", CAMEL_MESSAGE_ATTACHMENTS },

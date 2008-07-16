@@ -419,6 +419,7 @@ static void
 nntp_folder_finalise (CamelNNTPFolder *nntp_folder)
 {
 	struct _CamelNNTPFolderPrivate *p;
+
 	CamelException ex;
 
 	camel_exception_init (&ex);
@@ -515,6 +516,7 @@ camel_nntp_folder_new (CamelStore *parent, const char *folder_name, CamelExcepti
 	root = g_strdup_printf("%s.ev-summary", nntp_folder->storage_path);
 	folder->summary = (CamelFolderSummary *) camel_nntp_summary_new (folder, root);
 	g_free(root);
+
 	camel_folder_summary_load_from_db (folder->summary, ex);
 	
 	si = camel_store_summary_path ((CamelStoreSummary *) ((CamelNNTPStore*) parent)->summary, folder_name);
