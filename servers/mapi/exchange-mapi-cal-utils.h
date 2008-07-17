@@ -40,8 +40,9 @@ typedef enum {
 	NOT_A_MEETING = 0, 
 	MEETING_OBJECT = (1 << 0),
 	MEETING_OBJECT_SENT = (1 << 1),
-	MEETING_REQUEST = (1 << 2), 
-	MEETING_RESPONSE = (1 << 3)
+	MEETING_OBJECT_RCVD = (1 << 2), 
+	MEETING_REQUEST = (1 << 3), 
+	MEETING_RESPONSE = (1 << 4)
 } MAPIMeetingOptions;
 
 struct cbdata { 
@@ -59,8 +60,10 @@ struct cbdata {
 	struct SBinary *cleanglobalid;
 
 	const char *username;
+	const char *useridtype;
 	const char *userid;
 	const char *ownername;
+	const char *owneridtype;
 	const char *ownerid;
 };
 
@@ -82,16 +85,25 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 void
 exchange_mapi_cal_util_generate_globalobjectid (gboolean is_clean, const char *uid, struct SBinary *sb);
 
+char *
+exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties, 
+				   GSList *streams, GSList *recipients, GSList *attachments);
+
 /* we don't have to specify the PR_BODY_* tags since it is fetched by default */
 static const uint32_t cal_GetPropsList[] = {
 	PR_FID, 
 	PR_MID, 
+
 	PR_SUBJECT, 
 	PR_SUBJECT_UNICODE, 
 	PR_SUBJECT_ERROR, 
 	PR_NORMALIZED_SUBJECT, 
 	PR_NORMALIZED_SUBJECT_UNICODE, 
 	PR_NORMALIZED_SUBJECT_ERROR, 
+	PR_CONVERSATION_TOPIC, 
+	PR_CONVERSATION_TOPIC_UNICODE, 
+	PR_CONVERSATION_TOPIC_ERROR, 
+
 	PR_CREATION_TIME, 
 	PR_LAST_MODIFICATION_TIME, 
 	PR_PRIORITY, 

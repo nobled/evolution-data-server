@@ -1,3 +1,15 @@
+2008-07-17  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_recipients),
+	(ical_attendees_from_props),
+	(exchange_mapi_cal_util_mapi_props_to_comp),
+	(exchange_mapi_cal_util_camel_helper), (appt_build_name_id),
+	(exchange_mapi_cal_util_build_props): Added the camel_helper function, 
+	some minor changes to how we convert UTC time. 
+	* exchange-mapi-cal-utils.h: ABI change in struct cbdata. 
+	* exchange-mapi-connection.c: Remove unused macros
+
 2008-07-16  Suman Manjunath  <msuman@novell.com>
 
 	** Have loads of debug messages - helps track program flow.

@@ -29,11 +29,8 @@
 #include "exchange-mapi-utils.h"
 #include <param.h>
 
-#define CN_MSG_PROPS 2
-#define	STREAM_SIZE	0x4000
 #define DEFAULT_PROF_PATH ".evolution/mapi-profiles.ldb"
 #define d(x) x
-#define DATATEST 1
 
 static struct mapi_session *global_mapi_session= NULL;
 static GStaticRecMutex connect_lock = G_STATIC_REC_MUTEX_INIT;

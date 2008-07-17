@@ -76,9 +76,6 @@ struct _ECalBackendMAPIPrivate {
 	gboolean		mode_changed;
 	icaltimezone		*default_zone;
 
-	/* number of calendar items in the folder */
-	guint32			total_count;
-
 	/* timeout handler for syncing sendoptions */
 	guint			sendoptions_sync_timeout;
 	
@@ -999,7 +996,6 @@ e_cal_backend_mapi_connect (ECalBackendMAPI *cbmapi)
 	/* We have established a connection */
 	if (priv->cache && priv->fid) {
 		priv->mode = CAL_MODE_REMOTE;
-		priv->total_count = exchange_mapi_folder_get_total_count (exchange_mapi_folder_get_folder (priv->fid));
 		if (priv->mode_changed && !priv->dthread) {
 			priv->mode_changed = FALSE;
 			fetch_deltas (cbmapi);
@@ -1301,8 +1297,10 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 		exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
 	cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+	cbdata.useridtype = "SMTP";
 	cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
 	cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+	cbdata.owneridtype = "SMTP";
 	cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 	/* Check if object exists */
@@ -1408,8 +1406,10 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	rid = e_cal_component_get_recurid_as_string (comp);
 
 	cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+	cbdata.useridtype = "SMTP";
 	cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
 	cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+	cbdata.owneridtype = "SMTP";
 	cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 	switch (priv->mode) {
@@ -1627,8 +1627,10 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 				exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
 			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+			cbdata.useridtype = "SMTP";
 			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
 			cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+			cbdata.owneridtype = "SMTP";
 			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 			cbdata.comp = comp;
