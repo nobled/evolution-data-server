@@ -596,6 +596,7 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 
 	/* FixME : which on of this will fetch the subject. */
 	item->header.subject = g_strdup (find_mapi_SPropValue_data (array, PR_NORMALIZED_SUBJECT));
+
 	item->header.to = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_TO));
 	item->header.cc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_CC));
 	item->header.bcc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_BCC));
@@ -802,6 +803,18 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 	CamelStream *stream, *cache_stream;
 	int errno;
 
+	const guint32 message_prop_list[] = {
+		PR_NORMALIZED_SUBJECT,
+		PR_DISPLAY_TO,
+		PR_DISPLAY_CC,
+		PR_DISPLAY_BCC,
+		PR_SENT_REPRESENTING_NAME,
+		PR_MESSAGE_SIZE,
+		PR_BODY,
+		PR_MESSAGE_DELIVERY_TIME,
+		PR_MESSAGE_FLAGS
+	};
+
 	/* see if it is there in cache */
 
 	mi = (CamelMapiMessageInfo *) camel_folder_summary_uid (folder->summary, uid);
@@ -864,7 +877,7 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 
 	folder_id =  g_strdup (camel_mapi_store_folder_id_lookup (mapi_store, folder->full_name)) ;
 	exchange_mapi_connection_fetch_item (id_folder, id_message, 
-					NULL, 0, 
+					message_prop_list, G_N_ELEMENTS (message_prop_list), 
 					NULL, NULL, 
 					fetch_item_cb, item, 
 					MAPI_OPTIONS_FETCH_ATTACHMENTS | MAPI_OPTIONS_FETCH_BODY_STREAM | MAPI_OPTIONS_FETCH_BODY_STREAM);

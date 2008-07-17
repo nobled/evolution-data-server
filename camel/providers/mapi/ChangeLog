@@ -1,3 +1,8 @@
+2008-07-17  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (mapi_folder_get_message): Use GetProps instead
+	of GetPropsAll.
+
 2008-07-16  Johnny Jacob  <jjohnny@novell.com>	
 	
 	Initial support for Copy / Move Messages.
