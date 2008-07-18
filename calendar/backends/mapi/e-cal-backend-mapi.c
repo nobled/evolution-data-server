@@ -33,7 +33,6 @@
 
 #include <exchange-mapi-connection.h>
 #include <exchange-mapi-cal-utils.h>
-#include <exchange-mapi-folder.h>
 #include <exchange-mapi-utils.h>
 
 #define d(x) x
@@ -295,6 +294,7 @@ e_cal_backend_mapi_get_static_capabilities (ECalBackendSync *backend, EDataCal *
 //				CAL_STATIC_CAPABILITY_NO_TRANSPARENCY ","
 //				CAL_STATIC_CAPABILITY_ORGANIZER_MUST_ATTEND ","
 //				CAL_STATIC_CAPABILITY_ORGANIZER_NOT_EMAIL_ADDRESS ","
+				CAL_STATIC_CAPABILITY_CREATE_MESSAGES ","
 //				CAL_STATIC_CAPABILITY_SAVE_SCHEDULES ","
 				CAL_STATIC_CAPABILITY_NO_CONV_TO_ASSIGN_TASK ","
 				CAL_STATIC_CAPABILITY_NO_CONV_TO_RECUR ","
@@ -1674,7 +1674,7 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 		}
 	}
 	/* We need another static capability to say the backend has already sent the requests. */
-#if 0
+
 	if (status == GNOME_Evolution_Calendar_Success) {
 		ECalComponent *comp;
 
@@ -1695,7 +1695,7 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 		}
 		*modified_calobj = g_strdup (calobj);
 	}
-#endif
+
 	icalcomponent_free (icalcomp);
 
 	return GNOME_Evolution_Calendar_Success;

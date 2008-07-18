@@ -1,3 +1,10 @@
+2008-07-18  Suman Manjunath  <msuman@novell.com>
+
+	* e-cal-backend-mapi.c
+	(e_cal_backend_mapi_get_static_capabilities),
+	(e_cal_backend_mapi_send_objects): 
+	Use the newly added CAL_STATIC_CAPABILITY_CREATE_MESSAGES
+
 2008-07-17  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi.c (e_cal_backend_mapi_connect),
