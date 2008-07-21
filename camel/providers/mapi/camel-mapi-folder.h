@@ -88,6 +88,8 @@ typedef struct  {
 	MapiItemHeader header;
 	MapiItemMessage msg;
 
+	gboolean is_cal;
+
 	GSList *attachments;
 	GSList *generic_streams;
 }MapiItem;

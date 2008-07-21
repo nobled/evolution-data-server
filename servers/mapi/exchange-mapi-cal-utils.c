@@ -240,8 +240,10 @@ void
 exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_list)
 {
 	GSList *al = NULL, *l;
+	ECalComponentOrganizer organizer;
 
 	e_cal_component_get_attendee_list (comp, &al);
+	e_cal_component_get_organizer (comp, &organizer);
 
 	for (l = al; l != NULL; l = l->next) {
 		ECalComponentAttendee *attendee = (ECalComponentAttendee *)(l->data);
@@ -256,7 +258,7 @@ exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_lis
 		recipient->in.req_cValues = 5;
 		val = 0;
 		set_SPropValue_proptag (&(recipient->in.req_lpProps[0]), PR_SEND_INTERNET_ENCODING, (const void *)&val);
-		val = RECIP_SENDABLE;
+		val = RECIP_SENDABLE | (!g_ascii_strcasecmp(recipient->email_id, organizer.value) ? RECIP_ORGANIZER : 0);
 		set_SPropValue_proptag (&(recipient->in.req_lpProps[1]), PR_RECIPIENTS_FLAGS, (const void *)&val);
 		val = get_trackstatus_from_partstat (attendee->status);
 		set_SPropValue_proptag (&(recipient->in.req_lpProps[2]), PR_RECIPIENT_TRACKSTATUS, (const void *)&val);
@@ -796,6 +798,7 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 	char *str = NULL;
 	char *tmp;
 	icalcomponent *icalcomp = NULL;
+
 	comp = exchange_mapi_cal_util_mapi_props_to_comp (ICAL_VEVENT_COMPONENT, e_cal_component_gen_uid(), 
 						properties, streams, recipients, NULL, NULL, 
 						NULL);
@@ -821,6 +824,7 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 					exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(ICAL_VEVENT_COMPONENT),
 					exchange_mapi_cal_util_build_props, &cbdata, 
 					myrecipients, myattachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+	g_free (cbdata.props);
 	exchange_mapi_util_free_recipient_list (&myrecipients);
 
 	tmp = exchange_mapi_util_mapi_id_to_string (mid);

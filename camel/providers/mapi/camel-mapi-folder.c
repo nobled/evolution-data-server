@@ -580,6 +580,139 @@ end1:
 
 }
 
+/* we don't have to specify the PR_BODY_* tags since it is fetched by default */
+static const uint32_t camel_GetPropsList[] = {
+	PR_FID, 
+	PR_MID, 
+
+	PR_MESSAGE_CLASS, 
+	PR_MESSAGE_SIZE, 
+	PR_MESSAGE_FLAGS, 
+	PR_MESSAGE_DELIVERY_TIME, 
+
+	PR_SUBJECT, 
+	PR_SUBJECT_UNICODE, 
+	PR_NORMALIZED_SUBJECT, 
+	PR_NORMALIZED_SUBJECT_UNICODE, 
+	PR_CONVERSATION_TOPIC, 
+	PR_CONVERSATION_TOPIC_UNICODE, 
+
+	PR_DISPLAY_TO, 
+	PR_DISPLAY_TO_UNICODE, 
+	PR_DISPLAY_CC, 
+	PR_DISPLAY_CC_UNICODE, 
+	PR_DISPLAY_BCC, 
+	PR_DISPLAY_BCC_UNICODE, 
+
+	PR_CREATION_TIME, 
+	PR_LAST_MODIFICATION_TIME, 
+	PR_PRIORITY, 
+	PR_SENSITIVITY, 
+	PR_START_DATE, 
+	PR_END_DATE, 
+	PR_RESPONSE_REQUESTED, 
+	PR_OWNER_APPT_ID, 
+
+	PR_SENT_REPRESENTING_NAME, 
+	PR_SENT_REPRESENTING_NAME_UNICODE, 
+	PR_SENT_REPRESENTING_ADDRTYPE, 
+	PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
+	PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
+	PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
+
+	PR_SENDER_NAME, 
+	PR_SENDER_NAME_UNICODE, 
+	PR_SENDER_ADDRTYPE, 
+	PR_SENDER_ADDRTYPE_UNICODE, 
+	PR_SENDER_EMAIL_ADDRESS, 
+	PR_SENDER_EMAIL_ADDRESS_UNICODE, 
+
+	PR_RCVD_REPRESENTING_NAME, 
+	PR_RCVD_REPRESENTING_NAME_UNICODE, 
+	PR_RCVD_REPRESENTING_ADDRTYPE, 
+	PR_RCVD_REPRESENTING_ADDRTYPE_UNICODE, 
+	PR_RCVD_REPRESENTING_EMAIL_ADDRESS, 
+	PR_RCVD_REPRESENTING_EMAIL_ADDRESS_UNICODE
+};
+
+static gboolean 
+camel_build_name_id (struct mapi_nameid *nameid, gpointer data)
+{
+	mapi_nameid_lid_add(nameid, 0x8501, PSETID_Common); 	// PT_LONG - ReminderMinutesBeforeStart
+	mapi_nameid_lid_add(nameid, 0x8502, PSETID_Common); 	// PT_SYSTIME - ReminderTime
+	mapi_nameid_lid_add(nameid, 0x8503, PSETID_Common); 	// PT_BOOLEAN - ReminderSet
+	mapi_nameid_lid_add(nameid, 0x8506, PSETID_Common); 	// PT_BOOLEAN - Private
+	mapi_nameid_lid_add(nameid, 0x8510, PSETID_Common); 	// PT_LONG - (context menu flags)
+	mapi_nameid_lid_add(nameid, 0x8516, PSETID_Common); 	// PT_SYSTIME - CommonStart
+	mapi_nameid_lid_add(nameid, 0x8517, PSETID_Common); 	// PT_SYSTIME - CommonEnd
+	mapi_nameid_lid_add(nameid, 0x8560, PSETID_Common); 	// PT_SYSTIME - ReminderNextTime
+
+	mapi_nameid_lid_add(nameid, 0x8201, PSETID_Appointment); 	// PT_LONG - ApptSequence
+	mapi_nameid_lid_add(nameid, 0x8205, PSETID_Appointment); 	// PT_LONG - BusyStatus
+	mapi_nameid_lid_add(nameid, 0x8208, PSETID_Appointment); 	// PT_STRING8 - Location
+	mapi_nameid_lid_add(nameid, 0x820D, PSETID_Appointment); 	// PT_SYSTIME - Start/ApptStartWhole
+	mapi_nameid_lid_add(nameid, 0x820E, PSETID_Appointment); 	// PT_SYSTIME - End/ApptEndWhole
+	mapi_nameid_lid_add(nameid, 0x8213, PSETID_Appointment); 	// PT_LONG - Duration/ApptDuration
+	mapi_nameid_lid_add(nameid, 0x8215, PSETID_Appointment); 	// PT_BOOLEAN - AllDayEvent (also called ApptSubType)
+	mapi_nameid_lid_add(nameid, 0x8216, PSETID_Appointment); 	// PT_BINARY - (recurrence blob)
+	mapi_nameid_lid_add(nameid, 0x8217, PSETID_Appointment); 	// PT_LONG - MeetingStatus
+	mapi_nameid_lid_add(nameid, 0x8218, PSETID_Appointment); 	// PT_LONG - ResponseStatus
+	mapi_nameid_lid_add(nameid, 0x8223, PSETID_Appointment); 	// PT_BOOLEAN - Recurring
+	mapi_nameid_lid_add(nameid, 0x8224, PSETID_Appointment); 	// PT_LONG - IntendedBusyStatus
+	mapi_nameid_lid_add(nameid, 0x8228, PSETID_Appointment); 	// PT_SYSTIME - RecurrenceBase
+	mapi_nameid_lid_add(nameid, 0x8229, PSETID_Appointment); 	// PT_BOOLEAN - FInvited
+	mapi_nameid_lid_add(nameid, 0x8231, PSETID_Appointment); 	// PT_LONG - RecurrenceType
+	mapi_nameid_lid_add(nameid, 0x8232, PSETID_Appointment); 	// PT_STRING8 - RecurrencePattern
+	mapi_nameid_lid_add(nameid, 0x8235, PSETID_Appointment); 	// PT_SYSTIME - (dtstart)(for recurring events UTC 12 AM of day of start)
+	mapi_nameid_lid_add(nameid, 0x8236, PSETID_Appointment); 	// PT_SYSTIME - (dtend)(for recurring events UTC 12 AM of day of end)
+	mapi_nameid_lid_add(nameid, 0x823A, PSETID_Appointment); 	// PT_BOOLEAN - AutoFillLocation
+	mapi_nameid_lid_add(nameid, 0x8240, PSETID_Appointment); 	// PT_BOOLEAN - IsOnlineMeeting
+	mapi_nameid_lid_add(nameid, 0x8257, PSETID_Appointment); 	// PT_BOOLEAN - ApptCounterProposal
+	mapi_nameid_lid_add(nameid, 0x825E, PSETID_Appointment); 	// PT_BINARY - (timezone for dtstart)
+	mapi_nameid_lid_add(nameid, 0x825F, PSETID_Appointment); 	// PT_BINARY - (timezone for dtend)
+
+	mapi_nameid_lid_add(nameid, 0x0002, PSETID_Meeting); 		// PT_STRING8 - Where
+	mapi_nameid_lid_add(nameid, 0x0003, PSETID_Meeting); 		// PT_BINARY - GlobalObjectId
+	mapi_nameid_lid_add(nameid, 0x0005, PSETID_Meeting); 		// PT_BOOLEAN - IsRecurring
+	mapi_nameid_lid_add(nameid, 0x000a, PSETID_Meeting); 		// PT_BOOLEAN - IsException 
+	mapi_nameid_lid_add(nameid, 0x0023, PSETID_Meeting); 		// PT_BINARY - CleanGlobalObjectId
+	mapi_nameid_lid_add(nameid, 0x0024, PSETID_Meeting); 		// PT_STRING8 - AppointmentMessageClass 
+	mapi_nameid_lid_add(nameid, 0x0026, PSETID_Meeting); 		// PT_LONG - MeetingType
+
+	/* These probably would never be used from Evolution */
+//	mapi_nameid_lid_add(nameid, 0x8200, PSETID_Appointment); 	// PT_BOOLEAN - SendAsICAL
+//	mapi_nameid_lid_add(nameid, 0x8202, PSETID_Appointment); 	// PT_SYSTIME - ApptSequenceTime
+//	mapi_nameid_lid_add(nameid, 0x8214, PSETID_Appointment); 	// PT_LONG - Label
+//	mapi_nameid_lid_add(nameid, 0x8234, PSETID_Appointment); 	// PT_STRING8 - display TimeZone
+//	mapi_nameid_lid_add(nameid, 0x8238, PSETID_Appointment); 	// PT_STRING8 - AllAttendees
+//	mapi_nameid_lid_add(nameid, 0x823B, PSETID_Appointment); 	// PT_STRING8 - ToAttendeesString (dupe PR_DISPLAY_TO)
+//	mapi_nameid_lid_add(nameid, 0x823C, PSETID_Appointment); 	// PT_STRING8 - CCAttendeesString (dupe PR_DISPLAY_CC)
+
+	mapi_nameid_lid_add(nameid, 0x8101, PSETID_Task); 	// PT_LONG - Status
+	mapi_nameid_lid_add(nameid, 0x8102, PSETID_Task); 	// PT_DOUBLE - PercentComplete
+	mapi_nameid_lid_add(nameid, 0x8103, PSETID_Task); 	// PT_BOOLEAN - TeamTask
+	mapi_nameid_lid_add(nameid, 0x8104, PSETID_Task); 	// PT_SYSTIME - StartDate/TaskStartDate
+	mapi_nameid_lid_add(nameid, 0x8105, PSETID_Task); 	// PT_SYSTIME - DueDate/TaskDueDate
+	mapi_nameid_lid_add(nameid, 0x810F, PSETID_Task); 	// PT_SYSTIME - DateCompleted
+//	mapi_nameid_lid_add(nameid, 0x8116, PSETID_Task); 	// PT_BINARY - (recurrence blob)
+	mapi_nameid_lid_add(nameid, 0x811C, PSETID_Task); 	// PT_BOOLEAN - Complete
+	mapi_nameid_lid_add(nameid, 0x811F, PSETID_Task); 	// PT_STRING8 - Owner
+	mapi_nameid_lid_add(nameid, 0x8121, PSETID_Task); 	// PT_STRING8 - Delegator
+	mapi_nameid_lid_add(nameid, 0x8126, PSETID_Task); 	// PT_BOOLEAN - IsRecurring/TaskFRecur
+	mapi_nameid_lid_add(nameid, 0x8127, PSETID_Task); 	// PT_STRING8 - Role
+	mapi_nameid_lid_add(nameid, 0x8129, PSETID_Task); 	// PT_LONG - Ownership
+	mapi_nameid_lid_add(nameid, 0x812A, PSETID_Task); 	// PT_LONG - DelegationState
+
+	/* These probably would never be used from Evolution */
+//	mapi_nameid_lid_add(nameid, 0x8110, PSETID_Task); 	// PT_LONG - ActualWork/TaskActualEffort
+//	mapi_nameid_lid_add(nameid, 0x8111, PSETID_Task); 	// PT_LONG - TotalWork/TaskEstimatedEffort
+
+	/* These probably would never be used from Evolution */
+//	mapi_nameid_lid_add(nameid, 0x8B00, PSETID_Note); 	// PT_LONG - Color
+
+	return TRUE;
+}
+
 static gboolean
 fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, 
 		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
@@ -587,6 +720,7 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	exchange_mapi_debug_property_dump (array);
 	long *flags;
 	struct FILETIME *delivery_date;
+	const char *msg_class;
 	NTTIME ntdate;
 
 	MapiItem *item = data;
@@ -595,15 +729,21 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	item->mid = mid;
 
 	/* FixME : which on of this will fetch the subject. */
-	item->header.subject = g_strdup (find_mapi_SPropValue_data (array, PR_NORMALIZED_SUBJECT));
-
-	item->header.to = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_TO));
-	item->header.cc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_CC));
-	item->header.bcc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_BCC));
-	item->header.from = g_strdup (find_mapi_SPropValue_data (array, PR_SENT_REPRESENTING_NAME));
+	item->header.subject = g_strdup (exchange_mapi_util_find_array_propval (array, PR_NORMALIZED_SUBJECT));
+	item->header.to = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_TO));
+	item->header.cc = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_CC));
+	item->header.bcc = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_BCC));
+	item->header.from = g_strdup (exchange_mapi_util_find_array_propval (array, PR_SENT_REPRESENTING_NAME));
 	item->header.size = *(glong *)(find_mapi_SPropValue_data (array, PR_MESSAGE_SIZE));
 
-	item->msg.body_plain_text = g_strdup (find_mapi_SPropValue_data (array, PR_BODY));
+	msg_class = (const char *)find_mapi_SPropValue_data (array, PR_MESSAGE_CLASS);
+	if (g_str_has_prefix (msg_class, "IPM.Schedule.")) {
+		item->msg.body_plain_text = exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
+		item->is_cal = TRUE;
+	} else { 
+		item->msg.body_plain_text = g_strdup (find_mapi_SPropValue_data (array, PR_BODY));
+		item->is_cal = FALSE;
+	}
 
 	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(array, PR_MESSAGE_DELIVERY_TIME);
 	if (delivery_date) {
@@ -714,9 +854,12 @@ mapi_populate_msg_body_from_item (CamelMultipart *multipart, MapiItem *item, cha
 
 /*TODO: type = mapi_item_class_to_type (item); */
 
-	if (body)
-		camel_mime_part_set_content(part, body, strlen(body), "text/plain");
-	else
+	if (body) { 
+		if (item->is_cal)
+			camel_mime_part_set_content(part, body, strlen(body), "text/calendar");
+		else
+			camel_mime_part_set_content(part, body, strlen(body), "text/plain");
+	} else
 		camel_mime_part_set_content(part, " ", strlen(" "), "text/html");
 
 	camel_multipart_set_boundary (multipart, NULL);
@@ -803,18 +946,6 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 	CamelStream *stream, *cache_stream;
 	int errno;
 
-	const guint32 message_prop_list[] = {
-		PR_NORMALIZED_SUBJECT,
-		PR_DISPLAY_TO,
-		PR_DISPLAY_CC,
-		PR_DISPLAY_BCC,
-		PR_SENT_REPRESENTING_NAME,
-		PR_MESSAGE_SIZE,
-		PR_BODY,
-		PR_MESSAGE_DELIVERY_TIME,
-		PR_MESSAGE_FLAGS
-	};
-
 	/* see if it is there in cache */
 
 	mi = (CamelMapiMessageInfo *) camel_folder_summary_uid (folder->summary, uid);
@@ -877,10 +1008,10 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 
 	folder_id =  g_strdup (camel_mapi_store_folder_id_lookup (mapi_store, folder->full_name)) ;
 	exchange_mapi_connection_fetch_item (id_folder, id_message, 
-					message_prop_list, G_N_ELEMENTS (message_prop_list), 
-					NULL, NULL, 
+					camel_GetPropsList, G_N_ELEMENTS (camel_GetPropsList), 
+					camel_build_name_id, NULL, 
 					fetch_item_cb, item, 
-					MAPI_OPTIONS_FETCH_ATTACHMENTS | MAPI_OPTIONS_FETCH_BODY_STREAM | MAPI_OPTIONS_FETCH_BODY_STREAM);
+					MAPI_OPTIONS_FETCH_ALL);
 
 	if (item == NULL) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));

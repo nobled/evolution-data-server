@@ -165,6 +165,7 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 	g_return_val_if_fail (proptag != PR_RTF_COMPRESSED, FALSE);
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+	d(g_print("\nAttempt to read stream for proptag 0x%08X ", proptag));
 
 	mem_ctx = talloc_init ("ExchangeMAPI_ReadGenericStream");
 
@@ -233,6 +234,7 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 		stream->value = g_byte_array_append (stream->value, body.data, body.length);
 
 		stream->proptag = properties_array.lpProps[0].ulPropTag;
+		d(g_print("\nAttempt succeeded for proptag 0x%08X (after name conversion) ", stream->proptag));
 
 		*stream_list = g_slist_append (*stream_list, stream);
 	}

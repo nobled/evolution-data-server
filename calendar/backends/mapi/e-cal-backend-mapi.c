@@ -529,7 +529,7 @@ get_deltas (gpointer handle)
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	if (!exchange_mapi_connection_fetch_items (priv->fid, use_restriction ? &res : NULL, 
-						cal_GetPropsList, n_cal_GetPropsList, 
+						cal_GetPropsList, G_N_ELEMENTS (cal_GetPropsList), 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						mapi_cal_get_changes_cb, cbmapi, 
 						MAPI_OPTIONS_FETCH_ALL)) {
@@ -553,7 +553,7 @@ get_deltas (gpointer handle)
 	 * so should not be freed, only the list should. */
 	priv->cache_keys = e_cal_backend_cache_get_keys (priv->cache);
 	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
-						cal_IDList, n_cal_IDList, 
+						cal_IDList, G_N_ELEMENTS (cal_IDList), 
 						NULL, NULL, 
 						handle_deleted_items_cb, cbmapi, 
 						0)) {
@@ -914,7 +914,7 @@ populate_cache (ECalBackendMAPI *cbmapi)
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
-						cal_GetPropsList, n_cal_GetPropsList, 
+						cal_GetPropsList, G_N_ELEMENTS (cal_GetPropsList), 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						mapi_cal_cache_create_cb, cbmapi, 
 						MAPI_OPTIONS_FETCH_ALL)) {

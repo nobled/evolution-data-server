@@ -1,3 +1,19 @@
+2008-07-21  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-tz-utils.c
+	(exchange_mapi_cal_tz_util_get_mapi_equivalent),
+	(exchange_mapi_cal_tz_util_get_ical_equivalent),
+	(exchange_mapi_cal_tz_util_destroy),
+	(exchange_mapi_cal_tz_util_populate): Don't use the LRU mechanism, 
+	always attempt to populate the hash tables if they are empty. 
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_recipients): Handle the ORGANIZER when
+	present in the attendees list as well. 
+	(exchange_mapi_cal_util_camel_helper): Fixed memory leak. 
+	* exchange-mapi-cal-utils.h:
+	* exchange-mapi-connection.c
+	(exchange_mapi_util_read_generic_stream): Do some more logging. 
+
 2008-07-17  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-cal-utils.c

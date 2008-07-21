@@ -34,61 +34,48 @@ static GStaticRecMutex mutex = G_STATIC_REC_MUTEX_INIT;
 static GHashTable *mapi_to_ical = NULL;
 static GHashTable *ical_to_mapi = NULL;
 
-static const gchar *lru_mapi_id = NULL;
-static const gchar *lru_ical_id = NULL;
-
 const gchar *
 exchange_mapi_cal_tz_util_get_mapi_equivalent (const gchar *ical_tzid)
 {
+	const gchar *retval = NULL;
+
 	g_return_val_if_fail ((ical_tzid && *ical_tzid), NULL);
 
 	g_static_rec_mutex_lock(&mutex);
-	if (!(mapi_to_ical && ical_to_mapi)) {
+	if (!exchange_mapi_cal_tz_util_populate()) {
 		g_static_rec_mutex_unlock(&mutex);
 		return NULL;
 	}
 
 	d(g_message("%s(%d): %s of '%s' ", __FILE__, __LINE__, __PRETTY_FUNCTION__, ical_tzid));
 
-	if (lru_ical_id && !g_ascii_strcasecmp (ical_tzid, lru_ical_id)) {
-		g_static_rec_mutex_unlock(&mutex);
-		return lru_mapi_id;
-	}
-
-	lru_mapi_id = lru_ical_id = NULL;
-	if ((lru_mapi_id = g_hash_table_lookup (ical_to_mapi, ical_tzid)) != NULL)
-		lru_ical_id = ical_tzid;
+	retval = g_hash_table_lookup (ical_to_mapi, ical_tzid);
 
 	g_static_rec_mutex_unlock(&mutex);
 
-	return lru_mapi_id;
+	return retval;
 }
 
 const gchar *
 exchange_mapi_cal_tz_util_get_ical_equivalent (const gchar *mapi_tzid)
 {
+	const gchar *retval = NULL;
+
 	g_return_val_if_fail ((mapi_tzid && *mapi_tzid), NULL);
 
 	g_static_rec_mutex_lock(&mutex);
-	if (!(mapi_to_ical && ical_to_mapi)) {
+	if (!exchange_mapi_cal_tz_util_populate()) {
 		g_static_rec_mutex_unlock(&mutex);
 		return NULL;
 	}
 
 	d(g_message("%s(%d): %s of '%s' ", __FILE__, __LINE__, __PRETTY_FUNCTION__, mapi_tzid));
 
-	if (lru_mapi_id && !g_ascii_strcasecmp (mapi_tzid, lru_mapi_id)) {
-		g_static_rec_mutex_unlock(&mutex);
-		return lru_ical_id;
-	}
-
-	lru_ical_id = lru_mapi_id = NULL;
-	if ((lru_ical_id = g_hash_table_lookup (mapi_to_ical, mapi_tzid)) != NULL)
-		lru_mapi_id = mapi_tzid;
+	retval = g_hash_table_lookup (mapi_to_ical, mapi_tzid);
 
 	g_static_rec_mutex_unlock(&mutex);
 
-	return lru_ical_id;
+	return retval;
 }
 
 void
@@ -106,9 +93,6 @@ exchange_mapi_cal_tz_util_destroy ()
 	/* Reset all the values */
 	mapi_to_ical = NULL;
 	ical_to_mapi = NULL;
-
-	lru_mapi_id = NULL;
-	lru_ical_id = NULL;
 
 	g_static_rec_mutex_unlock(&mutex);
 }
@@ -194,7 +178,10 @@ exchange_mapi_cal_tz_util_populate ()
 	g_mapped_file_free (mtoi_mf);
 	g_mapped_file_free (itom_mf);
 
+	d(exchange_mapi_cal_tz_util_dump ());
+
 	g_static_rec_mutex_unlock(&mutex);
+
 	return TRUE;
 }
 

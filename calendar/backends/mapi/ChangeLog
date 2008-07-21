@@ -1,3 +1,11 @@
+2008-07-21  Suman Manjunath  <msuman@novell.com>
+
+	* e-cal-backend-mapi-factory.c (eds_module_initialize),
+	(eds_module_shutdown): Don't use the timezone initialization. It now
+	happens automatically. 
+	* e-cal-backend-mapi.c (get_deltas), (populate_cache): Don't use the 
+	extra variables. 
+
 2008-07-18  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi.c

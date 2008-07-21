@@ -1,3 +1,10 @@
+2008-07-21  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-folder.c (camel_build_name_id), (fetch_item_cb),
+	(mapi_populate_msg_body_from_item), (mapi_folder_get_message):
+	* camel-mapi-folder.h:
+	Initial code for rendering meeting requests. 
+
 2008-07-17  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (mapi_folder_get_message): Use GetProps instead
