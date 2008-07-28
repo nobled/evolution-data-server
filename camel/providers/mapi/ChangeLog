@@ -1,3 +1,12 @@
+2008-07-29  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-summary.c (mapi_content_info_save)
+	(mapi_content_info_load, mapi_message_info_save)
+	(mapi_message_info_load, mapi_summary_header_save)
+	(mapi_summary_header_load): Call parent.
+
+	* camel-mapi-folder.c (mapi_update_cache): clean ups.
+
 2008-07-28  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-summary.c (camel_mapi_summary_class_init): Fixed class 

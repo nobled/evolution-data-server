@@ -149,44 +149,59 @@ camel_mapi_summary_new (struct _CamelFolder *folder, const char *filename)
 }
 
 static int
-mapi_summary_header_load (CamelFolderSummary *summary, FILE *out) 
+mapi_summary_header_load (CamelFolderSummary *summary, FILE *in) 
 {
-	//TODO 
+	if (camel_mapi_summary_parent->summary_header_load (summary, in) == -1)
+		return -1 ;
+
 	return 0;
 }
 static int 
 mapi_summary_header_save (CamelFolderSummary *summary, FILE *out) 
 {
-	//TODO
+	if (camel_mapi_summary_parent->summary_header_save (summary, out) == -1)
+		return -1;
+
 	return 0;
 }
 
 static CamelMessageInfo*
 mapi_message_info_load (CamelFolderSummary *s, FILE *in) 
 {
-	//TODO
-	return NULL;
+	CamelMessageInfo *info ;
+
+	info = camel_mapi_summary_parent->message_info_load(s,in) ;
+
+	return info ;
 }
 
 static int 
 mapi_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info) 
 {
-	//TODO
+	if (camel_mapi_summary_parent->message_info_save (s, out, info) == -1)
+		return -1;
+
 	return 0;
 }
 
 static CamelMessageContentInfo* 
 mapi_content_info_load (CamelFolderSummary *s, FILE *in) 
 {
-	//TODO
-	return NULL;
+
+	if (fgetc (in))
+		return camel_mapi_summary_parent->content_info_load (s, in);
+	else
+		return camel_folder_summary_content_info_new (s);
 }
 
 static int
 mapi_content_info_save (CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *info)
 {
-	//TODO
-	return 0;
+	if (info->type) {
+		fputc (1, out);
+		return camel_mapi_summary_parent->content_info_save (s, out, info);
+	} else
+		return fputc (0, out);
 }
 
 void

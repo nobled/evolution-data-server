@@ -295,36 +295,15 @@ mapi_update_cache (CamelFolder *folder, GSList *list, CamelException *ex, gboole
 		if (!strcmp (folder->full_name, "Junk Mail"))
 			continue;
 
-		/******************** Begine Caching ************************/
-		//add to cache if its a new message
-		t_cache_stream  = camel_data_cache_get (mapi_folder->cache, "cache", msg_uid, ex);
-		if (t_cache_stream) {
-			camel_object_unref (t_cache_stream);
-
-			mail_msg = mapi_folder_item_to_msg (folder, item, ex);
-
-			CAMEL_MAPI_FOLDER_REC_LOCK (folder, cache_lock);
-			if ((cache_stream = camel_data_cache_add (mapi_folder->cache, "cache", msg_uid, NULL))) {
-				if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) mail_msg, 	cache_stream) == -1 || camel_stream_flush (cache_stream) == -1)
-					camel_data_cache_remove (mapi_folder->cache, "cache", msg_uid, NULL);
-				camel_object_unref (cache_stream);
-			}
-
-			camel_object_unref (mail_msg);
-			CAMEL_MAPI_FOLDER_REC_UNLOCK (folder, cache_lock);
-		}
-		/******************** Caching stuff ends *************************/
 		g_free (msg_uid);
 		i++;
 	}
 	camel_operation_end (NULL);
-	//	g_free (container_id);
+
 	g_string_free (str, TRUE);
 	camel_object_trigger_event (folder, "folder_changed", changes);
 
 	camel_folder_change_info_free (changes);
-	//TASK 2.
-
 }
 
 static void 
