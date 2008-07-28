@@ -71,7 +71,7 @@
 
 struct _CamelMapiStorePrivate {
 	char *user;
-	char *profile;
+	const char *profile;
 	char *base_url;
 	char *storage_path;
 
@@ -1208,7 +1208,17 @@ camel_mapi_store_folder_lookup (CamelMapiStore *mapi_store, const char *folder_i
 	return g_hash_table_lookup (priv->id_hash, folder_id);
 }
 
+const gchar *
+camel_mapi_store_get_profile_name (CamelMapiStore *mapi_store)
+{
+	CamelMapiStorePrivate *priv;
 
+	g_return_val_if_fail (CAMEL_IS_MAPI_STORE (mapi_store), NULL);
+
+	priv = mapi_store->priv;
+
+	return priv->profile;
+}
 
 
 static void
