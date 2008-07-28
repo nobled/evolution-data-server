@@ -1,3 +1,8 @@
+2008-07-28  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-summary.c (camel_mapi_summary_class_init): Fixed class 
+	hierachy.
+
 2008-07-28  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-folder.c (fetch_item_cb): Use PR_MESSAGE_CLASS_UNICODE if 

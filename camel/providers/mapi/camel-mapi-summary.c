@@ -95,7 +95,7 @@ camel_mapi_summary_class_init (CamelMapiSummaryClass *klass)
 {
 	CamelFolderSummaryClass *cfs_class = (CamelFolderSummaryClass *) klass;
 
-	camel_mapi_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS (camel_type_get_global_classfuncs (camel_mapi_folder_get_type()));
+	camel_mapi_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS (camel_type_get_global_classfuncs (camel_folder_summary_get_type()));
 
 	cfs_class->message_info_clone = mapi_message_info_clone ;
 	cfs_class->summary_header_load = mapi_summary_header_load;
