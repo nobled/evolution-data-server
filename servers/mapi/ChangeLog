@@ -1,3 +1,23 @@
+2008-07-28  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_mapi_props_to_comp): Add APPT-SEQ to the object.
+	(capture_req_props), (update_server_object), (check_server_for_object),
+	(exchange_mapi_cal_util_camel_helper): Don't create object on server if 
+	it already exists, other important checks to see if object creation is 
+	necessary. 
+	(appt_build_name_id), (exchange_mapi_cal_util_build_props): Set
+	NOT_ALLOW_PROPOSE correctly. 
+	(exchange_mapi_cal_util_get_new_appt_id): Utility from backend. 
+	* exchange-mapi-cal-utils.h:
+	* exchange-mapi-connection.c
+	(exchange_mapi_util_check_restriction): API change. Return list of IDs
+	if restriction is matched. 
+	(exchange_mapi_modify_item), (exchange_mapi_remove_items): Use olFolder
+	(exchange_mapi_set_flags): Typo fix
+	* exchange-mapi-connection.h: Declaration fix for API change. 
+	* exchange-mapi-utils.c (exchange_mapi_debug_property_dump): Use g_print
+
 2008-07-21  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-cal-tz-utils.c

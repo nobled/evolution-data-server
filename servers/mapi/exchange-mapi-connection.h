@@ -130,7 +130,7 @@ exchange_mapi_empty_folder (mapi_id_t fid);
 gboolean 
 exchange_mapi_rename_folder (mapi_id_t fid, const char *new_name);
 
-guint32
+GSList *
 exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *res);
 
 mapi_id_t

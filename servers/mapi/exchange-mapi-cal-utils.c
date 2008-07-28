@@ -600,6 +600,16 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 			g_free (value);
 		}
 
+		/* AppointmentSequence */
+		ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+		if (ui32) {
+			gchar *value = g_strdup_printf ("%d", *ui32);
+			prop = icalproperty_new_x (value);
+			icalproperty_set_x_name (prop, "X-EVOLUTION-MAPI-APPTSEQ");
+			icalcomponent_add_property (ical_comp, prop);
+			g_free (value);
+		}
+
 		location = (const char *)exchange_mapi_util_find_array_propval(properties, PROP_TAG(PT_STRING8, 0x8208));
 		if (location && *location)
 			icalcomponent_set_location (ical_comp, location);
@@ -786,55 +796,176 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 	return comp;
 }
 
+static gboolean 
+capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
+		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+{
+	struct cbdata *cbdata = (struct cbdata *) data;
+	const uint32_t *ui32;
+
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+	if (ui32)
+		cbdata->appt_seq = *ui32;
+	else 
+		cbdata->appt_seq = 0;
+
+	return TRUE;
+}
+
+static void 
+update_server_object (struct mapi_SPropValue_array *properties, GSList *attachments, ECalComponent *comp, mapi_id_t *mid)
+{
+	const uint32_t *ui32 = NULL;
+	uint32_t cur_seq;
+	mapi_id_t fid;
+	gboolean create_new = TRUE;
+
+	fid = exchange_mapi_get_default_folder_id (olFolderCalendar);
+
+	ui32 = (const uint32_t *) find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+	if (ui32)
+		cur_seq = *ui32;
+
+	if (*mid) {
+		struct cbdata server_cbdata;
+		server_cbdata.appt_seq = 0;
+
+		exchange_mapi_connection_fetch_item (fid, *mid, 
+			NULL, 0, 
+			NULL, NULL, 
+			capture_req_props, &server_cbdata, 
+			0);
+
+		if (cur_seq > server_cbdata.appt_seq) {
+			struct id_list idlist; 
+			GSList *ids = NULL;
+
+			idlist.id = *mid;
+			ids = g_slist_append (ids, &idlist);
+
+			exchange_mapi_remove_items (olFolderCalendar, fid, ids);
+		} else 
+			create_new = FALSE;
+	}
+
+	if (create_new) {
+		struct cbdata cbdata;
+		GSList *myrecipients = NULL;
+		GSList *myattachments = NULL;
+		icalcomponent_kind kind = icalcomponent_isa (e_cal_component_get_icalcomponent(comp));
+
+		cbdata.comp = comp;
+		cbdata.username = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+		cbdata.useridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+		cbdata.userid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+		cbdata.ownername = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+		cbdata.owneridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+		cbdata.ownerid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+		cbdata.is_modify = FALSE;
+		cbdata.msgflags = MSGFLAG_READ;
+		cbdata.meeting_type = MEETING_REQUEST_RCVD;
+		cbdata.appt_seq = (*(const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201)));
+		cbdata.appt_id = (*(const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID));
+		cbdata.globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
+		cbdata.cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+
+		exchange_mapi_cal_util_fetch_recipients (comp, &myrecipients);
+		myattachments = attachments;
+		*mid = exchange_mapi_create_item (olFolderCalendar, 0, 
+					exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind),
+					exchange_mapi_cal_util_build_props, &cbdata, 
+					myrecipients, myattachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+		g_free (cbdata.props);
+		exchange_mapi_util_free_recipient_list (&myrecipients);
+	}
+}
+
+static void
+check_server_for_object (struct mapi_SPropValue_array *properties, mapi_id_t *mid)
+{
+	struct mapi_SRestriction res;
+	struct SPropValue sprop;
+	const struct SBinary *sb;
+	uint32_t proptag = 0x0;
+	struct SPropTagArray *array;
+	GSList *ids = NULL, *l;
+	mapi_id_t fid;
+
+	*mid = 0;
+
+	fid = exchange_mapi_get_default_folder_id (olFolderCalendar);
+
+	array = exchange_mapi_util_resolve_named_prop (olFolderCalendar, fid, 0x0023, PSETID_Meeting);
+	proptag = array->aulPropTag[0];
+
+	res.rt = RES_PROPERTY;
+	res.res.resProperty.relop = RELOP_EQ;
+	res.res.resProperty.ulPropTag = proptag;
+
+	sb = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+
+	set_SPropValue_proptag (&sprop, proptag, (const void *) sb);
+	cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
+
+	ids = exchange_mapi_util_check_restriction (fid, &res);
+
+	if (ids && g_slist_length(ids) == 1) {
+		struct id_list *idlist = (struct id_list *)(ids->data);
+		*mid = idlist->id;
+	} else 
+	/* FIXME: what to do here? */
+	;
+
+	for (l = ids; l; l = l->next)
+		g_free(l->data);
+	g_slist_free(l);
+}
+
 char *
 exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties, 
 				   GSList *streams, GSList *recipients, GSList *attachments)
 {
 	ECalComponent *comp;
-	struct cbdata cbdata;
-	GSList *myrecipients = NULL;
-	GSList *myattachments = NULL;
+	icalcomponent_kind kind = ICAL_NO_COMPONENT;
+	icalproperty_method method = ICAL_METHOD_NONE;
+	const char *msg_class = NULL;
 	mapi_id_t mid = 0;
+	const bool *b = NULL;
+	icalcomponent *icalcomp = NULL;
 	char *str = NULL;
 	char *tmp;
-	icalcomponent *icalcomp = NULL;
 
-	comp = exchange_mapi_cal_util_mapi_props_to_comp (ICAL_VEVENT_COMPONENT, e_cal_component_gen_uid(), 
-						properties, streams, recipients, NULL, NULL, 
-						NULL);
+	msg_class = (const char *) exchange_mapi_util_find_array_propval (properties, PR_MESSAGE_CLASS);
+	g_return_val_if_fail (msg_class && *msg_class, NULL);
+	if (!g_ascii_strcasecmp (msg_class, "IPM.Schedule.Meeting.Request")) {
+		method = ICAL_METHOD_REQUEST;
+		kind = ICAL_VEVENT_COMPONENT;
+	} else if (!g_ascii_strcasecmp (msg_class, "IPM.Schedule.Meeting.Canceled")) {
+		method = ICAL_METHOD_CANCEL;
+		kind = ICAL_VEVENT_COMPONENT;
+	} else
+		return NULL;
 
-	cbdata.comp = comp;
-	cbdata.username = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
-	cbdata.useridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
-	cbdata.userid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
-	cbdata.ownername = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
-	cbdata.owneridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
-	cbdata.ownerid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
-	cbdata.is_modify = FALSE;
-	cbdata.msgflags = MSGFLAG_READ;
-	cbdata.meeting_type = MEETING_OBJECT_RCVD;
-	cbdata.appt_seq = (*(const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201)));
-	cbdata.appt_id = (*(const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID));
-	cbdata.globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
-	cbdata.cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+	comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, e_cal_component_gen_uid(), 
+							properties, streams, recipients, 
+							NULL, NULL, NULL);
 
-	exchange_mapi_cal_util_fetch_recipients (comp, &myrecipients);
-	myattachments = attachments;
-	mid = exchange_mapi_create_item (olFolderCalendar, 0, 
-					exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(ICAL_VEVENT_COMPONENT),
-					exchange_mapi_cal_util_build_props, &cbdata, 
-					myrecipients, myattachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
-	g_free (cbdata.props);
-	exchange_mapi_util_free_recipient_list (&myrecipients);
+	b = (const bool *) find_mapi_SPropValue_data(properties, PR_PROCESSED);
+
+	check_server_for_object (properties, &mid);
+
+	if (!(b && *b) && method != ICAL_METHOD_CANCEL)
+		update_server_object (properties, attachments, comp, &mid);
 
 	tmp = exchange_mapi_util_mapi_id_to_string (mid);
 	e_cal_component_set_uid (comp, tmp);
 	g_free (tmp);
 
 	icalcomp = e_cal_util_new_top_level ();
-	icalcomponent_set_method (icalcomp, ICAL_METHOD_REQUEST);
-	icalcomponent_add_component (icalcomp, e_cal_component_get_icalcomponent(comp));
+	icalcomponent_set_method (icalcomp, method);
+	icalcomponent_add_component (icalcomp, icalcomponent_new_clone(e_cal_component_get_icalcomponent(comp)));
 	str = icalcomponent_as_ical_string (icalcomp);
+	icalcomponent_free (icalcomp);
 	g_object_unref (comp);
 
 	return str;
@@ -929,8 +1060,7 @@ typedef enum
 	I_APPT_CLIPSTART , 
 	I_APPT_CLIPEND , 
 	I_APPT_AUTOLOCATION , 
-	I_APPT_ISONLINEMEET , 
-	I_APPT_COUNTERPROPOSAL , 
+	I_APPT_NOTALLOWPROPOSE , 
 	I_APPT_STARTTZBLOB , 
 	I_APPT_ENDTZBLOB ,
 
@@ -973,15 +1103,14 @@ appt_build_name_id (struct mapi_nameid *nameid)
 	mapi_nameid_lid_add(nameid, 0x8235, PSETID_Appointment); 	// PT_SYSTIME - (dtstart)(for recurring events UTC 12 AM of day of start)
 	mapi_nameid_lid_add(nameid, 0x8236, PSETID_Appointment); 	// PT_SYSTIME - (dtend)(for recurring events UTC 12 AM of day of end)
 	mapi_nameid_lid_add(nameid, 0x823A, PSETID_Appointment); 	// PT_BOOLEAN - AutoFillLocation
-	mapi_nameid_lid_add(nameid, 0x8240, PSETID_Appointment); 	// PT_BOOLEAN - IsOnlineMeeting
-	mapi_nameid_lid_add(nameid, 0x8257, PSETID_Appointment); 	// PT_BOOLEAN - ApptCounterProposal
+	mapi_nameid_lid_add(nameid, 0x825A, PSETID_Appointment); 	// PT_BOOLEAN - ApptNotAllowPropose
 	mapi_nameid_lid_add(nameid, 0x825E, PSETID_Appointment); 	// PT_BINARY - (timezone for dtstart)
 	mapi_nameid_lid_add(nameid, 0x825F, PSETID_Appointment); 	// PT_BINARY - (timezone for dtend)
 
 	mapi_nameid_lid_add(nameid, 0x0002, PSETID_Meeting); 		// PT_STRING8 - Where
 	mapi_nameid_lid_add(nameid, 0x0003, PSETID_Meeting); 		// PT_BINARY - GlobalObjectId
 	mapi_nameid_lid_add(nameid, 0x0005, PSETID_Meeting); 		// PT_BOOLEAN - IsRecurring
-	mapi_nameid_lid_add(nameid, 0x000a, PSETID_Meeting); 		// PT_BOOLEAN - IsException 
+	mapi_nameid_lid_add(nameid, 0x000A, PSETID_Meeting); 		// PT_BOOLEAN - IsException 
 	mapi_nameid_lid_add(nameid, 0x0023, PSETID_Meeting); 		// PT_BINARY - CleanGlobalObjectId
 	mapi_nameid_lid_add(nameid, 0x0024, PSETID_Meeting); 		// PT_STRING8 - AppointmentMessageClass 
 	mapi_nameid_lid_add(nameid, 0x0026, PSETID_Meeting); 		// PT_LONG - MeetingType
@@ -1075,7 +1204,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	ECalComponent *comp = cbdata->comp;
 	icalcomponent *ical_comp = e_cal_component_get_icalcomponent (comp);
 	icalcomponent_kind  kind = icalcomponent_isa (ical_comp);
-	gboolean has_attendees = e_cal_component_has_attendees (comp);
 	struct SPropValue *props = NULL;
 	int i=0;
 	uint32_t flag32;
@@ -1090,31 +1218,21 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	switch (kind) {
 		case ICAL_VEVENT_COMPONENT:
 			props = g_new0 (struct SPropValue, REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + APPT_NAMED_PROPS_N);
-			g_print ("\nAllocating space for %d props\n", REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + APPT_NAMED_PROPS_N);
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_APPTMSGCLASS], (const void *) "IPM.Appointment");
-			if (has_attendees) {
-				if (cbdata->meeting_type & MEETING_OBJECT)
-					set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
-				else if (cbdata->meeting_type & MEETING_REQUEST)
-					set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Schedule.Meeting.Request");
-				else 
-					set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
-			} else
-				set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
+			g_debug ("\nAllocating space for %d props\n", REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + APPT_NAMED_PROPS_N);
 			break;
 		case ICAL_VTODO_COMPONENT:
 			props = g_new0 (struct SPropValue, REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + TASK_NAMED_PROPS_N);
-			g_print ("\nAllocating space for %d props\n", REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + TASK_NAMED_PROPS_N);
-			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Task");
+			g_debug ("\nAllocating space for %d props\n", REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + TASK_NAMED_PROPS_N);
 			break;
 		case ICAL_VJOURNAL_COMPONENT:
 			props = g_new0 (struct SPropValue, REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + NOTE_NAMED_PROPS_N);
-			g_print ("\nAllocating space for %d props\n", REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + NOTE_NAMED_PROPS_N);
-			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.StickyNote");
+			g_debug ("\nAllocating space for %d props\n", REGULAR_PROPS_N + COMMON_NAMED_PROPS_N + NOTE_NAMED_PROPS_N);
 			break;
 		default:
 			return 0;
-	} 											/* prop count: 1 */
+	} 
+
+	/* PR_MESSAGE_CLASS needs to be set appropriately */					/* prop count: 1 */
 
 	utc_zone = icaltimezone_get_utc_timezone ();
 
@@ -1261,14 +1379,21 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		const char *mapi_tzid;
 		struct SBinary start_tz, end_tz; 
 
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_APPTMSGCLASS], (const void *) "IPM.Appointment");
+
 		/* Busy Status */
 		flag32 = olBusy; 	/* default */
 		prop = icalcomponent_get_first_property (ical_comp, ICAL_TRANSP_PROPERTY);
 		if (prop)
 			flag32 = get_prop_from_transp (icalproperty_get_transp (prop));
+		if (cbdata->meeting_type == MEETING_CANCEL)
+			flag32 = olFree;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INTENDEDBUSY], (const void *) &flag32);
-		if (cbdata->meeting_type == MEETING_REQUEST || cbdata->meeting_type == MEETING_OBJECT_RCVD) {
+		if (cbdata->meeting_type == MEETING_REQUEST || cbdata->meeting_type == MEETING_REQUEST_RCVD) {
 			flag32 = olTentative;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_BUSYSTATUS], (const void *) &flag32);
+		} else if (cbdata->meeting_type == MEETING_CANCEL) {
+			flag32 = olFree;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_BUSYSTATUS], (const void *) &flag32);
 		} else 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_BUSYSTATUS], (const void *) &flag32);
@@ -1336,6 +1461,8 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 		switch (cbdata->meeting_type) {
 		case MEETING_OBJECT :
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
+
 			flag32 = e_cal_component_has_recurrences (comp) ? RecurMeet : SingleMeet; 
 			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
 
@@ -1355,27 +1482,9 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
 
 			break;
-		case MEETING_OBJECT_RCVD :
-			flag32 = e_cal_component_has_recurrences (comp) ? RecurMeet : SingleMeet; 
-			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
-
-			flag32 = 0x0171;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
-
-			flag32 = olMeetingReceived;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_MEETINGSTATUS], (const void *) &flag32);
-
-			flag32 = mtgRequest; 
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
-
-			flag32 = olResponseNone;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
-
-			b = 1;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
-
-			break;
 		case MEETING_REQUEST :
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Schedule.Meeting.Request");
+
 			flag32 = 0xFFFFFFFF;  /* no idea why this has to be -1, but that's what the docs say */
 			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
 
@@ -1395,7 +1504,53 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
 
 			break;
-		case MEETING_RESPONSE : 
+		case MEETING_REQUEST_RCVD :
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
+
+			flag32 = e_cal_component_has_recurrences (comp) ? RecurMeet : SingleMeet; 
+			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
+
+			flag32 = 0x0171;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
+
+			flag32 = olMeetingReceived;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_MEETINGSTATUS], (const void *) &flag32);
+
+			flag32 = mtgRequest; 
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
+
+			flag32 = olResponseNone;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
+
+			b = 1;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
+
+			break;
+		case MEETING_CANCEL :
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Schedule.Meeting.Canceled");
+
+			flag32 = e_cal_component_has_recurrences (comp) ? RecurMeet : SingleMeet; 
+			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
+
+			flag32 = 0x0171;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
+
+			flag32 = olMeetingCanceled;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_MEETINGSTATUS], (const void *) &flag32);
+
+			flag32 = mtgFull; 
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
+
+			flag32 = olResponseNotResponded;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
+
+			b = 1;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
+
+			break;
+		case MEETING_RESPONSE_ACCEPT : 
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
+
 			flag32 = RespAccept; 
 			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
 
@@ -1414,6 +1569,8 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			break;
 		case NOT_A_MEETING :
 		default :
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Appointment");
+
 			flag32 = e_cal_component_has_recurrences (comp) ? RecurAppt : SingleAppt; 
 			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
 
@@ -1439,16 +1596,14 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		b = e_cal_component_has_exceptions (comp) && FALSE; b = 0;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_ISEXCEPTION], (const void *) &b);
 
-		/* Online Meeting : we probably would never support this */
-		b = 0;
-		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_ISONLINEMEET], (const void *) &b);
-
 		/* Counter Proposal for appointments : not supported */
-		b = 0;
-		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_COUNTERPROPOSAL], (const void *) &b);
+		b = 1;
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_NOTALLOWPROPOSE], (const void *) &b);
 
 	} else if (kind == ICAL_VTODO_COMPONENT) {
 		double d;
+
+		set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.Task");
 
 		/* Context menu flags */ /* FIXME: for assigned tasks */
 		flag32 = 0x0110; 
@@ -1498,6 +1653,8 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_ISRECURRING], (const void *) &b);
 
 	} else if (kind == ICAL_VJOURNAL_COMPONENT) {
+		set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) "IPM.StickyNote");
+
 		/* Context menu flags */
 		flag32 = 0x0110; 
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
@@ -1510,8 +1667,39 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	/* Free this memory at the backends. */
 	cbdata->props = props;
 
-	g_print ("\nEnded up setting %d props\n", i);
+	g_debug ("\nEnded up setting %d props\n", i);
 
 	return i;
+}
+
+uint32_t
+exchange_mapi_cal_util_get_new_appt_id (mapi_id_t fid)
+{
+	struct mapi_SRestriction res;
+	struct SPropValue sprop;
+	uint32_t id;
+	gboolean found = FALSE;
+
+	res.rt = RES_PROPERTY;
+	res.res.resProperty.relop = RELOP_EQ;
+	res.res.resProperty.ulPropTag = PR_OWNER_APPT_ID;
+
+	while (!found) {
+		id = g_random_int ();
+		if (id) {
+			GSList *ids = NULL;
+			set_SPropValue_proptag (&sprop, PR_OWNER_APPT_ID, (const void *) &id);
+			cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
+			ids = exchange_mapi_util_check_restriction (fid, &res);
+			if (ids) {
+				GSList *l;
+				for (l = ids; l; l = l->next)
+					g_free (l->data);
+			} else 
+				found = TRUE;
+		}
+	};
+
+	return id;
 }
 

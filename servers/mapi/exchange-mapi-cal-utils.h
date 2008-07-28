@@ -38,11 +38,16 @@ G_BEGIN_DECLS
 
 typedef enum {
 	NOT_A_MEETING = 0, 
-	MEETING_OBJECT = (1 << 0),
-	MEETING_OBJECT_SENT = (1 << 1),
-	MEETING_OBJECT_RCVD = (1 << 2), 
-	MEETING_REQUEST = (1 << 3), 
-	MEETING_RESPONSE = (1 << 4)
+	MEETING_OBJECT 		= (1 << 0),
+	MEETING_OBJECT_SENT 	= (1 << 1),
+	MEETING_REQUEST 	= (1 << 2), 
+	MEETING_REQUEST_RCVD 	= (1 << 3), 
+	MEETING_RESPONSE_ACCEPT = (1 << 4), 
+	MEETING_RESPONSE_DECLINE = (1 << 5), 
+	MEETING_RESPONSE_TENTATIVE = (1 << 6), 
+	MEETING_RESPONSE_RCVD 	= (1 << 7), 
+	MEETING_CANCEL 		= (1 << 8), 
+	MEETING_CANCEL_RCVD 	= (1 << 9)
 } MAPIMeetingOptions;
 
 struct cbdata { 
@@ -89,6 +94,9 @@ char *
 exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties, 
 				   GSList *streams, GSList *recipients, GSList *attachments);
 
+uint32_t
+exchange_mapi_cal_util_get_new_appt_id (mapi_id_t fid);
+
 /* we don't have to specify the PR_BODY_* tags since it is fetched by default */
 static const uint32_t cal_GetPropsList[] = {
 	PR_FID, 
@@ -109,6 +117,7 @@ static const uint32_t cal_GetPropsList[] = {
 	PR_END_DATE, 
 	PR_RESPONSE_REQUESTED, 
 	PR_OWNER_APPT_ID, 
+	PR_PROCESSED, 
 
 	PR_SENT_REPRESENTING_NAME, 
 	PR_SENT_REPRESENTING_NAME_UNICODE, 

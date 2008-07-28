@@ -329,24 +329,24 @@ exchange_mapi_debug_property_dump (struct mapi_SPropValue_array *properties)
 			const char *tmp =  get_proptag_name (lpProp->ulPropTag);
 			char t_str[26];
 			if (tmp && *tmp)
-				printf("\n%s \t",tmp);
+				g_print("\n%s \t",tmp);
 			else
-				printf("\n%x \t", lpProp->ulPropTag);
+				g_print("\n%x \t", lpProp->ulPropTag);
 			switch(lpProp->ulPropTag & 0xFFFF) {
 			case PT_BOOLEAN:
-				printf(" (bool) - %d", lpProp->value.b);
+				g_print(" (bool) - %d", lpProp->value.b);
 				break;
 			case PT_I2:
-				printf(" (uint16_t) - %d", lpProp->value.i);
+				g_print(" (uint16_t) - %d", lpProp->value.i);
 				break;
 			case PT_LONG:
-				printf(" (long) - %u", lpProp->value.l);
+				g_print(" (long) - %u", lpProp->value.l);
 				break;
 			case PT_DOUBLE:
-				printf (" (double) -  %lf", lpProp->value.dbl);
+				g_print (" (double) -  %lf", lpProp->value.dbl);
 				break;
 			case PT_I8:
-				printf (" (int) - %lld", lpProp->value.d);
+				g_print (" (int) - %lld", lpProp->value.d);
 				break;
 			case PT_SYSTIME: {
 					struct timeval t;
@@ -355,25 +355,25 @@ exchange_mapi_debug_property_dump (struct mapi_SPropValue_array *properties)
 					gmtime_r (&(t.tv_sec), &tm);
 					strftime (t_str, 26, "%Y-%m-%dT%H:%M:%SZ", &tm);
 				}
-				printf (" (struct FILETIME *) - %p\t (struct timeval) %s\t", &lpProp->value.ft, t_str);
+				g_print (" (struct FILETIME *) - %p\t (struct timeval) %s\t", &lpProp->value.ft, t_str);
 				break;
 			case PT_ERROR:
-				printf (" (error) - %p", lpProp->value.err);
+				g_print (" (error) - %p", lpProp->value.err);
 				break;
 			case PT_STRING8:
-				printf(" (string) - %s", lpProp->value.lpszA ? lpProp->value.lpszA : "null" );
+				g_print(" (string) - %s", lpProp->value.lpszA ? lpProp->value.lpszA : "null" );
 				break;
 			case PT_UNICODE:
-				printf(" (unicodestring) - %s", lpProp->value.lpszW ? lpProp->value.lpszW : "null");
+				g_print(" (unicodestring) - %s", lpProp->value.lpszW ? lpProp->value.lpszW : "null");
 				break;
 			case PT_BINARY:
-//				printf(" (struct SBinary_short *) - %p", &lpProp->value.bin);
+//				g_print(" (struct SBinary_short *) - %p", &lpProp->value.bin);
 				break;
 			case PT_MV_STRING8:
- 				printf(" (struct mapi_SLPSTRArray *) - %p", &lpProp->value.MVszA);
+ 				g_print(" (struct mapi_SLPSTRArray *) - %p", &lpProp->value.MVszA);
 				break;
 			default:
-				printf(" - NONE NULL");
+				g_print(" - NONE NULL");
 			}
 		}
 	}

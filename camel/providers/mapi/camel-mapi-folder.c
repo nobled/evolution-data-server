@@ -586,6 +586,7 @@ static const uint32_t camel_GetPropsList[] = {
 	PR_MID, 
 
 	PR_MESSAGE_CLASS, 
+	PR_MESSAGE_CLASS_UNICODE, 
 	PR_MESSAGE_SIZE, 
 	PR_MESSAGE_FLAGS, 
 	PR_MESSAGE_DELIVERY_TIME, 
@@ -612,6 +613,7 @@ static const uint32_t camel_GetPropsList[] = {
 	PR_END_DATE, 
 	PR_RESPONSE_REQUESTED, 
 	PR_OWNER_APPT_ID, 
+	PR_PROCESSED, 
 
 	PR_SENT_REPRESENTING_NAME, 
 	PR_SENT_REPRESENTING_NAME_UNICODE, 
@@ -736,7 +738,7 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	item->header.from = g_strdup (exchange_mapi_util_find_array_propval (array, PR_SENT_REPRESENTING_NAME));
 	item->header.size = *(glong *)(find_mapi_SPropValue_data (array, PR_MESSAGE_SIZE));
 
-	msg_class = (const char *)find_mapi_SPropValue_data (array, PR_MESSAGE_CLASS);
+	msg_class = (const char *) exchange_mapi_util_find_array_propval (array, PR_MESSAGE_CLASS);
 	if (g_str_has_prefix (msg_class, "IPM.Schedule.")) {
 		item->msg.body_plain_text = exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
 		item->is_cal = TRUE;

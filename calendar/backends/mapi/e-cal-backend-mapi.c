@@ -1160,30 +1160,6 @@ e_cal_backend_mapi_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 		return status;
 }
 
-static uint32_t
-get_new_appt_id (ECalBackendMAPI *cbmapi)
-{
-	ECalBackendMAPIPrivate *priv = cbmapi->priv;
-	struct mapi_SRestriction res;
-	struct SPropValue sprop;
-	uint32_t id, count = 0x1;
-
-	res.rt = RES_PROPERTY;
-	res.res.resProperty.relop = RELOP_EQ;
-	res.res.resProperty.ulPropTag = PR_OWNER_APPT_ID;
-
-	while (count) {
-		id = g_random_int ();
-		if (id) {
-			set_SPropValue_proptag (&sprop, PR_OWNER_APPT_ID, (const void *) &id);
-			cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
-			count = exchange_mapi_util_check_restriction (priv->fid, &res);
-		}
-	}
-
-	return id;
-}
-
 static gboolean 
 capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
 		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
@@ -1312,7 +1288,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 			cbdata.is_modify = FALSE;
 			cbdata.msgflags = MSGFLAG_READ;
 			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
-			cbdata.appt_id = get_new_appt_id (cbmapi);
+			cbdata.appt_id = exchange_mapi_cal_util_get_new_appt_id (priv->fid);
 			cbdata.appt_seq = 0;
 			e_cal_component_get_uid (comp, &compuid);
 			exchange_mapi_cal_util_generate_globalobjectid (TRUE, compuid, &globalid);
@@ -1567,9 +1543,72 @@ e_cal_backend_mapi_discard_alarm (ECalBackendSync *backend, EDataCal *cal, const
 static ECalBackendSyncStatus 
 e_cal_backend_mapi_receive_objects (ECalBackendSync *backend, EDataCal *cal, const char *calobj)
 {
+	ECalBackendSyncStatus status = GNOME_Evolution_Calendar_OtherError;
+	ECalBackendMAPI *cbmapi;
+	ECalBackendMAPIPrivate *priv;
+	icalcomponent_kind kind;
+	icalcomponent *icalcomp;
 
-	return GNOME_Evolution_Calendar_Success;
+	cbmapi = E_CAL_BACKEND_MAPI (backend);
+	priv = cbmapi->priv;
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (backend));
+
+	g_return_val_if_fail (E_IS_CAL_BACKEND_MAPI (cbmapi), GNOME_Evolution_Calendar_InvalidObject);
+	g_return_val_if_fail (calobj != NULL, GNOME_Evolution_Calendar_InvalidObject);
+
+	if (priv->mode == CAL_MODE_LOCAL)
+		return GNOME_Evolution_Calendar_RepositoryOffline;
+
+	/* check the component for validity */
+	icalcomp = icalparser_parse_string (calobj);
+	if (!icalcomp)
+		return GNOME_Evolution_Calendar_InvalidObject;
+
+	if (icalcomponent_isa (icalcomp) == ICAL_VCALENDAR_COMPONENT) {
+		gboolean stop = FALSE;
+		icalproperty_method method = icalcomponent_get_method (icalcomp);
+		icalcomponent *subcomp = icalcomponent_get_first_component (icalcomp, kind);
+		while (subcomp && !stop) {
+			ECalComponent *comp = e_cal_component_new ();
+			gchar *rid = NULL; 
+			const char *uid;
+			gchar *old_object = NULL, *new_object = NULL; 
+
+			e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (subcomp));
+
+			/* FIXME: Add support for recurrences */
+			if (e_cal_component_has_recurrences (comp)) {
+				g_object_unref (comp);
+				return GNOME_Evolution_Calendar_OtherError;
+			}
+
+			e_cal_component_get_uid (comp, &uid);
+			rid = e_cal_component_get_recurid_as_string (comp);
+
+			switch (method) {
+			case ICAL_METHOD_CANCEL :
+				status = e_cal_backend_mapi_remove_object (backend, cal, uid, rid, CALOBJ_MOD_THIS, &old_object, &new_object);
+				if (status != GNOME_Evolution_Calendar_Success)
+					stop = TRUE;
+				g_free (old_object);
+				g_free (new_object);
+				break;
+			default :
+				break;
+			}
+
+			g_free (rid);
+			g_object_unref (comp);
+
+			subcomp = icalcomponent_get_next_component (icalcomp,
+								    e_cal_backend_get_kind (E_CAL_BACKEND (backend)));
+		}
+	}
+
+	return status;
 }
+
+
 
 static ECalBackendSyncStatus 
 e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const char *calobj, 
@@ -1617,7 +1656,6 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			/* FIXME: [WIP] Add support for meetings/assigned tasks */
 			if (e_cal_component_has_attendees (comp)) {
 				exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 				method = icalcomponent_get_method (icalcomp);
@@ -1640,8 +1678,12 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 				cbdata.meeting_type = MEETING_REQUEST;
 				cbdata.msgflags = MSGFLAG_UNSENT ;
 				break;
+			case ICAL_METHOD_CANCEL : 
+				cbdata.meeting_type = MEETING_CANCEL;
+				cbdata.msgflags = MSGFLAG_UNSENT ;
+				break;
 			case ICAL_METHOD_RESPONSE : 
-				cbdata.meeting_type = MEETING_RESPONSE;
+				cbdata.meeting_type = MEETING_RESPONSE_ACCEPT;
 				cbdata.msgflags = MSGFLAG_UNSENT;
 				break;
 			default :
@@ -1673,7 +1715,6 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 								    e_cal_backend_get_kind (E_CAL_BACKEND (backend)));
 		}
 	}
-	/* We need another static capability to say the backend has already sent the requests. */
 
 	if (status == GNOME_Evolution_Calendar_Success) {
 		ECalComponent *comp;

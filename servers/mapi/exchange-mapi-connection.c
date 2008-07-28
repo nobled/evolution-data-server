@@ -933,7 +933,7 @@ cleanup:
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 }
 
-guint32
+GSList *
 exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *res)
 {
 	enum MAPISTATUS retval;
@@ -942,7 +942,9 @@ exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *r
 	mapi_object_t obj_folder;
 	mapi_object_t obj_table;
 	struct SPropTagArray *SPropTagArray, *GetPropsTagArray;
-	uint32_t count = 0;
+	struct SRowSet SRowSet;
+	uint32_t count, i;
+	GSList *mids = NULL;
 
 	d(g_print("\n%s(%d): Entering %s: folder-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
 
@@ -1013,6 +1015,20 @@ exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *r
 		goto cleanup;
 	}
 
+	/* Fill the table columns with data from the rows */
+	retval = QueryRows(&obj_table, count, TBL_ADVANCE, &SRowSet);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("QueryRows", GetLastError());
+		goto cleanup;
+	}
+
+	for (i = 0; i < SRowSet.cRows; i++) {
+		mapi_id_t *pmid = (mapi_id_t *) get_SPropValue_SRow_data(&SRowSet.aRow[i], PR_MID);
+		struct id_list *id_list = g_new0 (struct id_list, 1);
+		id_list->id = *pmid;
+		mids = g_slist_prepend (mids, id_list);
+	}
+
 cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_table);
@@ -1022,7 +1038,7 @@ cleanup:
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	return count;
+	return mids;
 }
 
 // FIXME: May be we need to support Restrictions/Filters here. May be after libmapi-0.7.
@@ -2113,6 +2129,15 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 		goto cleanup;
 	}
 
+	/* If fid not present then we'll use olFolder. Document this in API doc. */
+	if (fid == 0) {
+		retval = GetDefaultFolder(&obj_store, &fid, olFolder);
+		if (retval != MAPI_E_SUCCESS) {
+			mapi_errstr("GetDefaultFolder", GetLastError());
+			goto cleanup;
+		}
+	}
+
 	/* Attempt to open the folder */
 	retval = OpenFolder(&obj_store, fid, &obj_folder);
 	if (retval != MAPI_E_SUCCESS) {
@@ -2217,7 +2242,7 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 
 	LOCK();
 
-	mem_ctx = talloc_init("ExchangeMAPI_ModifyItem");
+	mem_ctx = talloc_init("ExchangeMAPI_SetFlags");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
 
@@ -2332,7 +2357,6 @@ exchange_mapi_move_items (mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids)
 	return mapi_move_items (src_fid, dest_fid, mids, FALSE);
 }
 
-/* FIXME: param olFolder is never used in the routine. Remove it and cleanup at the backends */
 gboolean
 exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids)
 {
@@ -2364,6 +2388,15 @@ exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids)
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenMsgStore", GetLastError());
 		goto cleanup;
+	}
+
+	/* If fid not present then we'll use olFolder. Document this in API doc. */
+	if (fid == 0) {
+		retval = GetDefaultFolder(&obj_store, &fid, olFolder);
+		if (retval != MAPI_E_SUCCESS) {
+			mapi_errstr("GetDefaultFolder", GetLastError());
+			goto cleanup;
+		}
 	}
 
 	/* Attempt to open the folder */

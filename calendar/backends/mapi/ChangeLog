@@ -1,3 +1,10 @@
+2008-07-28  Suman Manjunath  <msuman@novell.com>
+
+	* e-cal-backend-mapi.c (e_cal_backend_mapi_create_object),
+	(e_cal_backend_mapi_receive_objects),
+	(e_cal_backend_mapi_send_objects): Add support to send and accept 
+	meeting cancelations. 
+
 2008-07-21  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi-factory.c (eds_module_initialize),
