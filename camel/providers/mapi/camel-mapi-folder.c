@@ -297,7 +297,7 @@ mapi_update_cache (CamelFolder *folder, GSList *list, CamelException *ex, gboole
 
 		/******************** Begine Caching ************************/
 		//add to cache if its a new message
-		t_cache_stream  = camel_data_cache_get (mapi_folder->cache, "cache", mi->info.uid, ex);
+		t_cache_stream  = camel_data_cache_get (mapi_folder->cache, "cache", msg_uid, ex);
 		if (t_cache_stream) {
 			camel_object_unref (t_cache_stream);
 
@@ -580,7 +580,6 @@ end1:
 
 }
 
-/* we don't have to specify the PR_BODY_* tags since it is fetched by default */
 static const uint32_t camel_GetPropsList[] = {
 	PR_FID, 
 	PR_MID, 
@@ -597,6 +596,9 @@ static const uint32_t camel_GetPropsList[] = {
 	PR_NORMALIZED_SUBJECT_UNICODE, 
 	PR_CONVERSATION_TOPIC, 
 	PR_CONVERSATION_TOPIC_UNICODE, 
+
+	PR_BODY, 
+	PR_BODY_UNICODE, 
 
 	PR_DISPLAY_TO, 
 	PR_DISPLAY_TO_UNICODE, 

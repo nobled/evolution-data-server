@@ -5,6 +5,10 @@
 
 2008-07-28  Johnny Jacob  <jjohnny@novell.com>
 
+	* camel-mapi-folder.c (camel_GetPropsList): Added PR_BODY*.
+
+2008-07-28  Johnny Jacob  <jjohnny@novell.com>
+
 	* camel-mapi-store.[ch] (camel_mapi_store_get_profile_name): Added.
 	Helper accessor function to get MAPI Profile name.
 
