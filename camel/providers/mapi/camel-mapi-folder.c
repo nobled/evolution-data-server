@@ -87,9 +87,6 @@ mapi_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args)
 	int i, count = 0;
 	guint32 tag;
 
-	//FIXME : HACK . FOR NOW !
-	return 0;
-
 	for (i=0 ; i<args->argc ; i++) {
 		CamelArgGet *arg = &args->argv[i];
 

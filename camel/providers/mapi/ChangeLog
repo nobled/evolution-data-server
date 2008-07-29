@@ -1,5 +1,9 @@
 2008-07-29  Johnny Jacob  <jjohnny@novell.com>
 
+	* camel-mapi-folder.c (mapi_getv): Enable getv.
+
+2008-07-29  Johnny Jacob  <jjohnny@novell.com>
+
 	* camel-mapi-summary.c (mapi_content_info_save)
 	(mapi_content_info_load, mapi_message_info_save)
 	(mapi_message_info_load, mapi_summary_header_save)
