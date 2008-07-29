@@ -2540,24 +2540,6 @@ e_cal_get_static_capability (ECal *ecal, const char *cap)
 }
 
 /**
- * e_cal_get_create_messages:
- * @ecal: A calendar client.
- *
- * Checks whether the calendar creates messages.
- *
- * Return value: TRUE if calendar creates meeting/task related messages, 
- * FALSE otherwise.
- */
-gboolean
-e_cal_get_create_messages (ECal *ecal)
-{
-	g_return_val_if_fail (ecal != NULL, FALSE);
-	g_return_val_if_fail (E_IS_CAL (ecal), FALSE);
-
-	return check_capability (ecal, CAL_STATIC_CAPABILITY_CREATE_MESSAGES);
-}
-
-/**
  * e_cal_get_save_schedules:
  * @ecal: A calendar client.
  *
