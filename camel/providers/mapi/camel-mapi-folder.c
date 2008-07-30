@@ -703,12 +703,13 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	const char *msg_class;
 	NTTIME ntdate;
 
-	MapiItem *item = data;
+	MapiItem *item = g_new0(MapiItem , 1);
+
+	MapiItem **i = (MapiItem **)data;
 
 	item->fid = fid;
 	item->mid = mid;
 
-	/* FixME : which on of this will fetch the subject. */
 	item->header.subject = g_strdup (exchange_mapi_util_find_array_propval (array, PR_NORMALIZED_SUBJECT));
 	item->header.to = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_TO));
 	item->header.cc = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_CC));
@@ -739,9 +740,9 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	if ((*flags & MSGFLAG_HASATTACH) != 0)
 		item->header.flags |= CAMEL_MESSAGE_ATTACHMENTS;
 
-	//Fetch Attachments here.
-	printf("%s(%d):%s:Number of Attachments : %d \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, g_slist_length (attachments));
 	item->attachments = attachments;
+
+	*i = item;
 
 	return TRUE;
 }
@@ -982,7 +983,7 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 
 	mapi_id_t id_folder;
 	mapi_id_t id_message;
-	MapiItem *item = g_new0(MapiItem , 1);
+	MapiItem *item = NULL;
 
 	exchange_mapi_util_mapi_ids_from_uid (uid, &id_folder, &id_message);
 
@@ -990,7 +991,7 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 	exchange_mapi_connection_fetch_item (id_folder, id_message, 
 					camel_GetPropsList, G_N_ELEMENTS (camel_GetPropsList), 
 					camel_build_name_id, NULL, 
-					fetch_item_cb, item, 
+					fetch_item_cb, &item, 
 					MAPI_OPTIONS_FETCH_ALL);
 
 	if (item == NULL) {
@@ -1001,15 +1002,14 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 
 	msg = mapi_folder_item_to_msg (folder, item, ex);
 
+	g_free (item);
+
 	if (!msg) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));
 		camel_message_info_free (&mi->info);
 
 		return NULL;
 	}
-
-/* 	if (msg) */
-/* 		camel_medium_set_header (CAMEL_MEDIUM (msg), "X-Evolution-Source", mapi_base_url_lookup (priv)); */
 
 	/* add to cache */
 	CAMEL_MAPI_FOLDER_REC_LOCK (folder, cache_lock);

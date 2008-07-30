@@ -1,5 +1,9 @@
 2008-07-29  Johnny Jacob  <jjohnny@novell.com>
 
+	* camel-mapi-folder.c (fetch_item_cb): Cleanups.
+
+2008-07-29  Johnny Jacob  <jjohnny@novell.com>
+
 	* camel-mapi-folder.c (mapi_getv): Enable getv.
 
 2008-07-29  Johnny Jacob  <jjohnny@novell.com>
