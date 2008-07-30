@@ -1,3 +1,16 @@
+2008-07-30  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_recipients): Set properties for external
+	recipients. 
+	(appt_build_name_id), (exchange_mapi_cal_util_build_props): Use 
+	AppointmentStateFlags instead of OlMeetingStatus. 
+	* exchange-mapi-connection.c 
+	(exchange_mapi_util_get_recipients): Use a fallback for PR_SMTP_ADDRESS
+	(set_recipient_properties), (exchange_mapi_util_modify_recipients): Add
+	a oneoff entry-id for external recipients on the fly. 
+	* exchange-mapi-defs.h: Added enum AppointmentStateFlags
+
 2008-07-28  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-cal-utils.c

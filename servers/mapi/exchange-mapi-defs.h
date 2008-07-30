@@ -159,6 +159,12 @@ typedef enum {
 } OlMeetingStatus;
 
 typedef enum {
+    asfMeeting = 1,
+    asfReceived = 2,
+    asfCanceled = 4
+} AppointmentStateFlags;
+
+typedef enum {
     olNetMeeting = 0,
     olNetShow = 1,
     olChat = 2

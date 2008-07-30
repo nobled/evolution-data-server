@@ -813,8 +813,17 @@ exchange_mapi_util_get_recipients (mapi_object_t *obj_message, GSList **recip_li
 			ExchangeMAPIRecipient 	*recipient = g_new0 (ExchangeMAPIRecipient, 1);
 
 			recipient->email_id = (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_SMTP_ADDRESS);
-			if (!recipient->email_id)
+			/* fallback */
+			if (!recipient->email_id) {
+				const char *addrtype = (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_ADDRTYPE);
+				if (addrtype && !g_ascii_strcasecmp(addrtype, "SMTP"))
+					recipient->email_id = (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_EMAIL_ADDRESS);
+			}
+			/* fail */
+			if (!recipient->email_id) {
 				g_warning ("\n%s:%d %s() - object has a recipient without a PR_SMTP_ADDRESS ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+				mapidump_SRow (&(rows_recip.aRow[i_row_recip]), " ");
+			}
 
 			recipient->out.all_lpProps = rows_recip.aRow[i_row_recip].lpProps;
 			recipient->out.all_cValues = rows_recip.aRow[i_row_recip].cValues;
@@ -834,19 +843,30 @@ cleanup:
 }
 
 static void 
-set_recipient_properties (struct SRow *aRow, ExchangeMAPIRecipient *recipient, gboolean is_external)
+set_recipient_properties (TALLOC_CTX *mem_ctx, struct SRow *aRow, ExchangeMAPIRecipient *recipient, gboolean is_external)
 {
 	uint32_t i;
 
-	if (is_external)
+	if (is_external) {
+		struct SBinary *oneoff_eid;
+		struct SPropValue sprop; 
+		const gchar *dn = NULL, *email = NULL; 
+
 		for (i = 0; i < recipient->in.ext_cValues; ++i)
 			SRow_addprop (aRow, recipient->in.ext_lpProps[i]);
+
+		dn = (const gchar *) get_SPropValue (recipient->in.ext_lpProps, PR_DISPLAY_NAME);
+		email = (const gchar *) get_SPropValue (recipient->in.ext_lpProps, PR_SMTP_ADDRESS);
+		oneoff_eid = exchange_mapi_util_entryid_generate_oneoff (mem_ctx, dn, email, FALSE);
+		set_SPropValue_proptag (&sprop,  PR_ENTRYID, (const void *)(oneoff_eid));
+		SRow_addprop (aRow, sprop);
+	}
 
 	for (i = 0; i < recipient->in.req_cValues; ++i)
 		SRow_addprop (aRow, recipient->in.req_lpProps[i]);
 }
 
-/* DON'T fucking touch this function. */
+/* DON'T f***ing touch this function. */
 static void
 exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_message , GSList *recipients)
 {
@@ -910,11 +930,11 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 			last = SRowSet->cRows;
 			SRowSet->aRow[last].cValues = 0;
 			SRowSet->aRow[last].lpProps = talloc_zero(mem_ctx, struct SPropValue);
-			set_recipient_properties (&SRowSet->aRow[last], recipient, TRUE);
+			set_recipient_properties (mem_ctx, &SRowSet->aRow[last], recipient, TRUE);
 			SRowSet->cRows += 1;
 			break;
 		case MAPI_RESOLVED:
-			set_recipient_properties (&SRowSet->aRow[j], recipient, FALSE);
+			set_recipient_properties (mem_ctx, &SRowSet->aRow[j], recipient, FALSE);
 			j += 1;
 			break;
 		}
@@ -1503,7 +1523,6 @@ exchange_mapi_empty_folder (mapi_id_t fid)
 {
 	enum MAPISTATUS retval;
 	mapi_object_t obj_store;
-	mapi_object_t obj_top;
 	mapi_object_t obj_folder;
 	ExchangeMAPIFolder *folder;
 	gboolean result = FALSE;
@@ -2582,7 +2601,7 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 		ExchangeMAPIFolder *folder = NULL;
 		gchar *newname = NULL;
 
-		const uint64_t *fid = (const uint64_t *)find_SPropValue_data(&rowset.aRow[i], PR_FID);
+		const mapi_id_t *fid = (const mapi_id_t *)find_SPropValue_data(&rowset.aRow[i], PR_FID);
 		const char *class = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_CONTAINER_CLASS);
 		const char *name = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_DISPLAY_NAME);
 		const uint32_t *unread = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_CONTENT_UNREAD);

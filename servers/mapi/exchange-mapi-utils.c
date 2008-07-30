@@ -343,10 +343,10 @@ exchange_mapi_debug_property_dump (struct mapi_SPropValue_array *properties)
 				g_print(" (long) - %u", lpProp->value.l);
 				break;
 			case PT_DOUBLE:
-				g_print (" (double) -  %lf", lpProp->value.dbl);
+				g_print (" (double) -  %lf", (double)lpProp->value.dbl);
 				break;
 			case PT_I8:
-				g_print (" (int) - %lld", lpProp->value.d);
+				g_print (" (int) - %ld", lpProp->value.d);
 				break;
 			case PT_SYSTIME: {
 					struct timeval t;
@@ -358,7 +358,7 @@ exchange_mapi_debug_property_dump (struct mapi_SPropValue_array *properties)
 				g_print (" (struct FILETIME *) - %p\t (struct timeval) %s\t", &lpProp->value.ft, t_str);
 				break;
 			case PT_ERROR:
-				g_print (" (error) - %p", lpProp->value.err);
+				g_print (" (error) - %d", lpProp->value.err);
 				break;
 			case PT_STRING8:
 				g_print(" (string) - %s", lpProp->value.lpszA ? lpProp->value.lpszA : "null" );

@@ -1673,22 +1673,20 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 
 			cbdata.comp = comp;
 			cbdata.is_modify = TRUE;
+			cbdata.msgflags = MSGFLAG_UNSENT;
+
 			switch (method) {
 			case ICAL_METHOD_REQUEST : 
 				cbdata.meeting_type = MEETING_REQUEST;
-				cbdata.msgflags = MSGFLAG_UNSENT ;
 				break;
 			case ICAL_METHOD_CANCEL : 
 				cbdata.meeting_type = MEETING_CANCEL;
-				cbdata.msgflags = MSGFLAG_UNSENT ;
 				break;
 			case ICAL_METHOD_RESPONSE : 
 				cbdata.meeting_type = MEETING_RESPONSE_ACCEPT;
-				cbdata.msgflags = MSGFLAG_UNSENT;
 				break;
 			default :
 				cbdata.meeting_type = NOT_A_MEETING;
-				cbdata.msgflags = MSGFLAG_READ;
 				break;
 			}
 
