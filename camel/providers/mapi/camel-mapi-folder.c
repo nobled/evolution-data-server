@@ -33,6 +33,7 @@
 #include <camel/camel-private.h>
 #include <camel/camel-stream-buffer.h>
 #include <camel/camel-stream-mem.h>
+#include <camel/camel-debug.h>
 
 #include <libmapi/libmapi.h>
 #include <exchange-mapi-utils.h>
@@ -165,10 +166,14 @@ fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const 
 
 	MapiItem *item = g_new0(MapiItem , 1);
 
+	if (camel_debug_start("mapi:folder")) {
+		exchange_mapi_debug_property_dump (array);
+		camel_debug_end();
+	}
+
 	item->fid = fid;
 	item->mid = mid;
 
-	/* FixME : which on of this will fetch the subject. */
 	item->header.subject = g_strdup (find_mapi_SPropValue_data (array, PR_NORMALIZED_SUBJECT));
 	item->header.to = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_TO));
 	item->header.cc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_CC));
@@ -697,7 +702,6 @@ static gboolean
 fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, 
 		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
 {
-	exchange_mapi_debug_property_dump (array);
 	long *flags;
 	struct FILETIME *delivery_date;
 	const char *msg_class;
@@ -706,6 +710,11 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	MapiItem *item = g_new0(MapiItem , 1);
 
 	MapiItem **i = (MapiItem **)data;
+
+	if (camel_debug_start("mapi:folder")) {
+		exchange_mapi_debug_property_dump (array);
+		camel_debug_end();
+	}
 
 	item->fid = fid;
 	item->mid = mid;

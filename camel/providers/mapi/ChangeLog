@@ -1,3 +1,9 @@
+2008-07-30  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (fetch_item_cb), (fetch_items_cb): Added
+	camel_debug. export CAMEL_DEBUG=mapi:folder for MAPI property dumps
+	during fetch_item(s).
+
 2008-07-29  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (fetch_item_cb): Cleanups.
