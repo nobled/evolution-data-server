@@ -835,7 +835,7 @@ set_recipient_properties (TALLOC_CTX *mem_ctx, struct SRow *aRow, ExchangeMAPIRe
 {
 	uint32_t i;
 
-	if (is_external) {
+	if (is_external && recipient->in.ext_lpProps) {
 		struct SBinary *oneoff_eid;
 		struct SPropValue sprop; 
 		const gchar *dn = NULL, *email = NULL; 
@@ -844,7 +844,11 @@ set_recipient_properties (TALLOC_CTX *mem_ctx, struct SRow *aRow, ExchangeMAPIRe
 			SRow_addprop (aRow, recipient->in.ext_lpProps[i]);
 
 		dn = (const gchar *) get_SPropValue (recipient->in.ext_lpProps, PR_DISPLAY_NAME);
+		if (!dn)
+			dn = "";
 		email = (const gchar *) get_SPropValue (recipient->in.ext_lpProps, PR_SMTP_ADDRESS);
+		if (!email)
+			email = "";
 		oneoff_eid = exchange_mapi_util_entryid_generate_oneoff (mem_ctx, dn, email, FALSE);
 		set_SPropValue_proptag (&sprop,  PR_ENTRYID, (const void *)(oneoff_eid));
 		SRow_addprop (aRow, sprop);

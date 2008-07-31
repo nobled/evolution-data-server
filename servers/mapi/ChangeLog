@@ -1,5 +1,10 @@
 2008-07-31  Suman Manjunath  <msuman@novell.com>
 
+	* exchange-mapi-connection.c (set_recipient_properties): Some
+	extra validation checks. 
+
+2008-07-31  Suman Manjunath  <msuman@novell.com>
+
 	* exchange-mapi-connection.c (mapi_profile_load),
 	(exchange_mapi_util_read_generic_stream),
 	(exchange_mapi_util_delete_attachments),

@@ -391,6 +391,9 @@ mail_build_props (struct SPropValue **value, struct SPropTagArray *SPropTagArray
 static void
 mapi_item_add_recipient (const char *recipients, OlMailRecipientType type, GSList **recipient_list)
 {
+	uint32_t val = 0;
+	const char *str = NULL;
+
 	if (!recipients)
 		return ;
 
@@ -403,6 +406,20 @@ mapi_item_add_recipient (const char *recipients, OlMailRecipientType type, GSLis
 	recipient->in.req_lpProps = g_new0 (struct SPropValue, 1);
 	recipient->in.req_cValues = 1;
 	set_SPropValue_proptag (&(recipient->in.req_lpProps[0]), PR_RECIPIENT_TYPE, (const void *) &type);
+
+	/* External recipient properties - set them only when the recipient is unresolved */
+	recipient->in.ext_lpProps = g_new0 (struct SPropValue, 5);
+	recipient->in.ext_cValues = 5;
+
+	val = DT_MAILUSER;
+	set_SPropValue_proptag (&(recipient->in.ext_lpProps[0]), PR_DISPLAY_TYPE, (const void *)&val);
+	val = MAPI_MAILUSER;
+	set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
+	str = "SMTP";
+	set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
+	str = recipient->email_id;
+	set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
+	set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
 
 	*recipient_list = g_slist_append (*recipient_list, recipient);
 }
