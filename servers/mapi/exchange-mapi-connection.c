@@ -41,15 +41,9 @@ static GStaticRecMutex connect_lock = G_STATIC_REC_MUTEX_INIT;
 #define LOGALL() 	lp_set_cmdline(global_mapi_ctx->lp_ctx, "log level", "10"); global_mapi_ctx->dumpdata = TRUE;
 #define LOGNONE() 	lp_set_cmdline(global_mapi_ctx->lp_ctx, "log level", "0"); global_mapi_ctx->dumpdata = FALSE;
 
-#define ENABLE_VERBOSE_LOG() 	global_mapi_ctx->dumpdata = TRUE;
-#define DISABLE_VERBOSE_LOG() 	global_mapi_ctx->dumpdata = FALSE;
-
 #if 0
 #define LOGALL()
 #define LOGNONE()
-
-#define ENABLE_VERBOSE_LOG()
-#define DISABLE_VERBOSE_LOG()
 #endif
 
 /* Specifies READ/WRITE sizes to be used while handling attachment streams */
@@ -85,8 +79,6 @@ mapi_profile_load (const char *profname, const char *password)
 			g_print("\n%s(%d): %s: Already connected ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 		goto cleanup;
 	}
-
-//	ENABLE_VERBOSE_LOG ();
 
 	if (profname)
 		profile = profname;
@@ -186,8 +178,8 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 	/* Build a mapi_SPropValue_array structure */
 	properties_array.cValues = count;
 	properties_array.lpProps = talloc_array (mem_ctx, struct mapi_SPropValue, count);
-//	for (i=0; i < count; i++)
-		cast_mapi_SPropValue(&properties_array.lpProps[0], &lpProps[0]);
+	for (i=0; i < count; i++)
+		cast_mapi_SPropValue(&properties_array.lpProps[i], &lpProps[i]);
 
 	bin = (const struct SBinary_short *) find_mapi_SPropValue_data(&properties_array, proptag);
 	if (bin && bin->lpb) {
@@ -515,12 +507,8 @@ exchange_mapi_util_delete_attachments (mapi_object_t *obj_message)
 		retval = DeleteAttach(obj_message, *num_attach);
 		if (retval != MAPI_E_SUCCESS) {
 			mapi_errstr("DeleteAttach", GetLastError());
-			goto loop_cleanup;
-		}
-
-	loop_cleanup:
-		if (retval != MAPI_E_SUCCESS)
 			status = FALSE;
+		}
 	}
 
 cleanup:
@@ -553,7 +541,7 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 
 	for (l = attach_list; l; l = l->next) {
 		ExchangeMAPIAttachment 	*attachment = (ExchangeMAPIAttachment *) (l->data);
-		int32_t 		flag;
+		uint32_t 		flag;
 		uint32_t 		total_written;
 		gboolean 		done = FALSE;
 		struct SPropValue 	*props_attach;
@@ -579,7 +567,7 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 		 * All values other than -1 indicate the position within PR_BODY at which 
 		 * the attachment is to be rendered. 
 		 */
-		flag = -1;
+		flag = 0xFFFFFFFF;
 		set_SPropValue_proptag(&props_attach[1], PR_RENDERING_POSITION, (const void *) (&flag));
 
 		set_SPropValue_proptag(&props_attach[2], PR_ATTACH_FILENAME, (const void *) attachment->filename);
@@ -627,7 +615,7 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 		retval = SaveChanges(obj_message, &obj_attach, KEEP_OPEN_READWRITE);
 		if (retval != MAPI_E_SUCCESS) {
 			mapi_errstr("SaveChanges", GetLastError());
-//			goto cleanup;
+			goto cleanup;
 		}
 
 	cleanup:
@@ -944,7 +932,7 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 	retval = ModifyRecipients (obj_message, SRowSet);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("ModifyRecpients", GetLastError());
-//		goto cleanup;
+		goto cleanup;
 	}
 
 cleanup:
@@ -969,6 +957,7 @@ exchange_mapi_util_check_restriction (mapi_id_t fid, struct mapi_SRestriction *r
 	d(g_print("\n%s(%d): Entering %s: folder-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid));
 
 	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_CheckRestriction");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1054,6 +1043,7 @@ cleanup:
 	mapi_object_release(&obj_table);
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
+	LOGNONE();
 	UNLOCK();
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
@@ -1306,6 +1296,7 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 	d(g_print("\n%s(%d): Entering %s: folder-id %016llX message-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, fid, mid));
 
 	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_FetchItem");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
@@ -1425,13 +1416,13 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
+	LOGNONE();
 	UNLOCK();
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
-
 
 mapi_id_t 
 exchange_mapi_create_folder (uint32_t olFolder, mapi_id_t pfid, const char *name)
@@ -1466,7 +1457,7 @@ exchange_mapi_create_folder (uint32_t olFolder, mapi_id_t pfid, const char *name
 	}
 	
 	/* Attempt to create the folder */
-	retval = CreateFolder(&obj_top, FOLDER_GENERIC, name, "Created using Evolution/libmapi", OPEN_IF_EXISTS, &obj_folder);
+	retval = CreateFolder(&obj_top, FOLDER_GENERIC, name, "Created using Evolution/LibMAPI", OPEN_IF_EXISTS, &obj_folder);
 
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("CreateFolder", GetLastError());
@@ -1524,13 +1515,9 @@ exchange_mapi_empty_folder (mapi_id_t fid)
 	enum MAPISTATUS retval;
 	mapi_object_t obj_store;
 	mapi_object_t obj_folder;
-	ExchangeMAPIFolder *folder;
 	gboolean result = FALSE;
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
-
-	folder = exchange_mapi_folder_get_folder (fid);
-	g_return_val_if_fail (folder != NULL, FALSE);
 
 	LOCK();
 	LOGALL();
@@ -1656,21 +1643,15 @@ exchange_mapi_rename_folder (mapi_id_t fid, const char *new_name)
 	enum MAPISTATUS retval;
 	mapi_object_t obj_store;
 	mapi_object_t obj_folder;
-	ExchangeMAPIFolder *folder;
 	struct SPropValue *props = NULL;
 	TALLOC_CTX *mem_ctx;
 	gboolean result = FALSE;
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
-	mem_ctx = talloc_init("ExchangeMAPI_RenameFolder");
-
-	folder = exchange_mapi_folder_get_folder (fid);
-
-	g_return_val_if_fail (folder != NULL, FALSE);
-
 	LOCK();
-
+	LOGALL();
+	mem_ctx = talloc_init("ExchangeMAPI_RenameFolder");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
 
@@ -1702,6 +1683,7 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
+	LOGNONE();
 	UNLOCK();
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
@@ -1936,18 +1918,14 @@ mapi_id_t
 exchange_mapi_get_default_folder_id (uint32_t olFolder)
 {
 	enum MAPISTATUS retval;
-	TALLOC_CTX *mem_ctx;
 	mapi_object_t obj_store;
-	mapi_object_t obj_folder;
 	mapi_id_t fid = 0;
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	LOCK();
 	LOGALL();
-	mem_ctx = talloc_init("ExchangeMAPI_GetDefaultFolderID");
 	mapi_object_init(&obj_store);
-	mapi_object_init(&obj_folder);
 
 	/* Open the message store */
 	retval = OpenMsgStore(&obj_store);
@@ -1963,9 +1941,7 @@ exchange_mapi_get_default_folder_id (uint32_t olFolder)
 	}
 
 cleanup:
-	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
-	talloc_free(mem_ctx);
 	LOGNONE();
 	UNLOCK();
 
@@ -2245,25 +2221,28 @@ cleanup:
 }
 
 gboolean
-exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uint32_t flag)
+exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mids, uint32_t flag)
 {
 	enum MAPISTATUS retval;
 	TALLOC_CTX *mem_ctx;
 	mapi_object_t obj_store;
 	mapi_object_t obj_folder;
+	uint32_t i;
+	mapi_id_t *id_messages;
+	GSList *tmp = mids;
 	gboolean result = FALSE;
-	mapi_id_t* messageIds = NULL;
-	gint16 messageIdCount = 0;
-	guint i;
-	GSList *l;
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	LOCK();
-
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_SetFlags");
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
+
+	id_messages = talloc_array(mem_ctx, mapi_id_t, g_slist_length (mids));
+	for (i=0; tmp; tmp=tmp->next, i++)
+		id_messages[i] = *((mapi_id_t *)tmp->data);
 
 	/* Open the message store */
 	retval = OpenMsgStore(&obj_store);
@@ -2279,14 +2258,7 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uin
 		goto cleanup;
 	}
 
-	messageIdCount = g_slist_length (mid_list);
-	messageIds = g_malloc0 (messageIdCount * sizeof (mapi_id_t));
-
-	for (i = 0, l = mid_list; l != NULL; l = g_slist_next (l), i++) 
-		messageIds[i] = *((mapi_id_t *)l->data);
-
-	retval = SetReadFlags(&obj_folder, flag, messageIdCount, messageIds);
-
+	retval = SetReadFlags(&obj_folder, flag, i, id_messages);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("SetReadFlags", GetLastError());
 		goto cleanup;
@@ -2298,6 +2270,7 @@ cleanup:
 	mapi_object_release(&obj_folder);
 	mapi_object_release(&obj_store);
 	talloc_free(mem_ctx);
+	LOGNONE();
 	UNLOCK();
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
@@ -2396,7 +2369,7 @@ exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids)
 	mapi_object_init(&obj_store);
 	mapi_object_init(&obj_folder);
 
-	id_messages = talloc_array(mem_ctx, mapi_id_t, g_slist_length (mids)+1);
+	id_messages = talloc_array(mem_ctx, mapi_id_t, g_slist_length (mids));
 	for (i=0; tmp; tmp=tmp->next, i++) {
 		struct id_list *data = tmp->data;
 		id_messages[i] = data->id;
