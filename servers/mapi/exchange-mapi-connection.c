@@ -35,16 +35,23 @@
 static struct mapi_session *global_mapi_session= NULL;
 static GStaticRecMutex connect_lock = G_STATIC_REC_MUTEX_INIT;
 
+
 #define LOCK() 		g_message("%s(%d): %s: lock(connect_lock)", __FILE__, __LINE__, __PRETTY_FUNCTION__);g_static_rec_mutex_lock(&connect_lock);
 #define UNLOCK() 	g_message("%s(%d): %s: unlock(connect_lock)", __FILE__, __LINE__, __PRETTY_FUNCTION__);g_static_rec_mutex_unlock(&connect_lock);
 
+#if 0
 #define LOGALL() 	lp_set_cmdline(global_mapi_ctx->lp_ctx, "log level", "10"); global_mapi_ctx->dumpdata = TRUE;
 #define LOGNONE() 	lp_set_cmdline(global_mapi_ctx->lp_ctx, "log level", "0"); global_mapi_ctx->dumpdata = FALSE;
 
-#if 0
+#define ENABLE_VERBOSE_LOG() 	global_mapi_ctx->dumpdata = TRUE;
+#define DISABLE_VERBOSE_LOG() 	global_mapi_ctx->dumpdata = FALSE;
+#endif
+
 #define LOGALL()
 #define LOGNONE()
-#endif
+
+#define ENABLE_VERBOSE_LOG()
+#define DISABLE_VERBOSE_LOG()
 
 /* Specifies READ/WRITE sizes to be used while handling attachment streams */
 #define ATTACH_MAX_READ_SIZE  0x1000
@@ -252,7 +259,7 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	uint32_t			count;
 	/* common email fields */
 	DATA_BLOB			body;
-	const uint32_t			*editor;
+	uint8_t			        editor;
 	mapi_object_t			obj_stream;
 	const char			*data = NULL;
 	const bool 			*rtf_in_sync;
@@ -267,8 +274,7 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	mem_ctx = talloc_init ("ExchangeMAPI_ReadBodyStream");
 
 	/* Build the array of properties we want to fetch */
-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x8,
-					  PR_MSG_EDITOR_FORMAT,
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x7,
 					  PR_BODY,
 					  PR_BODY_UNICODE,
 					  PR_BODY_HTML, 
@@ -291,19 +297,23 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	aRow.cValues = count;
 	aRow.lpProps = lpProps;
 
-	editor = (const uint32_t *) find_SPropValue_data(&aRow, PR_MSG_EDITOR_FORMAT);
-	/* if PR_MSG_EDITOR_FORMAT doesn't exist, set it to PLAINTEXT */
-	if (!editor) {
-		dflt = olEditorText;
-		editor = &dflt;
+	/* Use BestBody Algo */
+	retval = GetBestBody(obj_message, &editor);
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("GetBestBody", GetLastError());
+		editor = olEditorText; /*On failure, fallback to Plain Text*/
 	}
+
+	/* HACK : We can't handle RTF. So default to HTML*/ 
+	if (editor != olEditorText && editor != olEditorHTML) 
+		editor = olEditorHTML;
 
 	/* initialize body DATA_BLOB */
 	body.data = NULL;
 	body.length = 0;
 
 	retval = -1;
-	switch (*editor) {
+	switch (editor) {
 		case olEditorText:
 			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY)) != NULL)
 				proptag = PR_BODY;
