@@ -70,16 +70,8 @@ typedef struct {
 } MapiItemHeader;
 
 typedef struct {
-	//Temp : PLAIN
-	gchar *body_plain_text;
 	GSList *body_parts;
 } MapiItemMessage;
-
-typedef struct {
-	gchar *filename;
-	gchar *description;
-	GByteArray *attach;
-} MapiItemAttachment;
 
 typedef struct  {
 	mapi_id_t fid;

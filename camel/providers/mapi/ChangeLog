@@ -1,5 +1,11 @@
-2008-07-31  Suman Manjunath  <msuman@novell.com>
+2008-07-31  Johnny Jacob  <jjohnny@novell.com>	
+	
+	* camel-mapi-folder.c (mapi_transfer_messages_to): Free mids.	
+	(mapi_folder_get_message): Remove unused variables.
+	(mapi_update_cache): Removed unused variables.
 
+2008-07-31  Suman Manjunath  <msuman@novell.com>
+	
 	* camel-mapi-transport.c (mapi_item_add_recipient): Added props
 	required for external recipients. 
 

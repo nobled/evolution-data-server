@@ -87,7 +87,6 @@ mapi_item_debug_dump (MapiItem *item)
 	//Use Recipient List
 	printf("item->header.subject : %s\n",item->header.subject);
 	//printf("item->msg.body_stream : %s\n",item->msg.body_stream);
-	printf("item->msg.body_plain_text : %s\n",item->msg.body_plain_text);
 	printf("-----------------\n\n");
 }
 
