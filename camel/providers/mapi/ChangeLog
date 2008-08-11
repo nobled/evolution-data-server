@@ -1,3 +1,8 @@
+2008-08-11  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-folder.c (fetch_item_cb): Typo fix. 
+	(mapi_folder_get_message): Use the MAPI_OPTIONS_GETBESTBODY option.
+
 2008-07-31  Johnny Jacob  <jjohnny@novell.com>	
 	
 	* camel-mapi-folder.c (mapi_transfer_messages_to): Free mids.	

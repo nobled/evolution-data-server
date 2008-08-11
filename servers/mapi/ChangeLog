@@ -1,3 +1,10 @@
+2008-08-11  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream),
+	(exchange_mapi_connection_fetch_items),
+	(exchange_mapi_connection_fetch_item): Use MAPI_OPTIONS_GETBESTBODY. 
+	* exchange-mapi-connection.h: Added MAPI_OPTIONS_GETBESTBODY. 
+
 2008-08-01  Johnny Jacob  <jjohnny@novell.com>
 	
 	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream): Use

@@ -733,8 +733,11 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 		appointment_body_str = exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
 
 		body = g_new0(ExchangeMAPIStream, 1);
+		body->proptag = PR_BODY;
 		body->value = g_byte_array_new ();
-		body->value - g_byte_array_append (body->value, appointment_body_str, strlen (appointment_body_str));
+		body->value = g_byte_array_append (body->value, appointment_body_str, strlen (appointment_body_str));
+
+		item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
 
 		item->is_cal = TRUE;
 	} else { 
@@ -1020,7 +1023,7 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 					camel_GetPropsList, G_N_ELEMENTS (camel_GetPropsList), 
 					camel_build_name_id, NULL, 
 					fetch_item_cb, &item, 
-					MAPI_OPTIONS_FETCH_ALL);
+					MAPI_OPTIONS_FETCH_ALL | MAPI_OPTIONS_GETBESTBODY);
 
 	if (item == NULL) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));

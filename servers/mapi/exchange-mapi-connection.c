@@ -245,11 +245,8 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 	return (retval == MAPI_E_SUCCESS);
 }
 
-/*
- * Fetch the body given PR_MSG_EDITOR_FORMAT property value
- */
 static gboolean
-exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream_list)
+exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream_list, gboolean getbestbody)
 {
 	enum MAPISTATUS			retval;
 	TALLOC_CTX 			*mem_ctx;
@@ -259,11 +256,11 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	uint32_t			count;
 	/* common email fields */
 	DATA_BLOB			body;
-	uint8_t			        editor;
+	uint8_t 			editor;
 	mapi_object_t			obj_stream;
 	const char			*data = NULL;
 	const bool 			*rtf_in_sync;
-	uint32_t 			dflt;
+	const uint32_t 			*ui32 = NULL;
 	uint32_t 			proptag = 0;
 
 	/* sanity check */
@@ -274,7 +271,8 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	mem_ctx = talloc_init ("ExchangeMAPI_ReadBodyStream");
 
 	/* Build the array of properties we want to fetch */
-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x7,
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x8,
+					  PR_MSG_EDITOR_FORMAT,
 					  PR_BODY,
 					  PR_BODY_UNICODE,
 					  PR_BODY_HTML, 
@@ -297,16 +295,23 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	aRow.cValues = count;
 	aRow.lpProps = lpProps;
 
-	/* Use BestBody Algo */
-	retval = GetBestBody(obj_message, &editor);
-	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr("GetBestBody", GetLastError());
-		editor = olEditorText; /*On failure, fallback to Plain Text*/
-	}
+	if (getbestbody) {
+		/* Use BestBody Algo */
+		retval = GetBestBody(obj_message, &editor);
+		if (retval != MAPI_E_SUCCESS) {
+			mapi_errstr("GetBestBody", GetLastError());
+			/* On failure, fallback to Plain Text */
+			editor = olEditorText; 
+		}
 
-	/* HACK : We can't handle RTF. So default to HTML*/ 
-	if (editor != olEditorText && editor != olEditorHTML) 
-		editor = olEditorHTML;
+		/* HACK : We can't handle RTF. So default to HTML */ 
+		if (editor != olEditorText && editor != olEditorHTML) 
+			editor = olEditorHTML;
+	} else {
+		ui32 = (const uint32_t *) find_SPropValue_data(&aRow, PR_MSG_EDITOR_FORMAT);
+		/* if PR_MSG_EDITOR_FORMAT doesn't exist, set it to PLAINTEXT */
+		editor = ui32 ? *ui32 : olEditorText;
+	}
 
 	/* initialize body DATA_BLOB */
 	body.data = NULL;
@@ -1065,7 +1070,6 @@ cleanup:
 	return mids;
 }
 
-// FIXME: May be we need to support Restrictions/Filters here. May be after libmapi-0.7.
 gboolean
 exchange_mapi_connection_fetch_items   (mapi_id_t fid, 
 					struct mapi_SRestriction *res,
@@ -1230,7 +1234,8 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 
 		/* get the main body stream no matter what */
 		if (options & MAPI_OPTIONS_FETCH_BODY_STREAM)
-			exchange_mapi_util_read_body_stream (&obj_message, &stream_list);
+			exchange_mapi_util_read_body_stream (&obj_message, &stream_list, 
+				options & MAPI_OPTIONS_GETBESTBODY);
 
 		if (GetPropsTagArray->cValues) {
 			struct SPropValue *lpProps;
@@ -1387,7 +1392,8 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 
 	/* get the main body stream no matter what */
 	if (options & MAPI_OPTIONS_FETCH_BODY_STREAM)
-		exchange_mapi_util_read_body_stream (&obj_message, &stream_list);
+		exchange_mapi_util_read_body_stream (&obj_message, &stream_list, 
+			options & MAPI_OPTIONS_GETBESTBODY);
 
 	if (GetPropsTagArray->cValues) {
 		struct SPropValue *lpProps;
