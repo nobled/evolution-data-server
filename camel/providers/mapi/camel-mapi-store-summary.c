@@ -123,11 +123,12 @@ summary_header_load(CamelStoreSummary *s, FILE *in)
 	CamelMapiStoreSummary *summary = (CamelMapiStoreSummary *)s ;
 	gint32 version;
 
-	if (camel_mapi_store_summary_parent->summary_header_load ((CamelStoreSummary *)s, in) == -1
-			|| camel_file_util_decode_fixed_int32(in, &version) == -1)
+	/* TODO */
+	if (camel_mapi_store_summary_parent->summary_header_load ((CamelStoreSummary *)s, in) == -1)
+			/* || camel_file_util_decode_fixed_int32(in, &version) == -1) */
 		return -1 ;
 
-	summary->version = version ;
+	summary->version = 0 ;
 
 	return 0 ;
 }

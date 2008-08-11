@@ -312,6 +312,7 @@ static void
 mapi_sync_summary (CamelFolder *folder, CamelException *ex)
 {
 	camel_folder_summary_save (folder->summary);
+	camel_store_summary_touch ((CamelStoreSummary *)((CamelMapiStore *)folder->parent_store)->summary);
 	camel_store_summary_save ((CamelStoreSummary *)((CamelMapiStore *)folder->parent_store)->summary);
 }
 

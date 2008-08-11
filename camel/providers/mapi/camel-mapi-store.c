@@ -225,6 +225,7 @@ static void mapi_construct(CamelService *service, CamelSession *session,
 	
 	/*store summary*/
 	path = g_alloca (strlen (priv->storage_path) + 32);
+	sprintf (path, "%s/.summary", priv->storage_path);
 
 	mapi_store->summary = camel_mapi_store_summary_new ();
 	camel_store_summary_set_filename ((CamelStoreSummary *)mapi_store->summary, path);
@@ -367,7 +368,7 @@ mapi_connect(CamelService *service, CamelException *ex)
 		//store->refresh_stamp = time (NULL);
 	}
 
-	//camel_store_summary_save ((CamelStoreSummary *) store->summary);
+	camel_store_summary_save ((CamelStoreSummary *) store->summary);
 
 	CAMEL_SERVICE_REC_UNLOCK (service, connect_lock);
 
