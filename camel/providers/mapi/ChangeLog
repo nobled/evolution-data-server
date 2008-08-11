@@ -1,9 +1,13 @@
+2008-08-11  Johnny Jacob  <jjohnny@novell.com>	
+	
+	* camel-mapi-store.c (mapi_connect): Fixed network states.
+
 2008-08-11  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-folder.c (fetch_item_cb): Use g_utf8_strlen(). 
 
 2008-08-11  Johnny Jacob  <jjohnny@novell.com>	
-	
+
 	* camel-mapi-folder.c (mapi_sync_summary): Touch summary for writing.
 	* camel-mapi-store.c (mapi_construct): Initialise summary path.
 

@@ -333,11 +333,6 @@ mapi_connect(CamelService *service, CamelException *ex)
 	CamelMapiStore *store = CAMEL_MAPI_STORE (service);
 	CamelMapiStorePrivate *priv = store->priv;
 
-	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL ||
-	    (service->status == CAMEL_SERVICE_DISCONNECTED)) {
-		return FALSE;
-	}
-
 	if (service->status == CAMEL_SERVICE_DISCONNECTED) {
 		return FALSE;
 	}
