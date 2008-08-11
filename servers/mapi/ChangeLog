@@ -1,5 +1,16 @@
 2008-08-11  Suman Manjunath  <msuman@novell.com>
 
+	* exchange-mapi-cal-utils.c (get_partstat_from_trackstatus),
+	(get_trackstatus_from_partstat),
+	(exchange_mapi_cal_util_fetch_recipients), (change_partstat),
+	(remove_other_attendees), (update_cb), (update_attendee_status),
+	(exchange_mapi_cal_util_camel_helper),
+	(exchange_mapi_cal_util_build_props): Initial code for rendering meeting
+	responses, some cleanups. 
+	* exchange-mapi-defs.h: Added a few IPM_* strings. 
+
+2008-08-11  Suman Manjunath  <msuman@novell.com>
+
 	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream),
 	(exchange_mapi_connection_fetch_items),
 	(exchange_mapi_connection_fetch_item): Use MAPI_OPTIONS_GETBESTBODY. 

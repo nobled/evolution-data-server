@@ -389,7 +389,7 @@ mapi_book_build_props (struct SPropValue ** value, struct SPropTagArray * SPropT
 	set_str_value ( E_CONTACT_FILE_AS, SPropTagArray->aulPropTag[0]);
 
 	set_str_value (E_CONTACT_FULL_NAME, PR_DISPLAY_NAME);
-	set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *)"IPM.Contact");
+	set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *)IPM_CONTACT);
 	set_str_value (E_CONTACT_FILE_AS, PR_NORMALIZED_SUBJECT);
 	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[1]);
 	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[2]);

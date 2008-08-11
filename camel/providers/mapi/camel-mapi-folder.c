@@ -36,6 +36,7 @@
 #include <camel/camel-debug.h>
 
 #include <libmapi/libmapi.h>
+#include <exchange-mapi-defs.h>
 #include <exchange-mapi-utils.h>
 
 #include "camel-mapi-store.h"
@@ -729,14 +730,14 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	item->header.size = *(glong *)(find_mapi_SPropValue_data (array, PR_MESSAGE_SIZE));
 
 	msg_class = (const char *) exchange_mapi_util_find_array_propval (array, PR_MESSAGE_CLASS);
-	if (g_str_has_prefix (msg_class, "IPM.Schedule.")) {
-		char *appointment_body_str = NULL;
+	if (g_str_has_prefix (msg_class, IPM_SCHEDULE_MEETING_PREFIX)) {
+		gchar *appointment_body_str = NULL;
 		appointment_body_str = exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
 
 		body = g_new0(ExchangeMAPIStream, 1);
 		body->proptag = PR_BODY;
 		body->value = g_byte_array_new ();
-		body->value = g_byte_array_append (body->value, appointment_body_str, strlen (appointment_body_str));
+		body->value = g_byte_array_append (body->value, appointment_body_str, g_utf8_strlen (appointment_body_str, -1));
 
 		item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
 

@@ -47,11 +47,13 @@ static GStaticRecMutex connect_lock = G_STATIC_REC_MUTEX_INIT;
 #define DISABLE_VERBOSE_LOG() 	global_mapi_ctx->dumpdata = FALSE;
 #endif
 
+//#if 0
 #define LOGALL()
 #define LOGNONE()
 
 #define ENABLE_VERBOSE_LOG()
 #define DISABLE_VERBOSE_LOG()
+//#endif 
 
 /* Specifies READ/WRITE sizes to be used while handling attachment streams */
 #define ATTACH_MAX_READ_SIZE  0x1000

@@ -1175,6 +1175,12 @@ capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid
 		cbdata->appt_seq = *ui32;
 	cbdata->cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
 	cbdata->globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
+	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
 
 	return TRUE;
 }
@@ -1323,11 +1329,34 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 			return GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
 	}
 
+	/* blatant HACK /me blames some stupid design in e-d-s */
+	if (e_cal_component_has_attachments (comp))
+		g_cond_signal (priv->dlock->cond);
+
 	g_object_unref (comp);
 	exchange_mapi_util_free_recipient_list (&recipients);
 	exchange_mapi_util_free_attachment_list (&attachments);
 
 	return GNOME_Evolution_Calendar_Success;
+}
+
+static gboolean
+modifier_is_organizer (ECalBackendMAPI *cbmapi, ECalComponent *comp)
+{
+	ECalComponentOrganizer org; 
+	const char *ownerid, *orgid; 
+
+	if (!e_cal_component_has_organizer(comp))
+		return TRUE;
+
+	e_cal_component_get_organizer (comp, &org);
+	if (!g_ascii_strncasecmp (org.value, "mailto:", 7))
+		orgid = (org.value) + 7;
+	else 
+		orgid = org.value;
+	ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
+
+	return (!g_ascii_strcasecmp(orgid, ownerid) ? TRUE : FALSE);
 }
 
 static ECalBackendSyncStatus 
@@ -1371,7 +1400,6 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		return GNOME_Evolution_Calendar_OtherError;
 	}
 
-	/* FIXME: [WIP] Add support for meetings/assigned tasks */
 	if (e_cal_component_has_attendees (comp)) 
 		exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 
@@ -1380,13 +1408,6 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 
 	e_cal_component_get_uid (comp, &uid);
 	rid = e_cal_component_get_recurid_as_string (comp);
-
-	cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
-	cbdata.useridtype = "SMTP";
-	cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
-	cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
-	cbdata.owneridtype = "SMTP";
-	cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 	switch (priv->mode) {
 	case CAL_MODE_ANY :
@@ -1408,7 +1429,15 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		cbdata.is_modify = TRUE;
 
 		get_server_data (cbmapi, icalcomp, &cbdata);
-		cbdata.appt_seq += 1;
+		if (modifier_is_organizer(cbmapi, comp)) {
+			cbdata.appt_seq += 1;
+			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+			cbdata.useridtype = "SMTP";
+			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
+			cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+			cbdata.owneridtype = "SMTP";
+			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);			
+		}
 
 		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
@@ -1433,6 +1462,10 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 
 	*old_object = e_cal_component_get_as_string (cache_comp);
 	*new_object = e_cal_component_get_as_string (comp);
+
+	/* blatant HACK /me blames some stupid design in e-d-s */
+	if (e_cal_component_has_attachments (comp))
+		g_cond_signal (priv->dlock->cond);
 
 	g_object_unref (comp);
 	g_object_unref (cache_comp);
@@ -1593,6 +1626,10 @@ e_cal_backend_mapi_receive_objects (ECalBackendSync *backend, EDataCal *cal, con
 				g_free (old_object);
 				g_free (new_object);
 				break;
+			case ICAL_METHOD_REPLY :
+				/* responses are automatically updated even as they are rendered (just like in Outlook) */
+				status = GNOME_Evolution_Calendar_Success;
+				break; 
 			default :
 				break;
 			}
@@ -1664,13 +1701,6 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 			if (e_cal_component_has_attachments (comp))
 				exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
-			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
-			cbdata.useridtype = "SMTP";
-			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
-			cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
-			cbdata.owneridtype = "SMTP";
-			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
-
 			cbdata.comp = comp;
 			cbdata.is_modify = TRUE;
 			cbdata.msgflags = MSGFLAG_UNSENT;
@@ -1691,6 +1721,12 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 			}
 
 			get_server_data (cbmapi, subcomp, &cbdata);
+			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
+			cbdata.useridtype = "SMTP";
+			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
+			cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
+			cbdata.owneridtype = "SMTP";
+			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 			mid = exchange_mapi_create_item (olFolderOutbox, 0, 
 							exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
@@ -1714,26 +1750,8 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 		}
 	}
 
-	if (status == GNOME_Evolution_Calendar_Success) {
-		ECalComponent *comp;
-
-		comp = e_cal_component_new ();
-
-		if (e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (icalcomp))) {
-			GSList *attendee_list = NULL, *tmp;
-			e_cal_component_get_attendee_list (comp, &attendee_list);
-			/* convert this into GList */
-			for (tmp = attendee_list; tmp; tmp = g_slist_next (tmp)) {
-				const char *attendee = tmp->data;
-
-				if (attendee)
-					*users = g_list_append (*users, g_strdup (attendee));
-			}
-
-			g_object_unref (comp);
-		}
+	if (status == GNOME_Evolution_Calendar_Success)
 		*modified_calobj = g_strdup (calobj);
-	}
 
 	icalcomponent_free (icalcomp);
 

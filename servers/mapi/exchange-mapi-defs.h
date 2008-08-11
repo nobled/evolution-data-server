@@ -159,6 +159,7 @@ typedef enum {
 } OlMeetingStatus;
 
 typedef enum {
+    asfNone = 0,
     asfMeeting = 1,
     asfReceived = 2,
     asfCanceled = 4
@@ -244,6 +245,19 @@ typedef enum {
     olRecursYearly = 5,
     olRecursYearNth = 6
 } OlRecurrencePatternType;
+
+
+#define IPM_CONTACT 				"IPM.Contact"
+#define IPM_APPOINTMENT 			"IPM.Appointment"
+#define IPM_SCHEDULE_MEETING_PREFIX 		"IPM.Schedule.Meeting."
+#define IPM_SCHEDULE_MEETING_REQUEST 		"IPM.Schedule.Meeting.Request"
+#define IPM_SCHEDULE_MEETING_CANCELED 		"IPM.Schedule.Meeting.Canceled"
+#define IPM_SCHEDULE_MEETING_RESP_PREFIX 	"IPM.Schedule.Meeting.Resp."
+#define IPM_SCHEDULE_MEETING_RESP_POS 		"IPM.Schedule.Meeting.Resp.Pos"
+#define IPM_SCHEDULE_MEETING_RESP_TENT 		"IPM.Schedule.Meeting.Resp.Tent"
+#define IPM_SCHEDULE_MEETING_RESP_NEG 		"IPM.Schedule.Meeting.Resp.Neg"
+#define IPM_TASK 				"IPM.Task"
+#define IPM_STICKYNOTE 				"IPM.StickyNote"
 
 
 G_END_DECLS

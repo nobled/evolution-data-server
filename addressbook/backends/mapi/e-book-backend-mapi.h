@@ -27,6 +27,7 @@
 #include <libedata-book/e-book-backend.h>
 #include <libedata-book/e-book-backend-sync.h>
 #include "exchange-mapi-connection.h"
+#include "exchange-mapi-defs.h"
 #include "exchange-mapi-utils.h"
 
 /* #include "db.h" */
