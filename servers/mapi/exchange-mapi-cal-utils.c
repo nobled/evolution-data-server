@@ -832,20 +832,186 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 	return comp;
 }
 
-static gboolean 
-capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
-		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+#define TEMP_ATTACH_STORE ".evolution/cache/tmp"
+
+static void
+change_partstat (ECalComponent *comp, const gchar *att, const gchar *sentby, icalparameter_partstat partstat)
 {
-	struct cbdata *cbdata = (struct cbdata *) data;
+	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
+	icalproperty *attendee; 
+
+	attendee = icalcomponent_get_first_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	while (attendee) {
+		const char *value = icalproperty_get_attendee (attendee);
+		if (!g_ascii_strcasecmp (value, att)) {
+			icalparameter *param = icalparameter_new_partstat (partstat);
+			icalproperty_set_parameter (attendee, param);
+			if (g_ascii_strcasecmp(att, sentby)) {
+				icalparameter *sentby_param = icalparameter_new_sentby (sentby);
+				icalproperty_set_parameter (attendee, sentby_param);
+			}
+			break;
+		}
+		attendee = icalcomponent_get_next_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	}
+
+	e_cal_component_set_icalcomponent (comp, icalcomp);
+}
+
+static void
+remove_other_attendees (ECalComponent *comp, const gchar *att)
+{
+	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
+	icalproperty *attendee; 
+
+	attendee = icalcomponent_get_first_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	while (attendee) {
+		const char *value = icalproperty_get_attendee (attendee);
+		if (g_ascii_strcasecmp (value, att))
+			icalcomponent_remove_property (icalcomp, attendee);
+
+		attendee = icalcomponent_get_next_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	}
+
+	e_cal_component_set_icalcomponent (comp, icalcomp);
+}
+
+static gboolean
+fetch_server_data_cb (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
+	GSList *streams, GSList *recipients, GSList *attachments, gpointer data) 
+{
+	icalcomponent_kind kind = ICAL_VEVENT_COMPONENT;
+	gchar *filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
+	gchar *fileuri = g_filename_to_uri (filename, NULL, NULL);
+	gchar *smid = exchange_mapi_util_mapi_id_to_string (mid);
+	ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, smid, properties, streams, recipients, attachments, fileuri, NULL);
+	struct cbdata *cbdata = (struct cbdata *)(data);
 	const uint32_t *ui32;
 
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID);
+	cbdata->appt_id = ui32 ? *ui32 : 0;
 	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
-	if (ui32)
-		cbdata->appt_seq = *ui32;
-	else 
-		cbdata->appt_seq = 0;
+	cbdata->appt_seq = ui32 ? *ui32 : 0;
+	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+
+	cbdata->comp = comp; 
+
+	g_free (smid);
+	g_free (fileuri);
+	g_free (filename);
 
 	return TRUE;
+}
+
+static void
+fetch_server_data (mapi_id_t mid, struct cbdata *cbd) 
+{
+	icalcomponent_kind kind = ICAL_VEVENT_COMPONENT;
+	mapi_id_t fid;
+
+	fid = exchange_mapi_get_default_folder_id (olFolderCalendar);
+
+	exchange_mapi_connection_fetch_item (fid, mid, 
+					cal_GetPropsList, G_N_ELEMENTS (cal_GetPropsList), 
+					exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER (kind), 
+					fetch_server_data_cb, cbd, 
+					MAPI_OPTIONS_FETCH_RECIPIENTS | MAPI_OPTIONS_FETCH_GENERIC_STREAMS);
+
+}
+
+static ECalComponent * 
+update_attendee_status (struct mapi_SPropValue_array *properties, mapi_id_t mid) 
+{
+	const gchar *att, *att_sentby, *addrtype;
+	icalparameter_partstat partstat = ICAL_PARTSTAT_NONE;
+	const gchar *state = (const gchar *) exchange_mapi_util_find_array_propval (properties, PR_MESSAGE_CLASS);
+	struct cbdata cbdata; 
+	gchar *matt, *matt_sentby;
+	uint32_t cur_seq;
+	const uint32_t *ui32;
+
+	if (!(state && *state))
+		return NULL;
+
+	if (!g_ascii_strcasecmp (state, IPM_SCHEDULE_MEETING_RESP_POS))
+		partstat = ICAL_PARTSTAT_ACCEPTED;
+	else if (!g_ascii_strcasecmp (state, IPM_SCHEDULE_MEETING_RESP_TENT))
+		partstat = ICAL_PARTSTAT_TENTATIVE;
+	else if (!g_ascii_strcasecmp (state, IPM_SCHEDULE_MEETING_RESP_NEG))
+		partstat = ICAL_PARTSTAT_DECLINED;
+	else
+		return NULL;
+
+	fetch_server_data (mid, &cbdata);
+
+	att = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+	if (addrtype && !g_ascii_strcasecmp (addrtype, "EX"))
+		att = exchange_mapi_util_ex_to_smtp (att);
+
+	att_sentby = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+	if (addrtype && !g_ascii_strcasecmp (addrtype, "EX"))
+		att_sentby = exchange_mapi_util_ex_to_smtp (att_sentby);
+
+	matt = g_strdup_printf ("MAILTO:%s", att);
+	matt_sentby = g_strdup_printf ("MAILTO:%s", att_sentby);
+
+	change_partstat (cbdata.comp, matt, matt_sentby, partstat);
+
+	ui32 = (const uint32_t *) find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+	cur_seq = ui32 ? *ui32 : 0;
+
+	if (cbdata.appt_seq == cur_seq) {
+/* 
+ * The itip-formatter provides an option to update the attendee's status.
+ * Hence, we need not update the server straight away. 
+ */
+#if 0
+		gchar *filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
+		gchar *fileuri = g_filename_to_uri (filename, NULL, NULL);
+		GSList *attachments = NULL, *recipients = NULL;
+
+		if (e_cal_component_has_attachments (cbdata.comp))
+			exchange_mapi_cal_util_fetch_attachments (cbdata.comp, &attachments, fileuri);
+
+		if (e_cal_component_has_attendees (cbdata.comp))
+			exchange_mapi_cal_util_fetch_recipients (cbdata.comp, &recipients);
+
+		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
+		cbdata.msgflags = MSGFLAG_READ;
+		cbdata.is_modify = TRUE;
+		cbdata.cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+		cbdata.globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
+
+		status = exchange_mapi_modify_item (olFolderCalendar, fid, mid, 
+				exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER (kind), 
+				exchange_mapi_cal_util_build_props, &cbdata, 
+				recipients, attachments, MAPI_OPTIONS_DONT_SUBMIT);
+		g_free (cbdata.props);
+
+		exchange_mapi_util_free_recipient_list (&recipients);
+		exchange_mapi_util_free_attachment_list (&attachments);
+		g_free (fileuri);
+		g_free (filename);
+#endif 
+
+		/* remove the other attendees so not to confuse itip-formatter */
+		remove_other_attendees (cbdata.comp, matt);
+	} else { 
+		g_object_unref (cbdata.comp);
+		cbdata.comp = NULL;
+	}
+
+	g_free (matt);
+	g_free (matt_sentby);
+
+	return cbdata.comp;
 }
 
 static void 
@@ -859,20 +1025,13 @@ update_server_object (struct mapi_SPropValue_array *properties, GSList *attachme
 	fid = exchange_mapi_get_default_folder_id (olFolderCalendar);
 
 	ui32 = (const uint32_t *) find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
-	if (ui32)
-		cur_seq = *ui32;
+	cur_seq = ui32 ? *ui32 : 0;
 
 	if (*mid) {
-		struct cbdata server_cbdata;
-		server_cbdata.appt_seq = 0;
+		struct cbdata server_cbd;
+		fetch_server_data (*mid, &server_cbd);
 
-		exchange_mapi_connection_fetch_item (fid, *mid, 
-			NULL, 0, 
-			NULL, NULL, 
-			capture_req_props, &server_cbdata, 
-			0);
-
-		if (cur_seq > server_cbdata.appt_seq) {
+		if (cur_seq > server_cbd.appt_seq) {
 			struct id_list idlist; 
 			GSList *ids = NULL;
 
@@ -880,6 +1039,7 @@ update_server_object (struct mapi_SPropValue_array *properties, GSList *attachme
 			ids = g_slist_append (ids, &idlist);
 
 			exchange_mapi_remove_items (olFolderCalendar, fid, ids);
+			g_slist_free (ids);
 		} else 
 			create_new = FALSE;
 	}
@@ -957,174 +1117,6 @@ check_server_for_object (struct mapi_SPropValue_array *properties, mapi_id_t *mi
 	g_slist_free(l);
 }
 
-#define TEMP_ATTACH_STORE ".evolution/cache/tmp"
-
-static void
-change_partstat (ECalComponent *comp, const gchar *att, const gchar *sentby, icalparameter_partstat partstat)
-{
-	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
-	icalproperty *attendee; 
-
-	attendee = icalcomponent_get_first_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
-	while (attendee) {
-		const char *value = icalproperty_get_attendee (attendee);
-		if (!g_ascii_strcasecmp (value, att)) {
-			icalparameter *param = icalparameter_new_partstat (partstat);
-			icalproperty_set_parameter (attendee, param);
-			if (g_ascii_strcasecmp(att, sentby)) {
-				icalparameter *sentby_param = icalparameter_new_sentby (sentby);
-				icalproperty_set_parameter (attendee, sentby_param);
-			}
-			break;
-		}
-		attendee = icalcomponent_get_next_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
-	}
-
-	e_cal_component_set_icalcomponent (comp, icalcomp);
-}
-
-static void
-remove_other_attendees (ECalComponent *comp, const gchar *att)
-{
-	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
-	icalproperty *attendee; 
-
-	attendee = icalcomponent_get_first_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
-	while (attendee) {
-		const char *value = icalproperty_get_attendee (attendee);
-		if (g_ascii_strcasecmp (value, att))
-			icalcomponent_remove_property (icalcomp, attendee);
-
-		attendee = icalcomponent_get_next_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
-	}
-
-	e_cal_component_set_icalcomponent (comp, icalcomp);
-}
-
-static gboolean
-update_cb (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
-	GSList *streams, GSList *recipients, GSList *attachments, gpointer data) 
-{
-	icalcomponent_kind kind = ICAL_VEVENT_COMPONENT;
-	gchar *filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
-	gchar *fileuri = g_filename_to_uri (filename, NULL, NULL);
-	gchar *smid = exchange_mapi_util_mapi_id_to_string (mid);
-	ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, smid, properties, streams, recipients, attachments, fileuri, NULL);
-	struct cbdata *cbdata = (struct cbdata *)(data);
-	const uint32_t *ui32;
-
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID);
-	cbdata->appt_id = ui32 ? *ui32 : 0;
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
-	cbdata->appt_seq = ui32 ? *ui32 : 0;
-	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
-	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
-	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
-	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
-	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
-	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
-
-	cbdata->comp = comp; 
-
-	g_free (smid);
-	g_free (fileuri);
-	g_free (filename);
-
-	return TRUE;
-}
-
-static ECalComponent * 
-update_attendee_status (struct mapi_SPropValue_array *properties, mapi_id_t mid) 
-{
-	icalcomponent_kind kind = ICAL_VEVENT_COMPONENT;
-	mapi_id_t fid;
-	const gchar *att, *att_sentby, *addrtype;
-	icalparameter_partstat partstat = ICAL_PARTSTAT_NONE;
-	const gchar *state = (const gchar *) exchange_mapi_util_find_array_propval (properties, PR_MESSAGE_CLASS);
-	struct cbdata cbdata; 
-	gboolean status = FALSE;
-	gchar *matt, *matt_sentby;
-	uint32_t cur_seq;
-	const uint32_t *ui32;
-
-	if (!(state && *state))
-		return NULL;
-
-	if (!g_ascii_strcasecmp (state, IPM_SCHEDULE_MEETING_RESP_POS))
-		partstat = ICAL_PARTSTAT_ACCEPTED;
-	else if (!g_ascii_strcasecmp (state, IPM_SCHEDULE_MEETING_RESP_TENT))
-		partstat = ICAL_PARTSTAT_TENTATIVE;
-	else if (!g_ascii_strcasecmp (state, IPM_SCHEDULE_MEETING_RESP_NEG))
-		partstat = ICAL_PARTSTAT_DECLINED;
-	else
-		return NULL;
-
-	fid = exchange_mapi_get_default_folder_id (olFolderCalendar);
-
-	exchange_mapi_connection_fetch_item (fid, mid, 
-					cal_GetPropsList, G_N_ELEMENTS (cal_GetPropsList), 
-					exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER (kind), 
-					update_cb, &cbdata, 
-					MAPI_OPTIONS_FETCH_ALL);
-
-	att = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
-	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
-	if (addrtype && !g_ascii_strcasecmp (addrtype, "EX"))
-		att = exchange_mapi_util_ex_to_smtp (att);
-
-	att_sentby = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
-	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
-	if (addrtype && !g_ascii_strcasecmp (addrtype, "EX"))
-		att_sentby = exchange_mapi_util_ex_to_smtp (att_sentby);
-
-	matt = g_strdup_printf ("MAILTO:%s", att);
-	matt_sentby = g_strdup_printf ("MAILTO:%s", att_sentby);
-
-	change_partstat (cbdata.comp, matt, matt_sentby, partstat);
-
-	ui32 = (const uint32_t *) find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
-	cur_seq = ui32 ? *ui32 : 0;
-
-	if (cbdata.appt_seq == cur_seq) {
-		gchar *filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
-		gchar *fileuri = g_filename_to_uri (filename, NULL, NULL);
-		GSList *attachments = NULL, *recipients = NULL;
-
-		if (e_cal_component_has_attachments (cbdata.comp))
-			exchange_mapi_cal_util_fetch_attachments (cbdata.comp, &attachments, fileuri);
-
-		if (e_cal_component_has_attendees (cbdata.comp))
-			exchange_mapi_cal_util_fetch_recipients (cbdata.comp, &recipients);
-
-		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
-		cbdata.msgflags = MSGFLAG_READ;
-		cbdata.is_modify = TRUE;
-		cbdata.cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
-		cbdata.globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
-
-		status = exchange_mapi_modify_item (olFolderCalendar, fid, mid, 
-				exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER (kind), 
-				exchange_mapi_cal_util_build_props, &cbdata, 
-				recipients, attachments, MAPI_OPTIONS_DONT_SUBMIT);
-		g_free (cbdata.props);
-
-		exchange_mapi_util_free_recipient_list (&recipients);
-		exchange_mapi_util_free_attachment_list (&attachments);
-		g_free (fileuri);
-		g_free (filename);
-
-		remove_other_attendees (cbdata.comp, matt);
-	} else { 
-		g_object_unref (cbdata.comp);
-		cbdata.comp = NULL;
-	}
-
-	g_free (matt);
-	g_free (matt_sentby);
-
-	return cbdata.comp;
-}
-
 char *
 exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties, 
 				   GSList *streams, GSList *recipients, GSList *attachments)
@@ -1138,6 +1130,8 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 	icalcomponent *icalcomp = NULL;
 	char *str = NULL, *smid = NULL;
 	char *tmp;
+	gchar *filename;
+	gchar *fileuri;
 
 	msg_class = (const char *) exchange_mapi_util_find_array_propval (properties, PR_MESSAGE_CLASS);
 	g_return_val_if_fail (msg_class && *msg_class, NULL);
@@ -1153,10 +1147,22 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 	} else
 		return NULL;
 
+	filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
+	fileuri = g_filename_to_uri (filename, NULL, NULL);
+
 	check_server_for_object (properties, &mid);
 	if (method == ICAL_METHOD_REPLY) {
-		if (mid)
+		if (mid) { 
 	 		comp = update_attendee_status (properties, mid);
+			set_attachments_to_cal_component (comp, attachments, fileuri);
+		} 
+	} else if (method == ICAL_METHOD_CANCEL) {
+		if (mid) {
+			struct cbdata server_cbd; 
+			fetch_server_data (mid, &server_cbd);
+			comp = server_cbd.comp;
+			set_attachments_to_cal_component (comp, attachments, fileuri);
+		}
 	} else { 
 		if (mid)
 			smid = exchange_mapi_util_mapi_id_to_string (mid);
@@ -1166,9 +1172,10 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 		comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, smid, 
 							properties, streams, recipients, 
 							NULL, NULL, NULL);
+		set_attachments_to_cal_component (comp, attachments, fileuri);
 
 		b = (const bool *) find_mapi_SPropValue_data(properties, PR_PROCESSED);
-		if (!(b && *b) && method != ICAL_METHOD_CANCEL)
+		if (!(b && *b))
 			update_server_object (properties, attachments, comp, &mid);
 
 		tmp = exchange_mapi_util_mapi_id_to_string (mid);
@@ -1176,6 +1183,9 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 		g_free (tmp);
 		g_free (smid);
 	}
+
+	g_free (fileuri);
+	g_free (filename);
 
 	icalcomp = e_cal_util_new_top_level ();
 	icalcomponent_set_method (icalcomp, method);

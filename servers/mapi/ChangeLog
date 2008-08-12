@@ -1,3 +1,11 @@
+2008-08-12  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c (fetch_server_data_cb),
+	(fetch_server_data), (update_attendee_status),
+	(update_server_object), (check_server_for_object),
+	(exchange_mapi_cal_util_camel_helper): More code re-organization. 
+	* exchange-mapi-cal-utils.h: Fetch PR_MSG_EDITOR_FORMAT.
+
 2008-08-11  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-cal-utils.c (get_partstat_from_trackstatus),
