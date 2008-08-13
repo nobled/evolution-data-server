@@ -29,14 +29,14 @@
 
 #include <libmapi/libmapi.h>
 
-typedef enum _ExchangeMapiOptions {
+typedef enum {
 	MAPI_OPTIONS_FETCH_ATTACHMENTS = 1<<0,
 	MAPI_OPTIONS_FETCH_RECIPIENTS = 1<<1,
 	MAPI_OPTIONS_FETCH_BODY_STREAM = 1<<2,
 	MAPI_OPTIONS_FETCH_GENERIC_STREAMS = 1<<3, 
 	MAPI_OPTIONS_DONT_SUBMIT = 1<<4, 
 	MAPI_OPTIONS_GETBESTBODY = 1<<5
-} ExchangeMapiOptions;
+} ExchangeMAPIOptions;
 
 #define MAPI_OPTIONS_FETCH_ALL MAPI_OPTIONS_FETCH_ATTACHMENTS | \
 	                       MAPI_OPTIONS_FETCH_RECIPIENTS | \

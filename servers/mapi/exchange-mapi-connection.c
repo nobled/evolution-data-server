@@ -877,7 +877,7 @@ set_recipient_properties (TALLOC_CTX *mem_ctx, struct SRow *aRow, ExchangeMAPIRe
 
 /* DON'T f***ing touch this function. */
 static void
-exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_message , GSList *recipients)
+exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_message , GSList *recipients, gboolean remove_existing)
 {
 	enum MAPISTATUS 	retval;
 	struct SPropTagArray 	*SPropTagArray = NULL;
@@ -946,6 +946,14 @@ exchange_mapi_util_modify_recipients (TALLOC_CTX *mem_ctx, mapi_object_t *obj_me
 			set_recipient_properties (mem_ctx, &SRowSet->aRow[j], recipient, FALSE);
 			j += 1;
 			break;
+		}
+	}
+
+	if (remove_existing) {
+		RemoveAllRecipients (obj_message);
+		if (retval != MAPI_E_SUCCESS) {
+			mapi_errstr("RemoveAllRecipients", GetLastError());
+			goto cleanup;
 		}
 	}
 
@@ -2075,7 +2083,7 @@ exchange_mapi_create_item (uint32_t olFolder, mapi_id_t fid,
 
 	/* Set recipients if any */
 	if (recipients) {
-		exchange_mapi_util_modify_recipients (mem_ctx, &obj_message, recipients);
+		exchange_mapi_util_modify_recipients (mem_ctx, &obj_message, recipients, FALSE);
 	}
 
 	/* Finally, save all changes */
@@ -2208,7 +2216,7 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 
 	/* Set recipients if any */
 	if (recipients) {
-		exchange_mapi_util_modify_recipients (mem_ctx, &obj_message, recipients);
+		exchange_mapi_util_modify_recipients (mem_ctx, &obj_message, recipients, TRUE);
 	}
  
 	/* Finally, save all changes */
