@@ -1330,7 +1330,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 	}
 
 	/* blatant HACK /me blames some stupid design in e-d-s */
-	if (e_cal_component_has_attachments (comp))
+	if (e_cal_component_has_attachments (comp) && !fetch_deltas(cbmapi))
 		g_cond_signal (priv->dlock->cond);
 
 	g_object_unref (comp);
@@ -1374,6 +1374,8 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	GSList *recipients = NULL;
 	GSList *attachments = NULL;
 	struct cbdata cbdata;
+	gboolean no_increment = FALSE;
+	icalproperty *prop; 
 
 	*old_object = *new_object = NULL;
 	cbmapi = E_CAL_BACKEND_MAPI (backend);
@@ -1390,6 +1392,16 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	icalcomp = icalparser_parse_string (calobj);
 	if (!icalcomp)
 		return GNOME_Evolution_Calendar_InvalidObject;
+
+	prop = icalcomponent_get_first_property (icalcomp, ICAL_X_PROPERTY);
+	while (prop) {
+		const char *name = icalproperty_get_x_name (prop);
+		if (!g_ascii_strcasecmp (name, "X-EVOLUTION-IS-REPLY")) {
+			no_increment = TRUE; 
+			icalcomponent_remove_property (icalcomp, prop);
+		}
+		prop = icalcomponent_get_next_property (icalcomp, ICAL_X_PROPERTY);
+	}
 
 	comp = e_cal_component_new ();
 	e_cal_component_set_icalcomponent (comp, icalcomp);
@@ -1430,7 +1442,8 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 
 		get_server_data (cbmapi, icalcomp, &cbdata);
 		if (modifier_is_organizer(cbmapi, comp)) {
-			cbdata.appt_seq += 1;
+			if (!no_increment)
+				cbdata.appt_seq += 1;
 			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
 			cbdata.useridtype = "SMTP";
 			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
@@ -1462,10 +1475,6 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 
 	*old_object = e_cal_component_get_as_string (cache_comp);
 	*new_object = e_cal_component_get_as_string (comp);
-
-	/* blatant HACK /me blames some stupid design in e-d-s */
-	if (e_cal_component_has_attachments (comp))
-		g_cond_signal (priv->dlock->cond);
 
 	g_object_unref (comp);
 	g_object_unref (cache_comp);

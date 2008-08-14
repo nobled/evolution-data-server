@@ -194,18 +194,18 @@ exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_l
 
 	for (l = comp_attach_list; l ; l = l->next) {
 		gchar *sfname_uri = (gchar *) l->data;
-		gchar *sfname = g_filename_from_uri (sfname_uri, NULL, NULL);
-		gchar *filename;
+		gchar *sfname = NULL, *filename = NULL;
 		GMappedFile *mapped_file;
 		GError *error = NULL;
 
+		sfname = g_filename_from_uri (sfname_uri, NULL, NULL);
 		mapped_file = g_mapped_file_new (sfname, FALSE, &error);
 		filename = g_path_get_basename (sfname);
 
 		if (mapped_file && g_str_has_prefix (filename, uid)) {
 			ExchangeMAPIAttachment *attach_item;
-			gchar *attach_crlf = exchange_lf_to_crlf (g_mapped_file_get_contents (mapped_file));
-			guint filelength = strlen (attach_crlf);
+			gchar *attach = g_mapped_file_get_contents (mapped_file);
+			guint filelength = g_mapped_file_get_length (mapped_file);
 			const gchar *split_name = (filename + strlen (uid) + strlen ("-"));
 
 			new_attach_list = g_slist_append (new_attach_list, g_strdup (sfname_uri));
@@ -213,13 +213,12 @@ exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_l
 			attach_item = g_new0 (ExchangeMAPIAttachment, 1);
 			attach_item->filename = g_strdup(split_name);
 			attach_item->value = g_byte_array_sized_new (filelength);
-			attach_item->value = g_byte_array_append (attach_item->value, attach_crlf, filelength + 1);
+			attach_item->value = g_byte_array_append (attach_item->value, attach, filelength);
 			*attach_list = g_slist_append (*attach_list, attach_item);
 
 			g_mapped_file_free (mapped_file);
-			g_free (attach_crlf);
 		} else {
-			g_message ("DEBUG: could not map %s: %s\n", sfname, error->message);
+			g_debug ("Could not map %s: %s \n", sfname_uri, error->message);
 			g_error_free (error);
 		}
 
@@ -318,25 +317,28 @@ set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, cons
 	GSList *comp_attach_list = NULL, *l;
 	const char *uid;
 
+	g_return_if_fail (comp != NULL);
+
 	e_cal_component_get_uid (comp, &uid);
 	for (l = attach_list; l ; l = l->next) {
 		ExchangeMAPIAttachment *attach_item = (ExchangeMAPIAttachment *) (l->data);
 		gchar *attach_file_url, *filename;
 		guint len;
 		int fd = -1;
-		gchar *attach_lf = exchange_crlf_to_lf((const char *)attach_item->value->data);
 
-		len = (attach_lf != NULL) ? strlen (attach_lf) : 0;
+		gchar *attach = (const char *)attach_item->value->data;
+		len = attach_item->value->len;
+
 		attach_file_url = g_strconcat (local_store_uri, G_DIR_SEPARATOR_S, uid, "-", attach_item->filename, NULL);
 		filename = g_filename_from_uri (attach_file_url, NULL, NULL);
 
 		fd = g_open (filename, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);
 		if (fd == -1) { 
 			/* skip gracefully */
-			g_message ("DEBUG: could not open %s for writing\n", filename);
-		} else if (len && write (fd, attach_lf, len) == -1) {
+			g_debug ("Could not open %s for writing \n", filename);
+		} else if (len && write (fd, attach, len) == -1) {
 			/* skip gracefully */
-			g_message ("DEBUG: attachment write failed.\n");
+			g_debug ("Attachment write failed \n");
 		}
 		if (fd != -1) {
 			close (fd);
@@ -345,7 +347,6 @@ set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, cons
 
 		g_free (filename);
 		g_free (attach_file_url);
-		g_free (attach_lf);
 	}
 
 	e_cal_component_set_attachment_list (comp, comp_attach_list);
@@ -839,6 +840,7 @@ change_partstat (ECalComponent *comp, const gchar *att, const gchar *sentby, ica
 {
 	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
 	icalproperty *attendee; 
+	gboolean found = FALSE;
 
 	attendee = icalcomponent_get_first_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
 	while (attendee) {
@@ -850,9 +852,16 @@ change_partstat (ECalComponent *comp, const gchar *att, const gchar *sentby, ica
 				icalparameter *sentby_param = icalparameter_new_sentby (sentby);
 				icalproperty_set_parameter (attendee, sentby_param);
 			}
+			found = TRUE;
 			break;
 		}
 		attendee = icalcomponent_get_next_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	}
+
+	if (found) {
+		icalproperty *prop = icalproperty_new_x ("1");
+		icalproperty_set_x_name (prop, "X-EVOLUTION-IS-REPLY");
+		icalcomponent_add_property (icalcomp, prop);
 	}
 
 	e_cal_component_set_icalcomponent (comp, icalcomp);
@@ -1128,10 +1137,7 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 	mapi_id_t mid = 0;
 	const bool *b = NULL;
 	icalcomponent *icalcomp = NULL;
-	char *str = NULL, *smid = NULL;
-	char *tmp;
-	gchar *filename;
-	gchar *fileuri;
+	gchar *str = NULL, *smid = NULL, *tmp, *filename, *fileuri;
 
 	msg_class = (const char *) exchange_mapi_util_find_array_propval (properties, PR_MESSAGE_CLASS);
 	g_return_val_if_fail (msg_class && *msg_class, NULL);
@@ -1145,12 +1151,13 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 		method = ICAL_METHOD_REPLY;
 		kind = ICAL_VEVENT_COMPONENT;
 	} else
-		return NULL;
+		return (g_strdup (""));
 
 	filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
 	fileuri = g_filename_to_uri (filename, NULL, NULL);
 
 	check_server_for_object (properties, &mid);
+
 	if (method == ICAL_METHOD_REPLY) {
 		if (mid) { 
 	 		comp = update_attendee_status (properties, mid);
@@ -1163,7 +1170,7 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 			comp = server_cbd.comp;
 			set_attachments_to_cal_component (comp, attachments, fileuri);
 		}
-	} else { 
+	} else if (method == ICAL_METHOD_REQUEST) { 
 		if (mid)
 			smid = exchange_mapi_util_mapi_id_to_string (mid);
 		else 
@@ -1708,7 +1715,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			flag32 = olResponseOrganized;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
 
-			b = 0;
+			b = 1;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
 
 			break;

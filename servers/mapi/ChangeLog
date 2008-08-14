@@ -1,3 +1,13 @@
+2008-08-14  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_attachments),
+	(set_attachments_to_cal_component), (change_partstat),
+	(exchange_mapi_cal_util_camel_helper),
+	(exchange_mapi_cal_util_build_props): Fixes for some corner case
+	scenarios while rendering/updating meeting replies. Fixes for sending
+	receiving attachments which was broken sometime ago (LF-CRLF). 
+
 2008-08-13  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-connection.c
