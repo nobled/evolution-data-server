@@ -1,5 +1,16 @@
 2008-08-19  Suman Manjunath  <msuman@novell.com>
 
+	* exchange-mapi-cal-utils.c (exchange_mapi_cal_util_build_props): Minor
+	issue with handling alarms. 
+	* exchange-mapi-utils.c
+	(exchange_mapi_util_find_SPropVal_array_propval),
+	(exchange_mapi_util_find_row_propval),
+	(exchange_mapi_util_find_array_propval):
+	* exchange-mapi-utils.h: 
+	Fixed a few potential invalid memory accesses. 
+
+2008-08-19  Suman Manjunath  <msuman@novell.com>
+
 	* exchange-mapi-cal-utils.c (get_partstat_from_trackstatus),
 	(exchange_mapi_cal_util_fetch_organizer), (update_attendee_status),
 	(update_server_object), (exchange_mapi_cal_util_camel_helper),

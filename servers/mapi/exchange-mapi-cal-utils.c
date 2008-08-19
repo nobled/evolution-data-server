@@ -1614,11 +1614,12 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		if (action == E_CAL_COMPONENT_ALARM_DISPLAY) {
 			ECalComponentAlarmTrigger trigger;
 			e_cal_component_alarm_get_trigger (alarm, &trigger);
+			int dur_int = 0; 
 			switch (trigger.type) {
 			case E_CAL_COMPONENT_ALARM_TRIGGER_RELATIVE_START :
-				flag32 = (icaldurationtype_as_int (trigger.u.rel_duration)) / SECS_IN_MINUTE;
+				dur_int = (icaldurationtype_as_int (trigger.u.rel_duration)) / SECS_IN_MINUTE;
 			/* we cannot set an alarm to popup after the start of an appointment on Exchange */
-				flag32 = (flag32 < 0) ? -(flag32) : 0;
+				flag32 = (dur_int < 0) ? -(dur_int) : 0;
 				break;
 			default :
 				break;

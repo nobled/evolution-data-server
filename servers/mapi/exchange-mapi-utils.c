@@ -107,30 +107,33 @@ exchange_mapi_util_mapi_ids_from_uid (const char *str, mapi_id_t *fid, mapi_id_t
 /* NOTE: For now, since this function has special significance only for
  * 'string' type properties, callers should (preferably) use it for fetching 
  * such properties alone. If callers are sure that proptag would, for instance, 
- * return an 'int' or a 'systime', they should prefer find_SPropValue_data.
+ * return an 'int' or a 'systime', they should prefer get_SPropValue.
  */
-void *
+const void *
 exchange_mapi_util_find_SPropVal_array_propval (struct SPropValue *values, uint32_t proptag)
 {
 	if (((proptag & 0xFFFF) == PT_STRING8) ||
 	    ((proptag & 0xFFFF) == PT_UNICODE)) {
-		const char 	*str;
+		const void	*str = NULL;
 
 		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
-		str = (const char *)get_SPropValue(values, proptag);
+		str = get_SPropValue(values, proptag);
 		if (str) 
-			return (void *)str;
+			return str;
 
 		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
-		str = (const char *)get_SPropValue(values, proptag);
-		return (void *)str;
+		str = get_SPropValue(values, proptag);
+		if (str)
+			return str;
+
+		return NULL;
 	} 
 
 	/* NOTE: Similar generalizations (if any) for other property types 
 	 * can be made here. 
 	 */
 
-	return (void *)get_SPropValue(values, proptag);
+	return (get_SPropValue(values, proptag));
 }
 
 /*
@@ -146,28 +149,31 @@ exchange_mapi_util_find_SPropVal_array_propval (struct SPropValue *values, uint3
  * such properties alone. If callers are sure that proptag would, for instance, 
  * return an 'int' or a 'systime', they should prefer find_SPropValue_data.
  */
-void *
+const void *
 exchange_mapi_util_find_row_propval (struct SRow *aRow, uint32_t proptag)
 {
 	if (((proptag & 0xFFFF) == PT_STRING8) ||
 	    ((proptag & 0xFFFF) == PT_UNICODE)) {
-		const char 	*str;
+		const void	*str = NULL;
 
 		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
-		str = (const char *)find_SPropValue_data(aRow, proptag);
+		str = find_SPropValue_data(aRow, proptag);
 		if (str) 
-			return (void *)str;
+			return str;
 
 		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
-		str = (const char *)find_SPropValue_data(aRow, proptag);
-		return (void *)str;
+		str = find_SPropValue_data(aRow, proptag);
+		if (str)
+			return str;
+
+		return NULL;
 	} 
 
 	/* NOTE: Similar generalizations (if any) for other property types 
 	 * can be made here. 
 	 */
 
-	return (void *)find_SPropValue_data(aRow, proptag);
+	return (find_SPropValue_data(aRow, proptag));
 }
 
 /*
@@ -183,28 +189,31 @@ exchange_mapi_util_find_row_propval (struct SRow *aRow, uint32_t proptag)
  * such properties alone. If callers are sure that proptag would, for instance, 
  * return an 'int' or a 'systime', they should prefer find_mapi_SPropValue_data.
  */
-void *
+const void *
 exchange_mapi_util_find_array_propval (struct mapi_SPropValue_array *properties, uint32_t proptag)
 {
 	if (((proptag & 0xFFFF) == PT_STRING8) ||
 	    ((proptag & 0xFFFF) == PT_UNICODE)) {
-		const char 	*str;
+		const void	*str = NULL;
 
 		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
-		str = (const char *)find_mapi_SPropValue_data(properties, proptag);
+		str = find_mapi_SPropValue_data(properties, proptag);
 		if (str) 
-			return (void *)str;
+			return str;
 
 		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
-		str = (const char *)find_mapi_SPropValue_data(properties, proptag);
-		return (void *)str;
+		str = find_mapi_SPropValue_data(properties, proptag);
+		if (str)
+			return str;
+
+		return NULL;
 	} 
 
 	/* NOTE: Similar generalizations (if any) for other property types 
 	 * can be made here. 
 	 */
 
-	return (void *)find_mapi_SPropValue_data(properties, proptag);
+	return (find_mapi_SPropValue_data(properties, proptag));
 }
 
 ExchangeMAPIStream *
