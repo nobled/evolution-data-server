@@ -37,25 +37,22 @@
 G_BEGIN_DECLS
 
 typedef enum {
-	NOT_A_MEETING = 0, 
-	MEETING_OBJECT 		= (1 << 0),
-	MEETING_OBJECT_SENT 	= (1 << 1),
-	MEETING_REQUEST 	= (1 << 2), 
-	MEETING_REQUEST_RCVD 	= (1 << 3), 
-	MEETING_RESPONSE_ACCEPT = (1 << 4), 
-	MEETING_RESPONSE_DECLINE = (1 << 5), 
-	MEETING_RESPONSE_TENTATIVE = (1 << 6), 
+	NOT_A_MEETING 		= (1 << 0), 
+	MEETING_OBJECT 		= (1 << 1), 
+	MEETING_OBJECT_SENT 	= (1 << 2), 
+	MEETING_OBJECT_RCVD 	= (1 << 3), 
+	MEETING_REQUEST 	= (1 << 4), 
+	MEETING_REQUEST_RCVD 	= (1 << 5), 
+	MEETING_RESPONSE 	= (1 << 6), 
 	MEETING_RESPONSE_RCVD 	= (1 << 7), 
 	MEETING_CANCEL 		= (1 << 8), 
-	MEETING_CANCEL_RCVD 	= (1 << 9)
+	MEETING_CANCEL_RCVD 	= (1 << 9) 
 } MAPIMeetingOptions;
 
 struct cbdata { 
 	ECalComponent *comp;
 	struct SPropValue *props;
 	gboolean is_modify;
-
-	uint32_t msgflags;
 
 	/* These are appt specific data */ 
 	MAPIMeetingOptions meeting_type;
@@ -64,6 +61,8 @@ struct cbdata {
 	struct SBinary *globalid;
 	struct SBinary *cleanglobalid;
 
+	uint32_t msgflags;
+	OlResponseStatus resp; 
 	const char *username;
 	const char *useridtype;
 	const char *userid;
@@ -72,6 +71,8 @@ struct cbdata {
 	const char *ownerid;
 };
 
+void
+exchange_mapi_cal_util_fetch_organizer (ECalComponent *comp, GSList **recip_list);
 void
 exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_list);
 void

@@ -66,6 +66,7 @@ static icalparameter_partstat
 get_partstat_from_trackstatus (uint32_t trackstatus)
 {
 	switch (trackstatus) {
+		case olResponseOrganized : 
 		case olResponseAccepted  : return ICAL_PARTSTAT_ACCEPTED;
 		case olResponseTentative : return ICAL_PARTSTAT_TENTATIVE;
 		case olResponseDeclined  : return ICAL_PARTSTAT_DECLINED;
@@ -234,6 +235,73 @@ exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_l
 
 #define RECIP_SENDABLE  0x1
 #define RECIP_ORGANIZER 0x2
+
+void
+exchange_mapi_cal_util_fetch_organizer (ECalComponent *comp, GSList **recip_list)
+{
+	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
+	icalproperty *org_prop = NULL; 
+	const gchar *org = NULL;
+
+	org_prop = icalcomponent_get_first_property (icalcomp, ICAL_ORGANIZER_PROPERTY);
+	org = icalproperty_get_organizer (org_prop);
+	if (org && *org) {
+		ExchangeMAPIRecipient *recipient;
+		uint32_t val = 0;
+		const char *str = NULL;
+		icalparameter *param;
+
+		recipient = g_new0 (ExchangeMAPIRecipient, 1);
+
+		if (!g_ascii_strncasecmp (org, "mailto:", 7)) 
+			recipient->email_id = (org) + 7;
+		else 
+			recipient->email_id = (org);
+
+		/* Required properties - set them always */
+		recipient->in.req_lpProps = g_new0 (struct SPropValue, 5);
+		recipient->in.req_cValues = 5;
+
+		val = 0;
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[0]), PR_SEND_INTERNET_ENCODING, (const void *)&val);
+
+		val = RECIP_SENDABLE | RECIP_ORGANIZER;
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[1]), PR_RECIPIENTS_FLAGS, (const void *)&val);
+
+		val = olResponseNone;
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[2]), PR_RECIPIENT_TRACKSTATUS, (const void *)&val);
+
+		val = olTo;
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[3]), PR_RECIPIENT_TYPE, (const void *) &val);
+
+		param = icalproperty_get_first_parameter (org_prop, ICAL_CN_PARAMETER);
+		str = icalparameter_get_cn (param);
+		if (!(str && *str)) 
+			str = "";
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
+
+		/* External recipient properties - set them only when the recipient is unresolved */
+		recipient->in.ext_lpProps = g_new0 (struct SPropValue, 5);
+		recipient->in.ext_cValues = 5;
+
+		val = DT_MAILUSER;
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[0]), PR_DISPLAY_TYPE, (const void *)&val);
+		val = MAPI_MAILUSER;
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
+		str = "SMTP";
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
+		str = recipient->email_id;
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
+
+		param = icalproperty_get_first_parameter (org_prop, ICAL_CN_PARAMETER);
+		str = icalparameter_get_cn (param);
+		if (!(str && *str)) 
+			str = "";
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
+
+		*recip_list = g_slist_append (*recip_list, recipient);
+	}
+}
 
 void
 exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_list)
@@ -993,6 +1061,7 @@ update_attendee_status (struct mapi_SPropValue_array *properties, mapi_id_t mid)
 			exchange_mapi_cal_util_fetch_recipients (cbdata.comp, &recipients);
 
 		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
+		cbdata.resp = (recipients != NULL) ? olResponseOrganized : olResponseNone;
 		cbdata.msgflags = MSGFLAG_READ;
 		cbdata.is_modify = TRUE;
 		cbdata.cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
@@ -1069,6 +1138,7 @@ update_server_object (struct mapi_SPropValue_array *properties, GSList *attachme
 		cbdata.is_modify = FALSE;
 		cbdata.msgflags = MSGFLAG_READ;
 		cbdata.meeting_type = MEETING_REQUEST_RCVD;
+		cbdata.resp = olResponseNone;
 		cbdata.appt_seq = (*(const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201)));
 		cbdata.appt_id = (*(const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID));
 		cbdata.globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
@@ -1135,7 +1205,6 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 	icalproperty_method method = ICAL_METHOD_NONE;
 	const char *msg_class = NULL;
 	mapi_id_t mid = 0;
-	const bool *b = NULL;
 	icalcomponent *icalcomp = NULL;
 	gchar *str = NULL, *smid = NULL, *tmp, *filename, *fileuri;
 
@@ -1181,9 +1250,7 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 							NULL, NULL, NULL);
 		set_attachments_to_cal_component (comp, attachments, fileuri);
 
-		b = (const bool *) find_mapi_SPropValue_data(properties, PR_PROCESSED);
-		if (!(b && *b))
-			update_server_object (properties, attachments, comp, &mid);
+		update_server_object (properties, attachments, comp, &mid);
 
 		tmp = exchange_mapi_util_mapi_id_to_string (mid);
 		e_cal_component_set_uid (comp, tmp);
@@ -1281,37 +1348,38 @@ typedef enum
 	I_APPT_BUSYSTATUS , 
 	I_APPT_LOCATION , 
 	I_APPT_START , 
-	I_APPT_END , 
+/*5*/	I_APPT_END , 
 	I_APPT_DURATION , 
 	I_APPT_ALLDAY , 
 /**/	I_APPT_RECURBLOB , 
 	I_APPT_STATEFLAGS , 
-	I_APPT_RESPONSESTATUS , 
+/*10*/	I_APPT_RESPONSESTATUS , 
 	I_APPT_RECURRING , 
 	I_APPT_INTENDEDBUSY , 
 /**/	I_APPT_RECURBASE , 
 	I_APPT_INVITED , 
-/**/	I_APPT_RECURTYPE , 
+/*15*/	I_APPT_RECURTYPE , 
 /**/	I_APPT_RECURPATTERN , 
 	I_APPT_CLIPSTART , 
 	I_APPT_CLIPEND , 
 	I_APPT_AUTOLOCATION , 
+/*20*/	I_APPT_ISCOUNTERPROPOSAL , 
 	I_APPT_NOTALLOWPROPOSE , 
 	I_APPT_STARTTZBLOB , 
-	I_APPT_ENDTZBLOB ,
+	I_APPT_ENDTZBLOB , 
 
 	I_MEET_WHERE , 
-	I_MEET_GUID , 
+/*25*/	I_MEET_GUID , 
 	I_MEET_ISRECURRING , 
 	I_MEET_ISEXCEPTION , 
 	I_MEET_CLEANGUID , 
 	I_MEET_APPTMSGCLASS , 
-	I_MEET_TYPE
+/*30*/	I_MEET_TYPE
 
-//	I_SENDASICAL , 
+//	I_APPT_SENDASICAL , 
 //	I_APPT_SEQTIME , 
 //	I_APPT_LABEL , 
-//	I_APPT_DISPTZ 
+//	I_APPT_DISPTZ , 
 //	I_APPT_ALLATTENDEES , 
 //	I_APPT_TOATTENDEES , 
 //	I_APPT_CCATTENDEES , 
@@ -1339,6 +1407,7 @@ appt_build_name_id (struct mapi_nameid *nameid)
 	mapi_nameid_lid_add(nameid, 0x8235, PSETID_Appointment); 	// PT_SYSTIME - (dtstart)(for recurring events UTC 12 AM of day of start)
 	mapi_nameid_lid_add(nameid, 0x8236, PSETID_Appointment); 	// PT_SYSTIME - (dtend)(for recurring events UTC 12 AM of day of end)
 	mapi_nameid_lid_add(nameid, 0x823A, PSETID_Appointment); 	// PT_BOOLEAN - AutoFillLocation
+	mapi_nameid_lid_add(nameid, 0x8257, PSETID_Appointment); 	// PT_BOOLEAN - ApptCounterProposal
 	mapi_nameid_lid_add(nameid, 0x825A, PSETID_Appointment); 	// PT_BOOLEAN - ApptNotAllowPropose
 	mapi_nameid_lid_add(nameid, 0x825E, PSETID_Appointment); 	// PT_BINARY - (timezone for dtstart)
 	mapi_nameid_lid_add(nameid, 0x825F, PSETID_Appointment); 	// PT_BINARY - (timezone for dtend)
@@ -1408,20 +1477,18 @@ task_build_name_id (struct mapi_nameid *nameid)
 }
 
 
-#define NOTE_NAMED_PROPS_N 0
+#define NOTE_NAMED_PROPS_N 1
 
-/*
 typedef enum 
 {
-//	I_NOTE_COLOR 
+	I_NOTE_COLOR = COMMON_NAMED_PROPS_N 
 } NoteNamedPropsIndex;
-*/
 
 static void 
 note_build_name_id (struct mapi_nameid *nameid)
 {
 	/* These probably would never be used from Evolution */
-//	mapi_nameid_lid_add(nameid, 0x8B00, PSETID_Note); 	// PT_LONG - Color
+	mapi_nameid_lid_add(nameid, 0x8B00, PSETID_Note); 	// PT_LONG - Color
 }
 
 #define MINUTES_IN_HOUR 60
@@ -1465,7 +1532,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			return 0;
 	} 
 
-	g_debug ("Allocating space for %d props\n", flag32);
+	g_debug ("Allocating space for %d props ", flag32);
 	props = g_new0 (struct SPropValue, flag32);
 
 	/* PR_MESSAGE_CLASS needs to be set appropriately */					/* prop count: 1 */
@@ -1507,7 +1574,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 	/* it'd be better to convert, then set it in unicode */
 	text = icalcomponent_get_description (ical_comp);
-	if (!(text && *text)) 
+	if (!(text && *text) || !g_utf8_validate (text, -1, NULL)) 
 		text = "";
 	set_SPropValue_proptag(&props[i++], PR_BODY, 						/* prop count: 6 */
 					(const void *) text);
@@ -1696,6 +1763,9 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_CLEANGUID], (const void *) cbdata->cleanglobalid);
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_GUID], (const void *) cbdata->globalid);
 
+		flag32 = cbdata->resp;
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
+
 		switch (cbdata->meeting_type) {
 		case MEETING_OBJECT :
 			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) IPM_APPOINTMENT);
@@ -1712,8 +1782,24 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			flag32 = mtgRequest; 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
 
-			flag32 = olResponseOrganized;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
+			b = 1;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
+
+			break;
+		case MEETING_OBJECT_RCVD :
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) IPM_APPOINTMENT);
+
+			flag32 = e_cal_component_has_recurrences (comp) ? RecurMeet : SingleMeet; 
+			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
+
+			flag32 = 0x0171;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
+
+			flag32 = asfMeeting | asfReceived;
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_STATEFLAGS], (const void *) &flag32);
+
+			flag32 = mtgRequest; 
+			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
 
 			b = 1;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
@@ -1734,9 +1820,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			flag32 = (cbdata->appt_seq == 0) ? mtgRequest : mtgFull; 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
 
-			flag32 = olResponseNotResponded;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
-
 			b = 1;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
 
@@ -1755,9 +1838,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 			flag32 = mtgRequest; 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
-
-			flag32 = olResponseNone;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
 
 			b = 1;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
@@ -1778,17 +1858,22 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			flag32 = mtgEmpty; 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
 
-			flag32 = olResponseNotResponded;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
-
 			b = 1;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
 
 			break;
-		case MEETING_RESPONSE_ACCEPT : 
-		case MEETING_RESPONSE_DECLINE : 
-		case MEETING_RESPONSE_TENTATIVE : 
-			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) IPM_SCHEDULE_MEETING_RESP_POS);
+		case MEETING_RESPONSE : 
+			if (cbdata->resp == olResponseAccepted) {
+				text = IPM_SCHEDULE_MEETING_RESP_POS; 
+			} else if (cbdata->resp == olResponseTentative) {
+				text = IPM_SCHEDULE_MEETING_RESP_TENT; 
+			} else if (cbdata->resp == olResponseDeclined) {
+				text = IPM_SCHEDULE_MEETING_RESP_NEG; 
+			} else {
+				text = ""; 
+			}
+			set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) text);
+			text = NULL;
 
 			flag32 = 0xFFFFFFFF;  /* no idea why this has to be -1, but that's what the docs say */ 
 			set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
@@ -1801,9 +1886,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 			flag32 = mtgEmpty; 
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_TYPE], (const void *) &flag32);
-
-			flag32 = olResponseAccepted;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
 
 			break;
 		case NOT_A_MEETING :
@@ -1818,9 +1900,6 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 
 			flag32 = 0;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_STATEFLAGS], (const void *) &flag32);
-
-			flag32 = olResponseNone;
-			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RESPONSESTATUS], (const void *) &flag32);
 
 			b = 0;
 			set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_INVITED], (const void *) &b);
@@ -1838,6 +1917,8 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		/* Counter Proposal for appointments : not supported */
 		b = 1;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_NOTALLOWPROPOSE], (const void *) &b);
+		b = 0;
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_ISCOUNTERPROPOSAL], (const void *) &b);
 
 	} else if (kind == ICAL_VTODO_COMPONENT) {
 		double d;
@@ -1906,7 +1987,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	/* Free this memory at the backends. */
 	cbdata->props = props;
 
-	g_debug ("Ended up setting %d props\n", i);
+	g_debug ("Ended up setting %d props ", i);
 
 	return i;
 }

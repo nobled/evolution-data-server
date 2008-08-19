@@ -1,3 +1,13 @@
+2008-08-19  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-cal-utils.c (get_partstat_from_trackstatus),
+	(exchange_mapi_cal_util_fetch_organizer), (update_attendee_status),
+	(update_server_object), (exchange_mapi_cal_util_camel_helper),
+	(appt_build_name_id), (note_build_name_id),
+	(exchange_mapi_cal_util_build_props):
+	* exchange-mapi-cal-utils.h: 
+	Support for accept/decline from mail folders, related changes. 
+
 2008-08-14  Suman Manjunath  <msuman@novell.com>
 
 	* exchange-mapi-cal-utils.c

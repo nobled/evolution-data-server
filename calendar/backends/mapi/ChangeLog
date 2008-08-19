@@ -1,3 +1,12 @@
+2008-08-19  Suman Manjunath  <msuman@novell.com>
+
+	* e-cal-backend-mapi.c (e_cal_backend_mapi_create_object),
+	(get_trackstatus_from_partstat), (find_my_response),
+	(e_cal_backend_mapi_modify_object),
+	(e_cal_backend_mapi_send_objects),
+	(e_cal_backend_mapi_receive_objects):
+	Support for accept/decline from mail folders, related changes. 
+
 2008-08-14  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi.c (e_cal_backend_mapi_create_object),

@@ -1294,6 +1294,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 			cbdata.is_modify = FALSE;
 			cbdata.msgflags = MSGFLAG_READ;
 			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
+			cbdata.resp = (recipients != NULL) ? olResponseOrganized : olResponseNone;
 			cbdata.appt_id = exchange_mapi_cal_util_get_new_appt_id (priv->fid);
 			cbdata.appt_seq = 0;
 			e_cal_component_get_uid (comp, &compuid);
@@ -1357,6 +1358,41 @@ modifier_is_organizer (ECalBackendMAPI *cbmapi, ECalComponent *comp)
 	ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
 
 	return (!g_ascii_strcasecmp(orgid, ownerid) ? TRUE : FALSE);
+}
+
+static OlResponseStatus 
+get_trackstatus_from_partstat (icalparameter_partstat partstat)
+{
+	switch (partstat) {
+		case ICAL_PARTSTAT_ACCEPTED 	: return olResponseAccepted;
+		case ICAL_PARTSTAT_TENTATIVE 	: return olResponseTentative;
+		case ICAL_PARTSTAT_DECLINED 	: return olResponseDeclined;
+		default 			: return olResponseTentative;
+	}
+}
+
+static OlResponseStatus
+find_my_response (ECalBackendMAPI *cbmapi, ECalComponent *comp)
+{
+	icalcomponent *icalcomp = e_cal_component_get_icalcomponent (comp);
+	icalproperty *attendee; 
+	gchar *att = NULL;
+	OlResponseStatus val = olResponseTentative; 
+
+	att = g_strdup_printf ("MAILTO:%s", e_cal_backend_mapi_get_owner_email (cbmapi));
+	attendee = icalcomponent_get_first_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	while (attendee) {
+		const char *value = icalproperty_get_attendee (attendee);
+		if (!g_ascii_strcasecmp (value, att)) {
+			icalparameter *param = icalproperty_get_first_parameter (attendee, ICAL_PARTSTAT_PARAMETER);
+			val = get_trackstatus_from_partstat (icalparameter_get_partstat(param));
+			break;
+		}
+		attendee = icalcomponent_get_next_property (icalcomp, ICAL_ATTENDEE_PROPERTY);
+	}
+	g_free (att);
+
+	return val;
 }
 
 static ECalBackendSyncStatus 
@@ -1427,6 +1463,11 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		/* check if the object exists */
 		cache_comp = e_cal_backend_cache_get_component (priv->cache, uid, rid);
 		if (!cache_comp) {
+			get_deltas (cbmapi);
+			cache_comp = e_cal_backend_cache_get_component (priv->cache, uid, rid);
+		}
+
+		if (!cache_comp) {
 			g_message ("CRITICAL : Could not find the object in cache");
 			g_object_unref (comp);
 			exchange_mapi_util_free_recipient_list (&recipients);
@@ -1436,12 +1477,13 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		exchange_mapi_util_mapi_id_from_string (uid, &mid);
 
 		cbdata.comp = comp;
-		cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING;
 		cbdata.msgflags = MSGFLAG_READ;
 		cbdata.is_modify = TRUE;
 
 		get_server_data (cbmapi, icalcomp, &cbdata);
 		if (modifier_is_organizer(cbmapi, comp)) {
+			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT : NOT_A_MEETING; 
+			cbdata.resp = (recipients != NULL) ? olResponseOrganized : olResponseNone;
 			if (!no_increment)
 				cbdata.appt_seq += 1;
 			cbdata.username = e_cal_backend_mapi_get_user_name (cbmapi);
@@ -1449,7 +1491,10 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 			cbdata.userid = e_cal_backend_mapi_get_user_email (cbmapi);
 			cbdata.ownername = e_cal_backend_mapi_get_owner_name (cbmapi);
 			cbdata.owneridtype = "SMTP";
-			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);			
+			cbdata.ownerid = e_cal_backend_mapi_get_owner_email (cbmapi);
+		} else {
+			cbdata.resp = (recipients != NULL) ? find_my_response(cbmapi, comp) : olResponseNone;
+			cbdata.meeting_type = (recipients != NULL) ? MEETING_OBJECT_RCVD : NOT_A_MEETING; 
 		}
 
 		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, 
@@ -1583,80 +1628,6 @@ e_cal_backend_mapi_discard_alarm (ECalBackendSync *backend, EDataCal *cal, const
 }
 
 static ECalBackendSyncStatus 
-e_cal_backend_mapi_receive_objects (ECalBackendSync *backend, EDataCal *cal, const char *calobj)
-{
-	ECalBackendSyncStatus status = GNOME_Evolution_Calendar_OtherError;
-	ECalBackendMAPI *cbmapi;
-	ECalBackendMAPIPrivate *priv;
-	icalcomponent_kind kind;
-	icalcomponent *icalcomp;
-
-	cbmapi = E_CAL_BACKEND_MAPI (backend);
-	priv = cbmapi->priv;
-	kind = e_cal_backend_get_kind (E_CAL_BACKEND (backend));
-
-	g_return_val_if_fail (E_IS_CAL_BACKEND_MAPI (cbmapi), GNOME_Evolution_Calendar_InvalidObject);
-	g_return_val_if_fail (calobj != NULL, GNOME_Evolution_Calendar_InvalidObject);
-
-	if (priv->mode == CAL_MODE_LOCAL)
-		return GNOME_Evolution_Calendar_RepositoryOffline;
-
-	/* check the component for validity */
-	icalcomp = icalparser_parse_string (calobj);
-	if (!icalcomp)
-		return GNOME_Evolution_Calendar_InvalidObject;
-
-	if (icalcomponent_isa (icalcomp) == ICAL_VCALENDAR_COMPONENT) {
-		gboolean stop = FALSE;
-		icalproperty_method method = icalcomponent_get_method (icalcomp);
-		icalcomponent *subcomp = icalcomponent_get_first_component (icalcomp, kind);
-		while (subcomp && !stop) {
-			ECalComponent *comp = e_cal_component_new ();
-			gchar *rid = NULL; 
-			const char *uid;
-			gchar *old_object = NULL, *new_object = NULL; 
-
-			e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (subcomp));
-
-			/* FIXME: Add support for recurrences */
-			if (e_cal_component_has_recurrences (comp)) {
-				g_object_unref (comp);
-				return GNOME_Evolution_Calendar_OtherError;
-			}
-
-			e_cal_component_get_uid (comp, &uid);
-			rid = e_cal_component_get_recurid_as_string (comp);
-
-			switch (method) {
-			case ICAL_METHOD_CANCEL :
-				status = e_cal_backend_mapi_remove_object (backend, cal, uid, rid, CALOBJ_MOD_THIS, &old_object, &new_object);
-				if (status != GNOME_Evolution_Calendar_Success)
-					stop = TRUE;
-				g_free (old_object);
-				g_free (new_object);
-				break;
-			case ICAL_METHOD_REPLY :
-				/* responses are automatically updated even as they are rendered (just like in Outlook) */
-				status = GNOME_Evolution_Calendar_Success;
-				break; 
-			default :
-				break;
-			}
-
-			g_free (rid);
-			g_object_unref (comp);
-
-			subcomp = icalcomponent_get_next_component (icalcomp,
-								    e_cal_backend_get_kind (E_CAL_BACKEND (backend)));
-		}
-	}
-
-	return status;
-}
-
-
-
-static ECalBackendSyncStatus 
 e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const char *calobj, 
 				 GList **users, char **modified_calobj)
 {
@@ -1702,30 +1673,37 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			if (e_cal_component_has_attendees (comp)) {
-				exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
-				method = icalcomponent_get_method (icalcomp);
-			}
-
 			if (e_cal_component_has_attachments (comp))
 				exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
 			cbdata.comp = comp;
 			cbdata.is_modify = TRUE;
-			cbdata.msgflags = MSGFLAG_UNSENT;
+			cbdata.msgflags = MSGFLAG_READ | MSGFLAG_SUBMIT | MSGFLAG_UNSENT;
 
 			switch (method) {
 			case ICAL_METHOD_REQUEST : 
 				cbdata.meeting_type = MEETING_REQUEST;
+				cbdata.resp = olResponseNotResponded;
+				if (e_cal_component_has_attendees (comp))
+					exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 				break;
 			case ICAL_METHOD_CANCEL : 
 				cbdata.meeting_type = MEETING_CANCEL;
+				cbdata.resp = olResponseNotResponded;
+				if (e_cal_component_has_attendees (comp))
+					exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 				break;
 			case ICAL_METHOD_RESPONSE : 
-				cbdata.meeting_type = MEETING_RESPONSE_ACCEPT;
+				cbdata.meeting_type = MEETING_RESPONSE;
+				cbdata.resp = find_my_response (cbmapi, comp);
+				if (e_cal_component_has_organizer (comp))
+					exchange_mapi_cal_util_fetch_organizer (comp, &recipients);
 				break;
 			default :
 				cbdata.meeting_type = NOT_A_MEETING;
+				cbdata.resp = olResponseNone;
+				if (e_cal_component_has_attendees (comp))
+					exchange_mapi_cal_util_fetch_recipients (comp, &recipients);
 				break;
 			}
 
@@ -1766,6 +1744,104 @@ e_cal_backend_mapi_send_objects (ECalBackendSync *backend, EDataCal *cal, const 
 
 	return GNOME_Evolution_Calendar_Success;
 }
+
+static ECalBackendSyncStatus 
+e_cal_backend_mapi_receive_objects (ECalBackendSync *backend, EDataCal *cal, const char *calobj)
+{
+	ECalBackendSyncStatus status = GNOME_Evolution_Calendar_OtherError;
+	ECalBackendMAPI *cbmapi;
+	ECalBackendMAPIPrivate *priv;
+	icalcomponent_kind kind;
+	icalcomponent *icalcomp;
+
+	cbmapi = E_CAL_BACKEND_MAPI (backend);
+	priv = cbmapi->priv;
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (backend));
+
+	g_return_val_if_fail (E_IS_CAL_BACKEND_MAPI (cbmapi), GNOME_Evolution_Calendar_InvalidObject);
+	g_return_val_if_fail (calobj != NULL, GNOME_Evolution_Calendar_InvalidObject);
+
+	if (priv->mode == CAL_MODE_LOCAL)
+		return GNOME_Evolution_Calendar_RepositoryOffline;
+
+	/* check the component for validity */
+	icalcomp = icalparser_parse_string (calobj);
+	if (!icalcomp)
+		return GNOME_Evolution_Calendar_InvalidObject;
+
+	if (icalcomponent_isa (icalcomp) == ICAL_VCALENDAR_COMPONENT) {
+		gboolean stop = FALSE;
+		icalproperty_method method = icalcomponent_get_method (icalcomp);
+		icalcomponent *subcomp = icalcomponent_get_first_component (icalcomp, kind);
+		while (subcomp && !stop) {
+			ECalComponent *comp = e_cal_component_new ();
+			gchar *rid = NULL; 
+			const char *uid;
+			gchar *old_object = NULL, *new_object = NULL, *comp_str; 
+
+			e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (subcomp));
+
+			/* FIXME: Add support for recurrences */
+			if (e_cal_component_has_recurrences (comp)) {
+				g_object_unref (comp);
+				return GNOME_Evolution_Calendar_OtherError;
+			}
+
+			e_cal_component_get_uid (comp, &uid);
+			rid = e_cal_component_get_recurid_as_string (comp);
+
+			switch (method) {
+			case ICAL_METHOD_REQUEST :
+				comp_str = e_cal_component_get_as_string (comp);
+				status = e_cal_backend_mapi_modify_object (backend, cal, comp_str, CALOBJ_MOD_THIS, &old_object, &new_object);
+				g_free (comp_str);
+				g_free (old_object);
+				g_free (new_object);
+				if (status == GNOME_Evolution_Calendar_Success) {
+					GList *users = NULL, *l;
+					icalcomponent *resp_comp = e_cal_util_new_top_level ();
+					icalcomponent_set_method (resp_comp, ICAL_METHOD_RESPONSE);
+					icalcomponent_add_component (resp_comp, 
+						icalcomponent_new_clone(e_cal_component_get_icalcomponent(comp)));
+					comp_str = icalcomponent_as_ical_string (resp_comp);
+					status = e_cal_backend_mapi_send_objects (backend, cal, comp_str, &users, &new_object);
+					g_free (comp_str);
+					g_free (new_object);
+					for (l = users; l; l = l->next)
+						g_free (l->data);
+					g_list_free (users);
+					icalcomponent_free (resp_comp);
+				}
+
+				if (status != GNOME_Evolution_Calendar_Success)
+					stop = TRUE;
+				break;
+			case ICAL_METHOD_CANCEL :
+				status = e_cal_backend_mapi_remove_object (backend, cal, uid, rid, CALOBJ_MOD_THIS, &old_object, &new_object);
+				if (status != GNOME_Evolution_Calendar_Success)
+					stop = TRUE;
+				g_free (old_object);
+				g_free (new_object);
+				break;
+			case ICAL_METHOD_REPLY :
+				/* responses are automatically updated even as they are rendered (just like in Outlook) */
+				status = GNOME_Evolution_Calendar_Success;
+				break; 
+			default :
+				break;
+			}
+
+			g_free (rid);
+			g_object_unref (comp);
+
+			subcomp = icalcomponent_get_next_component (icalcomp,
+								    e_cal_backend_get_kind (E_CAL_BACKEND (backend)));
+		}
+	}
+
+	return status;
+}
+
 
 static ECalBackendSyncStatus 
 e_cal_backend_mapi_get_timezone (ECalBackendSync *backend, EDataCal *cal, const char *tzid, char **object)
