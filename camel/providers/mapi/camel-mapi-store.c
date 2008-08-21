@@ -820,6 +820,7 @@ mapi_build_folder_info(CamelMapiStore *mapi_store, const char *parent_name, cons
 	const char *name;
 	CamelFolderInfo *fi;
 	CamelMapiStorePrivate *priv = mapi_store->priv;
+	char *excl_parent;
 
 	fi = g_malloc0(sizeof(*fi));
 	
@@ -846,13 +847,17 @@ mapi_build_folder_info(CamelMapiStore *mapi_store, const char *parent_name, cons
 	else
 		name++;
 
-	if (!strcmp (folder_name, "Sent Items"))
+	/*Exclude the parent and check; FIXME! */
+	excl_parent = strchr(fi->full_name , '/');
+	excl_parent ++;
+
+	if (!strcmp (excl_parent, "Sent Items"))
 		fi->flags |= CAMEL_FOLDER_TYPE_SENT;
-	else if (!strcmp (folder_name, "Inbox"))
+	else if (!strcmp (excl_parent, "Inbox"))
 		fi->flags |= CAMEL_FOLDER_TYPE_INBOX;
-	else if (!strcmp (folder_name, "Deleted Items"))
+	else if (!strcmp (excl_parent, "Deleted Items"))
 		fi->flags |= CAMEL_FOLDER_TYPE_TRASH;
-	else if (!strcmp (folder_name, "Junk Mail"))
+	else if (!strcmp (excl_parent, "Junk Mail"))
 		fi->flags |= CAMEL_FOLDER_TYPE_JUNK;
 		
 	fi->name = g_strdup(name);
