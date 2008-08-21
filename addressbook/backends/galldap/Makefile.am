@@ -1,10 +1,13 @@
 INCLUDES =						\
-	$(EVOLUTION_ADDRESSBOOK_CFLAGS)			\
+	-DG_LOG_DOMAIN=\"libebookbackend\"		\
 	-I$(top_srcdir)					\
+	-I$(top_builddir)				\
 	-I$(top_srcdir)/addressbook			\
-	$(LDAP_CFLAGS)					\
+	-I$(top_builddir)/addressbook			\
 	-I$(top_srcdir)/servers/exchange/storage	\
-	-I$(top_srcdir)/servers/exchange/lib		\	
+	-I$(top_srcdir)/servers/exchange/lib		\
+	$(EVOLUTION_ADDRESSBOOK_CFLAGS)			\
+	$(LDAP_CFLAGS)					\
 	$(DB_CFLAGS)
 
 # GConf schemas
@@ -32,13 +35,15 @@ libebookbackendgalldap_la_SOURCES =	\
 	e-book-backend-galldap.h		
 
 
-libebookbackendgalldap_la_LIBADD = 	\
-	$(DB_LIBS)	\
+libebookbackendgalldap_la_LIBADD = 						\
 	$(top_builddir)/servers/exchange/storage/libexchange-storage-1.2.la	\
 	$(top_builddir)/addressbook/libebook/libebook-1.2.la			\
 	$(top_builddir)/addressbook/libedata-book/libedata-book-1.2.la		\
 	$(top_builddir)/libedataserver/libedataserver-1.2.la			\
-	$(top_builddir)/libebackend/libebackend-1.2.la
+	$(top_builddir)/libebackend/libebackend-1.2.la				\
+	$(EVOLUTION_ADDRESSBOOK_LIBS)						\
+	$(LDAP_LIBS)								\
+	$(DB_LIBS)
 
 libebookbackendgalldap_la_LDFLAGS =	\
 	-module -avoid-version $(NO_UNDEFINED)

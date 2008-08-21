@@ -32,7 +32,9 @@
 #include "exchange-mapi-utils.h"
 
 #include "exchange-mapi-cal-tz-utils.h"
+#if 0
 #include "exchange-mapi-cal-recur-utils.h"
+#endif
 
 G_BEGIN_DECLS
 

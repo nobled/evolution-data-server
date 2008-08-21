@@ -4,8 +4,8 @@ INCLUDES =						\
 	-I$(top_builddir)				\
 	-I$(top_srcdir)/addressbook			\
 	-I$(top_builddir)/addressbook			\
-	-I$(top_builddir)/servers/mapi			\
-	$(LIBMAPI_CFLAGS)					\
+	-I$(top_srcdir)/servers/mapi			\
+	$(LIBMAPI_CFLAGS)				\
         $(EVOLUTION_ADDRESSBOOK_CFLAGS)
 
 extension_LTLIBRARIES = libebookbackendmapi.la
