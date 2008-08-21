@@ -1108,9 +1108,10 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 	mapi_object_init(&obj_table);
 
 	/* Open the message store */
-	retval = OpenMsgStore(&obj_store);
+	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store)) ;
+
 	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr("OpenMsgStore", GetLastError());
+		mapi_errstr("OpenMsgStore / OpenPublicFolder", GetLastError());
 		goto cleanup;
 	}
 
@@ -1332,7 +1333,8 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 	mapi_object_init(&obj_message);
 
 	/* Open the message store */
-	retval = OpenMsgStore(&obj_store);
+	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store)) ;
+
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenMsgStore", GetLastError());
 		goto cleanup;
@@ -2781,6 +2783,7 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 	enum MAPISTATUS retval;
 	mapi_id_t id_mailbox;
 	gboolean result = FALSE;
+	ExchangeMAPIFolder *folder;
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
@@ -2803,6 +2806,10 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 		UNLOCK();
 		goto cleanup;
 	}
+
+	/*  TODO : Localized string */
+	folder = exchange_mapi_folder_new ("Public Folders", NULL, IPF_NOTE, MAPI_FAVOURITE_FOLDER, id_mailbox, 0, 0, 0 ,0); 
+	*mapi_folders = g_slist_prepend (*mapi_folders, folder);
 
 	get_child_folders_pf(mem_ctx, &obj_store, id_mailbox, mapi_folders);
 

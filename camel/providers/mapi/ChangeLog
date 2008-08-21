@@ -1,3 +1,13 @@
+2008-08-21  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (mapi_refresh_folder),(mapi_folder_get_message): 
+	Use flags to indentify the type of folder.
+
+	* camel-mapi-store.c (convert_to_folder_info): Mark folders as
+	personal / private.
+
+	* camel-mapi-store-summary.h: Removed unused structs.
+
 2008-08-18  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-store.c (mapi_build_folder_info): Mark default

@@ -903,6 +903,7 @@ mapi_get_folder_info_offline (CamelStore *store, const char *top,
 
 			fi->unread = si->unread;
 			fi->total = si->total;
+			fi->flags = si->flags;
 
 			g_ptr_array_add (folders, fi);
 		}
@@ -943,6 +944,10 @@ convert_to_folder_info (CamelMapiStore *store, ExchangeMAPIFolder *folder, const
 	else if (!strcmp (name, "Junk Mail"))
 		fi->flags |= CAMEL_FOLDER_TYPE_JUNK;
 
+	if (folder->category == MAPI_PERSONAL_FOLDER)
+		fi->flags |= CAMEL_MAPI_FOLDER_PERSONAL;
+	else if (folder->category == MAPI_FAVOURITE_FOLDER)
+		fi->flags |= CAMEL_MAPI_FOLDER_PUBLIC;
 	/*
 	   parent_hash contains the "parent id <-> folder id" combination. So we form
 	   the path for the full name in camelfolder info by looking up the hash table until
@@ -995,7 +1000,7 @@ convert_to_folder_info (CamelMapiStore *store, ExchangeMAPIFolder *folder, const
 
 	si->info.total = fi->total;
 	si->info.unread = fi->unread;
-	si->info.flags = 0;
+	si->info.flags = fi->flags;
 
 	return fi;
 }
@@ -1018,6 +1023,7 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 	CamelMapiStorePrivate  *priv = store->priv;
 	gboolean status;
 	GSList *folder_list = NULL, *temp_list = NULL, *list = NULL;
+	GSList *pf_folder_list = NULL;
 	char *url, *temp_url;
 	CamelFolderInfo *info = NULL, *hfi = NULL;
 	GHashTable *present;
@@ -1043,6 +1049,13 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 		return;
 	}
 
+	status = exchange_mapi_get_pf_folders_list (&folder_list);
+
+	if (!status) {
+		g_warning ("Could not get folder list..\n");
+		return;
+	}
+
 	temp_list = folder_list;
 	list = folder_list;
 
@@ -1063,11 +1076,9 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 		gchar *fid = NULL, *parent_id = NULL;
 
 		name = exchange_mapi_folder_get_name ((ExchangeMAPIFolder *)(temp_list->data));
+		printf("%s(%d):%s:name : %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, name);
 		fid = g_strdup_printf ("%016llX", exchange_mapi_folder_get_fid((ExchangeMAPIFolder *)(temp_list->data)));
 		parent_id = g_strdup_printf ("%016llX", exchange_mapi_folder_get_parent_id ((ExchangeMAPIFolder *)(temp_list->data)));
-
-		if (exchange_mapi_folder_is_root ((ExchangeMAPIFolder *)(temp_list->data)))
-			continue;
 
 		/*id_hash returns the name for a given container id*/
 		g_hash_table_insert (priv->id_hash, g_strdup (fid), g_strdup(name)); 

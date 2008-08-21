@@ -50,6 +50,7 @@
 static CamelOfflineFolderClass *parent_class = NULL;
 
 struct _CamelMapiFolderPrivate {
+	
 #ifdef ENABLE_THREADS
 	GStaticMutex search_lock;	/* for locking the search object */
 	GStaticRecMutex cache_lock;	/* for locking the cache object */
@@ -521,6 +522,9 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 	/*Get the New Items*/
 	if (!is_proxy) {
 		mapi_id_t temp_folder_id;
+		guint32 options = 0;
+		CamelFolderInfo *fi = NULL;
+
 		exchange_mapi_util_mapi_id_from_string (folder_id, &temp_folder_id);
 
 		if (!camel_mapi_store_connected (mapi_store, ex)) {
@@ -529,11 +533,15 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 			goto end2;
 		}
 
+		fi = camel_store_get_folder_info (folder->parent_store, folder->full_name, 0, NULL);
+		if (fi->flags & CAMEL_MAPI_FOLDER_PUBLIC)
+			options |= MAPI_OPTIONS_USE_PFSTORE;
+
 		status = exchange_mapi_connection_fetch_items  (temp_folder_id, NULL, 
 								summary_prop_list, G_N_ELEMENTS (summary_prop_list), 
 								NULL, NULL, 
 								fetch_items_cb, &item_list, 
-								0);
+								options);
 
 		if (!status) {
 			camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Fetch items failed"));
@@ -1019,14 +1027,21 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 	mapi_id_t id_folder;
 	mapi_id_t id_message;
 	MapiItem *item = NULL;
+	guint32 options = 0;
+	CamelFolderInfo *fi = NULL;
 
+	options = MAPI_OPTIONS_FETCH_ALL | MAPI_OPTIONS_GETBESTBODY ;
 	exchange_mapi_util_mapi_ids_from_uid (uid, &id_folder, &id_message);
+
+	fi = camel_store_get_folder_info (folder->parent_store, folder->full_name, 0, NULL);
+	if (fi->flags & CAMEL_MAPI_FOLDER_PUBLIC)
+		options |= MAPI_OPTIONS_USE_PFSTORE;
 
 	exchange_mapi_connection_fetch_item (id_folder, id_message, 
 					camel_GetPropsList, G_N_ELEMENTS (camel_GetPropsList), 
 					camel_build_name_id, NULL, 
 					fetch_item_cb, &item, 
-					MAPI_OPTIONS_FETCH_ALL | MAPI_OPTIONS_GETBESTBODY);
+					options);
 
 	if (item == NULL) {
 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Could not get message"));

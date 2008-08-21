@@ -74,29 +74,6 @@ char *camel_mapi_store_summary_full_from_path(CamelMapiStoreSummary *s, const ch
 
 #define camel_mapi_store_info_full_name(s, i) (camel_store_info_string((CamelStoreSummary *)s, (const CamelStoreInfo *)i, CAMEL_STORE_INFO_LAST))
 
-/* --------------JUST FOR COMPILIING------------------------- */
-
-typedef struct {
-	CamelFolderInfo		fi;
-	char			*fid;
-	char			*file_name;
-} CamelOpenchangeFolderInfo;
-
-
-
-typedef struct {
-	CamelURL		*url;
-	CamelOpenchangeFolderInfo *fi;
-/* 	CamelStoreSummary	*summary; */
-	char			**fid;		/* contain the default_fid */
-	unsigned int		*fid_flags;	/* contain the default flags (index = index of summary->fid)*/
-	GPtrArray		*fi_array;	/* contain openchange_folder_info */
-	GHashTable		*fi_hash_fid;	/* key = char *folder_id */
- 	GHashTable		*fi_hash_name;	/* key = char *folder_full_name */
-	pthread_mutex_t		*mutex;		/* mutex using in internal */
-} ocStoreSummary_t;
-
-
 G_END_DECLS
 
 #endif /* ! _CAMEL_MAPI_STORE_SUMMARY_H */

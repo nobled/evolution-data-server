@@ -1,3 +1,8 @@
+2008-08-21  Johnny Jacob  <jjohnny@novell.com>
+	
+	* exchange-mapi-connection.c (exchange_mapi_connection_fetch_items): Open PF 
+	store if mentioned.
+	
 2008-08-21  Suman Manjunath  <msuman@novell.com>
 
 	Patch from Patrick Ohly  <patrick.ohly@gmx.de>
