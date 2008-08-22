@@ -59,7 +59,7 @@ container_class_to_type (const char *type)
 }
 
 ExchangeMAPIFolder *
-exchange_mapi_folder_new (const char *folder_name, const char *parent_folder_name, const char *container_class, ExchangeMAPIFolderCategory category, uint64_t folder_id, uint64_t parent_folder_id, uint32_t child_count, uint32_t unread_count, uint32_t total)
+exchange_mapi_folder_new (const char *folder_name, const char *parent_folder_name, const char *container_class, ExchangeMAPIFolderCategory category, mapi_id_t folder_id, mapi_id_t parent_folder_id, uint32_t child_count, uint32_t unread_count, uint32_t total)
 {
 	ExchangeMAPIFolder *folder;
 
@@ -138,7 +138,7 @@ exchange_mapi_peek_folder_list ()
 }
 
 ExchangeMAPIFolder *
-exchange_mapi_folder_get_folder (uint64_t fid)
+exchange_mapi_folder_get_folder (mapi_id_t fid)
 {
 	GSList *tmp = folder_list;
 

@@ -240,8 +240,9 @@ exchange_mapi_util_free_attachment_list (GSList **attach_list)
 
 	for (; l != NULL; l = l->next) {
 		ExchangeMAPIAttachment *attachment = (ExchangeMAPIAttachment *) (l->data);
-		g_byte_array_free (attachment->value, TRUE);
-		attachment->value = NULL;
+		/* FIXME: more stuff here */
+		g_free (attachment->lpProps);
+		exchange_mapi_util_free_stream_list (&(attachment->streams)); 
 		g_free (attachment);
 		attachment = NULL;
 	}

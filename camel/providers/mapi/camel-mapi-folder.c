@@ -924,22 +924,32 @@ mapi_folder_item_to_msg( CamelFolder *folder,
 		GSList *al = attach_list;
 		for (al = attach_list; al != NULL; al = al->next) {
 			ExchangeMAPIAttachment *attach = (ExchangeMAPIAttachment *)al->data;
+			ExchangeMAPIStream *stream = NULL;
+			const char *filename, *mime_type; 
 			CamelMimePart *part;
+
+			filename = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach->lpProps, PR_ATTACH_LONG_FILENAME);
+			if (!(filename && *filename))
+				filename = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach->lpProps, PR_ATTACH_FILENAME);
+
+			mime_type = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach->lpProps, PR_ATTACH_MIME_TAG);
+
+			stream = exchange_mapi_util_find_stream (attach->streams, PR_ATTACH_DATA_BIN);
 
 			printf("%s(%d):%s:Attachment --\n\tFileName : %s \n\tMIME Tag : %s\n\tLength : %d\n",
 			       __FILE__, __LINE__, __PRETTY_FUNCTION__, 
-				 attach->filename, attach->mime_type, attach->value->len );
+				 filename, mime_type, stream ? stream->value->len : 0);
 
-			if (attach->value->len <= 0) {
+			if (!stream || stream->value->len <= 0) {
 				continue;
 			}
 			part = camel_mime_part_new ();
 
-			camel_mime_part_set_filename(part, g_strdup(attach->filename));
+			camel_mime_part_set_filename(part, g_strdup(filename));
 			//Auto generate content-id
 			camel_mime_part_set_content_id (part, NULL);
-			camel_mime_part_set_content(part, attach->value->data, attach->value->len, attach->mime_type);
-			camel_content_type_set_param (((CamelDataWrapper *) part)->mime_type, "name", attach->filename);
+			camel_mime_part_set_content(part, stream->value->data, stream->value->len, mime_type);
+			camel_content_type_set_param (((CamelDataWrapper *) part)->mime_type, "name", filename);
 
 			camel_multipart_set_boundary(multipart, NULL);
 			camel_multipart_add_part (multipart, part);

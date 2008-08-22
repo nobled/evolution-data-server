@@ -205,16 +205,39 @@ exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_l
 
 		if (mapped_file && g_str_has_prefix (filename, uid)) {
 			ExchangeMAPIAttachment *attach_item;
+			ExchangeMAPIStream *stream; 
 			gchar *attach = g_mapped_file_get_contents (mapped_file);
 			guint filelength = g_mapped_file_get_length (mapped_file);
 			const gchar *split_name = (filename + strlen (uid) + strlen ("-"));
+			uint32_t flag; 
 
 			new_attach_list = g_slist_append (new_attach_list, g_strdup (sfname_uri));
 
 			attach_item = g_new0 (ExchangeMAPIAttachment, 1);
-			attach_item->filename = g_strdup(split_name);
-			attach_item->value = g_byte_array_sized_new (filelength);
-			attach_item->value = g_byte_array_append (attach_item->value, attach, filelength);
+
+			attach_item->cValues = 4; 
+			attach_item->lpProps = g_new0 (struct SPropValue, 4); 
+
+			flag = ATTACH_BY_VALUE; 
+			set_SPropValue_proptag(&(attach_item->lpProps[0]), PR_ATTACH_METHOD, (const void *) (&flag));
+
+			/* MSDN Documentation: When the supplied offset is -1 (0xFFFFFFFF), the 
+			 * attachment is not rendered using the PR_RENDERING_POSITION property. 
+			 * All values other than -1 indicate the position within PR_BODY at which 
+			 * the attachment is to be rendered. 
+			 */
+			flag = 0xFFFFFFFF;
+			set_SPropValue_proptag(&(attach_item->lpProps[1]), PR_RENDERING_POSITION, (const void *) (&flag));
+
+			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME, (const void *) g_strdup(split_name));
+			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME, (const void *) g_strdup(split_name));
+
+			stream = g_new0 (ExchangeMAPIStream, 1);
+			stream->proptag = PR_ATTACH_DATA_BIN; 
+			stream->value = g_byte_array_sized_new (filelength);
+			stream->value = g_byte_array_append (stream->value, attach, filelength);
+			attach_item->streams = g_slist_append (attach_item->streams, stream); 
+
 			*attach_list = g_slist_append (*attach_list, attach_item);
 
 			g_mapped_file_free (mapped_file);
@@ -390,14 +413,23 @@ set_attachments_to_cal_component (ECalComponent *comp, GSList *attach_list, cons
 	e_cal_component_get_uid (comp, &uid);
 	for (l = attach_list; l ; l = l->next) {
 		ExchangeMAPIAttachment *attach_item = (ExchangeMAPIAttachment *) (l->data);
-		gchar *attach_file_url, *filename;
+		ExchangeMAPIStream *stream; 
+		gchar *attach_file_url, *filename; 
+		const char *str, *attach;
 		guint len;
 		int fd = -1;
 
-		gchar *attach = (const char *)attach_item->value->data;
-		len = attach_item->value->len;
+		stream = exchange_mapi_util_find_stream (attach_item->streams, PR_ATTACH_DATA_BIN);
+		if (!stream)
+			continue;
 
-		attach_file_url = g_strconcat (local_store_uri, G_DIR_SEPARATOR_S, uid, "-", attach_item->filename, NULL);
+		attach = (const char *)stream->value->data;
+		len = stream->value->len;
+
+		str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach_item->lpProps, PR_ATTACH_LONG_FILENAME);
+		if (!(str && *str))
+			str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach_item->lpProps, PR_ATTACH_FILENAME);
+		attach_file_url = g_strconcat (local_store_uri, G_DIR_SEPARATOR_S, uid, "-", str, NULL);
 		filename = g_filename_from_uri (attach_file_url, NULL, NULL);
 
 		fd = g_open (filename, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, 0600);

@@ -1,3 +1,9 @@
+2008-08-22  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-folder.c (mapi_folder_item_to_msg):
+	* camel-mapi-transport.c (mapi_item_add_attach):
+	Fix for ABI change in ExchangeMAPIAttachment. 
+
 2008-08-21  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (mapi_refresh_folder),(mapi_folder_get_message): 

@@ -37,19 +37,12 @@ typedef enum {
 	MAPI_OPTIONS_DONT_SUBMIT = 1<<4, 
 	MAPI_OPTIONS_GETBESTBODY = 1<<5,
 	MAPI_OPTIONS_USE_PFSTORE = 1<<6
-} ExchangeMapiOptions;
+} ExchangeMAPIOptions;
 
 #define MAPI_OPTIONS_FETCH_ALL MAPI_OPTIONS_FETCH_ATTACHMENTS | \
 	                       MAPI_OPTIONS_FETCH_RECIPIENTS | \
 	                       MAPI_OPTIONS_FETCH_BODY_STREAM | \
 	                       MAPI_OPTIONS_FETCH_GENERIC_STREAMS
-
-/* FIXME: need to accomodate rendering position */
-typedef struct {
-	GByteArray *value;
-	const gchar *filename;
-	const gchar *mime_type;
-} ExchangeMAPIAttachment;
 
 typedef struct {
 	GByteArray *value;
@@ -87,6 +80,13 @@ typedef struct {
 		struct SPropValue *all_lpProps;
 	} out; 
 } ExchangeMAPIRecipient;
+
+typedef struct {
+	uint32_t cValues; 
+	struct SPropValue *lpProps; 
+	GSList *streams; 
+	GSList *objects; 
+} ExchangeMAPIAttachment;
 
 struct id_list {
 	mapi_id_t id;

@@ -26,6 +26,8 @@
 
 #include <glib.h>
 
+#include <libmapi/libmapi.h>
+
 typedef enum  {
 	MAPI_FOLDER_TYPE_MAIL=1,
 	MAPI_FOLDER_TYPE_APPOINTMENT,
@@ -57,8 +59,8 @@ typedef struct _ExchangeMAPIFolder {
 	gchar *parent_folder_name;
 	ExchangeMAPIFolderType container_class;
 	ExchangeMAPIFolderCategory category;
-	guint64 folder_id;
-	guint64 parent_folder_id;
+	mapi_id_t folder_id;
+	mapi_id_t parent_folder_id;
 	guint32 child_count;
 	guint32 unread_count;
 	guint32 total;
@@ -72,7 +74,7 @@ typedef struct _ExchangeMAPIFolder {
 ExchangeMAPIFolder *
 exchange_mapi_folder_new (const char *folder_name, const char *parent_folder_name, const char *container_class, 
 			  ExchangeMAPIFolderCategory catgory, 
-			  uint64_t folder_id, uint64_t parent_folder_id, 
+			  mapi_id_t folder_id, mapi_id_t parent_folder_id, 
 			  uint32_t child_count, uint32_t unread_count, uint32_t total);
 ExchangeMAPIFolderType exchange_mapi_container_class (char *type);
 
@@ -86,7 +88,7 @@ guint32 exchange_mapi_folder_get_total_count (ExchangeMAPIFolder *folder);
 gboolean exchange_mapi_folder_is_root (ExchangeMAPIFolder *folder);
 GSList * exchange_mapi_peek_folder_list (void);
 void exchange_mapi_folder_list_free (void);
-ExchangeMAPIFolder * exchange_mapi_folder_get_folder (uint64_t fid);
+ExchangeMAPIFolder * exchange_mapi_folder_get_folder (mapi_id_t fid);
 void exchange_mapi_folder_list_add (ExchangeMAPIFolder *folder);
 
 #endif

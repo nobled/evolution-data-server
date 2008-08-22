@@ -1,3 +1,29 @@
+2008-08-22  Suman Manjunath  <msuman@novell.com>
+
+	** Extensive rewrite of ExchangeMAPIAttachment handling. It provides
+	infrastructure for having various modes of attachment. Also, re-uses 
+	a lot of existing code and pushes setting the attachment-specific 
+	details to the backends, thereby making it extremely flexible. 
+	Some minor code-cleanups included. 
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_attachments),
+	(set_attachments_to_cal_component):
+	* exchange-mapi-connection.c (mapi_profile_load),
+	(exchange_mapi_util_read_generic_stream),
+	(exchange_mapi_util_read_body_stream),
+	(exchange_mapi_util_write_generic_streams),
+	(exchange_mapi_util_delete_attachments),
+	(exchange_mapi_util_set_attachments),
+	(exchange_mapi_util_get_attachments),
+	(exchange_mapi_util_get_recipients), (exchange_mapi_create_item),
+	(mapi_move_items):
+	* exchange-mapi-connection.h:
+	* exchange-mapi-folder.c (exchange_mapi_folder_new),
+	(exchange_mapi_folder_get_folder):
+	* exchange-mapi-folder.h:
+	* exchange-mapi-utils.c (exchange_mapi_util_free_attachment_list):
+
 2008-08-21  Johnny Jacob  <jjohnny@novell.com>
 	
 	* exchange-mapi-connection.c (exchange_mapi_connection_fetch_items): Open PF 

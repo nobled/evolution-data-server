@@ -149,21 +149,39 @@ mapi_item_add_attach(MapiItem *item, const gchar *filename, const char *descript
 		     CamelStream *content_stream, int content_size)
 {
 	guint8 *buf = g_new0 (guint8 , STREAM_SIZE);
-	guint32	read_size;
+	guint32	read_size, flag;
 	ExchangeMAPIAttachment *item_attach;
+	ExchangeMAPIStream *stream; 
+
 	item_attach = g_new0 (ExchangeMAPIAttachment, 1);
 
-	//?? :	attach->id = contents->n_attach;
+	item_attach->cValues = 4; 
+	item_attach->lpProps = g_new0 (struct SPropValue, 4); 
+
+	flag = ATTACH_BY_VALUE; 
+	set_SPropValue_proptag(&(item_attach->lpProps[0]), PR_ATTACH_METHOD, (const void *) (&flag));
+
+	/* MSDN Documentation: When the supplied offset is -1 (0xFFFFFFFF), the 
+	 * attachment is not rendered using the PR_RENDERING_POSITION property. 
+	 * All values other than -1 indicate the position within PR_BODY at which 
+	 * the attachment is to be rendered. 
+	 */
+	flag = 0xFFFFFFFF;
+	set_SPropValue_proptag(&(item_attach->lpProps[1]), PR_RENDERING_POSITION, (const void *) (&flag));
+
 	if (filename) {
-		item_attach->filename = g_strdup(filename);
+		set_SPropValue_proptag(&(item_attach->lpProps[2]), PR_ATTACH_FILENAME, (const void *) g_strdup(filename));
+		set_SPropValue_proptag(&(item_attach->lpProps[3]), PR_ATTACH_LONG_FILENAME, (const void *) g_strdup(filename));
 	}
 
-	item_attach->value = g_byte_array_new ();
-
+	stream = g_new0 (ExchangeMAPIStream, 1);
+	stream->proptag = PR_ATTACH_DATA_BIN; 
+	stream->value = g_byte_array_new ();
 	camel_seekable_stream_seek((CamelSeekableStream *)content_stream, 0, CAMEL_STREAM_SET);
 	while((read_size = camel_stream_read(content_stream, (char *)buf, STREAM_SIZE))){
-		item_attach->value = g_byte_array_append (item_attach->value, buf, read_size);
+		stream->value = g_byte_array_append (stream->value, buf, read_size);
 	}
+	item_attach->streams = g_slist_append (item_attach->streams, stream); 
 
 	item->attachments = g_slist_append(item->attachments, item_attach);
 
