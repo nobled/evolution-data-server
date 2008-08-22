@@ -1,3 +1,8 @@
+2008-08-22  Ashish Shrivastava  <shashish@novell.com>
+
+	* e-book-backend-mapi.c (mapi_book_build_name_id),
+	(mapi_book_build_props): Fix the broken contact creation. 
+
 2008-08-21  Suman Manjunath  <msuman@novell.com>
 
 	Patch from Patrick Ohly  <patrick.ohly@gmx.de>

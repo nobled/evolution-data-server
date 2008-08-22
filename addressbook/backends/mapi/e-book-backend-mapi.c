@@ -348,23 +348,22 @@ mapi_book_build_name_id (struct mapi_nameid *nameid, gpointer data)
 {
 	EContact *contact = data;
 	
-	mapi_nameid_OOM_add(nameid, "FileAs", PSETID_Address);
+	mapi_nameid_lid_add(nameid, 0x8005, PSETID_Address);
 	mapi_nameid_lid_add(nameid, 0x8084, PSETID_Address);
-	mapi_nameid_OOM_add(nameid, "Email1Address", PSETID_Address);
+	mapi_nameid_lid_add(nameid, 0x8083, PSETID_Address);
 
 	mapi_nameid_lid_add(nameid, 0x8093, PSETID_Address);
 	mapi_nameid_lid_add(nameid, 0x80A3, PSETID_Address);
 	
 	mapi_nameid_string_add(nameid, "urn:schemas:contacts:fileas", PS_PUBLIC_STRINGS);
 
-	mapi_nameid_OOM_add(nameid, "WebPage", PSETID_Address);
-	mapi_nameid_OOM_add(nameid, "IMAddress", PSETID_Address);
+	mapi_nameid_lid_add(nameid, 0x802B, PSETID_Address);
+	mapi_nameid_lid_add(nameid, 0x8062, PSETID_Address);
 
-	mapi_nameid_OOM_add(nameid, "HomeAddress", PSETID_Address);	
-	mapi_nameid_OOM_add(nameid, "BusinessAddress", PSETID_Address);
+	mapi_nameid_lid_add(nameid, 0x801A, PSETID_Address);	
+	mapi_nameid_lid_add(nameid, 0x801B, PSETID_Address);
 
-	// FIXME : Patch has to go into libmapi.
-	//	mapi_nameid_lid_add(nameid, 0x3A4F, PS_MAPI);
+	mapi_nameid_lid_add(nameid, 0x3A4F, PS_MAPI);
 
 	mapi_nameid_lid_add(nameid, 0x8094, PSETID_Address);
 	mapi_nameid_lid_add(nameid, 0x80A4, PSETID_Address);
@@ -392,16 +391,16 @@ mapi_book_build_props (struct SPropValue ** value, struct SPropTagArray * SPropT
 	set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *)IPM_CONTACT);
 	set_str_value (E_CONTACT_FILE_AS, PR_NORMALIZED_SUBJECT);
 	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[1]);
-	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[2]);
+//	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[2]);
 	set_str_value (E_CONTACT_FILE_AS,  SPropTagArray->aulPropTag[5]);
 
 	
 //	set_str_value ( E_CONTACT_EMAIL_1, 0x8083001e);
 	set_str_value ( E_CONTACT_EMAIL_2, SPropTagArray->aulPropTag[3]);
-	set_str_value ( E_CONTACT_EMAIL_2, SPropTagArray->aulPropTag[11]);
+//	set_str_value ( E_CONTACT_EMAIL_2, SPropTagArray->aulPropTag[11]);
 	
 	set_str_value ( E_CONTACT_EMAIL_3, SPropTagArray->aulPropTag[4]);
-	set_str_value ( E_CONTACT_EMAIL_3, SPropTagArray->aulPropTag[12]);
+//	set_str_value ( E_CONTACT_EMAIL_3, SPropTagArray->aulPropTag[12]);
 	
 	set_str_value (E_CONTACT_HOMEPAGE_URL, SPropTagArray->aulPropTag[6]);
 	set_str_value (E_CONTACT_FREEBUSY_URL, 0x812C001E);
@@ -500,7 +499,7 @@ mapi_book_build_props (struct SPropValue ** value, struct SPropTagArray * SPropT
 
 	if (e_contact_get (contact, E_CONTACT_NICKNAME)) {
 		char *nick  = e_contact_get (contact, E_CONTACT_NICKNAME);
-		set_SPropValue_proptag (&props[i++], SPropTagArray->aulPropTag[10], nick);
+//		set_SPropValue_proptag (&props[i++], SPropTagArray->aulPropTag[10], nick);
 		printf("nickname %s %x\n", nick,  SPropTagArray->aulPropTag[10]);
 	}
 	
