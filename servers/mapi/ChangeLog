@@ -1,3 +1,24 @@
+2008-08-25  Suman Manjunath  <msuman@novell.com>
+
+	** Prefer fetching/setting UNICODE strings over ANSI C strings.
+
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_fetch_attachments),
+	(exchange_mapi_cal_util_fetch_organizer),
+	(exchange_mapi_cal_util_fetch_recipients),
+	(exchange_mapi_cal_util_generate_globalobjectid),
+	(exchange_mapi_cal_util_mapi_props_to_comp),
+	(update_attendee_status), (appt_build_name_id),
+	(exchange_mapi_cal_util_build_props):
+	* exchange-mapi-cal-utils.h:
+	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream),
+	(exchange_mapi_connection_fetch_items),
+	(exchange_mapi_connection_fetch_item):
+	* exchange-mapi-utils.c
+	(exchange_mapi_util_find_SPropVal_array_propval),
+	(exchange_mapi_util_find_row_propval),
+	(exchange_mapi_util_find_array_propval):
+
 2008-08-22  Suman Manjunath  <msuman@novell.com>
 
 	** Extensive rewrite of ExchangeMAPIAttachment handling. It provides

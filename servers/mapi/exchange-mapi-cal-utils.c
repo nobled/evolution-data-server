@@ -229,8 +229,8 @@ exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_l
 			flag = 0xFFFFFFFF;
 			set_SPropValue_proptag(&(attach_item->lpProps[1]), PR_RENDERING_POSITION, (const void *) (&flag));
 
-			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME, (const void *) g_strdup(split_name));
-			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME, (const void *) g_strdup(split_name));
+			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME_UNICODE, (const void *) g_strdup(split_name));
+			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME_UNICODE, (const void *) g_strdup(split_name));
 
 			stream = g_new0 (ExchangeMAPIStream, 1);
 			stream->proptag = PR_ATTACH_DATA_BIN; 
@@ -301,7 +301,7 @@ exchange_mapi_cal_util_fetch_organizer (ECalComponent *comp, GSList **recip_list
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME_UNICODE, (const void *)(str));
 
 		/* External recipient properties - set them only when the recipient is unresolved */
 		recipient->in.ext_lpProps = g_new0 (struct SPropValue, 5);
@@ -312,15 +312,15 @@ exchange_mapi_cal_util_fetch_organizer (ECalComponent *comp, GSList **recip_list
 		val = MAPI_MAILUSER;
 		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
 		str = "SMTP";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
 		str = recipient->email_id;
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
 
 		param = icalproperty_get_first_parameter (org_prop, ICAL_CN_PARAMETER);
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
 
 		*recip_list = g_slist_append (*recip_list, recipient);
 	}
@@ -375,7 +375,7 @@ exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_lis
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME_UNICODE, (const void *)(str));
 
 		/* External recipient properties - set them only when the recipient is unresolved */
 		recipient->in.ext_lpProps = g_new0 (struct SPropValue, 5);
@@ -386,15 +386,15 @@ exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_lis
 		val = MAPI_MAILUSER;
 		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
 		str = "SMTP";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
 		str = recipient->email_id;
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
 
 		param = icalproperty_get_first_parameter (att_prop, ICAL_CN_PARAMETER);
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
 
 		*recip_list = g_slist_append (*recip_list, recipient);
 
@@ -578,7 +578,7 @@ exchange_mapi_cal_util_generate_globalobjectid (gboolean is_clean, const char *u
 
 	d(g_message ("New GlobalObjectId.. Length: %d bytes.. Hex-data follows:", ba->len));
 	d(for (i = 0; i < ba->len; i++) 
-		g_print("0x%.2X ", ba->data[i]));
+		g_print("0x%02X ", ba->data[i]));
 
 	g_byte_array_free (ba, FALSE);
 }
@@ -656,13 +656,13 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 {
 	ECalComponent *comp = NULL;
 	struct timeval t;
-	const gchar *subject = NULL;
+	ExchangeMAPIStream *body_stream; 
+	const gchar *subject = NULL, *body = NULL;
 	const uint32_t *ui32;
 	const bool *b;
 	icalcomponent *ical_comp;
 	icalproperty *prop = NULL;
 	icalparameter *param = NULL;
-	ExchangeMAPIStream *body;
 	const icaltimezone *utc_zone;
 
 	switch (kind) {
@@ -686,12 +686,16 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_NORMALIZED_SUBJECT);
 	if (!subject)
 		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_CONVERSATION_TOPIC);
+	if (!subject)
+		subject = ""; 
 
-	body = exchange_mapi_util_find_stream (streams, PR_BODY);
+	body = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_BODY);
 	if (!body)
-		body = exchange_mapi_util_find_stream (streams, PR_BODY_HTML);
-	if (!body)
-		body = exchange_mapi_util_find_stream (streams, PR_HTML);
+		body = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_BODY_HTML);
+	if (!body) {
+		body_stream = exchange_mapi_util_find_stream (streams, PR_HTML);
+		body = body_stream ? (const gchar *) body_stream->value->data : ""; 
+	}
 
 	/* set dtstamp - in UTC */
 	if (get_mapi_SPropValue_array_date_timeval (&t, properties, PR_CREATION_TIME) == MAPI_E_SUCCESS)
@@ -707,10 +711,8 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 		icalcomponent_add_property (ical_comp, prop);
 	}
 
-	if (subject && *subject)
-		icalcomponent_set_summary (ical_comp, subject);
-	if (body)
-		icalcomponent_set_description (ical_comp, (const char *) body->value->data);
+	icalcomponent_set_summary (ical_comp, subject);
+	icalcomponent_set_description (ical_comp, body);
 
 	if (icalcomponent_isa (ical_comp) == ICAL_VEVENT_COMPONENT) {
 		const char *location = NULL;
@@ -1077,6 +1079,7 @@ update_attendee_status (struct mapi_SPropValue_array *properties, mapi_id_t mid)
 	cur_seq = ui32 ? *ui32 : 0;
 
 	if (cbdata.appt_seq == cur_seq) {
+
 /* 
  * The itip-formatter provides an option to update the attendee's status.
  * Hence, we need not update the server straight away. 
@@ -1422,7 +1425,7 @@ appt_build_name_id (struct mapi_nameid *nameid)
 {
 	mapi_nameid_lid_add(nameid, 0x8201, PSETID_Appointment); 	// PT_LONG - ApptSequence
 	mapi_nameid_lid_add(nameid, 0x8205, PSETID_Appointment); 	// PT_LONG - BusyStatus
-	mapi_nameid_lid_add(nameid, 0x8208, PSETID_Appointment); 	// PT_STRING8 - Location
+	mapi_nameid_lid_add(nameid, 0x8208, PSETID_Appointment); 	// PT_UNICODE - Location
 	mapi_nameid_lid_add(nameid, 0x820D, PSETID_Appointment); 	// PT_SYSTIME - Start/ApptStartWhole
 	mapi_nameid_lid_add(nameid, 0x820E, PSETID_Appointment); 	// PT_SYSTIME - End/ApptEndWhole
 	mapi_nameid_lid_add(nameid, 0x8213, PSETID_Appointment); 	// PT_LONG - Duration/ApptDuration
@@ -1444,7 +1447,7 @@ appt_build_name_id (struct mapi_nameid *nameid)
 	mapi_nameid_lid_add(nameid, 0x825E, PSETID_Appointment); 	// PT_BINARY - (timezone for dtstart)
 	mapi_nameid_lid_add(nameid, 0x825F, PSETID_Appointment); 	// PT_BINARY - (timezone for dtend)
 
-	mapi_nameid_lid_add(nameid, 0x0002, PSETID_Meeting); 		// PT_STRING8 - Where
+	mapi_nameid_lid_add(nameid, 0x0002, PSETID_Meeting); 		// PT_UNICODE - Where
 	mapi_nameid_lid_add(nameid, 0x0003, PSETID_Meeting); 		// PT_BINARY - GlobalObjectId
 	mapi_nameid_lid_add(nameid, 0x0005, PSETID_Meeting); 		// PT_BOOLEAN - IsRecurring
 	mapi_nameid_lid_add(nameid, 0x000A, PSETID_Meeting); 		// PT_BOOLEAN - IsException 
@@ -1564,7 +1567,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			return 0;
 	} 
 
-	g_debug ("Allocating space for %d props ", flag32);
+	d(g_debug ("Allocating space for %d props ", flag32));
 	props = g_new0 (struct SPropValue, flag32);
 
 	/* PR_MESSAGE_CLASS needs to be set appropriately */					/* prop count: 1 */
@@ -1588,16 +1591,16 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	utc_dtstart = icaltime_convert_to_zone (dtstart, utc_zone);
 	utc_dtend = icaltime_convert_to_zone (dtend, utc_zone);
 
-	/* FIXME: convert to unicode */
 	text = icalcomponent_get_summary (ical_comp);
 	if (!(text && *text)) 
 		text = "";
-	set_SPropValue_proptag(&props[i++], PR_SUBJECT, 					/* prop count: 2 */ 
+	set_SPropValue_proptag(&props[i++], PR_SUBJECT_UNICODE, 				/* prop count: 2 */ 
 					(const void *) text);
-	set_SPropValue_proptag(&props[i++], PR_NORMALIZED_SUBJECT, 				/* prop count: 3 */ 
+	set_SPropValue_proptag(&props[i++], PR_NORMALIZED_SUBJECT_UNICODE, 			/* prop count: 3 */ 
 					(const void *) text);
-	set_SPropValue_proptag(&props[i++], PR_CONVERSATION_TOPIC, 				/* prop count: 4 */
-					(const void *) text);
+	if (cbdata->appt_seq == 0)
+		set_SPropValue_proptag(&props[i++], PR_CONVERSATION_TOPIC_UNICODE, 		/* prop count: 4 */
+						(const void *) text);
 	text = NULL;
 
 	/* we don't support HTML event/task/memo editor */
@@ -1608,7 +1611,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	text = icalcomponent_get_description (ical_comp);
 	if (!(text && *text) || !g_utf8_validate (text, -1, NULL)) 
 		text = "";
-	set_SPropValue_proptag(&props[i++], PR_BODY, 						/* prop count: 6 */
+	set_SPropValue_proptag(&props[i++], PR_BODY_UNICODE, 					/* prop count: 6 */
 					(const void *) text);
 	text = NULL;
 
@@ -1619,17 +1622,17 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		flag32 = get_prop_from_priority (icalproperty_get_priority (prop));
 	set_SPropValue_proptag(&props[i++], PR_PRIORITY, (const void *) &flag32); 		/* prop count: 7 */
 
-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME, 
+	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME_UNICODE, 
 		(const void *) cbdata->ownername);
-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE, 
+	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
 		(const void *) cbdata->owneridtype);
-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
+	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
 		(const void *) cbdata->ownerid);
-	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME, 
+	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME_UNICODE, 
 		(const void *) cbdata->username);
-	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE, 
+	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE_UNICODE, 
 		(const void *) cbdata->useridtype);
-	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS, 
+	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS_UNICODE, 
 		(const void *) cbdata->userid); 						/* prop count: 13 */
 
 	flag32 = cbdata->msgflags;
@@ -2020,7 +2023,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	/* Free this memory at the backends. */
 	cbdata->props = props;
 
-	g_debug ("Ended up setting %d props ", i);
+	d(g_debug ("Ended up setting %d props ", i));
 
 	return i;
 }

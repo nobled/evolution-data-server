@@ -116,12 +116,12 @@ exchange_mapi_util_find_SPropVal_array_propval (struct SPropValue *values, uint3
 	    ((proptag & 0xFFFF) == PT_UNICODE)) {
 		const void	*str = NULL;
 
-		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
+		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
 		str = get_SPropValue(values, proptag);
-		if (str) 
+		if (str)
 			return str;
 
-		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
+		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
 		str = get_SPropValue(values, proptag);
 		if (str)
 			return str;
@@ -156,12 +156,12 @@ exchange_mapi_util_find_row_propval (struct SRow *aRow, uint32_t proptag)
 	    ((proptag & 0xFFFF) == PT_UNICODE)) {
 		const void	*str = NULL;
 
-		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
+		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
 		str = find_SPropValue_data(aRow, proptag);
-		if (str) 
+		if (str)
 			return str;
 
-		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
+		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
 		str = find_SPropValue_data(aRow, proptag);
 		if (str)
 			return str;
@@ -196,12 +196,12 @@ exchange_mapi_util_find_array_propval (struct mapi_SPropValue_array *properties,
 	    ((proptag & 0xFFFF) == PT_UNICODE)) {
 		const void	*str = NULL;
 
-		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
+		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
 		str = find_mapi_SPropValue_data(properties, proptag);
-		if (str) 
+		if (str)
 			return str;
 
-		proptag = (proptag & 0xFFFF0000) | PT_UNICODE;
+		proptag = (proptag & 0xFFFF0000) | PT_STRING8;
 		str = find_mapi_SPropValue_data(properties, proptag);
 		if (str)
 			return str;

@@ -100,7 +100,6 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 uint32_t
 exchange_mapi_cal_util_get_new_appt_id (mapi_id_t fid);
 
-/* we don't have to specify the PR_BODY_* tags since it is fetched by default */
 static const uint32_t cal_GetPropsList[] = {
 	PR_FID, 
 	PR_MID, 
@@ -111,6 +110,10 @@ static const uint32_t cal_GetPropsList[] = {
 	PR_NORMALIZED_SUBJECT_UNICODE, 
 	PR_CONVERSATION_TOPIC, 
 	PR_CONVERSATION_TOPIC_UNICODE, 
+	PR_BODY, 
+	PR_BODY_UNICODE, 
+	PR_BODY_HTML, 
+	PR_BODY_HTML_UNICODE, 
 
 	PR_CREATION_TIME, 
 	PR_LAST_MODIFICATION_TIME, 

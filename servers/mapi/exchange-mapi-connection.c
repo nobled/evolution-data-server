@@ -312,10 +312,10 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	retval = -1;
 	switch (editor) {
 		case olEditorText:
-			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY)) != NULL)
-				proptag = PR_BODY;
-			else if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_UNICODE)) != NULL)
+			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_UNICODE)) != NULL)
 				proptag = PR_BODY_UNICODE;
+			else if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY)) != NULL)
+				proptag = PR_BODY;
 			if (data) {
 				size_t size = strlen(data)+1;
 				body.data = talloc_memdup(mem_ctx, data, size);
@@ -324,10 +324,10 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 			} 
 			break;
 		case olEditorHTML: 
-			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_HTML)) != NULL)
-				proptag = PR_BODY_HTML;
-			else if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_HTML_UNICODE)) != NULL)
+			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_HTML_UNICODE)) != NULL)
 				proptag = PR_BODY_HTML_UNICODE;
+			else if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_HTML)) != NULL)
+				proptag = PR_BODY_HTML;
 			if (data) {
 				size_t size = strlen(data)+1;
 				body.data = talloc_memdup(mem_ctx, data, size);
@@ -1020,8 +1020,7 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 	mapi_object_init(&obj_table);
 
 	/* Open the message store */
-	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store)) ;
-
+	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store));
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenMsgStore / OpenPublicFolder", GetLastError());
 		goto cleanup;
@@ -1044,19 +1043,11 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 	GetPropsTagArray = talloc_zero(mem_ctx, struct SPropTagArray);
 	GetPropsTagArray->cValues = 0;
 
-	// FIXME : Why are we fetching all these props ?
-
-	SPropTagArray = set_SPropTagArray(mem_ctx, 0xA,
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x4,
 					  PR_FID,
 					  PR_MID,
-					  PR_INST_ID,
-					  PR_INSTANCE_NUM,
-					  PR_SUBJECT,
-					  PR_MESSAGE_CLASS,
 					  PR_LAST_MODIFICATION_TIME,
-					  PR_HASATTACH,
-					  PR_RULE_MSG_PROVIDER,
-					  PR_RULE_MSG_NAME);
+					  PR_HASATTACH);
 
 	/* Set primary columns to be fetched */
 	retval = SetColumns(&obj_table, SPropTagArray);
@@ -1245,8 +1236,7 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 	mapi_object_init(&obj_message);
 
 	/* Open the message store */
-	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store)) ;
-
+	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store));
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenMsgStore", GetLastError());
 		goto cleanup;
