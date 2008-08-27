@@ -173,7 +173,7 @@ get_priority_from_prop (uint32_t prop)
 }
 
 static uint32_t
-get_prop_from_priority (int priority)
+get_prio_prop_from_priority (int priority)
 {
 	if (priority > 0 && priority <= 4)
 		return PRIORITY_HIGH;
@@ -181,6 +181,17 @@ get_prop_from_priority (int priority)
 		return PRIORITY_LOW;
 	else
 		return PRIORITY_NORMAL;
+}
+
+static uint32_t
+get_imp_prop_from_priority (int priority)
+{
+	if (priority > 0 && priority <= 4)
+		return IMPORTANCE_HIGH;
+	else if (priority > 5 && priority <= 9)
+		return IMPORTANCE_LOW;
+	else
+		return IMPORTANCE_NORMAL;
 }
 
 void
@@ -229,8 +240,8 @@ exchange_mapi_cal_util_fetch_attachments (ECalComponent *comp, GSList **attach_l
 			flag = 0xFFFFFFFF;
 			set_SPropValue_proptag(&(attach_item->lpProps[1]), PR_RENDERING_POSITION, (const void *) (&flag));
 
-			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME_UNICODE, (const void *) g_strdup(split_name));
-			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME_UNICODE, (const void *) g_strdup(split_name));
+			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME, (const void *) g_strdup(split_name));
+			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME, (const void *) g_strdup(split_name));
 
 			stream = g_new0 (ExchangeMAPIStream, 1);
 			stream->proptag = PR_ATTACH_DATA_BIN; 
@@ -301,7 +312,7 @@ exchange_mapi_cal_util_fetch_organizer (ECalComponent *comp, GSList **recip_list
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
 
 		/* External recipient properties - set them only when the recipient is unresolved */
 		recipient->in.ext_lpProps = g_new0 (struct SPropValue, 5);
@@ -312,15 +323,15 @@ exchange_mapi_cal_util_fetch_organizer (ECalComponent *comp, GSList **recip_list
 		val = MAPI_MAILUSER;
 		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
 		str = "SMTP";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
 		str = recipient->email_id;
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
 
 		param = icalproperty_get_first_parameter (org_prop, ICAL_CN_PARAMETER);
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
 
 		*recip_list = g_slist_append (*recip_list, recipient);
 	}
@@ -375,7 +386,7 @@ exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_lis
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
 
 		/* External recipient properties - set them only when the recipient is unresolved */
 		recipient->in.ext_lpProps = g_new0 (struct SPropValue, 5);
@@ -386,15 +397,15 @@ exchange_mapi_cal_util_fetch_recipients (ECalComponent *comp, GSList **recip_lis
 		val = MAPI_MAILUSER;
 		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
 		str = "SMTP";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
 		str = recipient->email_id;
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
 
 		param = icalproperty_get_first_parameter (att_prop, ICAL_CN_PARAMETER);
 		str = icalparameter_get_cn (param);
 		if (!(str && *str)) 
 			str = "";
-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
+		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
 
 		*recip_list = g_slist_append (*recip_list, recipient);
 
@@ -860,16 +871,16 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 
 		/* NOTE: Exchange tasks are DATE values, not DATE-TIME values, but maybe someday, we could expect Exchange to support it ;) */
 		if (get_mapi_SPropValue_array_date_timeval (&t, properties, PROP_TAG(PT_SYSTIME, 0x8104)) == MAPI_E_SUCCESS)
-			icalcomponent_set_dtstart (ical_comp, icaltime_from_timet_with_zone (t.tv_sec, 1, utc_zone));
+			icalcomponent_set_dtstart (ical_comp, icaltime_from_timet_with_zone (t.tv_sec, 1, default_zone));
 		if (get_mapi_SPropValue_array_date_timeval (&t, properties, PROP_TAG(PT_SYSTIME, 0x8105)) == MAPI_E_SUCCESS)
-			icalcomponent_set_due (ical_comp, icaltime_from_timet_with_zone (t.tv_sec, 1, utc_zone));
+			icalcomponent_set_due (ical_comp, icaltime_from_timet_with_zone (t.tv_sec, 1, default_zone));
 
 		ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8101));
 		if (ui32) {
 			icalcomponent_set_status (ical_comp, get_taskstatus_from_prop(*ui32));
 			if (*ui32 == olTaskComplete 
 			&& get_mapi_SPropValue_array_date_timeval (&t, properties, PROP_TAG(PT_SYSTIME, 0x810F)) == MAPI_E_SUCCESS) {
-				prop = icalproperty_new_completed (icaltime_from_timet_with_zone (t.tv_sec, 1, utc_zone));
+				prop = icalproperty_new_completed (icaltime_from_timet_with_zone (t.tv_sec, 1, default_zone));
 				icalcomponent_add_property (ical_comp, prop);
 			}
 		}
@@ -895,7 +906,7 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 				ECalComponentAlarmTrigger trigger;
 
 				trigger.type = E_CAL_COMPONENT_ALARM_TRIGGER_ABSOLUTE;
-				trigger.u.abs_time = icaltime_from_timet_with_zone (abs.tv_sec, 0, 0);
+				trigger.u.abs_time = icaltime_from_timet_with_zone (abs.tv_sec, 0, default_zone);
 
 				e_cal_component_alarm_set_action (e_alarm, E_CAL_COMPONENT_ALARM_DISPLAY);
 				e_cal_component_alarm_set_trigger (e_alarm, trigger);
@@ -1310,7 +1321,7 @@ exchange_mapi_cal_util_camel_helper (struct mapi_SPropValue_array *properties,
 }
 
 
-#define COMMON_NAMED_PROPS_N 8
+#define COMMON_NAMED_PROPS_N 9
 
 typedef enum 
 {
@@ -1321,6 +1332,7 @@ typedef enum
 	I_COMMON_SIDEEFFECTS , 
 	I_COMMON_START , 
 	I_COMMON_END , 
+	I_COMMON_TASKMODE , 
 	I_COMMON_REMNEXTTIME 
 } CommonNamedPropsIndex;
 
@@ -1341,6 +1353,7 @@ exchange_mapi_cal_util_build_name_id (struct mapi_nameid *nameid, gpointer data)
 	mapi_nameid_lid_add(nameid, 0x8510, PSETID_Common); 	// PT_LONG - (context menu flags)
 	mapi_nameid_lid_add(nameid, 0x8516, PSETID_Common); 	// PT_SYSTIME - CommonStart
 	mapi_nameid_lid_add(nameid, 0x8517, PSETID_Common); 	// PT_SYSTIME - CommonEnd
+	mapi_nameid_lid_add(nameid, 0x8518, PSETID_Common); 	// PT_LONG - TaskMode
 	mapi_nameid_lid_add(nameid, 0x8560, PSETID_Common); 	// PT_SYSTIME - ReminderNextTime
 
 	if (kind == ICAL_VEVENT_COMPONENT) 
@@ -1512,18 +1525,21 @@ task_build_name_id (struct mapi_nameid *nameid)
 }
 
 
-#define NOTE_NAMED_PROPS_N 1
+#define NOTE_NAMED_PROPS_N 3
 
 typedef enum 
 {
-	I_NOTE_COLOR = COMMON_NAMED_PROPS_N 
+	I_NOTE_COLOR = COMMON_NAMED_PROPS_N , 
+	I_NOTE_WIDTH , 
+	I_NOTE_HEIGHT
 } NoteNamedPropsIndex;
 
 static void 
 note_build_name_id (struct mapi_nameid *nameid)
 {
-	/* These probably would never be used from Evolution */
 	mapi_nameid_lid_add(nameid, 0x8B00, PSETID_Note); 	// PT_LONG - Color
+	mapi_nameid_lid_add(nameid, 0x8B02, PSETID_Note); 	// PT_LONG - Width
+	mapi_nameid_lid_add(nameid, 0x8B03, PSETID_Note); 	// PT_LONG - Height
 }
 
 #define MINUTES_IN_HOUR 60
@@ -1533,7 +1549,7 @@ note_build_name_id (struct mapi_nameid *nameid)
  * NOTE: When a new regular property (PR_***) is added, 'REGULAR_PROPS_N' 
  * should be updated. 
  */
-#define REGULAR_PROPS_N    21
+#define REGULAR_PROPS_N    22
 
 int
 exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagArray *proptag_array, gpointer data)
@@ -1570,7 +1586,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	d(g_debug ("Allocating space for %d props ", flag32));
 	props = g_new0 (struct SPropValue, flag32);
 
-	/* PR_MESSAGE_CLASS needs to be set appropriately */					/* prop count: 1 */
+	/* PR_MESSAGE_CLASS needs to be set appropriately */					/* propcount++ */
 
 	utc_zone = icaltimezone_get_utc_timezone ();
 
@@ -1594,49 +1610,49 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	text = icalcomponent_get_summary (ical_comp);
 	if (!(text && *text)) 
 		text = "";
-	set_SPropValue_proptag(&props[i++], PR_SUBJECT_UNICODE, 				/* prop count: 2 */ 
+	set_SPropValue_proptag(&props[i++], PR_SUBJECT, 					/* propcount++ */ 
 					(const void *) text);
-	set_SPropValue_proptag(&props[i++], PR_NORMALIZED_SUBJECT_UNICODE, 			/* prop count: 3 */ 
+	set_SPropValue_proptag(&props[i++], PR_NORMALIZED_SUBJECT, 				/* propcount++ */ 
 					(const void *) text);
 	if (cbdata->appt_seq == 0)
-		set_SPropValue_proptag(&props[i++], PR_CONVERSATION_TOPIC_UNICODE, 		/* prop count: 4 */
+		set_SPropValue_proptag(&props[i++], PR_CONVERSATION_TOPIC, 			/* propcount++ */
 						(const void *) text);
 	text = NULL;
 
 	/* we don't support HTML event/task/memo editor */
 	flag32 = olEditorText;
-	set_SPropValue_proptag(&props[i++], PR_MSG_EDITOR_FORMAT, &flag32); 			/* prop count: 5 */
+	set_SPropValue_proptag(&props[i++], PR_MSG_EDITOR_FORMAT, &flag32); 			/* propcount++ */
 
 	/* it'd be better to convert, then set it in unicode */
 	text = icalcomponent_get_description (ical_comp);
 	if (!(text && *text) || !g_utf8_validate (text, -1, NULL)) 
 		text = "";
-	set_SPropValue_proptag(&props[i++], PR_BODY_UNICODE, 					/* prop count: 6 */
+	set_SPropValue_proptag(&props[i++], PR_BODY, 						/* propcount++ */
 					(const void *) text);
 	text = NULL;
 
-	/* Priority */
-	flag32 = PRIORITY_NORMAL; 	/* default */
+	/* Priority and Importance */
 	prop = icalcomponent_get_first_property (ical_comp, ICAL_PRIORITY_PROPERTY);
-	if (prop) 
-		flag32 = get_prop_from_priority (icalproperty_get_priority (prop));
-	set_SPropValue_proptag(&props[i++], PR_PRIORITY, (const void *) &flag32); 		/* prop count: 7 */
+	flag32 = prop ? get_prio_prop_from_priority (icalproperty_get_priority (prop)) : PRIORITY_NORMAL;
+	set_SPropValue_proptag(&props[i++], PR_PRIORITY, (const void *) &flag32); 		/* propcount++ */
+	flag32 = prop ? get_imp_prop_from_priority (icalproperty_get_priority (prop)) : IMPORTANCE_NORMAL;
+	set_SPropValue_proptag(&props[i++], PR_IMPORTANCE, (const void *) &flag32); 		/* propcount++ */
 
-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME_UNICODE, 
-		(const void *) cbdata->ownername);
-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
-		(const void *) cbdata->owneridtype);
-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
-		(const void *) cbdata->ownerid);
-	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME_UNICODE, 
-		(const void *) cbdata->username);
-	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE_UNICODE, 
-		(const void *) cbdata->useridtype);
-	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS_UNICODE, 
-		(const void *) cbdata->userid); 						/* prop count: 13 */
+	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME, 
+		(const void *) cbdata->ownername); 						/* propcount++ */
+	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE, 
+		(const void *) cbdata->owneridtype); 						/* propcount++ */
+	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
+		(const void *) cbdata->ownerid); 						/* propcount++ */
+	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME, 
+		(const void *) cbdata->username); 						/* propcount++ */
+	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE, 
+		(const void *) cbdata->useridtype); 						/* propcount++ */
+	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS, 
+		(const void *) cbdata->userid); 						/* propcount++ */
 
 	flag32 = cbdata->msgflags;
-	set_SPropValue_proptag(&props[i++], PR_MESSAGE_FLAGS, (const void *) &flag32); 		/* prop count: 14 */
+	set_SPropValue_proptag(&props[i++], PR_MESSAGE_FLAGS, (const void *) &flag32); 		/* propcount++ */
 
 	flag32 = 0x0;
 	b = e_cal_component_has_alarms (comp);
@@ -1683,7 +1699,7 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 	t.tv_usec = 0;
 	/* ReminderNextTime: FIXME for recurrence */
 	set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_COMMON_REMNEXTTIME], &t);
-												/* prop count: 14 (no regular props added) */
+
 	/* Sensitivity, Private */
 	flag32 = olNormal; 	/* default */
 	b = 0; 			/* default */
@@ -1692,27 +1708,27 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		flag32 = get_prop_from_class (icalproperty_get_class (prop));
 	if (flag32 == olPrivate || flag32 == olConfidential)
 		b = 1;
-	set_SPropValue_proptag(&props[i++], PR_SENSITIVITY, (const void *) &flag32); 		/* prop count: 15 */
+	set_SPropValue_proptag(&props[i++], PR_SENSITIVITY, (const void *) &flag32); 		/* propcount++ */
 	set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_ISPRIVATE], (const void *) &b);
 
 	t.tv_sec = icaltime_as_timet (utc_dtstart);
 	t.tv_usec = 0;
 	set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_COMMON_START], &t);
-	set_SPropValue_proptag_date_timeval(&props[i++], PR_START_DATE, &t); 			/* prop count: 16 */
+	set_SPropValue_proptag_date_timeval(&props[i++], PR_START_DATE, &t); 			/* propcount++ */
 
 	t.tv_sec = icaltime_as_timet (utc_dtend);
 	t.tv_usec = 0;
 	set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_COMMON_END], &t);
-	set_SPropValue_proptag_date_timeval(&props[i++], PR_END_DATE, &t); 			/* prop count: 17 */
+	set_SPropValue_proptag_date_timeval(&props[i++], PR_END_DATE, &t); 			/* propcount++ */
 
 	b = 1;
-	set_SPropValue_proptag(&props[i++], PR_RESPONSE_REQUESTED, (const void *) &b); 		/* prop count: 18 */
+	set_SPropValue_proptag(&props[i++], PR_RESPONSE_REQUESTED, (const void *) &b); 		/* propcount++ */
 
-	/* PR_OWNER_APPT_ID needs to be set in certain cases only */				/* prop count: 19 */
-	/* PR_ICON_INDEX needs to be set appropriately */					/* prop count: 20 */
+	/* PR_OWNER_APPT_ID needs to be set in certain cases only */				/* propcount++ */
+	/* PR_ICON_INDEX needs to be set appropriately */					/* propcount++ */
 
 	b = 0;
-	set_SPropValue_proptag(&props[i++], PR_RTF_IN_SYNC, (const void *) &b); 		/* prop count: 21 */
+	set_SPropValue_proptag(&props[i++], PR_RTF_IN_SYNC, (const void *) &b); 		/* propcount++ */
 
 	if (kind == ICAL_VEVENT_COMPONENT) {
 		const char *mapi_tzid;
@@ -1980,7 +1996,14 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		}
 
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_STATUS], (const void *) &flag32);
-		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_PERCENT], (const void *) &d);
+
+		/* FIXME: bug in LibMAPI - does not handle PT_DOUBLE in set_SPropValue() */
+//		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_PERCENT], (const void *) &d); 
+		props[i].ulPropTag = proptag_array->aulPropTag[I_TASK_PERCENT];
+		props[i].dwAlignPad = 0x0;
+		memcpy (&(props[i].value.dbl), &d, sizeof(double));
+		i++; 
+
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_ISCOMPLETE], (const void *) &b);
 
 		/* Date completed */
@@ -1989,34 +2012,52 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			prop = icalcomponent_get_first_property (ical_comp, ICAL_COMPLETED_PROPERTY);
 			completed = icalproperty_get_completed (prop);
 
+			completed.hour = completed.minute = completed.second = 0; completed.is_date = completed.is_utc = 1;
 			t.tv_sec = icaltime_as_timet (completed);
 			t.tv_usec = 0;
 			set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_TASK_COMPLETED], &t);
 		}
 
 		/* Start */
+		dtstart.hour = dtstart.minute = dtstart.second = 0; dtstart.is_date = dtstart.is_utc = 1;
 		t.tv_sec = icaltime_as_timet (dtstart);
 		t.tv_usec = 0;
-		set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_TASK_START], &t);
+		if (!icaltime_is_null_time (dtstart))
+			set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_TASK_START], &t);
 
 		/* Due */
+		dtend.hour = dtend.minute = dtend.second = 0; dtend.is_date = dtend.is_utc = 1;
 		t.tv_sec = icaltime_as_timet (dtend);
 		t.tv_usec = 0;
-		set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_TASK_DUE], &t);
+		if (!icaltime_is_null_time (dtend))
+			set_SPropValue_proptag_date_timeval(&props[i++], proptag_array->aulPropTag[I_TASK_DUE], &t);
 
 		/* FIXME: Evolution does not support recurring tasks */
 		b = 0;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_ISRECURRING], (const void *) &b);
 
 	} else if (kind == ICAL_VJOURNAL_COMPONENT) {
+		uint32_t color = olYellow; 
+
 		set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *) IPM_STICKYNOTE);
 
 		/* Context menu flags */
 		flag32 = 0x0110; 
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_COMMON_SIDEEFFECTS], (const void *) &flag32);
 
-		flag32 = 0x0300; 
+		flag32 = 0x0300 + color; 
 		set_SPropValue_proptag(&props[i++], PR_ICON_INDEX, (const void *) &flag32);
+
+		flag32 = color; 
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_NOTE_COLOR], (const void *) &flag32);
+
+		/* some random value */
+		flag32 = 0x00FF; 
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_NOTE_WIDTH], (const void *) &flag32);
+
+		/* some random value */
+		flag32 = 0x00FF; 
+		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_NOTE_HEIGHT], (const void *) &flag32);
 	}
 
 	*value = props;

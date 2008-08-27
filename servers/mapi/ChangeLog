@@ -1,5 +1,18 @@
 2008-08-27  Suman Manjunath  <msuman@novell.com>
 
+	* exchange-mapi-cal-utils.c (get_prio_prop_from_priority),
+	(get_imp_prop_from_priority),
+	(exchange_mapi_cal_util_fetch_attachments),
+	(exchange_mapi_cal_util_fetch_organizer),
+	(exchange_mapi_cal_util_fetch_recipients),
+	(exchange_mapi_cal_util_mapi_props_to_comp),
+	(exchange_mapi_cal_util_build_name_id), (note_build_name_id),
+	(exchange_mapi_cal_util_build_props):
+	- Don't set string properties in UNICODE since it seems to be buggy
+	- Fixes for rendering / create / modify tasks. 
+
+2008-08-27  Suman Manjunath  <msuman@novell.com>
+
 	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream): 
 	Don't cast to SRow structure while fetching body stream - trivial. 
 	* exchange-mapi-utils.c (exchange_mapi_debug_property_dump): Dump 

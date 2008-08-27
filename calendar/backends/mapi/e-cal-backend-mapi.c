@@ -528,7 +528,19 @@ get_deltas (gpointer handle)
 	strftime (t_str, 26, "%Y-%m-%dT%H:%M:%SZ", &tm);
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
-	if (!exchange_mapi_connection_fetch_items (priv->fid, use_restriction ? &res : NULL, 
+	/* FIXME: GetProps does not seem to work for tasks :-( */
+	if (kind == ICAL_VTODO_COMPONENT) {
+		if (!exchange_mapi_connection_fetch_items (priv->fid, use_restriction ? &res : NULL, 
+						NULL, 0, NULL, NULL, 
+						mapi_cal_get_changes_cb, cbmapi, 
+						MAPI_OPTIONS_FETCH_ALL)) {
+			/* FIXME: better string please... */
+			e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Error fetching changes from the server. Removing the cache might help."));
+//			e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
+			g_static_mutex_unlock (&updating);
+			return FALSE;
+		}
+	} else if (!exchange_mapi_connection_fetch_items (priv->fid, use_restriction ? &res : NULL, 
 						cal_GetPropsList, G_N_ELEMENTS (cal_GetPropsList), 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						mapi_cal_get_changes_cb, cbmapi, 
@@ -913,7 +925,19 @@ populate_cache (ECalBackendMAPI *cbmapi)
 	strftime (t_str, 26, "%Y-%m-%dT%H:%M:%SZ", &tm);
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
-	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
+	/* FIXME: GetProps does not seem to work for tasks :-( */
+	if (kind == ICAL_VTODO_COMPONENT) {
+		if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
+						NULL, 0, NULL, NULL, 
+						mapi_cal_cache_create_cb, cbmapi, 
+						MAPI_OPTIONS_FETCH_ALL)) {
+			e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Could not create cache file"));
+			e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
+			g_free (progress_string);
+			g_mutex_unlock (priv->mutex);
+			return GNOME_Evolution_Calendar_OtherError;
+		}
+	} else if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, 
 						cal_GetPropsList, G_N_ELEMENTS (cal_GetPropsList), 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						mapi_cal_cache_create_cb, cbmapi, 
