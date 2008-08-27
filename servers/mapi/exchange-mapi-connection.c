@@ -151,7 +151,7 @@ exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t pro
 	enum MAPISTATUS	retval;
 	TALLOC_CTX 	*mem_ctx;
 	mapi_object_t 	obj_stream;
-	uint32_t 	cn_read = 0;
+	uint16_t 	cn_read = 0;
 	uint32_t 	off_data = 0;
 	uint8_t		*buf_data = NULL;
 	uint32_t 	buf_size = 0;
@@ -572,7 +572,7 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 		exchange_mapi_util_write_generic_streams (&obj_attach, attachment->streams);
 
 		/* message->SaveChanges() */
-		retval = SaveChanges(obj_message, &obj_attach, KEEP_OPEN_READWRITE);
+		retval = SaveChangesAttachment(obj_message, &obj_attach, KEEP_OPEN_READWRITE);
 		if (retval != MAPI_E_SUCCESS) {
 			mapi_errstr("SaveChanges", GetLastError());
 			goto cleanup;
