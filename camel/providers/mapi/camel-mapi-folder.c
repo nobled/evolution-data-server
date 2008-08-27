@@ -591,6 +591,8 @@ static const uint32_t camel_GetPropsList[] = {
 
 	PR_BODY, 
 	PR_BODY_UNICODE, 
+	PR_BODY_HTML, 
+	PR_BODY_HTML_UNICODE, 
 
 	PR_DISPLAY_TO, 
 	PR_DISPLAY_TO_UNICODE, 
@@ -645,7 +647,7 @@ camel_build_name_id (struct mapi_nameid *nameid, gpointer data)
 
 	mapi_nameid_lid_add(nameid, 0x8201, PSETID_Appointment); 	// PT_LONG - ApptSequence
 	mapi_nameid_lid_add(nameid, 0x8205, PSETID_Appointment); 	// PT_LONG - BusyStatus
-	mapi_nameid_lid_add(nameid, 0x8208, PSETID_Appointment); 	// PT_STRING8 - Location
+	mapi_nameid_lid_add(nameid, 0x8208, PSETID_Appointment); 	// PT_UNICODE - Location
 	mapi_nameid_lid_add(nameid, 0x820D, PSETID_Appointment); 	// PT_SYSTIME - Start/ApptStartWhole
 	mapi_nameid_lid_add(nameid, 0x820E, PSETID_Appointment); 	// PT_SYSTIME - End/ApptEndWhole
 	mapi_nameid_lid_add(nameid, 0x8213, PSETID_Appointment); 	// PT_LONG - Duration/ApptDuration
@@ -667,7 +669,7 @@ camel_build_name_id (struct mapi_nameid *nameid, gpointer data)
 	mapi_nameid_lid_add(nameid, 0x825E, PSETID_Appointment); 	// PT_BINARY - (timezone for dtstart)
 	mapi_nameid_lid_add(nameid, 0x825F, PSETID_Appointment); 	// PT_BINARY - (timezone for dtend)
 
-	mapi_nameid_lid_add(nameid, 0x0002, PSETID_Meeting); 		// PT_STRING8 - Where
+	mapi_nameid_lid_add(nameid, 0x0002, PSETID_Meeting); 		// PT_UNICODE - Where
 	mapi_nameid_lid_add(nameid, 0x0003, PSETID_Meeting); 		// PT_BINARY - GlobalObjectId
 	mapi_nameid_lid_add(nameid, 0x0005, PSETID_Meeting); 		// PT_BOOLEAN - IsRecurring
 	mapi_nameid_lid_add(nameid, 0x000a, PSETID_Meeting); 		// PT_BOOLEAN - IsException 

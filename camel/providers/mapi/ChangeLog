@@ -1,3 +1,7 @@
+2008-08-27  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-folder.c (camel_build_name_id): Fetch some more properties
+
 2008-08-22  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-folder.c (mapi_folder_item_to_msg):

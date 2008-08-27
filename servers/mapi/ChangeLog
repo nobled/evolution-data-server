@@ -1,3 +1,10 @@
+2008-08-27  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream): 
+	Don't cast to SRow structure while fetching body stream - trivial. 
+	* exchange-mapi-utils.c (exchange_mapi_debug_property_dump): Dump 
+	binary streams, some minor type cast fixes. 
+
 2008-08-25  Suman Manjunath  <msuman@novell.com>
 
 	** Prefer fetching/setting UNICODE strings over ANSI C strings.

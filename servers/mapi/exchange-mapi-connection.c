@@ -244,15 +244,11 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	TALLOC_CTX 			*mem_ctx;
 	struct SPropTagArray		*SPropTagArray;
 	struct SPropValue		*lpProps;
-	struct SRow			aRow;
 	uint32_t			count;
-	/* common email fields */
 	DATA_BLOB			body;
 	uint8_t 			editor;
-	mapi_object_t			obj_stream;
 	const char			*data = NULL;
 	const bool 			*rtf_in_sync;
-	const uint32_t 			*ui32 = NULL;
 	uint32_t 			proptag = 0;
 
 	/* sanity check */
@@ -282,11 +278,6 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 		return FALSE;
 	}
 
-	/* Build a SRow structure */
-	aRow.ulAdrEntryPad = 0;
-	aRow.cValues = count;
-	aRow.lpProps = lpProps;
-
 	if (getbestbody) {
 		/* Use BestBody Algo */
 		retval = GetBestBody(obj_message, &editor);
@@ -300,7 +291,7 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 		if (editor != olEditorText && editor != olEditorHTML) 
 			editor = olEditorHTML;
 	} else {
-		ui32 = (const uint32_t *) find_SPropValue_data(&aRow, PR_MSG_EDITOR_FORMAT);
+		const uint32_t *ui32 = (const uint32_t *) get_SPropValue(lpProps, PR_MSG_EDITOR_FORMAT);
 		/* if PR_MSG_EDITOR_FORMAT doesn't exist, set it to PLAINTEXT */
 		editor = ui32 ? *ui32 : olEditorText;
 	}
@@ -312,9 +303,9 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	retval = -1;
 	switch (editor) {
 		case olEditorText:
-			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_UNICODE)) != NULL)
+			if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_UNICODE)) != NULL)
 				proptag = PR_BODY_UNICODE;
-			else if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY)) != NULL)
+			else if ((data = (const char *) get_SPropValue (lpProps, PR_BODY)) != NULL)
 				proptag = PR_BODY;
 			if (data) {
 				size_t size = strlen(data)+1;
@@ -324,9 +315,9 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 			} 
 			break;
 		case olEditorHTML: 
-			if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_HTML_UNICODE)) != NULL)
+			if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML_UNICODE)) != NULL)
 				proptag = PR_BODY_HTML_UNICODE;
-			else if ((data = (const char *) find_SPropValue_data (&aRow, PR_BODY_HTML)) != NULL)
+			else if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML)) != NULL)
 				proptag = PR_BODY_HTML;
 			if (data) {
 				size_t size = strlen(data)+1;
@@ -338,8 +329,11 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 			}
 			break;
 		case olEditorRTF: 
-			rtf_in_sync = (const bool *)find_SPropValue_data (&aRow, PR_RTF_IN_SYNC);
-//			if (!(rtf_in_sync && *rtf_in_sync)) {
+			rtf_in_sync = (const bool *) get_SPropValue (lpProps, PR_RTF_IN_SYNC);
+//			if (!(rtf_in_sync && *rtf_in_sync))
+			{
+				mapi_object_t obj_stream;
+
 				mapi_object_init(&obj_stream);
 
 				retval = OpenStream(obj_message, PR_RTF_COMPRESSED, STREAM_ACCESS_READ, &obj_stream);
@@ -350,13 +344,16 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 				}
 
 				retval = WrapCompressedRTFStream(&obj_stream, &body);
-				if (retval != MAPI_E_SUCCESS)
+				if (retval != MAPI_E_SUCCESS) {
 					mapi_errstr("WrapCompressedRTFStream", GetLastError());
+					mapi_object_release(&obj_stream);
+					break;
+				}
 
 				proptag = PR_RTF_COMPRESSED;
 
 				mapi_object_release(&obj_stream);
-//			}
+			}
 			break;
 		default: 
 			break;
