@@ -250,6 +250,8 @@ static void mapi_construct(CamelService *service, CamelSession *session,
 	store->flags &= ~CAMEL_STORE_VJUNK;
 	store->flags &= ~CAMEL_STORE_VTRASH;
 
+	store->flags |= CAMEL_STORE_SUBSCRIPTIONS;
+
 }
 
 static char
