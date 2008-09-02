@@ -38,6 +38,7 @@
 #include <libmapi/libmapi.h>
 #include <exchange-mapi-defs.h>
 #include <exchange-mapi-utils.h>
+#include <exchange-mapi-folder.h>
 
 #include "camel-mapi-store.h"
 #include "camel-mapi-folder.h"
@@ -338,6 +339,7 @@ mapi_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 	const char *folder_id;
 	mapi_id_t fid, deleted_items_fid;
 	int count, i;
+	guint32 options =0;
 
 	GSList *deleted_items, *deleted_head;
 	deleted_items = deleted_head = NULL;
@@ -347,6 +349,10 @@ mapi_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		mapi_sync_summary (folder, ex);
 		return;
 	}
+
+	if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER){
+		options |= MAPI_OPTIONS_USE_PFSTORE;
+	} 
 
 	folder_id =  camel_mapi_store_folder_id_lookup (mapi_store, folder->full_name) ;
 	exchange_mapi_util_mapi_id_from_string (folder_id, &fid);
@@ -420,7 +426,7 @@ mapi_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 
 	if (read_items) {
 		CAMEL_SERVICE_REC_LOCK (mapi_store, connect_lock);
-		exchange_mapi_set_flags (0, fid, read_items, 0);
+		exchange_mapi_set_flags (0, fid, read_items, 0, options);
 		CAMEL_SERVICE_REC_UNLOCK (mapi_store, connect_lock);
 		g_slist_free (read_items);
 	}
@@ -533,9 +539,9 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 			goto end2;
 		}
 
-		fi = camel_store_get_folder_info (folder->parent_store, folder->full_name, 0, NULL);
-		if (fi->flags & CAMEL_MAPI_FOLDER_PUBLIC)
+		if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER){
 			options |= MAPI_OPTIONS_USE_PFSTORE;
+		} 
 
 		status = exchange_mapi_connection_fetch_items  (temp_folder_id, NULL, 
 								summary_prop_list, G_N_ELEMENTS (summary_prop_list), 
@@ -1040,14 +1046,13 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 	mapi_id_t id_message;
 	MapiItem *item = NULL;
 	guint32 options = 0;
-	CamelFolderInfo *fi = NULL;
 
 	options = MAPI_OPTIONS_FETCH_ALL | MAPI_OPTIONS_GETBESTBODY ;
 	exchange_mapi_util_mapi_ids_from_uid (uid, &id_folder, &id_message);
 
-	fi = camel_store_get_folder_info (folder->parent_store, folder->full_name, 0, NULL);
-	if (fi->flags & CAMEL_MAPI_FOLDER_PUBLIC)
+	if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER){
 		options |= MAPI_OPTIONS_USE_PFSTORE;
+	} 
 
 	exchange_mapi_connection_fetch_item (id_folder, id_message, 
 					camel_GetPropsList, G_N_ELEMENTS (camel_GetPropsList), 
@@ -1392,9 +1397,11 @@ camel_mapi_folder_new(CamelStore *store, const char *folder_name, const char *fo
 
 	CamelFolder	*folder = NULL;
 	CamelMapiFolder *mapi_folder;
+	CamelMapiStore  *mapi_store = (CamelMapiStore *) store;
+
 	char *summary_file, *state_file;
 	char *short_name;
-
+	guint32 i = 0;
 
 	folder = CAMEL_FOLDER (camel_object_new(camel_mapi_folder_get_type ()) );
 
@@ -1450,6 +1457,20 @@ camel_mapi_folder_new(CamelStore *store, const char *folder_name, const char *fo
 		return NULL;
 	}
 
+	for (i=0;i<camel_store_summary_count((CamelStoreSummary *)mapi_store->summary);i++) {
+		CamelStoreInfo *si = camel_store_summary_index((CamelStoreSummary *)mapi_store->summary, i);
+		if (si == NULL) 
+			continue;
+
+		if (!strcmp(folder_name, camel_mapi_store_info_full_name (mapi_store->summary, si))) {
+			if (si->flags & CAMEL_MAPI_FOLDER_PUBLIC)
+				mapi_folder->type = MAPI_FAVOURITE_FOLDER;
+			else if (si->flags & CAMEL_MAPI_FOLDER_PERSONAL)
+				mapi_folder->type = MAPI_PERSONAL_FOLDER;
+		}
+
+		camel_store_summary_info_free((CamelStoreSummary *)mapi_store->summary, si);
+	}
 	return folder;
 }
 

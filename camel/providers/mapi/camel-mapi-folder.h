@@ -100,6 +100,8 @@ struct _CamelMapiFolder {
 	CamelOfflineJournal *journal;
 	CamelDataCache *cache;
 
+	guint32 type;
+
 	unsigned int need_rescan:1;
 	unsigned int need_refresh:1;
 	unsigned int read_only:1;

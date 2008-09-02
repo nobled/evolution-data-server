@@ -2152,7 +2152,7 @@ cleanup:
 }
 
 gboolean
-exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mids, uint32_t flag)
+exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mids, uint32_t flag, guint32 options)
 {
 	enum MAPISTATUS retval;
 	TALLOC_CTX *mem_ctx;
@@ -2176,9 +2176,10 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mids, uint32_
 		id_messages[i] = *((mapi_id_t *)tmp->data);
 
 	/* Open the message store */
-	retval = OpenMsgStore(&obj_store);
+	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store)) ;
+
 	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr("OpenMsgStore", GetLastError());
+		mapi_errstr("OpenMsgStore / OpenPublicFolder", GetLastError());
 		goto cleanup;
 	}
 

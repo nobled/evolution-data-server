@@ -64,9 +64,6 @@
 #include <libmapi/libmapi.h>
 #include <param.h>
 
-#define REACHED printf("%s(%d):%s:Reached \n", __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define EXITING printf("%s(%d):%s:Exiting \n", __FILE__, __LINE__, __PRETTY_FUNCTION__)
-
 #define d(x) printf("%s(%d):%s:%s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, x)
 
 struct _CamelMapiStorePrivate {
@@ -155,7 +152,6 @@ camel_mapi_store_class_init(CamelMapiStoreClass *klass)
 CamelType 
 camel_mapi_store_get_type(void)
 {
-	REACHED;
 	static CamelType camel_mapi_store_type = CAMEL_INVALID_TYPE;
   
 	if (camel_mapi_store_type == CAMEL_INVALID_TYPE) {
@@ -331,7 +327,6 @@ mapi_auth_loop (CamelService *service, CamelException *ex)
 static gboolean
 mapi_connect(CamelService *service, CamelException *ex)
 {
-	REACHED;
 	CamelMapiStore *store = CAMEL_MAPI_STORE (service);
 	CamelMapiStorePrivate *priv = store->priv;
 
@@ -1021,7 +1016,6 @@ camel_mapi_store_connected (CamelMapiStore *store, CamelException *ex)
 static void
 mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 {
-	REACHED;
 	CamelMapiStorePrivate  *priv = store->priv;
 	gboolean status;
 	GSList *folder_list = NULL, *temp_list = NULL, *list = NULL;
@@ -1078,7 +1072,6 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 		gchar *fid = NULL, *parent_id = NULL;
 
 		name = exchange_mapi_folder_get_name ((ExchangeMAPIFolder *)(temp_list->data));
-		printf("%s(%d):%s:name : %s \n", __FILE__, __LINE__, __PRETTY_FUNCTION__, name);
 		fid = g_strdup_printf ("%016llX", exchange_mapi_folder_get_fid((ExchangeMAPIFolder *)(temp_list->data)));
 		parent_id = g_strdup_printf ("%016llX", exchange_mapi_folder_get_parent_id ((ExchangeMAPIFolder *)(temp_list->data)));
 

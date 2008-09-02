@@ -152,7 +152,7 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 			   uint32_t options);
 
 gboolean
-exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uint32_t flag);
+exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mid_list, uint32_t flag, guint32 options);
 
 gboolean
 exchange_mapi_remove_items (uint32_t olFolder, mapi_id_t fid, GSList *mids);
