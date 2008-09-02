@@ -1026,16 +1026,16 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 	CamelStoreInfo *si = NULL;
 	int count, i;
 
-/* 	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL) { */
+	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL) {
 		if (((CamelService *)store)->status == CAMEL_SERVICE_DISCONNECTED){
 			((CamelService *)store)->status = CAMEL_SERVICE_CONNECTING;
 			mapi_connect ((CamelService *)store, ex);
 		}
-/* 	} */
+	}
 
 	if (!camel_mapi_store_connected (store, ex)) {
-/* 		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE, */
-/* 				_("Folder list not available in offline mode.")); */
+		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
+				_("Folder list not available in offline mode."));
 		return;
 	}
 
@@ -1077,6 +1077,9 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 
 		/*id_hash returns the name for a given container id*/
 		g_hash_table_insert (priv->id_hash, g_strdup (fid), g_strdup(name)); 
+
+		/* name_hash : name <-> fid mapping */
+		g_hash_table_insert (priv->name_hash, g_strdup(name), g_strdup (fid));
 
 		/*parent_hash returns the parent container id, given an id*/
 		g_hash_table_insert (priv->parent_hash, g_strdup(fid), g_strdup(parent_id));
@@ -1159,11 +1162,8 @@ mapi_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExc
 	 * is used as is here.
 	 */
 	if (camel_store_summary_count ((CamelStoreSummary *)mapi_store->summary) == 0) {
-/* 		if (mapi_store->list_loaded == 3) { */
-		
 			mapi_folders_sync (mapi_store, ex);
-/* 			mapi_store->list_loaded -= 1; */
-/* 		} */
+
 		if (camel_exception_is_set (ex)) {
 			camel_store_summary_save ((CamelStoreSummary *) mapi_store->summary);
 			return NULL;
@@ -1173,17 +1173,12 @@ mapi_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExc
 		goto end_r;
 	}
 
-	if ((camel_store_summary_count((CamelStoreSummary *)mapi_store->summary) > 0))
-		/*Load from cache*/
-		goto end_r;
-
+	if (!check_for_connection((CamelService *)store, ex)) {
+		((CamelService *)store)->status = CAMEL_SERVICE_CONNECTING;
+		mapi_connect ((CamelService *)store, ex);
+	}
 
 	if (check_for_connection((CamelService *)store, ex)) {
-		if ((camel_store_summary_count((CamelStoreSummary *)mapi_store->summary) > 0) ) {
-			/*Load from cache*/
-			goto end_r;
-		}
-
 		mapi_folders_sync (mapi_store, ex);
 		if (camel_exception_is_set (ex)) {
 			CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
@@ -1191,7 +1186,8 @@ mapi_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExc
 		}
 		camel_store_summary_touch ((CamelStoreSummary *)mapi_store->summary);
 		camel_store_summary_save ((CamelStoreSummary *)mapi_store->summary);
-	}
+	} 
+
 	/*camel_exception_clear (ex);*/
 end_r:
 	s_count = camel_store_summary_count((CamelStoreSummary *)mapi_store->summary);

@@ -1,5 +1,9 @@
 2008-09-02  Johnny Jacob  <jjohnny@novell.com>
-	
+
+	* camel-mapi-store.c (mapi_get_folder_info): Connect if 
+	disconnected.
+	(mapi_folders_sync): Added name<->id hash table mapping.
+
 	* camel-mapi-folder.c (mapi_sync): PFSTORE aware.	
 	
 2008-08-27  Suman Manjunath  <msuman@novell.com>
