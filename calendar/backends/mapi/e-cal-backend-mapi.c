@@ -365,17 +365,6 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 //	exchange_mapi_debug_property_dump (array);
 
 	recurring = NULL;
-	/* FIXME: Provide backend support for recurrence for appointments/meetings */
-	recurring = (const bool *)find_mapi_SPropValue_data(array, PROP_TAG(PT_BOOLEAN, 0x8223));
-	if (recurring && *recurring) {
-		g_warning ("Encountered a recurring event.");
-		exchange_mapi_util_free_stream_list (&streams);
-		exchange_mapi_util_free_recipient_list (&recipients);
-		exchange_mapi_util_free_attachment_list (&attachments);
-		return TRUE;
-	}
-
-	recurring = NULL;
 	/* FIXME: Evolution does not support recurring tasks */
 	recurring = (const bool *)find_mapi_SPropValue_data(array, PROP_TAG(PT_BOOLEAN, 0x8126));
 	if (recurring && *recurring) {
@@ -846,17 +835,6 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 //	exchange_mapi_debug_property_dump (properties);
 
 	switch (kind) {
-		case ICAL_VEVENT_COMPONENT:
-			/* FIXME: Provide backend support for recurrence */
-			recurring = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8223));
-			if (recurring && *recurring) {
-				g_warning ("Encountered a recurring event.");
-				exchange_mapi_util_free_stream_list (&streams);
-				exchange_mapi_util_free_recipient_list (&recipients);
-				exchange_mapi_util_free_attachment_list (&attachments);
-				return TRUE;
-			}
-			break;
 		case ICAL_VTODO_COMPONENT:
 			/* FIXME: Evolution does not support recurring tasks */
 			recurring = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8126));
@@ -868,6 +846,7 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 				return TRUE;
 			}
 			break;
+		case ICAL_VEVENT_COMPONENT  :
 		case ICAL_VJOURNAL_COMPONENT:
 			break;
 		default:
@@ -1263,6 +1242,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 	gchar *tmp = NULL;
 	GSList *recipients = NULL;
 	GSList *attachments = NULL;
+	GSList *streams = NULL;
 	struct cbdata cbdata;
 	struct SBinary globalid;
 
@@ -1289,10 +1269,19 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 	comp = e_cal_component_new ();
 	e_cal_component_set_icalcomponent (comp, icalcomp);
 
-	/* FIXME: Add support for recurrences */
+	/* FIXME: [WIP] Add support for recurrences */
 	if (e_cal_component_has_recurrences (comp)) {
-		g_object_unref (comp);
-		return GNOME_Evolution_Calendar_OtherError;
+		GByteArray *ba = exchange_mapi_cal_util_rrule_to_bin (comp, NULL); 
+		if (ba) {
+			struct SPropTagArray *tag_array; 
+			ExchangeMAPIStream *stream = g_new0 (ExchangeMAPIStream, 1); 
+			stream->value = ba; 
+			tag_array = exchange_mapi_util_resolve_named_prop (priv->olFolder, priv->fid, 0x8216, PSETID_Appointment); 
+			if (tag_array) {
+				stream->proptag = tag_array->aulPropTag[0];
+				streams = g_slist_append (streams, stream); 
+			}
+		}
 	}
 
 	/* FIXME: [WIP] Add support for meetings/assigned tasks */
@@ -1329,12 +1318,13 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 			mid = exchange_mapi_create_item (priv->olFolder, priv->fid, 
 							exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 							exchange_mapi_cal_util_build_props, &cbdata, 
-							recipients, attachments, NULL, MAPI_OPTIONS_DONT_SUBMIT);
+							recipients, attachments, streams, MAPI_OPTIONS_DONT_SUBMIT);
 			g_free (cbdata.props);
 //			g_free (globalid.lpb);
 			if (!mid) {
 				g_object_unref (comp);
 				exchange_mapi_util_free_recipient_list (&recipients);
+				exchange_mapi_util_free_stream_list (&streams);
 				exchange_mapi_util_free_attachment_list (&attachments);
 				return GNOME_Evolution_Calendar_OtherError;
 			}
@@ -1350,6 +1340,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 			break;
 		default:
 			exchange_mapi_util_free_recipient_list (&recipients);
+			exchange_mapi_util_free_stream_list (&streams);
 			exchange_mapi_util_free_attachment_list (&attachments);
 			return GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
 	}
@@ -1360,6 +1351,7 @@ e_cal_backend_mapi_create_object (ECalBackendSync *backend, EDataCal *cal, char 
 
 	g_object_unref (comp);
 	exchange_mapi_util_free_recipient_list (&recipients);
+	exchange_mapi_util_free_stream_list (&streams);
 	exchange_mapi_util_free_attachment_list (&attachments);
 
 	return GNOME_Evolution_Calendar_Success;
@@ -1432,6 +1424,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	mapi_id_t mid;
 	const char *uid = NULL, *rid = NULL;
 	GSList *recipients = NULL;
+	GSList *streams = NULL;
 	GSList *attachments = NULL;
 	struct cbdata cbdata;
 	gboolean no_increment = FALSE;
@@ -1447,6 +1440,11 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 
 	if (priv->mode == CAL_MODE_LOCAL)
 		return GNOME_Evolution_Calendar_RepositoryOffline;
+
+	if (mod != CALOBJ_MOD_ALL) {
+		e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Support for modifying single instances of a recurring appointment is not yet implemented. No change was made to the appointment on the server.")); 
+		return GNOME_Evolution_Calendar_Success;
+	}
 
 	/* check the component for validity */
 	icalcomp = icalparser_parse_string (calobj);
@@ -1466,10 +1464,19 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	comp = e_cal_component_new ();
 	e_cal_component_set_icalcomponent (comp, icalcomp);
 
-	/* FIXME: Add support for recurrences */
+	/* FIXME: [WIP] Add support for recurrences */
 	if (e_cal_component_has_recurrences (comp)) {
-		g_object_unref (comp);
-		return GNOME_Evolution_Calendar_OtherError;
+		GByteArray *ba = exchange_mapi_cal_util_rrule_to_bin (comp, NULL); 
+		if (ba) {
+			struct SPropTagArray *tag_array; 
+			ExchangeMAPIStream *stream = g_new0 (ExchangeMAPIStream, 1); 
+			stream->value = ba; 
+			tag_array = exchange_mapi_util_resolve_named_prop (priv->olFolder, priv->fid, 0x8216, PSETID_Appointment); 
+			if (tag_array) {
+				stream->proptag = tag_array->aulPropTag[0];
+				streams = g_slist_append (streams, stream); 
+			}
+		}
 	}
 
 	if (e_cal_component_has_attendees (comp)) 
@@ -1479,7 +1486,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		exchange_mapi_cal_util_fetch_attachments (comp, &attachments, priv->local_attachments_store);
 
 	e_cal_component_get_uid (comp, &uid);
-	rid = e_cal_component_get_recurid_as_string (comp);
+//	rid = e_cal_component_get_recurid_as_string (comp);
 
 	switch (priv->mode) {
 	case CAL_MODE_ANY :
@@ -1495,6 +1502,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 			g_message ("CRITICAL : Could not find the object in cache");
 			g_object_unref (comp);
 			exchange_mapi_util_free_recipient_list (&recipients);
+			exchange_mapi_util_free_stream_list (&streams);
 			exchange_mapi_util_free_attachment_list (&attachments);
 			return GNOME_Evolution_Calendar_ObjectNotFound;
 		}
@@ -1524,12 +1532,13 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		status = exchange_mapi_modify_item (priv->olFolder, priv->fid, mid, 
 						exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER(kind), 
 						exchange_mapi_cal_util_build_props, &cbdata, 
-						recipients, attachments, MAPI_OPTIONS_DONT_SUBMIT);
+						recipients, attachments, streams, MAPI_OPTIONS_DONT_SUBMIT);
 		g_free (cbdata.props);
 		if (!status) {
 			g_object_unref (comp);
 			g_object_unref (cache_comp);
 			exchange_mapi_util_free_recipient_list (&recipients);
+			exchange_mapi_util_free_stream_list (&streams);
 			exchange_mapi_util_free_attachment_list (&attachments);
 			return GNOME_Evolution_Calendar_OtherError;
 		}
@@ -1538,6 +1547,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		g_object_unref (comp);
 		g_object_unref (cache_comp);
 		exchange_mapi_util_free_recipient_list (&recipients);
+		exchange_mapi_util_free_stream_list (&streams);
 		exchange_mapi_util_free_attachment_list (&attachments);
 		return GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
 	}
@@ -1548,6 +1558,7 @@ e_cal_backend_mapi_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	g_object_unref (comp);
 	g_object_unref (cache_comp);
 	exchange_mapi_util_free_recipient_list (&recipients);
+	exchange_mapi_util_free_stream_list (&streams);
 	exchange_mapi_util_free_attachment_list (&attachments);
 
 	return GNOME_Evolution_Calendar_Success;
@@ -1578,7 +1589,8 @@ e_cal_backend_mapi_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	case CAL_MODE_ANY :
 	case CAL_MODE_REMOTE : 	/* when online, modify/delete the item from the server */
 		/* check if the object exists */
-		status = e_cal_backend_mapi_get_object (backend, cal, uid, rid, &calobj);
+		/* FIXME: we may have detached instances which need to be removed */
+		status = e_cal_backend_mapi_get_object (backend, cal, uid, NULL, &calobj);
 		if (status != GNOME_Evolution_Calendar_Success)
 			return status;
 
@@ -1599,7 +1611,7 @@ e_cal_backend_mapi_remove_object (ECalBackendSync *backend, EDataCal *cal,
 			time_rid = icaltime_from_string (rid);
 			e_cal_util_remove_instances (icalcomp, time_rid, mod);
 			new_calobj  = (char *) icalcomponent_as_ical_string (icalcomp);
-			status = e_cal_backend_mapi_modify_object (backend, cal, new_calobj, mod, &obj, &new_object);
+			status = e_cal_backend_mapi_modify_object (backend, cal, new_calobj, CALOBJ_MOD_ALL, &obj, &new_object);
 			if (status == GNOME_Evolution_Calendar_Success) {
 				*old_object = obj;
 				*object = new_object;
@@ -1637,10 +1649,13 @@ e_cal_backend_mapi_remove_object (ECalBackendSync *backend, EDataCal *cal,
 			g_slist_free (comp_list);
 		} 
 		g_free (calobj);
-		return status;
+		break; 
 	default :
-		return GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
+		status = GNOME_Evolution_Calendar_CalListener_MODE_NOT_SUPPORTED;
+		break; 
 	}
+
+	return status;
 }
 
 static ECalBackendSyncStatus 

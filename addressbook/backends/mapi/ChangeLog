@@ -1,3 +1,8 @@
+2008-09-05  Suman Manjunath  <msuman@novell.com>
+
+	* e-book-backend-mapi.c (e_book_backend_mapi_modify_contact):
+	Fix for API change in exchange_mapi_modify_item(). 
+
 2008-08-22  Ashish Shrivastava  <shashish@novell.com>
 
 	* e-book-backend-mapi.c (mapi_book_build_name_id),

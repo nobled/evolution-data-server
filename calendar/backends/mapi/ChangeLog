@@ -1,3 +1,13 @@
+2008-09-05  Suman Manjunath  <msuman@novell.com>
+
+	** Support for recurring appointments. Create/Modify all/Delete 
+	operations are supported. Modify single instance is not implemented. 
+
+	* e-cal-backend-mapi.c (mapi_cal_get_changes_cb),
+	(mapi_cal_cache_create_cb), (e_cal_backend_mapi_create_object),
+	(e_cal_backend_mapi_modify_object),
+	(e_cal_backend_mapi_remove_object):
+
 2008-08-27  Suman Manjunath  <msuman@novell.com>
 
 	* e-cal-backend-mapi.c (get_deltas), (populate_cache):

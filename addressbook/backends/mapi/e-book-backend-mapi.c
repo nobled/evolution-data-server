@@ -641,7 +641,7 @@ e_book_backend_mapi_modify_contact (EBookBackend *backend,
 		exchange_mapi_util_mapi_ids_from_uid (tmp, &fid, &mid);		
 		printf("modify id %s\n", tmp);
 		
-		status = exchange_mapi_modify_item (olFolderContacts, priv->fid, mid, mapi_book_build_name_id, contact, mapi_book_build_props, contact, NULL, NULL, 0);
+		status = exchange_mapi_modify_item (olFolderContacts, priv->fid, mid, mapi_book_build_name_id, contact, mapi_book_build_props, contact, NULL, NULL, NULL, 0);
 		printf("getting %016llX\n", status);
 		if (!status) {
 			e_data_book_respond_modify(book, opid, GNOME_Evolution_Addressbook_OtherError, NULL);

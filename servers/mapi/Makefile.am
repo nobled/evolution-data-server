@@ -29,7 +29,10 @@ libexchangemapi_1_0_la_SOURCES =		\
 	exchange-mapi-cal-utils.c		\
 	exchange-mapi-cal-utils.h		\
 	exchange-mapi-cal-tz-utils.c		\
-	exchange-mapi-cal-tz-utils.h
+	exchange-mapi-cal-tz-utils.h		\
+	exchange-mapi-cal-recur-utils.c		\
+	exchange-mapi-cal-recur-utils.h
+
 
 libexchangemapi_1_0_la_LIBADD =			\
 	$(E_DATA_SERVER_LIBS)			\
@@ -44,7 +47,8 @@ libexchangemapiinclude_HEADERS = 		\
 	exchange-mapi-connection.h		\
 	exchange-mapi-utils.h			\
 	exchange-mapi-cal-utils.h		\
-	exchange-mapi-cal-tz-utils.h
+	exchange-mapi-cal-tz-utils.h		\
+	exchange-mapi-cal-recur-utils.h
 
 %-1.0.pc: %.pc
 	 cp $< $@

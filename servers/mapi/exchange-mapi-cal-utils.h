@@ -32,9 +32,7 @@
 #include "exchange-mapi-utils.h"
 
 #include "exchange-mapi-cal-tz-utils.h"
-#if 0
 #include "exchange-mapi-cal-recur-utils.h"
-#endif
 
 G_BEGIN_DECLS
 
@@ -112,8 +110,6 @@ static const uint32_t cal_GetPropsList[] = {
 	PR_CONVERSATION_TOPIC_UNICODE, 
 	PR_BODY, 
 	PR_BODY_UNICODE, 
-	PR_BODY_HTML, 
-	PR_BODY_HTML_UNICODE, 
 
 	PR_CREATION_TIME, 
 	PR_LAST_MODIFICATION_TIME, 

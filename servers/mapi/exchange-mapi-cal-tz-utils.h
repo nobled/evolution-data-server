@@ -27,6 +27,7 @@
 #define EXCHANGE_MAPI_CAL_TZ_UTILS_H
 
 #include <glib.h>
+
 #include "exchange-mapi-cal-utils.h"
 
 G_BEGIN_DECLS

@@ -597,8 +597,6 @@ static const uint32_t camel_GetPropsList[] = {
 
 	PR_BODY, 
 	PR_BODY_UNICODE, 
-	PR_BODY_HTML, 
-	PR_BODY_HTML_UNICODE, 
 
 	PR_DISPLAY_TO, 
 	PR_DISPLAY_TO_UNICODE, 

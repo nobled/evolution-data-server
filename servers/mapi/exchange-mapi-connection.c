@@ -571,10 +571,10 @@ exchange_mapi_util_set_attachments (mapi_object_t *obj_message, GSList *attach_l
 		/* If there are any streams to be set, write them. */
 		exchange_mapi_util_write_generic_streams (&obj_attach, attachment->streams);
 
-		/* message->SaveChanges() */
+		/* message->SaveChangesAttachment() */
 		retval = SaveChangesAttachment(obj_message, &obj_attach, KEEP_OPEN_READWRITE);
 		if (retval != MAPI_E_SUCCESS) {
-			mapi_errstr("SaveChanges", GetLastError());
+			mapi_errstr("SaveChangesAttachment", GetLastError());
 			goto cleanup;
 		}
 
@@ -2022,7 +2022,7 @@ gboolean
 exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid, 
 			   BuildNameID build_name_id, gpointer ni_data, 
 			   BuildProps build_props, gpointer p_data, 
-			   GSList *recipients, GSList *attachments, 
+			   GSList *recipients, GSList *attachments, GSList *generic_streams, 
 			   uint32_t options)
 {
 	enum MAPISTATUS retval;
@@ -2108,6 +2108,10 @@ exchange_mapi_modify_item (uint32_t olFolder, mapi_id_t fid, mapi_id_t mid,
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("SetProps", GetLastError());
 		goto cleanup;
+	}
+
+	if (generic_streams) {
+		exchange_mapi_util_write_generic_streams (&obj_message, generic_streams);
 	}
 
 	/* Set attachments if any */

@@ -701,8 +701,6 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 		subject = ""; 
 
 	body = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_BODY);
-	if (!body)
-		body = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_BODY_HTML);
 	if (!body) {
 		body_stream = exchange_mapi_util_find_stream (streams, PR_HTML);
 		body = body_stream ? (const gchar *) body_stream->value->data : ""; 
@@ -800,16 +798,6 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 			icalcomponent_add_property (ical_comp, prop);
 		}
 
-		b = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8223));
-		if (b && *b) {
-			/* FIXME: recurrence */
-			g_warning ("Encountered a recurring event.");
-/*			stream = exchange_mapi_util_find_stream (streams, PROP_TAG(PT_BINARY, 0x8216));
-			if (stream) {
-				e_cal_backend_mapi_util_bin_to_rrule (stream->value, comp);
-			}
-*/		} 
-
 		if (recipients) {
 			b = (const bool *)find_mapi_SPropValue_data(properties, PR_RESPONSE_REQUESTED);
 			ical_attendees_from_props (ical_comp, recipients, (b && *b));
@@ -844,6 +832,14 @@ exchange_mapi_cal_util_mapi_props_to_comp (icalcomponent_kind kind, const gchar 
 				icalcomponent_add_property (ical_comp, prop);
 			}
 		}
+
+		b = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8223));
+		if (b && *b) {
+			stream = exchange_mapi_util_find_stream (streams, PROP_TAG(PT_BINARY, 0x8216));
+			if (stream) {
+				exchange_mapi_cal_util_bin_to_rrule (stream->value, comp);
+			}
+		} 
 
 		b = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8503));
 		if (b && *b) {
@@ -1098,7 +1094,7 @@ update_attendee_status (struct mapi_SPropValue_array *properties, mapi_id_t mid)
 #if 0
 		gchar *filename = g_build_filename (g_get_home_dir (), TEMP_ATTACH_STORE, NULL);
 		gchar *fileuri = g_filename_to_uri (filename, NULL, NULL);
-		GSList *attachments = NULL, *recipients = NULL;
+		GSList *attachments = NULL, *recipients = NULL, *streams = NULL;
 
 		if (e_cal_component_has_attachments (cbdata.comp))
 			exchange_mapi_cal_util_fetch_attachments (cbdata.comp, &attachments, fileuri);
@@ -1116,7 +1112,7 @@ update_attendee_status (struct mapi_SPropValue_array *properties, mapi_id_t mid)
 		status = exchange_mapi_modify_item (olFolderCalendar, fid, mid, 
 				exchange_mapi_cal_util_build_name_id, GINT_TO_POINTER (kind), 
 				exchange_mapi_cal_util_build_props, &cbdata, 
-				recipients, attachments, MAPI_OPTIONS_DONT_SUBMIT);
+				recipients, attachments, streams, MAPI_OPTIONS_DONT_SUBMIT);
 		g_free (cbdata.props);
 
 		exchange_mapi_util_free_recipient_list (&recipients);
@@ -1387,7 +1383,7 @@ exchange_mapi_cal_util_build_name_id (struct mapi_nameid *nameid, gpointer data)
  */
 
 
-#define APPT_NAMED_PROPS_N  30
+#define APPT_NAMED_PROPS_N  29
 #define DEFAULT_APPT_REMINDER_MINS 15
 
 typedef enum 
@@ -1396,37 +1392,37 @@ typedef enum
 	I_APPT_BUSYSTATUS , 
 	I_APPT_LOCATION , 
 	I_APPT_START , 
-/*5*/	I_APPT_END , 
+	I_APPT_END , 
 	I_APPT_DURATION , 
 	I_APPT_ALLDAY , 
-/**/	I_APPT_RECURBLOB , 
+	I_APPT_RECURBLOB , 
 	I_APPT_STATEFLAGS , 
-/*10*/	I_APPT_RESPONSESTATUS , 
+	I_APPT_RESPONSESTATUS , 
 	I_APPT_RECURRING , 
 	I_APPT_INTENDEDBUSY , 
-/**/	I_APPT_RECURBASE , 
+	I_APPT_RECURBASE , 
 	I_APPT_INVITED , 
-/*15*/	I_APPT_RECURTYPE , 
-/**/	I_APPT_RECURPATTERN , 
+	I_APPT_RECURTYPE , 
 	I_APPT_CLIPSTART , 
 	I_APPT_CLIPEND , 
 	I_APPT_AUTOLOCATION , 
-/*20*/	I_APPT_ISCOUNTERPROPOSAL , 
+	I_APPT_ISCOUNTERPROPOSAL , 
 	I_APPT_NOTALLOWPROPOSE , 
 	I_APPT_STARTTZBLOB , 
 	I_APPT_ENDTZBLOB , 
 
 	I_MEET_WHERE , 
-/*25*/	I_MEET_GUID , 
+	I_MEET_GUID , 
 	I_MEET_ISRECURRING , 
 	I_MEET_ISEXCEPTION , 
 	I_MEET_CLEANGUID , 
 	I_MEET_APPTMSGCLASS , 
-/*30*/	I_MEET_TYPE
+	I_MEET_TYPE
 
 //	I_APPT_SENDASICAL , 
 //	I_APPT_SEQTIME , 
 //	I_APPT_LABEL , 
+//	I_APPT_RECURPATTERN , 
 //	I_APPT_DISPTZ , 
 //	I_APPT_ALLATTENDEES , 
 //	I_APPT_TOATTENDEES , 
@@ -1451,7 +1447,6 @@ appt_build_name_id (struct mapi_nameid *nameid)
 	mapi_nameid_lid_add(nameid, 0x8228, PSETID_Appointment); 	// PT_SYSTIME - RecurrenceBase
 	mapi_nameid_lid_add(nameid, 0x8229, PSETID_Appointment); 	// PT_BOOLEAN - FInvited
 	mapi_nameid_lid_add(nameid, 0x8231, PSETID_Appointment); 	// PT_LONG - RecurrenceType
-	mapi_nameid_lid_add(nameid, 0x8232, PSETID_Appointment); 	// PT_STRING8 - RecurrencePattern
 	mapi_nameid_lid_add(nameid, 0x8235, PSETID_Appointment); 	// PT_SYSTIME - (dtstart)(for recurring events UTC 12 AM of day of start)
 	mapi_nameid_lid_add(nameid, 0x8236, PSETID_Appointment); 	// PT_SYSTIME - (dtend)(for recurring events UTC 12 AM of day of end)
 	mapi_nameid_lid_add(nameid, 0x823A, PSETID_Appointment); 	// PT_BOOLEAN - AutoFillLocation
@@ -1472,6 +1467,7 @@ appt_build_name_id (struct mapi_nameid *nameid)
 //	mapi_nameid_lid_add(nameid, 0x8200, PSETID_Appointment); 	// PT_BOOLEAN - SendAsICAL
 //	mapi_nameid_lid_add(nameid, 0x8202, PSETID_Appointment); 	// PT_SYSTIME - ApptSequenceTime
 //	mapi_nameid_lid_add(nameid, 0x8214, PSETID_Appointment); 	// PT_LONG - Label
+//	mapi_nameid_lid_add(nameid, 0x8232, PSETID_Appointment); 	// PT_STRING8 - RecurrencePattern
 //	mapi_nameid_lid_add(nameid, 0x8234, PSETID_Appointment); 	// PT_STRING8 - display TimeZone
 //	mapi_nameid_lid_add(nameid, 0x8238, PSETID_Appointment); 	// PT_STRING8 - AllAttendees
 //	mapi_nameid_lid_add(nameid, 0x823B, PSETID_Appointment); 	// PT_STRING8 - ToAttendeesString (dupe PR_DISPLAY_TO)
@@ -1802,8 +1798,27 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 		b = (icaltime_is_date (dtstart) && icaltime_is_date (dtend));
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_ALLDAY], (const void *) &b);
 
-		/* FIXME: for RecurrenceType */
-		flag32 = rectypeNone ;
+		if (e_cal_component_has_recurrences (comp)) {
+			GSList *rrule_list = NULL; 
+			struct icalrecurrencetype *rt = NULL;
+
+			e_cal_component_get_rrule_list (comp, &rrule_list); 
+			rt = (struct icalrecurrencetype *)(rrule_list->data);
+
+			if (rt->freq == ICAL_DAILY_RECURRENCE)
+				flag32 = rectypeDaily; 
+			else if (rt->freq == ICAL_WEEKLY_RECURRENCE)
+				flag32 = rectypeWeekly; 
+			else if (rt->freq == ICAL_MONTHLY_RECURRENCE)
+				flag32 = rectypeMonthly; 
+			else if (rt->freq == ICAL_YEARLY_RECURRENCE)
+				flag32 = rectypeYearly; 
+			else 
+				flag32 = rectypeNone;
+
+			e_cal_component_free_recur_list (rrule_list); 
+		} else 
+			flag32 = rectypeNone;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RECURTYPE], (const void *) &flag32);
 
 		flag32 = cbdata->appt_id;
@@ -1959,10 +1974,10 @@ exchange_mapi_cal_util_build_props (struct SPropValue **value, struct SPropTagAr
 			break;
 		}
 
-		/* FIXME: Recurring */
-		b = e_cal_component_has_recurrences (comp) && FALSE; b = 0;
+		b = e_cal_component_has_recurrences (comp);
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_APPT_RECURRING], (const void *) &b);
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_ISRECURRING], (const void *) &b);
+		/* FIXME: Modified exceptions */
 		b = e_cal_component_has_exceptions (comp) && FALSE; b = 0;
 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_MEET_ISEXCEPTION], (const void *) &b);
 

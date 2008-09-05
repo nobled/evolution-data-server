@@ -1,3 +1,32 @@
+2008-09-05  Suman Manjunath  <msuman@novell.com>
+
+	** Support for recurring appointments. Create/Modify all/Delete 
+	operations are supported. Modify single instance is not implemented. 
+
+	* Makefile.am:
+	* exchange-mapi-cal-recur-utils.c (get_ical_weekstart),
+	(get_mapi_weekstart), (get_mapi_day), (get_ical_pos),
+	(get_mapi_pos), (convert_recurrence_minutes_to_date),
+	(convert_date_to_recurrence_minutes), (convert_filetime_to_timet),
+	(convert_timet_to_filetime), (convert_recurrence_minutes_to_timet),
+	(convert_timet_to_recurrence_minutes), (check_calendar_type),
+	(exchange_mapi_cal_util_bin_to_rrule), (compute_startdate),
+	(compute_rdaily_firstdatetime), (compute_rweekly_firstdatetime),
+	(compute_rmonthly_firstdatetime), (calculate_no_of_occurrences),
+	(compare_guint32), (exchange_mapi_cal_util_rrule_to_bin):
+	* exchange-mapi-cal-recur-utils.h:
+	* exchange-mapi-cal-utils.c
+	(exchange_mapi_cal_util_mapi_props_to_comp),
+	(update_attendee_status), (appt_build_name_id),
+	(exchange_mapi_cal_util_build_props):
+
+	* exchange-mapi-cal-utils.h: Don't fetch PR_BODY_HTML 
+	* exchange-mapi-connection.c 
+	(exchange_mapi_util_set_attachments): Typo fix. 
+	(exchange_mapi_modify_item): API change, accept streams just like 
+	exchange_mapi_create_item(). 
+	* exchange-mapi-connection.h: Fix for API change. 
+
 2008-09-02  Johnny Jacob  <jjohnny@novell.com>	
 	
 	* exchange-mapi-connection.c (exchange_mapi_set_flags): PFSTORE aware.

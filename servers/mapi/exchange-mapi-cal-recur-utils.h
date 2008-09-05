@@ -28,10 +28,15 @@
 
 #include <glib.h>
 
+#include "exchange-mapi-cal-utils.h"
+
 G_BEGIN_DECLS
 
 gboolean
 exchange_mapi_cal_util_bin_to_rrule (GByteArray *ba, ECalComponent *comp);
+
+GByteArray *
+exchange_mapi_cal_util_rrule_to_bin (ECalComponent *comp, GSList *modified_comps);
 
 G_END_DECLS
 

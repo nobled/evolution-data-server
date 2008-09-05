@@ -237,6 +237,7 @@ typedef enum {
     olApptException = 3
 } OlRecurrenceState;
 
+#if 0
 typedef enum {
     olRecursDaily = 0,
     olRecursWeekly = 1,
@@ -245,6 +246,7 @@ typedef enum {
     olRecursYearly = 5,
     olRecursYearNth = 6
 } OlRecurrencePatternType;
+#endif 
 
 
 #define IPM_CONTACT 				"IPM.Contact"
