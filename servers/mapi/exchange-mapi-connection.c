@@ -2712,7 +2712,7 @@ exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 	}
 
 	/*  TODO : Localized string */
-	folder = exchange_mapi_folder_new ("Public Folders", NULL, IPF_NOTE, MAPI_FAVOURITE_FOLDER, id_mailbox, 0, 0, 0 ,0); 
+	folder = exchange_mapi_folder_new ("All Public Folders", NULL, IPF_NOTE, MAPI_FAVOURITE_FOLDER, id_mailbox, 0, 0, 0 ,0); 
 	*mapi_folders = g_slist_prepend (*mapi_folders, folder);
 
 	get_child_folders_pf(mem_ctx, &obj_store, id_mailbox, mapi_folders);

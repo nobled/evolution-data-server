@@ -1,3 +1,8 @@
+2008-09-08  Johnny Jacob  <jjohnny@novell.com>
+
+	* exchange-mapi-connection.c (exchange_mapi_get_pf_folders_list): Renamed
+	'Public Folders' to 'All Public Folders'.
+
 2008-09-05  Suman Manjunath  <msuman@novell.com>
 
 	** Support for recurring appointments. Create/Modify all/Delete 

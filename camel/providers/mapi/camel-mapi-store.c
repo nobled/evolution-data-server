@@ -954,6 +954,9 @@ convert_to_folder_info (CamelMapiStore *store, ExchangeMAPIFolder *folder, const
 		fi->flags |= CAMEL_MAPI_FOLDER_PERSONAL;
 	else if (folder->category == MAPI_FAVOURITE_FOLDER)
 		fi->flags |= CAMEL_MAPI_FOLDER_PUBLIC;
+
+	if (folder->child_count <=0)
+		fi->flags |= CAMEL_FOLDER_NOCHILDREN;
 	/*
 	   parent_hash contains the "parent id <-> folder id" combination. So we form
 	   the path for the full name in camelfolder info by looking up the hash table until
