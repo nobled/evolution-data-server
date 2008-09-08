@@ -1,3 +1,8 @@
+2008-09-08  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-store.c (mapi_get_folder_info_offline): Filter public
+	folder for subscriptions dialog.
+
 2008-09-05  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-folder.c: Don't fetch PR_BODY_HTML since it seems to 

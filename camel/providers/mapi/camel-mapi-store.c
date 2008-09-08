@@ -870,6 +870,11 @@ mapi_get_folder_info_offline (CamelStore *store, const char *top,
 	GPtrArray *folders;
 	char *path, *name;
 	int i;
+	gboolean recursive, subscribed, info_fast = false;
+
+	recursive = (flags & CAMEL_STORE_FOLDER_INFO_RECURSIVE);
+	subscribed = (flags & CAMEL_STORE_FOLDER_INFO_SUBSCRIBED);
+	info_fast = (flags & CAMEL_STORE_FOLDER_INFO_FAST);
 
 	folders = g_ptr_array_new ();
 
@@ -892,6 +897,10 @@ mapi_get_folder_info_offline (CamelStore *store, const char *top,
 
 		if (si == NULL) 
 			continue;
+
+		/* Based on exchange connector. Allow only public folder heirarchy */
+		if ((!subscribed) && info_fast) 
+			if (!(si->flags & CAMEL_MAPI_FOLDER_PUBLIC)) continue;
 
 		if ( !strcmp(name, camel_mapi_store_info_full_name (mapi_store->summary, si))
 		     || match_path (path, camel_mapi_store_info_full_name (mapi_store->summary, si))) {
