@@ -71,6 +71,8 @@ libcamel_provider_1_2_la_SOURCES = 		\
 	camel-sasl-popb4smtp.c			\
 	camel-sasl.c				\
 	camel-search-private.c			\
+	camel-search-sql.c			\
+	camel-search-sql-sexp.c			\	
 	camel-service.c				\
 	camel-session.c				\
 	camel-smime-context.c			\
@@ -124,6 +126,8 @@ libcamel_providerinclude_HEADERS =		\
 	camel-sasl-plain.h			\
 	camel-sasl-popb4smtp.h			\
 	camel-sasl.h				\
+	camel-search-sql.h			\
+	camel-search-sql-sexp.h			\
 	camel-service.h				\
 	camel-session.h				\
 	camel-smime-context.h			\
@@ -156,6 +160,7 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-charset-map.c			\
 	camel-data-cache.c			\
 	camel-data-wrapper.c			\
+	camel-db.c				\
 	camel-debug.c				\
 	camel-exception.c			\
 	camel-file-utils.c			\
@@ -226,6 +231,7 @@ libcamelinclude_HEADERS =			\
 	camel-charset-map.h			\
 	camel-data-cache.h			\
 	camel-data-wrapper.h			\
+	camel-db.h				\
 	camel-debug.h				\
 	camel-exception-list.def		\
 	camel-exception.h			\

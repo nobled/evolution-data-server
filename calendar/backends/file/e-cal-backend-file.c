@@ -1022,7 +1022,12 @@ e_cal_backend_file_remove (ECalBackendSync *backend, EDataCal *cal)
         g_free (full_path);
 
         g_static_rec_mutex_unlock (&priv->idle_save_rmutex);
-        return status;
+
+	/* lie here a bit, but otherwise the calendar will not be removed, even it should */
+	if (status != GNOME_Evolution_Calendar_Success)
+		g_print (G_STRLOC ": %s", e_cal_backend_status_to_string (status));
+
+        return GNOME_Evolution_Calendar_Success;
 }
 
 /* is_loaded handler for the file backend */
@@ -1924,6 +1929,7 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 	ECalComponent *comp, *recurrence;
 	ECalBackendFileObject *obj_data;
 	struct icaltimetype current;
+	GList *detached = NULL;
 
 	cbfile = E_CAL_BACKEND_FILE (backend);
 	priv = cbfile->priv;
@@ -2137,10 +2143,39 @@ e_cal_backend_file_modify_object (ECalBackendSync *backend, EDataCal *cal, const
 		if (old_object)
 			*old_object = e_cal_component_get_as_string (obj_data->full_object);
 
+		if (obj_data->recurrences_list) {
+			/* has detached components, preserve them */
+			GList *l;
+
+			for (l = obj_data->recurrences_list; l; l = l->next) {
+				detached = g_list_prepend (detached, g_object_ref (l->data));
+			}
+		}
+
 		remove_component (cbfile, comp_uid, obj_data);
 
 		/* Add the new object */
 		add_component (cbfile, comp, TRUE);
+
+		if (detached) {
+			/* it had some detached components, place them back */
+			comp_uid = icalcomponent_get_uid (e_cal_component_get_icalcomponent (comp));
+
+			if ((obj_data = g_hash_table_lookup (priv->comp_uid_hash, comp_uid)) != NULL) {
+				GList *l;
+
+				for (l = detached; l; l = l->next) {
+					ECalComponent *c = l->data;
+
+					g_hash_table_insert (obj_data->recurrences, e_cal_component_get_recurid_as_string (c), c);
+					icalcomponent_add_component (priv->icalcomp, e_cal_component_get_icalcomponent (c));
+					priv->comp = g_list_append (priv->comp, c);
+					obj_data->recurrences_list = g_list_append (obj_data->recurrences_list, c);
+				}
+			}
+
+			g_list_free (detached);
+		}
 		break;
 	}
 

@@ -109,6 +109,7 @@ struct _CamelFolder {
 
 	guint32 folder_flags;
 	guint32 permanent_flags;
+	CamelDB *cdb;
 };
 
 #define CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY (1<<0)
@@ -174,7 +175,9 @@ typedef struct {
 	GPtrArray * (*get_uids)       (CamelFolder *folder);
 	void (*free_uids)             (CamelFolder *folder,
 				       GPtrArray *array);
-
+	
+	void (* sort_uids) (CamelFolder *folder, GPtrArray *uids);
+	
 	GPtrArray * (*get_summary)    (CamelFolder *folder);
 	void (*free_summary)          (CamelFolder *folder,
 				       GPtrArray *summary);
@@ -203,7 +206,7 @@ typedef struct {
 	void     (*freeze)    (CamelFolder *folder);
 	void     (*thaw)      (CamelFolder *folder);
 	gboolean (*is_frozen) (CamelFolder *folder);
-
+	
 	CamelFolderQuotaInfo * (*get_quota_info) (CamelFolder *folder);
 } CamelFolderClass;
 
@@ -265,7 +268,7 @@ void		   camel_folder_set_message_user_tag  (CamelFolder *folder,
 						       const char *uid,
 						       const char *name,
 						       const char *value);
-#endif
+#endif /* CAMEL_DISABLE_DEPRECATED */
 
 
 
@@ -303,6 +306,8 @@ CamelMimeMessage * camel_folder_get_message           (CamelFolder *folder,
 GPtrArray *        camel_folder_get_uids              (CamelFolder *folder);
 void               camel_folder_free_uids             (CamelFolder *folder,
 						       GPtrArray *array);
+void               camel_folder_sort_uids             (CamelFolder *folder,
+						       GPtrArray *uids);
 
 /* search api */
 gboolean           camel_folder_has_search_capability (CamelFolder *folder);

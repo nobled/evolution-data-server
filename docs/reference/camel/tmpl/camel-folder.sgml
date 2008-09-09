@@ -31,6 +31,7 @@ CamelFolder
 @summary: 
 @folder_flags: 
 @permanent_flags: 
+@cdb: 
 
 <!-- ##### STRUCT CamelFolderChangeInfo ##### -->
 <para>
@@ -345,6 +346,15 @@ CamelFolder
 
 @folder: 
 @array: 
+
+
+<!-- ##### FUNCTION camel_folder_sort_uids ##### -->
+<para>
+
+</para>
+
+@folder: 
+@uids: 
 
 
 <!-- ##### FUNCTION camel_folder_has_search_capability ##### -->

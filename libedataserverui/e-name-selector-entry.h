@@ -40,6 +40,8 @@ G_BEGIN_DECLS
 #define E_NAME_SELECTOR_ENTRY_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), E_NAME_SELECTOR_ENTRY_TYPE, ENameSelectorEntryClass))
 
 #define MINIMUM_QUERY_LENGTH "/apps/evolution/addressbook/completion/minimum_query_length"
+#define FORCE_SHOW_ADDRESS   "/apps/evolution/addressbook/completion/show_address"
+#define USER_QUERY_FIELDS "/apps/evolution/addressbook/completion/user_query_fields"
 
 typedef struct _ENameSelectorEntry      ENameSelectorEntry;
 typedef struct _ENameSelectorEntryClass ENameSelectorEntryClass;
@@ -89,6 +91,8 @@ void                e_name_selector_entry_set_contact_editor_func      (ENameSel
 									gpointer func);
 void                e_name_selector_entry_set_contact_list_editor_func (ENameSelectorEntry *name_selector_entry,
 									gpointer func);
+
+gchar *ens_util_populate_user_query_fields (GSList *user_query_fields, const char *cue_str, const char *encoded_cue_str);
 
 G_END_DECLS
 

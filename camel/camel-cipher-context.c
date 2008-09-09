@@ -282,7 +282,7 @@ cipher_import_keys (CamelCipherContext *context, struct _CamelStream *istream, C
  * Imports a stream of keys/certificates contained within @istream
  * into the key/certificate database controlled by @ctx.
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_cipher_import_keys (CamelCipherContext *context, struct _CamelStream *istream, CamelException *ex)
@@ -313,7 +313,7 @@ cipher_export_keys (CamelCipherContext *context, GPtrArray *keys,
  * Exports the keys/certificates in @keys to the stream @ostream from
  * the key/certificate database controlled by @ctx.
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_cipher_export_keys (CamelCipherContext *context, GPtrArray *keys,
@@ -381,9 +381,9 @@ camel_cipher_validity_init (CamelCipherValidity *validity)
 	g_assert (validity != NULL);
 
 	memset(validity, 0, sizeof(*validity));
-	e_dlist_init(&validity->children);
-	e_dlist_init(&validity->sign.signers);
-	e_dlist_init(&validity->encrypt.encrypters);
+	camel_dlist_init(&validity->children);
+	camel_dlist_init(&validity->sign.signers);
+	camel_dlist_init(&validity->encrypt.encrypters);
 }
 
 gboolean
@@ -470,14 +470,14 @@ void
 camel_cipher_validity_add_certinfo(CamelCipherValidity *vin, enum _camel_cipher_validity_mode_t mode, const char *name, const char *email)
 {
 	CamelCipherCertInfo *info;
-	EDList *list;
+	CamelDList *list;
 
 	info = g_malloc0(sizeof(*info));
 	info->name = g_strdup(name);
 	info->email = g_strdup(email);
 
 	list = (mode==CAMEL_CIPHER_VALIDITY_SIGN)?&vin->sign.signers:&vin->encrypt.encrypters;
-	e_dlist_addtail(list, (EDListNode *)info);
+	camel_dlist_addtail(list, (CamelDListNode *)info);
 
 	printf("adding certinfo %s <%s>\n", name?name:"unset", email?email:"unset");
 }
@@ -532,13 +532,13 @@ camel_cipher_validity_free (CamelCipherValidity *validity)
 	if (validity == NULL)
 		return;
 
-	while ((child = (CamelCipherValidity *)e_dlist_remhead(&validity->children)))
+	while ((child = (CamelCipherValidity *)camel_dlist_remhead(&validity->children)))
 		camel_cipher_validity_free(child);
 
-	while ((info = (CamelCipherCertInfo *)e_dlist_remhead(&validity->sign.signers)))
+	while ((info = (CamelCipherCertInfo *)camel_dlist_remhead(&validity->sign.signers)))
 		ccv_certinfo_free(info);
 
-	while ((info = (CamelCipherCertInfo *)e_dlist_remhead(&validity->encrypt.encrypters)))
+	while ((info = (CamelCipherCertInfo *)camel_dlist_remhead(&validity->encrypt.encrypters)))
 		ccv_certinfo_free(info);
 
 	camel_cipher_validity_clear(validity);

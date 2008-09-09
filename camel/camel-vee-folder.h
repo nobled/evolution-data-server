@@ -51,6 +51,9 @@ struct _CamelVeeFolder {
 	/* only set-up if our parent is a vee-store, used also as a flag to
 	 * say that this folder is part of the unmatched folder */
 	struct _CamelVeeStore *parent_vee_store;
+	GHashTable *hashes;
+	GHashTable *loaded;
+	gboolean deleted;
 };
 
 struct _CamelVeeFolderClass {
@@ -73,7 +76,7 @@ struct _CamelVeeFolderClass {
 #define CAMEL_UNMATCHED_NAME "UNMATCHED"
 
 CamelType	      camel_vee_folder_get_type		(void);
-CamelFolder  *camel_vee_folder_new		(CamelStore *parent_store, const char *name, guint32 flags);
+CamelFolder  *camel_vee_folder_new		(CamelStore *parent_store, const char *full, guint32 flags);
 void         camel_vee_folder_construct		(CamelVeeFolder *vf, CamelStore *parent_store, const char *full, const char *name, guint32 flags);
 
 CamelFolder *camel_vee_folder_get_location(CamelVeeFolder *vf, const struct _CamelVeeMessageInfo *vinfo, char **realuid);
@@ -85,6 +88,7 @@ int          camel_vee_folder_rebuild_folder(CamelVeeFolder *vf, CamelFolder *su
 void	     camel_vee_folder_set_expression	(CamelVeeFolder *vf, const char *expr);
 
 void	     camel_vee_folder_hash_folder	(CamelFolder *folder, char buffer[8]);
+void	     camel_vee_folder_sync_headers (CamelVeeFolder *vf, CamelException *ex);
 
 G_END_DECLS
 

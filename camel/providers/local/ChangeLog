@@ -1,3 +1,156 @@
+2008-08-30  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-spool-summary.c: Fixed folder summary
+	mismatch for spool
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-maildir-summary.c: Make it use sort by
+	dreceived from db.
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mh-summary.c: Implement in-db sort of
+	m-h account types.
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Fix some missing
+	portions of folder summary mismatch
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #213072
+
+	* camel/providers/local/camel-mbox-summary.c: Sort mbox/spool summary
+	uids by from_pos. 
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	** Fix for bug #548331 
+
+	* camel/providers/local/camel-mbox-summary.c: Put back the summary
+	mismatch. It is more serious now.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: When required just save
+	the header and not all.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Continue, if the summary
+	isn't loaded.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Fixes folder summary
+	mismatch on expunge.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Revert old patch for
+	folder summary mismatch. It corrupts even more.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Fix counts on expunge
+	and on an expunge, save the contents to db.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-folder.c: Don't save to db on
+	every append. Its quite expensive.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Fix counts while
+	expunging.
+
+2008-08-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #545877
+
+	* camel-maildir-store.c:
+	Use CamelDList instead of EDList.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-spool-summary.c: Load spool's summary
+	before we need it to avoid any duplication.
+
+2008-08-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-maildir-summary.c: Fix pstring crashes.
+
+2008-07-31  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #540295
+
+	* camel-local-store.c (xrename):
+	Use g_rename() for all platforms.  Previous POSIX logic didn't
+	work for VFAT filesystems.  (Patch by Sergio)
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-local-store.c: Support delete folder wrt
+	disk summary.
+
+2008-07-30  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-local-folder.c: Move the folder lock to
+	provider. This is a very very ugly hack.
+
+2008-07-29  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #545099
+
+	* camel/providers/local/camel-local-summary.c: Improve flag sync. Make
+	it work for append mails
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Fix compiler warnings.
+
+2008-07-25  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #544031
+
+	* camel-mbox-summary.c: (summary_header_to_db):
+	Compiler warning cleanup.
+
+2008-07-23  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #543943
+
+	* camel-local-summary.c: (summary_header_from_db):
+	Reassign structure member correctly, otherwise can cause a crash.
+	* camel-maildir-store.c: (scan_dirs): Leak fix.
+
+2008-07-18  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-local-summary.c: #include "camel-string-utils.h"
+
+2008-07-16  Sankar P  <psankar@novell.com>
+
+	Pushing disk summary changes from the madagascar branch
+
+	* camel-local-folder.c (camel_local_folder_construct):
+	* camel-local-store.c (camel_local_store_finalize):
+	* camel-local-summary.c (camel_local_summary_class_init),
+	(local_summary_load), (camel_local_summary_load),
+	(local_summary_sync), (local_summary_add),
+	(local_summary_decode_x_evolution), (summary_header_from_db),
+	(summary_header_to_db), (message_info_new_from_header):
+	* camel-maildir-summary.c (maildir_summary_check):
+	* camel-mbox-store.c (fill_fi):
+	* camel-mbox-summary.c (camel_mbox_summary_class_init),
+	(summary_header_from_db), (summary_header_to_db),
+	(message_info_new_from_header), (message_info_from_db),
+	(message_info_to_db), (mbox_summary_sync_quick),
+	(mbox_summary_sync):
+	* camel-mh-summary.c (mh_summary_check):
+
 2008-05-30  Milan Crha  <mcrha@redhat.com>
 
 	** Fix for bug #318803 (Patch by Ilkka Tuohela)

@@ -31,8 +31,6 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-memory.h>
-
 #include "camel-debug.h"
 #include "camel-exception.h"
 
@@ -45,7 +43,7 @@
  * 
  * Create and returns a new exception object.
  * 
- * Returns the newly allocated exception object
+ * Returns: the newly allocated exception object
  **/
 CamelException *
 camel_exception_new (void)
@@ -228,7 +226,7 @@ camel_exception_xfer (CamelException *ex_dst,
  * 
  * Get the id of an exception.
  * 
- * Returns the exception id (#CAMEL_EXCEPTION_NONE will be returned if
+ * Returns: the exception id (#CAMEL_EXCEPTION_NONE will be returned if
  * @ex is %NULL or unset)
  **/
 ExceptionId
@@ -248,7 +246,7 @@ camel_exception_get_id (CamelException *ex)
  * 
  * Get the exception description text.
  * 
- * Returns the exception description text (%NULL will be returned if
+ * Returns: the exception description text (%NULL will be returned if
  * @ex is %NULL or unset)
  **/
 const gchar *

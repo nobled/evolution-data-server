@@ -116,14 +116,14 @@ camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *klass)
 	
 	engine->folder = NULL;
 	
-	e_dlist_init (&engine->queue);
+	camel_dlist_init (&engine->queue);
 }
 
 static void
 camel_imap4_engine_finalize (CamelObject *object)
 {
 	CamelIMAP4Engine *engine = (CamelIMAP4Engine *) object;
-	EDListNode *node;
+	CamelDListNode *node;
 	
 	if (engine->istream)
 		camel_object_unref (engine->istream);
@@ -141,7 +141,7 @@ camel_imap4_engine_finalize (CamelObject *object)
 	if (engine->folder)
 		camel_object_unref (engine->folder);
 	
-	while ((node = e_dlist_remhead (&engine->queue))) {
+	while ((node = camel_dlist_remhead (&engine->queue))) {
 		node->next = NULL;
 		node->prev = NULL;
 		
@@ -155,7 +155,7 @@ camel_imap4_engine_finalize (CamelObject *object)
  * @service: service
  * @reconnect: reconnect callback function
  *
- * Returns a new imap4 engine
+ * Returns: a new imap4 engine
  **/
 CamelIMAP4Engine *
 camel_imap4_engine_new (CamelService *service, CamelIMAP4ReconnectFunc reconnect)
@@ -183,7 +183,7 @@ camel_imap4_engine_new (CamelService *service, CamelIMAP4ReconnectFunc reconnect
  * Gives ownership of @stream to @engine and reads the greeting from
  * the stream.
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  *
  * Note: on error, @stream will be unref'd.
  **/
@@ -264,7 +264,7 @@ camel_imap4_engine_disconnect (CamelIMAP4Engine *engine)
  *
  * Forces the IMAP4 engine to query the IMAP4 server for a list of capabilities.
  *
- * Returns %0 on success or %-1 on fail.
+ * Returns: %0 on success or %-1 on fail.
  **/
 int
 camel_imap4_engine_capability (CamelIMAP4Engine *engine, CamelException *ex)
@@ -311,7 +311,7 @@ camel_imap4_engine_capability (CamelIMAP4Engine *engine, CamelException *ex)
  *
  * Forces the IMAP4 engine to query the IMAP4 server for a list of namespaces.
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_imap4_engine_namespace (CamelIMAP4Engine *engine, CamelException *ex)
@@ -382,7 +382,7 @@ camel_imap4_engine_namespace (CamelIMAP4Engine *engine, CamelException *ex)
  *
  * Convenience function to select @folder.
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_imap4_engine_select_folder (CamelIMAP4Engine *engine, CamelFolder *folder, CamelException *ex)
@@ -817,7 +817,7 @@ static struct {
  *
  * Parses a RESP-CODE
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex)
@@ -1084,7 +1084,7 @@ camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex
  *
  * Handles a single untagged response
  *
- * Returns -1 on error or one of
+ * Returns: -1 on error or one of
  * CAMEL_IMAP4_UNTAGGED_[OK,NO,BAD,PREAUTH,HANDLED] on success
  **/
 int
@@ -1351,7 +1351,7 @@ engine_state_change (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
  *
  * Processes the first command in the queue.
  *
- * Returns the id of the processed command, %0 if there were no
+ * Returns: the id of the processed command, %0 if there were no
  * commands to process, or %-1 on error.
  *
  * Note: more details on the error will be held on the
@@ -1365,7 +1365,7 @@ camel_imap4_engine_iterate (CamelIMAP4Engine *engine)
 	int retries = 0;
 	int retval;
 	
-	if (e_dlist_empty (&engine->queue))
+	if (camel_dlist_empty (&engine->queue))
 		return 0;
 	
  retry:
@@ -1382,7 +1382,7 @@ camel_imap4_engine_iterate (CamelIMAP4Engine *engine)
 		
 		if (!connected) {
 			/* pop the first command and act as tho it failed (which, technically, it did...) */
-			ic = (CamelIMAP4Command *) e_dlist_remhead (&engine->queue);
+			ic = (CamelIMAP4Command *) camel_dlist_remhead (&engine->queue);
 			ic->status = CAMEL_IMAP4_COMMAND_ERROR;
 			camel_exception_xfer (&ic->ex, &rex);
 			camel_imap4_command_unref (ic);
@@ -1393,7 +1393,7 @@ camel_imap4_engine_iterate (CamelIMAP4Engine *engine)
 	/* check to see if we need to pre-queue a SELECT, if so do it */
 	engine_prequeue_folder_select (engine);
 	
-	engine->current = ic = (CamelIMAP4Command *) e_dlist_remhead (&engine->queue);
+	engine->current = ic = (CamelIMAP4Command *) camel_dlist_remhead (&engine->queue);
 	ic->status = CAMEL_IMAP4_COMMAND_ACTIVE;
 	
 	if ((retval = imap4_process_command (engine, ic)) != -1) {
@@ -1407,7 +1407,7 @@ camel_imap4_engine_iterate (CamelIMAP4Engine *engine)
 			 * over to @nic and pretend we just processed @nic.
 			 **/
 			
-			nic = (CamelIMAP4Command *) e_dlist_remhead (&engine->queue);
+			nic = (CamelIMAP4Command *) camel_dlist_remhead (&engine->queue);
 			
 			nic->status = ic->status;
 			nic->result = ic->result;
@@ -1424,7 +1424,7 @@ camel_imap4_engine_iterate (CamelIMAP4Engine *engine)
 		retval = ic->id;
 	} else if (!engine->reconnecting && retries < 3) {
 		/* put @ic back in the queue and retry */
-		e_dlist_addhead (&engine->queue, (EDListNode *) ic);
+		camel_dlist_addhead (&engine->queue, (CamelDListNode *) ic);
 		camel_imap4_command_reset (ic);
 		retries++;
 		goto retry;
@@ -1451,7 +1451,7 @@ camel_imap4_engine_iterate (CamelIMAP4Engine *engine)
  * Basically the same as camel_imap4_command_new() except that this
  * function also places the command in the engine queue.
  *
- * Returns the CamelIMAP4Command.
+ * Returns: the CamelIMAP4Command.
  **/
 CamelIMAP4Command *
 camel_imap4_engine_queue (CamelIMAP4Engine *engine, CamelFolder *folder, const char *format, ...)
@@ -1466,7 +1466,7 @@ camel_imap4_engine_queue (CamelIMAP4Engine *engine, CamelFolder *folder, const c
 	va_end (args);
 	
 	ic->id = engine->nextid++;
-	e_dlist_addtail (&engine->queue, (EDListNode *) ic);
+	camel_dlist_addtail (&engine->queue, (CamelDListNode *) ic);
 	camel_imap4_command_ref (ic);
 	
 	return ic;
@@ -1483,7 +1483,7 @@ camel_imap4_engine_queue (CamelIMAP4Engine *engine, CamelFolder *folder, const c
  * Same as camel_imap4_engine_queue() except this places the new
  * command at the head of the queue.
  *
- * Returns the CamelIMAP4Command.
+ * Returns: the CamelIMAP4Command.
  **/
 CamelIMAP4Command *
 camel_imap4_engine_prequeue (CamelIMAP4Engine *engine, CamelFolder *folder, const char *format, ...)
@@ -1497,15 +1497,15 @@ camel_imap4_engine_prequeue (CamelIMAP4Engine *engine, CamelFolder *folder, cons
 	ic = camel_imap4_command_newv (engine, (CamelIMAP4Folder *) folder, format, args);
 	va_end (args);
 	
-	if (e_dlist_empty (&engine->queue)) {
-		e_dlist_addtail (&engine->queue, (EDListNode *) ic);
+	if (camel_dlist_empty (&engine->queue)) {
+		camel_dlist_addtail (&engine->queue, (CamelDListNode *) ic);
 		ic->id = engine->nextid++;
 	} else {
 		CamelIMAP4Command *nic;
-		EDListNode *node;
+		CamelDListNode *node;
 		
-		node = (EDListNode *) ic;
-		e_dlist_addhead (&engine->queue, node);
+		node = (CamelDListNode *) ic;
+		camel_dlist_addhead (&engine->queue, node);
 		nic = (CamelIMAP4Command *) node->next;
 		ic->id = nic->id - 1;
 		
@@ -1536,12 +1536,12 @@ camel_imap4_engine_prequeue (CamelIMAP4Engine *engine, CamelFolder *folder, cons
 void
 camel_imap4_engine_dequeue (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
 {
-	EDListNode *node = (EDListNode *) ic;
+	CamelDListNode *node = (CamelDListNode *) ic;
 	
 	if (node->next == NULL && node->prev == NULL)
 		return;
 	
-	e_dlist_remove (node);
+	camel_dlist_remove (node);
 	node->next = NULL;
 	node->prev = NULL;
 	
@@ -1559,7 +1559,7 @@ camel_imap4_engine_dequeue (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
  * failure and updates the engine state to DISCONNECTED if the stream
  * gets disconencted.
  *
- * Returns %0 on success or %-1 on fail.
+ * Returns: %0 on success or %-1 on fail.
  **/
 int
 camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *token, CamelException *ex)
@@ -1567,7 +1567,7 @@ camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *to
 	if (camel_imap4_stream_next_token (engine->istream, token) == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("IMAP4 server %s unexpectedly disconnected: %s"),
-				      engine->url->host, errno ? g_strerror (errno) : _("Unknown"));
+				      engine->url->host, errno ? g_strerror (errno) : _("Unknown error"));
 		
 		engine->state = CAMEL_IMAP4_ENGINE_DISCONNECTED;
 		
@@ -1585,7 +1585,7 @@ camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *to
  *
  * Gobbles up the remainder of the response line.
  *
- * Returns 0 on success or -1 on fail
+ * Returns: 0 on success or -1 on fail
  **/
 int
 camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
@@ -1606,7 +1606,7 @@ camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
 			if (retval == -1) {
 				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 						      _("IMAP4 server %s unexpectedly disconnected: %s"),
-						      engine->url->host, errno ? g_strerror (errno) : _("Unknown"));
+						      engine->url->host, errno ? g_strerror (errno) : _("Unknown error"));
 				
 				engine->state = CAMEL_IMAP4_ENGINE_DISCONNECTED;
 				
@@ -1630,7 +1630,7 @@ camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
  * @line to point to the line buffer. @len is set to the length of the
  * line buffer. @line must be free'd using g_free().
  *
- * Returns 0 on success or -1 on fail
+ * Returns: 0 on success or -1 on fail
  **/
 int
 camel_imap4_engine_line (CamelIMAP4Engine *engine, unsigned char **line, size_t *len, CamelException *ex)
@@ -1651,7 +1651,7 @@ camel_imap4_engine_line (CamelIMAP4Engine *engine, unsigned char **line, size_t 
 	if (retval == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("IMAP4 server %s unexpectedly disconnected: %s"),
-				      engine->url->host, errno ? g_strerror (errno) : _("Unknown"));
+				      engine->url->host, errno ? g_strerror (errno) : _("Unknown error"));
 		
 		if (linebuf != NULL)
 			g_byte_array_free (linebuf, TRUE);
@@ -1686,7 +1686,7 @@ camel_imap4_engine_line (CamelIMAP4Engine *engine, unsigned char **line, size_t 
  * conveniently be terminated with a nul-byte. @literal must be free'd
  * using g_free().
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_imap4_engine_literal (CamelIMAP4Engine *engine, unsigned char **literal, size_t *len, CamelException *ex)
@@ -1707,7 +1707,7 @@ camel_imap4_engine_literal (CamelIMAP4Engine *engine, unsigned char **literal, s
 	if (retval == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("IMAP4 server %s unexpectedly disconnected: %s"),
-				      engine->url->host, errno ? g_strerror (errno) : _("Unknown"));
+				      engine->url->host, errno ? g_strerror (errno) : _("Unknown error"));
 		
 		if (literalbuf != NULL)
 			g_byte_array_free (literalbuf, TRUE);
@@ -1740,7 +1740,7 @@ camel_imap4_engine_literal (CamelIMAP4Engine *engine, unsigned char **literal, s
  * Reads in an nstring (NIL, atom, qstring or literal) and updates
  * @nstring to point to it. @nstring must be free'd using g_free().
  *
- * Returns 0 on success or -1 on fail.
+ * Returns: 0 on success or -1 on fail.
  **/
 int
 camel_imap4_engine_nstring (CamelIMAP4Engine *engine, unsigned char **nstring, CamelException *ex)

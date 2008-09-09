@@ -42,7 +42,7 @@
 #include "camel-store.h"
 #include "camel-vtrash-folder.h"
 
-#define d(x)
+#define d(x) 
 #define w(x)
 
 static CamelServiceClass *parent_class = NULL;
@@ -153,11 +153,17 @@ camel_store_finalize (CamelObject *object)
 {
 	CamelStore *store = CAMEL_STORE (object);
 
+	d(printf ("\ncamel_store_finalize called \n"));
 	if (store->folders)
 		camel_object_bag_destroy(store->folders);
 	
 	g_static_rec_mutex_free (&store->priv->folder_lock);
-	
+
+	if (store->cdb) {
+		camel_db_close (store->cdb);
+		store->cdb = NULL;
+	}
+
 	g_free (store->priv);
 }
 
@@ -200,8 +206,55 @@ construct (CamelService *service, CamelSession *session,
 	   CamelException *ex)
 {
 	CamelStore *store = CAMEL_STORE(service);
+	char *store_db_path, *store_path = NULL;
 
 	parent_class->construct(service, session, provider, url, ex);
+	if (camel_exception_is_set (ex))
+		return;
+
+	store_db_path = g_build_filename (service->url->path, CAMEL_DB_FILE, NULL);
+
+	if (!service->url->path || strlen (store_db_path) < 2) {
+		store_path = camel_session_get_storage_path (session, service, ex);
+
+		g_free (store_db_path);
+		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
+	}
+
+	if (!g_file_test (service->url->path ? service->url->path : store_path, G_FILE_TEST_EXISTS)) {
+		/* Cache might be blown. Recreate. */
+		g_mkdir_with_parents (service->url->path ? service->url->path : store_path, S_IRWXU);
+	}
+
+	g_free (store_path);
+
+	store->cdb = camel_db_open (store_db_path, ex);
+	printf("store_db_path %s\n", store_db_path);
+	if (camel_exception_is_set (ex)) {
+		char *store_path;
+		
+		g_print ("Failure for store_db_path : [%s]\n", store_db_path);
+		g_free (store_db_path);		
+
+		store_path =  camel_session_get_storage_path (session, service, ex);
+		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
+		g_free (store_path);
+		camel_exception_clear(ex);
+		store->cdb = camel_db_open (store_db_path, ex);
+		if (camel_exception_is_set (ex)) {
+			g_print("Retry with %s failed\n", store_db_path);
+			g_free(store_db_path);
+			camel_exception_clear(ex);
+			return;
+		}
+	}
+	g_free (store_db_path);
+
+	if (camel_db_create_folders_table (store->cdb, ex))
+		printf ("something went wrong terribly\n");
+	else
+		printf ("folders table succesfully created \n");
+
 	if (camel_exception_is_set (ex))
 		return;
 
@@ -230,7 +283,7 @@ get_folder (CamelStore *store, const char *folder_name, guint32 flags, CamelExce
  *
  * Get a specific folder object from the store by name.
  *
- * Returns the folder corresponding to the path @folder_name.
+ * Returns: the folder corresponding to the path @folder_name or %NULL.
  **/
 CamelFolder *
 camel_store_get_folder (CamelStore *store, const char *folder_name, guint32 flags, CamelException *ex)
@@ -328,8 +381,8 @@ create_folder (CamelStore *store, const char *parent_name,
  * Creates a new folder as a child of an existing folder.
  * @parent_name can be %NULL to create a new top-level folder.
  *
- * Returns info about the created folder, which the caller must
- * free with #camel_store_free_folder_info
+ * Returns: info about the created folder, which the caller must
+ * free with #camel_store_free_folder_info, or %NULL.
  **/
 CamelFolderInfo *
 camel_store_create_folder (CamelStore *store, const char *parent_name,
@@ -417,8 +470,10 @@ camel_store_delete_folder (CamelStore *store, const char *folder_name, CamelExce
 
 	if (!camel_exception_is_set(&local))
 		cs_delete_cached_folder(store, folder_name);
-	else
+	else {
 		camel_exception_xfer(ex, &local);
+		printf("excep: %s\n", camel_exception_get_description (ex));
+	}
 	
 	CAMEL_STORE_UNLOCK(store, folder_lock);
 }
@@ -549,7 +604,7 @@ get_inbox (CamelStore *store, CamelException *ex)
  * @store: a #CamelStore object
  * @ex: a #CamelException
  *
- * Returns the folder in the store into which new mail is delivered,
+ * Returns: the folder in the store into which new mail is delivered,
  * or %NULL if no such folder exists.
  **/
 CamelFolder *
@@ -565,7 +620,7 @@ camel_store_get_inbox (CamelStore *store, CamelException *ex)
 }
 
 static CamelFolder *
-get_special(CamelStore *store, enum _camel_vtrash_folder_t type)
+get_special(CamelStore *store, camel_vtrash_folder_t type)
 {
 	CamelFolder *folder;
 	GPtrArray *folders;
@@ -600,7 +655,7 @@ get_junk(CamelStore *store, CamelException *ex)
  * @store: a #CamelStore object
  * @ex: a #CamelException
  *
- * Returns the folder in the store into which trash is delivered, or
+ * Returns: the folder in the store into which trash is delivered, or
  * %NULL if no such folder exists.
  **/
 CamelFolder *
@@ -617,7 +672,7 @@ camel_store_get_trash (CamelStore *store, CamelException *ex)
  * @store: a #CamelStore object
  * @ex: a #CamelException
  *
- * Returns the folder in the store into which junk is delivered, or
+ * Returns: the folder in the store into which junk is delivered, or
  * %NULL if no such folder exists.
  **/
 CamelFolder *
@@ -647,6 +702,8 @@ store_sync (CamelStore *store, int expunge, CamelException *ex)
 			if (!CAMEL_IS_VEE_FOLDER(folder)
 			    && !camel_exception_is_set(&x))
 				camel_folder_sync(folder, expunge, &x);
+			else if (CAMEL_IS_VEE_FOLDER(folder))
+				camel_vee_folder_sync_headers(folder, NULL); /* Literally don't care of vfolder exceptions */
 			camel_object_unref(folder);
 		}
 		camel_exception_xfer(ex, &x);
@@ -781,8 +838,8 @@ dump_fi(CamelFolderInfo *fi, int depth)
  * supplied or not.  The only guaranteed way to get updated folder
  * counts is to both open the folder and invoke refresh_info() it.
  *
- * Returns a #CamelFolderInfo tree, which must be freed with
- * #camel_store_free_folder_info
+ * Returns: a #CamelFolderInfo tree, which must be freed with
+ * #camel_store_free_folder_info, or %NULL.
  **/
 CamelFolderInfo *
 camel_store_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelException *ex)
@@ -825,12 +882,16 @@ free_folder_info (CamelStore *store, CamelFolderInfo *fi)
  * @store: a #CamelStore object
  * @fi: a #CamelFolderInfo as gotten via #camel_store_get_folder_info
  *
- * Frees the data returned by #camel_store_get_folder_info
+ * Frees the data returned by #camel_store_get_folder_info. If @fi is %NULL,
+ * nothing is done, the routine simply returns.
  **/
 void
 camel_store_free_folder_info (CamelStore *store, CamelFolderInfo *fi)
 {
 	g_return_if_fail (CAMEL_IS_STORE (store));
+
+	if (!fi)
+		return;
 
 	CS_CLASS (store)->free_folder_info (store, fi);
 }
@@ -920,7 +981,7 @@ folder_info_cmp (const void *ap, const void *bp)
  * NOTE: This is deprected, do not use this.
  * FIXME: remove this/move it to imap, which is the only user of it now.
  *
- * Returns the top level of the tree of linked folder info.
+ * Returns: the top level of the tree of linked folder info.
  **/
 CamelFolderInfo *
 camel_folder_info_build (GPtrArray *folders, const char *namespace,
@@ -1057,7 +1118,7 @@ folder_info_clone_rec(CamelFolderInfo *fi, CamelFolderInfo *parent)
  *
  * Clones @fi recursively.
  *
- * Returns the cloned #CamelFolderInfo tree.
+ * Returns: the cloned #CamelFolderInfo tree.
  **/
 CamelFolderInfo *
 camel_folder_info_clone(CamelFolderInfo *fi)
@@ -1075,7 +1136,7 @@ camel_folder_info_clone(CamelFolderInfo *fi)
  *
  * Get whether or not @store supports subscriptions to folders.
  *
- * Returns %TRUE if folder subscriptions are supported or %FALSE otherwise
+ * Returns: %TRUE if folder subscriptions are supported or %FALSE otherwise
  **/
 gboolean
 camel_store_supports_subscriptions (CamelStore *store)
@@ -1099,7 +1160,7 @@ folder_subscribed(CamelStore *store, const char *folder_name)
  *
  * Find out if a folder has been subscribed to.
  *
- * Returns %TRUE if the folder has been subscribed to or %FALSE otherwise
+ * Returns: %TRUE if the folder has been subscribed to or %FALSE otherwise
  **/
 gboolean
 camel_store_folder_subscribed(CamelStore *store, const char *folder_name)
@@ -1213,7 +1274,7 @@ camel_store_noop (CamelStore *store, CamelException *ex)
  *
  * Compares 2 folder uris to check that they are equal.
  *
- * Returns %TRUE if they are equal or %FALSE otherwise
+ * Returns: %TRUE if they are equal or %FALSE otherwise
  **/
 int
 camel_store_folder_uri_equal (CamelStore *store, const char *uri0, const char *uri1)
@@ -1269,15 +1330,16 @@ can_refresh_folder (CamelStore *store, CamelFolderInfo *info, CamelException *ex
 
 /**
  * camel_store_can_refresh_folder
+ * @store: a #CamelStore
+ * @info: a #CamelFolderInfo
+ * @ex: a #CamelException
+ *
  * Returns if this folder (param info) should be checked for new mail or not.
  * It should not look into sub infos (info->child) or next infos, it should
  * return value only for the actual folder info.
  * Default behavior is that all Inbox folders are intended to be refreshed.
  *
- * @param store Store, to which belong folder.
- * @param info Info of folder of our interest.
- * @param ex [out] Will set this exception in case of any error.
- * @return Whether folder should be checked for new mails or not.
+ * Returns: whether folder should be checked for new mails
  **/
 gboolean
 camel_store_can_refresh_folder (CamelStore *store, CamelFolderInfo *info, CamelException *ex)

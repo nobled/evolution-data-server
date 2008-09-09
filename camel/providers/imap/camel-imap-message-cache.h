@@ -56,7 +56,7 @@ typedef struct {
 
 /* public methods */
 CamelImapMessageCache *camel_imap_message_cache_new (const char *path,
-						     CamelFolderSummary *summ,
+						     CamelFolderSummary *summary,
 						     CamelException *ex);
 
 void camel_imap_message_cache_set_path (CamelImapMessageCache *cache,
@@ -95,6 +95,8 @@ void         camel_imap_message_cache_copy   (CamelImapMessageCache *source,
 					      const char *source_uid,
 					      CamelImapMessageCache *dest,
 					      const char *dest_uid,
+					      CamelException *ex);
+gboolean     camel_imap_message_cache_delete (const char *path, 
 					      CamelException *ex);
 
 /* Standard Camel function */

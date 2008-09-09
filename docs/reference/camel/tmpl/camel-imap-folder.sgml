@@ -26,6 +26,7 @@ CamelImapFolder
 @priv: 
 @search: 
 @cache: 
+@journal: 
 @need_rescan: 
 @need_refresh: 
 @read_only: 
@@ -75,5 +76,40 @@ CamelImapFolder
 @cache_only: 
 @ex: 
 @Returns: 
+
+
+<!-- ##### FUNCTION imap_append_resyncing ##### -->
+<para>
+
+</para>
+
+@folder: 
+@message: 
+@info: 
+@appended_uid: 
+@ex: 
+
+
+<!-- ##### FUNCTION imap_transfer_resyncing ##### -->
+<para>
+
+</para>
+
+@source: 
+@uids: 
+@dest: 
+@transferred_uids: 
+@delete_originals: 
+@ex: 
+
+
+<!-- ##### FUNCTION imap_expunge_uids_resyncing ##### -->
+<para>
+
+</para>
+
+@folder: 
+@uids: 
+@ex: 
 
 

@@ -40,8 +40,6 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-msgport.h>
-
 #include <e-gw-connection.h>
 #include <e-gw-item.h>
 
@@ -590,7 +588,7 @@ move_to_junk (CamelFolder *folder, CamelMessageInfo *info, CamelException *ex)
 static void 
 groupwise_sync_summary (CamelFolder *folder, CamelException *ex)
 {
-	camel_folder_summary_save (folder->summary);
+	camel_folder_summary_save_to_db (folder->summary, ex);
 	camel_store_summary_touch ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary);
 	camel_store_summary_save ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary);
 }
@@ -673,6 +671,8 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 				const char *uid;
 
 				gw_info->info.flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
+				gw_info->info.dirty = 1;
+				camel_folder_summary_touch (folder->summary);
 				gw_info->server_flags = gw_info->info.flags;
 				uid = camel_message_info_uid (info);
 				if (diff.bits & CAMEL_MESSAGE_DELETED) {
@@ -1004,7 +1004,7 @@ groupwise_refresh_info(CamelFolder *folder, CamelException *ex)
 			}
 			camel_store_summary_info_free ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary, si);
 		}
-		camel_folder_summary_save (folder->summary);
+		//camel_folder_summary_save_to_db (folder->summary, ex);
 		camel_store_summary_save ((CamelStoreSummary *)((CamelGroupwiseStore *)folder->parent_store)->summary);
 	} else {
 		/* We probably could not get the messages the first time. (get_folder) failed???!
@@ -1036,7 +1036,7 @@ groupwise_refresh_folder(CamelFolder *folder, CamelException *ex)
 
 	/* Sync-up the (un)read changes before getting updates,
 	so that the getFolderList will reflect the most recent changes too */
-	groupwise_sync (folder, FALSE, ex);
+	//groupwise_sync (folder, FALSE, ex);
 
 	if (((CamelOfflineStore *) gw_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
 		g_warning ("In offline mode. Cannot refresh!!!\n");
@@ -1410,7 +1410,7 @@ gw_update_cache (CamelFolder *folder, GList *list, CamelException *ex, gboolean 
 		}
 
 		if (!exists) {
-			mi->info.uid = g_strdup (e_gw_item_get_id(item));
+			mi->info.uid = camel_pstring_strdup (e_gw_item_get_id(item));
 			mi->info.size = e_gw_item_get_mail_size (item);	
 			mi->info.subject = camel_pstring_strdup(e_gw_item_get_subject(item));
 		}
@@ -1570,12 +1570,6 @@ gw_update_summary ( CamelFolder *folder, GList *list,CamelException *ex)
 				str = g_string_append (str, " ");
 			}
 
-                        if (org->display_name && org->display_name[0] == '\0') { 
-				
-                                str = g_string_append (str, org->email);
-				str = g_string_append (str, " ");
-			}
-
 			if (org->email && org->email[0]) { 
 				g_string_append (str, "<");
 				str = g_string_append (str, org->email);
@@ -1627,7 +1621,7 @@ gw_update_summary ( CamelFolder *folder, GList *list,CamelException *ex)
 			}
 		}
 
-		mi->info.uid = g_strdup(e_gw_item_get_id(item));
+		mi->info.uid = camel_pstring_strdup(e_gw_item_get_id(item));
 		if (!exists)
 			mi->info.size = e_gw_item_get_mail_size (item);	
 		mi->info.subject = camel_pstring_strdup(e_gw_item_get_subject(item));
@@ -1969,7 +1963,8 @@ gw_update_all_items (CamelFolder *folder, GList *item_list, CamelException *ex)
 	int index = 0;
 	GList *temp;
 	CamelFolderChangeInfo *changes = NULL;
-	CamelMessageInfo *info; 
+	char *uid;
+
 	changes = camel_folder_change_info_new ();
 
 	item_list = g_list_reverse (item_list);
@@ -1977,18 +1972,18 @@ gw_update_all_items (CamelFolder *folder, GList *item_list, CamelException *ex)
 	summary = camel_folder_get_summary (folder);
 	/*item_ids : List of ids from the summary*/
 	while (index < summary->len) {
-		info = g_ptr_array_index (summary, index);
+		uid = g_ptr_array_index (summary, index);
 		temp = NULL; 
 
 		if (item_list) {
-			temp = g_list_find_custom (item_list, (const char *)info->uid, (GCompareFunc) strcmp);
+			temp = g_list_find_custom (item_list, (const char *)uid, (GCompareFunc) strcmp);
 		}
 
 		if (!temp) {
 			CAMEL_GROUPWISE_FOLDER_REC_LOCK (folder, cache_lock);
-			camel_folder_summary_remove_uid (folder->summary, info->uid);
-			camel_data_cache_remove (gw_folder->cache, "cache", info->uid, NULL);
-			camel_folder_change_info_remove_uid (changes, info->uid);
+			camel_folder_summary_remove_uid (folder->summary, uid);
+			camel_data_cache_remove (gw_folder->cache, "cache", uid, NULL);
+			camel_folder_change_info_remove_uid (changes, uid);
 			CAMEL_GROUPWISE_FOLDER_REC_UNLOCK (folder, cache_lock);
 		} else { 
 			item_list = g_list_delete_link (item_list, temp);

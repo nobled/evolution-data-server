@@ -35,8 +35,7 @@
 
 #include <glib.h>
 
-#include <libedataserver/e-msgport.h>  /* for EDList */
-
+#include "camel-list-utils.h"
 #include "camel-operation.h"
 #include "camel-msgport.h"
 
@@ -87,7 +86,7 @@ static pthread_mutex_t operation_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 static unsigned int stamp (void);
-static EDList operation_list = E_DLIST_INITIALISER(operation_list);
+static CamelDList operation_list = CAMEL_DLIST_INITIALISER(operation_list);
 static pthread_key_t operation_key;
 static pthread_once_t operation_once = PTHREAD_ONCE_INIT;
 
@@ -139,7 +138,7 @@ camel_operation_new (CamelOperationStatusFunc status, void *status_data)
 	cc->cancel_fd = -1;
 
 	LOCK();
-	e_dlist_addtail(&operation_list, (EDListNode *)cc);
+	camel_dlist_addtail(&operation_list, (CamelDListNode *)cc);
 	UNLOCK();
 	
 	return cc;
@@ -164,7 +163,7 @@ camel_operation_mute(CamelOperation *cc)
 /**
  * camel_operation_registered:
  *
- * Returns the registered operation, or %NULL if none registered.
+ * Returns: the registered operation, or %NULL if none registered.
  **/
 CamelOperation *
 camel_operation_registered (void)
@@ -210,7 +209,7 @@ camel_operation_unref (CamelOperation *cc)
 	if (cc->refcount == 1) {
 		CamelOperationMsg *msg;
 		
-		e_dlist_remove((EDListNode *)cc);
+		camel_dlist_remove((CamelDListNode *)cc);
 
 		while ((msg = (CamelOperationMsg *)camel_msgport_try_pop(cc->cancel_port)))
 			g_free(msg);
@@ -350,7 +349,7 @@ camel_operation_uncancel(CamelOperation *cc)
  * operation_register again with that, to automatically stack
  * registrations.
  *
- * Return Value: Returns the previously registered operatoin.
+ * Returns: the previously registered operatoin.
  *
  **/
 CamelOperation *
@@ -653,8 +652,6 @@ camel_operation_progress_count (CamelOperation *cc, int sofar)
 /**
  * camel_operation_end:
  * @cc: operation context
- * @what: Format string.
- * @Varargs: varargs 
  * 
  * Report the end of an operation.  If @cc is NULL, then the currently
  * registered operation is notified.

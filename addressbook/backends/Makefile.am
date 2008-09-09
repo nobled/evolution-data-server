@@ -10,4 +10,4 @@ else
 LDAP_SUBDIR =
 endif
 
-SUBDIRS = file vcf $(LDAP_SUBDIR) groupwise $(MAPI_SUBDIR) 
+SUBDIRS = file vcf $(LDAP_SUBDIR) google groupwise webdav $(MAPI_SUBDIR)

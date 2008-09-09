@@ -1,3 +1,96 @@
+2008-09-03  Matthew Barnes  <mbarnes@redhat.com>
+
+	* e-source-selector.c:
+	Make ESourceSelector subclassable by adding a "source-list"
+	constructor property.
+
+2008-09-01  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #332354
+
+	* e-name-selector-entry.h: (USER_QUERY_FIELDS),
+	(ens_util_populate_user_query_fields):
+	* e-name-selector-entry.c: (struct _ENameSelectorEntryPrivate),
+	(e_name_selector_entry_dispose), (ens_util_populate_user_query_fields),
+	(set_completion_query), (e_name_selector_entry_init):
+	* e-name-selector-dialog.c: (struct _ENameSelectorDialogPrivate),
+	(e_name_selector_dialog_init), (e_name_selector_dialog_finalize),
+	(search_changed): User can define his own query fields
+	in "/apps/evolution/addressbook/completion/user_query_fields" which
+	should be a string list of EContact field names to search in.
+
+2008-09-01  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #326692
+
+	* e-name-selector-entry.c: (sanitize_entry), (user_focus_out):
+	Sync model data with entry text and remove all empty
+	destinations from the model on user's exit from the entry.
+
+2008-09-01  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #272391
+
+	* e-name-selector-entry.h: (FORCE_SHOW_ADDRESS):
+	* e-name-selector-entry.c: (COMPLETION_FORCE_SHOW_ADDRESS),
+	(get_destination_textrep), (sync_destination_at_position),
+	(destination_row_changed), (destination_row_inserted),
+	(e_name_selector_entry_init):
+	Show address of the contact if it contains more than one mail
+	address and is not a list. Be able to force showing of the mail
+	for every autocompleted entry by the option in the gconf.
+
+2008-09-01  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #549444
+
+	* e-name-selector-entry.c: (re_set_timeout), (user_insert_text),
+	(type_ahead_complete_on_timeout_cb), (user_delete_text),
+	(update_completions_on_timeout_cb), (setup_contact_store),
+	(ensure_type_ahead_complete_on_timeout):
+	Do not do autocomplete lookup on idle, do that on some timeout instead,
+	because the idle signal is emitted after every key press.
+
+2008-08-31  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #466754 (patch by Vingnesh Prabhu)
+
+	* e-categories-dialog.c (e_categories_dialog_init):
+	Sort the model itself by category name, so that new categories
+	appear in the appropriate place in the list.
+
+2008-08-28  Matthew Barnes  <mbarnes@redhat.com>
+
+	* e-source-selector.c (e_source_selector_get_source_list):
+	New function provides access to the internal source list.
+
+2008-08-17  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #547952
+
+	* e-source-selector.c (rebuild_model):
+	Don't display empty source groups.
+
+2008-08-06  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #207728
+
+	* e-name-selector-entry.c: (copy_or_cut_clipboard), (copy_clipboard),
+	(cut_clipboard), (e_name_selector_entry_init): Always cut/copy whole
+	address from the selector entry, when selected whole, thus paste will
+	be with correct address, not the text only.
+
+2008-07-08  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #537415
+
+	* e-book-auth-util.c (load_source_auth_cb):
+	Break a busy loop between Evolution and Gnome-Keyring by only
+	reauthenticating when the EBookStatus is AUTHENTICATION_FAILED
+	or AUTHENTICATION_REQUIRED.  Fixes a case where we kept trying
+	to authenticate to an unspecified Global Catalog server, where
+	the EBookStatus was REPOSITORY_OFFLINE.
+
 2008-06-11  Srinivasa Ragavan  <sragavan@novell.com>
 
 	** Fix for bug #534946

@@ -41,7 +41,7 @@
 #include "camel-mime-message.h"
 #include "camel-operation.h"
 #include "camel-private.h"
-
+#include "camel-string-utils.h"
 #include "camel-maildir-summary.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
@@ -168,7 +168,8 @@ CamelMaildirSummary
 	CamelMaildirSummary *o = (CamelMaildirSummary *)camel_object_new(camel_maildir_summary_get_type ());
 
 	((CamelFolderSummary *)o)->folder = folder;
-
+	if (folder)
+		camel_db_set_collate (folder->cdb, "dreceived", NULL, NULL);
 	camel_local_summary_construct((CamelLocalSummary *)o, filename, maildirdir, index);
 	return o;
 }
@@ -285,7 +286,7 @@ static CamelMessageInfo *message_info_new_from_header(CamelFolderSummary * s, st
 
 		uid = camel_message_info_uid(mi);
 		if (uid==NULL || uid[0] == 0)
-			mdi->info.info.uid = camel_folder_summary_next_uid_string(s);
+			mdi->info.info.uid = camel_pstring_add (camel_folder_summary_next_uid_string(s), TRUE);
 
 		/* handle 'duplicates' */
 		info = camel_folder_summary_uid(s, uid);
@@ -520,21 +521,6 @@ remove_summary(char *key, CamelMessageInfo *info, struct _remove_data *rd)
 }
 
 static int
-sort_receive_cmp(const void *ap, const void *bp)
-{
-	const CamelMaildirMessageInfo
-		*a = *((CamelMaildirMessageInfo **)ap),
-		*b = *((CamelMaildirMessageInfo **)bp);
-
-	if (a->info.info.date_received < b->info.info.date_received)
-		return -1;
-	else if (a->info.info.date_received > b->info.info.date_received)
-		return 1;
-
-	return 0;
-}
-
-static int
 maildir_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, CamelException *ex)
 {
 	DIR *dir;
@@ -723,11 +709,6 @@ maildir_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Ca
 
 	g_free(new);
 	g_free(cur);
-
-	/* sort the summary based on receive time, since the directory order is not useful */
-	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	qsort(s->messages->pdata, s->messages->len, sizeof(CamelMessageInfo *), sort_receive_cmp);
-	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 	g_mutex_unlock (((CamelMaildirSummary *) cls)->priv->summary_lock);
 

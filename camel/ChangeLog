@@ -1,3 +1,981 @@
+2008-09-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (vee_sync): Ignore no such table errors, as we
+	don't create tables for empty folders.
+
+2008-09-08  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #328216
+
+	* camel.c: (camel_shutdown): Do not free default certdb itself,
+	rather set it to NULL to not have freed pointer flying around.
+	* camel-certdb.c: (camel_certdb_save): Save only when changed.
+
+2008-09-05  Paul Bolle  <pebolle@tiscali.nl>
+
+	** Fix for bug #550412
+
+	* camel-store.c: (camel_store_get_folder) (camel_store_create_folder)
+	(camel_store_get_folder_info): Mention NULL return in documentation.
+	* camel-store.c: (camel_store_free_folder_info): Make sure that a NULL
+	CamelFolderInfo is always gracefully handled. Document that.
+
+2008-09-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (vee_rebuild_folder): Make vfolder counts much
+	better. 
+
+2008-09-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.[ch]: Don't commit deleted folders.
+	* camel/camel-db.c: Make it debuggable through camel-debug
+
+2008-09-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/Makefile.am: Commit missing .h changes to Makefile.am
+
+2008-09-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Make vfolders rebuild only when empty.
+
+2008-09-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for BNC bug #418080
+
+	* camel/camel-folder-search.c: Make thing better, with new sexp/sql
+	parser.
+
+2008-09-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/Makefile.am: 
+	* camel/camel-search-sql-sexp.c: New Sexp based sexp to sql parser.
+	* camel/camel-search-sql-sexp.h:
+
+2008-09-01  Keith Packard  <keithp@keithp.com>
+
+	** Fix for bug #541045
+
+	* camel-mime-part.c (camel_mime_part_set_filename): Add a default
+	mime-type to the mime-part if it doesn't have one.
+
+2008-08-31  Lucian Langa  <lucilanga@gnome.org>
+
+	** Fix for bug #550072
+
+	* camel/camel-search-private.c: Allow evolution-rss content type
+	on body-search
+
+2008-08-22  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #548865
+
+	* camel/camel-vee-store.c: Dont crash, if the folder isn't there.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: During quit, its possible that the
+	parent folder's infos are unavailable.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-store.c: Let vee store also sync its headers at the
+	end.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Make counts work even better.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-store.h: Name the flag appropriately.
+	* camel/camel-vtrash-folder.c:
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Update visible count, intelligently.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Fix junk/trash counts.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-store.h: Add a new flag for vtrash handling.
+	* camel/camel-vtrash-folder.c: 
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Add code to dump sorted uids for
+	debuging.
+
+2008-08-20  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #546926
+
+	* camel.c (camel_shutdown):
+	Make this function public and don't call PR_Cleanup().
+
+	* camel.c (camel_init):
+	Remove call to g_atexit().
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Make use of collate function for just sorts also.
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-store.c: Save vfolders headers on sync.
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Add function to save headers to db.
+	* camel/camel-vee-folder.h:
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Remove debug logs.
+
+2008-08-20  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Add provision to do summary specific sorts.
+	Summaries can now be loaded in a sorted mode.
+	* camel/camel-db.h:
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Save the summary header atleast.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-filter-driver.c: Read XEV headers if there are any.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Make things more debuggable.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Add functions to delete from summary
+	fast, without dealing with db, so that bulk db can be invoked.
+	* camel/camel-folder-summary.h:
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Fix issue of unread mails in trash.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Fix counts in vfolders while expunge/empty
+	trash.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	** Partial fix for bnc #418080
+
+	* camel/camel-search-sql.c: Support 'not' operator.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Add a way to save just the header. We
+	can optimize it a lot.
+	* camel/camel-folder-summary.h:
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/local/camel-mbox-summary.c: Delete uids in a bunch
+	than individual. It is a lot faster.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder.c: Save summary at the end of the filtering.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Don't break while syncing inbetween while
+	syncing.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Even the summary header could be
+	dirty. Make a provision for saving just the header info.
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Save the db, only if it is a db based
+	search.
+
+2008-08-18  Priit Laes  <plaes@plaes.org>
+
+	** Fix for bug #548059
+
+	* camel-folder-thread.c (thread_summary): NULL check message-id before 
+	accessing its elements. 
+
+2008-08-18  Sergio Villar Senín  <svillar@igalia.com>
+
+	** Fix for bug #546444
+
+	* camel-tcp-stream-ssl.c (stream_read): Don't loop infinitely when the 
+	network connection is lost while fetching a message, instead exit with 
+	a connection error. 
+
+2008-08-15  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vtrash-folder.c: Make trash/junk close to a normal vee
+	folder. Now their summaries are created, so it should be faster after
+	first touch.
+
+2008-08-15  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Debug the counts temporarily and don't
+	try commit when therez nothing. We save lot of db calls.
+
+2008-08-14  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #547389
+
+	* camel/camel-vee-folder.c: Fix crash on account search. Unhook the
+	signals on finalize.
+
+2008-08-14  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Clean up subfolders while finalizing.
+
+2008-08-14  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Build break and fix it better.
+
+2008-08-13  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vtrash-folder.c: Revert junk/trash. It slows down. Needs
+	reimpl.
+
+2008-08-13  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Properly unlock while aborting transaction.
+
+2008-08-13  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Add code to log better. It needs cleanup even now.
+	* camel/camel-db.h:
+
+2008-08-13  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Fix label search failure.
+
+2008-08-13  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #547469
+
+	* camel/camel-vee-folder.c: Count only when you have results.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Make junk counts work well.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vtrash-folder.c: Make vtrash folders almost same as vee
+	folder.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Fix invalid reads, by not double freeing.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Initialize sql var to NULL
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #547256
+
+	* camel/camel-search-sql.c:  Handle plain match-all
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Fix another search issue.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vtrash-folder.c: Make it use vee folder search than its
+	own.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vtrash-folder.c: Comment out unused code with a reason.
+
+2008-08-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Revamp search with support for more cases.
+
+2008-08-11  Sankar P  <psankar@novell.com>
+
+	* camel-db.c:
+	Words of warning
+
+2008-08-11  Tor Lillqvist  <tml@novell.com>
+
+	* providers/Makefile.am: Set HULA_DIR=hula if ENABLE_HULA. That
+	was probably the intent but accidentally left out by mbarnes on
+	2008-07-31.
+
+2008-08-11  Sankar P  <psankar@novell.com>
+
+	* camel-vee-folder.c (folder_changed_change):
+	Remove dummy db transactions.
+
+2008-08-11  Sankar P  <psankar@novell.com>
+
+	* camel-db.c (cdb_sql_exec), (camel_db_count_message_info),
+	(camel_db_select):
+	Do not attempt to print the full query when debug is on.
+
+2008-08-11  Sankar P  <psankar@novell.com>
+
+	* camel-folder-summary.c (summary_remove_uid),
+	(camel_folder_summary_remove), (camel_folder_summary_remove_uid):
+	Do not attempt to delete non-existing uids from the db.
+	Save some disk access and associated disk-head travel costs. 
+
+2008-08-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Save the count on exit.
+
+2008-08-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Revamp vfolders and counts for it.
+	* camel/camel-vee-folder.h:
+
+2008-08-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Make the cache thread a bit
+	intelligent and not to continue if the cache is nil and also start the
+	thread only if the contents are loaded.
+
+2008-08-09  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-summary.c: Implement replicated flags for vfolders.
+	* camel/camel-vee-summary.h:
+
+2008-08-09  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Added summary reloaded event to camel
+	object
+
+2008-08-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Add API for vfolder tables migration.
+	* camel/camel-db.h:
+
+2008-08-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vtrash-folder.c: Disable custom getv function.
+
+2008-08-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.h: Remove DIRTY message flag. It is
+	redundant and in the wrong place.
+
+2008-08-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Check the summary before using it. It
+	crashes at some remote vtrash sort of folders.
+
+2008-08-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Check exception before getting. You
+	save lots of warnings.
+	
+2008-08-11  Sankar P  <psankar@novell.com>
+
+	* camel-db.c (cdb_sql_exec), (camel_db_count_message_info),
+	(camel_db_select):
+	MONITOR_DB_PERFORMANCE . Set this const int to non-zero,
+	so as to know how much of time each db call takes.
+
+2008-08-07  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Fix return values.
+	* camel/camel-folder-search.c: Suppress No such table exception.
+
+2008-08-07  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Store to db intelligently.
+
+2008-08-07  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Fix load/save counts of vee folder.
+	* camel/camel-vee-summary.c:
+
+2008-08-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #545877
+
+	* camel-block-file.c:
+	* camel-block-file.h:
+	* camel-cipher-context.c:
+	* camel-cipher-context.h:
+	* camel-filter-driver.c:
+	* camel-iconv.c:
+	* camel-index-control.c:
+	* camel-object.c:
+	* camel-offline-journal.h:
+	* camel-offline-journal.c:
+	* camel-operation.c:
+	* camel-partition-table.c:
+	* camel-partition-table.h:
+	* camel-text-index.c:
+	Use CamelDList instead of EDList.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #546613
+
+	* camel/camel-vee-folder.c: return NULL, if unmatched folder is
+	requested.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Some formatting changes.
+	* camel/camel-vee-folder.c: Set query only when it changes.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Remove some unwanted code.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Redo vfolders. It now works.
+	* camel/camel-vee-folder.h:
+	* camel/camel-vee-summary.c:
+	* camel/camel-vtrash-folder.c:
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #546544
+
+	* camel/camel-folder-summary.c: Don't try print folder name, when
+	folder is NULL. Print the summary path for such debugging purposes.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Add apis to delete vuids in transaction and clean
+	up add vuid api.
+	* camel/camel-db.h:
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder.c: Start fixing counts for vfolders.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Added a api to drop and recreate vfolder table.
+	* camel/camel-db.h:
+
+2008-08-06  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #546397
+
+	* camel-store.c: (construct): Do not use NULL in g_file_test.
+	* camel-folder-search.c: (read_uid_callback): Cast to right type.
+	* camel-folder-summary.c: (camel_folder_summary_remove_range):
+	Do not leak objects from loaded_infos array.
+
+2008-08-05  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	Fixes part of #533823
+	* camel-offline-store.c: (camel_offline_store_get_network_state),
+	(camel_offline_store_set_network_state): set the network state to
+	online before calling camel_service_connect as the providers depend
+	on that.						 
+	* camel-offline-store.h:
+	* providers/Makefile.am: Disco->Offline migration code.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #545505
+
+	* camel/camel-folder-summary.c: Don't bother starting cache kick off
+	threads for zombie summaries.
+	* camel/camel-folder.c: When we unref a folder, kick off the freeing
+	thread from summary.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c:
+	* camel/camel-vee-summary.c: Safe guard against missing infos and
+	protect them and added debug logs for erring cases.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Load the summary from db, only if the
+	searching length is more than in memory cache.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-digest-folder.c: Fix search by uids. Pro'lly a typo.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #546184
+
+	* camel/camel-folder-search.c: Search if we are under match_all.
+
+2008-08-04  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel.pc.in: List sqlite3 as a requirement.
+
+2008-08-04  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #546194
+
+	* camel/camel-folder.c: Use the right path for spool a/c
+	* camel/camel-store.c: Use the right path for spool a/c
+
+2008-08-04  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Fix some basic vfolder code for disk
+	summary.
+
+2008-08-04  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-folder-search.c: (camel_folder_search_search): Fix while
+	moving to offline.
+	* camel-search-sql.c: (camel_sexp_to_sql):
+
+2008-08-04  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-string-utils.c: Disable debug crashers.
+
+2008-08-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Make 5 minutes as cache drop interval.
+
+2008-08-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Don't free mi's in migration.
+
+2008-08-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Fix pstring crash issues.
+
+2008-08-01  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-exception.c:
+	* camel-filter-driver.c:
+	* camel-folder-search.c:
+	* camel-index-control.c:
+	* camel-object.c:
+	Remove unnecessary <libedataserver/e-memory.h> include.
+
+2008-07-31  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #545558
+
+	* providers/Makefile.am:
+	Disable the Hula provider unless --enable-hula was given at
+	configure-time.
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Revamp search and make body search as
+	fallback to old search mechanism of loading infos and search.
+	* camel/camel-string-utils.c: Added a new api to get const string from
+	the pool.
+	* camel/camel-string-utils.h:
+
+2008-07-31  Sankar P  <psankar@novell.com>
+
+	* camel-folder-search.c (camel_folder_search_class_init),
+	(camel_folder_search_finalize), (camel_folder_search_construct),
+	(camel_folder_search_set_folder),
+	(camel_folder_search_execute_expression),
+	(camel_folder_search_search), (camel_folder_search_free_result),
+	(search_match_all), (check_header), (search_header_contains),
+	(match_words_index), (search_user_flag), (search_system_flag),
+	(search_user_tag):
+	* camel-folder-search.h:
+	Search goodness. Make use of the new sexp parser.
+
+2008-07-31  Sankar P  <psankar@novell.com>
+
+	* camel-vee-folder.c (vee_search_by_expression),
+	(vee_rebuild_folder):
+	Don't print debug statements
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #545082
+
+	* camel/camel-db.c: Added support apis.
+	* camel/camel-db.h:
+	* camel/camel-folder.c: Added support to rename folder.
+	* camel/camel-store.c: Added code to delete folder cleanly
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Add delete folder functionality.
+	* camel/camel-folder-summary.c: Added code to check if the uid exists
+	in summary.
+	* camel/camel-folder-summary.h:
+
+2008-07-30  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #500389
+
+	* camel-provider.h: (enum CamelProviderConfType): New type 'OPTIONS'.
+
+2008-07-30  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder.c: Remove the folder locks in refresh info. It
+	deadlocks while resyncing in IMAP.
+
+2008-07-29  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #545099
+
+	* camel/camel-folder-summary.c: When new mails added, update the
+	summary.
+
+2008-07-29  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder.c: Remove Update folder function.
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-digest-folder.c: Fix uid/pstring issues.
+	* camel/camel-folder-summary.c:
+	* camel/camel-folder-summary.h: Make uid const char *
+	* camel/camel-vee-summary.c:
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	* camel/camel-disco-folder.c: Fix guint/int issues.
+	* camel/camel-folder-summary.c:
+	* camel/camel-folder-summary.h:
+	* camel/providers/imap/camel-imap-folder.c:
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder.c: Add function to update summary.
+	* camel/camel-vtrash-folder.c: Fix compiler warnings
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Kick off debug lines.
+
+2008-07-27  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Fix unread count updates in folder
+	tree. 
+
+2008-07-27  Frederic Peters  <fpeters@0d.be>
+
+	** Fix for bug #544963
+
+	* Makefile.am: Include camel-search-sql.h in headers.
+
+2008-07-26  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Fix compiler warning and some crash
+	possibilities.
+
+2008-07-26  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Another possible deadlock. Never hold
+	summary lock and do a db operation.
+
+2008-07-26  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #544825
+
+	* camel/camel-folder-summary.c:
+	* camel/providers/imap/camel-imap-folder.c: Never hold the summary
+	lock and do a disk operation. It leads to dead lock.
+
+2008-07-25  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #544049
+
+	* camel-object.c: Initialize global variables, just to be sure.
+
+2008-07-25  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #544651
+
+	* camel-folder-summary.c: (EXTRACT_FIRST_STRING), (EXTRACT_STRING):
+	Properly update string position after read (thanks to srag).
+	* camel-folder-summary.c: (EXTRACT_DIGIT):
+	Prevent moving beyond string limit.
+	* camel-folder-summary.c: (camel_read_mir_callback):
+	Do not access NULL.
+	* camel-folder-summary.c: (my_list_append):
+	Interpret and update given list pointer properly.
+
+2008-07-25  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #544031
+
+	* camel-vee-folder.c: (vee_folder_remove_folder):
+	* camel-folder-summary.c: (camel_folder_summary_migrate_infos),
+	(content_info_to_db): Compiler warnings cleanup.
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.h: Disable share cache sql
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #543569
+
+	* camel/camel-store.c: Recreate cache, if it was blown.
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	** Reverse the meaning of debug/free safe handlers. Let it crash now, than
+	on a production build. We can fix it now. It would be turned off for a
+	release build. (CAMEL_SQLITE_FREE_CACHE, CAMEL_SQLITE_SHARED_CACHE,
+	CAMEL_FREE_INFOS, CDS_DEBUG)
+
+	* camel/camel-db.h: 
+	* camel/camel-folder-summary.c:
+	* camel/camel-string-utils.c:
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #544114
+
+	* camel/camel-folder-search.c:
+	* camel/providers/local/camel-mbox-folder.c: Do a sync before we
+	reload things.
+
+2008-07-25  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Camel Reference Manual improvements:
+	Tag more symbols as deprecated.  The documentation already
+	describes them as such.
+
+	* camel-debug.h (camel_verbose_debug):
+	* camel-store.h (CAMEL_STORE_FOLDER_INFO_FAST):
+	* camel-store.h (camel_folder_info_build):
+
+2008-07-25  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Camel Reference Manual improvements:
+	Add more sections to the Table of Contents.
+	Tag deprecated API with CAMEL_DISABLE_DEPRECATED.
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Sync the db before we do a search. So
+	that we are always on sync with view.
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #544491
+
+	* camel/camel-db.c: Lock while 2 thread try to access same folder's
+	table using same handle.
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Further improve search.
+
+2008-07-25  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-search-sql.c: Add more search crash handlers. Atm
+	body-search alone should fail.
+
+2008-07-24  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #544501
+
+	* camel/camel-search-sql.c: Handle single node search queries.
+
+2008-07-24  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #544528
+
+	* camel/camel-search-sql.c: Ignore match-threads. It wont be supported
+	with new disk summary. Handle cases where it crashes.
+
+2008-07-24  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Rewrite camel search by converting sexp to sql.
+
+	* camel/camel-folder-search.c:
+	* camel/camel-folder-summary.c:
+	* camel/camel-search-sql.c:
+
+2008-07-23  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* Makefile.am: Add core camel search in sql support.
+	* camel-db.c (camel_db_get_column_name):
+
+2008-07-23  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #543943
+
+	* camel-store.c: (construct):
+	* camel-folder.c: (camel_folder_construct):
+	* camel-vee-folder.c: (summary_header_to_db):
+	* camel.c: (camel_init):
+	* camel-db.c: (cdb_sql_exec), (camel_db_count_message_info),
+	(camel_db_select):
+	* camel-folder-summary.c: (camel_folder_summary_migrate_infos),
+	(message_info_from_uid), (camel_folder_summary_save_to_db),
+	(camel_folder_summary_header_load_from_db),
+	(camel_folder_summary_remove_range), (summary_header_to_db):
+	Leak fix.
+
+2008-07-22  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fix a bunch of Gtk-Doc warnings.
+
+2008-07-22  Priit Laes  <plaes@plaes.org>
+
+	** Fixes bug #544202
+
+	* camel-store.c: (construct): Fix string usage after it is freed.
+
+2008-07-22  Sankar P  <psankar@novell.com>
+
+	* camel-folder-search.c (check_header), (search_system_flag):
+	Make search work and don't screw up when the system flags are included.
+	A better sexp parser is coming up.
+
+2008-07-21  Tor Lillqvist  <tml@novell.com>
+
+	* camel-db.c (camel_db_open): Check for
+	CAMEL_SQLITE_DEFAULT_CACHE_SIZE environment variable was
+	backwards.
+
+2008-07-21  Sankar P  <psankar@novell.com>	
+
+	* camel-db.c (cdb_sql_exec)
+	* camel-folder-summary.c (camel_folder_summary_migrate_infos): Hold the 
+	rights when a transaction in place.
+
+2008-07-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Add migration support and fix some
+	warnings
+
+2008-07-20  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #541347
+
+	* camel-block-file.h:
+	#include <sys/types.h> (in the proper order)
+
+2008-07-17  Sankar P  <psankar@novell.com>
+
+	* camel-folder-summary.c (remove_item):
+	Make disk-summary don't crash for the time being. 
+	We need to find out where the uid is getting leaked and fix that.
+
+2008-07-16  Sankar P  <psankar@novell.com>
+
+	Pushing disk summary changes from the madagascar branch
+
+	* Makefile.am:
+	* camel-folder-search.c (camel_folder_search_class_init),
+	(camel_folder_search_finalize), (camel_folder_search_construct),
+	(camel_folder_search_set_folder),
+	(camel_folder_search_set_summary),
+	(camel_folder_search_execute_expression),
+	(camel_folder_search_search), (camel_folder_search_free_result),
+	(search_not), (search_match_all), (search_match_threads),
+	(check_header_deprecated), (check_header),
+	(search_header_contains), (db_search_header_contains),
+	(match_words_index), (match_words_messages),
+	(search_body_contains), (search_user_flag), (search_system_flag),
+	(search_user_tag), (search_uid), (read_uid_callback):
+	* camel-folder-search.h:
+	* camel-folder-summary.c (camel_folder_summary_init),
+	(camel_folder_summary_finalize), (camel_folder_summary_count),
+	(camel_folder_summary_index),
+	(camel_folder_summary_uid_from_index),
+	(camel_folder_summary_array), (message_info_from_uid),
+	(camel_folder_summary_uid), (perform_content_info_load_from_db),
+	(append_changed_uids), (camel_folder_summary_get_changed),
+	(remove_item), (remove_cache), (camel_folder_summary_cache_size),
+	(camel_folder_summary_reload_from_db),
+	(camel_folder_summary_load_from_db), (mir_from_cols),
+	(camel_read_mir_callback), (camel_folder_summary_load),
+	(perform_content_info_save_to_db), (save_to_db_cb),
+	(save_message_infos_to_db), (camel_folder_summary_save_to_db),
+	(camel_folder_summary_save),
+	(camel_folder_summary_header_load_from_db),
+	(camel_folder_summary_header_load), (summary_assign_uid),
+	(camel_folder_summary_add), (camel_folder_summary_insert),
+	(camel_folder_summary_add_from_header),
+	(camel_folder_summary_add_from_parser),
+	(camel_folder_summary_add_from_message),
+	(camel_folder_summary_clear), (camel_folder_summary_clear_db),
+	(summary_remove_uid), (camel_folder_summary_remove),
+	(camel_folder_summary_remove_uid),
+	(camel_folder_summary_remove_index_fast),
+	(camel_folder_summary_remove_index),
+	(camel_folder_summary_remove_range), (summary_meta_header_load),
+	(summary_header_from_db), (summary_header_to_db),
+	(camel_folder_summary_content_info_new), (message_info_from_db),
+	(message_info_to_db), (message_info_free), (content_info_from_db),
+	(content_info_to_db), (content_info_free), (camel_flag_set),
+	(camel_message_info_new), (info_set_flags), (info_set_user_flag),
+	(info_set_user_tag), (camel_folder_summary_class_init):
+	* camel-folder-summary.h:
+	* camel-folder-thread.c (camel_folder_thread_messages_new):
+	* camel-folder.c (camel_folder_finalize), (camel_folder_construct),
+	(camel_folder_refresh_info), (folder_getv), (folder_free),
+	(get_uids), (free_uids), (free_summary),
+	(camel_folder_free_summary), (search_free):
+	* camel-folder.h:
+	* camel-offline-journal.c:
+	* camel-store.c (camel_store_finalize), (construct):
+	* camel-store.h:
+	* camel-string-utils.c (camel_pstring_free):
+	* camel-vee-folder.c (camel_vee_folder_get_location),
+	(summary_header_to_db), (vee_sync), (vee_get_message),
+	(vee_search_by_expression), (vee_folder_add_uid),
+	(vee_folder_remove_folder), (folder_added_uid),
+	(vee_rebuild_folder), (folder_changed_remove_uid),
+	(subfolder_renamed_update), (vee_set_expression),
+	(camel_vee_folder_finalise):
+	* camel-vee-store.c (camel_vee_store_class_init),
+	(camel_vee_store_init), (construct), (vee_get_folder_info):
+	* camel-vee-summary.c (vee_message_info_free),
+	(vee_message_info_clone), (vee_info_ptr), (vee_info_uint32),
+	(vee_info_time), (vee_info_user_flag), (vee_info_user_tag),
+	(vee_info_set_user_flag), (vee_info_set_user_tag),
+	(vee_info_set_flags), (message_info_from_uid),
+	(camel_vee_summary_class_init), (camel_vee_summary_new),
+	(camel_vee_summary_get_ids), (camel_vee_summary_add):
+	* camel-vee-summary.h:
+	* camel-vtrash-folder.c (vtrash_transfer_messages_to),
+	(vtrash_search_by_expression), (vtrash_search_by_uids),
+	(vtrash_uid_added), (vtrash_folder_changed), (vtrash_add_folder),
+	(vtrash_remove_folder):
+
+2008-07-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #213072
+
+	* camel-folder.c: (camel_folder_refresh_info): Lock while rebuilding
+	summaries.
+
+2008-07-07  Matt McCutchen 2  <matt@mattmccutchen.net>
+
+	** Fix for bug #503922
+
+	* camel-folder-summary.c: Fix typo in mapping flag name "draft".
+
+2008-07-02  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-folder.c (camel_folder_sort_uids): New method to sort an
+	array of uids.
+
 2008-06-25  Jeffrey Stedfast  <fejj@novell.com>
 
 	* camel-mime-utils.c (camel_header_decode_date): Don't crash if

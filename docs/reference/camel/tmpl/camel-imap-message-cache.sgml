@@ -34,7 +34,7 @@ CamelImapMessageCache
 </para>
 
 @path: 
-@summ: 
+@summary: 
 @ex: 
 @Returns: 
 
@@ -134,5 +134,15 @@ CamelImapMessageCache
 @dest: 
 @dest_uid: 
 @ex: 
+
+
+<!-- ##### FUNCTION camel_imap_message_cache_delete ##### -->
+<para>
+
+</para>
+
+@path: 
+@ex: 
+@Returns: 
 
 

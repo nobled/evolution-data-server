@@ -100,6 +100,18 @@ camel_local_store_finalize (CamelLocalStore *local_store)
 {
 	if (local_store->toplevel_dir)
 		g_free (local_store->toplevel_dir);
+
+	CamelStore *store;
+
+	store = ((CamelStore *)local_store); 
+	d(printf ("\n\aLocal Store Finalize \n\a"));
+
+	if (store && store->cdb) {
+	d(printf ("\n\aClosing Store DB for hte local provider \n\a"));
+		camel_db_close (store->cdb);
+		store->cdb = NULL;
+	}
+
 }
 
 CamelType
@@ -323,35 +335,12 @@ static int xrename(const char *oldp, const char *newp, const char *prefix, const
 			err = errno;
 			ret = -1;
 		}
-#ifndef G_OS_WIN32
-	} else if (S_ISDIR(st.st_mode)) { /* use rename for dirs */
-		if (rename(old, new) == 0
-		    || stat(new, &st) == 0) {
-			ret = 0;
-		} else {
-			err = errno;
-			ret = -1;
-		}
-	} else if (link(old, new) == 0 /* and link for files */
-		   || (stat(new, &st) == 0 && st.st_nlink == 2)) {
-		if (unlink(old) == 0) {
-			ret = 0;
-		} else {
-			err = errno;
-			unlink(new);
-			ret = -1;
-		}
-	} else {
-		err = errno;
-		ret = -1;
-#else
 	} else if ((!g_file_test (new, G_FILE_TEST_EXISTS) || g_remove (new) == 0) &&
 		   g_rename(old, new) == 0) {
 		ret = 0;
 	} else {
 		err = errno;
 		ret = -1;
-#endif
 	}
 
 	if (ret == -1) {
@@ -446,26 +435,6 @@ delete_folder(CamelStore *store, const char *folder_name, CamelException *ex)
 	
 	/* remove metadata only */
 	name = g_strdup_printf("%s%s", CAMEL_LOCAL_STORE(store)->toplevel_dir, folder_name);
-	str = g_strdup_printf("%s.ev-summary", name);
-	if (g_unlink(str) == -1 && errno != ENOENT) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not delete folder summary file '%s': %s"),
-				      str, g_strerror (errno));
-		g_free(str);
-		g_free (name);
-		return;
-	}
-	g_free(str);
-	str = g_strdup_printf("%s.ev-summary-meta", name);
-	if (g_unlink(str) == -1 && errno != ENOENT) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not delete folder summary file '%s': %s"),
-				      str, g_strerror (errno));
-		g_free(str);
-		g_free (name);
-		return;
-	}
-	g_free(str);
 	str = g_strdup_printf("%s.ibex", name);
 	if (camel_text_index_remove(str) == -1 && errno != ENOENT) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,

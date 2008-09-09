@@ -1,3 +1,73 @@
+2008-08-08  Sankar P  <psankar@novell.com>
+
+	* camel-groupwise-store.c (groupwise_folders_sync):
+	Fix a leak. Part of bgo #523103
+
+2008-08-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #545877
+
+	* camel-groupwise-journal.c:
+	* camel-groupwise-journal.h:
+	Use CamelDList instead of EDList.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/groupwise/camel-groupwise-folder.c: Mark summary
+	dirty when it is.
+
+2008-08-01  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-groupwise-store-summary.c:
+	Remove unnecessary <libedataserver/e-memory.h> include.
+
+2008-07-31  Sankar P  <psankar@novell.com>
+
+	* camel-groupwise-summary.c (gw_info_set_flags):
+	Fix (un)read, deleted count issues.
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/groupwise/camel-groupwise-journal.c: Fix uid/pstring
+	issues.
+
+2008-07-22  Sankar P  <psankar@novell.com>
+
+	* camel-groupwise-folder.c (gw_update_summary):
+	Remove some buggy code, which are unnecessary after 
+	one of the previous commits to avoid duplicate email 
+	addresses as part of FROM field.
+
+2008-07-21  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-groupwise-journal.c:
+	* camel-groupwise-summary.c:
+	#include "camel-string-utils.h"
+
+2008-07-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Use pstrings for info uids.
+
+	* camel/providers/groupwise/camel-groupwise-folder.c:
+	* camel/providers/groupwise/camel-groupwise-journal.c:
+	* camel/providers/groupwise/camel-groupwise-summary.c:
+
+2008-07-16  Sankar P  <psankar@novell.com>
+
+	Pushing disk summary changes from the madagascar branch
+
+	* camel-groupwise-folder.c (groupwise_sync_summary),
+	(groupwise_sync), (groupwise_refresh_info),
+	(groupwise_refresh_folder), (gw_update_all_items):
+	* camel-groupwise-store.c (groupwise_get_folder),
+	(gw_store_reload_folder):
+	* camel-groupwise-summary.c (camel_groupwise_summary_class_init),
+	(camel_groupwise_summary_new), (summary_header_from_db),
+	(gw_summary_header_load), (summary_header_to_db),
+	(gw_summary_header_save), (message_info_from_db),
+	(message_info_to_db), (content_info_from_db), (content_info_to_db),
+	(groupwise_summary_clear):
+
 2008-05-21  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-groupwise-store.c (convert_to_folder_info): Marking this

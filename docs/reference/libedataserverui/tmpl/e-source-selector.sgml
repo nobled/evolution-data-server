@@ -47,12 +47,26 @@ ESourceSelector
 
 @esourceselector: the object which received the signal.
 
+<!-- ##### ARG ESourceSelector:source-list ##### -->
+<para>
+
+</para>
+
 <!-- ##### FUNCTION e_source_selector_new ##### -->
 <para>
 
 </para>
 
 @list: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_selector_get_source_list ##### -->
+<para>
+
+</para>
+
+@selector: 
 @Returns: 
 
 

@@ -29,6 +29,8 @@ CamelVeeFolder
 @changes: 
 @search: 
 @parent_vee_store: 
+@hashes: 
+@loaded: 
 
 <!-- ##### MACRO CAMEL_UNMATCHED_NAME ##### -->
 <para>
@@ -43,7 +45,7 @@ CamelVeeFolder
 </para>
 
 @parent_store: 
-@name: 
+@full: 
 @flags: 
 @Returns: 
 
@@ -125,5 +127,14 @@ CamelVeeFolder
 
 @folder: 
 @buffer: 
+
+
+<!-- ##### FUNCTION camel_vee_folder_sync_headers ##### -->
+<para>
+
+</para>
+
+@vf: 
+@ex: 
 
 

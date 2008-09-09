@@ -289,6 +289,14 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 	folder->summary = (CamelFolderSummary *)CLOCALF_CLASS(lf)->create_summary(lf, lf->summary_path, lf->folder_path, lf->index);
 	if (camel_local_summary_load((CamelLocalSummary *)folder->summary, forceindex, NULL) == -1) {
 		/* ? */
+		if (camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex) == 0) {
+			/* we sync here so that any hard work setting up the folder isn't lost */
+			if (camel_local_summary_sync((CamelLocalSummary *)folder->summary, FALSE, lf->changes, ex) == -1) {
+				camel_object_unref (CAMEL_OBJECT (folder));
+				g_free(name);
+				return NULL;
+			}		
+		}
 	}
 
 	/* We don't need to sync here ..., it can sync later on when it calls refresh info */
@@ -471,6 +479,13 @@ local_refresh_info(CamelFolder *folder, CamelException *ex)
 {
 	CamelLocalFolder *lf = (CamelLocalFolder *)folder;
 
+	/* 
+	 * Banner: This is a very very ugly hack to get over the summary mismatch. This needs to 
+	 * be done better. Im postponing this post-disk summary.
+	 * */
+
+	CAMEL_FOLDER_REC_LOCK(folder, lock);
+
 	if (camel_local_summary_check((CamelLocalSummary *)folder->summary, lf->changes, ex) == -1)
 		return;
 
@@ -478,6 +493,8 @@ local_refresh_info(CamelFolder *folder, CamelException *ex)
 		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
 		camel_folder_change_info_clear(lf->changes);
 	}
+	CAMEL_FOLDER_REC_UNLOCK(folder, lock);
+	
 }
 
 static void

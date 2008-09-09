@@ -1,3 +1,227 @@
+2008-09-04  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #547884
+
+	* camel-imap-folder.c: (imap_get_quota_info):
+	Do not crash on unexpected response, rather skip it.
+
+2008-09-03  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #548343
+
+	* camel-imap-store.c: (fill_fi): Do not read summary information for
+	the folder from DB when we have it fresh in memory already.
+
+2008-08-21  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-summary.c: Implement in-db uid sort
+	while loading.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Delete from DB for expunge
+	in a optimized way.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Refresh message list when
+	expunged.
+
+2008-08-19  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-journal.c: Revert unwanted change.
+
+2008-08-08  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	* camel-imap-journal.c: (imap_entry_load), (imap_entry_write),
+	(journal_decode_folder), (imap_entry_play):
+	* camel-imap-search.c: (imap_body_contains): Fixed a couple of 
+	warnings and removed the disabled debug printf's.						     
+
+2008-08-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-imap-journal.c:
+	* camel-imap-journal.h:
+	* camel-imap-store.h:
+	* camel-imap-search.c:
+	* camel-imap-search.h:
+	Use CamelDList instead of EDList.
+
+2008-08-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Mark summary as dirty when
+	it is.
+
+2008-08-05  Srinivasa Ragavan  <sragavan@novell.com>
+	
+	** Fix for bug #546415
+
+	* camel/providers/imap/camel-imap-search.c: The summary is now uids.
+	So deal it that way.
+
+2008-08-05  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	Fixes part of #533823
+	* Makefile.am: Added camel-imap-journal.[ch]
+	* camel-imap-command.c: (imap_read_response):
+	* camel-imap-folder.c: (camel_imap_folder_class_init),
+	(camel_imap_folder_init), (camel_imap_folder_get_type),
+	(camel_imap_folder_new), (camel_imap_folder_selected),
+	(imap_finalize), (imap_rename), (imap_refresh_info), (imap_sync),
+	(imap_expunge_uids_offline), (imap_expunge), (imap_append_offline),
+	(imap_append_online), (imap_transfer_offline),
+	(imap_transfer_online), (imap_transfer_resyncing), (imap_thaw),
+	(imap_get_quota_info):
+	* camel-imap-folder.h:
+	* camel-imap-journal.c: (camel_imap_journal_get_type),
+	(camel_imap_journal_class_init), (camel_imap_journal_init),
+	(free_uid), (camel_imap_journal_finalize), (unref_folder),
+	(imap_entry_free), (free_uids), (decode_uids), (imap_entry_load),
+	(encode_uids), (imap_entry_write), (journal_decode_folder),
+	(imap_entry_play), (camel_imap_journal_new),
+	(camel_imap_journal_log), (close_folder),
+	(camel_imap_journal_close_folders),
+	(camel_imap_journal_uidmap_add),
+	(camel_imap_journal_uidmap_lookup):
+	* camel-imap-journal.h:
+	* camel-imap-store.c: (camel_imap_store_class_init),
+	(camel_imap_store_finalize), (camel_imap_store_get_type),
+	(construct), (parse_capability), (query_auth_types),
+	(imap_connect), (imap_disconnect), (get_folder), (create_folder),
+	(get_folder_info), (camel_imap_store_connected):
+	* camel-imap-store.h: Disco to Offline migration.
+
+2008-08-01  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes bug #538620
+
+	* camel-imap-folder.c (imap_get_message):
+	Improve wording of "cannot get message" error message.
+
+2008-08-01  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-imap-store-summary.c:
+	Remove unnecessary <libedataserver/e-memory.h> include.
+
+2008-07-31  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #545103
+
+	* camel-imap-folder.c: (imap_sync_online): Sort changed UIDs first.
+	* camel-imap-folder.c: (get_matching): Adapt function to new behaviour,
+	before we tested against all messages in the folder, now only against
+	changes, thus detect ranges properly to not touch other messages than
+	we are actually changed.
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Fix a case, where the info
+	isn't synced to the db, but only to the server.
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #545081
+
+	* camel/providers/imap/camel-imap-message-cache.c: Add a new simple
+	delete cache function.
+	* camel/providers/imap/camel-imap-message-cache.h:
+	* camel/providers/imap/camel-imap-store.c: Now forget the folder from
+	DB.
+
+2008-07-31  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-message-cache.c: Fix delete cache
+	code, when the summary is deleted.
+
+2008-07-30  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Revamp imap_rescan. It
+	seemed to be broken to me, if a older message in the uid is broken, we
+	seem to delete the summaries of the later messages. This could be
+	experimental code. 
+
+2008-07-29  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Fix imap sync/download
+	updates. Atm, when you delete/undelete on the server the total is
+	broken. But things should sync better otherwise.
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Fix uid/pstring issues.
+
+2008-07-28  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Fix compiler warnings.
+	* camel/providers/imap/camel-imap-message-cache.c:
+	* camel/providers/imap/camel-imap-utils.c:
+
+2008-07-28  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #349870
+
+	* camel-imap-folder.c: (do_append), (imap_append_online):
+	* camel-imap-command.c: (imap_command_start),
+	(camel_imap_command_continuation): Do not hide errors, rather
+	report them to the caller as expected.
+
+2008-07-28  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #336074
+
+	* camel-imap-provider.c: (imap_conf_entries):
+	* camel-imap-store.h:
+	* camel-imap-store.c: (construct), (imap_setv), (imap_getv),
+	(imap_can_refresh_folder): New option "check_lsub", when set,
+	then checking for new messages in subscribed folders.
+
+2008-07-27  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Fix unread count issue
+	with imap providers.
+
+2008-07-26  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/providers/imap/camel-imap-folder.c: Fix compiler warnings.
+
+2008-07-25  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #544049
+
+	* camel-imap-summary.c: (EXTRACT_DIGIT): Do not read beyond the buffer.
+	* camel-imap-folder.c: (merge_custom_flags): Pass proper pointer to
+	the 'camel_flag_set' function, otherwise it messes things.
+
+2008-07-23  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #543943
+
+	* camel-imap-store.c: (camel_imap_store_finalize):
+	* camel-imap-summary.c: (message_info_from_db): Leak fix.
+
+2008-07-18  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-imap-summary.c: #include "camel-string-utils.h"
+
+2008-07-16  Sankar P  <psankar@novell.com>
+
+	Pushing disk summary changes from the madagascar branch
+
+	* camel-imap-folder.c (camel_imap_folder_selected),
+	(imap_refresh_info), (fillup_custom_flags), (merge_custom_flags),
+	(imap_rescan), (get_matching), (imap_sync_offline),
+	(imap_sync_online), (imap_expunge_uids_offline),
+	(imap_update_summary), (camel_imap_folder_changed):
+	* camel-imap-message-cache.c (camel_imap_message_cache_new):
+	* camel-imap-store.c (fill_fi):
+	* camel-imap-summary.c (camel_imap_summary_class_init),
+	(camel_imap_summary_new), (summary_header_from_db),
+	(summary_header_to_db), (message_info_from_db),
+	(message_info_to_db), (content_info_from_db), (content_info_to_db),
+	(camel_imap_summary_add_offline),
+	(camel_imap_summary_add_offline_uncached), (uid_compare):
+	* camel-imap-utils.c (get_summary_uid_numeric):
+
 2008-06-30  Milan Crha  <mcrha@redhat.com>
 
 	** Fix for bug #330838

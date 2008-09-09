@@ -251,6 +251,9 @@ term_eval_and(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 
 	r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 
+	char *oper = "AND";
+	f->operators = g_slist_prepend (f->operators, oper);
+
 	for (i=0;bool && i<argc;i++) {
 		r1 = e_sexp_term_eval(f, argv[i]);
 		if (type == -1)
@@ -291,6 +294,7 @@ term_eval_and(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	}
 
 	g_hash_table_destroy(ht);
+	f->operators = g_slist_remove (f->operators, oper);
 
 	return r;
 }
@@ -306,6 +310,9 @@ term_eval_or(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	int i;
 
 	r(printf("(or \n"));
+
+	char *oper = "OR";
+	f->operators = g_slist_prepend (f->operators, oper);
 
 	r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 
@@ -345,6 +352,7 @@ term_eval_or(struct _ESExp *f, int argc, struct _ESExpTerm **argv, void *data)
 	}
 	g_hash_table_destroy(ht);
 
+	f->operators = g_slist_remove (f->operators, oper);
 	return r;
 }
 
@@ -887,6 +895,12 @@ parse_values(ESExp *f, int *len)
 	return terms;
 }
 
+ESExpTerm * e_sexp_parse_value (ESExp *f) 
+{
+	return parse_value (f);
+}
+
+
 static struct _ESExpTerm *
 parse_value(ESExp *f)
 {
@@ -1017,6 +1031,8 @@ parse_list(ESExp *f, int gotbrace)
 		case G_TOKEN_IDENTIFIER:
 			e_sexp_fatal_error(f, "Unknown identifier: %s", g_scanner_cur_value(gs).v_identifier);
 			break;
+		case G_TOKEN_LEFT_PAREN:
+			return parse_list(f, TRUE);
 		default:
 			e_sexp_fatal_error(f, "Unexpected token encountered: %d", token);
 		}

@@ -32,6 +32,8 @@ CamelFolderSummary
 @unread_count: 
 @deleted_count: 
 @junk_count: 
+@junk_not_deleted_count: 
+@visible_count: 
 @message_info_size: 
 @content_info_size: 
 @message_info_chunks: 
@@ -40,8 +42,12 @@ CamelFolderSummary
 @build_content: 
 @messages: 
 @messages_uid: 
+@uids: 
+@loaded_infos: 
 @folder: 
 @meta_summary: 
+@cache_load_time: 
+@timeout_handle: 
 
 <!-- ##### STRUCT CamelMessageInfo ##### -->
 <para>
@@ -51,6 +57,7 @@ CamelFolderSummary
 @summary: 
 @refcount: 
 @uid: 
+@dirty: 
 
 <!-- ##### STRUCT CamelMessageInfoBase ##### -->
 <para>
@@ -60,6 +67,7 @@ CamelFolderSummary
 @summary: 
 @refcount: 
 @uid: 
+@dirty: 
 @subject: 
 @from: 
 @to: 
@@ -249,12 +257,54 @@ CamelFolderSummary
 @Returns: 
 
 
+<!-- ##### FUNCTION camel_folder_summary_save_to_db ##### -->
+<para>
+
+</para>
+
+@s: 
+@ex: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_load_from_db ##### -->
+<para>
+
+</para>
+
+@s: 
+@ex: 
+@Returns: 
+
+
 <!-- ##### FUNCTION camel_folder_summary_header_load ##### -->
 <para>
 
 </para>
 
 @summary: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_header_load_from_db ##### -->
+<para>
+
+</para>
+
+@s: 
+@store: 
+@folder_name: 
+@ex: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_header_save_to_db ##### -->
+<para>
+
+</para>
+
+@s: 
+@ex: 
 @Returns: 
 
 
@@ -273,6 +323,62 @@ CamelFolderSummary
 
 @summary: 
 @info: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_get_changed ##### -->
+<para>
+
+</para>
+
+@s: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_cache_size ##### -->
+<para>
+
+</para>
+
+@s: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_reload_from_db ##### -->
+<para>
+
+</para>
+
+@s: 
+@ex: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_insert ##### -->
+<para>
+
+</para>
+
+@s: 
+@info: 
+@load: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_remove_index_fast ##### -->
+<para>
+
+</para>
+
+@s: 
+@index: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_remove_uid_fast ##### -->
+<para>
+
+</para>
+
+@s: 
+@uid: 
 
 
 <!-- ##### FUNCTION camel_folder_summary_add_from_header ##### -->
@@ -398,6 +504,14 @@ CamelFolderSummary
 @summary: 
 
 
+<!-- ##### FUNCTION camel_folder_summary_clear_db ##### -->
+<para>
+
+</para>
+
+@s: 
+
+
 <!-- ##### FUNCTION camel_folder_summary_count ##### -->
 <para>
 
@@ -427,6 +541,26 @@ CamelFolderSummary
 @Returns: 
 
 
+<!-- ##### FUNCTION camel_folder_summary_uid_from_index ##### -->
+<para>
+
+</para>
+
+@s: 
+@i: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_check_uid ##### -->
+<para>
+
+</para>
+
+@s: 
+@uid: 
+@Returns: 
+
+
 <!-- ##### FUNCTION camel_folder_summary_array ##### -->
 <para>
 
@@ -434,15 +568,6 @@ CamelFolderSummary
 
 @summary: 
 @Returns: 
-
-
-<!-- ##### FUNCTION camel_folder_summary_array_free ##### -->
-<para>
-
-</para>
-
-@summary: 
-@array: 
 
 
 <!-- ##### FUNCTION camel_folder_summary_encode_token ##### -->
@@ -482,7 +607,7 @@ CamelFolderSummary
 
 @list: 
 @name: 
-@state: 
+@value: 
 @Returns: 
 
 
@@ -800,7 +925,7 @@ CamelFolderSummary
 </para>
 
 @mi: 
-@mask: 
+@flags: 
 @set: 
 @Returns: 
 
@@ -842,5 +967,14 @@ CamelFolderSummary
 </para>
 
 @mi: 
+
+
+<!-- ##### FUNCTION camel_folder_summary_migrate_infos ##### -->
+<para>
+
+</para>
+
+@s: 
+@Returns: 
 
 

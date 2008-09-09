@@ -40,13 +40,12 @@
 #endif
 
 #include <libedataserver/e-sexp.h>
-#include <libedataserver/e-memory.h>
-#include <libedataserver/e-msgport.h>
 
 #include "camel-debug.h"
 #include "camel-file-utils.h"
 #include "camel-filter-driver.h"
 #include "camel-filter-search.h"
+#include "camel-list-utils.h"
 #include "camel-mime-message.h"
 #include "camel-private.h"
 #include "camel-service.h"
@@ -118,7 +117,7 @@ struct _CamelFilterDriverPrivate {
 	
 	FILE *logfile;             /* log file */
 	
-	EDList rules;		   /* list of _filter_rule structs */
+	CamelDList rules;		   /* list of _filter_rule structs */
 	
 	CamelException *ex;
 	
@@ -216,7 +215,7 @@ camel_filter_driver_init (CamelFilterDriver *obj)
 	
 	p = _PRIVATE (obj) = g_malloc0 (sizeof (*p));
 
-	e_dlist_init(&p->rules);
+	camel_dlist_init(&p->rules);
 
 	p->eval = e_sexp_new ();
 	/* Load in builtin symbols */
@@ -266,7 +265,7 @@ camel_filter_driver_finalise (CamelObject *obj)
 		camel_object_unref (p->defaultfolder);
 	}
 
-	while ((node = (struct _filter_rule *)e_dlist_remhead(&p->rules))) {
+	while ((node = (struct _filter_rule *)camel_dlist_remhead(&p->rules))) {
 		g_free(node->match);
 		g_free(node->action);
 		g_free(node->name);
@@ -375,7 +374,7 @@ camel_filter_driver_add_rule(CamelFilterDriver *d, const char *name, const char 
 	node->match = g_strdup(match);
 	node->action = g_strdup(action);
 	node->name = g_strdup(name);
-	e_dlist_addtail(&p->rules, (EDListNode *)node);
+	camel_dlist_addtail(&p->rules, (CamelDListNode *)node);
 }
 
 int
@@ -387,7 +386,7 @@ camel_filter_driver_remove_rule_by_name (CamelFilterDriver *d, const char *name)
 	node = (struct _filter_rule *) p->rules.head;
 	while (node->next) {
 		if (!strcmp (node->name, name)) {
-			e_dlist_remove ((EDListNode *) node);
+			camel_dlist_remove ((CamelDListNode *) node);
 			g_free (node->match);
 			g_free (node->action);
 			g_free (node->name);
@@ -1159,6 +1158,26 @@ camel_filter_driver_flush (CamelFilterDriver *driver, CamelException *ex)
 	g_hash_table_foreach_remove (p->only_once, (GHRFunc) run_only_once, &data);
 }
 
+
+static int
+decode_flags_from_xev(const char *xev, CamelMessageInfoBase *mi)
+{
+	guint32 uid, flags = 0;
+	char *header;
+
+	/* check for uid/flags */
+	header = camel_header_token_decode(xev);
+	if (!(header && strlen(header) == strlen("00000000-0000")
+	    && sscanf(header, "%08x-%04x", &uid, &flags) == 2)) {
+		g_free(header);
+		return 0;
+	}
+	g_free(header);
+
+	mi->flags = flags;
+	return 0;
+}
+
 /**
  * camel_filter_driver_filter_mbox:
  * @driver: CamelFilterDriver
@@ -1170,7 +1189,7 @@ camel_filter_driver_flush (CamelFilterDriver *driver, CamelException *ex)
  * object. Is more efficient as it doesn't need to open the folder
  * through Camel directly.
  *
- * Returns -1 if errors were encountered during filtering,
+ * Returns: -1 if errors were encountered during filtering,
  * otherwise returns 0.
  *
  **/
@@ -1209,7 +1228,8 @@ camel_filter_driver_filter_mbox (CamelFilterDriver *driver, const char *mbox, co
 		CamelMessageInfo *info;
 		CamelMimeMessage *msg;
 		int pc = 0;
-		
+		const char *xev;
+	
 		if (st.st_size > 0)
 			pc = (int)(100.0 * ((double)camel_mime_parser_tell (mp) / (double)st.st_size));
 		
@@ -1224,6 +1244,11 @@ camel_filter_driver_filter_mbox (CamelFilterDriver *driver, const char *mbox, co
 		}
 
 		info = camel_message_info_new_from_header(NULL, ((CamelMimePart *)msg)->headers);
+		/* Try and see if it has X-Evolution headers */
+		xev = camel_header_raw_find(&((CamelMimePart *)msg)->headers, "X-Evolution", NULL);
+		if (xev)
+			decode_flags_from_xev (xev, (CamelMessageInfoBase *)info);
+
 		((CamelMessageInfoBase *)info)->size = camel_mime_parser_tell(mp) - last;
 
 		last = camel_mime_parser_tell(mp);
@@ -1275,7 +1300,7 @@ fail:
  * Filters a folder based on rules defined in the FilterDriver
  * object.
  *
- * Returns -1 if errors were encountered during filtering,
+ * Returns: -1 if errors were encountered during filtering,
  * otherwise returns 0.
  *
  **/
@@ -1403,7 +1428,7 @@ get_message_cb (void *data, CamelException *ex)
  * certain cases is more efficient than using the default
  * camel_folder_append_message() function).
  *
- * Returns -1 if errors were encountered during filtering,
+ * Returns: -1 if errors were encountered during filtering,
  * otherwise returns 0.
  *
  **/

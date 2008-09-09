@@ -43,6 +43,8 @@
 #include "camel-vee-folder.h"
 #include "camel-vee-store.h"	/* for open flags */
 #include "camel-vee-summary.h"
+#include "camel-string-utils.h"
+#include "camel-vee-folder.h"
 
 #define d(x) 
 #define dd(x) (camel_debug("vfolder")?(x):0)
@@ -80,6 +82,7 @@ static void subfolder_deleted(CamelFolder *f, void *event_data, CamelVeeFolder *
 static void folder_renamed(CamelFolder *f, const char *old, CamelVeeFolder *vf);
 
 static void folder_changed_remove_uid(CamelFolder *sub, const char *uid, const char hash[8], int keep, CamelVeeFolder *vf);
+static void summary_reloaded(CamelObject *o, void *event_data, void *data);
 
 static CamelFolderClass *camel_vee_folder_parent;
 
@@ -119,7 +122,7 @@ camel_vee_folder_construct (CamelVeeFolder *vf, CamelStore *parent_store, const 
  * camel_vee_folder_new:
  * @parent_store: the parent CamelVeeStore
  * @full: the full path to the vfolder.
- * @ex: a CamelException
+ * @flags: flags of some kind
  *
  * Create a new CamelVeeFolder object.
  *
@@ -147,13 +150,14 @@ camel_vee_folder_new(CamelStore *parent_store, const char *full, guint32 flags)
 
 	d(printf("returning folder %s %p, count = %d\n", name, vf, camel_folder_get_message_count((CamelFolder *)vf)));
 
-	tmp = g_strdup_printf("%s/%s.cmeta", ((CamelService *)parent_store)->url->path, full);
-	camel_object_set(vf, NULL, CAMEL_OBJECT_STATE_FILE, tmp, NULL);
-	g_free(tmp);
-	if (camel_object_state_read(vf) == -1) {
-		/* setup defaults: we have none currently */
+	if (vf) {
+		tmp = g_strdup_printf("%s/%s.cmeta", ((CamelService *)parent_store)->url->path, full);
+		camel_object_set(vf, NULL, CAMEL_OBJECT_STATE_FILE, tmp, NULL);
+		g_free(tmp);
+		if (camel_object_state_read(vf) == -1) {
+			/* setup defaults: we have none currently */
+		}
 	}
-
 	return (CamelFolder *)vf;
 }
 
@@ -174,7 +178,7 @@ void
 camel_vee_folder_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
 {
 	struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);
-	int i;
+	int i, cache;
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
 	
 	if (vf == (CamelVeeFolder *)sub) {
@@ -215,11 +219,20 @@ camel_vee_folder_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
 
 	d(printf("camel_vee_folder_add_folde(%p, %p)\n", vf, sub));
 
+	cache = camel_folder_summary_cache_size(sub->summary);
+	if (!cache) {
+		camel_object_hook_event(sub->summary, "summary_reloaded", summary_reloaded, vf);
+		g_hash_table_insert(vf->loaded, sub, GINT_TO_POINTER(1));
+	}
+	
 	camel_object_hook_event((CamelObject *)sub, "folder_changed", (CamelObjectEventHookFunc)folder_changed, vf);
 	camel_object_hook_event((CamelObject *)sub, "deleted", (CamelObjectEventHookFunc)subfolder_deleted, vf);
 	camel_object_hook_event((CamelObject *)sub, "renamed", (CamelObjectEventHookFunc)folder_renamed, vf);
 
 	((CamelVeeFolderClass *)((CamelObject *)vf)->klass)->add_folder(vf, sub);
+	
+	if (cache) 
+		summary_reloaded((CamelObject *) sub->summary, (void *)sub->summary, (void *)vf);
 }
 
 /**
@@ -247,11 +260,16 @@ camel_vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *sub)
 		CAMEL_VEE_FOLDER_UNLOCK(vf, subfolder_lock);
 		return;
 	}
+
 	
 	camel_object_unhook_event((CamelObject *)sub, "folder_changed", (CamelObjectEventHookFunc) folder_changed, vf);
 	camel_object_unhook_event((CamelObject *)sub, "deleted", (CamelObjectEventHookFunc) subfolder_deleted, vf);
 	camel_object_unhook_event((CamelObject *)sub, "renamed", (CamelObjectEventHookFunc) folder_renamed, vf);
-
+	if (GPOINTER_TO_INT(g_hash_table_lookup (vf->loaded, sub))) {
+		g_hash_table_remove (vf->loaded, sub);		
+		camel_object_unhook_event((CamelObject *)sub->summary, "summary_reloaded", (CamelObjectEventHookFunc) summary_reloaded, vf);
+	}
+	
 	p->folders = g_list_remove(p->folders, sub);
 	
 	/* undo the freeze state that we have imposed on this source folder */
@@ -421,7 +439,7 @@ camel_vee_folder_get_location(CamelVeeFolder *vf, const CamelVeeMessageInfo *vin
 {
 	CamelFolder *folder;
 
-	folder = vinfo->real->summary->folder;
+	folder = vinfo->summary->folder;
 
 	/* locking?  yes?  no?  although the vfolderinfo is valid when obtained
 	   the folder in it might not necessarily be so ...? */
@@ -465,13 +483,95 @@ static void vee_refresh_info(CamelFolder *folder, CamelException *ex)
 	g_list_free(list);
 }
 
+static int
+count_folder (CamelFolder *f, char *expr, CamelException *ex)
+{
+	GPtrArray *match;
+	int count = 0;
+
+	/* FIXME: Why don't we write a count_search_by_expression. It can be just fast. */
+	match = camel_folder_search_by_expression(f, expr, ex);
+	if (match) {
+		count = match->len;
+		camel_folder_search_free (f, match);
+	}
+
+	return count;
+}
+static int 
+count_result (CamelFolderSummary *summary, char *query, CamelException *ex)
+{
+	CamelFolder *folder = summary->folder;
+	CamelVeeFolder *vf = (CamelVeeFolder *)folder;
+	int count=0; 
+	char *expr = g_strdup_printf ("(and %s %s)", vf->expression ? vf->expression : "", query);
+	GList *node;
+	struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);
+	
+	node = p->folders;
+	while (node) {
+		CamelFolder *f = node->data;
+		count += count_folder(f, expr, ex);
+		node = node->next;
+	}
+
+	g_free(expr);
+	return count;
+}
+
+static	CamelFIRecord *
+summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
+{
+	CamelFIRecord * record = g_new0 (CamelFIRecord, 1);
+	CamelDB *db;
+	char *table_name;
+
+	db = s->folder->parent_store->cdb;
+	table_name = s->folder->full_name;
+
+	record->folder_name = table_name;
+
+	/* we always write out the current version */
+	record->version = 13;  /* FIXME: CAMEL_FOLDER_SUMMARY_VERSION; */
+	record->flags  = s->flags;
+	record->nextuid = s->nextuid;
+	record->time = s->time;
+
+	record->saved_count = s->uids->len;
+	if ((s->visible_count) && !g_getenv("FORCE_VFOLDER_COUNT")) {
+		/* We should be in sync always. so use the count. Don't search.*/
+		record->junk_count = s->junk_count;
+		record->deleted_count = s->deleted_count;
+		record->unread_count = s->unread_count;
+		record->visible_count = s->visible_count;
+		record->jnd_count = s->junk_not_deleted_count;
+	} else {
+		/* Either first time, or by force we search the count */
+		s->junk_count = count_result (s, "(match-all (system-flag  \"junk\"))", ex);
+		s->deleted_count = count_result (s, "(match-all (system-flag  \"deleted\"))", ex);
+		s->unread_count = count_result (s, "(match-all (not (system-flag  \"Seen\")))", ex);
+		s->visible_count = count_result (s, "(match-all (and (not (system-flag \"deleted\")) (not (system-flag \"junk\"))))", ex);
+		s->junk_not_deleted_count = count_result (s, "(match-all (and (not (system-flag \"deleted\")) (system-flag \"junk\")))", ex);
+
+		record->junk_count = s->junk_count;
+		record->deleted_count = s->deleted_count;
+		record->unread_count = s->unread_count;
+		record->visible_count = s->visible_count;
+		record->jnd_count = s->junk_not_deleted_count;
+	}
+
+	d(printf("%s %d %d %d %d %d\n", s->folder->full_name, record->junk_count, record->deleted_count, record->unread_count, record->visible_count, record->jnd_count));
+	return record;	
+}
+
 static void
 vee_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 {
 	CamelVeeFolder *vf = (CamelVeeFolder *)folder;
 	struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);
 	GList *node;
-
+	CamelFIRecord * record;
+	
 	CAMEL_VEE_FOLDER_LOCK(vf, subfolder_lock);
 
 	node = p->folders;
@@ -479,22 +579,32 @@ vee_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 		CamelFolder *f = node->data;
 
 		camel_folder_sync(f, expunge, ex);
-		if (camel_exception_is_set(ex)) {
+		if (camel_exception_is_set(ex) && strncmp(camel_exception_get_description(ex), "no such table", 13)) {
 			char *desc;
 
 			camel_object_get(f, NULL, CAMEL_OBJECT_DESCRIPTION, &desc, NULL);
 			camel_exception_setv(ex, ex->id, _("Error storing '%s': %s"), desc, ex->desc);
-			break;
-		}
+			g_warning ("%s", camel_exception_get_description(ex));
+			g_free(desc);
+		} else
+			camel_exception_clear (ex);
 
+		
 		/* auto update vfolders shouldn't need a rebuild */
-		if ((vf->flags & CAMEL_STORE_VEE_FOLDER_AUTO) == 0
-		    && camel_vee_folder_rebuild_folder(vf, f, ex) == -1)
-			break;
+/* 		if ((vf->flags & CAMEL_STORE_VEE_FOLDER_AUTO) == 0 */
+/* 		    && camel_vee_folder_rebuild_folder(vf, f, ex) == -1) */
+/* 			break; */
 
 		node = node->next;
 	}
-
+#if 0
+	/* Seems like we are doing something wrong with this, as folder_changed happens after this, the counts are misleading.
+	 * Anyways we do a force sync on exit, it should be all fine.
+	  */
+	record = summary_header_to_db (folder->summary, ex);
+	camel_db_write_folder_info_record (folder->parent_store->cdb, record, ex);
+	g_free (record);
+#endif	
 	if (node == NULL) {
 		CAMEL_VEE_FOLDER_LOCK(vf, changed_lock);
 		g_list_free(p->folders_changed);
@@ -510,6 +620,9 @@ vee_sync(CamelFolder *folder, gboolean expunge, CamelException *ex)
 static void
 vee_expunge (CamelFolder *folder, CamelException *ex)
 {
+	/* Force it to rebuild the counts, when some folders were expunged. */
+	folder->summary->unread_count = 0;
+	folder->summary->visible_count = 0;
 	((CamelFolderClass *)((CamelObject *)folder)->klass)->sync(folder, TRUE, ex);
 }
 
@@ -521,7 +634,7 @@ vee_get_message(CamelFolder *folder, const char *uid, CamelException *ex)
 
 	mi = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, uid);
 	if (mi) {
-		msg =  camel_folder_get_message(mi->real->summary->folder, camel_message_info_uid(mi)+8, ex);
+		msg =  camel_folder_get_message(mi->summary->folder, camel_message_info_uid(mi)+8, ex);
 		camel_message_info_free((CamelMessageInfo *)mi);
 	} else {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
@@ -543,8 +656,6 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 	GHashTable *searched = g_hash_table_new(NULL, NULL);
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
 	
-	CAMEL_VEE_FOLDER_LOCK(vf, subfolder_lock);
-	
 	if (vf != folder_unmatched)
 		expr = g_strdup_printf ("(and %s %s)", vf->expression ? vf->expression : "", expression);
 	else
@@ -559,8 +670,7 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 		/* make sure we only search each folder once - for unmatched folder to work right */
 		if (g_hash_table_lookup(searched, f) == NULL) {
 			camel_vee_folder_hash_folder(f, hash);
-			/* FIXME: shouldn't ignore search exception */
-			matches = camel_folder_search_by_expression(f, expression, NULL);
+			matches = camel_folder_search_by_expression(f, expr, ex);
 			if (matches) {
 				for (i = 0; i < matches->len; i++) {
 					char *uid = matches->pdata[i], *vuid;
@@ -568,7 +678,8 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 					vuid = g_malloc(strlen(uid)+9);
 					memcpy(vuid, hash, 8);
 					strcpy(vuid+8, uid);
-					g_ptr_array_add(result, vuid);
+					g_ptr_array_add(result, (gpointer) camel_pstring_strdup(vuid));
+					g_free (vuid);
 				}
 				camel_folder_search_free(f, matches);
 			}
@@ -577,11 +688,11 @@ vee_search_by_expression(CamelFolder *folder, const char *expression, CamelExcep
 		node = g_list_next(node);
 	}
 
+	
 	g_free(expr);
-	CAMEL_VEE_FOLDER_UNLOCK(vf, subfolder_lock);
 
 	g_hash_table_destroy(searched);
-
+	d(printf("returning %d\n", result->len));
 	return result;
 }
 
@@ -618,7 +729,7 @@ vee_search_by_uids(CamelFolder *folder, const char *expression, GPtrArray *uids,
 					g_ptr_array_add(folder_uids, uid+8);
 			}
 			if (folder_uids->len > 0) {
-				matches = camel_folder_search_by_uids(f, expression, folder_uids, ex);
+				matches = camel_folder_search_by_uids(f, expr, folder_uids, ex);
 				if (matches) {
 					for (i = 0; i < matches->len; i++) {
 						char *uid = matches->pdata[i], *vuid;
@@ -684,25 +795,24 @@ static void vee_delete(CamelFolder *folder)
 		CAMEL_VEE_FOLDER_LOCK(folder, subfolder_lock);
 	}
 	CAMEL_VEE_FOLDER_UNLOCK(folder, subfolder_lock);
-
+	
 	((CamelFolderClass *)camel_vee_folder_parent)->delete(folder);
+	((CamelVeeFolder *)folder)->deleted = TRUE;
 }
 
 /* ********************************************************************** *
    utility functions */
 
+#define COUNT_ADD_EXPR(lval, sexpr) expr = g_strdup_printf("and (%s %s)", vf->expression, sexpr); lval += count_folder(f, expr, ex); g_free(expr);
+#define COUNT_DEL_EXPR(lval, sexpr) expr = g_strdup_printf("and (%s %s)", vf->expression, sexpr); lval -= count_folder(ssummary->folder, expr, NULL); g_free(expr);
+
 /* must be called with summary_lock held */
 static CamelVeeMessageInfo *
 vee_folder_add_uid(CamelVeeFolder *vf, CamelFolder *f, const char *inuid, const char hash[8])
 {
-	CamelMessageInfo *info;
 	CamelVeeMessageInfo *mi = NULL;
 
-	info = camel_folder_get_message_info(f, inuid);
-	if (info) {
-		mi = camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, info, hash);
-		camel_folder_free_message_info(f, info);
-	}
+	mi = camel_vee_summary_add((CamelVeeSummary *)((CamelFolder *)vf)->summary, f->summary, (char *)inuid, hash);
 	return mi;
 }
 
@@ -713,14 +823,14 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 	char *oldkey;
 	CamelFolder *folder = (CamelFolder *)vf;
 	char hash[8];
-	/*struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);*/
 	CamelFolderChangeInfo *vf_changes = NULL, *unmatched_changes = NULL;
 	void *oldval;
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
 	GHashTable *unmatched_uids = vf->parent_vee_store ? vf->parent_vee_store->unmatched_uids : NULL;
 	CamelFolderSummary *ssummary = source->summary;
 	int killun = FALSE;
-
+	char *expr;
+	
 	if (vf == folder_unmatched)
 		return;
 
@@ -749,7 +859,7 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 				CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(((CamelFolder *)folder_unmatched)->summary, i);
 				
 				if (mi) {
-					if (mi->real->summary == ssummary) {
+					if (mi->summary == ssummary) {
 						camel_folder_change_info_remove_uid(folder_unmatched->changes, camel_message_info_uid(mi));
 						if (last == -1) {
 							last = start = i;
@@ -769,13 +879,14 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 		}
 	}
 
+	/*FIXME: This can be optimized a lot like, searching for UID in the summary uids */
 	start = -1;
 	last = -1;
 	count = camel_folder_summary_count(folder->summary);
 	for (i=0;i<count;i++) {
 		CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(folder->summary, i);
 		if (mi) {
-			if (mi->real->summary == ssummary) {
+			if (mi->summary == ssummary) {
 				const char *uid = camel_message_info_uid(mi);
 
 				camel_folder_change_info_remove_uid(vf->changes, uid);
@@ -794,9 +905,12 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 						if (g_hash_table_lookup_extended(unmatched_uids, uid, (void **)&oldkey, &oldval)) {
 							n = GPOINTER_TO_INT (oldval);
 							if (n == 1) {
+								CamelMessageInfo *tinfo;
 								g_hash_table_remove(unmatched_uids, oldkey);
-								if (vee_folder_add_uid(folder_unmatched, source, oldkey+8, hash))
+								if ((tinfo = (CamelMessageInfo *) vee_folder_add_uid(folder_unmatched, source, oldkey+8, hash)) != NULL) {
+									camel_message_info_free (tinfo);
 									camel_folder_change_info_add_uid(folder_unmatched->changes, oldkey);
+								}
 								g_free(oldkey);
 							} else {
 								g_hash_table_insert(unmatched_uids, oldkey, GINT_TO_POINTER(n-1));
@@ -816,7 +930,13 @@ vee_folder_remove_folder(CamelVeeFolder *vf, CamelFolder *source)
 
 	if (last != -1)
 		camel_folder_summary_remove_range(folder->summary, start, last);
-
+	
+	COUNT_DEL_EXPR(folder->summary->junk_count, "(match-all (system-flag  \"junk\"))");
+	COUNT_DEL_EXPR(folder->summary->deleted_count, "(match-all (system-flag  \"deleted\"))");
+	COUNT_DEL_EXPR(folder->summary->unread_count, "(match-all (not (system-flag  \"Seen\")))");
+	COUNT_DEL_EXPR(folder->summary->visible_count, "(match-all (and (not (system-flag \"deleted\")) (not (system-flag \"junk\"))))");
+	COUNT_DEL_EXPR(folder->summary->junk_not_deleted_count, "(match-all (and (not (system-flag \"deleted\")) (system-flag \"junk\")))");
+				
 	if (folder_unmatched) {
 		if (camel_folder_change_info_changed(folder_unmatched->changes)) {
 			unmatched_changes = folder_unmatched->changes;
@@ -850,6 +970,7 @@ struct _update_data {
 	char hash[8];
 	CamelVeeFolder *folder_unmatched;
 	GHashTable *unmatched_uids;
+	gboolean rebuilt;
 };
 
 static void
@@ -885,7 +1006,10 @@ folder_added_uid(char *uidin, void *value, struct _update_data *u)
 
 	if ( (mi = vee_folder_add_uid(u->vf, u->source, uidin, u->hash)) ) {
 		camel_folder_change_info_add_uid(u->vf->changes, camel_message_info_uid(mi));
-
+		#warning "Handle exceptions"
+		#warning "Make all these as transactions, just testing atm"
+		if (u->rebuilt)
+			camel_db_add_to_vfolder_transaction (((CamelFolder *) u->vf)->parent_store->cdb, ((CamelFolder *) u->vf)->full_name, (char *) camel_message_info_uid(mi), NULL);
 		if (!CAMEL_IS_VEE_FOLDER(u->source) && u->unmatched_uids != NULL) {
 			if (g_hash_table_lookup_extended(u->unmatched_uids, camel_message_info_uid(mi), (void **)&oldkey, &oldval)) {
 				n = GPOINTER_TO_INT (oldval);
@@ -896,6 +1020,7 @@ folder_added_uid(char *uidin, void *value, struct _update_data *u)
 		}
 	}
 }
+
 
 /* build query contents for a single folder */
 static int
@@ -911,24 +1036,45 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
 	GHashTable *unmatched_uids = vf->parent_vee_store ? vf->parent_vee_store->unmatched_uids : NULL;
 	CamelFolderSummary *ssummary = source->summary;
-
+	gboolean rebuilded = FALSE;
+	char *shash; 
+	
 	if (vf == folder_unmatched)
 		return 0;
+
+	camel_vee_folder_hash_folder(source, u.hash);
+	shash = g_strdup_printf("%c%c%c%c%c%c%c%c", u.hash[0], u.hash[1], u.hash[2], u.hash[3], u.hash[4], u.hash[5], u.hash[6], u.hash[7]);	
+	if (!g_hash_table_lookup (vf->hashes, shash))
+		g_hash_table_insert (vf->hashes, g_strdup(shash), source->summary);
 
 	/* if we have no expression, or its been cleared, then act as if no matches */
 	if (vf->expression == NULL) {
 		match = g_ptr_array_new();
 	} else {
-		match = camel_folder_search_by_expression(f, vf->expression, ex);
-		if (match == NULL)
-			return -1;
+		/* Load the folder results from the DB. */
+		match = camel_vee_summary_get_ids ((CamelVeeSummary *)folder->summary, u.hash);
+		d(printf("len = %d %d for %s %s\n", match ? match->len:0, rebuilded, source->full_name, shash));
+		if (!match) {
+			char *expr;
+			match = camel_folder_search_by_expression(f, vf->expression, ex);
+			if (match == NULL)
+				return 0;
+			rebuilded = TRUE;
+			/* Update the counts */
+			COUNT_ADD_EXPR(folder->summary->junk_count, "(match-all (system-flag  \"junk\"))");
+			COUNT_ADD_EXPR(folder->summary->deleted_count, "(match-all (system-flag  \"deleted\"))");
+			COUNT_ADD_EXPR(folder->summary->unread_count, "(match-all (not (system-flag  \"Seen\")))");
+			COUNT_ADD_EXPR(folder->summary->visible_count, "(match-all (and (not (system-flag \"deleted\")) (not (system-flag \"junk\"))))");
+			COUNT_ADD_EXPR(folder->summary->junk_not_deleted_count, "(match-all (and (not (system-flag \"deleted\")) (system-flag \"junk\")))");
+		}
+		
 	}
 
 	u.source = source;
 	u.vf = vf;
 	u.folder_unmatched = folder_unmatched;
 	u.unmatched_uids = unmatched_uids;
-	camel_vee_folder_hash_folder(source, u.hash);
+	u.rebuilt = rebuilded;
 
 	CAMEL_VEE_FOLDER_LOCK(vf, summary_lock);
 
@@ -939,7 +1085,7 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 		g_hash_table_insert(matchhash, match->pdata[i], GINT_TO_POINTER (1));
 
 	allhash = g_hash_table_new(g_str_hash, g_str_equal);
-	all = camel_folder_get_uids(f);
+	all = camel_folder_summary_array(f->summary);
 	for (i=0;i<all->len;i++)
 		if (g_hash_table_lookup(matchhash, all->pdata[i]) == NULL)
 			g_hash_table_insert(allhash, all->pdata[i], GINT_TO_POINTER (1));
@@ -955,7 +1101,7 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 		CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(folder->summary, i);
 
 		if (mi) {
-			if (mi->real->summary == ssummary) {
+			if (mi->summary == ssummary) {
 				char *uid = (char *)camel_message_info_uid(mi), *oldkey;
 				void *oldval;
 				
@@ -992,28 +1138,33 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 		camel_folder_summary_remove_range(folder->summary, start, last);
 
 	/* now matchhash contains any new uid's, add them, etc */
+	if (rebuilded) {
+		camel_db_begin_transaction (folder->parent_store->cdb, NULL);
+
+	}
 	g_hash_table_foreach(matchhash, (GHFunc)folder_added_uid, &u);
 
+	if (rebuilded)
+		camel_db_end_transaction (folder->parent_store->cdb, NULL);
+	
 	if (folder_unmatched != NULL) {
 		/* scan unmatched, remove any that have vanished, etc */
 		count = camel_folder_summary_count(((CamelFolder *)folder_unmatched)->summary);
 		for (i=0;i<count;i++) {
-			CamelVeeMessageInfo *mi = (CamelVeeMessageInfo *)camel_folder_summary_index(((CamelFolder *)folder_unmatched)->summary, i);
+			char *uid = camel_folder_summary_uid_from_index (((CamelFolder *)folder_unmatched)->summary, i);
 
-			if (mi) {
-				if (mi->real->summary == ssummary) {
-					char *uid = (char *)camel_message_info_uid(mi);
-
+			if (uid) {
+				if (strncmp (uid, u.hash, 8) == 0) {
 					if (g_hash_table_lookup(allhash, uid+8) == NULL) {
 						/* no longer exists at all, just remove it entirely */
-						camel_folder_summary_remove_index(((CamelFolder *)folder_unmatched)->summary, i);
-						camel_folder_change_info_remove_uid(folder_unmatched->changes, camel_message_info_uid(mi));
+						camel_folder_summary_remove_index_fast(((CamelFolder *)folder_unmatched)->summary, i);
+						camel_folder_change_info_remove_uid(folder_unmatched->changes, uid);
 						i--;
 					} else {
 						g_hash_table_remove(allhash, uid+8);
 					}
 				}
-				camel_message_info_free((CamelMessageInfo *)mi);
+				g_free (uid);
 			}
 		}
 
@@ -1039,12 +1190,14 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 
 	g_hash_table_destroy(matchhash);
 	g_hash_table_destroy(allhash);
+	g_free(shash);
 	/* if expression not set, we only had a null list */
-	if (vf->expression == NULL)
+	if (vf->expression == NULL || !rebuilded) {
+		g_ptr_array_foreach (match, (GFunc) camel_pstring_free, NULL);
 		g_ptr_array_free(match, TRUE);
-	else
+	} else
 		camel_folder_search_free(f, match);
-	camel_folder_free_uids(f, all);
+	camel_folder_free_summary (f, all);
 
 	if (unmatched_changes) {
 		camel_object_trigger_event((CamelObject *)folder_unmatched, "folder_changed", unmatched_changes);
@@ -1065,11 +1218,80 @@ vee_rebuild_folder(CamelVeeFolder *vf, CamelFolder *source, CamelException *ex)
 
  */
 
+static void
+update_summary (CamelVeeMessageInfo *mi, guint32 flags, guint32 oldflags, gboolean add)
+{
+	int unread=0, deleted=0, junk=0;
+	CamelFolderSummary *summary = ((CamelMessageInfo *) mi)->summary;
+	
+	if (!(flags & CAMEL_MESSAGE_SEEN))
+		unread = 1;
+	
+	if (flags & CAMEL_MESSAGE_DELETED)
+		deleted = 1;
 
+	if (flags & CAMEL_MESSAGE_JUNK)
+		junk = 1;
+	
+	d(printf("%d %d %d\n%d %d %d\n", !(flags & CAMEL_MESSAGE_SEEN), flags & CAMEL_MESSAGE_DELETED, flags & CAMEL_MESSAGE_JUNK, !(oldflags & CAMEL_MESSAGE_SEEN), flags & CAMEL_MESSAGE_DELETED, flags & CAMEL_MESSAGE_JUNK));
+	
+	if (!oldflags) {
+		if (add) {
+			if (unread)
+				summary->unread_count += unread;
+			if (deleted)
+				summary->deleted_count += deleted;
+			if (junk)
+				summary->junk_count += junk;
+			if (junk && !deleted)
+				summary->junk_not_deleted_count += junk;
+			summary->visible_count++;
+			if (junk ||  deleted) 
+				summary->visible_count -= junk ? junk : deleted;
+
+			summary->saved_count++;		
+		} else {
+			if (unread)
+				summary->unread_count -= unread;
+			if (deleted)
+				summary->deleted_count -= deleted;
+			if (junk)
+				summary->junk_count -= junk;
+			if (junk && !deleted)
+				summary->junk_not_deleted_count -= junk;
+			if (!junk && !deleted)
+				summary->visible_count--;
+
+			summary->saved_count--;		
+		}
+	} else {
+		if (!(oldflags & CAMEL_MESSAGE_SEEN))
+			unread -= 1;
+
+		if (flags & CAMEL_MESSAGE_DELETED)
+			deleted -= 1;
+
+		if (flags & CAMEL_MESSAGE_JUNK)
+			junk -= 1;
+		
+		if (unread)
+			summary->unread_count += unread;
+		if (deleted)
+			summary->deleted_count += deleted;
+		if (junk)
+			summary->junk_count += junk;
+		if (junk && !deleted)
+			summary->junk_not_deleted_count += junk;
+		if (junk ||  deleted) 
+			summary->visible_count -= junk ? junk : deleted;
+	}
+}
+		
 /* Hold all these with summary lock and unmatched summary lock held */
 static void
 folder_changed_add_uid(CamelFolder *sub, const char *uid, const char hash[8], CamelVeeFolder *vf)
 {
+	CamelFolder *folder = (CamelFolder *)vf;	
 	CamelVeeMessageInfo *vinfo;
 	const char *vuid;
 	char *oldkey;
@@ -1083,8 +1305,10 @@ folder_changed_add_uid(CamelFolder *sub, const char *uid, const char hash[8], Ca
 		return;
 	
 	vuid = camel_message_info_uid(vinfo);
+	camel_db_add_to_vfolder_transaction (folder->parent_store->cdb, folder->full_name, (char *)vuid, NULL);
 	camel_folder_change_info_add_uid(vf->changes,  vuid);
-
+	/* old flags and new flags should  be same, since we sync all times  */
+	update_summary (vinfo, camel_message_info_flags(vinfo), 0, TRUE);
 	if ((vf->flags & CAMEL_STORE_FOLDER_PRIVATE) == 0 && !CAMEL_IS_VEE_FOLDER(sub) && folder_unmatched != NULL) {
 		if (g_hash_table_lookup_extended(unmatched_uids, vuid, (void **)&oldkey, &oldval)) {
 			n = GPOINTER_TO_INT (oldval);
@@ -1116,12 +1340,15 @@ folder_changed_remove_uid(CamelFolder *sub, const char *uid, const char hash[8],
 	memcpy(vuid, hash, 8);
 	strcpy(vuid+8, uid);
 
-	vinfo = (CamelVeeMessageInfo *)camel_folder_summary_uid(folder->summary, vuid);
+	vinfo = (CamelVeeMessageInfo *) camel_folder_summary_uid (((CamelFolder *) vf)->summary, vuid);
 	if (vinfo) {
-		camel_folder_change_info_remove_uid(vf->changes, vuid);
-		camel_folder_summary_remove(folder->summary, (CamelMessageInfo *)vinfo);
+		update_summary (vinfo, vinfo->old_flags, 0, FALSE);
 		camel_message_info_free((CamelMessageInfo *)vinfo);
 	}
+	camel_folder_change_info_remove_uid(vf->changes, vuid);
+        #warning "Handle exception"
+	camel_db_delete_uid_from_vfolder_transaction (folder->parent_store->cdb, folder->full_name, vuid, NULL);
+	camel_folder_summary_remove_uid(folder->summary, vuid);
 
 	if ((vf->flags & CAMEL_STORE_FOLDER_PRIVATE) == 0 && !CAMEL_IS_VEE_FOLDER(sub) && folder_unmatched != NULL) {
 		if (keep) {
@@ -1176,11 +1403,13 @@ folder_changed_change_uid(CamelFolder *sub, const char *uid, const char hash[8],
 		if (info) {
 			if (vinfo) {
 				camel_folder_change_info_change_uid(vf->changes, vuid);
+				update_summary (vinfo, camel_message_info_flags(info), vinfo->old_flags, FALSE /* Doesn't matter */);
 				camel_message_info_free((CamelMessageInfo *)vinfo);
 			}
 
 			if (uinfo) {
 				camel_folder_change_info_change_uid(folder_unmatched->changes, vuid);
+				update_summary (uinfo, camel_message_info_flags(info), uinfo->old_flags, FALSE /* Doesn't matter */);				
 				camel_message_info_free((CamelMessageInfo *)uinfo);
 			}
 
@@ -1234,6 +1463,7 @@ folder_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 
 	camel_vee_folder_hash_folder(sub, hash);
 
+
 	/* Lookup anything before we lock anything, to avoid deadlock with build_folder */
 
 	/* Find newly added that match */
@@ -1278,6 +1508,9 @@ folder_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 	}
 
 	CAMEL_VEE_FOLDER_LOCK(vf, summary_lock);
+	if (matches_changed || matches_added || changes->uid_removed->len)
+		camel_db_begin_transaction (folder->parent_store->cdb, NULL);
+
 	if (folder_unmatched != NULL)
 		CAMEL_VEE_FOLDER_LOCK(folder_unmatched, summary_lock);
 
@@ -1333,11 +1566,11 @@ folder_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 	}
 
 	/* Change/add/remove any changed */
-	if (matches_changed) {
+	if (changes->uid_changed->len) {
 		/* If we are auto-updating, then re-check changed uids still match */
 		dd(printf(" Vfolder %supdate\nuids match:", (vf->flags & CAMEL_STORE_VEE_FOLDER_AUTO)?"auto-":""));
 		matches_hash = g_hash_table_new(g_str_hash, g_str_equal);
-		for (i=0;i<matches_changed->len;i++) {
+		for (i=0;matches_changed && i<matches_changed->len;i++) {
 			dd(printf(" %s", (char *)matches_changed->pdata[i]));
 			g_hash_table_insert(matches_hash, matches_changed->pdata[i], matches_changed->pdata[i]);
 		}
@@ -1396,6 +1629,8 @@ folder_changed_change(CamelSession *session, CamelSessionThreadMsg *msg)
 		vf->changes = camel_folder_change_info_new();
 	}
 
+	if (matches_changed || matches_added || changes->uid_removed->len)
+		camel_db_end_transaction (folder->parent_store->cdb, NULL);
 	CAMEL_VEE_FOLDER_UNLOCK(vf, summary_lock);
 
 	/* Cleanup stuff on our folder */
@@ -1499,7 +1734,7 @@ subfolder_renamed_update(CamelVeeFolder *vf, CamelFolder *sub, char hash[8])
 		if (mi == NULL)
 			continue;
 
-		if (mi->real->summary == ssummary) {
+		if (mi->summary == ssummary) {
 			char *uid = (char *)camel_message_info_uid(mi);
 			char *oldkey;
 			void *oldval;
@@ -1610,6 +1845,95 @@ vee_thaw(CamelFolder *folder)
 	CAMEL_FOLDER_CLASS (camel_vee_folder_parent)->thaw(folder);
 }
 
+
+struct _folder_flags_msg {
+	CamelSessionThreadMsg msg;
+	CamelFolder *sub;
+	CamelVeeFolder *vf;
+};
+
+static void
+folder_load_flags(CamelSession *session, CamelSessionThreadMsg *msg)
+{
+	struct _folder_flags_msg *m = (struct _folder_flags_msg *)msg;
+	CamelFolder *sub = m->sub;
+	CamelFolder *folder = (CamelFolder *)m->vf;
+	GPtrArray *array;
+	char *shash, hash[8];
+	int i;
+
+	camel_vee_folder_hash_folder(sub, hash);	
+	shash = g_strdup_printf("%c%c%c%c%c%c%c%c", hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7]);
+
+
+	/* Get the summary of vfolder */
+	array = camel_folder_summary_array (folder->summary);
+	for (i=0; i<array->len; i++) {
+		if (strncmp(array->pdata[i], shash, 8) == 0) {
+			/* We have got a vuid for this sub folder.*/
+			CamelVeeMessageInfo *vinfo;
+			CamelMessageInfo *info;
+			char *uid;
+			vinfo = (CamelVeeMessageInfo *) camel_folder_summary_uid (folder->summary, (char *)array->pdata[i]);
+			if (!vinfo) /* What else we can do ?*/
+				continue;
+			uid = ((char *)array->pdata[i])+8;
+			info = camel_folder_summary_uid (sub->summary, uid);
+			if (!info) {
+				camel_message_info_free((CamelMessageInfo *)vinfo);
+				continue;
+			}
+
+			vinfo->old_flags = camel_message_info_flags (info);
+			camel_message_info_free((CamelMessageInfo *)info);
+			camel_message_info_free((CamelMessageInfo *)vinfo);
+		}
+	}
+	camel_folder_free_summary (folder, array);
+	g_free(shash);	
+}
+
+static void
+folder_load_flags_free(CamelSession *session, CamelSessionThreadMsg *msg)
+{
+	struct _folder_flags_msg *m = (struct _folder_flags_msg *)msg;
+	
+	camel_object_unref((CamelObject *)m->vf);
+	camel_object_unref((CamelObject *)m->sub);	
+}
+
+static CamelSessionThreadOps folder_flags_ops = {
+	folder_load_flags,
+	folder_load_flags_free,
+};
+
+static void
+summary_reloaded(CamelObject *o, void *event_data, void *data)
+{
+	CamelFolderSummary *summary = event_data;
+	CamelVeeFolder *vf = (CamelVeeFolder *)data;
+	struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);	
+	struct _folder_flags_msg *m;
+	CamelSession *session = ((CamelService *)((CamelFolder *)vf)->parent_store)->session;
+
+	if (p->destroyed)
+		return; 
+
+	/* Kick off a thread to reload flags from the summary */
+	if (GPOINTER_TO_INT(g_hash_table_lookup (vf->loaded, summary->folder))) {	
+		g_hash_table_remove (vf->loaded, summary->folder);
+		camel_object_unhook_event((CamelObject *)o, "summary_reloaded", (CamelObjectEventHookFunc) summary_reloaded, data);
+	}
+	
+	m = camel_session_thread_msg_new(session, &folder_flags_ops, sizeof(*m));
+	m->sub = summary->folder;
+	camel_object_ref((CamelObject *)summary->folder);
+	m->vf = vf;
+	camel_object_ref((CamelObject *)vf);
+	camel_session_thread_queue(session, &m->msg, 0);
+	
+}
+
 /* vfolder base implementaitons */
 static void
 vee_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
@@ -1620,7 +1944,16 @@ vee_add_folder(CamelVeeFolder *vf, CamelFolder *sub)
 static void
 vee_remove_folder(CamelVeeFolder *vf, CamelFolder *sub)
 {
+	char *shash, hash[8];
+
+	camel_vee_folder_hash_folder(sub, hash);	
 	vee_folder_remove_folder(vf, sub);
+	shash = g_strdup_printf("%c%c%c%c%c%c%c%c", hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7]);
+	if (g_hash_table_lookup (vf->hashes, shash))
+		g_hash_table_remove (vf->hashes, shash);
+
+	g_free(shash);
+
 }
 
 static void
@@ -1637,6 +1970,11 @@ vee_set_expression(CamelVeeFolder *vf, const char *query)
 		CAMEL_VEE_FOLDER_UNLOCK(vf, subfolder_lock);
 		return;
 	}
+
+	/* Recreate the table when the query changes, only if we are not setting it first */
+	if (vf->expression)
+		camel_db_recreate_vfolder (((CamelFolder *) vf)->parent_store->cdb, ((CamelFolder *) vf)->full_name, NULL);
+
 
 	g_free(vf->expression);
 	if (query)
@@ -1712,10 +2050,97 @@ camel_vee_folder_init (CamelVeeFolder *obj)
 
 	obj->changes = camel_folder_change_info_new();
 	obj->search = camel_folder_search_new();
-	
+	obj->hashes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	obj->loaded = g_hash_table_new (g_direct_hash, g_direct_equal);
+	obj->deleted = FALSE;
 	p->summary_lock = g_mutex_new();
 	p->subfolder_lock = g_mutex_new();
 	p->changed_lock = g_mutex_new();
+}
+
+static void
+vee_folder_stop_folder(CamelVeeFolder *vf, CamelFolder *sub)
+{
+	struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);
+	int i;
+	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
+	
+	CAMEL_VEE_FOLDER_LOCK(vf, subfolder_lock);
+
+	CAMEL_VEE_FOLDER_LOCK(vf, changed_lock);
+	p->folders_changed = g_list_remove(p->folders_changed, sub);
+	CAMEL_VEE_FOLDER_UNLOCK(vf, changed_lock);
+
+	if (g_list_find(p->folders, sub) == NULL) {
+		CAMEL_VEE_FOLDER_UNLOCK(vf, subfolder_lock);
+		return;
+	}
+
+	
+	camel_object_unhook_event((CamelObject *)sub, "folder_changed", (CamelObjectEventHookFunc) folder_changed, vf);
+	camel_object_unhook_event((CamelObject *)sub, "deleted", (CamelObjectEventHookFunc) subfolder_deleted, vf);
+	camel_object_unhook_event((CamelObject *)sub, "renamed", (CamelObjectEventHookFunc) folder_renamed, vf);
+	if (GPOINTER_TO_INT(g_hash_table_lookup (vf->loaded, sub))) {
+		g_hash_table_remove (vf->loaded, sub);
+		camel_object_unhook_event((CamelObject *)sub->summary, "summary_reloaded", (CamelObjectEventHookFunc) summary_reloaded, vf);
+	}
+	
+	p->folders = g_list_remove(p->folders, sub);
+	
+	/* undo the freeze state that we have imposed on this source folder */
+	CAMEL_FOLDER_LOCK(vf, change_lock);
+	for (i = 0; i < ((CamelFolder *)vf)->priv->frozen; i++)
+		camel_folder_thaw(sub);
+	CAMEL_FOLDER_UNLOCK(vf, change_lock);
+	
+	CAMEL_VEE_FOLDER_UNLOCK(vf, subfolder_lock);
+
+	if (folder_unmatched != NULL) {
+		struct _CamelVeeFolderPrivate *up = _PRIVATE(folder_unmatched);
+
+		CAMEL_VEE_FOLDER_LOCK(folder_unmatched, subfolder_lock);
+		/* if folder deleted, then blow it away from unmatched always, and remove all refs to it */
+		if (sub->folder_flags & CAMEL_FOLDER_HAS_BEEN_DELETED) {
+			while (g_list_find(up->folders, sub)) {
+				up->folders = g_list_remove(up->folders, sub);
+				camel_object_unref((CamelObject *)sub);
+				
+				/* undo the freeze state that Unmatched has imposed on this source folder */
+				CAMEL_FOLDER_LOCK(folder_unmatched, change_lock);
+				for (i = 0; i < ((CamelFolder *)folder_unmatched)->priv->frozen; i++)
+					camel_folder_thaw(sub);
+				CAMEL_FOLDER_UNLOCK(folder_unmatched, change_lock);
+			}
+		} else if ((vf->flags & CAMEL_STORE_FOLDER_PRIVATE) == 0) {
+			if (g_list_find(up->folders, sub) != NULL) {
+				up->folders = g_list_remove(up->folders, sub);
+				camel_object_unref((CamelObject *)sub);
+				
+				/* undo the freeze state that Unmatched has imposed on this source folder */
+				CAMEL_FOLDER_LOCK(folder_unmatched, change_lock);
+				for (i = 0; i < ((CamelFolder *)folder_unmatched)->priv->frozen; i++)
+					camel_folder_thaw(sub);
+				CAMEL_FOLDER_UNLOCK(folder_unmatched, change_lock);
+			}
+		}
+		CAMEL_VEE_FOLDER_UNLOCK(folder_unmatched, subfolder_lock);
+	}
+
+	if (CAMEL_IS_VEE_FOLDER(sub))
+		return;
+			
+	camel_object_unref((CamelObject *)sub);
+}
+
+void
+camel_vee_folder_sync_headers (CamelVeeFolder *vf, CamelException *ex)
+{
+	CamelFIRecord * record;
+
+	/* Save the counts to DB */
+	record = summary_header_to_db (((CamelFolder *)vf)->summary, ex);
+	camel_db_write_folder_info_record (((CamelFolder *) vf)->parent_store->cdb, record, ex);
+	g_free (record);
 }
 
 static void
@@ -1725,20 +2150,29 @@ camel_vee_folder_finalise (CamelObject *obj)
 	struct _CamelVeeFolderPrivate *p = _PRIVATE(vf);
 	CamelVeeFolder *folder_unmatched = vf->parent_vee_store ? vf->parent_vee_store->folder_unmatched : NULL;
 	GList *node;
+	CamelFIRecord * record;
 	
 	p->destroyed = TRUE;
 
-	/* TODO: there may be other leaks? */
-
+	/* Save the counts to DB */
+	if (!vf->deleted) {
+		record = summary_header_to_db (((CamelFolder *)vf)->summary, NULL);
+		camel_db_write_folder_info_record (((CamelFolder *) vf)->parent_store->cdb, record, NULL);
+		g_free (record);
+	}
+	
 	/* This may invoke sub-classes with partially destroyed state, they must deal with this */
 	if (vf == folder_unmatched) {
 		for (node = p->folders;node;node = g_list_next(node))
 			camel_object_unref(node->data);
 	} else {
+		#warning "See if it is really reqd"
+		camel_folder_freeze ((CamelFolder *)vf);
 		while (p->folders) {
 			CamelFolder *f = p->folders->data;
-			camel_vee_folder_remove_folder(vf, f);
+			vee_folder_stop_folder(vf, f);
 		}
+		camel_folder_thaw ((CamelFolder *)vf);
 	}
 
 	g_free(vf->expression);
@@ -1752,6 +2186,7 @@ camel_vee_folder_finalise (CamelObject *obj)
 	g_mutex_free(p->summary_lock);
 	g_mutex_free(p->subfolder_lock);
 	g_mutex_free(p->changed_lock);
-	
+	g_hash_table_destroy (vf->hashes);
+	g_hash_table_destroy (vf->loaded);	
 	g_free(p);
 }

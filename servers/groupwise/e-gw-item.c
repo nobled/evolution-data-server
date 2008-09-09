@@ -375,6 +375,7 @@ e_gw_item_dispose (GObject *object)
 		if (priv->organizer) {
 			g_free (priv->organizer->display_name);
 			g_free (priv->organizer->email);
+			g_free (priv->organizer);
 			priv->organizer = NULL;
 		}
 
@@ -1942,7 +1943,7 @@ e_gw_item_new_from_soap_parameter (const char *email, const char *container, Sou
 			item->priv->recurrence_key = soup_soap_parameter_get_int_value (child);
 		else if (!g_ascii_strcasecmp (name, "message")) {
 			SoupSoapParameter *part;
-			int len;
+			gsize len;
 			char *msg;
 			char *length;
 
@@ -2492,7 +2493,11 @@ void
 e_gw_item_set_organizer (EGwItem  *item, EGwItemOrganizer *organizer)
 {
 	/* free organizer */
-	g_free (item->priv->organizer);
+	if (item->priv->organizer) {
+		g_free (item->priv->organizer->display_name);
+		g_free (item->priv->organizer->email);
+		g_free (item->priv->organizer);
+	}
 	item->priv->organizer = organizer;
 }
 

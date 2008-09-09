@@ -152,7 +152,6 @@ camel_imap_message_cache_new (const char *path, CamelFolderSummary *summary,
 	const char *dname;
 	char *uid, *p;
 	GPtrArray *deletes;
-	CamelMessageInfo *info;
 	GError *error = NULL;
 
 	dir = g_dir_open (path, 0, &error);
@@ -179,12 +178,11 @@ camel_imap_message_cache_new (const char *path, CamelFolderSummary *summary,
 		else
 			uid = g_strdup (dname);
 
-		info = camel_folder_summary_uid (summary, uid);
-		if (info) {
-			camel_message_info_free(info);
+		if (camel_folder_summary_check_uid(summary, uid))
 			cache_put (cache, uid, dname, NULL);
-		} else
-			g_ptr_array_add (deletes, g_strdup_printf ("%s/%s", cache->path, dname));
+		else
+			g_ptr_array_add (deletes, g_strdup_printf ("%s/%s", cache->path, dname)); 
+
 		g_free (uid);
 	}
 	g_dir_close (dir);
@@ -197,6 +195,48 @@ camel_imap_message_cache_new (const char *path, CamelFolderSummary *summary,
 	g_ptr_array_free (deletes, TRUE);
 
 	return cache;
+}
+
+
+/**
+ * camel_imap_message_cache_delete:
+ * @path: directory to use for storage
+ * @ex: a CamelException
+ *
+ * All the files under this directory would be deleted
+ **/
+
+gboolean
+camel_imap_message_cache_delete (const char *path, CamelException *ex)
+{
+	GDir *dir;
+	const char *dname;
+	GError *error = NULL;
+	GPtrArray *deletes;
+	
+	dir = g_dir_open (path, 0, &error);
+	if (!dir) {
+		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
+				      _("Could not open cache directory: %s"),
+				      error->message);
+		g_error_free (error);
+		return FALSE;
+	}
+
+	deletes = g_ptr_array_new ();
+	while ((dname = g_dir_read_name (dir)))
+		g_ptr_array_add (deletes, g_strdup_printf ("%s/%s", path, dname)); 
+	
+	g_dir_close (dir);
+
+	while (deletes->len) {
+		g_unlink (deletes->pdata[0]);
+		g_free (deletes->pdata[0]);
+		g_ptr_array_remove_index_fast (deletes, 0);
+	}
+	g_ptr_array_free (deletes, TRUE);
+
+	return TRUE;
 }
 
 /**

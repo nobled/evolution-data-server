@@ -69,7 +69,7 @@ struct _ExchangeAccountPrivate {
 	GPtrArray *hierarchies;
 	GHashTable *hierarchies_by_folder, *foreign_hierarchies;
 	ExchangeHierarchy *favorites_hierarchy;
-	GHashTable *folders, *fresh_folders;
+	GHashTable *folders;
 	GStaticRecMutex folders_lock;
 	char *uri_authority, *http_uri_schema;
 	gboolean uris_use_email, offline_sync;
@@ -79,6 +79,7 @@ struct _ExchangeAccountPrivate {
 	char *owa_url;
 	E2kAutoconfigAuthPref auth_pref;
 	int ad_limit, passwd_exp_warn_period, quota_limit;
+	E2kAutoconfigGalAuthPref ad_auth;
 
 	EAccountList *account_list;
 	EAccount *account;
@@ -153,7 +154,6 @@ init (GObject *object)
 	account->priv->hierarchies_by_folder = g_hash_table_new (NULL, NULL);
 	account->priv->foreign_hierarchies = g_hash_table_new (g_str_hash, g_str_equal);
 	account->priv->folders = g_hash_table_new (g_str_hash, g_str_equal);
-	account->priv->fresh_folders = NULL;
 	g_static_rec_mutex_init (&account->priv->folders_lock);
 	account->priv->discover_data_lock = g_mutex_new ();
 	account->priv->account_online = UNSUPPORTED_MODE;
@@ -223,12 +223,6 @@ dispose (GObject *object)
 		g_hash_table_foreach (account->priv->folders, free_folder, NULL);
 		g_hash_table_destroy (account->priv->folders);
 		account->priv->folders = NULL;
-	}
-
-	if (account->priv->fresh_folders) {
-		g_hash_table_foreach (account->priv->fresh_folders, free_folder, NULL);
-		g_hash_table_destroy (account->priv->fresh_folders);
-		account->priv->fresh_folders = NULL;
 	}
 
 	g_static_rec_mutex_unlock (&account->priv->folders_lock);
@@ -328,20 +322,10 @@ exchange_account_rescan_tree (ExchangeAccount *account)
 	g_return_if_fail (EXCHANGE_IS_ACCOUNT (account));
 
 	g_static_rec_mutex_lock (&account->priv->folders_lock);
-	if (account->priv->fresh_folders) {
-		g_hash_table_foreach (account->priv->fresh_folders, free_folder, NULL);
-		g_hash_table_destroy (account->priv->fresh_folders);
-		account->priv->fresh_folders = NULL;
-	}
-	account->priv->fresh_folders = g_hash_table_new (g_str_hash, g_str_equal);
 
 	for (i = 0; i < account->priv->hierarchies->len; i++) {
 		/* First include the toplevel folder of the hierarchy as well */
 		toplevel = EXCHANGE_HIERARCHY (account->priv->hierarchies->pdata[i])->toplevel;
-		g_object_ref (toplevel);
-		g_hash_table_insert (account->priv->fresh_folders,
-				     (char *)e_folder_exchange_get_path (toplevel),
-				     toplevel);
 
 		exchange_hierarchy_scan_subtree (account->priv->hierarchies->pdata[i],
 						toplevel, account->priv->account_online);
@@ -377,13 +361,6 @@ hierarchy_new_folder (ExchangeHierarchy *hier, EFolder *folder,
 				     key,
 				     folder);
 		table_updated = 1;
-	}
-
-	if (account->priv->fresh_folders) {
-		g_object_ref (folder);
-		g_hash_table_insert (account->priv->fresh_folders,
-				     key,
-				     folder);
 	}
 
 	key = (char *) e_folder_get_physical_uri (folder);
@@ -434,6 +411,8 @@ static void
 hierarchy_removed_folder (ExchangeHierarchy *hier, EFolder *folder,
 			  ExchangeAccount *account)
 {
+	int unref_count = 0;
+
 	g_static_rec_mutex_lock (&account->priv->folders_lock);
 	if (!g_hash_table_lookup (account->priv->folders,
 					e_folder_exchange_get_path (folder))) {
@@ -441,27 +420,31 @@ hierarchy_removed_folder (ExchangeHierarchy *hier, EFolder *folder,
 		return;
 	}
 
-	g_hash_table_remove (account->priv->folders,
-					e_folder_exchange_get_path (folder));
-	g_hash_table_remove (account->priv->folders,
-					e_folder_get_physical_uri (folder));
+	if (g_hash_table_remove (account->priv->folders, e_folder_exchange_get_path (folder)))
+		unref_count++;
+
+	if (g_hash_table_remove (account->priv->folders, e_folder_get_physical_uri (folder)))
+		unref_count++;
+
 	/* Dont remove this for favorites, as the internal_uri is shared
 		by the public folder as well */
 	if (hier->type != EXCHANGE_HIERARCHY_FAVORITES) {
-		g_hash_table_remove (account->priv->folders,
-					e_folder_exchange_get_internal_uri (folder));
+		if (g_hash_table_remove (account->priv->folders, e_folder_exchange_get_internal_uri (folder)))
+			unref_count++;
 	}
+
 	g_hash_table_remove (account->priv->hierarchies_by_folder, folder);
+
 	g_static_rec_mutex_unlock (&account->priv->folders_lock);
 	g_signal_emit (account, signals[REMOVED_FOLDER], 0, folder);
 
 	if (folder == hier->toplevel)
 		remove_hierarchy (account, hier);
 
-	g_object_unref (folder);
-	g_object_unref (folder);
-	if (hier->type != EXCHANGE_HIERARCHY_FAVORITES) {
+	/* unref only those we really removed */
+	while (unref_count > 0) {
 		g_object_unref (folder);
+		unref_count--;
 	}
 }
 
@@ -1446,7 +1429,7 @@ exchange_account_connect (ExchangeAccount *account, const char *pword,
 	g_free (user_name);
 
 	e2k_autoconfig_set_gc_server (ac, account->priv->ad_server,
-				      account->priv->ad_limit);
+				      account->priv->ad_limit, account->priv->ad_auth);
 
 	if (!pword) {
 		account->priv->connecting = FALSE;
@@ -1697,6 +1680,37 @@ exchange_account_fetch (ExchangeAccount *acct)
 	g_return_val_if_fail (EXCHANGE_IS_ACCOUNT (acct), NULL);
 
 	return acct->priv->account;
+}
+
+/**
+ * exchange_account_get_account_uri_param:
+ * @acct: and #ExchangeAccount
+ * @param: uri param name to get
+ *
+ * Reads the parameter #param from the source url of the underlying EAccount.
+ * Returns the value or NULL. Returned value should be freed with g_free.
+ **/
+char *
+exchange_account_get_account_uri_param (ExchangeAccount *acct, const char *param)
+{
+	EAccount *account;
+	E2kUri *uri;
+	char *res;
+
+	g_return_val_if_fail (EXCHANGE_IS_ACCOUNT (acct), NULL);
+	g_return_val_if_fail (param != NULL, NULL);
+
+	account = exchange_account_fetch (acct);
+	g_return_val_if_fail (account != NULL, NULL);
+
+	uri = e2k_uri_new (e_account_get_string (account, E_ACCOUNT_SOURCE_URL));
+	g_return_val_if_fail (uri != NULL, NULL);
+
+	res = g_strdup (e2k_uri_get_param (uri, param));
+
+	e2k_uri_free (uri);
+
+	return res;
 }
 
 /**
@@ -1968,11 +1982,7 @@ exchange_account_get_folders (ExchangeAccount *account)
 
 	folders = g_ptr_array_new ();
 	g_static_rec_mutex_lock (&account->priv->folders_lock);
-	/*	if (account->priv->fresh_folders)
-		g_hash_table_foreach (account->priv->fresh_folders, add_folder, folders);
-	else
-	*/
-		g_hash_table_foreach (account->priv->folders, add_folder, folders);
+	g_hash_table_foreach (account->priv->folders, add_folder, folders);
 	g_static_rec_mutex_unlock (&account->priv->folders_lock);
 
 	qsort (folders->pdata, folders->len,
@@ -2015,10 +2025,6 @@ exchange_account_get_folder_tree (ExchangeAccount *account, char* path)
 	fld_tree->folders = folders;
 
 	g_static_rec_mutex_lock (&account->priv->folders_lock);
-	/*	if (account->priv->fresh_folders)
-		g_hash_table_foreach (account->priv->fresh_folders, add_folder, folders);
-	else
-	*/
 	g_hash_table_foreach (account->priv->folders, add_folder_tree, fld_tree);
 	g_static_rec_mutex_unlock (&account->priv->folders_lock);
 
@@ -2282,6 +2288,15 @@ exchange_account_new (EAccountList *account_list, EAccount *adata)
 		param = e2k_uri_get_param (uri, "ad_limit");
 		if (param)
 			account->priv->ad_limit = atoi (param);
+		param = e2k_uri_get_param (uri, "ad_auth");
+		if (!param || g_ascii_strcasecmp (param, "default") == 0)
+			account->priv->ad_auth = E2K_AUTOCONFIG_USE_GAL_DEFAULT;
+		else if (g_ascii_strcasecmp (param, "basic") == 0)
+			account->priv->ad_auth = E2K_AUTOCONFIG_USE_GAL_BASIC;
+		else if (g_ascii_strcasecmp (param, "ntlm") == 0)
+			account->priv->ad_auth = E2K_AUTOCONFIG_USE_GAL_NTLM;
+		else
+			account->priv->ad_auth = E2K_AUTOCONFIG_USE_GAL_DEFAULT;
 	}
 
 	passwd_exp_warn_period = e2k_uri_get_param (uri, "passwd_exp_warn_period");

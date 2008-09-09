@@ -1,7 +1,332 @@
+2008-09-08  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #361413
+
+	* backends/ldap/e-book-backend-ldap.c: (query_ldap_root_dse):
+	Better debug message.
+	* backends/ldap/e-book-backend-ldap.c: (e_book_backend_ldap_connect),
+	(e_book_backend_ldap_authenticate_user),
+	(e_book_backend_ldap_load_source): Report to user the server requires
+	authentication if server returns 'unwilling to response'. Also do not
+	try to connect anonymously if authentication is required.
+
 2008-09-05  Suman Manjunath  <msuman@novell.com>
 
-	* libedata-book/e-book-backend-db-cache.h: Fixed some missing 
-	declarations. 
+        * libedata-book/e-book-backend-db-cache.h: Fixed some missing
+        declarations.
+
+2008-09-01  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #548827
+
+	* backends/ldap/e-book-backend-ldap.c: (ldap_error_to_response):
+	Handle also AuthenticationRequired error.
+	* backends/ldap/e-book-backend-ldap.c: (remove_contact_handler):
+	Do not report we removed any contact when received an error.
+	* backends/ldap/e-book-backend-ldap.c:
+	(e_book_backend_ldap_remove_contacts), (remove_contact_handler):
+	Report end of the operation properly.
+
+2008-08-25  Ashish Shrivastava  <shashish@novell.com>
+
+	** Fix for bug #391936 (bugzilla.novell.com)
+
+	* libebook/e-book.c (find_key_value), (backend_died_cb): 
+	  To solve hang issue after e-d-s crash.
+
+2008-08-21  Shuai Liu  <shuai.liu@sun.com>
+
+	** Fix for bug #548565
+
+	* backends/google/util.h:
+	Add 'void' to make it built on Solaris.
+
+2008-08-18  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #547223 (Patch by Matt Davey)
+
+	* libebook/e-contact.c: (e_contact_set_property),
+	(e_contact_find_attribute_with_types): Check complete list of
+	values in a parameter when looking for some particular value.
+
+2008-08-16  Jörgen Scheibengruber  <mfcn@gmx.de>
+
+	(google_book_construct_base_uri):
+	* backends/google/util.c (_add_type_param_from_google_rel):
+	
+	Fix a small bug
+
+2008-08-16  Jörgen Scheibengruber  <mfcn@gmx.de>
+
+	* backends/google/util.c (_gdata_entry_update_from_e_contact),
+	(_add_type_param_from_google_rel),
+	(add_type_param_from_google_rel_phone),
+	(add_type_param_from_google_rel), (add_label_param),
+	(_google_rel_from_types), (google_rel_from_types),
+	(google_rel_from_types_phone), (is_known_google_im_protocol),
+	(add_primary_param), (get_google_primary_type_label),
+	(attribute_from_gdata_entry_email_address),
+	(attribute_from_gdata_entry_im_address),
+	(attribute_from_gdata_entry_phone_number),
+	(attribute_from_gdata_entry_postal_address),
+	(gdata_entry_email_address_from_attribute),
+	(gdata_entry_im_address_from_attribute),
+	(gdata_entry_phone_number_from_attribute),
+	(gdata_entry_postal_address_from_attribute):
+	
+	Improve the conversion between google rel field and vcard TYPE; use
+	X-EVOLUTION-UI-SLOT=1 as an indicator for primary; remove some unused code
+
+	* backends/google/google-book.c (google_book_cache_get_contacts),
+	(google_book_add_contact), (google_book_update_contact),
+	(google_book_get_contact), (google_book_error_from_soup_error):
+	* backends/google/google-book.h:
+
+	A bit of reformating and a new error code
+	
+
+2008-08-14  Jörgen Scheibengruber  <mfcn@gmx.de>
+
+	* backends/google/google-book.c (google_book_construct_base_uri),
+	(google_book_finalize), (google_book_add_contact):
+
+	Always use non-ssl uri when adding entries to the feed; ssl does not seem
+	to work for adding (not sure whether this is libsoup's or google's servers
+	fault).
+
+	* backends/google/util.c (_gdata_entry_update_from_e_contact):
+
+	Fix a small leak
+
+2008-08-13  Jörgen Scheibengruber  <mfcn@gmx.de>
+
+	* backends/google/Makefile.am:
+	* backends/google/e-book-backend-google.c
+	(e_book_backend_google_create_contact),
+	(e_book_backend_google_remove_contacts),
+	(e_book_backend_google_modify_contact),
+	(e_book_backend_google_get_contact),
+	(e_book_backend_google_get_contact_list),
+	(on_google_book_contact_added), (on_google_book_contact_removed),
+	(on_google_book_contact_changed),
+	(on_google_book_sequence_complete),
+	(e_book_backend_google_start_book_view),
+	(e_book_backend_google_stop_book_view),
+	(e_book_backend_google_authenticate_user),
+	(e_book_backend_google_remove), (on_google_book_auth_required),
+	(e_book_backend_google_load_source),
+	(e_book_backend_google_set_mode), (e_book_backend_google_dispose),
+	(e_book_backend_google_finalize),
+	(e_book_backend_status_from_google_book_error):
+	* backends/google/google-book.c (google_book_cache_init),
+	(google_book_cache_add_contact),
+	(google_book_cache_remove_contact),
+	(google_book_cache_get_contact), (_g_hash_table_to_list),
+	(google_book_cache_get_contacts), (google_book_cache_freeze),
+	(google_book_cache_thaw), (google_book_cache_get_last_update),
+	(google_book_cache_get_last_update_tv),
+	(google_book_cache_set_last_update),
+	(google_book_cache_needs_update),
+	(google_book_cache_refresh_if_needed), (on_refresh_timeout),
+	(google_book_cache_destroy), (google_book_construct_base_uri),
+	(google_book_get_property), (google_book_set_property),
+	(google_book_dispose), (google_book_finalize),
+	(google_book_emit_contact_added),
+	(google_book_emit_contact_changed),
+	(google_book_emit_contact_removed),
+	(google_book_emit_sequence_complete),
+	(google_book_emit_auth_required), (google_book_class_init),
+	(google_book_init), (google_book_new),
+	(google_book_connect_to_google), (google_book_set_offline_mode),
+	(google_book_add_contact), (google_book_update_contact),
+	(google_book_remove_contact), (process_subsequent_entry),
+	(process_initial_entry), (google_book_get_new_contacts_in_chunks),
+	(google_book_get_contact), (google_book_get_all_contacts),
+	(on_refresh_idle), (google_book_get_all_contacts_in_live_mode),
+	(google_book_set_live_mode), (google_book_error_from_soup_error):
+	* backends/google/google-book.h:
+
+	Created new GoogleBook object that internally implements a local (either
+	in-memory or on-disk) cache of the Google contacts list and updates it in
+	a specified interval.
+
+	* backends/google/util.c (_gdata_entry_new_from_e_contact),
+	(_gdata_entry_update_from_e_contact),
+	(_e_contact_new_from_gdata_entry),
+	(_e_contact_add_gdata_entry_xml),
+	(_e_contact_remove_gdata_entry_xml),
+	(_e_contact_get_gdata_entry_xml), (google_rel_label_from_type),
+	(attribute_from_gdata_entry_email_address),
+	(attribute_from_gdata_entry_im_address),
+	(attribute_from_gdata_entry_phone_number),
+	(attribute_from_gdata_entry_postal_address),
+	(get_google_primary_and_type),
+	(gdata_entry_email_address_from_attribute),
+	(gdata_entry_im_address_from_attribute),
+	(gdata_entry_phone_number_from_attribute),
+	(gdata_entry_postal_address_from_attribute):
+	* backends/google/util.h:
+
+	Removed some no longer needed utility functions. Use
+	e_contact_[get|_set]_name instead of custom fullname parsing. Try to
+	ensure that primary properities again land in the same slot after editing.
+
+2008-08-12  Milan Crha  <mcrha@redhat.com>
+
+	** Part of fix for bug #547308
+
+	* libebook/e-book-types.h: New error of EBookStatus.
+	* libebook/e-book-listener.c: (e_book_listener_convert_status):
+	Do recognize new error E_BOOK_ERROR_UNSUPPORTED_AUTHENTICATION_METHOD.
+
+2008-08-07  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #324203
+
+	* backends/ldap/e-book-backend-ldap.c: (can_browse),
+	(ldap_search_handler), (e_book_backend_ldap_search),
+	(e_book_backend_ldap_remove): Check for source option "can-browse"
+	in LDAP address books and if present, then search until reaches limits
+	for empty searches.
+
+2008-08-05  Bharath Acharya  <abharath@novell.com>
+
+	* backends/webdav/Makefile.am: Added libebook to the list of libraries 
+	to be linked with. 
+
+2008-08-04  Matthias Braun <matze@braunis.de>
+
+	** Fix for bug #544051 - Added WebDAV backend for addressbook. 
+
+	* backends/Makefile.am:
+	* backends/webdav/Makefile.am:
+	* backends/webdav/e-book-backend-webdav-factory.c
+	(eds_module_initialize), (eds_module_shutdown),
+	(eds_module_list_types):
+	* backends/webdav/e-book-backend-webdav.c (closure_destroy),
+	(init_closure), (get_closure), (download_contact),
+	(upload_contact), (e_book_backend_handle_auth_request),
+	(e_book_backend_webdav_create_contact), (delete_contact),
+	(e_book_backend_webdav_remove_contacts),
+	(e_book_backend_webdav_modify_contact),
+	(e_book_backend_webdav_get_contact), (parse_response_tag),
+	(parse_propfind_response), (send_propfind), (download_contacts),
+	(book_view_thread), (e_book_backend_webdav_start_book_view),
+	(e_book_backend_webdav_stop_book_view),
+	(e_book_backend_webdav_get_contact_list),
+	(e_book_backend_webdav_authenticate_user),
+	(e_book_backend_webdav_get_supported_fields),
+	(e_book_backend_webdav_get_supported_auth_methods),
+	(e_book_backend_webdav_get_required_fields), (soup_authenticate),
+	(e_book_backend_webdav_load_source),
+	(e_book_backend_webdav_remove), (e_book_backend_webdav_set_mode),
+	(e_book_backend_webdav_get_static_capabilities),
+	(e_book_backend_webdav_cancel_operation),
+	(e_book_backend_webdav_new), (e_book_backend_webdav_dispose),
+	(e_book_backend_webdav_class_init), (e_book_backend_webdav_init),
+	(e_book_backend_webdav_get_type):
+	* backends/webdav/e-book-backend-webdav.h:
+
+2008-07-28  Jeff Cai  <jeff.cai@sun.com>
+
+	** Fix for bug #544284
+
+	* backends/google/util.h: 
+	Use (void) 0 insead of '0' in the conditional statement.
+
+2008-07-21  Johnny Jacob  <jjohnny@novell.com>
+
+	* backends/google/Makefile.am (INCLUDES): Include from
+	top build directory.
+
+2008-07-21  Suman Manjunath  <msuman@novell.com>
+
+	Fixes a build break for Google contacts
+
+	* backends/google/e-book-backend-google-factory.c:
+
+2008-07-21  Jörgen Scheibengruber  <mfcn@gmx.de>
+
+	** Fix for bug #523632
+	
+	Added Google contacts backend
+	* backends/Makefile.am:
+	* backends/google/Makefile.am:
+	* backends/google/e-book-backend-google-factory.c:
+	(e_book_backend_google_factory_instance_init), (_get_protocol),
+	(_new_backend), (e_book_backend_google_factory_class_init),
+	(e_book_backend_google_factory_get_type), (eds_module_initialize),
+	(eds_module_shutdown), (eds_module_list_types):
+	* backends/google/e-book-backend-google-factory.h:
+	* backends/google/e-book-backend-google.c:
+	(e_book_backend_google_ensure_auth),
+	(e_book_backend_google_create_contact),
+	(e_book_backend_google_remove_contacts),
+	(e_book_backend_google_modify_contact),
+	(e_book_backend_google_get_contact),
+	(e_book_backend_google_get_contact_list), (refresh_feed),
+	(do_initial_bookview_population),
+	(e_book_backend_google_start_book_view),
+	(e_book_backend_google_stop_book_view),
+	(e_book_backend_google_update_query),
+	(e_book_backend_google_initial_query),
+	(e_book_backend_google_authenticate_user),
+	(e_book_backend_google_get_supported_auth_methods),
+	(e_book_backend_google_get_required_fields),
+	(e_book_backend_google_get_supported_fields),
+	(e_book_backend_google_get_changes),
+	(e_book_backend_google_remove),
+	(e_book_backend_google_load_source),
+	(e_book_backend_google_get_static_capabilities),
+	(e_book_backend_google_cancel_operation),
+	(e_book_backend_google_set_mode), (e_book_backend_google_dispose),
+	(e_book_backend_google_finalize),
+	(e_book_backend_google_class_init), (e_book_backend_google_init),
+	(e_book_backend_google_new), (ebookbackend_status_from_soup_error):
+	* backends/google/e-book-backend-google.h:
+	* backends/google/util.c: (gdata_entry_create_from_vcard),
+	(gdata_entry_create_from_e_vcard), (gdata_entry_update_from_vcard),
+	(gdata_entry_update_from_e_vcard), (e_vcard_from_gdata_entry),
+	(e_contact_from_gdata_entry), (vcard_from_gdata_entry),
+	(name_values_from_fullname), (string_prepend_with_space),
+	(string_append_with_space), (fullname_from_name_values),
+	(build_uri), (build_base_uri), (test_repository_availability),
+	(type_from_google_rel_label), (google_rel_label_from_type),
+	(is_known_google_im_protocol),
+	(field_name_from_google_im_protocol),
+	(google_im_protocol_from_field_name),
+	(attribute_from_gdata_entry_email_address),
+	(attribute_from_gdata_entry_im_address),
+	(attribute_from_gdata_entry_phone_number),
+	(attribute_from_gdata_entry_postal_address),
+	(gdata_entry_email_address_from_attribute),
+	(gdata_entry_im_address_from_attribute),
+	(gdata_entry_phone_number_from_attribute),
+	(gdata_entry_postal_address_from_attribute):
+	* backends/google/util.h:
+
+2008-07-21  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #236010
+
+	* backends/ldap/e-book-backend-ldap.c:
+	(e_book_backend_ldap_load_source): We cannot check on LDAP server
+	whether we have general write access on it, thus report we have
+	immediately after loading the source successfully. There will be
+	a "Permission Deny" message in case we are wrong.
+	* backends/ldap/e-book-backend-ldap.c: (ldap_op_finished):
+	Clear the status message when the operation finished.
+
+2008-07-18  Wang Xin  <jedy.wang@sun.com>
+
+	** Fix for bug #540127, commit the patch for shuai.liu@su.com.
+
+	* backends/ldap/e-book-backend-ldap.c:
+	(e_book_backend_ldap_connect), (e_book_backend_ldap_build_query),
+	(e_book_backend_ldap_authenticate_user): If this ldap_error equals
+	LDAP_INSUFFICIENT_ACCESS, return an success to request evolution's
+	authenticating window. And remove the filter objectClass=* because
+	some ldap servers do not allow this.
 
 2008-06-23  Milan Crha  <mcrha@redhat.com>
 
@@ -52,8 +377,8 @@
 
 2008-04-30  Chenthill Palanisamy  <pchenthill@novell.com>
 
-        ** Fixes part of #350143 (bnc)
-           Severe memory leak in evolution-data-server
+	** Fixes part of #350143 (bnc)
+	   Severe memory leak in evolution-data-server
 
 	* backends/groupwise/e-book-backend-groupwise.c: (build_cache),
 	(update_cache), (update_address_book_deltas),

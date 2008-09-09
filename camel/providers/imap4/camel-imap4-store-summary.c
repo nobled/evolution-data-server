@@ -38,6 +38,7 @@
 #include "camel-imap4-store-summary.h"
 #include "camel-imap4-utils.h"
 
+
 #define CAMEL_IMAP4_STORE_SUMMARY_VERSION_0 (0)
 #define CAMEL_IMAP4_STORE_SUMMARY_VERSION (0)
 
@@ -280,7 +281,7 @@ store_info_free (CamelStoreSummary *s, CamelStoreInfo *info)
  *
  * Create a new CamelIMAP4StoreSummary object.
  * 
- * Returns a new CamelIMAP4StoreSummary object.
+ * Returns: a new CamelIMAP4StoreSummary object.
  **/
 CamelIMAP4StoreSummary *
 camel_imap4_store_summary_new (void)

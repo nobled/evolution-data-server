@@ -1,3 +1,22 @@
+2008-08-14  Milan Crha  <mcrha@redhat.com>
+
+	** Partial fix for bug #510949
+
+	* e-gw-item.c: (e_gw_item_dispose), (e_gw_item_set_organizer):
+	Memory leak fix.
+
+2008-07-24  Chenthill Palanisamy  <pchenthill@novell.com>
+	
+	Fixes #388966 (bnc)
+	* e-gw-item.c: (e_gw_item_new_from_soap_parameter): Use
+	right data type.							    
+
+2008-07-24  Sankar P  <psankar@novell.com>
+
+	* e-gw-connection.c (e_gw_connection_dispose),
+	(e_gw_connection_init), (e_gw_connection_send_message):
+	Mutex-ify the connection bus.
+
 2008-06-16  Chenthill Palanisamy  <pchenthill@novell.com>
 
 	** Fixes #394654 (bnc)

@@ -1,14 +1,125 @@
+2008-09-05  Andre Klapper  <a9016009@gmx.de>
+
+	* libedata-cal/e-cal-backend-util.c: 
+	Add translator comment for "Offline unavailable"
+
+2008-09-04  Chenthill Palanisamy  <pchenthill@novell.com>
+
+	* libedata-cal/Makefile.am:
+	* libedata-cal/e-cal-backend.c
+	(e_cal_backend_notify_objects_added),
+	(e_cal_backend_notify_objects_removed),
+	(e_cal_backend_notify_objects_modified): New functions added.
+	* libedata-cal/e-cal-backend.h:
+	* libedata-cal/e-data-cal-factory.c (get_backend_factory),
+	(impl_CalFactory_getCal), (e_data_cal_factory_register_backend),
+	(e_data_cal_factory_register_backends):
+	* libedata-cal/e-data-cal-factory.h: Added LoaderFactory which is a
+	  subclass of BackendFactory.
+
+2008-09-01  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #549675
+
+	* backends/http/e-cal-backend-http.c: (e_cal_backend_http_open):
+	Create cache with correct source_type value.
+
+2008-08-18  Matthew Barnes  <mbarnes@redhat.com>
+
+	* backends/groupwise/e-cal-backend-groupwise-utils.c
+	(start_freebusy_session): Fix a compiler warning.
+
+2008-08-18  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #547786
+
+	* backends/google/e-cal-backend-google.c:
+	(e_cal_backend_google_get_object_list):
+	Test events against search expression when required.
+
+2008-08-18  Suman Manjunath  <msuman@novell.com>
+
+	* backends/groupwise/e-cal-backend-groupwise.c (populate_cache):
+	Don't reset last notified percent value in each iteration. 
+
+2008-08-15  Matthew Barnes  <mbarnes@redhat.com>
+
+	* backends/groupwise/e-cal-backend-groupwise.c (populate_cache):
+	Fix a call to a non-existent ECalBackend function name.
+
+2008-08-15  Stanislav Slusny <slusnys@gmail.com>
+
+	* backends/groupwise/e-cal-backend-groupwise.c:
+	* libedata-cal/e-cal-backend.c:
+	* libedata-cal/e-cal-backend.h:
+	Make it send notifications only when it makes sense.
+	Fixes bug #531930.
+
+2008-08-14  Milan Crha  <mcrha@redhat.com>
+
+	** Partial fix for bug #510949
+
+	* backends/groupwise/e-cal-backend-groupwise.c: (get_deltas),
+	(e_cal_backend_groupwise_refresh_calendar):
+	Memory leak fix and compiler warnings fix.
+	* libecal/e-cal-component.c: (e_cal_component_get_recurid_as_string):
+	Possible memory leak fix.
+
+2008-08-14  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #327851
+
+	* libecal/e-cal.c: (generate_instances):
+	Skip detached instances which doesn't belong to requested time range.
+
+2008-07-28  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #468671
+
+	* backends/google/e-cal-backend-google-utils.c: (gd_date_to_ical),
+	(e_go_item_to_cal_component), (utils_update_insertion):
+	Read time values in proper timezone as returned by Google Calendar.
+
+2008-07-21  Paul Bolle  <pebolle@tiscali.nl>
+
+	** Fix for bug #543066
+
+	* libecal/e-cal-util.c: (e_cal_util_parse_ics_string),
+	(e_cal_util_parse_ics_file): Make the documentation reflect that these
+	functions either return a new icalcomponent or NULL.
+
 2008-07-18  Suman Manjunath  <msuman@novell.com>
 
-	** Added CAL_STATIC_CAPABILITY_CREATE_MESSAGES
+        ** Added CAL_STATIC_CAPABILITY_CREATE_MESSAGES
 
-	* libecal/e-cal-util.h:
-	This static capability determines if a calendar backend can send
-	messages to recipients by itself. It is different from the 
-	CAL_STATIC_CAPABILITY_SAVE_SCHEDULES from the fact that this new
-	capability is processed after the user has been prompted to send an 
-	update. It is useful if the actual object needs some processing 
-	after the messages are sent. 
+        * libecal/e-cal-util.h:
+        This static capability determines if a calendar backend can send
+        messages to recipients by itself. It is different from the
+        CAL_STATIC_CAPABILITY_SAVE_SCHEDULES from the fact that this new
+        capability is processed after the user has been prompted to send
+        an update. It is useful if the actual object needs some processing
+        after the messages are sent.
+
+2008-07-18  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #515998
+
+	* libedata-cal/e-cal-backend-util.h: (e_cal_backend_status_to_string):
+	* libedata-cal/e-cal-backend-util.c: (e_cal_backend_status_to_string):
+	New helper function to convert call status to the string.
+	* backends/file/e-cal-backend-file.c: (e_cal_backend_file_remove):
+	* backends/caldav/e-cal-backend-caldav.c: (caldav_remove):
+	* backends/weather/e-cal-backend-weather.c:
+	(e_cal_backend_weather_remove): On any error in remove calendar just
+	print the message on the console and return success.
+
+2008-07-04  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #329571
+
+	* backends/file/e-cal-backend-file.c:
+	(e_cal_backend_file_modify_object):
+	Preserve detached instances when modifying master object.
 
 2008-06-25  Milan Crha  <mcrha@redhat.com>
 

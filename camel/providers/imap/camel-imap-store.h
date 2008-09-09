@@ -26,18 +26,18 @@
 #define CAMEL_IMAP_STORE_H 1
 
 #include "camel-imap-types.h"
-#include <camel/camel-disco-store.h>
+#include <camel/camel-msgport.h>
+#include <camel/camel-offline-store.h>
 #include <sys/time.h>
 
 #ifdef ENABLE_THREADS
-#include <libedataserver/e-msgport.h>
 
 G_BEGIN_DECLS
 
 typedef struct _CamelImapMsg CamelImapMsg;
 
 struct _CamelImapMsg {
-	EMsg msg;
+	CamelMsg msg;
 
 	void (*receive)(CamelImapStore *store, struct _CamelImapMsg *m);
 	void (*free)(CamelImapStore *store, struct _CamelImapMsg *m);
@@ -60,13 +60,14 @@ G_END_DECLS
 G_BEGIN_DECLS
 
 enum {
-	CAMEL_IMAP_STORE_ARG_FIRST  = CAMEL_DISCO_STORE_ARG_FIRST + 100,
+	CAMEL_IMAP_STORE_ARG_FIRST  = CAMEL_OFFLINE_STORE_ARG_FIRST + 100,
 	CAMEL_IMAP_STORE_ARG_NAMESPACE,
 	CAMEL_IMAP_STORE_ARG_OVERRIDE_NAMESPACE,
 	CAMEL_IMAP_STORE_ARG_CHECK_ALL,
 	CAMEL_IMAP_STORE_ARG_FILTER_INBOX,
 	CAMEL_IMAP_STORE_ARG_FILTER_JUNK,
-	CAMEL_IMAP_STORE_ARG_FILTER_JUNK_INBOX
+	CAMEL_IMAP_STORE_ARG_FILTER_JUNK_INBOX,
+	CAMEL_IMAP_STORE_ARG_CHECK_LSUB
 };
 
 #define CAMEL_IMAP_STORE_NAMESPACE           (CAMEL_IMAP_STORE_ARG_NAMESPACE | CAMEL_ARG_STR)
@@ -75,6 +76,7 @@ enum {
 #define CAMEL_IMAP_STORE_FILTER_INBOX        (CAMEL_IMAP_STORE_ARG_FILTER_INBOX | CAMEL_ARG_INT)
 #define CAMEL_IMAP_STORE_FILTER_JUNK         (CAMEL_IMAP_STORE_ARG_FILTER_JUNK | CAMEL_ARG_BOO)
 #define CAMEL_IMAP_STORE_FILTER_JUNK_INBOX   (CAMEL_IMAP_STORE_ARG_FILTER_JUNK_INBOX | CAMEL_ARG_BOO)
+#define CAMEL_IMAP_STORE_CHECK_LSUB          (CAMEL_IMAP_STORE_ARG_CHECK_LSUB | CAMEL_ARG_BOO)
 
 /* CamelFolderInfo flags */
 #define CAMEL_IMAP_FOLDER_MARKED	     (1<<16)
@@ -106,13 +108,14 @@ typedef enum {
 #define IMAP_PARAM_FILTER_JUNK			(1 << 3)
 #define IMAP_PARAM_FILTER_JUNK_INBOX		(1 << 4)
 #define IMAP_PARAM_SUBSCRIPTIONS		(1 << 5)
+#define IMAP_PARAM_CHECK_LSUB			(1 << 6) /* check for new messages in subscribed folders */
 
 #define IMAP_FETCH_ALL_HEADERS 1
 #define IMAP_FETCH_MAILING_LIST_HEADERS 2 /* Fetches Minimal and Mailing List Headers. Default behavior */
 #define IMAP_FETCH_MINIMAL_HEADERS 3
 
 struct _CamelImapStore {
-	CamelDiscoStore parent_object;	
+	CamelOfflineStore parent_object;	
 	
 	CamelStream *istream;
 	CamelStream *ostream;
@@ -147,7 +150,7 @@ struct _CamelImapStore {
 };
 
 typedef struct {
-	CamelDiscoStoreClass parent_class;
+	CamelOfflineStoreClass parent_class;
 
 } CamelImapStoreClass;
 

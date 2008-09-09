@@ -1,3 +1,29 @@
+2008-08-31  Leonardo Ferreira Fontenelle  <leonardof@gnome.org>
+
+	* camel-imap4-store.c: (imap4_get_folder_info): Added translator
+	comments. Fixes bug #549241.
+
+2008-08-06  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #545877
+
+	* camel-imap4-command.c:
+	* camel-imap4-command.h:
+	* camel-imap4-engine.c:
+	* camel-imap4-engine.h:
+	* camel-imap4-search.h:
+	* camel-imap4-journal.c:
+	* camel-imap4-journal.h:
+	Use CamelDList instead of EDList.
+
+2008-07-19  Jeffrey Stedfast  <fejj@novell.com>
+
+	* camel-imap4-store.c: s/Unknown/Unknown error/g
+
+	* camel-imap4-engine.c: Same.
+
+	* camel-imap4-folder.c: Same.
+
 2008-05-19  Matthew Barnes  <mbarnes@redhat.com>
 
 	** Fixes part of bug #531591

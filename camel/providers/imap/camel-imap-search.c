@@ -115,7 +115,7 @@ camel_imap_search_class_init (CamelImapSearchClass *camel_imap_search_class)
 static void
 camel_imap_search_init(CamelImapSearch *is)
 {
-	e_dlist_init(&is->matches);
+	camel_dlist_init(&is->matches);
 	is->matches_hash = g_hash_table_new(g_str_hash, g_str_equal);
 	is->matches_count = 0;
 	is->lastuid = 0;
@@ -126,7 +126,7 @@ camel_imap_search_finalise(CamelImapSearch *is)
 {
 	struct _match_record *mr;
 
-	while ( (mr = (struct _match_record *)e_dlist_remtail(&is->matches)) )
+	while ( (mr = (struct _match_record *)camel_dlist_remtail(&is->matches)) )
 		free_match(is, mr);
 	g_hash_table_destroy(is->matches_hash);
 	if (is->cache)
@@ -395,7 +395,7 @@ get_match(CamelImapSearch *is, int argc, struct _ESExpResult **argv)
 	mr = g_hash_table_lookup(is->matches_hash, hash);
 	if (mr == NULL) {
 		while (is->matches_count >= MATCH_CACHE_SIZE) {
-			mr = (struct _match_record *)e_dlist_remtail(&is->matches);
+			mr = (struct _match_record *)camel_dlist_remtail(&is->matches);
 			if (mr) {
 				printf("expiring match '%s' (%s)\n", mr->hash, mr->terms[0]);
 				g_hash_table_remove(is->matches_hash, mr->hash);
@@ -409,10 +409,10 @@ get_match(CamelImapSearch *is, int argc, struct _ESExpResult **argv)
 		g_hash_table_insert(is->matches_hash, mr->hash, mr);
 		is->matches_count++;
 	} else {
-		e_dlist_remove((EDListNode *)mr);
+		camel_dlist_remove((CamelDListNode *)mr);
 	}
 
-	e_dlist_addhead(&is->matches, (EDListNode *)mr);
+	camel_dlist_addhead(&is->matches, (CamelDListNode *)mr);
 
 	/* what about offline mode? */
 	/* We could cache those results too, or should we cache them elsewhere? */
@@ -428,7 +428,6 @@ imap_body_contains (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 	CamelImapSearch *is = (CamelImapSearch *)s;
 	char *uid;
 	ESExpResult *r;
-	CamelMessageInfo *info;	
 	GHashTable *uid_hash = NULL;
 	GPtrArray *array;
 	int i, j;
@@ -440,7 +439,7 @@ imap_body_contains (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 	/* TODO: Cache offline searches too? */
 
 	/* If offline, search using the parent class, which can handle this manually */
-	if (!camel_disco_store_check_online (CAMEL_DISCO_STORE (store), NULL))
+	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 		return imap_search_parent_class->body_contains(f, argc, argv, s);
 
 	/* optimise the match "" case - match everything */
@@ -452,8 +451,7 @@ imap_body_contains (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 			r = e_sexp_result_new(f, ESEXP_RES_ARRAY_PTR);
 			r->value.ptrarray = g_ptr_array_new ();
 			for (i = 0; i < s->summary->len; i++) {
-				info = g_ptr_array_index(s->summary, i);
-				g_ptr_array_add(r->value.ptrarray, (char *)camel_message_info_uid(info));
+				g_ptr_array_add(r->value.ptrarray, (char *)g_ptr_array_index(s->summary, i));
 			}
 		}
 	} else if (argc == 0 || s->summary->len == 0) {
@@ -469,8 +467,7 @@ imap_body_contains (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 		int truth = FALSE;
 
 		/* setup lastuid/validity for synchronising */
-		info = g_ptr_array_index(s->summary, s->summary->len-1);
-		is->lastuid = strtoul(camel_message_info_uid(info), NULL, 10);
+		is->lastuid = strtoul((char *)g_ptr_array_index(s->summary, s->summary->len-1), NULL, 10);
 		is->validity = ((CamelImapSummary *)(s->folder->summary))->validity;
 
 		mr = get_match(is, argc, argv);
@@ -491,8 +488,7 @@ imap_body_contains (struct _ESExp *f, int argc, struct _ESExpResult **argv, Came
 			/* We use the summary's strings so we dont need to alloc more */
 			uid_hash = g_hash_table_new(NULL, NULL);
 			for (i = 0; i < s->summary->len; i++) {
-				info = s->summary->pdata[i];
-				uid = (char *)camel_message_info_uid(info);
+				uid = (char *)s->summary->pdata[i];
 				uidn = strtoul(uid, NULL, 10);
 				g_hash_table_insert(uid_hash, GUINT_TO_POINTER(uidn), uid);
 			}

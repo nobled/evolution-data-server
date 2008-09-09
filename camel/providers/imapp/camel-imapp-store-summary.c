@@ -28,8 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <libedataserver/e-memory.h>
-
 #include "camel-file-utils.h"
 #include "camel-private.h"
 #include "camel-string-utils.h"
@@ -138,7 +136,7 @@ camel_imapp_store_summary_new (void)
 /**
  * camel_imapp_store_summary_full_name:
  * @s: 
- * @path: 
+ * @full_name: 
  * 
  * Retrieve a summary item by full name.
  *

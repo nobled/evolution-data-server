@@ -1,3 +1,119 @@
+2008-09-03  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* libedataserver/e-sexp.c (parse_list): Fix a crash in sexp.
+
+2008-09-01  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* NEWS: Evolution Data Server 2.23.91 release and version bump.
+
+2008-09-01  Matthew Barnes  <mbarnes@redhat.com>
+
+	* configure.in:
+	Fix compiler warnings in a couple of the test programs.
+
+2008-08-28  Patrick Ohly  <patrick.ohly@gmx.de>
+
+	* Bug fix #518728: subtle link error: system libs before Evolution
+	libs
+
+	When compiling on Debian Etch (Evolution 2.12), evolution-dataserver
+	was linked against /usr/lib/libebook-1.2.so.5 because of the incorrect
+	link order. "incorrect" in this context means "system libs" before
+	"Evolution libs".
+
+2008-08-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* NEWS, configure.in: Evolution Data Server 2.23.90 release and
+	version bump.
+
+2008-08-11  Jeff Cai <jeff.cai@sun.com>
+
+        * configure.in: Add gthread-2.0 in CAMEL checking.
+          Fixes bug #538074.
+
+2008-08-07  Tobias Mueller  <tobiasmue@svn.gnome.org>
+
+	* libedataserver/e-account.c: Harden e_account_[gs]et_*
+	functions by checking ea being NULL and code cleanups
+	suggested by mbarnes.
+	Fixes bug #545021
+
+2008-08-04  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* NEWS: Evolution Data Server 2.23.6 release and version bump.
+
+2008-08-04  Matthias Braun <matze@braunis.de>
+
+	* configure.in: Added WebDAV backend for addressbook. 
+
+2008-08-04  Tobias Mueller  <tobiasmue@svn.gnome.org>
+
+	** Fix for bug #545022
+
+	* libedataserver/e-account.c (ea_setting_setup): Free gconf-entry only
+	if it is non-NULL. 
+
+2008-07-31  Matthew Barnes  <mbarnes@redhat.com>
+
+	** Fixes part of bug #545558
+
+	* configure.in:
+	Add an --enable-hula configure option for building the Hula Camel
+	provider, disabled by default.
+
+2008-07-23  Johnny Jacob  <jjohnny@novell.com>
+
+	* configure.in (API_VERSION): libcamel version bumped.
+	(eds_micro_version): EDS version bumped to 2.23.6
+
+	* NEWS: Updates for 2.23.5.
+	
+2008-07-21  Matthew Barnes  <mbarnes@redhat.com>
+
+	* Makefile.am:
+	Add doltcompile and doltlibtool to DISTCLEANFILES to fix
+	distcheck breakage.
+
+2008-07-21  Jörgen Scheibengruber  <mfcn@gmx.de>
+
+	** Fix for bug #523632
+
+	* configure.in: Added Google contacts backend
+
+2008-07-20  Bharath Acharya  <abharath@novell.com>
+
+	** Fix for bug #200147
+
+	* libedataserver/e-account.h: Stores the templates folder uri
+
+2008-07-20  Luca Ferretti  <elle.uca@libero.it>
+
+	reviewed by: Srinivasa Ragavan
+
+	* configure.in: add sqlite3 to to EVO_SET_COMPILE_FLAGS(CAMEL)
+	to fix the build. See bug #543656 for details.
+
+2008-07-16  Sankar P  <psankar@novell.com>
+
+	Pushing disk summary changes from the madagascar branch
+
+	* configure.in:
+	* libedataserver/e-sexp.c (term_eval_and), (term_eval_or),
+	(e_sexp_parse_value):
+	* libedataserver/e-sexp.h:
+
+2008-07-14  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #253509
+
+	* libedataserver/e-categories.c: Added translators comment.
+
+2008-07-09  Tor Lillqvist  <tml@novell.com>
+
+	* evolution-data-server-zip.in: No version number for
+	share/pixmaps/evolution-data-server. Use -D when using -r to not
+	add pointless entries for directories in the zip files.
+
 2008-06-26  Julien Puydt  <jpuydt@gnome.org>
 
 	* libedataserver/e-source-group.c: Added missing g_object_unref on

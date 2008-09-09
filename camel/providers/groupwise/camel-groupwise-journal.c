@@ -41,6 +41,7 @@
 #include "camel-file-utils.h"
 #include "camel-folder-summary.h"
 #include "camel-folder.h"
+#include "camel-string-utils.h"
 
 #include "camel-groupwise-folder.h"
 #include "camel-groupwise-journal.h"
@@ -53,10 +54,10 @@ static void camel_groupwise_journal_class_init (CamelGroupwiseJournalClass *klas
 static void camel_groupwise_journal_init (CamelGroupwiseJournal *journal, CamelGroupwiseJournalClass *klass);
 static void camel_groupwise_journal_finalize (CamelObject *object);
 
-static void groupwise_entry_free (CamelOfflineJournal *journal, EDListNode *entry);
-static EDListNode *groupwise_entry_load (CamelOfflineJournal *journal, FILE *in);
-static int groupwise_entry_write (CamelOfflineJournal *journal, EDListNode *entry, FILE *out);
-static int groupwise_entry_play (CamelOfflineJournal *journal, EDListNode *entry, CamelException *ex);
+static void groupwise_entry_free (CamelOfflineJournal *journal, CamelDListNode *entry);
+static CamelDListNode *groupwise_entry_load (CamelOfflineJournal *journal, FILE *in);
+static int groupwise_entry_write (CamelOfflineJournal *journal, CamelDListNode *entry, FILE *out);
+static int groupwise_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, CamelException *ex);
 
 
 static CamelOfflineJournalClass *parent_class = NULL;
@@ -107,7 +108,7 @@ camel_groupwise_journal_finalize (CamelObject *object)
 }
 
 static void
-groupwise_entry_free (CamelOfflineJournal *journal, EDListNode *entry)
+groupwise_entry_free (CamelOfflineJournal *journal, CamelDListNode *entry)
 {
 	CamelGroupwiseJournalEntry *groupwise_entry = (CamelGroupwiseJournalEntry *) entry;
 	
@@ -117,7 +118,7 @@ groupwise_entry_free (CamelOfflineJournal *journal, EDListNode *entry)
 	g_free (groupwise_entry);
 }
 
-static EDListNode *
+static CamelDListNode *
 groupwise_entry_load (CamelOfflineJournal *journal, FILE *in)
 {
 	CamelGroupwiseJournalEntry *entry;
@@ -144,7 +145,7 @@ groupwise_entry_load (CamelOfflineJournal *journal, FILE *in)
 		goto exception;
 	}
 	
-	return (EDListNode *) entry;
+	return (CamelDListNode *) entry;
 	
  exception:
 	
@@ -158,7 +159,7 @@ groupwise_entry_load (CamelOfflineJournal *journal, FILE *in)
 }
 
 static int
-groupwise_entry_write (CamelOfflineJournal *journal, EDListNode *entry, FILE *out)
+groupwise_entry_write (CamelOfflineJournal *journal, CamelDListNode *entry, FILE *out)
 {
 	CamelGroupwiseJournalEntry *groupwise_entry = (CamelGroupwiseJournalEntry *) entry;
 	
@@ -301,7 +302,7 @@ groupwise_entry_play_transfer (CamelOfflineJournal *journal, CamelGroupwiseJourn
 }
 
 static int
-groupwise_entry_play (CamelOfflineJournal *journal, EDListNode *entry, CamelException *ex)
+groupwise_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, CamelException *ex)
 {
 	CamelGroupwiseJournalEntry *groupwise_entry = (CamelGroupwiseJournalEntry *) entry;
 	
@@ -373,8 +374,8 @@ update_cache (CamelGroupwiseJournal *groupwise_journal, CamelMimeMessage *messag
 	camel_object_unref (cache);
 	
 	info = camel_folder_summary_info_new_from_message (folder->summary, message);
-	g_free(info->uid);
-	info->uid = g_strdup (uid);
+	camel_pstring_free(info->uid);
+	info->uid = camel_pstring_strdup (uid);
 	
 	gw_message_info_dup_to ((CamelMessageInfoBase *) info, (CamelMessageInfoBase *) mi);
 	
@@ -403,7 +404,7 @@ camel_groupwise_journal_append (CamelGroupwiseJournal *groupwise_journal, CamelM
 	entry->type = CAMEL_GROUPWISE_JOURNAL_ENTRY_APPEND;
 	entry->uid = uid;
 				
-	e_dlist_addtail (&journal->queue, (EDListNode *) entry);
+	camel_dlist_addtail (&journal->queue, (CamelDListNode *) entry);
 	
 	if (appended_uid)
 		*appended_uid = g_strdup (uid);
@@ -429,7 +430,7 @@ camel_groupwise_journal_transfer (CamelGroupwiseJournal *groupwise_journal, Came
 	entry->original_uid = g_strdup (original_uid);
 	entry->source_container = g_strdup (camel_groupwise_store_container_id_lookup (gw_store, ((CamelFolder *)source_folder)->name));
 	
-	e_dlist_addtail (&journal->queue, (EDListNode *) entry);
+	camel_dlist_addtail (&journal->queue, (CamelDListNode *) entry);
 	
 	if (transferred_uid)
 		*transferred_uid = g_strdup (uid);

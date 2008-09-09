@@ -42,8 +42,8 @@ typedef struct _CamelVeeMessageInfo CamelVeeMessageInfo;
 
 struct _CamelVeeMessageInfo {
 	CamelMessageInfo info;
-
-	CamelMessageInfo *real;
+	CamelFolderSummary *summary;
+	guint32 old_flags;  /* These are just for identifying changed flags */
 };
 
 struct _CamelVeeSummary {
@@ -58,7 +58,8 @@ struct _CamelVeeSummaryClass {
 CamelType               camel_vee_summary_get_type     (void);
 CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *parent);
 
-CamelVeeMessageInfo * camel_vee_summary_add(CamelVeeSummary *s, CamelMessageInfo *info, const char hash[8]);
+CamelVeeMessageInfo * camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const char *uid, const char hash[8]);
+GPtrArray * camel_vee_summary_get_ids (CamelVeeSummary *summary, char hash[8]);
 
 G_END_DECLS
 

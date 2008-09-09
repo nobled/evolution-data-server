@@ -25,6 +25,7 @@ CamelStore
 @parent_object: 
 @priv: 
 @folders: 
+@cdb: 
 @flags: 
 @mode: 
 
@@ -359,7 +360,7 @@ CamelStore
 </para>
 
 @store: 
-@old_name: 
+@old_namein: 
 @new_name: 
 @ex: 
 
