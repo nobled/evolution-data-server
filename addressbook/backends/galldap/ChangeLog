@@ -1,3 +1,9 @@
+2008-09-09  Suman Manjunath  <msuman@novell.com>
+
+	* Makefile.am: 
+	* e-book-backend-galldap.c (load_source): 
+	Fixed a build break. 
+
 2008-08-21  Suman Manjunath  <msuman@novell.com>
 
 	Patch from Patrick Ohly  <patrick.ohly@gmx.de>

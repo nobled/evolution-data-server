@@ -2427,7 +2427,7 @@ load_source (EBookBackend *backend,
 		if (limit <= 0)
 			limit = 500;
 	}
-	bl->priv->gc = e2k_global_catalog_new (bl->priv->server, limit, user, domain, NULL);
+	bl->priv->gc = e2k_global_catalog_new (bl->priv->server, limit, user, domain, NULL, E2K_AUTOCONFIG_USE_GAL_DEFAULT);
   	bl->priv->gal_uri = g_strdup (uri);
   	tokens = g_strsplit (uri, ";", 2);
   	g_free (uri);

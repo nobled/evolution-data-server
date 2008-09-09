@@ -1,11 +1,14 @@
+# Fix the code to not use E_DATA_SERVER_UI_CFLAGS
+
 INCLUDES =						\
-	-DG_LOG_DOMAIN=\"libebookbackend\"		\
+	-DG_LOG_DOMAIN=\"libebookbackendgalldap\"	\
 	-I$(top_srcdir)					\
 	-I$(top_builddir)				\
 	-I$(top_srcdir)/addressbook			\
 	-I$(top_builddir)/addressbook			\
 	-I$(top_srcdir)/servers/exchange/storage	\
 	-I$(top_srcdir)/servers/exchange/lib		\
+	$(E_DATA_SERVER_UI_CFLAGS) 			\
 	$(EVOLUTION_ADDRESSBOOK_CFLAGS)			\
 	$(LDAP_CFLAGS)					\
 	$(DB_CFLAGS)
