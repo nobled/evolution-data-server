@@ -143,7 +143,7 @@ mapi_refresh_info(CamelFolder *folder, CamelException *ex)
 			}
 			camel_store_summary_info_free ((CamelStoreSummary *)((CamelMapiStore *)folder->parent_store)->summary, si);
 		}
-		camel_folder_summary_save (folder->summary);
+		camel_folder_summary_save_to_db (folder->summary, ex);
 		camel_store_summary_save ((CamelStoreSummary *)((CamelMapiStore *)folder->parent_store)->summary);
 	} else {
 		/* We probably could not get the messages the first time. (get_folder) failed???!
@@ -314,7 +314,7 @@ mapi_update_cache (CamelFolder *folder, GSList *list, CamelException *ex, gboole
 static void 
 mapi_sync_summary (CamelFolder *folder, CamelException *ex)
 {
-	camel_folder_summary_save (folder->summary);
+	camel_folder_summary_save_to_db (folder->summary, ex);
 	camel_store_summary_touch ((CamelStoreSummary *)((CamelMapiStore *)folder->parent_store)->summary);
 	camel_store_summary_save ((CamelStoreSummary *)((CamelMapiStore *)folder->parent_store)->summary);
 }

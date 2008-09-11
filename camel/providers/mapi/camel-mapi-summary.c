@@ -35,16 +35,18 @@
 #include "camel-mapi-folder.h"
 #include "camel-mapi-summary.h"
 
+/* Macros for DB Summary */
+#define MS_EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
+
 /*Prototypes*/
-static int mapi_summary_header_load (CamelFolderSummary *, FILE *);
-static int mapi_summary_header_save (CamelFolderSummary *, FILE *);
+static int mapi_summary_header_to_db (CamelFolderSummary *, CamelException *ex);
+static int mapi_summary_header_from_db (CamelFolderSummary *, CamelFIRecord *fir);
 
-static CamelMessageInfo *mapi_message_info_load (CamelFolderSummary *s, FILE *in) ;
+static CamelMessageInfo *mapi_message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir) ;
+static CamelMIRecord *mapi_message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info) ;
 
-static int mapi_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info) ;
-static CamelMessageContentInfo * mapi_content_info_load (CamelFolderSummary *s, FILE *in) ;
-static int mapi_content_info_save (CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *info) ;
-static gboolean mapi_info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set);		
+static CamelMessageContentInfo * mapi_content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir) ;
+static int mapi_content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir) ;
 
 static void camel_mapi_summary_class_init (CamelMapiSummaryClass *klass);
 static void camel_mapi_summary_init       (CamelMapiSummary *obj);
@@ -98,12 +100,13 @@ camel_mapi_summary_class_init (CamelMapiSummaryClass *klass)
 	camel_mapi_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS (camel_type_get_global_classfuncs (camel_folder_summary_get_type()));
 
 	cfs_class->message_info_clone = mapi_message_info_clone ;
-	cfs_class->summary_header_load = mapi_summary_header_load;
-	cfs_class->summary_header_save = mapi_summary_header_save;
-	cfs_class->message_info_load = mapi_message_info_load;
-	cfs_class->message_info_save = mapi_message_info_save;
-	cfs_class->content_info_load = mapi_content_info_load;
-	cfs_class->content_info_save = mapi_content_info_save;
+
+	cfs_class->summary_header_to_db = mapi_summary_header_to_db;
+	cfs_class->summary_header_from_db = mapi_summary_header_from_db;
+	cfs_class->message_info_to_db = mapi_message_info_to_db;
+	cfs_class->message_info_from_db = mapi_message_info_from_db;
+	cfs_class->content_info_to_db = mapi_content_info_to_db;
+	cfs_class->content_info_from_db = mapi_content_info_from_db;
 }
 
 
@@ -133,75 +136,94 @@ camel_mapi_summary_init (CamelMapiSummary *obj)
 CamelFolderSummary *
 camel_mapi_summary_new (struct _CamelFolder *folder, const char *filename)
 {
+	CamelException ex;
+
 	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (
 			camel_object_new (camel_mapi_summary_get_type ()));
+
+	camel_exception_init (&ex);
 	
 	summary->folder = folder ;
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);
 
-	if (camel_folder_summary_load (summary) == -1) {
-		camel_folder_summary_clear (summary);
-		camel_folder_summary_touch (summary);
+	if (camel_folder_summary_load_from_db (summary, &ex) == -1) {
+		/* FIXME: Isn't this dangerous ? We clear the summary
+		if it cannot be loaded, for some random reason.
+		We need to pass the ex and find out why it is not loaded etc. ? */
+		camel_folder_summary_clear_db (summary);
+		g_warning ("Unable to load summary %s\n", camel_exception_get_description (&ex));
+		camel_exception_clear (&ex);
 	}
 
 	return summary;
 }
 
 static int
-mapi_summary_header_load (CamelFolderSummary *summary, FILE *in) 
+mapi_summary_header_from_db (CamelFolderSummary *summary, CamelFIRecord *fir) 
 {
-	if (camel_mapi_summary_parent->summary_header_load (summary, in) == -1)
+	if (camel_mapi_summary_parent->summary_header_from_db (summary, fir) == -1)
 		return -1 ;
 
 	return 0;
 }
 static int 
-mapi_summary_header_save (CamelFolderSummary *summary, FILE *out) 
+mapi_summary_header_to_db (CamelFolderSummary *summary, CamelException *ex) 
 {
-	if (camel_mapi_summary_parent->summary_header_save (summary, out) == -1)
+	if (camel_mapi_summary_parent->summary_header_to_db (summary, ex) == -1)
 		return -1;
 
 	return 0;
 }
 
 static CamelMessageInfo*
-mapi_message_info_load (CamelFolderSummary *s, FILE *in) 
+mapi_message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir) 
 {
 	CamelMessageInfo *info ;
 
-	info = camel_mapi_summary_parent->message_info_load(s,in) ;
+	info = camel_mapi_summary_parent->message_info_from_db (s, mir) ;
 
 	return info ;
 }
 
-static int 
-mapi_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info) 
+static CamelMIRecord *
+mapi_message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info) 
 {
-	if (camel_mapi_summary_parent->message_info_save (s, out, info) == -1)
-		return -1;
+	CamelMapiMessageInfo *minfo = (CamelMapiMessageInfo *)info;
+	struct _CamelMIRecord *mir;
 
-	return 0;
+	mir = camel_mapi_summary_parent->message_info_to_db (s, info);
+
+	return mir;
 }
 
 static CamelMessageContentInfo* 
-mapi_content_info_load (CamelFolderSummary *s, FILE *in) 
+mapi_content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir) 
 {
+	char *part = mir->cinfo;
+	guint32 type=0;
+	
+	if (part) 
+		MS_EXTRACT_FIRST_DIGIT (type);
 
-	if (fgetc (in))
-		return camel_mapi_summary_parent->content_info_load (s, in);
+	mir->cinfo = part;
+
+	if (type)
+		return camel_mapi_summary_parent->content_info_from_db (s, mir);
 	else
 		return camel_folder_summary_content_info_new (s);
 }
 
 static int
-mapi_content_info_save (CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *info)
+mapi_content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir)
 {
 	if (info->type) {
-		fputc (1, out);
-		return camel_mapi_summary_parent->content_info_save (s, out, info);
-	} else
-		return fputc (0, out);
+		mir->cinfo = g_strdup ("1");
+		return camel_mapi_summary_parent->content_info_to_db (s, info, mir);
+	} else {
+		mir->cinfo = g_strdup ("0");
+		return 0;
+	}
 }
 
 void
@@ -209,6 +231,7 @@ mapi_summary_clear (CamelFolderSummary *summary, gboolean uncache)
 {
 	CamelFolderChangeInfo *changes;
 	CamelMessageInfo *info;
+	CamelException ex;
 	int i, count;
 	const char *uid;
 
@@ -225,7 +248,9 @@ mapi_summary_clear (CamelFolderSummary *summary, gboolean uncache)
 	}
 
 	camel_folder_summary_clear (summary);
-	camel_folder_summary_save (summary);
+	camel_exception_init (&ex);
+	/*TODO : Test exception */
+	camel_folder_summary_save_to_db (summary, &ex);
 
 	if (uncache)
 		camel_data_cache_clear (((CamelMapiFolder *) summary->folder)->cache, "cache", NULL);
