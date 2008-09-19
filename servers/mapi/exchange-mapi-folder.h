@@ -56,7 +56,6 @@ typedef struct _ExchangeMAPIFolder {
 	gboolean is_default;
 
 	gchar *folder_name;
-	gchar *parent_folder_name;
 	ExchangeMAPIFolderType container_class;
 	ExchangeMAPIFolderCategory category;
 	mapi_id_t folder_id;
@@ -72,7 +71,7 @@ typedef struct _ExchangeMAPIFolder {
 } ExchangeMAPIFolder;
 
 ExchangeMAPIFolder *
-exchange_mapi_folder_new (const char *folder_name, const char *parent_folder_name, const char *container_class, 
+exchange_mapi_folder_new (const char *folder_name, const char *container_class, 
 			  ExchangeMAPIFolderCategory catgory, 
 			  mapi_id_t folder_id, mapi_id_t parent_folder_id, 
 			  uint32_t child_count, uint32_t unread_count, uint32_t total);

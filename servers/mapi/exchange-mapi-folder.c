@@ -59,14 +59,13 @@ container_class_to_type (const char *type)
 }
 
 ExchangeMAPIFolder *
-exchange_mapi_folder_new (const char *folder_name, const char *parent_folder_name, const char *container_class, ExchangeMAPIFolderCategory category, mapi_id_t folder_id, mapi_id_t parent_folder_id, uint32_t child_count, uint32_t unread_count, uint32_t total)
+exchange_mapi_folder_new (const char *folder_name, const char *container_class, ExchangeMAPIFolderCategory category, mapi_id_t folder_id, mapi_id_t parent_folder_id, uint32_t child_count, uint32_t unread_count, uint32_t total)
 {
 	ExchangeMAPIFolder *folder;
 
 	folder = g_new0 (ExchangeMAPIFolder, 1);
 	folder->is_default = FALSE;
 	folder->folder_name = g_strdup (folder_name);
-	folder->parent_folder_name = parent_folder_name ? g_strdup (parent_folder_name) : NULL;
 	folder->container_class = container_class_to_type (container_class);
 	folder->folder_id = folder_id;
 	folder->parent_folder_id = parent_folder_id;

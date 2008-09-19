@@ -1,3 +1,8 @@
+2008-09-19  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-store.c (mapi_folders_sync): Don't always
+	expect a PF hierarchy to be present. 
+
 2008-09-11  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-summary.c (mapi_summary_clear): use 

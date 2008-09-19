@@ -1389,7 +1389,6 @@ exchange_mapi_create_folder (uint32_t olFolder, mapi_id_t pfid, const char *name
 	
 	/* Attempt to create the folder */
 	retval = CreateFolder(&obj_top, FOLDER_GENERIC, name, "Created using Evolution/LibMAPI", OPEN_IF_EXISTS, &obj_folder);
-
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("CreateFolder", GetLastError());
 		goto cleanup;
@@ -2181,7 +2180,6 @@ exchange_mapi_set_flags (uint32_t olFolder, mapi_id_t fid, GSList *mids, uint32_
 
 	/* Open the message store */
 	retval = ((options & MAPI_OPTIONS_USE_PFSTORE) ? OpenPublicFolder(&obj_store) : OpenMsgStore(&obj_store)) ;
-
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenMsgStore / OpenPublicFolder", GetLastError());
 		goto cleanup;
@@ -2215,74 +2213,93 @@ cleanup:
 }
 
 static gboolean
-mapi_move_items ( mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mid_list, gboolean do_copy)
+mapi_move_items (mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mid_list, gboolean do_copy)
 {
-	gboolean ret = TRUE;
+	enum MAPISTATUS	retval;
 	mapi_object_t obj_store;
 	mapi_object_t obj_folder_src;
 	mapi_object_t obj_folder_dst;
 	mapi_id_array_t msg_id_array;
-
-	enum MAPISTATUS	retval;
-	guint i;
 	GSList *l;
-
-	mapi_id_array_init(&msg_id_array);
-	for (i = 0, l = mid_list; l != NULL; l = g_slist_next (l), i++) {
-		mapi_id_array_add_id (&msg_id_array, *((mapi_id_t *)l->data));
-	}
-
-	LOCK();
+	gboolean result = FALSE;
 
 	mapi_object_init(&obj_store);
+	mapi_object_init(&obj_folder_src);
+	mapi_object_init(&obj_folder_dst);
+	mapi_id_array_init(&msg_id_array);
+
+	for (l = mid_list; l != NULL; l = g_slist_next (l))
+		mapi_id_array_add_id (&msg_id_array, *((mapi_id_t *)l->data));
+
 	retval = OpenMsgStore(&obj_store);
-	if (GetLastError() != MAPI_E_SUCCESS) {
-		ret = FALSE;
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenMsgStore", GetLastError());
 		goto cleanup;
 	}
 
-	mapi_object_init(&obj_folder_src);
 	retval = OpenFolder(&obj_store, src_fid, &obj_folder_src);
-	if (GetLastError() != MAPI_E_SUCCESS) {
-		ret = FALSE;
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenFolder - source folder", GetLastError());
 		goto cleanup;
 	}
-		
-	mapi_object_init(&obj_folder_dst);
+
 	retval = OpenFolder(&obj_store, dest_fid, &obj_folder_dst);
-	if (GetLastError() != MAPI_E_SUCCESS) {
-		ret = FALSE;
+	if (retval != MAPI_E_SUCCESS) {
+		mapi_errstr("OpenFolder - destination folder", GetLastError());
 		goto cleanup;
 	}
 
 	retval = MoveCopyMessages(&obj_folder_src, &obj_folder_dst, &msg_id_array, do_copy);
 	if (retval != MAPI_E_SUCCESS) {
-		ret = FALSE;
+		mapi_errstr("MoveCopyMessages", GetLastError());
 		goto cleanup;
 	}
 
-	ret = TRUE;
+	result = TRUE;
 
 cleanup:
-	UNLOCK();
-	mapi_object_release(&obj_folder_src);
-	mapi_object_release(&obj_folder_dst);
-	mapi_object_release(&obj_store);
 	mapi_id_array_release(&msg_id_array);
+	mapi_object_release(&obj_folder_dst);
+	mapi_object_release(&obj_folder_src);
+	mapi_object_release(&obj_store);
 
-	return ret;
+	return result;
 }
 
 gboolean
 exchange_mapi_copy_items (mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids)
 {
-	return mapi_move_items (src_fid, dest_fid, mids, TRUE);
+	gboolean result = FALSE; 
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	LOCK();
+	LOGALL();
+	result = mapi_move_items (src_fid, dest_fid, mids, TRUE);
+	LOGNONE();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	return result; 
 }
 
 gboolean
 exchange_mapi_move_items (mapi_id_t src_fid, mapi_id_t dest_fid, GSList *mids)
 {
-	return mapi_move_items (src_fid, dest_fid, mids, FALSE);
+	gboolean result = FALSE; 
+
+	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	LOCK();
+	LOGALL();
+	result = mapi_move_items (src_fid, dest_fid, mids, FALSE);
+	LOGNONE();
+	UNLOCK();
+
+	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
+
+	return result; 
 }
 
 gboolean
@@ -2356,109 +2373,19 @@ cleanup:
 }
 
 static gboolean
-get_child_folders_pf(TALLOC_CTX *mem_ctx, mapi_object_t *parent, mapi_id_t folder_id, GSList **mapi_folders)
-{
-	enum MAPISTATUS		retval;
-	mapi_object_t		obj_folder;
-	mapi_object_t		obj_htable;
-	struct SPropTagArray	*SPropTagArray;
-	struct SRowSet		rowset;
-	uint32_t		index;
-	gboolean 		result = FALSE;
-
-	/* sanity check */
-	g_return_val_if_fail (mem_ctx != NULL, FALSE);
-	g_return_val_if_fail (parent != NULL, FALSE);
-
-	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
-
-	mapi_object_init(&obj_folder);
-	mapi_object_init(&obj_htable);
-
-	retval = OpenFolder(parent, folder_id, &obj_folder);
-	if (retval != MAPI_E_SUCCESS)  {
-		mapi_errstr("OpenFolder", GetLastError());
-		goto cleanup;
-	}
-
-	retval = GetHierarchyTable(&obj_folder, &obj_htable, 0, NULL);
-	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr("GetHierarchyTable", GetLastError());
-		goto cleanup;
-	}
-
-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x4,
-					  PR_DISPLAY_NAME,
-					  PR_FID,
-					  PR_CONTAINER_CLASS,
-					  PR_FOLDER_CHILD_COUNT);
-
-	retval = SetColumns(&obj_htable, SPropTagArray);
-	MAPIFreeBuffer (SPropTagArray);
-
-	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr("SetColumns", GetLastError());
-		goto cleanup;
-	}
-
-	while ((retval = QueryRows(&obj_htable, 0x32, TBL_ADVANCE, &rowset) != MAPI_E_NOT_FOUND) && rowset.cRows) {
-		for (index = 0; index < rowset.cRows; index++) {
-			ExchangeMAPIFolder *folder = NULL;
-			gchar *newname = NULL;
-
-			const uint64_t *fid = (const uint64_t *)find_SPropValue_data(&rowset.aRow[index], PR_FID);
-			const char *class = (const char *)find_SPropValue_data(&rowset.aRow[index], PR_CONTAINER_CLASS);
-			const char *name = (const char *)find_SPropValue_data(&rowset.aRow[index], PR_DISPLAY_NAME);
-			const uint32_t *child = (const uint32_t *)find_SPropValue_data(&rowset.aRow[index], PR_FOLDER_CHILD_COUNT);
-
-			// HACK : We should ignore this if we are not able identify ? Learn more.
-			if (!class)
-				class = IPF_NOTE;
-
-			newname = utf8tolinux(name);
-
-			d(printf("|---+ %-15s - %s \n ", newname, class);)
-
-			//Fixme :
-			folder = exchange_mapi_folder_new (newname, NULL, class, MAPI_FAVOURITE_FOLDER, 
-							   *fid, folder_id, 0, 0, 0);
-			g_free (newname);
-
-			*mapi_folders = g_slist_prepend (*mapi_folders, folder);
-
-			if (child && *child) {
-				result = get_child_folders_pf(mem_ctx, &obj_folder, *fid, mapi_folders);
-			}
-			
-		}
-	}
-cleanup:
-	mapi_object_release (&obj_folder);
-	mapi_object_release (&obj_htable);
-
-	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
-
-	return result;
-}
-
-/* why on earth does ExchangeMAPIFolder store parent_name? */
-/* recursive call - so better pass TALLOC_CTX */
-static gboolean
-get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent_name, mapi_id_t folder_id, GSList **mapi_folders)
+get_child_folders(TALLOC_CTX *mem_ctx, ExchangeMAPIFolderCategory folder_hier, mapi_object_t *parent, mapi_id_t folder_id, GSList **mapi_folders)
 {
 	enum MAPISTATUS		retval;
 	mapi_object_t		obj_folder;
 	mapi_object_t		obj_table;
 	struct SPropTagArray	*SPropTagArray = NULL;
 	struct SRowSet		rowset;
-	uint32_t		i, row_count;
+	uint32_t		i, row_count = 0;
 	gboolean 		result = TRUE;
 
 	/* sanity check */
 	g_return_val_if_fail (mem_ctx != NULL, FALSE);
 	g_return_val_if_fail (parent != NULL, FALSE);
-
-	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	mapi_object_init(&obj_folder);
 	mapi_object_init(&obj_table);
@@ -2471,7 +2398,7 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 	}
 
 	/* Get the hierarchy table */
-	retval = GetHierarchyTable(&obj_folder, &obj_table, 0, NULL);
+	retval = GetHierarchyTable(&obj_folder, &obj_table, 0, &row_count);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("GetHierarchyTable", GetLastError());
 		goto cleanup;
@@ -2485,17 +2412,9 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 					  PR_CONTENT_COUNT,
 					  PR_FOLDER_CHILD_COUNT);
 
-	/* Set primary columns to be fetched */
 	retval = SetColumns(&obj_table, SPropTagArray);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("SetColumns", GetLastError());
-		goto cleanup;
-	}
-
-	/* Number of items in the container */
-	retval = GetRowCount(&obj_table, &row_count);
-	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr("GetRowCount", GetLastError());
 		goto cleanup;
 	}
 
@@ -2521,13 +2440,13 @@ get_child_folders(TALLOC_CTX *mem_ctx, mapi_object_t *parent, const char *parent
 			class = IPF_NOTE;
 
 		newname = utf8tolinux (name);
-		g_print("\n|---+ %-15s : (Container class: %s %016llX) UnRead : %d Total : %d", newname, class, *fid, *unread, *total);
+		g_print("\n|---+ %-15s : (Container class: %s %016llX) UnRead : %d Total : %d ", newname, class, *fid, unread ? *unread : 0, total ? *total : 0);
 
-		folder = exchange_mapi_folder_new (newname, parent_name, class, MAPI_PERSONAL_FOLDER, *fid, folder_id, *child, *unread, *total);
+		folder = exchange_mapi_folder_new (newname, class, folder_hier, *fid, folder_id, child ? *child : 0, unread ? *unread : 0, total ? *total : 0);
 		*mapi_folders = g_slist_prepend (*mapi_folders, folder);
 
 		if (child && *child)
-			result = (result && get_child_folders(mem_ctx, &obj_folder, newname, *fid, mapi_folders));
+			result = (result && get_child_folders(mem_ctx, folder_hier, &obj_folder, *fid, mapi_folders));
 
 		g_free (newname);
 	}
@@ -2536,8 +2455,6 @@ cleanup:
 	MAPIFreeBuffer (SPropTagArray);
 	mapi_object_release (&obj_folder);
 	mapi_object_release (&obj_table);
-
-	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	return result;
 }
@@ -2608,6 +2525,7 @@ exchange_mapi_get_folders_list (GSList **mapi_folders)
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	LOCK();
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_GetFoldersList");
 	mapi_object_init(&obj_store);
 
@@ -2653,11 +2571,11 @@ exchange_mapi_get_folders_list (GSList **mapi_folders)
 	utf8_mailbox_name = utf8tolinux (mailbox_name);
 
 	/* FIXME: May have to get the child folders count? Do we need/use it? */
-	folder = exchange_mapi_folder_new (utf8_mailbox_name, NULL, IPF_NOTE, MAPI_PERSONAL_FOLDER, mailbox_id, 0, 0, 0 ,0); 
+	folder = exchange_mapi_folder_new (utf8_mailbox_name, IPF_NOTE, MAPI_PERSONAL_FOLDER, mailbox_id, 0, 0, 0 ,0); 
 	*mapi_folders = g_slist_prepend (*mapi_folders, folder);
 
 	/* FIXME: check status of get_child_folders */
-	get_child_folders (mem_ctx, &obj_store, utf8_mailbox_name, mailbox_id, mapi_folders);
+	get_child_folders (mem_ctx, MAPI_PERSONAL_FOLDER, &obj_store, mailbox_id, mapi_folders);
 
 	g_free(utf8_mailbox_name);
 
@@ -2672,6 +2590,7 @@ exchange_mapi_get_folders_list (GSList **mapi_folders)
 cleanup:
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
+	LOGNONE();
 	UNLOCK();
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
@@ -2682,46 +2601,47 @@ cleanup:
 gboolean 
 exchange_mapi_get_pf_folders_list (GSList **mapi_folders)
 {
-	TALLOC_CTX *mem_ctx;
-	mapi_object_t obj_store;
-	enum MAPISTATUS retval;
-	mapi_id_t id_mailbox;
-	gboolean result = FALSE;
-	ExchangeMAPIFolder *folder;
+	enum MAPISTATUS 	retval;
+	TALLOC_CTX 		*mem_ctx;
+	mapi_object_t 		obj_store;
+	gboolean 		result = FALSE;
+	mapi_id_t		mailbox_id;
+	ExchangeMAPIFolder 	*folder;
 
 	d(g_print("\n%s(%d): Entering %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));
 
 	LOCK();
-
+	LOGALL();
 	mem_ctx = talloc_init("ExchangeMAPI_PF_GetFoldersList");
 	mapi_object_init(&obj_store);
 
+	/* Open the PF message store */
 	retval = OpenPublicFolder(&obj_store);
 	if (retval != MAPI_E_SUCCESS) {
 		mapi_errstr("OpenPublicFolder", GetLastError());
-		UNLOCK();
 		goto cleanup;
 	}
 
-	/* IPM_SUBTREE is what we want.  */
-	retval = GetDefaultPublicFolder(&obj_store, &id_mailbox, olFolderPublicIPMSubtree);
+	/* Prepare the directory listing */
+	retval = GetDefaultPublicFolder(&obj_store, &mailbox_id, olFolderPublicIPMSubtree);
 	if (retval != MAPI_E_SUCCESS) {
-		mapi_errstr(__PRETTY_FUNCTION__, GetLastError());				
-		UNLOCK();
+		mapi_errstr("GetDefaultPublicFolder", GetLastError());
 		goto cleanup;
 	}
 
 	/*  TODO : Localized string */
-	folder = exchange_mapi_folder_new ("All Public Folders", NULL, IPF_NOTE, MAPI_FAVOURITE_FOLDER, id_mailbox, 0, 0, 0 ,0); 
+	folder = exchange_mapi_folder_new ("All Public Folders", IPF_NOTE, MAPI_FAVOURITE_FOLDER, mailbox_id, 0, 0, 0 ,0); 
 	*mapi_folders = g_slist_prepend (*mapi_folders, folder);
 
-	get_child_folders_pf(mem_ctx, &obj_store, id_mailbox, mapi_folders);
+	/* FIXME: check status of get_child_folders */
+	get_child_folders (mem_ctx, MAPI_FAVOURITE_FOLDER, &obj_store, mailbox_id, mapi_folders);
 
 	result = TRUE;
 
 cleanup:
 	mapi_object_release(&obj_store);
 	talloc_free (mem_ctx);
+	LOGNONE();
 	UNLOCK();
 
 	d(g_print("\n%s(%d): Leaving %s ", __FILE__, __LINE__, __PRETTY_FUNCTION__));

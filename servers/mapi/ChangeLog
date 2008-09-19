@@ -1,3 +1,14 @@
+2008-09-19  Suman Manjunath  <msuman@novell.com>
+
+	* exchange-mapi-connection.c (exchange_mapi_create_folder),
+	(exchange_mapi_set_flags), (mapi_move_items),
+	(exchange_mapi_copy_items), (exchange_mapi_move_items),
+	(get_child_folders), (exchange_mapi_get_folders_list),
+	(exchange_mapi_get_pf_folders_list): Lots of code cleanup. 
+	* exchange-mapi-folder.c (exchange_mapi_folder_new):
+	* exchange-mapi-folder.h: Don't store parent-folder-name in 
+	ExchangeMAPIFolder - it's of no real use. Related changes. 
+
 2008-09-08  Johnny Jacob  <jjohnny@novell.com>
 
 	* exchange-mapi-connection.c (exchange_mapi_get_pf_folders_list): Renamed

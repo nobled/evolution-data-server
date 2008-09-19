@@ -1058,10 +1058,9 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 	}
 
 	status = exchange_mapi_get_pf_folders_list (&folder_list);
-
 	if (!status) {
-		g_warning ("Could not get folder list..\n");
-		return;
+		g_warning ("Could not get Public folder list..\n");
+//		return;
 	}
 
 	temp_list = folder_list;
