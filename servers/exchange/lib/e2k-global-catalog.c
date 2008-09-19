@@ -435,8 +435,11 @@ e2k_global_catalog_get_ldap (E2kGlobalCatalog *gc, E2kOperation *op, int *ldap_e
 
 	err = get_ldap_connection (gc, op, gc->priv->server, 3268, &ldap);
 
+#if 0
+	//ldap_error = (gint *) g_malloc (sizeof (gint));
 	if (ldap_error)
 		*ldap_error = err;
+#endif
 
 	return ldap;
 }
