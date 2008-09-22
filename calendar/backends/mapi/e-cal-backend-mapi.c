@@ -57,6 +57,7 @@ typedef struct {
 struct _ECalBackendMAPIPrivate {
 	mapi_id_t 		fid;
 	uint32_t 		olFolder;
+	gchar 			*profile; 
 
 	/* These fields are entirely for access rights */
 	gchar 			*owner_name;
@@ -104,7 +105,7 @@ e_cal_backend_mapi_authenticate (ECalBackend *backend)
 	cbmapi = E_CAL_BACKEND_MAPI (backend);
 	priv = cbmapi->priv;
 
-	if (authenticated || exchange_mapi_connection_exists () || exchange_mapi_connection_new (priv->user_email, NULL)) {
+	if (authenticated || exchange_mapi_connection_exists () || exchange_mapi_connection_new (priv->profile, priv->password)) {
 		authenticated = TRUE;
 		return GNOME_Evolution_Calendar_Success;
 	} else { 
@@ -180,6 +181,11 @@ e_cal_backend_mapi_finalize (GObject *object)
 	if (priv->password) {
 		g_free (priv->password);
 		priv->password = NULL;
+	}
+
+	if (priv->profile) {
+		g_free (priv->profile);
+		priv->profile = NULL;
 	}
 
 	if (priv->user_name) {
@@ -1121,6 +1127,7 @@ e_cal_backend_mapi_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 	priv->username = g_strdup (username);
 	priv->password = g_strdup (password);
 
+	priv->profile = g_strdup (e_source_get_property (esource, "profile"));
 	priv->user_name = g_strdup (e_source_get_property (esource, "acl-user-name"));
 	priv->user_email = g_strdup (e_source_get_property (esource, "acl-user-email"));
 	priv->owner_name = g_strdup (e_source_get_property (esource, "acl-owner-name"));
