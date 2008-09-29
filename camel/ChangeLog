@@ -1,6 +1,6 @@
 2008-09-26  Milan Crha  <mcrha@redhat.com>
 
-	** Fix for bug #550466
+	** Fix for bug #550466 
 
 	* camel-store.c: (camel_store_delete_folder):
 	Ignore 'no such table' errors.
