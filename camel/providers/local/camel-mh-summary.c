@@ -38,7 +38,8 @@
 #include "camel-private.h"
 
 #include "camel-mh-summary.h"
-
+#include "camel-folder.h"
+#include "camel-store.h"
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
 #define CAMEL_MH_SUMMARY_VERSION (0x2000)
@@ -133,14 +134,17 @@ sort_uid_cmp (void *enc, int len1, void * data1, int len2, void *data2)
  * 
  * Return value: A new #CamelMhSummary object.
  **/
-CamelMhSummary	*camel_mh_summary_new(struct _CamelFolder *folder, const char *filename, const char *mhdir, CamelIndex *index)
+CamelMhSummary	*camel_mh_summary_new(CamelFolder *folder, const char *filename, const char *mhdir, CamelIndex *index)
 {
 	CamelMhSummary *o = (CamelMhSummary *)camel_object_new(camel_mh_summary_get_type ());
 
 	((CamelFolderSummary *)o)->folder = folder;
 	if (folder) {
-		camel_db_set_collate (folder->cdb, "uid", "uid_sort", (CamelDBCollate)sort_uid_cmp);
+		camel_db_set_collate (folder->parent_store->cdb, "uid", "mh_uid_sort", (CamelDBCollate)sort_uid_cmp);
+		((CamelFolderSummary *)o)->sort_col = "uid";
+		((CamelFolderSummary *)o)->collate = "mh_uid_sort";
 	}
+
 	camel_local_summary_construct((CamelLocalSummary *)o, filename, mhdir, index);
 	return o;
 }

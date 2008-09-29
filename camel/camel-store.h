@@ -123,6 +123,7 @@ struct _CamelStore {
 	
 	CamelObjectBag *folders;
 	CamelDB *cdb;
+	CamelDB *cdb_write;
 
 	guint32 flags;
 	guint32 mode;

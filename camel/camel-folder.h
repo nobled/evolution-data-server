@@ -109,7 +109,7 @@ struct _CamelFolder {
 
 	guint32 folder_flags;
 	guint32 permanent_flags;
-	CamelDB *cdb;
+	char *folder_key;
 };
 
 #define CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY (1<<0)
@@ -368,6 +368,12 @@ void			camel_folder_change_info_add_uid	(CamelFolderChangeInfo *info, const char
 void			camel_folder_change_info_remove_uid	(CamelFolderChangeInfo *info, const char *uid);
 void			camel_folder_change_info_change_uid	(CamelFolderChangeInfo *info, const char *uid);
 void			camel_folder_change_info_recent_uid	(CamelFolderChangeInfo *info, const char *uid);
+
+/* Hash */
+
+const char *		camel_folder_get_hash(CamelFolder *folder);
+char *			camel_folder_make_hash(CamelFolder *folder, char buffer[8]);
+char *			camel_folder_hash(CamelStore *store, char *folder_name, char buffer[8]);
 
 G_END_DECLS
 

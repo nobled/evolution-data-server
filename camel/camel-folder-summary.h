@@ -247,6 +247,10 @@ struct _CamelFolderSummary {
 	struct _CamelFolderMetaSummary *meta_summary; /* Meta summary */
 	time_t cache_load_time;
 	guint timeout_handle;
+
+	/* Sort */
+	char *sort_col;
+	char *collate;
 };
 
 struct _CamelFolderSummaryClass {
@@ -283,6 +287,8 @@ struct _CamelFolderSummaryClass {
 	int		          (*content_info_save)(CamelFolderSummary *, FILE *, CamelMessageContentInfo *);
 	void		          (*content_info_free)(CamelFolderSummary *, CamelMessageContentInfo *);
 	CamelMessageInfo * (*message_info_from_uid) (CamelFolderSummary *, const char *);
+	int * (*reload_from_db) (CamelFolderSummary *, CamelException *);
+	
 	/* get the next uid */
 	char *(*next_uid_string)(CamelFolderSummary *);
 

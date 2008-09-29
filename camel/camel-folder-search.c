@@ -490,14 +490,17 @@ camel_folder_search_search(CamelFolderSearch *search, const char *expr, GPtrArra
 			sql_query = camel_sexp_to_sql (expr);
 		else
 			sql_query = camel_sexp_to_sql_sexp (expr);
-		tmp1 = camel_db_sqlize_string(search->folder->full_name);
-		tmp = g_strdup_printf ("SELECT uid FROM %s %s %s", tmp1, sql_query ? "WHERE":"", sql_query?sql_query:"");
+		tmp1 = camel_db_sqlize_string(search->folder->folder_key);
+		if (CAMEL_IS_VEE_FOLDER(search->folder))
+			tmp = g_strdup_printf ("SELECT vuid FROM messages where %s%s%s", sql_query?"(":"", sql_query?sql_query:"", sql_query?")":"");
+		else
+			tmp = g_strdup_printf ("SELECT uid FROM messages where (folder_key = %s)%s%s%s%s", tmp1, sql_query?" AND ":"", sql_query?"(":"", sql_query?sql_query:"", sql_query?")":"");
 		camel_db_free_sqlized_string (tmp1);
 		g_free (sql_query);
 		dd(printf("Equivalent sql %s\n", tmp));
 	
 		matches = g_ptr_array_new();
-		cdb = (CamelDB *) (search->folder->cdb);
+		cdb = (CamelDB *) (search->folder->parent_store->cdb);
 		camel_db_select (cdb, tmp, (CamelDBSelectCB) read_uid_callback, matches, ex);
 		if (ex && camel_exception_is_set(ex)) {
 			const char *exception = camel_exception_get_description (ex);

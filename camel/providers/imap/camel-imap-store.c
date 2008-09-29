@@ -1126,6 +1126,7 @@ imap_forget_folder (CamelImapStore *imap_store, const char *folder_name, CamelEx
 	g_unlink (state_file);
 	g_free (state_file);
 	
+	#warning "DBV2: This delete folder won't work"
 	camel_db_delete_folder (((CamelStore *)imap_store)->cdb, folder_name, ex);
 	camel_imap_message_cache_delete (folder_dir, ex);
 

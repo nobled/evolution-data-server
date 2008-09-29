@@ -43,6 +43,8 @@
 #include "camel-private.h"
 #include "camel-string-utils.h"
 #include "camel-maildir-summary.h"
+#include "camel-folder.h"
+#include "camel-store.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
@@ -168,8 +170,10 @@ CamelMaildirSummary
 	CamelMaildirSummary *o = (CamelMaildirSummary *)camel_object_new(camel_maildir_summary_get_type ());
 
 	((CamelFolderSummary *)o)->folder = folder;
-	if (folder)
-		camel_db_set_collate (folder->cdb, "dreceived", NULL, NULL);
+	if (folder) {
+		camel_db_set_collate (folder->parent_store->cdb, "dreceived", NULL, NULL);
+		((CamelFolderSummary *)o)->sort_col = "dreceived";
+	}
 	camel_local_summary_construct((CamelLocalSummary *)o, filename, maildirdir, index);
 	return o;
 }

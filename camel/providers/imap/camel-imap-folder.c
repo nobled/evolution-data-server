@@ -1483,7 +1483,7 @@ imap_expunge_uids_offline (CamelFolder *folder, GPtrArray *uids, CamelException 
 		 * the cached data may be useful in replaying a COPY later.
 		 */
 	}
-	camel_db_delete_uids (folder->cdb, folder->full_name, list, ex);
+	camel_db_delete_uids (folder->parent_store->cdb_write, folder->full_name, list, ex);
 	g_slist_free(list);
 	camel_folder_summary_save_to_db (folder->summary, ex);
 
@@ -1568,7 +1568,7 @@ imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *
 		 * the cached data may be useful in replaying a COPY later.
 		 */
 	}
-	camel_db_delete_uids (folder->cdb, folder->full_name, list, ex);
+	camel_db_delete_uids (folder->parent_store->cdb_write, folder->full_name, list, ex);
 	g_slist_free (list);
 	camel_folder_summary_save_to_db (folder->summary, ex);
 	camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", changes);
@@ -3506,7 +3506,7 @@ camel_imap_folder_changed (CamelFolder *folder, int exists,
 		}
 		
 		/* Delete all in one transaction */
-		camel_db_delete_uids (folder->cdb, folder->full_name, deleted, ex);
+		camel_db_delete_uids (folder->parent_store->cdb_write, folder->full_name, deleted, ex);
 		g_slist_foreach (deleted, (GFunc) g_free, NULL);
 		g_slist_free (deleted);
 	}

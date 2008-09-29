@@ -37,6 +37,7 @@
 
 #include "camel-imap-summary.h"
 #include "camel-imap-utils.h"
+#include "camel-store.h"
 
 #define CAMEL_IMAP_SUMMARY_VERSION (3)
 
@@ -168,8 +169,11 @@ camel_imap_summary_new (struct _CamelFolder *folder, const char *filename)
 	camel_exception_init (&ex);
 
 	summary->folder = folder;
-	if (folder)
-		camel_db_set_collate (folder->cdb, "uid", "uid_sort", (CamelDBCollate)sort_uid_cmp);
+	if (folder) {
+		camel_db_set_collate (folder->parent_store->cdb, "uid", "imap_uid_sort", (CamelDBCollate)sort_uid_cmp);
+		summary->sort_col = "uid";
+		summary->collate = "imap_uid_sort";
+	}
 
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);

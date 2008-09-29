@@ -534,6 +534,26 @@ get_size (struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
 	return r;
 }
 
+static ESExpResult *
+sql_exp (struct _ESExp *f, int argc, struct _ESExpResult **argv, void *data)
+{
+	ESExpResult *r;
+	int i;
+	GString *str = g_string_new (NULL);
+
+	d(printf("executing sql-exp\n"));
+
+	r = e_sexp_result_new(f, ESEXP_RES_STRING);
+	for (i=0;i<argc;i++) {
+		if (argv[i]->type == ESEXP_RES_STRING && argv[i]->value.string)
+			g_string_append (str, argv[i]->value.string);
+	}
+	r->value.string = str->str;
+	g_string_free (str, FALSE);
+	
+	return r;
+}
+
 /* 'builtin' functions */
 static struct {
 	char *name;
@@ -562,6 +582,7 @@ static struct {
 	{ "get-received-date", get_received_date, 0},
 	{ "get-current-date", get_current_date, 0},
 	{ "get-size", get_size, 0},
+	{ "sql-exp", sql_exp, 0},
 /*	{ "uid", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, uid), 1 },	*/
 };
 
@@ -704,7 +725,9 @@ int main ()
 	"(not (or (header-matches \"from\" \"bugzilla-daemon@bugzilla.ximian.com\") (header-matches \"from\" \"bugzilla-daemon@bugzilla.gnome.org\") (header-matches \"from\" \"bugzilla_noreply@novell.com\") (header-matches \"from\" \"bugzilla-daemon@mozilla.org\") (header-matches \"from\" \"root@dist.suse.de\") (header-matches \"from\" \"root@hilbert3.suse.de\") (header-matches \"from\" \"root@hilbert4.suse.de\") (header-matches \"from\" \"root@hilbert5.suse.de\") (header-matches \"from\" \"root@hilbert6.suse.de\") (header-matches \"from\" \"root@suse.de\") (header-matches \"from\" \"swamp_noreply@suse.de\") (and (header-matches \"from\" \"hermes@opensuse.org\") (header-starts-with \"subject\" \"submit-Request\"))))",
 	"(and (match-threads \"replies_parents\" (and (match-all (or (header-matches \"to\" \"maw@ximian.com\") (header-matches \"to\" \"mw@ximian.com\")   (header-matches \"to\" \"maw@novell.com\")   (header-matches \"to\" \"maw.AMERICAS3.AMERICAS@novell.com\") (header-matches \"cc\" \"maw@ximian.com\") (header-matches \"cc\" \"mw@ximian.com\")     (header-matches \"cc\" \"maw@novell.com\")   (header-matches \"cc\" \"maw.AMERICAS3.AMERICAS@novell.com\"))) (match-all (not (or (header-matches \"from\" \"bugzilla-daemon@bugzilla.ximian.com\") (header-matches \"from\" \"bugzilla-daemon@bugzilla.gnome.org\") (header-matches \"from\" \"bugzilla_noreply@novell.com\") (header-matches \"from\" \"bugzilla-daemon@mozilla.org\") (header-matches \"from\" \"root@dist.suse.de\") (header-matches \"from\" \"root@hilbert3.suse.de\") (header-matches \"from\" \"root@hilbert4.suse.de\") (header-matches \"from\" \"root@hilbert5.suse.de\") (header-matches \"from\" \"root@hilbert6.suse.de\") (header-matches \"from\" \"root@suse.de\") (header-matches \"from\" \"swamp_noreply@suse.de\") (and (header-matches \"from\" \"hermes@opensuse.org\") (header-starts-with \"subject\" \"submit-Request\"))))) (match-all (> (get-sent-date) (- (get-current-date) 1209600))) )) (match-all (and (not (system-flag \"deleted\")) (not (system-flag \"junk\")))))",
 	"and ((match-all (system-flag \"Deleted\")) (match-all (system-flag  \"junk\")))",
-	"(and (match-threads \"replies_parents\" (and (match-all (or (header-matches \"to\" \"maw@ximian.com\")))))))"
+	"(and (match-threads \"replies_parents\" (and (match-all (or (header-matches \"to\" \"maw@ximian.com\")))))))",
+	"(and (sql-exp \"folder_key = 'ASDGASd' AND folder_key = 'DSFWEA'\") (match-threads \"replies_parents\" (and (match-all (or (header-matches \"to\" \"maw@ximian.com\")))))))"
+
 	};
 
 	for (i=0; i < G_N_ELEMENTS(txt); i++) {

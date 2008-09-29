@@ -4,7 +4,9 @@
 #define __CAMEL_DB_H
 #include <sqlite3.h>
 #include <glib.h>
+
 #define CAMEL_DB_FILE "folders.db"
+#define CAMEL_DB_V2_FILE "summary.db"
 
 #include "camel-exception.h"
 
@@ -13,9 +15,6 @@ typedef int(*CamelDBCollate)(void*,int,const void*,int,const void*);
 struct _CamelDB {
 	sqlite3 *db;
 	GMutex *lock;
-	const char *sort_by;
-	const char *collate;
-	CamelDBCollate collate_cb;
 #ifdef CAMEL_DB_DEBUG 	
 	GTimer *timer;
 #endif	
@@ -28,6 +27,7 @@ struct _CamelDB {
 
 
 /* The extensive DB format, supporting basic searching and sorting
+  folder_key - unique folder id
   uid, - Message UID
   flags, - Camel Message info flags
   unread/read, - boolean read/unread status
@@ -56,10 +56,12 @@ struct _CamelDB {
 */
 
 typedef struct _CamelMIRecord {
+	char *folder_key;
 	char *uid;
+	char *vuid;
 	guint32 flags;
 	guint32 msg_type;
-	guint32 msg_security;
+	gboolean dirty;
 	gboolean read;
 	gboolean deleted;
 	gboolean replied;
@@ -85,6 +87,8 @@ typedef struct _CamelMIRecord {
 } CamelMIRecord;
 
 typedef struct _CamelFIRecord {
+	char *account_url;
+	char *folder_key;
 	char *folder_name;
 	guint32 version;
 	guint32 flags;
@@ -116,8 +120,8 @@ int camel_db_begin_transaction (CamelDB *cdb, CamelException *ex);
 int camel_db_add_to_transaction (CamelDB *cdb, const char *query, CamelException *ex);
 int camel_db_end_transaction (CamelDB *cdb, CamelException *ex);
 int camel_db_abort_transaction (CamelDB *cdb, CamelException *ex);
-int camel_db_clear_folder_summary (CamelDB *cdb, char *folder, CamelException *ex);
-int camel_db_rename_folder (CamelDB *cdb, const char *old_folder, const char *new_folder, CamelException *ex);
+int camel_db_clear_folder_summary (CamelDB *cdb, char *url, char *folder, char *key, CamelException *ex);
+int camel_db_rename_folder (CamelDB *cdb, char *url, const char *old_folder, const char *new_folder, CamelException *ex);
 
 int camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex);
 int camel_db_delete_uid (CamelDB *cdb, const char *folder, const char *uid, CamelException *ex);
@@ -128,13 +132,13 @@ int camel_db_create_folders_table (CamelDB *cdb, CamelException *ex);
 int camel_db_select (CamelDB *cdb, const char* stmt, CamelDBSelectCB callback, gpointer data, CamelException *ex);
 
 int camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelException *ex);
-int camel_db_read_folder_info_record (CamelDB *cdb, const char *folder_name, CamelFIRecord **record, CamelException *ex);
+int camel_db_read_folder_info_record (CamelDB *cdb, const char *url, const char *folder_name, CamelFIRecord **record, CamelException *ex);
 
 int camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, CamelException *ex);
 
 int camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, CamelMIRecord *record, CamelException *ex);
-int camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer p, CamelDBSelectCB read_mir_callback, CamelException *ex);
-int camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer p, CamelDBSelectCB read_mir_callback, CamelException *ex);
+int camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer p, CamelDBSelectCB read_mir_callback, char *v_query, CamelException *ex);
+int camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer p, CamelDBSelectCB read_mir_callback, gboolean vuid, CamelException *ex);
 
 int camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
 int camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint32 *count, CamelException *ex);
@@ -156,7 +160,7 @@ GPtrArray * camel_db_get_vuids_from_vfolder (CamelDB *db, char *folder_name, cha
 int camel_db_add_to_vfolder (CamelDB *db, char *folder_name, char *vuid, CamelException *ex);
 int camel_db_add_to_vfolder_transaction (CamelDB *db, char *folder_name, char *vuid, CamelException *ex);
 
-int camel_db_get_folder_uids (CamelDB *db, char *folder_name, GPtrArray *array, CamelException *ex);
+int camel_db_get_folder_uids (CamelDB *db, char *folder_name, char *sort_by, char *collate, GPtrArray *array, CamelException *ex);
 
 GPtrArray * camel_db_get_folder_junk_uids (CamelDB *db, char *folder_name, CamelException *ex);
 GPtrArray * camel_db_get_folder_deleted_uids (CamelDB *db, char *folder_name, CamelException *ex);

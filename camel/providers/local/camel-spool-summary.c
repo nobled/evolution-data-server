@@ -39,7 +39,8 @@
 #include "camel-operation.h"
 
 #include "camel-spool-summary.h"
-
+#include "camel-store.h"
+#include "camel-folder.h"
 #define io(x)
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
@@ -127,7 +128,9 @@ camel_spool_summary_new(struct _CamelFolder *folder, const char *mbox_name)
 	if (folder) {
 		/* Set the functions for db sorting */
 		/* FIXME: Add column names though a #define */
-		camel_db_set_collate (folder->cdb, "bdata", "frompos_sort", (CamelDBCollate)frompos_sort);
+		camel_db_set_collate (folder->parent_store->cdb, "bdata", "spool_frompos_sort", (CamelDBCollate)frompos_sort);
+		((CamelFolderSummary *)new)->sort_col = "bdata";
+		((CamelFolderSummary *)new)->collate = "spool_frompos_sort";		
 	}
 	camel_local_summary_construct((CamelLocalSummary *)new, NULL, mbox_name, NULL);
 	camel_folder_summary_load_from_db ((CamelFolderSummary *)new, NULL);

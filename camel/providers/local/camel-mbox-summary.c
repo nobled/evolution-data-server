@@ -48,6 +48,7 @@
 
 #define io(x)
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
+#define dd(x) if(camel_debug("mbox")) x;
 
 #define CAMEL_MBOX_SUMMARY_VERSION (1)
 
@@ -213,12 +214,15 @@ camel_mbox_summary_finalise(CamelObject *obj)
 static int 
 frompos_sort (void *enc, int len1, void * data1, int len2, void *data2)
 {
-	char *sa1 = (char*)g_utf8_normalize (data1, len1, G_NORMALIZE_DEFAULT);
-	char *sa2 = (char*)g_utf8_normalize (data2, len2, G_NORMALIZE_DEFAULT);
+	//char *sa1 = (char*)g_utf8_normalize (data1, len1, G_NORMALIZE_DEFAULT);
+	//char *sa2 = (char*)g_utf8_normalize (data2, len2, G_NORMALIZE_DEFAULT);
+	char *sa1 = data1;
+	char *sa2 = data2;
+	sa1[len1]=0; sa2[len2]=0;
 	int a1 = strtoul (sa1, NULL, 10);
 	int a2 = strtoul (sa2, NULL, 10);
 
-	g_free(sa1); g_free(sa2);
+	//g_free(sa1); g_free(sa2);
 
 	return a1 > a2;
 }
@@ -239,7 +243,9 @@ camel_mbox_summary_new(struct _CamelFolder *folder, const char *filename, const 
 	if (folder) {
 		/* Set the functions for db sorting */
 		/* FIXME: Add column names though a #define */
-		camel_db_set_collate (folder->cdb, "bdata", "frompos_sort", (CamelDBCollate)frompos_sort);
+		camel_db_set_collate (folder->parent_store->cdb, "bdata", "mbox_frompos_sort", (CamelDBCollate)frompos_sort);
+		((CamelFolderSummary *)new)->sort_col = "bdata";		
+		((CamelFolderSummary *)new)->collate = "mbox_frompos_sort";
 	}
 	camel_local_summary_construct((CamelLocalSummary *)new, filename, mbox_name, index);
 	return new;
@@ -367,7 +373,8 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 		    && camel_local_summary_decode_x_evolution((CamelLocalSummary *)s, xev, &mi->info) == 0) {
 			uid = camel_message_info_uid(mi);
 			d(printf("found valid x-evolution: %s\n", uid));
-			info = (CamelMboxMessageInfo *)camel_folder_summary_uid(s, uid);
+			/* If one is there, it should be there already */
+			info = (CamelMboxMessageInfo *) camel_folder_summary_peek_info (s, uid);
 			if (info) {
 				if ((info->info.info.flags & CAMEL_MESSAGE_FOLDER_NOTSEEN)) {
 					info->info.info.flags &= ~CAMEL_MESSAGE_FOLDER_NOTSEEN;
@@ -567,6 +574,8 @@ summary_update(CamelLocalSummary *cls, off_t offset, CamelFolderChangeInfo *chan
 	   If we're not starting from the start, we must be starting
 	   from the old end, so everything must be treated as new */
 	count = camel_folder_summary_count(s);
+	if (count - camel_folder_summary_cache_size(s) > 100) /* It makes sense to load summary, if enough isn't there. */
+		camel_folder_summary_reload_from_db (s, ex);
 	for (i=0;i<count;i++) {
 		mi = (CamelMboxMessageInfo *)camel_folder_summary_index(s, i);
 		if (offset == 0)
@@ -613,7 +622,7 @@ summary_update(CamelLocalSummary *cls, off_t offset, CamelFolderChangeInfo *chan
 	}
 	
 	/* Delete all in one transaction */
-	camel_db_delete_uids (s->folder->cdb, s->folder->full_name, del, ex);
+	camel_db_delete_uids (s->folder->parent_store->cdb_write, s->folder->folder_key, del, ex);
 	g_slist_foreach (del, (GFunc) camel_pstring_free, NULL);
 	g_slist_free (del);	
 
@@ -622,6 +631,7 @@ summary_update(CamelLocalSummary *cls, off_t offset, CamelFolderChangeInfo *chan
 	/* update the file size/mtime in the summary */
 	if (ok != -1) {
 		if (g_stat(cls->folder_path, &st) == 0) {
+			dd(printf("Setting %s: %d %d to %d %d\n", cls->folder_path, mbs->folder_size, s->time, st.st_size, st.st_mtime));
 			camel_folder_summary_touch(s);
 			mbs->folder_size = st.st_size;
 			s->time = st.st_mtime;
@@ -673,6 +683,8 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 		ret = 0;
 	} else {
 		/* is the summary uptodate? */
+		dd(printf("CHECK %s: %d %d to %d %d\n", cls->folder_path, mbs->folder_size, s->time, st.st_size, st.st_mtime));
+
 		if (st.st_size != mbs->folder_size || st.st_mtime != s->time) {
 			if (mbs->folder_size < st.st_size) {
 				/* this will automatically rescan from 0 if there is a problem */
@@ -691,6 +703,7 @@ mbox_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changes, Camel
 
 	if (ret != -1) {
 		if (mbs->folder_size != st.st_size || s->time != st.st_mtime) {
+			dd(printf("SET CHECK %s: %d %d to %d %d\n", cls->folder_path, mbs->folder_size, s->time, st.st_size, st.st_mtime));	
 			mbs->folder_size = st.st_size;
 			s->time = st.st_mtime;
 			camel_folder_summary_touch(s);
@@ -789,6 +802,29 @@ mbox_summary_sync_full(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChang
 	return -1;
 }
 
+static gint
+cms_sort_frompos (gpointer a, gpointer b, gpointer data)
+{
+	CamelFolderSummary *summary = (CamelFolderSummary *)data;
+	CamelMboxMessageInfo *info1, *info2;
+	int ret = 0;
+
+	/* Things are in memory already. Sorting speeds up syncing, if things are sorted by from pos. */
+	info1 = camel_folder_summary_uid (summary, *(char **)a);
+	info2 = camel_folder_summary_uid (summary, *(char **)b);
+
+	if (info1->frompos > info2->frompos)
+		ret = 1;
+	else if  (info1->frompos < info2->frompos)
+		ret = -1;
+	else 
+		ret = 0;
+	camel_message_info_free (info1);
+	camel_message_info_free (info2);
+
+	return ret;
+
+}
 /* perform a quick sync - only system flags have changed */
 static int
 mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
@@ -836,6 +872,9 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 
 	/* Sync only the changes */
 	summary = camel_folder_summary_get_changed ((CamelFolderSummary *)mbs);
+	if (summary->len)
+		g_ptr_array_sort_with_data (summary, cms_sort_frompos, (gpointer) mbs);
+	dd(printf("sync quick: changed len %d\n", summary->len));
 	for (i = 0; i < summary->len; i++) {
 		int xevoffset;
 		int pc = (i+1)*100/summary->len;
@@ -909,6 +948,8 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 		camel_mime_parser_drop_step(mp);
 
 		info->info.info.flags &= 0xffff;
+		info->info.info.dirty = TRUE;
+	
 		camel_message_info_free((CamelMessageInfo *)info);
 	}
 
@@ -955,7 +996,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 	int quick = TRUE, work=FALSE;
 	int ret;
 	GPtrArray *summary = NULL;
-	
+
 	/* first, sync ourselves up, just to make sure */
 	if (camel_local_summary_check(cls, changeinfo, ex) == -1)
 		return -1;
@@ -964,6 +1005,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 
 
 	summary = camel_folder_summary_get_changed ((CamelFolderSummary *)mbs);
+	dd(printf("summary sync changed %d\n", summary->len));
 	for (i=0; i<summary->len; i++) {
 		CamelMboxMessageInfo *info = (CamelMboxMessageInfo *)camel_folder_summary_uid(s, summary->pdata[i]);
 		
@@ -982,7 +1024,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 		int dcount =0;
 
 	
-		if (camel_db_count_deleted_message_info (s->folder->cdb, s->folder->full_name, &dcount, ex) == -1)
+		if (camel_db_count_deleted_message_info (s->folder->parent_store->cdb_write, s->folder->folder_key, &dcount, ex) == -1)
 			return -1;
 		if (dcount)
 			quick = FALSE;
@@ -1015,6 +1057,7 @@ mbox_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInf
 	}
 
 	if (mbs->folder_size != st.st_size || s->time != st.st_mtime) {
+		dd(printf("sync set %s: %d %d to %d %d\n", cls->folder_path, mbs->folder_size, s->time, st.st_size, st.st_mtime));		
 		s->time = st.st_mtime;
 		mbs->folder_size = st.st_size;
 		camel_folder_summary_touch(s);
@@ -1191,7 +1234,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderCh
 			info = NULL;
 		}
 	}
-	camel_db_delete_uids (s->folder->cdb, s->folder->full_name, del, ex);
+	camel_db_delete_uids (s->folder->parent_store->cdb_write, s->folder->folder_key, del, ex);
 	g_slist_foreach (del, (GFunc) camel_pstring_free, NULL);
 	g_slist_free (del);
 
@@ -1212,6 +1255,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderCh
 							   |CAMEL_MESSAGE_FOLDER_FLAGGED
 							   |CAMEL_MESSAGE_FOLDER_XEVCHANGE);
 				camel_folder_summary_touch(s);
+				((CamelMessageInfo *)info)->dirty = TRUE;
 			}
 			camel_message_info_free((CamelMessageInfo *)info);
 		}

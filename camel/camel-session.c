@@ -80,6 +80,7 @@ camel_session_init (CamelSession *session)
 	session->priv->thread_active = g_hash_table_new(NULL, NULL);
 	session->priv->thread_pool = NULL;
 	session->priv->junk_headers = NULL;
+
 }
 
 static void
@@ -154,6 +155,8 @@ void
 camel_session_construct (CamelSession *session, const char *storage_path)
 {
 	session->storage_path = g_strdup (storage_path);
+	/* Init the DB */
+	camel_db_setup (session->storage_path, NULL);
 }
 
 static CamelService *

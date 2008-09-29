@@ -28,6 +28,7 @@
 
 #include <config.h>
 
+#include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -49,6 +50,7 @@
 #endif
 
 static GStaticRecMutex trans_lock = G_STATIC_REC_MUTEX_INIT;	
+static char *db_path = NULL;
 
 static int 
 cdb_sql_exec (sqlite3 *db, const char* stmt, CamelException *ex) 
@@ -116,8 +118,6 @@ camel_db_open (const char *path, CamelException *ex)
 	cdb->db = db;
 	cdb->lock = g_mutex_new ();
 	/* These will be written once the Summary takes control of the CDB. */
-	cdb->sort_by = NULL;
-	cdb->collate = NULL;
 	d(g_print ("\nDatabase succesfully opened  \n"));
 
 	/* Which is big / costlier ? A Stack frame or a pointer */
@@ -155,9 +155,6 @@ camel_db_set_collate (CamelDB *cdb, const char *col, const char *collate, CamelD
 			return 0;
 
 		g_mutex_lock (cdb->lock);
-		cdb->sort_by = col;
-		cdb->collate = collate;
-		cdb->collate_cb = func;
 		d(g_print("Creating Collation %s on %s with %p\n", collate, col, func));
 		if (collate && func)
 			ret = sqlite3_create_collation(cdb->db, collate, SQLITE_UTF8,  NULL, func);
@@ -338,7 +335,7 @@ camel_db_count_junk_message_info (CamelDB *cdb, const char *table_name, guint32 
 	if (!cdb)
 		return -1;
 
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE junk = 1", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages WHERE folder_key = %Q AND junk = 1", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -355,7 +352,7 @@ camel_db_count_unread_message_info (CamelDB *cdb, const char *table_name, guint3
 	if (!cdb)
 		return -1;
 
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE read = 0", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages WHERE folder_key = %Q AND read = 0", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -372,7 +369,7 @@ camel_db_count_visible_unread_message_info (CamelDB *cdb, const char *table_name
 	if (!cdb)
 		return -1;
 
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE read = 0 AND junk = 0 AND deleted = 0", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages WHERE folder_key = %Q AND read = 0 AND junk = 0 AND deleted = 0", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -389,7 +386,7 @@ camel_db_count_visible_message_info (CamelDB *cdb, const char *table_name, guint
 	if (!cdb)
 		return -1;
 
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE junk = 0 AND deleted = 0", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages WHERE folder_key = %Q AND junk = 0 AND deleted = 0", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -406,7 +403,7 @@ camel_db_count_junk_not_deleted_message_info (CamelDB *cdb, const char *table_na
 	if (!cdb)
 		return -1;
 
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE junk = 1 AND deleted = 0", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages WHERE folder_key = %Q AND junk = 1 AND deleted = 0", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -423,7 +420,7 @@ camel_db_count_deleted_message_info (CamelDB *cdb, const char *table_name, guint
 	if (!cdb)
 		return -1;
 
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q WHERE deleted = 1", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages WHERE folder_key = %Q AND deleted = 1", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -442,7 +439,7 @@ camel_db_count_total_message_info (CamelDB *cdb, const char *table_name, guint32
 	if (!cdb)
 		return -1;
 	
-	query = sqlite3_mprintf ("SELECT COUNT (*) FROM %Q", table_name);
+	query = sqlite3_mprintf ("SELECT COUNT (*) FROM messages where folder_key = %Q", table_name);
 
 	ret = camel_db_count_message_info (cdb, query, count, ex);
 	sqlite3_free (query);
@@ -583,14 +580,15 @@ read_uids_callback (void *ref, int ncol, char ** cols, char ** name)
 }
 
 int
-camel_db_get_folder_uids (CamelDB *db, char *folder_name, GPtrArray *array, CamelException *ex)
+camel_db_get_folder_uids (CamelDB *db, char *folder_name, char *sort_by, char *collate, GPtrArray *array, CamelException *ex)
 {
 	 char *sel_query;
 	 int ret;
-
-	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q%s%s%s%s", folder_name, db->sort_by ? " order by " : "", db->sort_by ? db->sort_by: "", (db->sort_by && db->collate) ? " collate " : "", (db->sort_by && db->collate) ? db->collate : "");
+		printf("start %s: %d\n", folder_name, time(NULL));
+	 sel_query = sqlite3_mprintf("SELECT uid FROM messages WHERE folder_key=%Q %s%s%s%s", folder_name, sort_by ? " order by " : "", sort_by ? sort_by: "", (sort_by && collate) ? " collate " : "", (sort_by && collate) ? collate : "");
 
 	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
+	 	printf("end %s: %d\n", folder_name, time(NULL));
 	 sqlite3_free (sel_query);
 
 	 return ret;
@@ -603,7 +601,7 @@ camel_db_get_folder_junk_uids (CamelDB *db, char *folder_name, CamelException *e
 	 int ret;
 	 GPtrArray *array = g_ptr_array_new();
 	 
-	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q where junk=1", folder_name);
+	 sel_query = sqlite3_mprintf("SELECT uid FROM messages where folder_key=%Q AND junk=1", folder_name);
 
 	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
 
@@ -623,7 +621,7 @@ camel_db_get_folder_deleted_uids (CamelDB *db, char *folder_name, CamelException
 	 int ret;
 	 GPtrArray *array = g_ptr_array_new();
 	 
-	 sel_query = sqlite3_mprintf("SELECT uid FROM %Q where deleted=1", folder_name);
+	 sel_query = sqlite3_mprintf("SELECT uid FROM messages where folder_key=%Q AND deleted=1", folder_name);
 
 	 ret = camel_db_select (db, sel_query, read_uids_callback, array, ex);
 	 sqlite3_free (sel_query);
@@ -720,7 +718,10 @@ int
 camel_db_create_folders_table (CamelDB *cdb, CamelException *ex)
 {
 	char *query = "CREATE TABLE IF NOT EXISTS folders ( folder_name TEXT PRIMARY KEY, version REAL, flags INTEGER, nextuid INTEGER, time NUMERIC, saved_count INTEGER, unread_count INTEGER, deleted_count INTEGER, junk_count INTEGER, visible_count INTEGER, jnd_count INTEGER, bdata TEXT )";
+
+	return 0;
 	CAMEL_DB_RELEASE_SQLITE_MEMORY;
+
 	return ((camel_db_command (cdb, query, ex)));
 }
 
@@ -729,7 +730,8 @@ camel_db_prepare_message_info_table (CamelDB *cdb, const char *folder_name, Came
 {
 	int ret;
 	char *table_creation_query, *safe_index;
-
+	
+	return 0;
 	/* README: It is possible to compress all system flags into a single column and use just as userflags but that makes querying for other applications difficult an d bloats the parsing code. Instead, it is better to bloat the tables. Sqlite should have some optimizations for sparse columns etc. */
 
 	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS %Q (  uid TEXT PRIMARY KEY , flags INTEGER , msg_type INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , msg_security INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT )", folder_name);
@@ -755,10 +757,10 @@ camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, Camel
 	char *del_query;
 	char *ins_query;
 
-	ins_query = sqlite3_mprintf ("INSERT INTO %Q VALUES (%Q, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q )", 
-			folder_name, record->uid, record->flags,
+	ins_query = sqlite3_mprintf ("INSERT INTO messages VALUES (%Q, %Q, '%s%s', %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %ld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %Q )", 
+			folder_name, record->uid, folder_name, record->uid, record->flags,
 			record->msg_type, record->read, record->deleted, record->replied,
-			record->important, record->junk, record->attachment, record->msg_security,
+			record->important, record->junk, record->attachment, record->dirty,
 			record->size, record->dsent, record->dreceived,
 			record->subject, record->from, record->to,
 			record->cc, record->mlist, record->followup_flag,
@@ -766,7 +768,7 @@ camel_db_write_message_info_record (CamelDB *cdb, const char *folder_name, Camel
 			record->part, record->labels, record->usertags,
 			record->cinfo, record->bdata);
 
-	del_query = sqlite3_mprintf ("DELETE FROM %Q WHERE uid = %Q", folder_name, record->uid);
+	del_query = sqlite3_mprintf ("DELETE FROM messages WHERE folder_key = %Q AND uid = %Q", folder_name, record->uid);
 
 #if 0
 	char *upd_query;
@@ -795,13 +797,13 @@ camel_db_write_folder_info_record (CamelDB *cdb, CamelFIRecord *record, CamelExc
 	char *del_query;
 	char *ins_query;
 
-	ins_query = sqlite3_mprintf ("INSERT INTO folders VALUES ( %Q, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %Q ) ", 
-			record->folder_name, record->version,
+	ins_query = sqlite3_mprintf ("INSERT INTO folders VALUES ( %Q, %Q, %Q, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %Q ) ", 
+			record->account_url, record->folder_name, record->folder_key, record->version,
 								 record->flags, record->nextuid, record->time,
 			record->saved_count, record->unread_count,
 								 record->deleted_count, record->junk_count, record->visible_count, record->jnd_count, record->bdata); 
 
-	del_query = sqlite3_mprintf ("DELETE FROM folders WHERE folder_name = %Q", record->folder_name);
+	del_query = sqlite3_mprintf ("DELETE FROM folders WHERE account_url = %Q AND folder_name = %Q", record->account_url, record->folder_name);
 
 
 #if 0
@@ -870,19 +872,23 @@ read_fir_callback (void * ref, int ncol, char ** cols, char ** name)
 			record->jnd_count = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
 		else if (!strcmp (name [i], "bdata"))
 			record->bdata = g_strdup (cols [i]);
-	
+		else if (!strcmp (name [i], "account_url"))
+			record->account_url = g_strdup (cols [i]);
+		else if (!strcmp (name [i], "folder_key"))
+			record->folder_key = g_strdup (cols [i]);
+
 	}
 #endif 
 	return 0;
 }
 
 int
-camel_db_read_folder_info_record (CamelDB *cdb, const char *folder_name, CamelFIRecord **record, CamelException *ex)
+camel_db_read_folder_info_record (CamelDB *cdb, const char *url, const char *folder_name, CamelFIRecord **record, CamelException *ex)
 {
 	char *query;
 	int ret;
 
-	query = sqlite3_mprintf ("SELECT * FROM folders WHERE folder_name = %Q", folder_name);
+	query = sqlite3_mprintf ("SELECT * FROM folders WHERE account_url = %Q AND folder_name = %Q", url, folder_name);
 	ret = camel_db_select (cdb, query, read_fir_callback, record, ex);
 
 	sqlite3_free (query);
@@ -890,12 +896,12 @@ camel_db_read_folder_info_record (CamelDB *cdb, const char *folder_name, CamelFI
 }
 
 int
-camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer p, CamelDBSelectCB read_mir_callback, CamelException *ex)
+camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_name, const char *uid, gpointer p, CamelDBSelectCB read_mir_callback, gboolean vuid, CamelException *ex)
 {
 	char *query;
 	int ret;
 
-	query = sqlite3_mprintf ("SELECT uid, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo, bdata FROM %Q WHERE uid = %Q", folder_name, uid);
+	query = sqlite3_mprintf ("SELECT folder_key, %s, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo, bdata FROM messages WHERE folder_key = %Q AND %s = %Q", vuid ? "vuid" : "uid", folder_name, vuid ? "vuid" : "uid", uid);
 	ret = camel_db_select (cdb, query, read_mir_callback, p, ex);
 	sqlite3_free (query);
 
@@ -903,13 +909,14 @@ camel_db_read_message_info_record_with_uid (CamelDB *cdb, const char *folder_nam
 }
 
 int
-camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer p, CamelDBSelectCB read_mir_callback, CamelException *ex)
+camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpointer p, CamelDBSelectCB read_mir_callback, char *v_query, CamelException *ex)
 {
 	char *query;
 	int ret;
-
-	query = sqlite3_mprintf ("SELECT uid, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo, bdata FROM %Q ", folder_name);
+	char *tmp = sqlite3_mprintf ("%Q", folder_name);
+	query = sqlite3_mprintf ("SELECT folder_key, %s, flags, size, dsent, dreceived, subject, mail_from, mail_to, mail_cc, mlist, part, labels, usertags, cinfo, bdata FROM messages where %s%s", v_query ? "vuid" : "uid", v_query ? v_query : "folder_key = ", v_query ? "" : tmp);
 	ret = camel_db_select (cdb, query, read_mir_callback, p, ex);
+	sqlite3_free (tmp);
 	sqlite3_free (query);
 
 	return (ret);
@@ -918,7 +925,7 @@ camel_db_read_message_info_records (CamelDB *cdb, const char *folder_name, gpoin
 int
 camel_db_delete_uid (CamelDB *cdb, const char *folder, const char *uid, CamelException *ex)
 {
-	char *tab = sqlite3_mprintf ("DELETE FROM %Q WHERE uid = %Q", folder, uid);
+	char *tab = sqlite3_mprintf ("DELETE FROM messages WHERE folder_key = %Q AND uid = %Q", folder, uid);
 	int ret;
 
 	ret = camel_db_command (cdb, tab, ex);
@@ -936,7 +943,7 @@ camel_db_delete_uids (CamelDB *cdb, const char * folder_name, GSList *uids, Came
 	GString *str = g_string_new ("DELETE FROM ");
 	GSList *iterator;
 
-	tmp = sqlite3_mprintf ("%Q WHERE uid IN (", folder_name); 
+	tmp = sqlite3_mprintf ("messages WHERE folder_KEY = %Q AND uid IN (", folder_name); 
 	g_string_append_printf (str, "%s ", tmp);
 	sqlite3_free (tmp);
 
@@ -965,15 +972,15 @@ camel_db_delete_uids (CamelDB *cdb, const char * folder_name, GSList *uids, Came
 }
 
 int
-camel_db_clear_folder_summary (CamelDB *cdb, char *folder, CamelException *ex)
+camel_db_clear_folder_summary (CamelDB *cdb, char *url, char *folder, char *key, CamelException *ex)
 {
 	int ret;
 
 	char *folders_del;
 	char *msginfo_del;
 
-	folders_del = sqlite3_mprintf ("DELETE FROM folders WHERE folder_name = %Q", folder);
-	msginfo_del = sqlite3_mprintf ("DELETE FROM %Q ", folder);
+	folders_del = sqlite3_mprintf ("DELETE FROM folders WHERE account_url = %Q AND folder_name = %Q", folder);
+	msginfo_del = sqlite3_mprintf ("DELETE FROM messages WHERE folder_key= %Q  ", key);
 
 	camel_db_begin_transaction (cdb, ex);
 	camel_db_add_to_transaction (cdb, msginfo_del, ex);
@@ -986,6 +993,7 @@ camel_db_clear_folder_summary (CamelDB *cdb, char *folder, CamelException *ex)
 	return ret;
 }
 
+/* Obsolete */
 int
 camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex)
 {
@@ -1005,16 +1013,12 @@ camel_db_delete_folder (CamelDB *cdb, const char *folder, CamelException *ex)
 }
 
 int
-camel_db_rename_folder (CamelDB *cdb, const char *old_folder, const char *new_folder, CamelException *ex)
+camel_db_rename_folder (CamelDB *cdb, char *url, const char *old_folder, const char *new_folder, CamelException *ex)
 {
 	int ret;
 	char *cmd;
 
-	cmd = sqlite3_mprintf ("ALTER TABLE %Q RENAME TO  %Q", old_folder, new_folder);
-	ret = camel_db_command (cdb, cmd, ex);
-	sqlite3_free (cmd);
-
-	cmd = sqlite3_mprintf ("UPDATE folders SET folder_name = %Q WHERE folder_name = %Q", new_folder, old_folder);
+	cmd = sqlite3_mprintf ("UPDATE folders SET folder_name = %Q WHERE account_url = %Q AND folder_name = %Q", new_folder, url, old_folder);
 	ret = camel_db_command (cdb, cmd, ex);
 	sqlite3_free (cmd);
 	
@@ -1026,7 +1030,9 @@ void
 camel_db_camel_mir_free (CamelMIRecord *record)
 {
 	if (record) {
+		camel_pstring_free (record->folder_key);
 		camel_pstring_free (record->uid);
+		camel_pstring_free (record->vuid);
 		camel_pstring_free (record->subject);
 		camel_pstring_free (record->from);
 		camel_pstring_free (record->to);
@@ -1117,4 +1123,56 @@ camel_db_migrate_vfolders_to_14 (CamelDB *cdb, const char *folder, CamelExceptio
 	
 	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 	return ret;		
+}
+
+static int
+cdb_setup_tables (CamelDB *db, CamelException *ex)
+{
+	int ret = 0;
+	const char *query;
+	
+	query = "CREATE TABLE IF NOT EXISTS folders ( account_url TEXT , folder_name TEXT , folder_key TEXT, version REAL, flags INTEGER, nextuid INTEGER, time NUMERIC, saved_count INTEGER, unread_count INTEGER, deleted_count INTEGER, junk_count INTEGER, visible_count INTEGER, jnd_count INTEGER, bdata TEXT, PRIMARY KEY(account_url, folder_name))";
+	ret = camel_db_command (db, query, ex);
+	if (ret == -1)
+		return ret;
+
+	query = "CREATE TABLE IF NOT EXISTS messages ( folder_key TEXT , uid TEXT , vuid TEXT, flags INTEGER , msg_type INTEGER , read INTEGER , deleted INTEGER , replied INTEGER , important INTEGER , junk INTEGER , attachment INTEGER , dirty INTEGER , size INTEGER , dsent NUMERIC , dreceived NUMERIC , subject TEXT , mail_from TEXT , mail_to TEXT , mail_cc TEXT , mlist TEXT , followup_flag TEXT , followup_completed_on TEXT , followup_due_by TEXT , part TEXT , labels TEXT , usertags TEXT , cinfo TEXT , bdata TEXT, PRIMARY KEY (folder_key, uid) )";
+
+	ret = camel_db_command (db, query, ex);
+	if (ret == -1)
+		return ret;
+
+	/* Create index for searches */
+	ret = camel_db_command (db, "CREATE INDEX 'messages-junk' on messages (junk)", ex);
+	ret = camel_db_command (db, "CREATE INDEX 'messages-deleted' on messages (deleted)", ex);
+	ret = camel_db_command (db, "CREATE INDEX 'messages-read' on messages (read)", ex);
+
+	return ret;
+}
+
+/* A func that just creates tables and closes everything */
+int
+camel_db_setup (const char *path, CamelException *ex)
+{
+	CamelDB *db;
+
+	db_path = g_build_filename (path, CAMEL_DB_V2_FILE, NULL);
+	if (!g_file_test(db_path, G_FILE_TEST_EXISTS)) {
+		if (!g_file_test(path, G_FILE_TEST_EXISTS)) {
+			g_mkdir_with_parents (path, S_IRWXU);
+		}
+		db = camel_db_open (db_path, ex);
+		if (!db)
+			return -1;
+		cdb_setup_tables (db, ex);
+		camel_db_close(db);
+	}
+
+	return 0;
+}
+
+CamelDB *
+camel_db_get_handle (CamelException *ex)
+{
+	return camel_db_open (db_path, ex);
 }

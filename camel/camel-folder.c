@@ -183,6 +183,7 @@ camel_folder_init (gpointer object, gpointer klass)
 	folder->priv->changed_frozen = camel_folder_change_info_new();
 	g_static_rec_mutex_init(&folder->priv->lock);
 	g_static_mutex_init(&folder->priv->change_lock);
+	folder->folder_key = NULL;
 }
 
 static void
@@ -194,7 +195,7 @@ camel_folder_finalize (CamelObject *object)
 	g_free(camel_folder->name);
 	g_free(camel_folder->full_name);
 	g_free(camel_folder->description);
-
+	g_free (camel_folder->folder_key);
 	if (camel_folder->parent_store)
 		camel_object_unref (camel_folder->parent_store);
 
@@ -204,11 +205,6 @@ camel_folder_finalize (CamelObject *object)
 	}
 
 	camel_folder_change_info_free(p->changed_frozen);
-
-	if (camel_folder->cdb) {
-		camel_db_close (camel_folder->cdb);
-		camel_folder->cdb = NULL;
-	}
 
 	g_static_rec_mutex_free(&p->lock);
 	g_static_mutex_free(&p->change_lock);
@@ -263,37 +259,8 @@ camel_folder_construct (CamelFolder *folder, CamelStore *parent_store,
 
 	folder->name = g_strdup (name);
 	folder->full_name = g_strdup (full_name);
+	camel_folder_get_hash (folder);
 
-	store_db_path = g_build_filename (service->url->path, CAMEL_DB_FILE, NULL);
-	camel_exception_init(&ex);
-	if (strlen (store_db_path) < 2) {
-		char *store_path = camel_session_get_storage_path ((CamelSession *)camel_service_get_session (service), service, &ex);
-
-		g_free (store_db_path);
-		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
-		g_free (store_path);
-	}
-
-	folder->cdb = camel_db_open (store_db_path, &ex);
-	if (camel_exception_is_set (&ex)) {
-		char *store_path;
-		
-		g_print ("Failure for store_db_path : [%s]\n", store_db_path);
-		g_free (store_db_path);		
-
-		store_path =   camel_session_get_storage_path ((CamelSession *)camel_service_get_session (service), service, &ex);
-		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
-		g_free (store_path);
-		camel_exception_clear(&ex);
-		folder->cdb = camel_db_open (store_db_path, &ex);
-		if (camel_exception_is_set (&ex)) {
-			g_print("Retry with %s failed\n", store_db_path);
-			g_free(store_db_path);
-			camel_exception_clear(&ex);
-			return;
-		}
-	}
-	g_free (store_db_path);
 }
 
 
@@ -1589,7 +1556,8 @@ void
 camel_folder_delete (CamelFolder *folder)
 {
 	g_return_if_fail (CAMEL_IS_FOLDER (folder));
-	
+	char *url;
+
 	CAMEL_FOLDER_REC_LOCK (folder, lock);
 	if (folder->folder_flags & CAMEL_FOLDER_HAS_BEEN_DELETED) {
 		CAMEL_FOLDER_REC_UNLOCK (folder, lock);
@@ -1603,8 +1571,9 @@ camel_folder_delete (CamelFolder *folder)
 	CAMEL_FOLDER_REC_UNLOCK (folder, lock);
 
 	/* Delete the references of the folder from the DB.*/
-	camel_db_delete_folder (folder->cdb, folder->full_name, NULL);
-	
+	url = camel_service_get_url(folder->parent_store);
+	camel_db_clear_folder_summary (folder->parent_store->cdb_write, url, folder->full_name, folder->folder_key, NULL);
+	g_free(url);
 	camel_object_trigger_event (folder, "deleted", NULL);
 }
 
@@ -1637,11 +1606,13 @@ void
 camel_folder_rename(CamelFolder *folder, const char *new)
 {
 	char *old;
-
+	char *url = camel_service_get_url(folder->parent_store);
 	old = g_strdup(folder->full_name);
 
 	CF_CLASS (folder)->rename(folder, new);
-	camel_db_rename_folder (folder->cdb, old, new, NULL);
+	#warning "DBV2 FOLDER RENAME WONT WORK"
+	camel_db_rename_folder (folder->parent_store->cdb, url, old, new, NULL);
+	g_free(url);
 	camel_object_trigger_event (folder, "renamed", old);
 	g_free(old);
 }
@@ -2114,6 +2085,59 @@ camel_folder_free_deep (CamelFolder *folder, GPtrArray *array)
 	g_ptr_array_free (array, TRUE);
 }
 
+
+char *
+camel_folder_hash(CamelStore *store, char *folder_name, char buffer[8])
+{
+	GChecksum *checksum;
+	guint8 *digest;
+	gsize length;
+	int state = 0, save = 0;
+	char *tmp;
+	int i;
+
+	length = g_checksum_type_get_length (G_CHECKSUM_MD5);
+	digest = g_alloca (length);
+
+	checksum = g_checksum_new (G_CHECKSUM_MD5);
+	tmp = camel_service_get_url((CamelService *)store);
+	g_checksum_update (checksum, (guchar *) tmp, -1);
+	g_free (tmp);
+	g_checksum_update (checksum, (guchar *) folder_name, -1);
+	g_checksum_get_digest (checksum, digest, &length);
+	g_checksum_free (checksum);
+
+	g_base64_encode_step (digest, 6, FALSE, buffer, &state, &save);
+	g_base64_encode_close (FALSE, buffer, &state, &save);
+
+	for (i=0;i<8;i++) {
+		if (buffer[i] == '+')
+			buffer[i] = '.';
+		if (buffer[i] == '/')
+			buffer[i] = '_';
+	}
+}
+
+char *
+camel_folder_make_hash(CamelFolder *folder, char buffer[8])
+{
+	camel_folder_hash (folder->parent_store, folder->full_name, buffer);
+}
+
+const char *
+camel_folder_get_hash(CamelFolder *folder)
+{
+	char buffer[8];
+	
+	if (folder->folder_key)
+		return folder->folder_key;
+
+	camel_folder_make_hash (folder, buffer);
+	folder->folder_key = g_strdup_printf("%c%c%c%c%c%c%c%c", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]);	
+
+	return folder->folder_key;
+
+}
 
 /**
  * camel_folder_change_info_new:

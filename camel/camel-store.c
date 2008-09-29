@@ -163,7 +163,10 @@ camel_store_finalize (CamelObject *object)
 		camel_db_close (store->cdb);
 		store->cdb = NULL;
 	}
-
+	if (store->cdb_write) {
+		camel_db_close (store->cdb_write);
+		store->cdb_write = NULL;
+	}
 	g_free (store->priv);
 }
 
@@ -212,48 +215,8 @@ construct (CamelService *service, CamelSession *session,
 	if (camel_exception_is_set (ex))
 		return;
 
-	store_db_path = g_build_filename (service->url->path, CAMEL_DB_FILE, NULL);
-
-	if (!service->url->path || strlen (store_db_path) < 2) {
-		store_path = camel_session_get_storage_path (session, service, ex);
-
-		g_free (store_db_path);
-		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
-	}
-
-	if (!g_file_test (service->url->path ? service->url->path : store_path, G_FILE_TEST_EXISTS)) {
-		/* Cache might be blown. Recreate. */
-		g_mkdir_with_parents (service->url->path ? service->url->path : store_path, S_IRWXU);
-	}
-
-	g_free (store_path);
-
-	store->cdb = camel_db_open (store_db_path, ex);
-	printf("store_db_path %s\n", store_db_path);
-	if (camel_exception_is_set (ex)) {
-		char *store_path;
-		
-		g_print ("Failure for store_db_path : [%s]\n", store_db_path);
-		g_free (store_db_path);		
-
-		store_path =  camel_session_get_storage_path (session, service, ex);
-		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
-		g_free (store_path);
-		camel_exception_clear(ex);
-		store->cdb = camel_db_open (store_db_path, ex);
-		if (camel_exception_is_set (ex)) {
-			g_print("Retry with %s failed\n", store_db_path);
-			g_free(store_db_path);
-			camel_exception_clear(ex);
-			return;
-		}
-	}
-	g_free (store_db_path);
-
-	if (camel_db_create_folders_table (store->cdb, ex))
-		printf ("something went wrong terribly\n");
-	else
-		printf ("folders table successfully created \n");
+	store->cdb = camel_db_get_handle (ex);
+	store->cdb_write = camel_db_get_handle (ex);
 
 	if (camel_exception_is_set (ex))
 		return;
