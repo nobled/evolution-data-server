@@ -1,3 +1,12 @@
+2008-10-01  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-store.c (mapi_get_folder_info_offline): Filter out
+	Subscribed folders.
+	(convert_to_folder_info): Mailbox folders are marked as subscribed
+	by default. Do not add folders in store summary.
+	(mapi_unsubscribe_folder, mapi_subscribe_folder): Support for public
+	folder subscription added.
+
 2008-09-25  Johnny Jacob  <jjohnny@novell.com>
 
 	** Updating Licences.
