@@ -259,12 +259,10 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 	mem_ctx = talloc_init ("ExchangeMAPI_ReadBodyStream");
 
 	/* Build the array of properties we want to fetch */
-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x8,
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x6,
 					  PR_MSG_EDITOR_FORMAT,
 					  PR_BODY,
 					  PR_BODY_UNICODE,
-					  PR_BODY_HTML, 
-					  PR_BODY_HTML_UNICODE, 
 					  PR_HTML,
 					  PR_RTF_COMPRESSED,
 					  PR_RTF_IN_SYNC);
@@ -315,10 +313,12 @@ exchange_mapi_util_read_body_stream (mapi_object_t *obj_message, GSList **stream
 			} 
 			break;
 		case olEditorHTML: 
-			if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML_UNICODE)) != NULL)
-				proptag = PR_BODY_HTML_UNICODE;
-			else if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML)) != NULL)
+			/* Fixme : */
+ 			/*if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML_UNICODE)) != NULL) */
+ 			/*	proptag = PR_BODY_HTML_UNICODE; */
+			if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML)) != NULL)
 				proptag = PR_BODY_HTML;
+
 			if (data) {
 				size_t size = strlen(data)+1;
 				body.data = talloc_memdup(mem_ctx, data, size);

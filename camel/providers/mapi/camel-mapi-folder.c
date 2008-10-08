@@ -599,6 +599,10 @@ static const uint32_t camel_GetPropsList[] = {
 
 	PR_BODY, 
 	PR_BODY_UNICODE, 
+	PR_HTML,
+	/*Fixme : If this property is fetched, it garbles everything else. */
+ 	/*PR_BODY_HTML, */
+ 	/*PR_BODY_HTML_UNICODE, */
 
 	PR_DISPLAY_TO, 
 	PR_DISPLAY_TO_UNICODE, 
@@ -760,9 +764,9 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 
 		item->is_cal = TRUE;
 	} else { 
-		if (!((body = exchange_mapi_util_find_stream (streams, PR_BODY_HTML)) || 
-		      (body = exchange_mapi_util_find_stream (streams, PR_HTML))))
-			body = exchange_mapi_util_find_stream (streams, PR_BODY);
+		if (!((body = exchange_mapi_util_find_stream (streams, PR_HTML)) || 
+		      (body = exchange_mapi_util_find_stream (streams, PR_BODY))))
+			body = exchange_mapi_util_find_stream (streams, PR_BODY_UNICODE);
 
 		item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
 
@@ -883,6 +887,7 @@ mapi_populate_msg_body_from_item (CamelMultipart *multipart, MapiItem *item, Exc
 		else {
 			type = (body->proptag == PR_BODY || body->proptag == PR_BODY_UNICODE) ? 
 				"text/plain" : "text/html";
+
 			camel_mime_part_set_content(part, body->value->data, body->value->len, type );
 		}
 	} else
@@ -943,10 +948,6 @@ mapi_folder_item_to_msg( CamelFolder *folder,
 			mime_type = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach->lpProps, PR_ATTACH_MIME_TAG);
 
 			stream = exchange_mapi_util_find_stream (attach->streams, PR_ATTACH_DATA_BIN);
-
-			printf("%s(%d):%s:Attachment --\n\tFileName : %s \n\tMIME Tag : %s\n\tLength : %d\n",
-			       __FILE__, __LINE__, __PRETTY_FUNCTION__, 
-				 filename, mime_type, stream ? stream->value->len : 0);
 
 			if (!stream || stream->value->len <= 0) {
 				continue;
@@ -1047,7 +1048,7 @@ mapi_folder_get_message( CamelFolder *folder, const char *uid, CamelException *e
 	MapiItem *item = NULL;
 	guint32 options = 0;
 
-	options = MAPI_OPTIONS_FETCH_ALL | MAPI_OPTIONS_GETBESTBODY ;
+	options = MAPI_OPTIONS_FETCH_ALL | MAPI_OPTIONS_FETCH_BODY_STREAM | MAPI_OPTIONS_GETBESTBODY ;
 	exchange_mapi_util_mapi_ids_from_uid (uid, &id_folder, &id_message);
 
 	if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER){
