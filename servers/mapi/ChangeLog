@@ -1,3 +1,8 @@
+2008-10-10  Johnny Jacob  <jjohnny@novell.com>
+
+	* exchange-mapi-connection.c (set_default_folders): Use IsMailboxFolder for
+	marking / identifying default folders.
+
 2008-10-07  Johnny Jacob  <jjohnny@novell.com>
 
 	* exchange-mapi-connection.c (exchange_mapi_util_read_body_stream): Ignoring 

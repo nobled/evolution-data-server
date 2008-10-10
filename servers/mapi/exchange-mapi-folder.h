@@ -54,6 +54,7 @@ typedef struct _ExchangeMAPIFolder {
 
 	/* Need this info - default calendars/address books/notes folders can't be deleted */
 	gboolean is_default;
+	guint32 default_type;
 
 	gchar *folder_name;
 	ExchangeMAPIFolderType container_class;

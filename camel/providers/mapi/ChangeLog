@@ -1,3 +1,8 @@
+2008-10-10  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-store.c (mapi_convert_to_folder_info): Donot use Folder names 
+	for identifying Default folders.
+
 2008-10-07  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (mapi_folder_get_message): Use _FETCH_BODY_STREAM to 

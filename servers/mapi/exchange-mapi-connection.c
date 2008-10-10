@@ -2459,33 +2459,18 @@ cleanup:
 	return result;
 }
 
-/* FIXME: doesn't take a geek to tell that this is inefficient */
 static void 
 set_default_folders (mapi_object_t *obj_store, GSList **mapi_folders)
 {
-	enum MAPISTATUS retval;
-	mapi_id_t	id, i;
-	/* NOTE: you may add anything else you need here */
-	mapi_id_t 	defaults[] = 	{ olFolderTopInformationStore, 
-					  olFolderSentMail, 
-					  olFolderCalendar, 
-					  olFolderContacts, 
-					  olFolderNotes, 
-					  olFolderTasks, 
-					  olFolderDrafts, 
-					  0 };
-
-	for (i=0; defaults[i]; ++i) {
-		GSList *tmp = *mapi_folders;
-		retval = GetDefaultFolder(obj_store, &id, defaults[i]);
-		if (retval != MAPI_E_SUCCESS) {
-			mapi_errstr("GetDefaultFolder", GetLastError());
-			continue;
-		}
-		for (; tmp; tmp = tmp->next) {
-			ExchangeMAPIFolder *folder = (ExchangeMAPIFolder *)(tmp->data);
-			if (folder->folder_id == id)
-				folder->is_default = TRUE;
+	GSList *folder_list = *mapi_folders;
+	
+	while (folder_list = g_slist_next (folder_list)) {
+		ExchangeMAPIFolder *folder = NULL;
+		guint32 default_type = 0;
+		folder = folder_list->data;
+		if (IsMailboxFolder (obj_store,folder->folder_id, &default_type )) {
+			folder->is_default = true; /* TODO : Clean up. Redundant.*/
+			folder->default_type = default_type;
 		}
 	}
 }

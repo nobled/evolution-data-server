@@ -389,6 +389,8 @@ static GList *mapi_query_auth_types(CamelService *service, CamelException *ex)
 static gboolean
 mapi_is_system_folder (const char *folder_name)
 {
+	/*Fixme : Do not use names.*/
+
 	if (!strcmp (folder_name, "Inbox") ||
 	    !strcmp (folder_name, "Deleted Items") ||
 	    !strcmp (folder_name, "All Public Folders") ||
@@ -851,19 +853,8 @@ mapi_build_folder_info(CamelMapiStore *mapi_store, const char *parent_name, cons
 	else
 		name++;
 
-/* 	/\*Exclude the parent and check; FIXME! *\/ */
-/* 	excl_parent = strchr(fi->full_name , '/'); */
-/* 	excl_parent ++; */
+	/*Fixme : Mark system folders.*/
 
-/* 	if (!strcmp (excl_parent, "Sent Items")) */
-/* 		fi->flags |= CAMEL_FOLDER_TYPE_SENT; */
-/* 	else if (!strcmp (excl_parent, "Inbox")) */
-/* 		fi->flags |= CAMEL_FOLDER_TYPE_INBOX; */
-/* 	else if (!strcmp (excl_parent, "Deleted Items")) */
-/* 		fi->flags |= CAMEL_FOLDER_TYPE_TRASH; */
-/* 	else if (!strcmp (excl_parent, "Junk Mail")) */
-/* 		fi->flags |= CAMEL_FOLDER_TYPE_JUNK; */
-		
 	fi->name = g_strdup(name);
 	return fi;
 }
@@ -983,15 +974,25 @@ mapi_convert_to_folder_info (CamelMapiStore *store, ExchangeMAPIFolder *folder, 
 		
 	fi = g_new0 (CamelFolderInfo, 1);
 
-	if (!strcmp (name, "Sent Items"))
-		fi->flags |= CAMEL_FOLDER_TYPE_SENT;
-	else if (!strcmp (name, "Inbox"))
-		fi->flags |= CAMEL_FOLDER_TYPE_INBOX;
-	else if (!strcmp (name, "Deleted Items"))
-		fi->flags |= CAMEL_FOLDER_TYPE_TRASH;
-	else if (!strcmp (name, "Junk Mail"))
-		fi->flags |= CAMEL_FOLDER_TYPE_JUNK;
+	if (folder->is_default) {
+		switch (folder->default_type) {
+		case olFolderTopInformationStore:
+			fi->flags |= CAMEL_FOLDER_NOSELECT;
+			break;
+		case olFolderInbox:
+			fi->flags |= CAMEL_FOLDER_TYPE_INBOX;
+			break;
+		case olFolderSentMail:
+			fi->flags |= CAMEL_FOLDER_TYPE_SENT;
+			break;
+		case olFolderDeletedItems:
+			fi->flags |= CAMEL_FOLDER_TYPE_TRASH;
+			break;
+		/*TODO : case olFolderJunkMail */
+		}
 
+		fi->flags |= CAMEL_FOLDER_SYSTEM;
+	}
 
 	if (folder->category == MAPI_PERSONAL_FOLDER) {
 		fi->flags |= CAMEL_MAPI_FOLDER_PERSONAL;
