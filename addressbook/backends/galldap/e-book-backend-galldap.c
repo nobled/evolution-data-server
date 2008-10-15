@@ -1049,6 +1049,9 @@ func_contains(ESExp *f, int argc, ESExpResult **argv, void *data)
 	} else if (!strcmp(propname, "file_as")) {
 		r = e_sexp_result_new(f, ESEXP_RES_STRING);
 		r->value.string = g_strdup_printf ("(|(displayName=%s*)(sn=%s*)(%s=%s*))", str, str, ldap_attr, str);
+	} else if (g_str_equal (ldap_attr, "displayName")) {
+		r = e_sexp_result_new(f, ESEXP_RES_STRING);
+		r->value.string = g_strdup_printf("(|(displayName=%s*)(sn=%s*)(givenName=%s*))", str, str, str);
 	} else 
 		r = e_sexp_result_new(f, ESEXP_RES_UNDEFINED);
 	return r;
