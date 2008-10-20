@@ -1,3 +1,8 @@
+2008-10-20  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-store.c (mapi_create_folder): Add summary entry during on 
+	create_folder.
+
 2008-10-10  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-store.c (mapi_convert_to_folder_info): Donot use Folder names 

@@ -452,7 +452,11 @@ mapi_create_folder(CamelStore *store, const char *parent_name, const char *folde
 	exchange_mapi_util_mapi_id_from_string (parent_id, &parent_fid);
 	new_folder_id = exchange_mapi_create_folder(olFolderInbox, parent_fid, folder_name);
 	if (new_folder_id != 0) {
+		CamelMapiStoreInfo *si;
+
 		root = mapi_build_folder_info(mapi_store, parent_name, folder_name);
+
+		si = camel_mapi_store_summary_add_from_full(mapi_store->summary, root->full_name, '/');
 		camel_store_summary_save((CamelStoreSummary *)mapi_store->summary);
 
 		g_hash_table_insert (priv->id_hash, g_strdup_printf ("%016llX", new_folder_id), g_strdup(folder_name));
