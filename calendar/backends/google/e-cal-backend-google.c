@@ -31,9 +31,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <bonobo/bonobo-exception.h>
-#include <bonobo/bonobo-moniker-util.h>
-
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
@@ -73,7 +70,7 @@ struct _ECalBackendGooglePrivate {
 	CalMode	mode;
 	EGoItem *item;
 
-	gint timeout_id;
+	guint timeout_id;
 	gchar *username;
 	gchar *password;
 	gchar *uri;
@@ -1179,7 +1176,7 @@ e_cal_backend_google_open (ECalBackendSync *backend, EDataCal *cal, gboolean onl
 
 		cbgo->priv->read_only = TRUE;
 		esource = e_cal_backend_get_source (E_CAL_BACKEND(cbgo));
-		display_contents = e_source_get_property (esource, "offline-sync");
+		display_contents = e_source_get_property (esource, "offline_sync");
 
 		if(!display_contents || !g_str_equal (display_contents, "1")) {
 			g_mutex_unlock(priv->mutex);
@@ -1544,7 +1541,7 @@ e_cal_backend_google_set_entry (ECalBackendGoogle *cbgo, GDataEntry *entry)
  *
  **/
 void
-e_cal_backend_google_set_timeout_id (ECalBackendGoogle *cbgo,gint timeout_id )
+e_cal_backend_google_set_timeout_id (ECalBackendGoogle *cbgo, guint timeout_id)
 {
 	ECalBackendGooglePrivate *priv;
 	priv = cbgo->priv;
@@ -1689,7 +1686,7 @@ e_cal_backend_google_get_entry (ECalBackendGoogle *cbgo)
  * Gets the timeout id.
  *
  **/
-gint
+guint
 e_cal_backend_google_get_timeout_id (ECalBackendGoogle *cbgo)
 {
 	ECalBackendGooglePrivate *priv;

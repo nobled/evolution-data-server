@@ -676,13 +676,26 @@ SoupSoapResponse *
 e_gw_connection_send_message (EGwConnection *cnc, SoupSoapMessage *msg)
 {
 	SoupSoapResponse *response;
+	guint status;
 
 	g_return_val_if_fail (E_IS_GW_CONNECTION (cnc), NULL);
 	g_return_val_if_fail (SOUP_IS_SOAP_MESSAGE (msg), NULL);
 
 	g_mutex_lock (cnc->priv->msg_lock);
-	soup_session_send_message (cnc->priv->soup_session, SOUP_MESSAGE (msg));
+	status = soup_session_send_message (cnc->priv->soup_session, SOUP_MESSAGE (msg));
 	g_mutex_unlock (cnc->priv->msg_lock);
+
+	if (!SOUP_STATUS_IS_SUCCESSFUL (status)) {
+		if (g_getenv ("GROUPWISE_DEBUG")) {
+			const char *error = soup_status_get_phrase (status);
+
+			if (!error)
+				error = "Unknown error";
+
+			g_debug ("%s: Failed to send message with error %d (%s)", G_STRFUNC, status, error);
+		}
+		return NULL;
+	}
 
 	/* process response */
 	response = soup_soap_message_parse_response (msg);
@@ -2713,10 +2726,13 @@ e_gw_connection_get_attachment (EGwConnection *cnc, const char *id, int offset, 
 		buffer = soup_soap_parameter_get_string_value (param) ;
 	}
 
-	if (buffer && buf_length) {
+	if (buffer && buf_length && atoi (buf_length) > 0) {
 		gsize len = atoi (buf_length) ;
 		*attachment = g_base64_decode (buffer,&len) ;
 		*attach_length = len ;
+	} else {
+		*attachment = NULL;
+		*attach_length = 0;
 	}
 
 	/* free memory */
@@ -2781,7 +2797,7 @@ e_gw_connection_get_attachment_base64 (EGwConnection *cnc, const char *id, int o
 		buffer = soup_soap_parameter_get_string_value (param) ;
 	}
 
-	if (buffer && buf_length) {
+	if (buffer && buf_length && atoi (buf_length) > 0) {
 		int len = atoi (buf_length) ;
 		*attachment = g_strdup (buffer);
 		*attach_length = len;
@@ -2789,6 +2805,10 @@ e_gw_connection_get_attachment_base64 (EGwConnection *cnc, const char *id, int o
 			*offset_r = atoi (o_return);
 		else 
 			*offset_r = 0;
+	} else {
+		*attachment = NULL;
+		*attach_length = 0;
+		*offset_r = 0;
 	}
 
 	/* free memory */

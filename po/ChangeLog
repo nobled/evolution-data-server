@@ -1,3 +1,162 @@
+2008-10-19  Djihed Afifi <djihed@gmail.com> 
+
+	* ar.po: Updated Arabic Translation by Anas Afif Emad.
+
+2008-10-11  Leonardo Ferreira Fontenelle  <leonardof@gnome.org>
+
+	* pt_BR.po: Fixed terminology in Brazilian Portuguese translation by 
+	Vladimir Melo. Yes, more fixes!
+
+2008-10-11  Leonardo Ferreira Fontenelle  <leonardof@gnome.org>
+
+	* pt_BR.po: Fixed terminology in Brazilian Portuguese translation by
+	Vladimir Melo.
+
+2008-10-08  Gil Forcada  <gforcada@gnome.org>
+
+	* ca.po: Updated Catalan translation.
+
+2008-10-07  Ignacio Casal Quinteiro  <nacho.resa@gmail.com>
+
+	* gl.po: Updated Galician translation
+
+2008-10-07  Kjartan Maraas  <kmaraas@gnome.org>
+
+	* nb.po: Updated Norwegian bokmål translation.
+
+2008-10-07  Priit Laes  <plaes at svn dot gnome dot org>
+
+	* et.po: Translation updated by Ivar Smolin
+
+2008-10-06 Og Maciel <ogmaciel@gnome.org>
+
+	* pt_BR.po: Updated Brazilian Portuguese translation by Vladimir Melo.
+
+2008-10-06  Luca Ferretti  <elle.uca@libero.it>
+
+	* it.po: Updated Italian translation.
+
+2008-09-26  Yair Hershkovitz  <yairhr@gmail.com>
+
+	* he.po: Updated Hebrew translation.
+
+2008-09-25 Og Maciel <ogmaciel@gnome.org>
+
+	* pt_BR.po: Updated Brazilian Portuguese translation by Vladimir Melo.
+
+2008-09-24  Priit Laes  <plaes at svn dot gnome dot org>
+
+	* et.po: Translation updated by Ivar Smolin
+
+2008-09-24  Djihed Afifi <djihed@gmail.com> 
+
+	* ar.po: Updated Arabic Translation by Anas Afif Emad.
+
+2008-09-21  Nickolay V. Shmyrev  <nshmyrev@yandex.ru>
+
+	* ru.po: Updated Russian translation.
+
+2008-09-21  Wadim Dziedzic  <wdziedzic@aviary.pl>
+
+	* pl.po: Updated Polish translation
+
+2008-09-21  Gabor Kelemen  <kelemeng@gnome.hu>
+
+	* hu.po: Translation updated.
+
+2008-09-21 Kenneth Nielsen <k.nielsen81@gmail.com>
+
+	* da.po: Updated Danish translation by Kenneth Nielsen
+
+2008-09-20  Luca Ferretti  <elle.uca@libero.it>
+
+	* it.po: Updated Italian translation.
+
+2008-09-20  Takeshi AIHANA <takeshi.aihana@gmail.com>
+
+	* ja.po: Fixed wrong translations.
+
+2008-09-20  Goran Rakić  <grakic@devbase.net>
+
+        * sr.po, sr@latin.po: Updated Serbian translation (by Igor Nestorović).
+
+2008-09-19  Žygimantas Beručka  <zygis@gnome.org>
+
+	* lt.po: Updated Lithuanian translation.
+
+2008-09-18  Goran Rakić <grakic@devbase.net> 
+
+	* sr.po, sr@latin.po: Updated Serbian Translation.
+
+2008-09-18  Djihed Afifi <djihed@gmail.com> 
+
+	* ar.po: Updated Arabic Translation by Djihed Afifi.
+
+2008-09-17  I. Felix <ifelix@redhat.com>
+
+	* ta.po:  Tamil Translation updated by Tirumurthi Vasudevan
+
+2008-09-16  Wouter Bolsterlee  <wbolster@svn.gnome.org>
+
+	* nl.po: Updated Dutch translation by Tino Meinen.
+
+2008-09-16  Luca Ferretti  <elle.uca@libero.it>
+
+	* it.po: Updated Italian translation.
+
+2008-09-15  Gil Forcada  <gforcada@gnome.org>
+
+	* ca.po: Updated Catalan translation by David Planella.
+
+2008-09-15  Petr Kovar  <pknbe@volny.cz>
+
+	* cs.po: Updated Czech translation by Jiri Eischmann.
+
+2008-09-15  Djihed Afifi <djihed@gmail.com> 
+
+	* ar.po: Updated Arabic Translation by Djihed Afifi.
+
+2008-09-14  Duarte Loreto <happyguy_pt@hotmail.com>
+
+	* pt.po: Fixed Portuguese terminology.
+
+2008-09-14  Sandeep Shedmake  <sshedmak@redhat.com>
+
+	* mr.po: Updated Marathi Translations.
+
+2008-09-14  Luca Ferretti  <elle.uca@libero.it>
+
+	* it.po: Updated Italian translation.
+
+2008-09-13  Daniel Nylander <po@danielnylander.se>
+
+	* sv.po: Updated Swedish translation.
+	
+2008-09-13  Gabor Kelemen  <kelemeng@gnome.hu>
+
+	* hu.po: Translation updated.
+
+2008-09-10  Luca Ferretti  <elle.uca@libero.it>
+
+	* it.po: Updated Italian translation.
+
+2008-09-10  Theppitak Karoonboonyanan  <thep@linux.thai.net>
+
+	* th.po: Updated Thai translation.
+
+2008-09-10  Pema Geyleg  <pema.geyleg@gmail.com>
+
+        * dz.po: Updated Dzongkha Translation
+
+2008-09-09  Alexander Shopov  <ash@contact.bg>
+
+	* bg.po: Updated Bulgarian translation by
+	Yavor Doganov <yavor@gnu.org>
+
+2008-09-09 Baris Cicek <baris@teamforce.name.tr>
+
+	* tr.po: Updated Turkish translation
+	
 2008-09-07  Robert Sedak  <robert.sedak@sk.t-com.hr>
 
 	* hr.po: Updated Croatian translation.

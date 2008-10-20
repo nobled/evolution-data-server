@@ -27,7 +27,6 @@
 #include <camel/camel-mime-parser.h>
 #include <camel/camel-object.h>
 #include <camel/camel-index.h>
-#include <camel/camel-db.h>
 
 #define CAMEL_FOLDER_SUMMARY_TYPE         camel_folder_summary_get_type ()
 #define CAMEL_FOLDER_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_folder_summary_get_type (), CamelFolderSummary)
@@ -247,7 +246,16 @@ struct _CamelFolderSummary {
 	struct _CamelFolderMetaSummary *meta_summary; /* Meta summary */
 	time_t cache_load_time;
 	guint timeout_handle;
+	
+	const char *collate;
+	const char *sort_by;
+
+	/* Future ABI expansion */
+	gpointer later[4];
 };
+
+struct _CamelMIRecord;
+struct _CamelFIRecord;
 
 struct _CamelFolderSummaryClass {
 	CamelObjectClass parent_class;
@@ -257,12 +265,12 @@ struct _CamelFolderSummaryClass {
 	int (*summary_header_save)(CamelFolderSummary *, FILE *);
 
 	/* Load/Save folder summary from DB*/
-	int (*summary_header_from_db)(CamelFolderSummary *, CamelFIRecord *);
-	CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *, CamelException *ex);
+	int (*summary_header_from_db)(CamelFolderSummary *, struct _CamelFIRecord *);
+	struct _CamelFIRecord * (*summary_header_to_db)(CamelFolderSummary *, CamelException *ex);
 	CamelMessageInfo * (*message_info_from_db) (CamelFolderSummary *, struct _CamelMIRecord*);
-	CamelMIRecord * (*message_info_to_db) (CamelFolderSummary *, CamelMessageInfo *);
-	CamelMessageContentInfo * (*content_info_from_db) (CamelFolderSummary *, CamelMIRecord *);
-	int (*content_info_to_db) (CamelFolderSummary *, CamelMessageContentInfo *, CamelMIRecord *);
+	struct _CamelMIRecord * (*message_info_to_db) (CamelFolderSummary *, CamelMessageInfo *);
+	CamelMessageContentInfo * (*content_info_from_db) (CamelFolderSummary *, struct _CamelMIRecord *);
+	int (*content_info_to_db) (CamelFolderSummary *, CamelMessageContentInfo *, struct _CamelMIRecord *);
 	
 	/* create/save/load an individual message info */
 	CamelMessageInfo * (*message_info_new_from_header)(CamelFolderSummary *, struct _camel_header_raw *);
@@ -348,6 +356,9 @@ void camel_folder_summary_touch(CamelFolderSummary *summary);
 /* add a new raw summary item */
 void camel_folder_summary_add (CamelFolderSummary *summary, CamelMessageInfo *info);
 
+/* Peek from mem only */
+CamelMessageInfo * camel_folder_summary_peek_info (CamelFolderSummary *s, const char *uid);
+
 /* Get only the uids of dirty/changed things to sync to server/db */
 GPtrArray * camel_folder_summary_get_changed (CamelFolderSummary *s);
 /* Gets the size of loaded mi's */
@@ -394,6 +405,8 @@ char * camel_folder_summary_uid_from_index (CamelFolderSummary *s, int i);
 gboolean camel_folder_summary_check_uid (CamelFolderSummary *s, const char *uid);
 
 GPtrArray *camel_folder_summary_array(CamelFolderSummary *summary);
+GHashTable *camel_folder_summary_get_hashtable(CamelFolderSummary *s);
+void camel_folder_summary_free_hashtable (GHashTable *ht);
 
 /* basically like strings, but certain keywords can be compressed and de-cased */
 int camel_folder_summary_encode_token(FILE *out, const char *str);

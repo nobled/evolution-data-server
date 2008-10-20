@@ -98,19 +98,13 @@ camel_local_store_class_init (CamelLocalStoreClass *camel_local_store_class)
 static void
 camel_local_store_finalize (CamelLocalStore *local_store)
 {
+	CamelStore *store;
+
 	if (local_store->toplevel_dir)
 		g_free (local_store->toplevel_dir);
 
-	CamelStore *store;
-
 	store = ((CamelStore *)local_store); 
 	d(printf ("\n\aLocal Store Finalize \n\a"));
-
-	if (store && store->cdb) {
-	d(printf ("\n\aClosing Store DB for hte local provider \n\a"));
-		camel_db_close (store->cdb);
-		store->cdb = NULL;
-	}
 
 }
 

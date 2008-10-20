@@ -1,3 +1,228 @@
+2008-10-16  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Remove console spew.
+	* camel/camel-folder-search.c:
+	* camel/camel-store.c:
+	* camel/camel-vee-folder.c:
+	* camel/camel-vee-summary.c:
+
+2008-10-16  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #556495
+
+	* camel/camel-db.c:
+	* camel/camel-db.h:
+	* camel/camel-vee-folder.c: When things don't match, remove them from
+	db and force a count.
+
+2008-10-16  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-folder-summary.c (camel_folder_summary_get_hashtable),
+	(camel_folder_summary_free_hashtable): Add new functions to get hash
+	table of summary.
+	* camel-folder-summary.h:
+	* camel-folder.c (folder_getv): Fix negative/overflow of unread/counts
+	* camel-vee-summary.c: Fix warning
+	* camel-vtrash-folder.c (vtrash_getv): Fix junk/trash counts.
+
+2008-10-15  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #556372
+
+	* camel/camel-folder-summary.c: Update counts to summary on sync.
+
+2008-10-15  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-folder-summary.c: (perform_content_info_load_from_db),
+	(perform_content_info_save_to_db): Save/load Content info well in DB.
+	Imap cached messages aren't coming up due to this.
+
+2008-10-14  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #546637
+
+	* camel/camel-vee-folder.c:
+	* camel/camel-vee-folder.h:
+	* camel/camel-vee-summary.c: Redo for unread vfolder.
+	* camel/camel-vee-summary.h:
+
+2008-10-14  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #552261
+
+	* camel-folder-summary.c: Don't expose sqlite3 header outside.
+	* camel-folder-summary.h:
+	* camel-folder.c:
+	* camel-store.c:
+	* camel-store.h:
+	* camel-vee-folder.c:
+	* camel-vee-summary.c:
+	* camel-vtrash-folder.c:
+
+2008-10-14  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #554455
+
+	* camel/camel-folder-search.c: Allow thread based searches by falling
+	back on the old in-memory search model.
+
+2008-10-08  Sankar P  <psankar@novell.com>
+
+	* camel-folder.c (count_by_expression):
+	Debug strings should not be translated.
+	Warning should be enough to identify the issue.
+	Exception setting is enough.
+        
+        Thanks to Claude for asking in Evolution channel
+
+2008-10-06  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fixes lots of bugs and breaks ABI
+
+	* camel/camel-db.c: Added new APIs and support for cloning handles.
+	* camel/camel-db.h:
+	* camel/camel-folder-search.c:
+	* camel/camel-folder-search.h:
+	* camel/camel-folder-summary.c:
+	* camel/camel-folder-summary.h:
+	* camel/camel-folder.c:
+	* camel/camel-folder.h:
+	* camel/camel-search-sql-sexp.c:
+	* camel/camel-store.c: Adds two handles to sqlite
+	* camel/camel-store.h:
+	* camel/camel-vee-folder.c:
+	* camel/camel-vee-summary.c:
+	* camel/camel-vtrash-folder.c:
+	* camel/providers/groupwise/camel-groupwise-folder.c:
+	* camel/providers/imap/camel-imap-folder.c:
+	* camel/providers/imap/camel-imap-store.c:
+	* camel/providers/imap/camel-imap-summary.c:
+	* camel/providers/local/camel-local-folder.c:
+	* camel/providers/local/camel-local-store.c:
+	* camel/providers/local/camel-maildir-summary.c:
+	* camel/providers/local/camel-mbox-summary.c:
+	* camel/providers/local/camel-mh-summary.c:
+	* camel/providers/local/camel-spool-summary.c:
+	* camel/providers/nntp/camel-nntp-folder.c:
+
+2008-09-26  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #550466
+
+	* camel-store.c: (camel_store_delete_folder):
+	Ignore 'no such table' errors.
+
+2008-09-25  Milan Crha  <mcrha@redhat.com>
+
+	** Fix for bug #553266
+
+	* camel-vee-folder.c: (vee_sync):
+	Do not free memory owned by someone else.
+
+2008-09-18  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for bug #552729
+
+	* camel/camel-db.c: Adds support for x-camel-mlist & Answered flag to
+	search/vfolders.
+
+2008-09-18  Hiroyuki Ikezoe  <poincare@ikezoe.net>
+
+	** Fix for bug #552724. 
+
+	* Makefile.am: Remove a while space following trailing backslash.
+
+2008-09-15  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-folder-summary.c (info_set_flags): Fix for counts on junk
+	* camel-vee-folder.c (update_summary), (folder_changed_change_uid):
+	* camel-vtrash-folder.c (vtrash_getv),
+	(camel_vtrash_folder_class_init):
+
+2008-09-14  Matthew Barnes  <mbarnes@redhat.com>
+
+	* camel-db.c (camel_db_count_junk_message_info),
+	(camel_db_count_unread_message_info),
+	(camel_db_count_visible_unread_message_info),
+	(camel_db_count_visible_message_info),
+	(camel_db_count_junk_not_deleted_message_info),
+	(camel_db_count_deleted_message_info), (read_fir_callback):
+	* camel-folder-summary.c (camel_folder_summary_migrate_infos):
+	* camel-search-sql.c (camel_sexp_to_sql):
+	Don't mix declarations and code.
+
+2008-09-12  Andre Klapper  <a9016009@gmx.de>
+
+	* camel-store.c: Fixing typo.
+
+2008-09-12  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: 
+	* camel/camel-db.h: Make CAMEL_DB_DEBUG as ifdef
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Make counts work even better.
+	* camel/camel-vee-summary.c:
+	* camel/camel-vee-summary.h: Do force counts better.
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c:
+	* camel/camel-vee-summary.c: Refix vfolder counts.
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (folder_changed_change): Fix a deadlock
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (folder_changed_change): Another missed lock.
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (folder_changed_change): A minor crash fixed.
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (folder_changed_change): Missed another deadlock
+	case.
+
+2008-09-11  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel-vee-folder.c: (folder_changed_change): Don't hold one db lock
+	and acquire folder lock. It dead locks
+
+2008-09-10  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-vee-folder.c: Fix vfolders while unloading unmatched
+	search indexes.
+
+2008-09-10  Srinivasa Ragavan  <sragavan@novell.com>
+
+	** Fix for BNC bug #418080
+
+	* camel/camel-search-sql-sexp.c: Match contains using %like%.
+
+2008-09-10  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Fix a bug when sexp is executed
+	unnecessarily.
+
+2008-09-10  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-search.c: Make it debuggable.
+
+2008-09-10  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-db.c: Add bdata to index.
+
+2008-09-08  Srinivasa Ragavan  <sragavan@novell.com>
+
+	* camel/camel-folder-summary.c: Fix some compiler warnings
+	* camel/camel-vee-folder.c:
+	* camel/camel-vee-folder.h:
+
 2008-09-08  Srinivasa Ragavan  <sragavan@novell.com>
 
 	* camel-vee-folder.c: (vee_sync): Ignore no such table errors, as we

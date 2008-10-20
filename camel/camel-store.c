@@ -34,6 +34,7 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 
+#include "camel-db.h"
 #include "camel-debug.h"
 #include "camel-exception.h"
 #include "camel-folder.h"
@@ -159,9 +160,14 @@ camel_store_finalize (CamelObject *object)
 	
 	g_static_rec_mutex_free (&store->priv->folder_lock);
 
-	if (store->cdb) {
-		camel_db_close (store->cdb);
-		store->cdb = NULL;
+	if (store->cdb_r) {
+		camel_db_close (store->cdb_r);
+		store->cdb_r = NULL;
+	}
+
+	if (store->cdb_w) {
+		camel_db_close (store->cdb_w);
+		store->cdb_w = NULL;
 	}
 
 	g_free (store->priv);
@@ -228,19 +234,22 @@ construct (CamelService *service, CamelSession *session,
 
 	g_free (store_path);
 
-	store->cdb = camel_db_open (store_db_path, ex);
-	printf("store_db_path %s\n", store_db_path);
+	/* This is for reading from the store */
+	store->cdb_r = camel_db_open (store_db_path, ex);
+	if (camel_debug("sqlite"))
+		printf("store_db_path %s\n", store_db_path);
 	if (camel_exception_is_set (ex)) {
 		char *store_path;
 		
-		g_print ("Failure for store_db_path : [%s]\n", store_db_path);
+		if (camel_debug("sqlite"))
+			g_print ("Failure for store_db_path : [%s]\n", store_db_path);
 		g_free (store_db_path);		
 
 		store_path =  camel_session_get_storage_path (session, service, ex);
 		store_db_path = g_build_filename (store_path, CAMEL_DB_FILE, NULL);
 		g_free (store_path);
 		camel_exception_clear(ex);
-		store->cdb = camel_db_open (store_db_path, ex);
+		store->cdb_r = camel_db_open (store_db_path, ex);
 		if (camel_exception_is_set (ex)) {
 			g_print("Retry with %s failed\n", store_db_path);
 			g_free(store_db_path);
@@ -250,13 +259,15 @@ construct (CamelService *service, CamelSession *session,
 	}
 	g_free (store_db_path);
 
-	if (camel_db_create_folders_table (store->cdb, ex))
-		printf ("something went wrong terribly\n");
+	if (camel_db_create_folders_table (store->cdb_r, ex))
+		g_warning ("something went wrong terribly during db creation \n");
 	else
-		printf ("folders table succesfully created \n");
+		d(printf ("folders table successfully created \n"));
 
 	if (camel_exception_is_set (ex))
 		return;
+	/* This is for writing to the store */
+	store->cdb_w = camel_db_clone (store->cdb_r, ex);
 
 	if (camel_url_get_param(url, "filter"))
 		store->flags |= CAMEL_STORE_FILTER_INBOX;
@@ -467,6 +478,11 @@ camel_store_delete_folder (CamelStore *store, const char *folder_name, CamelExce
 	CAMEL_STORE_LOCK(store, folder_lock);
 
 	CS_CLASS(store)->delete_folder(store, folder_name, &local);
+
+	/* ignore 'no such table' errors */
+	if (camel_exception_is_set (&local) && camel_exception_get_description (&local) &&
+	    g_ascii_strncasecmp (camel_exception_get_description (&local), "no such table", 13) == 0)
+		camel_exception_clear (&local);
 
 	if (!camel_exception_is_set(&local))
 		cs_delete_cached_folder(store, folder_name);

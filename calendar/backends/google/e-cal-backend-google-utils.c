@@ -31,9 +31,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <bonobo/bonobo-exception.h>
-#include <bonobo/bonobo-moniker-util.h>
-
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
@@ -132,7 +129,6 @@ static gpointer
 e_cal_backend_google_utils_create_cache (ECalBackendGoogle *cbgo)
 {
 	ESource *source;
-	guint timeout_id;
 	int x;
 	const gchar *refresh_interval = NULL;
 	ECalBackendCache *cache;
@@ -152,10 +148,14 @@ e_cal_backend_google_utils_create_cache (ECalBackendGoogle *cbgo)
 	else
 		x = 30;
 
-	timeout_id = g_timeout_add (x * 60000,
-				  (GSourceFunc) get_deltas_timeout,
-				  (gpointer)cbgo);
-	e_cal_backend_google_set_timeout_id (cbgo, timeout_id);
+	if (!e_cal_backend_google_get_timeout_id (cbgo)) {
+		guint timeout_id;
+
+		timeout_id = g_timeout_add (x * 60000,
+					  (GSourceFunc) get_deltas_timeout,
+					  (gpointer)cbgo);
+		e_cal_backend_google_set_timeout_id (cbgo, timeout_id);
+	}
 
 	return GINT_TO_POINTER (GNOME_Evolution_Calendar_Success);
 }
@@ -169,7 +169,7 @@ e_cal_backend_google_utils_create_cache (ECalBackendGoogle *cbgo)
  *
  * Return value: TRUE if update is successful FALSE otherwise .
  **/
-gboolean
+gpointer
 e_cal_backend_google_utils_update (gpointer handle)
 {
 	ECalBackendGoogle *cbgo;
@@ -187,9 +187,9 @@ e_cal_backend_google_utils_update (gpointer handle)
 	gboolean needs_to_insert = FALSE;
 	gchar *uri;
 
-	if (!handle) {
+	if (!handle || !E_IS_CAL_BACKEND_GOOGLE (handle)) {
 		g_critical ("\n Invalid handle %s", G_STRLOC);
-		return FALSE;
+		return NULL;
 	}
 
 	g_static_mutex_lock (&updating);
@@ -264,7 +264,7 @@ e_cal_backend_google_utils_update (gpointer handle)
 	}
 
 	g_static_mutex_unlock (&updating);
-	return TRUE;
+	return NULL;
 }
 
 ECalBackendSyncStatus
@@ -283,7 +283,7 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 	GError *error = NULL;
 	GThread *thread;
 	gchar *username, *password;
-	gint timeout_id;
+	guint timeout_id;
 	gboolean mode_changed;
 	gchar *uri, *suri;
 
