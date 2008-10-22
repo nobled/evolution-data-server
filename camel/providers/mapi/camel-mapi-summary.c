@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <camel/camel-db.h>
 
 #include "camel-data-cache.h"
 #include "camel-file-utils.h"
