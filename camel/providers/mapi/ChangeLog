@@ -1,5 +1,10 @@
 2008-10-22  Suman Manjunath  <msuman@novell.com>
 
+	* camel-mapi-folder.c (fetch_item_cb): Ensure proper type casting when 
+	assigning the return value of "still" an implicitly declared function. 
+
+2008-10-22  Suman Manjunath  <msuman@novell.com>
+
 	* camel-mapi-summary.c: Fixed a build break. 
 
 2008-10-20  Johnny Jacob  <jjohnny@novell.com>

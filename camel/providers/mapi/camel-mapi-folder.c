@@ -752,8 +752,7 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 
 	msg_class = (const char *) exchange_mapi_util_find_array_propval (array, PR_MESSAGE_CLASS);
 	if (g_str_has_prefix (msg_class, IPM_SCHEDULE_MEETING_PREFIX)) {
-		gchar *appointment_body_str = NULL;
-		appointment_body_str = exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
+		gchar *appointment_body_str = (gchar *) exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
 
 		body = g_new0(ExchangeMAPIStream, 1);
 		body->proptag = PR_BODY;
