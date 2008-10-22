@@ -1,3 +1,14 @@
+2008-10-22  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-store.c (mapi_fid_is_system_folder): Added.
+	(mapi_fid_is_system_folder) : Removed.
+	(struct _CamelMapiStorePrivate): Added default_folder_ids.
+	(mapi_folders_sync): Add fids to default_folder_ids if it is a 
+	default folder.
+	(mapi_create_folder): Use mapi_fid_is_system_folder.
+	(mapi_rename_folder): Use mapi_fid_is_system_folder.
+	(mapi_path_to_physical): Removed 'subfolders' string.
+	
 2008-10-22  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-folder.c (fetch_item_cb): Ensure proper type casting when 
@@ -6,7 +17,7 @@
 2008-10-22  Suman Manjunath  <msuman@novell.com>
 
 	* camel-mapi-summary.c: Fixed a build break. 
-
+	
 2008-10-20  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-store.c (mapi_create_folder): Add summary entry during on 
