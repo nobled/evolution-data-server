@@ -1,3 +1,19 @@
+2008-10-24  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (mapi_sync): Use FolderType to fetch the FID instead of 
+	names (eg. olFolderDeletedItems).
+
+	* camel-mapi-store.c (struct _CamelMapiStorePrivate): Removed default_folder_ids
+	& Added default_folders hash table. Contains the default folder's FID:Type.
+	(mapi_system_folder_fid): Added.
+	(mapi_fid_is_system_folder): Use default_folders.
+	(camel_mapi_store_system_folder_fid): Added
+
+2008-10-23  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (mapi_sync, mapi_expunge): Do not use folder names to 
+	identify Trash.
+
 2008-10-22  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-store.c (mapi_fid_is_system_folder): Added.

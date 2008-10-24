@@ -435,11 +435,10 @@ mapi_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 
 	if (deleted_items) {
 		CAMEL_SERVICE_REC_LOCK (mapi_store, connect_lock);
-
-		if (!strcmp (folder->full_name, "Deleted Items")) {
+		if (mapi_folder->type & CAMEL_FOLDER_TYPE_TRASH) {
 			exchange_mapi_remove_items (0, fid, deleted_items);
 		} else {
-			exchange_mapi_util_mapi_id_from_string (camel_mapi_store_folder_id_lookup (mapi_store, "Deleted Items"), &deleted_items_fid);
+			exchange_mapi_util_mapi_id_from_string (camel_mapi_store_system_folder_fid (mapi_store, olFolderDeletedItems), &deleted_items_fid);
 			exchange_mapi_move_items(fid, deleted_items_fid, deleted_items);
 		}
 
@@ -1187,8 +1186,7 @@ mapi_expunge (CamelFolder *folder, CamelException *ex)
 	folder_id =  g_strdup (camel_mapi_store_folder_id_lookup (mapi_store, folder->full_name)) ;
 	exchange_mapi_util_mapi_id_from_string (folder_id, &fid);
 
-	if (!strcmp (folder->full_name, "Deleted Items")) {
-
+	if (mapi_folder->type & CAMEL_FOLDER_TYPE_TRASH) {
 		CAMEL_SERVICE_REC_LOCK (mapi_store, connect_lock);
 		status = exchange_mapi_empty_folder (fid);
 		CAMEL_SERVICE_REC_UNLOCK (mapi_store, connect_lock);
@@ -1463,10 +1461,7 @@ camel_mapi_folder_new(CamelStore *store, const char *folder_name, const char *fo
 			continue;
 
 		if (!strcmp(folder_name, camel_mapi_store_info_full_name (mapi_store->summary, si))) {
-			if (si->flags & CAMEL_MAPI_FOLDER_PUBLIC)
-				mapi_folder->type = MAPI_FAVOURITE_FOLDER;
-			else if (si->flags & CAMEL_MAPI_FOLDER_PERSONAL)
-				mapi_folder->type = MAPI_PERSONAL_FOLDER;
+			mapi_folder->type = si->flags;
 		}
 
 		camel_store_summary_info_free((CamelStoreSummary *)mapi_store->summary, si);

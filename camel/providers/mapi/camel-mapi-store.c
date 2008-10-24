@@ -78,7 +78,7 @@ struct _CamelMapiStorePrivate {
 	GHashTable *id_hash; /*get names from ids*/
 	GHashTable *name_hash;/*get ids from names*/
 	GHashTable *parent_hash;
-	GSList *default_folder_ids;
+	GHashTable *default_folders; /*Default Type : Folder ID*/
 };
 
 static CamelOfflineStoreClass *parent_class = NULL;
@@ -245,7 +245,7 @@ static void mapi_construct(CamelService *service, CamelSession *session,
 	priv->id_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 	priv->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 	priv->parent_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
-	priv->default_folder_ids = NULL;
+	priv->default_folders = g_hash_table_new_full (g_int_hash, g_str_equal, g_free, g_free);
 
 	store->flags &= ~CAMEL_STORE_VJUNK;
 	store->flags &= ~CAMEL_STORE_VTRASH;
@@ -384,12 +384,27 @@ static GList *mapi_query_auth_types(CamelService *service, CamelException *ex)
 	return NULL;
 }
 
+
+static gboolean 
+hash_check_fid_presence (gpointer key, gpointer value, gpointer folder_id)
+{
+	return (g_ascii_strcasecmp (value, folder_id) == 0);
+}
+
 static gboolean
 mapi_fid_is_system_folder (CamelMapiStore *mapi_store, const char *fid)
 {
 	CamelMapiStorePrivate *priv = mapi_store->priv;
 
-	return (g_slist_find_custom (priv->default_folder_ids, fid, g_ascii_strcasecmp) != NULL);
+	return (g_hash_table_find (priv->default_folders, hash_check_fid_presence, fid) != NULL);
+}
+
+static const gchar*
+mapi_system_folder_fid (CamelMapiStore *mapi_store, int folder_type)
+{ 
+	CamelMapiStorePrivate *priv = mapi_store->priv;
+
+	return g_hash_table_lookup (priv->default_folders, &folder_type); 
 }
 
 static CamelFolder *
@@ -1105,12 +1120,6 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 		url = temp_url;
 	}
 	
-	if (priv->default_folder_ids) {
-		g_slist_foreach (priv->default_folder_ids, (GFunc) g_free, NULL);
-		g_slist_free (priv->default_folder_ids);
-		priv->default_folder_ids = NULL;
-	}
-
 	/*populate the hash table for finding the mapping from container id <-> folder name*/
 	for (;temp_list != NULL ; temp_list = g_slist_next (temp_list) ) {
 		const char *name;
@@ -1129,9 +1138,12 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 		/*parent_hash returns the parent container id, given an id*/
 		g_hash_table_insert (priv->parent_hash, g_strdup(fid), g_strdup(parent_id));
 
-		if (((ExchangeMAPIFolder *)(temp_list->data))->is_default)
-			priv->default_folder_ids = g_slist_append (priv->default_folder_ids,
-								   g_strdup (fid));
+		if (((ExchangeMAPIFolder *)(temp_list->data))->is_default) {
+			guint *type = g_new0 (guint, 1);
+			*type = ((ExchangeMAPIFolder *)(temp_list->data))->default_type;
+			g_hash_table_insert (priv->default_folders, type,
+					     g_strdup(fid));
+		}
 	}
 
 	for (;folder_list != NULL; folder_list = g_slist_next (folder_list)) {
@@ -1207,6 +1219,12 @@ camel_mapi_store_folder_id_lookup (CamelMapiStore *mapi_store, const char *folde
 	CamelMapiStorePrivate *priv = mapi_store->priv;
 
 	return g_hash_table_lookup (priv->name_hash, folder_name);
+}
+
+const gchar *
+camel_mapi_store_system_folder_fid (CamelMapiStore *mapi_store, guint folder_type)
+{
+	return mapi_system_folder_fid (mapi_store, folder_type);
 }
 
 const gchar *
