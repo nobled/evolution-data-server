@@ -67,6 +67,12 @@ typedef struct {
 	guint32 bits;
 } flags_diff_t;
 
+/*For collecting summary info from server*/
+typedef struct {
+	GSList *items_list;
+	const struct timeval *last_modification_time;
+}fetch_items_data;
+
 static CamelMimeMessage *mapi_folder_item_to_msg( CamelFolder *folder, MapiItem *item, CamelException *ex );
 
 static GPtrArray *
@@ -173,11 +179,14 @@ static gboolean
 fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
 		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
 {
-	//CamelMapiFolder *mapi_folder = CAMEL_MAPI_FOLDER(data);
-	GSList **slist = (GSList **)data;
+	fetch_items_data *fi_data = (fetch_items_data *)data;
+	
+	GSList **slist = &(fi_data->items_list);
 
 	long *flags;
-	struct FILETIME *delivery_date;
+	struct FILETIME *delivery_date = NULL;
+	struct timeval *item_modification_time = NULL;
+
 	NTTIME ntdate;
 
 	MapiItem *item = g_new0(MapiItem , 1);
@@ -205,13 +214,25 @@ fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const 
 		item->header.recieved_time = nt_time_to_unix(ntdate);
 	}
 
+	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(array, PR_LAST_MODIFICATION_TIME);
+	if (delivery_date) {
+		ntdate = delivery_date->dwHighDateTime;
+		ntdate = ntdate << 32;
+		ntdate |= delivery_date->dwLowDateTime;
+		item_modification_time = g_new0 (struct timeval, 1);
+		nttime_to_timeval(item_modification_time, ntdate);
+	}
+
+	if (timeval_compare (item_modification_time, fi_data->last_modification_time) == 1) 
+			fi_data->last_modification_time = item_modification_time;
+
 	flags = (long *)find_mapi_SPropValue_data (array, PR_MESSAGE_FLAGS);
 	if ((*flags & MSGFLAG_READ) != 0)
 		item->header.flags |= CAMEL_MESSAGE_SEEN;
 	if ((*flags & MSGFLAG_HASATTACH) != 0)
 		item->header.flags |= CAMEL_MESSAGE_ATTACHMENTS;
 
-	*slist = g_slist_append (*slist, item);
+	*slist = g_slist_prepend (*slist, item);
 
 	return TRUE;
 }
@@ -482,11 +503,14 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 
 	CamelMapiStore *mapi_store = CAMEL_MAPI_STORE (folder->parent_store);
 	CamelMapiFolder *mapi_folder = CAMEL_MAPI_FOLDER (folder);
-
+	CamelMapiSummary *mapi_summary = CAMEL_MAPI_SUMMARY (folder->summary);
 	gboolean is_proxy = folder->parent_store->flags & CAMEL_STORE_PROXY;
 	gboolean is_locked = TRUE;
 	gboolean status;
-	GSList *item_list = NULL;
+
+	struct mapi_SRestriction *res = NULL;
+	fetch_items_data *fetch_data = g_new0 (fetch_items_data, 1);
+
 	const gchar *folder_id = NULL;
 
 	const guint32 summary_prop_list[] = {
@@ -495,6 +519,7 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 		PR_MESSAGE_DELIVERY_TIME,
 		PR_MESSAGE_FLAGS,
 		PR_SENT_REPRESENTING_NAME,
+		PR_LAST_MODIFICATION_TIME,
 		PR_DISPLAY_TO,
 		PR_DISPLAY_CC,
 		PR_DISPLAY_BCC
@@ -532,43 +557,66 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 		guint32 options = 0;
 		CamelFolderInfo *fi = NULL;
 
+		fetch_data->last_modification_time = g_new0 (struct timeval, 1); /*First Sync*/
+
+		if (mapi_summary->sync_time_stamp && *mapi_summary->sync_time_stamp &&
+		    g_time_val_from_iso8601 (mapi_summary->sync_time_stamp, fetch_data->last_modification_time)) {
+			struct SPropValue sprop;
+			struct timeval t;
+
+			res = g_new0 (struct mapi_SRestriction, 1);
+			res->rt = RES_PROPERTY;
+			/*RELOP_GE acts more like >=. Few extra items are being fetched.*/
+			res->res.resProperty.relop = RELOP_GE;
+			res->res.resProperty.ulPropTag = PR_LAST_MODIFICATION_TIME;
+
+			t.tv_sec = fetch_data->last_modification_time->tv_sec;
+			t.tv_usec = fetch_data->last_modification_time->tv_usec;
+
+			//Creation time ? 
+			set_SPropValue_proptag_date_timeval (&sprop, PR_LAST_MODIFICATION_TIME, &t);
+			cast_mapi_SPropValue (&(res->res.resProperty.lpProp), &sprop);
+		} 
+
 		exchange_mapi_util_mapi_id_from_string (folder_id, &temp_folder_id);
 
 		if (!camel_mapi_store_connected (mapi_store, ex)) {
+			/*BUG : Fix exception string.*/
 			camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
 					     _("This message is not available in offline mode."));
 			goto end2;
 		}
 
-		if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER){
+		if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER)
 			options |= MAPI_OPTIONS_USE_PFSTORE;
-		} 
 
-		status = exchange_mapi_connection_fetch_items  (temp_folder_id, NULL, 
+
+		status = exchange_mapi_connection_fetch_items  (temp_folder_id, res, 
 								summary_prop_list, G_N_ELEMENTS (summary_prop_list), 
 								NULL, NULL, 
-								fetch_items_cb, &item_list, 
+								fetch_items_cb, fetch_data, 
 								options);
-
 		if (!status) {
 			camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Fetch items failed"));
 			goto end2;
 		}
 
+		/*Preserve last_modification_time from this fetch for later use with restrictions.*/
+		mapi_summary->sync_time_stamp = g_time_val_to_iso8601 (fetch_data->last_modification_time);
+
 		camel_folder_summary_touch (folder->summary);
 		mapi_sync_summary (folder, ex);
 
-		if (item_list)
-			mapi_update_cache (folder, item_list, ex, FALSE);
+		if (fetch_data->items_list)
+			mapi_update_cache (folder, fetch_data->items_list, ex, FALSE);
 	}
 
 
 	CAMEL_SERVICE_REC_UNLOCK (mapi_store, connect_lock);
 	is_locked = FALSE;
 
-	g_slist_foreach (item_list, (GFunc) mapi_item_free, NULL);
-	g_slist_free (item_list);
-	item_list = NULL;
+	g_slist_foreach (fetch_data->items_list, (GFunc) mapi_item_free, NULL);
+	g_slist_free (fetch_data->items_list);
 end2:
 	//TODO:
 end1:

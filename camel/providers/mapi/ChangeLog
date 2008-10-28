@@ -1,3 +1,17 @@
+2008-10-28  Johnny Jacob  <jjohnny@novell.com>
+
+	** Use restrictions for fetching new messages.
+	
+	* camel-mapi-summary.h (struct _CamelMapiSummary): Added sync_time_stamp
+	field.
+
+	* camel-mapi-folder.c (fetch_items_cb): Look for last modification time.
+	(mapi_refresh_folder): Added restrictions. Fetch new items only.
+
+	* camel-mapi-summary.c (CAMEL_MAPI_SUMMARY_VERSION): Adding version.
+	(mapi_summary_header_to_db, mapi_summary_header_from_db): Added version and 
+	last sync time stamp.
+
 2008-10-24  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (mapi_sync): Use FolderType to fetch the FID instead of 

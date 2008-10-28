@@ -59,7 +59,7 @@ struct _CamelMapiMessageContentInfo {
 struct _CamelMapiSummary {
 	CamelFolderSummary parent ;
 
-	char *time_string;
+	gchar *sync_time_stamp;
 	guint32 version ;
 	guint32 validity ;
 } ;
@@ -74,9 +74,6 @@ CamelType camel_mapi_summary_get_type (void) ;
 
 CamelFolderSummary *camel_mapi_summary_new (struct _CamelFolder *folder, const char *filename) ;
 
-/* void camel_gw_summary_add_offline (CamelFolderSummary *summary, const char *uid, CamelMimeMessage *messgae, const CamelMessageInfo *info) ; */
-
-/* void camel_gw_summary_add_offline_uncached (CamelFolderSummary *summary, const char *uid, const CamelMessageInfo *info) ; */
 void mapi_summary_clear (CamelFolderSummary *summary, gboolean uncache);
 
 G_END_DECLS

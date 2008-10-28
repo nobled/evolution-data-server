@@ -38,6 +38,8 @@
 #include "camel-mapi-folder.h"
 #include "camel-mapi-summary.h"
 
+#define CAMEL_MAPI_SUMMARY_VERSION (1)
+
 /* Macros for DB Summary */
 #define MS_EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
 
@@ -165,18 +167,37 @@ camel_mapi_summary_new (struct _CamelFolder *folder, const char *filename)
 static int
 mapi_summary_header_from_db (CamelFolderSummary *summary, CamelFIRecord *fir) 
 {
+	CamelMapiSummary *mapi_summary = CAMEL_MAPI_SUMMARY (summary);
+	gchar *part;
+
 	if (camel_mapi_summary_parent->summary_header_from_db (summary, fir) == -1)
 		return -1 ;
+
+	part = fir->bdata;
+
+	if (part)
+		MS_EXTRACT_FIRST_DIGIT(mapi_summary->version);
+
+	if (part && part++) {
+		mapi_summary->sync_time_stamp = g_strdup (part);
+	}
 
 	return 0;
 }
 static int 
 mapi_summary_header_to_db (CamelFolderSummary *summary, CamelException *ex) 
 {
-	if (camel_mapi_summary_parent->summary_header_to_db (summary, ex) == -1)
+	CamelMapiSummary *mapi_summary = CAMEL_MAPI_SUMMARY(summary);
+	struct _CamelFIRecord *fir;
+
+	fir = camel_mapi_summary_parent->summary_header_to_db (summary, ex);
+
+	if(!fir)
 		return -1;
 
-	return 0;
+	fir->bdata = g_strdup_printf ("%d %s", CAMEL_MAPI_SUMMARY_VERSION, mapi_summary->sync_time_stamp);
+
+	return fir;
 }
 
 static CamelMessageInfo*
