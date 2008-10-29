@@ -82,6 +82,8 @@
 
 #define TV_TO_MILLIS(timeval) ((timeval).tv_sec * 1000 + (timeval).tv_usec / 1000)
 
+extern LDAP * e2k_global_catalog_get_ldap (E2kGlobalCatalog *gc, E2kOperation *op, int *ldap_error); 
+
 static gchar *query_prop_to_ldap(gchar *query_prop);
 static int build_query (EBookBackendGALLDAP *bl, const char *query, char **ldap_query);
 
@@ -272,7 +274,7 @@ gal_connect (EBookBackendGALLDAP *bl)
 	blpriv->connected = FALSE;
 
 	g_mutex_lock (blpriv->ldap_lock);
-	blpriv->ldap = e2k_global_catalog_get_ldap (blpriv->gc, NULL);
+	blpriv->ldap = e2k_global_catalog_get_ldap (blpriv->gc, NULL, NULL);
 	if (!blpriv->ldap) {
 		g_mutex_unlock (blpriv->ldap_lock);
 		return GNOME_Evolution_Addressbook_RepositoryOffline;
@@ -298,7 +300,7 @@ ldap_reconnect (EBookBackendGALLDAP *bl, EDataBookView *book_view, LDAP **ldap, 
 			book_view_notify_status (book_view, _("Reconnecting to LDAP server..."));
 		
 		ldap_unbind (*ldap);
-		*ldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL);
+		*ldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL, NULL);
 		if (book_view)
 			book_view_notify_status (book_view, "");
 
@@ -320,7 +322,7 @@ gal_reconnect (EBookBackendGALLDAP *bl, EDataBookView *book_view, int ldap_statu
 			book_view_notify_status (book_view, _("Reconnecting to LDAP server..."));
 		if (bl->priv->ldap)
 			ldap_unbind (bl->priv->ldap);
-		bl->priv->ldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL);
+		bl->priv->ldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL, NULL);
 		if (book_view)
 			book_view_notify_status (book_view, "");
 
@@ -1413,7 +1415,7 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 							char **email_values, **cn_values, **member_info;
 
 							if (!subldap) {
-								subldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL);
+								subldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL, NULL);
 							}
 							grpattrs[0] = "cn";
 							grpattrs[1] = "mail";
@@ -2394,7 +2396,7 @@ load_source (EBookBackend *backend,
 	char *dirname, *filename;
 	int i, db_error;
 	char *domain, *user;
-	char *slimit;
+	const char *slimit;
 	int limit=500;
 #if ENABLE_CACHE	
 	DB *db;
@@ -2600,6 +2602,8 @@ get_static_capabilities (EBookBackend *backend)
 	return g_strdup("net");
 }
 
+/* FIXME: unused */
+#if 0
 /**
  * e_book_backend_galldapnew:
  *
@@ -2621,6 +2625,7 @@ e_book_backend_galldapnew (void)
 
 	return E_BOOK_BACKEND (backend);
 }
+#endif 
 
 static gboolean
 call_dtor (int msgid, LDAPOp *op, gpointer data)

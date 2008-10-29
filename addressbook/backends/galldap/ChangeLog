@@ -1,3 +1,9 @@
+2008-10-29  Suman Manjunath  <msuman@novell.com>
+
+	* e-book-backend-galldap.c (gal_connect), (ldap_reconnect),
+	(gal_reconnect), (build_contact_from_entry), (load_source):
+	Fix some serious compilation warnings. 
+
 2008-10-15  Ashish Shrivastava  <shashish@novell.com>
 
 	* e-book-backend-galldap.c (func_contains): Fix for a GAL search issue. 
