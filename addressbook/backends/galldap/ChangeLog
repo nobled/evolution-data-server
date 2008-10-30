@@ -1,3 +1,13 @@
+2008-10-30  Suman Manjunath  <msuman@novell.com>
+
+	* e-book-backend-galldap.c (ldap_reconnect), (gal_reconnect),
+	(ldap_op_finished), (build_contact_from_entry),
+	(parse_page_control), (dosearch), (call_dtor), (dispose):
+	Replace ALL deprecated OpenLDAP API usages with the newer ones. 
+	NOTE: Some portion of the code might have to be re-written due to 
+	this. Also, someone needs to figure out if we want to have code-paths
+	for the deprecated APIs as well and make necessary changes. 
+
 2008-10-29  Suman Manjunath  <msuman@novell.com>
 
 	* e-book-backend-galldap.c (gal_connect), (ldap_reconnect),

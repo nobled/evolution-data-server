@@ -299,7 +299,7 @@ ldap_reconnect (EBookBackendGALLDAP *bl, EDataBookView *book_view, LDAP **ldap, 
 		if (book_view)
 			book_view_notify_status (book_view, _("Reconnecting to LDAP server..."));
 		
-		ldap_unbind (*ldap);
+		ldap_unbind_ext (*ldap, NULL, NULL);
 		*ldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL, NULL);
 		if (book_view)
 			book_view_notify_status (book_view, "");
@@ -321,7 +321,7 @@ gal_reconnect (EBookBackendGALLDAP *bl, EDataBookView *book_view, int ldap_statu
 		if (book_view)
 			book_view_notify_status (book_view, _("Reconnecting to LDAP server..."));
 		if (bl->priv->ldap)
-			ldap_unbind (bl->priv->ldap);
+			ldap_unbind_ext (bl->priv->ldap, NULL, NULL);
 		bl->priv->ldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL, NULL);
 		if (book_view)
 			book_view_notify_status (book_view, "");
@@ -388,7 +388,7 @@ ldap_op_finished (LDAPOp *op)
 	/* should handle errors here */
 	g_mutex_lock (bl->priv->ldap_lock);
 	if (bl->priv->ldap)
-		ldap_abandon (bl->priv->ldap, op->id);
+		ldap_abandon_ext (bl->priv->ldap, op->id, NULL, NULL);
 	g_mutex_unlock (bl->priv->ldap_lock);
 
 	op->dtor (op);
@@ -1362,22 +1362,22 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 	while (attr) {
 		int i;
 		struct prop_info *info = NULL;
-		char **values;
+		struct berval **values;
 
 		if (existing_objectclasses && !g_ascii_strcasecmp (attr, "objectclass")) {
 			g_mutex_lock (bl->priv->ldap_lock);
-			values = ldap_get_values (ldap, e, attr);
+			values = ldap_get_values_len (ldap, e, attr);
 			g_mutex_unlock (bl->priv->ldap_lock);
 			for (i = 0; values[i]; i ++) {
-				if (!g_ascii_strcasecmp (values [i], "groupOfNames")) {
+				if (!g_ascii_strcasecmp (values[i]->bv_val, "groupOfNames")) {
 					printf ("groupOfNames\n");
 					e_contact_set (contact, E_CONTACT_IS_LIST, GINT_TO_POINTER (TRUE));
 					e_contact_set (contact, E_CONTACT_LIST_SHOW_ADDRESSES, GINT_TO_POINTER (TRUE));
 				}
 				if (existing_objectclasses)
-					*existing_objectclasses = g_list_append (*existing_objectclasses, g_strdup (values[i]));
+					*existing_objectclasses = g_list_append (*existing_objectclasses, g_strdup (values[i]->bv_val));
 			}
-			ldap_value_free (values);
+			ldap_value_free_len (values);
 		}
 		else {
 			for (i = 0; i < num_prop_infos; i ++)
@@ -1392,12 +1392,12 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 			if (info) {
 				if (1) {
 					g_mutex_lock (bl->priv->ldap_lock);
-					values = ldap_get_values (ldap, e, attr);
+					values = ldap_get_values_len (ldap, e, attr);
 					g_mutex_unlock (bl->priv->ldap_lock);
 
 					if (values) {
 						if (info->prop_type & PROP_TYPE_STRING && !(is_group && (info->field_id == E_CONTACT_EMAIL_1))) {
-							d(printf ("value = %s %s\n", e_contact_field_name(info->field_id), values[0]));
+							d(printf ("value = %s %s\n", e_contact_field_name(info->field_id), values[0]->bv_val));
 							/* if it's a normal property just set the string */
 							if (values[0])
 								e_contact_set (contact, info->field_id, values[0]);
@@ -1405,14 +1405,18 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 						else if (info->prop_type & PROP_TYPE_COMPLEX) {
 							/* if it's a list call the contact-populate function,
 							   which calls g_object_set to set the property */
-							info->populate_contact_func(contact, values, bl, NULL);
+							   /* FIXME: This portion needs to be re-written to suit 
+							    * the non-deprecated stuff in OpenLDAP 
+							    */
+							/*info->populate_contact_func(contact, values, bl, NULL);*/
 						}
 						else if (info->prop_type & PROP_TYPE_GROUP) {
 							char *grpattrs[3];
 							int i, view_limit = -1, ldap_error, count;
 							EDataBookView *book_view;
 							LDAPMessage *result;
-							char **email_values, **cn_values, **member_info;
+							struct berval **email_values, **cn_values;
+							gchar **member_info;
 
 							if (!subldap) {
 								subldap = e2k_global_catalog_get_ldap (bl->priv->gc, NULL, NULL);
@@ -1429,16 +1433,16 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 							if (view_limit == -1 || view_limit > bl->priv->gc->response_limit)
 								view_limit = bl->priv->gc->response_limit;
 
-							count = ldap_count_values (values);
+							count = ldap_count_values_len (values);
 							member_info = g_new0 (gchar *, count+1);
 							printf ("Fetching members\n");
 							for (i=0; values[i]; i++) {
 								/* get the email id for the given dn */
 								/* set base to DN and scope to base */
-								d(printf("value (dn) = %s \n", values [i]));
+								d(printf("value (dn) = %s \n", values[i]->bv_val));
 								do {
 									if ((ldap_error = ldap_search_ext_s (subldap,
-												values[i],
+												values[i]->bv_val,
 												LDAP_SCOPE_BASE,
 												"(objectclass=User)",
 												grpattrs, 0,
@@ -1448,22 +1452,22 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 												view_limit,
 												&result)) == LDAP_SUCCESS) {
 										/* find email ids of members */
-										cn_values = ldap_get_values (ldap, result, "cn");
-										email_values = ldap_get_values (ldap, result, "mail");
+										cn_values = ldap_get_values_len (ldap, result, "cn");
+										email_values = ldap_get_values_len (ldap, result, "mail");
 
 										if (email_values) {
-											d(printf ("email = %s \n", email_values [0]));
+											d(printf ("email = %s \n", email_values[0]->bv_val));
 											*(member_info+i) = 
 												g_strdup_printf ("%s;%s;",
-														email_values[0], values[i]);
-											ldap_value_free (email_values);
+														email_values[0]->bv_val, values[i]->bv_val);
+											ldap_value_free_len (email_values);
 										}
 										if (cn_values) {
-											d(printf ("cn = %s \n", cn_values[0]));
+											d(printf ("cn = %s \n", cn_values[0]->bv_val));
 											*(member_info+i) = 
 												g_strconcat (* (member_info +i),
 														cn_values[0], NULL);
-											ldap_value_free (cn_values);
+											ldap_value_free_len (cn_values);
 										}
 									}
 								}
@@ -1484,7 +1488,7 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 							g_free (member_info);
 						}
 
-						ldap_value_free (values);
+						ldap_value_free_len (values);
 					}
 				}
 			}
@@ -1500,7 +1504,7 @@ build_contact_from_entry (EBookBackendGALLDAP *bl, LDAPMessage *e, GList **exist
 		ber_free (ber, 0);
 
 	if (subldap)
-		ldap_unbind (subldap);
+		ldap_unbind_ext (subldap, NULL, NULL); 
 	
 	return contact;
 }
@@ -1967,7 +1971,7 @@ parse_page_control(
 		&err, NULL, NULL, NULL, &ctrl, 0 );
 
 	if( rc != LDAP_SUCCESS ) {
-		ldap_perror(ld, "ldap_parse_result");
+		g_print ("ldap_parse_result - %s", ldap_err2string(rc));
 		exit( EXIT_FAILURE );
 	}
 
@@ -2087,7 +2091,7 @@ static int dosearch(
 	}
 
 	if ( rc == -1 ) {
-		ldap_perror( ld, "ldap_result" );
+		g_print ("ldap_result - %s", ldap_err2string(rc));
 		return( rc );
 	}
 
@@ -2633,7 +2637,7 @@ call_dtor (int msgid, LDAPOp *op, gpointer data)
 	EBookBackendGALLDAP *bl = E_BOOK_BACKEND_GALLDAP (op->backend);
 	printf("%s(%d):%s: \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 	g_mutex_lock (bl->priv->ldap_lock);
-	ldap_abandon (bl->priv->ldap, op->id);
+	ldap_abandon_ext (bl->priv->ldap, op->id, NULL, NULL);
 	g_mutex_unlock (bl->priv->ldap_lock);
 
 	op->dtor (op);
@@ -2660,7 +2664,7 @@ dispose (GObject *object)
 
 		g_mutex_lock (bl->priv->ldap_lock);
 		if (bl->priv->ldap)
-			ldap_unbind (bl->priv->ldap);
+			ldap_unbind_ext (bl->priv->ldap, NULL, NULL);
 		g_mutex_unlock (bl->priv->ldap_lock);
 
 		if (bl->priv->gc)
