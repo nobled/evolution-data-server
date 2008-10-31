@@ -233,6 +233,10 @@ fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 
 	*slist = g_slist_prepend (*slist, item);
 
+	if (item_data->total > 0)
+               camel_operation_progress (NULL, (item_data->index * 100)/item_data->total);
+
+
 	return TRUE;
 }
 
@@ -589,12 +593,15 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 		if (((CamelMapiFolder *)folder)->type == MAPI_FAVOURITE_FOLDER)
 			options |= MAPI_OPTIONS_USE_PFSTORE;
 
+		camel_operation_start (NULL, _("Fetching summary information for new messages in %s"), folder->name);
 
 		status = exchange_mapi_connection_fetch_items  (temp_folder_id, res, 
 								summary_prop_list, G_N_ELEMENTS (summary_prop_list), 
 								NULL, NULL, 
 								fetch_items_cb, fetch_data, 
 								options);
+		camel_operation_end (NULL);
+
 		if (!status) {
 			camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Fetch items failed"));
 			goto end2;

@@ -1,5 +1,9 @@
 2008-10-29  Johnny Jacob  <jjohnny@novell.com>
 
+	* camel-mapi-folder.c (fetch_items_cb): Added camel_operation_progress.
+
+2008-10-29  Johnny Jacob  <jjohnny@novell.com>
+
 	* camel-mapi-folder.c (fetch_items_cb, fetch_item_cb): Using
 	FetchItemsCallbackData.
 	
