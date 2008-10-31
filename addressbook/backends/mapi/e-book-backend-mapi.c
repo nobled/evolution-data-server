@@ -671,13 +671,13 @@ e_book_backend_mapi_modify_contact (EBookBackend *backend,
 }
 
 static gboolean
-create_contact_item (struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+create_contact_item (FetchItemsCallbackData *item_data, gpointer data)
 {
 	EContact *contact;
 	char *suid;
 	
-	contact = emapidump_contact (array);
-	suid = exchange_mapi_util_mapi_ids_to_uid (fid, mid);
+	contact = emapidump_contact (item_data->properties);
+	suid = exchange_mapi_util_mapi_ids_to_uid (item_data->fid, item_data->mid);
 	printf("got contact %s\n", suid);
 	if (contact) {
 		/* UID of the contact is nothing but the concatenated string of hex id of folder and the message.*/
@@ -1136,8 +1136,7 @@ get_contacts_from_cache (EBookBackendMAPI *ebmapi,
 }
 
 static gboolean
-create_contact_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
-		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+create_contact_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	EDataBookView *book_view = data;
 	BESearchClosure *closure = get_closure (book_view);
@@ -1151,8 +1150,8 @@ create_contact_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, con
 		return FALSE;
 	}
 	
-	contact = emapidump_contact (array);
-	suid = exchange_mapi_util_mapi_ids_to_uid (fid, mid);
+	contact = emapidump_contact (item_data->properties);
+	suid = exchange_mapi_util_mapi_ids_to_uid (item_data->fid, item_data->mid);
 	
 	if (contact) {
 		/* UID of the contact is nothing but the concatenated string of hex id of folder and the message.*/
@@ -1355,16 +1354,15 @@ e_book_backend_mapi_get_changes (EBookBackend *backend,
 }
 
 static gboolean 
-cache_contact_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
-		  GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+cache_contact_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	EBookBackendMAPI *be = data;
 	EContact *contact;
 	EBookBackendMAPIPrivate *priv = ((EBookBackendMAPI *) be)->priv;
 	char *suid;
 
-	contact = emapidump_contact (array);
-	suid = exchange_mapi_util_mapi_ids_to_uid (fid, mid);
+	contact = emapidump_contact (item_data->properties);
+	suid = exchange_mapi_util_mapi_ids_to_uid (item_data->fid, item_data->mid);
 	
 	if (contact) {
 		/* UID of the contact is nothing but the concatenated string of hex id of folder and the message.*/

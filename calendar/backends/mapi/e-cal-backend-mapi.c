@@ -358,8 +358,7 @@ e_cal_backend_mapi_remove (ECalBackendSync *backend, EDataCal *cal)
 }
 
 static gboolean
-mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
-			 GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+mapi_cal_get_changes_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	ECalBackendMAPI *cbmapi	= data;
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
@@ -368,25 +367,25 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 	ECalComponent *cache_comp = NULL;
 	const bool *recurring;
 
-//	exchange_mapi_debug_property_dump (array);
+//	exchange_mapi_debug_property_dump (item_data->properties);
 
 	recurring = NULL;
 	/* FIXME: Evolution does not support recurring tasks */
-	recurring = (const bool *)find_mapi_SPropValue_data(array, PROP_TAG(PT_BOOLEAN, 0x8126));
+	recurring = (const bool *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BOOLEAN, 0x8126));
 	if (recurring && *recurring) {
 		g_warning ("Encountered a recurring task.");
-		exchange_mapi_util_free_stream_list (&streams);
-		exchange_mapi_util_free_recipient_list (&recipients);
-		exchange_mapi_util_free_attachment_list (&attachments);
+		exchange_mapi_util_free_stream_list (&item_data->streams);
+		exchange_mapi_util_free_recipient_list (&item_data->recipients);
+		exchange_mapi_util_free_attachment_list (&item_data->attachments);
 		return TRUE;
 	}
 
-	tmp = exchange_mapi_util_mapi_id_to_string (mid);
+	tmp = exchange_mapi_util_mapi_id_to_string (item_data->mid);
 	cache_comp = e_cal_backend_cache_get_component (priv->cache, tmp, NULL);
 
 	if (cache_comp == NULL) {
-		ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, array, 
-									streams, recipients, attachments, 
+		ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, item_data->properties, 
+									item_data->streams, item_data->recipients, item_data->attachments, 
 									priv->local_attachments_store, priv->default_zone);
 
 		if (E_IS_CAL_COMPONENT (comp)) {
@@ -404,7 +403,7 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 	} else {
 		struct timeval t;
 
-		if (get_mapi_SPropValue_array_date_timeval (&t, array, PR_LAST_MODIFICATION_TIME) == MAPI_E_SUCCESS) {
+		if (get_mapi_SPropValue_array_date_timeval (&t, item_data->properties, PR_LAST_MODIFICATION_TIME) == MAPI_E_SUCCESS) {
 			struct icaltimetype itt, *cache_comp_lm = NULL;
 
 			itt = icaltime_from_timet_with_zone (t.tv_sec, 0, 0);
@@ -418,8 +417,8 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 				e_cal_component_commit_sequence (cache_comp);
 				cache_comp_str = e_cal_component_get_as_string (cache_comp);
 
-				comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, array, 
-									streams, recipients, attachments, 
+				comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, item_data->properties, 
+									item_data->streams, item_data->recipients, item_data->attachments, 
 									priv->local_attachments_store, priv->default_zone);
 
 				e_cal_component_commit_sequence (comp);
@@ -438,22 +437,21 @@ mapi_cal_get_changes_cb (struct mapi_SPropValue_array *array, const mapi_id_t fi
 	}
 
 	g_free (tmp);
-	exchange_mapi_util_free_stream_list (&streams);
-	exchange_mapi_util_free_recipient_list (&recipients);
-	exchange_mapi_util_free_attachment_list (&attachments);
+	exchange_mapi_util_free_stream_list (&item_data->streams);
+	exchange_mapi_util_free_recipient_list (&item_data->recipients);
+	exchange_mapi_util_free_attachment_list (&item_data->attachments);
 	return TRUE;
 }
 
 static gboolean
-handle_deleted_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
-			 GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+handle_deleted_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	ECalBackendMAPI *cbmapi	= data;
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
 	gchar *tmp = NULL;
 	GSList *cache_comp_uid = NULL;
 
-	tmp = exchange_mapi_util_mapi_id_to_string (mid);
+	tmp = exchange_mapi_util_mapi_id_to_string (item_data->mid);
 	cache_comp_uid = g_slist_find_custom (priv->cache_keys, tmp, (GCompareFunc) (g_ascii_strcasecmp));
 	if (cache_comp_uid != NULL)
 		priv->cache_keys = g_slist_remove_link (priv->cache_keys, cache_comp_uid);
@@ -828,8 +826,9 @@ start_fetch_deltas (gpointer data)
 }
 
 static gboolean
-mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
-			  GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+/* mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid,  */
+/* 			  GSList *streams, GSList *recipients, GSList *attachments, gpointer data) */
+mapi_cal_cache_create_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	ECalBackendMAPI *cbmapi	= E_CAL_BACKEND_MAPI (data);
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
@@ -843,12 +842,12 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 	switch (kind) {
 		case ICAL_VTODO_COMPONENT:
 			/* FIXME: Evolution does not support recurring tasks */
-			recurring = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8126));
+			recurring = (const bool *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BOOLEAN, 0x8126));
 			if (recurring && *recurring) {
 				g_warning ("Encountered a recurring task.");
-				exchange_mapi_util_free_stream_list (&streams);
-				exchange_mapi_util_free_recipient_list (&recipients);
-				exchange_mapi_util_free_attachment_list (&attachments);
+				exchange_mapi_util_free_stream_list (&item_data->streams);
+				exchange_mapi_util_free_recipient_list (&item_data->recipients);
+				exchange_mapi_util_free_attachment_list (&item_data->attachments);
 				return TRUE;
 			}
 			break;
@@ -859,9 +858,9 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 			return FALSE; 
 	}
 	
-	tmp = exchange_mapi_util_mapi_id_to_string (mid);
-	comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, properties, 
-							streams, recipients, attachments, 
+	tmp = exchange_mapi_util_mapi_id_to_string (item_data->mid);
+	comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, item_data->properties, 
+							item_data->streams, item_data->recipients, item_data->attachments, 
 							priv->local_attachments_store, priv->default_zone);
 	g_free (tmp);
 
@@ -875,9 +874,9 @@ mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_i
 		g_object_unref (comp);
 	}
 
-	exchange_mapi_util_free_stream_list (&streams);
-	exchange_mapi_util_free_recipient_list (&recipients);
-	exchange_mapi_util_free_attachment_list (&attachments);
+	exchange_mapi_util_free_stream_list (&item_data->streams);
+	exchange_mapi_util_free_recipient_list (&item_data->recipients);
+	exchange_mapi_util_free_attachment_list (&item_data->attachments);
 	return TRUE;
 }
 
@@ -1171,26 +1170,25 @@ e_cal_backend_mapi_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 }
 
 static gboolean 
-capture_req_props (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid, 
-		   GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+capture_req_props (FetchItemsCallbackData *item_data, gpointer data)
 {
 	struct cbdata *cbdata = (struct cbdata *) data;
 	const uint32_t *ui32;
 
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID);
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(item_data->properties, PR_OWNER_APPT_ID);
 	if (ui32)
 		cbdata->appt_id = *ui32;
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_LONG, 0x8201));
 	if (ui32)
 		cbdata->appt_seq = *ui32;
-	cbdata->cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
-	cbdata->globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
-	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
-	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
-	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
-	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
-	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
-	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+	cbdata->cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BINARY, 0x0023));
+	cbdata->globalid = (const struct SBinary *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BINARY, 0x0003));
+	cbdata->username = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_NAME);
+	cbdata->useridtype = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_ADDRTYPE);
+	cbdata->userid = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+	cbdata->ownername = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENDER_NAME);
+	cbdata->owneridtype = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENDER_ADDRTYPE);
+	cbdata->ownerid = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENDER_EMAIL_ADDRESS);
 
 	return TRUE;
 }
