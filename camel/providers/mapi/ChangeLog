@@ -1,3 +1,7 @@
+2008-10-31  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-summary.c (mapi_summary_header_to_db): Fixed bad return type.
+
 2008-10-29  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-folder.c (fetch_items_cb): Added camel_operation_progress.

@@ -44,7 +44,7 @@
 #define MS_EXTRACT_FIRST_DIGIT(val) val=strtoul (part, &part, 10);
 
 /*Prototypes*/
-static int mapi_summary_header_to_db (CamelFolderSummary *, CamelException *ex);
+static CamelFIRecord* mapi_summary_header_to_db (CamelFolderSummary *, CamelException *ex);
 static int mapi_summary_header_from_db (CamelFolderSummary *, CamelFIRecord *fir);
 
 static CamelMessageInfo *mapi_message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir) ;
@@ -184,7 +184,7 @@ mapi_summary_header_from_db (CamelFolderSummary *summary, CamelFIRecord *fir)
 
 	return 0;
 }
-static int 
+static CamelFIRecord *
 mapi_summary_header_to_db (CamelFolderSummary *summary, CamelException *ex) 
 {
 	CamelMapiSummary *mapi_summary = CAMEL_MAPI_SUMMARY(summary);
@@ -193,7 +193,7 @@ mapi_summary_header_to_db (CamelFolderSummary *summary, CamelException *ex)
 	fir = camel_mapi_summary_parent->summary_header_to_db (summary, ex);
 
 	if(!fir)
-		return -1;
+		return NULL;
 
 	fir->bdata = g_strdup_printf ("%d %s", CAMEL_MAPI_SUMMARY_VERSION, mapi_summary->sync_time_stamp);
 
