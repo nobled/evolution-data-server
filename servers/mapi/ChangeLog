@@ -1,3 +1,11 @@
+2008-10-29  Johnny Jacob  <jjohnny@novell.com>
+
+	* exchange-mapi-connection.c (exchange_mapi_connection_fetch_item)
+	(exchange_mapi_connection_fetch_items): Using FetchItemsCallbackData.
+
+	* exchange-mapi-connection.h (FetchItemsCallbackData): Added.
+	Changed FetchCallback to use FetchItemsCallbackData.
+
 2008-10-10  Johnny Jacob  <jjohnny@novell.com>
 
 	* exchange-mapi-connection.c (set_default_folders): Use IsMailboxFolder for

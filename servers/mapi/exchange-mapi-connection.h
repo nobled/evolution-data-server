@@ -88,12 +88,22 @@ typedef struct {
 	GSList *objects; 
 } ExchangeMAPIAttachment;
 
+typedef struct {
+	struct mapi_SPropValue_array *properties;
+	mapi_id_t fid;
+	mapi_id_t mid;
+	GSList *attachments;
+	GSList *recipients;
+	GSList *streams;
+	guint total; /*Total number of results*/
+	guint index; /*Index of this Item*/
+} FetchItemsCallbackData;
+
 struct id_list {
 	mapi_id_t id;
 };
 
-typedef gboolean (*FetchCallback) 	(struct mapi_SPropValue_array *, const mapi_id_t fid, const mapi_id_t mid, 
-					GSList *streams, GSList *recipients, GSList *attachments, gpointer data);
+typedef gboolean (*FetchCallback) 	(FetchItemsCallbackData *item_data, gpointer data);
 typedef gboolean (*BuildNameID) 	(struct mapi_nameid *nameid, gpointer data);
 typedef int 	 (*BuildProps) 		(struct SPropValue **, struct SPropTagArray *, gpointer data);
 

@@ -1177,9 +1177,21 @@ exchange_mapi_connection_fetch_items   (mapi_id_t fid,
 			mapi_SPropValue_array_named(&obj_message, &properties_array);
 
 			/* NOTE: stream_list, recipient_list and attach_list should be freed by the callback */
-			if (!cb (&properties_array, *pfid, *pmid, stream_list, recip_list, attach_list, data)) {
+			FetchItemsCallbackData *item_data = g_new0 (FetchItemsCallbackData, 1);
+			item_data->fid = *pfid;
+			item_data->mid = *pmid;
+			item_data->properties = &properties_array;
+			item_data->streams = stream_list;
+			item_data->recipients = recip_list;
+			item_data->attachments = attach_list;
+			item_data->total = SRowSet.cRows;
+			item_data->index = i;
+
+			if (!cb (item_data, data)) {
 				g_warning ("\n%s(%d): %s: Callback failed for message-id %016llX ", __FILE__, __LINE__, __PRETTY_FUNCTION__, *pmid);
 			}
+
+			g_free (item_data);
 		}
 
 		if (GetPropsTagArray->cValues) 
@@ -1333,8 +1345,18 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 
 		mapi_SPropValue_array_named(&obj_message, &properties_array);
 
+		FetchItemsCallbackData *item_data = g_new0 (FetchItemsCallbackData, 1);
+		item_data->fid = &fid;
+		item_data->mid = &mid;
+		item_data->properties = &properties_array;
+		item_data->streams = stream_list;
+		item_data->recipients = recip_list;
+		item_data->attachments = attach_list;
+
 		/* NOTE: stream_list, recipient_list and attach_list should be freed by the callback */
-		cb (&properties_array, fid, mid, stream_list, recip_list, attach_list, data);
+		cb (item_data, data);
+
+		g_free (item_data);
 	}
 
 //	if (GetPropsTagArray->cValues) 

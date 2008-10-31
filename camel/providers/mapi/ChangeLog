@@ -1,3 +1,8 @@
+2008-10-29  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-folder.c (fetch_items_cb, fetch_item_cb): Using
+	FetchItemsCallbackData.
+	
 2008-10-28  Johnny Jacob  <jjohnny@novell.com>
 
 	** Use restrictions for fetching new messages.

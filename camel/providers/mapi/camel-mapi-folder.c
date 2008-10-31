@@ -176,8 +176,7 @@ mapi_item_free (MapiItem *item)
 	exchange_mapi_util_free_stream_list (&item->generic_streams);
 }
 static gboolean
-fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const mapi_id_t mid, 
-		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	fetch_items_data *fi_data = (fetch_items_data *)data;
 	
@@ -192,21 +191,21 @@ fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const 
 	MapiItem *item = g_new0(MapiItem , 1);
 
 	if (camel_debug_start("mapi:folder")) {
-		exchange_mapi_debug_property_dump (array);
+		exchange_mapi_debug_property_dump (item_data->properties);
 		camel_debug_end();
 	}
 
-	item->fid = fid;
-	item->mid = mid;
+	item->fid = item_data->fid;
+	item->mid = item_data->mid;
 
-	item->header.subject = g_strdup (find_mapi_SPropValue_data (array, PR_NORMALIZED_SUBJECT));
-	item->header.to = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_TO));
-	item->header.cc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_CC));
-	item->header.bcc = g_strdup (find_mapi_SPropValue_data (array, PR_DISPLAY_BCC));
-	item->header.from = g_strdup (find_mapi_SPropValue_data (array, PR_SENT_REPRESENTING_NAME));
-	item->header.size = *(glong *)(find_mapi_SPropValue_data (array, PR_MESSAGE_SIZE));
+	item->header.subject = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_NORMALIZED_SUBJECT));
+	item->header.to = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_DISPLAY_TO));
+	item->header.cc = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_DISPLAY_CC));
+	item->header.bcc = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_DISPLAY_BCC));
+	item->header.from = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_SENT_REPRESENTING_NAME));
+	item->header.size = *(glong *)(find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_SIZE));
 
-	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(array, PR_MESSAGE_DELIVERY_TIME);
+	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(item_data->properties, PR_MESSAGE_DELIVERY_TIME);
 	if (delivery_date) {
 		ntdate = delivery_date->dwHighDateTime;
 		ntdate = ntdate << 32;
@@ -214,7 +213,7 @@ fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const 
 		item->header.recieved_time = nt_time_to_unix(ntdate);
 	}
 
-	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(array, PR_LAST_MODIFICATION_TIME);
+	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(item_data->properties, PR_LAST_MODIFICATION_TIME);
 	if (delivery_date) {
 		ntdate = delivery_date->dwHighDateTime;
 		ntdate = ntdate << 32;
@@ -226,7 +225,7 @@ fetch_items_cb (struct mapi_SPropValue_array *array, const mapi_id_t fid, const 
 	if (timeval_compare (item_modification_time, fi_data->last_modification_time) == 1) 
 			fi_data->last_modification_time = item_modification_time;
 
-	flags = (long *)find_mapi_SPropValue_data (array, PR_MESSAGE_FLAGS);
+	flags = (long *)find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_FLAGS);
 	if ((*flags & MSGFLAG_READ) != 0)
 		item->header.flags |= CAMEL_MESSAGE_SEEN;
 	if ((*flags & MSGFLAG_HASATTACH) != 0)
@@ -769,8 +768,7 @@ camel_build_name_id (struct mapi_nameid *nameid, gpointer data)
 }
 
 static gboolean
-fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mid, 
-		GSList *streams, GSList *recipients, GSList *attachments, gpointer data)
+fetch_item_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
 	long *flags;
 	struct FILETIME *delivery_date;
@@ -783,23 +781,25 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 	MapiItem **i = (MapiItem **)data;
 
 	if (camel_debug_start("mapi:folder")) {
-		exchange_mapi_debug_property_dump (array);
+		exchange_mapi_debug_property_dump (item_data->properties);
 		camel_debug_end();
 	}
 
-	item->fid = fid;
-	item->mid = mid;
+	item->fid = item_data->fid;
+	item->mid = item_data->mid;
 
-	item->header.subject = g_strdup (exchange_mapi_util_find_array_propval (array, PR_NORMALIZED_SUBJECT));
-	item->header.to = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_TO));
-	item->header.cc = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_CC));
-	item->header.bcc = g_strdup (exchange_mapi_util_find_array_propval (array, PR_DISPLAY_BCC));
-	item->header.from = g_strdup (exchange_mapi_util_find_array_propval (array, PR_SENT_REPRESENTING_NAME));
-	item->header.size = *(glong *)(find_mapi_SPropValue_data (array, PR_MESSAGE_SIZE));
+	item->header.subject = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_NORMALIZED_SUBJECT));
+	item->header.to = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_DISPLAY_TO));
+	item->header.cc = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_DISPLAY_CC));
+	item->header.bcc = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_DISPLAY_BCC));
+	item->header.from = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_NAME));
+	item->header.size = *(glong *)(find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_SIZE));
 
-	msg_class = (const char *) exchange_mapi_util_find_array_propval (array, PR_MESSAGE_CLASS);
+	msg_class = (const char *) exchange_mapi_util_find_array_propval (item_data->properties, PR_MESSAGE_CLASS);
 	if (g_str_has_prefix (msg_class, IPM_SCHEDULE_MEETING_PREFIX)) {
-		gchar *appointment_body_str = (gchar *) exchange_mapi_cal_util_camel_helper (array, streams, recipients, attachments);
+		gchar *appointment_body_str = (gchar *) exchange_mapi_cal_util_camel_helper (item_data->properties, 
+											     item_data->streams, 
+											     item_data->recipients, item_data->attachments);
 
 		body = g_new0(ExchangeMAPIStream, 1);
 		body->proptag = PR_BODY;
@@ -810,16 +810,16 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 
 		item->is_cal = TRUE;
 	} else { 
-		if (!((body = exchange_mapi_util_find_stream (streams, PR_HTML)) || 
-		      (body = exchange_mapi_util_find_stream (streams, PR_BODY))))
-			body = exchange_mapi_util_find_stream (streams, PR_BODY_UNICODE);
+		if (!((body = exchange_mapi_util_find_stream (item_data->streams, PR_HTML)) || 
+		      (body = exchange_mapi_util_find_stream (item_data->streams, PR_BODY))))
+			body = exchange_mapi_util_find_stream (item_data->streams, PR_BODY_UNICODE);
 
 		item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
 
 		item->is_cal = FALSE;
 	}
 
-	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(array, PR_MESSAGE_DELIVERY_TIME);
+	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(item_data->properties, PR_MESSAGE_DELIVERY_TIME);
 	if (delivery_date) {
 		ntdate = delivery_date->dwHighDateTime;
 		ntdate = ntdate << 32;
@@ -827,13 +827,13 @@ fetch_item_cb 	(struct mapi_SPropValue_array *array, mapi_id_t fid, mapi_id_t mi
 		item->header.recieved_time = nt_time_to_unix(ntdate);
 	}
 
-	flags = (long *)find_mapi_SPropValue_data (array, PR_MESSAGE_FLAGS);
+	flags = (long *)find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_FLAGS);
 	if ((*flags & MSGFLAG_READ) != 0)
 		item->header.flags |= CAMEL_MESSAGE_SEEN;
 	if ((*flags & MSGFLAG_HASATTACH) != 0)
 		item->header.flags |= CAMEL_MESSAGE_ATTACHMENTS;
 
-	item->attachments = attachments;
+	item->attachments = item_data->attachments;
 
 	*i = item;
 
