@@ -1346,8 +1346,8 @@ exchange_mapi_connection_fetch_item (mapi_id_t fid, mapi_id_t mid,
 		mapi_SPropValue_array_named(&obj_message, &properties_array);
 
 		FetchItemsCallbackData *item_data = g_new0 (FetchItemsCallbackData, 1);
-		item_data->fid = &fid;
-		item_data->mid = &mid;
+		item_data->fid = fid;
+		item_data->mid = mid;
 		item_data->properties = &properties_array;
 		item_data->streams = stream_list;
 		item_data->recipients = recip_list;

@@ -357,9 +357,45 @@ e_cal_backend_mapi_remove (ECalBackendSync *backend, EDataCal *cal)
 	return GNOME_Evolution_Calendar_Success;
 }
 
+static const char *
+get_element_type (icalcomponent_kind kind)
+{
+
+	const char *type = "";
+
+	if (kind == ICAL_VEVENT_COMPONENT)
+		type = "Appointment";
+	else if (kind == ICAL_VTODO_COMPONENT)
+		type = "Task";
+	else if (kind == ICAL_VJOURNAL_COMPONENT)
+		type = "Note";
+
+	return type;
+
+}
+
+static void 
+notify_progress (ECalBackendMAPI *cbmapi, guint64 index, guint64 total)
+{
+	guint percent = ((float)index/total) * 100 ;
+	if (percent > 100)
+		percent = 99; 
+
+	gchar *progress_string = g_strdup_printf (_("Loading %s items"), get_element_type (e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi)))); 
+
+	e_cal_backend_notify_view_progress (E_CAL_BACKEND (cbmapi), progress_string, percent);
+
+	g_free (progress_string); 
+}
+
 static gboolean
 mapi_cal_get_changes_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
+	struct mapi_SPropValue_array *array = item_data->properties; 
+	const mapi_id_t mid = item_data->mid; 
+	GSList *streams = item_data->streams; 
+	GSList *recipients = item_data->recipients; 
+	GSList *attachments = item_data->attachments; 
 	ECalBackendMAPI *cbmapi	= data;
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
 	icalcomponent_kind kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
@@ -367,25 +403,25 @@ mapi_cal_get_changes_cb (FetchItemsCallbackData *item_data, gpointer data)
 	ECalComponent *cache_comp = NULL;
 	const bool *recurring;
 
-//	exchange_mapi_debug_property_dump (item_data->properties);
+//	exchange_mapi_debug_property_dump (array);
 
 	recurring = NULL;
 	/* FIXME: Evolution does not support recurring tasks */
-	recurring = (const bool *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BOOLEAN, 0x8126));
+	recurring = (const bool *)find_mapi_SPropValue_data(array, PROP_TAG(PT_BOOLEAN, 0x8126));
 	if (recurring && *recurring) {
 		g_warning ("Encountered a recurring task.");
-		exchange_mapi_util_free_stream_list (&item_data->streams);
-		exchange_mapi_util_free_recipient_list (&item_data->recipients);
-		exchange_mapi_util_free_attachment_list (&item_data->attachments);
+		exchange_mapi_util_free_stream_list (&streams);
+		exchange_mapi_util_free_recipient_list (&recipients);
+		exchange_mapi_util_free_attachment_list (&attachments);
 		return TRUE;
 	}
 
-	tmp = exchange_mapi_util_mapi_id_to_string (item_data->mid);
+	tmp = exchange_mapi_util_mapi_id_to_string (mid);
 	cache_comp = e_cal_backend_cache_get_component (priv->cache, tmp, NULL);
 
 	if (cache_comp == NULL) {
-		ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, item_data->properties, 
-									item_data->streams, item_data->recipients, item_data->attachments, 
+		ECalComponent *comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, array, 
+									streams, recipients, attachments, 
 									priv->local_attachments_store, priv->default_zone);
 
 		if (E_IS_CAL_COMPONENT (comp)) {
@@ -403,7 +439,7 @@ mapi_cal_get_changes_cb (FetchItemsCallbackData *item_data, gpointer data)
 	} else {
 		struct timeval t;
 
-		if (get_mapi_SPropValue_array_date_timeval (&t, item_data->properties, PR_LAST_MODIFICATION_TIME) == MAPI_E_SUCCESS) {
+		if (get_mapi_SPropValue_array_date_timeval (&t, array, PR_LAST_MODIFICATION_TIME) == MAPI_E_SUCCESS) {
 			struct icaltimetype itt, *cache_comp_lm = NULL;
 
 			itt = icaltime_from_timet_with_zone (t.tv_sec, 0, 0);
@@ -417,8 +453,8 @@ mapi_cal_get_changes_cb (FetchItemsCallbackData *item_data, gpointer data)
 				e_cal_component_commit_sequence (cache_comp);
 				cache_comp_str = e_cal_component_get_as_string (cache_comp);
 
-				comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, item_data->properties, 
-									item_data->streams, item_data->recipients, item_data->attachments, 
+				comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, array, 
+									streams, recipients, attachments, 
 									priv->local_attachments_store, priv->default_zone);
 
 				e_cal_component_commit_sequence (comp);
@@ -437,21 +473,25 @@ mapi_cal_get_changes_cb (FetchItemsCallbackData *item_data, gpointer data)
 	}
 
 	g_free (tmp);
-	exchange_mapi_util_free_stream_list (&item_data->streams);
-	exchange_mapi_util_free_recipient_list (&item_data->recipients);
-	exchange_mapi_util_free_attachment_list (&item_data->attachments);
+	exchange_mapi_util_free_stream_list (&streams);
+	exchange_mapi_util_free_recipient_list (&recipients);
+	exchange_mapi_util_free_attachment_list (&attachments);
+
+	notify_progress (cbmapi, item_data->index, item_data->total);
+
 	return TRUE;
 }
 
 static gboolean
 handle_deleted_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
+	const mapi_id_t mid = item_data->mid; 
 	ECalBackendMAPI *cbmapi	= data;
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
 	gchar *tmp = NULL;
 	GSList *cache_comp_uid = NULL;
 
-	tmp = exchange_mapi_util_mapi_id_to_string (item_data->mid);
+	tmp = exchange_mapi_util_mapi_id_to_string (mid);
 	cache_comp_uid = g_slist_find_custom (priv->cache_keys, tmp, (GCompareFunc) (g_ascii_strcasecmp));
 	if (cache_comp_uid != NULL)
 		priv->cache_keys = g_slist_remove_link (priv->cache_keys, cache_comp_uid);
@@ -520,6 +560,8 @@ get_deltas (gpointer handle)
 	gmtime_r (&current_time, &tm);
 	strftime (t_str, 26, "%Y-%m-%dT%H:%M:%SZ", &tm);
 
+	e_cal_backend_notify_view_progress_start (E_CAL_BACKEND (cbmapi));
+
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	/* FIXME: GetProps does not seem to work for tasks :-( */
 	if (kind == ICAL_VTODO_COMPONENT) {
@@ -545,6 +587,8 @@ get_deltas (gpointer handle)
 		return FALSE;
 	}
 //	e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
+
+	e_cal_backend_notify_view_done (E_CAL_BACKEND (cbmapi), GNOME_Evolution_Calendar_Success);
 
 	time_string = g_strdup (t_str);
 	e_cal_backend_cache_put_server_utc_time (priv->cache, time_string);
@@ -826,10 +870,13 @@ start_fetch_deltas (gpointer data)
 }
 
 static gboolean
-/* mapi_cal_cache_create_cb (struct mapi_SPropValue_array *properties, const mapi_id_t fid, const mapi_id_t mid,  */
-/* 			  GSList *streams, GSList *recipients, GSList *attachments, gpointer data) */
 mapi_cal_cache_create_cb (FetchItemsCallbackData *item_data, gpointer data)
 {
+	struct mapi_SPropValue_array *properties = item_data->properties; 
+	const mapi_id_t mid = item_data->mid; 
+	GSList *streams = item_data->streams; 
+	GSList *recipients = item_data->recipients; 
+	GSList *attachments = item_data->attachments; 	
 	ECalBackendMAPI *cbmapi	= E_CAL_BACKEND_MAPI (data);
 	ECalBackendMAPIPrivate *priv = cbmapi->priv;
 	icalcomponent_kind kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbmapi));
@@ -842,12 +889,12 @@ mapi_cal_cache_create_cb (FetchItemsCallbackData *item_data, gpointer data)
 	switch (kind) {
 		case ICAL_VTODO_COMPONENT:
 			/* FIXME: Evolution does not support recurring tasks */
-			recurring = (const bool *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BOOLEAN, 0x8126));
+			recurring = (const bool *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BOOLEAN, 0x8126));
 			if (recurring && *recurring) {
 				g_warning ("Encountered a recurring task.");
-				exchange_mapi_util_free_stream_list (&item_data->streams);
-				exchange_mapi_util_free_recipient_list (&item_data->recipients);
-				exchange_mapi_util_free_attachment_list (&item_data->attachments);
+				exchange_mapi_util_free_stream_list (&streams);
+				exchange_mapi_util_free_recipient_list (&recipients);
+				exchange_mapi_util_free_attachment_list (&attachments);
 				return TRUE;
 			}
 			break;
@@ -858,9 +905,9 @@ mapi_cal_cache_create_cb (FetchItemsCallbackData *item_data, gpointer data)
 			return FALSE; 
 	}
 	
-	tmp = exchange_mapi_util_mapi_id_to_string (item_data->mid);
-	comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, item_data->properties, 
-							item_data->streams, item_data->recipients, item_data->attachments, 
+	tmp = exchange_mapi_util_mapi_id_to_string (mid);
+	comp = exchange_mapi_cal_util_mapi_props_to_comp (kind, tmp, properties, 
+							streams, recipients, attachments, 
 							priv->local_attachments_store, priv->default_zone);
 	g_free (tmp);
 
@@ -874,9 +921,12 @@ mapi_cal_cache_create_cb (FetchItemsCallbackData *item_data, gpointer data)
 		g_object_unref (comp);
 	}
 
-	exchange_mapi_util_free_stream_list (&item_data->streams);
-	exchange_mapi_util_free_recipient_list (&item_data->recipients);
-	exchange_mapi_util_free_attachment_list (&item_data->attachments);
+	exchange_mapi_util_free_stream_list (&streams);
+	exchange_mapi_util_free_recipient_list (&recipients);
+	exchange_mapi_util_free_attachment_list (&attachments);
+
+	notify_progress (cbmapi, item_data->index, item_data->total);
+
 	return TRUE;
 }
 
@@ -886,7 +936,6 @@ populate_cache (ECalBackendMAPI *cbmapi)
 	ECalBackendMAPIPrivate *priv;
 	ESource *source = NULL;
 	icalcomponent_kind kind;
-	gchar *progress_string = NULL;
 	icaltimetype itt_current; 
 	time_t current_time;
 	struct tm tm;
@@ -899,14 +948,12 @@ populate_cache (ECalBackendMAPI *cbmapi)
 
 	g_mutex_lock (priv->mutex);
 
-	progress_string = g_strdup_printf (_("Loading %s items"), e_source_peek_name (source));
-	/*  FIXME: Is there a way to update progress within the callback that follows ? */
-	e_cal_backend_notify_view_progress (E_CAL_BACKEND (cbmapi), progress_string, 99);
-
 	itt_current = icaltime_current_time_with_zone (icaltimezone_get_utc_timezone ());
 	current_time = icaltime_as_timet_with_zone (itt_current, icaltimezone_get_utc_timezone ());
 	gmtime_r (&current_time, &tm);
 	strftime (t_str, 26, "%Y-%m-%dT%H:%M:%SZ", &tm);
+
+	e_cal_backend_notify_view_progress_start (E_CAL_BACKEND (cbmapi));
 
 //	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
 	/* FIXME: GetProps does not seem to work for tasks :-( */
@@ -917,7 +964,6 @@ populate_cache (ECalBackendMAPI *cbmapi)
 						MAPI_OPTIONS_FETCH_ALL)) {
 			e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Could not create cache file"));
 			e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
-			g_free (progress_string);
 			g_mutex_unlock (priv->mutex);
 			return GNOME_Evolution_Calendar_OtherError;
 		}
@@ -928,11 +974,12 @@ populate_cache (ECalBackendMAPI *cbmapi)
 						MAPI_OPTIONS_FETCH_ALL)) {
 		e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Could not create cache file"));
 		e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
-		g_free (progress_string);
 		g_mutex_unlock (priv->mutex);
 		return GNOME_Evolution_Calendar_OtherError;
 	}
 //	e_file_cache_thaw_changes (E_FILE_CACHE (priv->cache));
+
+	e_cal_backend_notify_view_done (E_CAL_BACKEND (cbmapi), GNOME_Evolution_Calendar_Success);
 
 	time_string = g_strdup (t_str);
 	e_cal_backend_cache_put_server_utc_time (priv->cache, time_string);
@@ -940,8 +987,6 @@ populate_cache (ECalBackendMAPI *cbmapi)
 
 	e_cal_backend_cache_set_marker (priv->cache);
 
-	e_cal_backend_notify_view_done (E_CAL_BACKEND (cbmapi), GNOME_Evolution_Calendar_Success);
-	g_free (progress_string);
 	g_mutex_unlock (priv->mutex);
 
 	return GNOME_Evolution_Calendar_Success;
@@ -1172,23 +1217,24 @@ e_cal_backend_mapi_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 static gboolean 
 capture_req_props (FetchItemsCallbackData *item_data, gpointer data)
 {
+	struct mapi_SPropValue_array *properties = item_data->properties; 
 	struct cbdata *cbdata = (struct cbdata *) data;
 	const uint32_t *ui32;
 
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(item_data->properties, PR_OWNER_APPT_ID);
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PR_OWNER_APPT_ID);
 	if (ui32)
 		cbdata->appt_id = *ui32;
-	ui32 = (const uint32_t *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_LONG, 0x8201));
+	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
 	if (ui32)
 		cbdata->appt_seq = *ui32;
-	cbdata->cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BINARY, 0x0023));
-	cbdata->globalid = (const struct SBinary *)find_mapi_SPropValue_data(item_data->properties, PROP_TAG(PT_BINARY, 0x0003));
-	cbdata->username = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_NAME);
-	cbdata->useridtype = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_ADDRTYPE);
-	cbdata->userid = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
-	cbdata->ownername = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENDER_NAME);
-	cbdata->owneridtype = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENDER_ADDRTYPE);
-	cbdata->ownerid = exchange_mapi_util_find_array_propval (item_data->properties, PR_SENDER_EMAIL_ADDRESS);
+	cbdata->cleanglobalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+	cbdata->globalid = (const struct SBinary *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
+	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
 
 	return TRUE;
 }
