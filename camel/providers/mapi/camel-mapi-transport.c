@@ -376,7 +376,6 @@ mail_build_props (struct SPropValue **value, struct SPropTagArray *SPropTagArray
 	GSList *l;
 
 	uint32_t *msgflag = g_new0 (uint32_t, 1);
-	uint32_t *editor = g_new0 (uint32_t, 1);
 	int i=0;
 
 	props = g_new0 (struct SPropValue, 6);

@@ -558,7 +558,6 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 	if (!is_proxy) {
 		mapi_id_t temp_folder_id;
 		guint32 options = 0;
-		CamelFolderInfo *fi = NULL;
 
 		fetch_data->last_modification_time = g_new0 (struct timeval, 1); /*First Sync*/
 

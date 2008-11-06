@@ -1,3 +1,15 @@
+2008-11-06  Suman Manjunath  <msuman@novell.com>
+
+	* camel-mapi-folder.c (mapi_refresh_folder):
+	* camel-mapi-store-summary.c (summary_header_load):
+	* camel-mapi-store.c (mapi_create_folder), (mapi_rename_folder),
+	(mapi_build_folder_info), (mapi_convert_to_folder_info),
+	(mapi_folders_sync), (mapi_get_folder_info):
+	* camel-mapi-store.h:
+	* camel-mapi-summary.c (mapi_message_info_to_db):
+	* camel-mapi-transport.c (mail_build_props):
+	Fix some compilation warnings.
+
 2008-10-31  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-summary.c (mapi_summary_header_to_db): Fixed bad return type.

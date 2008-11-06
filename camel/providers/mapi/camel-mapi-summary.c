@@ -213,7 +213,6 @@ mapi_message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
 static CamelMIRecord *
 mapi_message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info) 
 {
-	CamelMapiMessageInfo *minfo = (CamelMapiMessageInfo *)info;
 	struct _CamelMIRecord *mir;
 
 	mir = camel_mapi_summary_parent->message_info_to_db (s, info);

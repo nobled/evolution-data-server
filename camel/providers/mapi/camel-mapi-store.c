@@ -433,7 +433,7 @@ mapi_create_folder(CamelStore *store, const char *parent_name, const char *folde
 		return NULL;
 	}
 
-	if (mapi_fid_is_system_folder (store, camel_mapi_store_folder_id_lookup (mapi_store, folder_name))) {
+	if (mapi_fid_is_system_folder (mapi_store, camel_mapi_store_folder_id_lookup (mapi_store, folder_name))) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot create new folder `%s'"),
 				      folder_name);
 		return NULL;
@@ -661,7 +661,7 @@ mapi_rename_folder(CamelStore *store, const char *old_name, const char *new_name
 	}
 
 	/*Do not allow rename for system folders.*/
-	if (mapi_fid_is_system_folder (store, folder_id)) {
+	if (mapi_fid_is_system_folder (mapi_store, folder_id)) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot rename Mapi folder `%s' to `%s'. Default folder."),
 				      old_name, new_name);
 		return;
@@ -833,7 +833,6 @@ mapi_build_folder_info(CamelMapiStore *mapi_store, const char *parent_name, cons
 	const char *name;
 	CamelFolderInfo *fi;
 	CamelMapiStorePrivate *priv = mapi_store->priv;
-	char *excl_parent;
 
 	fi = g_malloc0(sizeof(*fi));
 	
@@ -972,7 +971,6 @@ mapi_convert_to_folder_info (CamelMapiStore *store, ExchangeMAPIFolder *folder, 
 
 	char *par_name = NULL;
 	CamelFolderInfo *fi;
-	CamelMapiStoreInfo *si = NULL;
 	CamelMapiStorePrivate *priv = store->priv;
 
 	name = exchange_mapi_folder_get_name (folder);
@@ -1073,13 +1071,9 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 	CamelMapiStorePrivate  *priv = store->priv;
 	gboolean status;
 	GSList *folder_list = NULL, *temp_list = NULL, *list = NULL;
-	GSList *pf_folder_list = NULL;
 	char *url, *temp_url;
-	CamelFolderInfo *info = NULL, *hfi = NULL;
-	GHashTable *present;
-	CamelStoreInfo *si = NULL;
+	CamelFolderInfo *info = NULL;
 	CamelMapiStoreInfo *mapi_si = NULL;
-	int count, i;
 
 	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL) {
 		if (((CamelService *)store)->status == CAMEL_SERVICE_DISCONNECTED){
@@ -1156,7 +1150,7 @@ mapi_folders_sync (CamelMapiStore *store, CamelException *ex)
 			continue;
 
 		info = mapi_convert_to_folder_info (store, folder, (const char *)url, ex);
-		if (!(mapi_si = camel_store_summary_path (store->summary, info->full_name))){
+		if (!(mapi_si = camel_store_summary_path ((CamelStoreSummary *)store->summary, info->full_name))){
 			mapi_si = camel_mapi_store_summary_add_from_full (store->summary, info->full_name, '/');
 			if (mapi_si == NULL) {
 				continue;
@@ -1182,7 +1176,6 @@ static CamelFolderInfo*
 mapi_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelException *ex)
 {
 	CamelMapiStore *mapi_store = CAMEL_MAPI_STORE (store);
-	CamelMapiStorePrivate *priv = mapi_store->priv;
 	CamelFolderInfo *info = NULL;
 	int s_count = 0;	
 

@@ -121,7 +121,6 @@ static int
 summary_header_load(CamelStoreSummary *s, FILE *in)
 {
 	CamelMapiStoreSummary *summary = (CamelMapiStoreSummary *)s ;
-	gint32 version;
 
 	/* TODO */
 	if (camel_mapi_store_summary_parent->summary_header_load ((CamelStoreSummary *)s, in) == -1)
