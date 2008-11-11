@@ -396,6 +396,9 @@ mapi_fid_is_system_folder (CamelMapiStore *mapi_store, const char *fid)
 {
 	CamelMapiStorePrivate *priv = mapi_store->priv;
 
+	if (!(fid && *fid)) 
+		return FALSE;
+
 	return (g_hash_table_find (priv->default_folders, hash_check_fid_presence, fid) != NULL);
 }
 
