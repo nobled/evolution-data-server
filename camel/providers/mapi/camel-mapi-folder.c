@@ -528,15 +528,12 @@ mapi_refresh_folder(CamelFolder *folder, CamelException *ex)
 		PR_DISPLAY_BCC
 	};
 
+	if (((CamelOfflineStore *) mapi_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) 
+		return;
 
 	/* Sync-up the (un)read changes before getting updates,
 	so that the getFolderList will reflect the most recent changes too */
 	mapi_sync (folder, FALSE, ex);
-
-	if (((CamelOfflineStore *) mapi_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
-		g_warning ("In offline mode. Cannot refresh!!!\n");
-		return;
-	}
 
 	//creating a copy
 	folder_id = camel_mapi_store_folder_id_lookup (mapi_store, folder->full_name);
@@ -1333,10 +1330,8 @@ mapi_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 
 
 	/* check for offline operation */
-	if (offline->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
-		printf("%s(%d):%s:WARNING : offline op not implemented \n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+	if (offline->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) 
 		return;
-	}
 
 	folder_id =  camel_mapi_store_folder_id_lookup (mapi_store, source->full_name) ;
 	exchange_mapi_util_mapi_id_from_string (folder_id, &src_fid);

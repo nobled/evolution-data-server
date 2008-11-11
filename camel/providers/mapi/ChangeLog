@@ -1,3 +1,8 @@
+2008-11-12  Johnny Jacob  <jjohnny@novell.com>
+
+	* camel-mapi-store.c (mapi_disconnect): Maintain states on 
+	disconnect.
+
 2008-11-11  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-store.c (mapi_fid_is_system_folder): Adding assert.

@@ -359,11 +359,6 @@ mapi_connect(CamelService *service, CamelException *ex)
 	service->status = CAMEL_SERVICE_CONNECTED;
 	((CamelOfflineStore *) store)->state = CAMEL_OFFLINE_STORE_NETWORK_AVAIL;
 
-	if (camel_store_summary_count ((CamelStoreSummary *)store->summary) == 0) {
-		/*Settting the refresh stamp to the current time*/
-		//store->refresh_stamp = time (NULL);
-	}
-
 	camel_store_summary_save ((CamelStoreSummary *) store->summary);
 
 	CAMEL_SERVICE_REC_UNLOCK (service, connect_lock);
@@ -374,8 +369,15 @@ mapi_connect(CamelService *service, CamelException *ex)
 static gboolean 
 mapi_disconnect(CamelService *service, gboolean clean, CamelException *ex)
 {
+	CamelMapiStore *store = CAMEL_MAPI_STORE (service);
+	CamelMapiStorePrivate *priv = store->priv;
+
 	/* Close the mapi subsystem */
 	exchange_mapi_connection_close ();
+
+	((CamelOfflineStore *) store)->state = CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL;
+	service->status = CAMEL_SERVICE_DISCONNECTED;
+
 	return TRUE;
 }
 
@@ -1060,9 +1062,9 @@ mapi_convert_to_folder_info (CamelMapiStore *store, ExchangeMAPIFolder *folder, 
 gboolean
 camel_mapi_store_connected (CamelMapiStore *store, CamelException *ex)
 {
-/* 	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL */
-/* 	    && camel_service_connect ((CamelService *)store, ex)) { */
-	if (camel_service_connect ((CamelService *)store, ex))
+	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL
+	    && camel_service_connect ((CamelService *)store, ex)) 
+
 		return TRUE;
 
 	return FALSE;
@@ -1187,9 +1189,11 @@ mapi_get_folder_info(CamelStore *store, const char *top, guint32 flags, CamelExc
 	 * is used as is here.
 	 */
 
-	if (!check_for_connection((CamelService *)store, ex)) {
-		((CamelService *)store)->status = CAMEL_SERVICE_CONNECTING;
-		mapi_connect ((CamelService *)store, ex);
+	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL) {
+		if (((CamelService *)store)->status == CAMEL_SERVICE_DISCONNECTED){
+			((CamelService *)store)->status = CAMEL_SERVICE_CONNECTING;
+			mapi_connect ((CamelService *)store, ex);
+		}
 	}
 
 	if (check_for_connection((CamelService *)store, ex)) {

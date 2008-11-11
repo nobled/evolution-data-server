@@ -143,6 +143,7 @@ exchange_mapi_connection_close ()
 {
 	global_mapi_session = NULL;
 	MAPIUninitialize ();	
+	/* TODO :  Return status. get last error ? */
 }
 
 static gboolean 
