@@ -1,4 +1,10 @@
 2008-11-12  Johnny Jacob  <jjohnny@novell.com>
+	
+	* camel-mapi-folder.c (fetch_item_cb, fetch_items_cb): Iterate once 
+	through properties array to collect data instead of using
+	find_mapi_SPropValue_data.
+
+2008-11-12  Johnny Jacob  <jjohnny@novell.com>
 
 	* camel-mapi-store.c (mapi_disconnect): Maintain states on 
 	disconnect.

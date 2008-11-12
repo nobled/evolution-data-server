@@ -184,8 +184,9 @@ fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 
 	long *flags;
 	struct FILETIME *delivery_date = NULL;
+	struct FILETIME *last_modification_time = NULL;
 	struct timeval *item_modification_time = NULL;
-
+	guint32 j = 0;
 	NTTIME ntdate;
 
 	MapiItem *item = g_new0(MapiItem , 1);
@@ -198,14 +199,49 @@ fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 	item->fid = item_data->fid;
 	item->mid = item_data->mid;
 
-	item->header.subject = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_NORMALIZED_SUBJECT));
-	item->header.to = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_DISPLAY_TO));
-	item->header.cc = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_DISPLAY_CC));
-	item->header.bcc = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_DISPLAY_BCC));
-	item->header.from = g_strdup (find_mapi_SPropValue_data (item_data->properties, PR_SENT_REPRESENTING_NAME));
-	item->header.size = *(glong *)(find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_SIZE));
+	for (j = 0; j < item_data->properties->cValues; j++) {
 
-	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(item_data->properties, PR_MESSAGE_DELIVERY_TIME);
+		gpointer prop_data = get_mapi_SPropValue_data(&item_data->properties->lpProps[j]);
+
+		switch (item_data->properties->lpProps[j].ulPropTag) {
+		/* FIXME : Instead of duping. Use talloc_steal to reuse the memory */
+		case PR_NORMALIZED_SUBJECT:
+		case PR_NORMALIZED_SUBJECT_UNICODE :
+			item->header.subject = g_strdup (prop_data);
+			break;
+		case PR_DISPLAY_TO :
+		case PR_DISPLAY_TO_UNICODE :
+			item->header.to = g_strdup (prop_data);
+			break;
+		case PR_DISPLAY_CC:
+		case PR_DISPLAY_CC_UNICODE:
+			item->header.cc = g_strdup (prop_data);
+			break;
+		case PR_DISPLAY_BCC:
+		case PR_DISPLAY_BCC_UNICODE:
+			item->header.bcc = g_strdup (prop_data);
+			break;
+		case PR_SENT_REPRESENTING_NAME:
+		case PR_SENT_REPRESENTING_NAME_UNICODE:
+			item->header.from = g_strdup (prop_data);
+			break;
+		case PR_MESSAGE_SIZE:
+			item->header.size = *(glong *)prop_data;
+			break;
+		case PR_MESSAGE_DELIVERY_TIME:
+			delivery_date = (struct FILETIME *) prop_data;
+			break;
+		case PR_LAST_MODIFICATION_TIME:
+			last_modification_time = (struct FILETIME *) prop_data;
+			break;
+		case PR_MESSAGE_FLAGS:
+			flags = (long *) prop_data;
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (delivery_date) {
 		ntdate = delivery_date->dwHighDateTime;
 		ntdate = ntdate << 32;
@@ -213,11 +249,10 @@ fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 		item->header.recieved_time = nt_time_to_unix(ntdate);
 	}
 
-	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(item_data->properties, PR_LAST_MODIFICATION_TIME);
-	if (delivery_date) {
-		ntdate = delivery_date->dwHighDateTime;
+	if (last_modification_time) {
+		ntdate = last_modification_time->dwHighDateTime;
 		ntdate = ntdate << 32;
-		ntdate |= delivery_date->dwLowDateTime;
+		ntdate |= last_modification_time->dwLowDateTime;
 		item_modification_time = g_new0 (struct timeval, 1);
 		nttime_to_timeval(item_modification_time, ntdate);
 	}
@@ -225,7 +260,6 @@ fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 	if (timeval_compare (item_modification_time, fi_data->last_modification_time) == 1) 
 			fi_data->last_modification_time = item_modification_time;
 
-	flags = (long *)find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_FLAGS);
 	if ((*flags & MSGFLAG_READ) != 0)
 		item->header.flags |= CAMEL_MESSAGE_SEEN;
 	if ((*flags & MSGFLAG_HASATTACH) != 0)
@@ -235,7 +269,6 @@ fetch_items_cb (FetchItemsCallbackData *item_data, gpointer data)
 
 	if (item_data->total > 0)
                camel_operation_progress (NULL, (item_data->index * 100)/item_data->total);
-
 
 	return TRUE;
 }
@@ -780,8 +813,8 @@ fetch_item_cb (FetchItemsCallbackData *item_data, gpointer data)
 	ExchangeMAPIStream *body;
 
 	MapiItem *item = g_new0(MapiItem , 1);
-
 	MapiItem **i = (MapiItem **)data;
+	guint32 j = 0;
 
 	if (camel_debug_start("mapi:folder")) {
 		exchange_mapi_debug_property_dump (item_data->properties);
@@ -791,14 +824,51 @@ fetch_item_cb (FetchItemsCallbackData *item_data, gpointer data)
 	item->fid = item_data->fid;
 	item->mid = item_data->mid;
 
-	item->header.subject = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_NORMALIZED_SUBJECT));
-	item->header.to = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_DISPLAY_TO));
-	item->header.cc = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_DISPLAY_CC));
-	item->header.bcc = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_DISPLAY_BCC));
-	item->header.from = g_strdup (exchange_mapi_util_find_array_propval (item_data->properties, PR_SENT_REPRESENTING_NAME));
-	item->header.size = *(glong *)(find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_SIZE));
 
-	msg_class = (const char *) exchange_mapi_util_find_array_propval (item_data->properties, PR_MESSAGE_CLASS);
+	for (j = 0; j < item_data->properties->cValues; j++) {
+
+		gpointer prop_data = get_mapi_SPropValue_data(&item_data->properties->lpProps[j]);
+
+		switch (item_data->properties->lpProps[j].ulPropTag) {
+		/*FIXME : Instead of duping. Use talloc_steal to reuse the memory*/
+		case PR_NORMALIZED_SUBJECT:
+		case PR_NORMALIZED_SUBJECT_UNICODE :
+			item->header.subject = g_strdup (prop_data);
+			break;
+		case PR_DISPLAY_TO :
+		case PR_DISPLAY_TO_UNICODE :
+			item->header.to = g_strdup (prop_data);
+			break;
+		case PR_DISPLAY_CC:
+		case PR_DISPLAY_CC_UNICODE:
+			item->header.cc = g_strdup (prop_data);
+			break;
+		case PR_DISPLAY_BCC:
+		case PR_DISPLAY_BCC_UNICODE:
+			item->header.bcc = g_strdup (prop_data);
+			break;
+		case PR_SENT_REPRESENTING_NAME:
+		case PR_SENT_REPRESENTING_NAME_UNICODE:
+			item->header.from = g_strdup (prop_data);
+			break;
+		case PR_MESSAGE_SIZE:
+			item->header.size = *(glong *)prop_data;
+			break;
+		case PR_MESSAGE_CLASS:
+		case PR_MESSAGE_CLASS_UNICODE:
+			msg_class = (const char *) prop_data;
+			break;
+		case PR_MESSAGE_DELIVERY_TIME:
+			delivery_date = (struct FILETIME *) prop_data;
+			break;
+		case PR_MESSAGE_FLAGS:
+			flags = (long *) prop_data;
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (g_str_has_prefix (msg_class, IPM_SCHEDULE_MEETING_PREFIX)) {
 		gchar *appointment_body_str = (gchar *) exchange_mapi_cal_util_camel_helper (item_data->properties, 
 											     item_data->streams, 
@@ -822,7 +892,6 @@ fetch_item_cb (FetchItemsCallbackData *item_data, gpointer data)
 		item->is_cal = FALSE;
 	}
 
-	delivery_date = (struct FILETIME *)find_mapi_SPropValue_data(item_data->properties, PR_MESSAGE_DELIVERY_TIME);
 	if (delivery_date) {
 		ntdate = delivery_date->dwHighDateTime;
 		ntdate = ntdate << 32;
@@ -830,7 +899,6 @@ fetch_item_cb (FetchItemsCallbackData *item_data, gpointer data)
 		item->header.recieved_time = nt_time_to_unix(ntdate);
 	}
 
-	flags = (long *)find_mapi_SPropValue_data (item_data->properties, PR_MESSAGE_FLAGS);
 	if ((*flags & MSGFLAG_READ) != 0)
 		item->header.flags |= CAMEL_MESSAGE_SEEN;
 	if ((*flags & MSGFLAG_HASATTACH) != 0)
