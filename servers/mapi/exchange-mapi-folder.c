@@ -129,8 +129,10 @@ GSList *
 exchange_mapi_peek_folder_list ()
 {
 	LOCK ();
-	if (!folder_list && !exchange_mapi_get_folders_list (&folder_list))
-		g_warning ("Get folders list call failed \n\a");
+	if (!folder_list)
+		exchange_mapi_get_folders_list (&folder_list); 
+	if (!folder_list)
+		g_warning ("Get folders list call failed \n");
 	UNLOCK ();
 
 	return folder_list;

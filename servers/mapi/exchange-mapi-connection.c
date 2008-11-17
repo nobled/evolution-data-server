@@ -141,8 +141,10 @@ exchange_mapi_connection_new (const char *profile, const char *password)
 void
 exchange_mapi_connection_close ()
 {
+	LOCK();
 	global_mapi_session = NULL;
 	MAPIUninitialize ();	
+	UNLOCK();
 	/* TODO :  Return status. get last error ? */
 }
 
