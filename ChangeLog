@@ -1,3 +1,8 @@
+2008-11-19  Johnny Jacob  <jjohnny@novell.com>
+
+	* NEWS: Development on MAPI provider is moved to 
+	svn://svn.gnome.org/svn/evolution-mapi/trunk .
+
 2008-10-20  Srinivasa Ragavan  <sragavan@novell.com>
 
 	* NEWS, configure.in: Evolution Data Server 2.24.1 release and version
