@@ -7,7 +7,7 @@ INCLUDES =						\
 	$(EVOLUTION_CALENDAR_CFLAGS)			\
 	$(SOUP_CFLAGS)					\
 	$(DEBUG_CFLAGS)					\
-	$(GDATA_CFLAGS)				
+	$(GDATA_CFLAGS)
 
 extension_LTLIBRARIES = libecalbackendgoogle.la
 

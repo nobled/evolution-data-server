@@ -1,6 +1,7 @@
 /* goggle-book.c - Google contact list abstraction with caching.
  *
  * Copyright (C) 2008 Joergen Scheibengruber
+ * Copyright (C) 2009 Philip Withnall
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
@@ -16,14 +17,16 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * Author: Joergen Scheibengruber <joergen.scheibengruber AT googlemail.com>
+ * Author: Joergen Scheibengruber <joergen.scheibengruber AT googlemail.com>,
+ * Philip Withnall <philip@tecnocode.co.uk>
  */
 
 #include <string.h>
 #include <libedata-book/e-book-backend-cache.h>
 #include <libedataserver/e-proxy.h>
-#include <gdata-service-iface.h>
-#include <gdata-google-service.h>
+#include <gdata/gdata-service.h>
+#include <gdata/services/contacts/gdata-contacts-service.h>
+#include <gdata/services/contacts/gdata-contacts-contact.h>
 
 #include "util.h"
 #include "google-book.h"
@@ -181,7 +184,7 @@ google_book_cache_get_contact (GoogleBook *book, const char *uid, GDataEntry **e
             if (entry) {
                 const char *entry_xml;
                 entry_xml = _e_contact_get_gdata_entry_xml (contact);
-                *entry = gdata_entry_new_from_xml (entry_xml);
+                *entry = GDATA_ENTRY (gdata_contacts_contact_new_from_xml (entry_xml, -1, NULL));
             }
             _e_contact_remove_gdata_entry_xml (contact);
         }
@@ -762,23 +765,22 @@ google_book_connect_to_google (GoogleBook *book, const char *password, GError **
     priv = GET_PRIVATE (book);
 
     if (priv->service) {
-        g_warning ("Connection to google already established.");
+        g_warning ("Connection to Google already established.");
         return TRUE;
     }
 
-    service = (GDataService*)gdata_google_service_new ("cp", "evolution-client-0.0.1");
+    service = GDATA_SERVICE (gdata_contacts_service_new ("evolution-client-0.0.1"));
     priv->proxy = e_proxy_new ();
     e_proxy_setup_proxy (priv->proxy);
     priv->service = service;
     proxy_settings_changed (priv->proxy, priv);
     priv->service = NULL;
 
-    gdata_service_set_credentials (GDATA_SERVICE (service), priv->username, password);
-    gdata_google_service_authenticate (GDATA_GOOGLE_SERVICE (service), &soup_error);
+    gdata_service_authenticate (service, priv->username, password, NULL, &soup_error);
 
     if (soup_error) {
         google_book_error_from_soup_error (soup_error, error,
-                                           "Connecting to google failed");
+                                           "Connecting to Google failed");
         priv->service = NULL;
 	g_object_unref (service);
 	g_object_unref (priv->proxy);
@@ -830,6 +832,7 @@ google_book_add_contact (GoogleBook *book,
 {
     GoogleBookPrivate *priv;
     GDataEntry *entry, *new_entry;
+    gchar *xml;
     GError *soup_error = NULL;
 
     *out_contact = NULL;
@@ -842,9 +845,12 @@ google_book_add_contact (GoogleBook *book,
     g_return_val_if_fail (priv->service, FALSE);
 
     entry = _gdata_entry_new_from_e_contact (contact);
-    __debug__ ("new entry with xml: %s", gdata_entry_generate_xml (entry));
+    xml = gdata_entry_get_xml (entry);
+    __debug__ ("new entry with xml: %s", xml);
+    g_free (xml);
+
     new_entry = gdata_service_insert_entry (GDATA_SERVICE (priv->service),
-                                            priv->add_base_uri, entry, &soup_error);
+                                            priv->add_base_uri, entry, NULL, &soup_error);
     g_object_unref (entry);
     if (soup_error) {
         google_book_error_from_soup_error (soup_error, error,
@@ -869,6 +875,7 @@ google_book_update_contact (GoogleBook *book,
     GDataEntry *entry, *new_entry;
     GError *soup_error = NULL;
     EContact *cached_contact;
+    gchar *xml;
     const char *uid;
 
     *out_contact = NULL;
@@ -894,8 +901,11 @@ google_book_update_contact (GoogleBook *book,
     g_object_unref (cached_contact);
     _gdata_entry_update_from_e_contact (entry, contact);
 
-    __debug__ ("Before:\n%s", gdata_entry_generate_xml (entry));
-    new_entry = gdata_service_update_entry (GDATA_SERVICE (priv->service), entry, &soup_error);
+    xml = gdata_entry_get_xml (entry);
+    __debug__ ("Before:\n%s", xml);
+    g_free (xml);
+
+    new_entry = gdata_service_update_entry (GDATA_SERVICE (priv->service), entry, NULL, &soup_error);
     g_object_unref (entry);
 
     if (soup_error) {
@@ -903,7 +913,12 @@ google_book_update_contact (GoogleBook *book,
                                            "Updating entry failed");
         return FALSE;
     }
-    __debug__ ("After:\n%s", new_entry ? gdata_entry_generate_xml (new_entry) : NULL);
+
+    xml = NULL;
+    if (new_entry)
+        xml = gdata_entry_get_xml (new_entry);
+    __debug__ ("After:\n%s", xml);
+    g_free (xml);
 
     *out_contact = google_book_cache_add_contact (book, new_entry);
 
@@ -937,7 +952,7 @@ google_book_remove_contact (GoogleBook *book, const char *uid, GError **error)
     }
 
     google_book_cache_remove_contact (book, uid);
-    gdata_service_delete_entry (GDATA_SERVICE (priv->service), entry, &soup_error);
+    gdata_service_delete_entry (GDATA_SERVICE (priv->service), entry, NULL, &soup_error);
     g_object_unref (entry);
     g_object_unref (cached_contact);
 
@@ -964,7 +979,7 @@ process_subsequent_entry (gpointer list_data, gpointer user_data)
     priv = GET_PRIVATE (book);
     entry = GDATA_ENTRY (list_data);
     uid = gdata_entry_get_id (entry);
-    is_deleted = gdata_entry_is_deleted (entry);
+    is_deleted = gdata_contacts_contact_is_deleted (GDATA_CONTACTS_CONTACT (entry));
 
     cached_contact = google_book_cache_get_contact (book, uid, NULL);
     if (is_deleted) {
@@ -1032,11 +1047,12 @@ google_book_get_new_contacts_in_chunks (GoogleBook *book,
 
     while (start_index > 0) {
         GDataFeed *feed;
-        GSList *entries;
+        GList *entries;
         GString *uri;
         int results;
         GError *soup_error = NULL;
 
+        /* TODO: Convert to GDataQuery */
         uri = g_string_new (priv->base_uri);
         g_string_append_printf (uri, "?max-results=%d&start-index=%d",
                                 chunk_size, start_index);
@@ -1046,7 +1062,7 @@ google_book_get_new_contacts_in_chunks (GoogleBook *book,
         }
 
         __debug__ ("URI is '%s'", uri->str);
-        feed = gdata_service_get_feed (priv->service, uri->str, &soup_error);
+        feed = gdata_service_query (priv->service, uri->str, NULL, GDATA_TYPE_CONTACTS_CONTACT, NULL, NULL, NULL, &soup_error);
         g_string_free (uri, TRUE);
 
         if (soup_error) {
@@ -1060,13 +1076,13 @@ google_book_get_new_contacts_in_chunks (GoogleBook *book,
         }
 
         entries = gdata_feed_get_entries (feed);
-        results = entries ? g_slist_length (entries) : 0;
+        results = entries ? g_list_length (entries) : 0;
         __debug__ ("Feed has %d entries", results);
 
         if (last_updated) {
-            g_slist_foreach (entries, process_subsequent_entry, book);
+            g_list_foreach (entries, process_subsequent_entry, book);
         } else {
-            g_slist_foreach (entries, process_initial_entry, book);
+            g_list_foreach (entries, process_initial_entry, book);
         }
 
         if (results == chunk_size) {
@@ -1222,6 +1238,7 @@ google_book_error_from_soup_error (GError     *soup_error,
 
     g_assert (soup_error);
 
+    /* TODO: Convert this to deal with libgdata codes */
     if (soup_error->code < 100) {
         code = GOOGLE_BOOK_ERROR_NETWORK_ERROR;
     } else
