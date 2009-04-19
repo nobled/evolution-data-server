@@ -2,8 +2,9 @@
 /*
  * Authors :
  *  Ebby Wiselyn <ebbyw@gnome.org>
+ *  Philip Withnall <philip@tecnocode.co.uk>
  *
- * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
+ * Copyright (C) 1999-2009 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -60,13 +61,12 @@
 #define O_BINARY 0
 #endif
 
-#define GDATA_SCHEMA "http://schemas.google.com/g/2005#"
 #define CACHE_REFRESH_INTERVAL 10000
 
 /****************************************************** Google Connection Helper Functions ***********************************************/
 
-static gboolean gd_date_to_ical (EGoItem *item, const gchar *google_time_string, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone);
-static gchar * get_date (ECalComponentDateTime dt);
+static gboolean gd_timeval_to_ical (EGoItem *item, GTimeVal *timeval, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone);
+static void get_timeval (ECalComponentDateTime dt, GTimeVal *timeval);
 static gint utils_compare_ids (gconstpointer cache_id, gconstpointer modified_cache_id);
 static gchar * utils_form_query (const gchar *query);
 static gboolean get_deltas_timeout (gpointer cbgo);
@@ -89,7 +89,7 @@ e_cal_backend_google_utils_populate_cache (ECalBackendGoogle *cbgo)
 	ECalBackendGooglePrivate *priv;
 	icalcomponent_kind kind;
 	icaltimetype temp;
-	GSList *entries = NULL, *list = NULL;
+	GList *entries = NULL, *list = NULL;
 
 	cache = e_cal_backend_google_get_cache (cbgo);
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND(cbgo));
@@ -100,8 +100,8 @@ e_cal_backend_google_utils_populate_cache (ECalBackendGoogle *cbgo)
 	priv = cbgo->priv;
 
 	for (list = entries; list != NULL; list = list->next) {
-		item->entry = (GDataEntry *)list->data;
-		comp =	e_go_item_to_cal_component (item, cbgo);
+		item->entry = GDATA_ENTRY(list->data);
+		comp = e_go_item_to_cal_component (item, cbgo);
 		if (comp && E_IS_CAL_COMPONENT(comp)) {
 			gchar *comp_str;
 			e_cal_component_commit_sequence (comp);
@@ -165,9 +165,9 @@ e_cal_backend_google_utils_create_cache (ECalBackendGoogle *cbgo)
  * e_cal_backend_google_utils_update:
  *
  * @handle:
- * Call this to Update changes, made to the calendar.
+ * Call this to update changes made to the calendar.
  *
- * Return value: TRUE if update is successful FALSE otherwise .
+ * Return value: %TRUE if update is successful, %FALSE otherwise.
  **/
 gpointer
 e_cal_backend_google_utils_update (gpointer handle)
@@ -178,12 +178,12 @@ e_cal_backend_google_utils_update (gpointer handle)
 
 	ECalBackendCache *cache;
 
-	GDataGoogleService *service;
+	GDataService *service;
 	static GStaticMutex updating = G_STATIC_MUTEX_INIT;
 	icalcomponent_kind kind;
 
-	GSList *ids_list = NULL, *cache_keys = NULL, *entries_list = NULL;
-	GSList *uid_list = NULL, *iter_list = NULL, *remove = NULL;
+	GList *entries_list = NULL, *iter_list = NULL, *ids_list = NULL;
+	GSList *uid_list = NULL, *remove = NULL, *cache_keys = NULL;
 	gboolean needs_to_insert = FALSE;
 	gchar *uri;
 
@@ -199,18 +199,18 @@ e_cal_backend_google_utils_update (gpointer handle)
 
 	cache = e_cal_backend_google_get_cache (cbgo);
 	item =  e_cal_backend_google_get_item (cbgo);
-	service = e_cal_backend_google_get_service (cbgo);
+	service = GDATA_SERVICE (e_cal_backend_google_get_service (cbgo));
 	uri = e_cal_backend_google_get_uri (cbgo);
 
-	item->feed = gdata_service_get_feed (GDATA_SERVICE(service), uri, NULL);
+	item->feed = gdata_service_query (GDATA_SERVICE(service), uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
 	entries_list = gdata_feed_get_entries (item->feed);
 	cache_keys = e_cal_backend_cache_get_keys (cache);
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgo));
 
 	for (iter_list = entries_list; iter_list != NULL; iter_list = iter_list->next) {
-		gchar *id;
-		id = gdata_entry_get_id ((GDataEntry *)iter_list->data);
-		ids_list = g_slist_prepend (ids_list, id);
+		const gchar *id;
+		id = gdata_entry_get_id (GDATA_ENTRY(iter_list->data));
+		ids_list = g_list_prepend (ids_list, (gchar*) id);
 	}
 
 	/* Find the Removed Item */
@@ -237,29 +237,25 @@ e_cal_backend_google_utils_update (gpointer handle)
 
 	/* Update the inserted entries */
 	if (needs_to_insert) {
-		utils_update_insertion (cbgo, cache, item,uid_list);
+		utils_update_insertion (cbgo, cache, item, uid_list);
 		needs_to_insert = FALSE;
 	}
 
 	if (ids_list) {
-		ids_list = NULL;
-		g_slist_free (ids_list);
+		g_list_free (ids_list);
 	}
 
 	if (uid_list) {
 		/*FIXME could crash while freeing*/
-		uid_list = NULL;
 		g_slist_free (uid_list);
 	}
 
 	if (entries_list) {
 		/* FIXME could crash while freeing */
-		entries_list = NULL;
-		g_slist_free (entries_list);
+		g_list_free (entries_list);
 	}
 
 	if (remove) {
-		remove = NULL;
 		g_slist_free (remove);
 	}
 
@@ -274,12 +270,11 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 	EGoItem *item;
 	ESource *source;
 	GDataFeed *feed;
-	GDataGoogleService *service;
+	GDataCalendarService *service;
 
 	ECalSourceType source_type;
 	icalcomponent_kind kind;
 	icaltimezone *default_zone;
-	GSList *entries;
 	GError *error = NULL;
 	GThread *thread;
 	gchar *username, *password;
@@ -289,7 +284,7 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 
 	source = e_cal_backend_get_source (E_CAL_BACKEND(cbgo));
 
-	service = gdata_google_service_new ("cl", "evolution-client-0.0.1");
+	service = gdata_calendar_service_new ("evolution-client-0.0.2");
 	e_cal_backend_google_set_service (cbgo, service);
 
 	suri = e_source_get_uri (source);
@@ -300,17 +295,14 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 
 	username = e_cal_backend_google_get_username (cbgo);
 	password = e_cal_backend_google_get_password (cbgo);
-	gdata_service_set_credentials (GDATA_SERVICE(service), username, password);
-	feed = gdata_service_get_feed (GDATA_SERVICE(service), uri, NULL);
-
-	if (!feed) {
+	if (!gdata_service_authenticate (GDATA_SERVICE(service), username, password, NULL, NULL)) {
 		g_critical ("%s, Authentication Failed \n ", G_STRLOC);
 		if (username || password)
 			return GNOME_Evolution_Calendar_AuthenticationFailed;
 		return GNOME_Evolution_Calendar_AuthenticationRequired;
 	}
 
-	entries = gdata_feed_get_entries (feed);
+	feed = gdata_service_query (GDATA_SERVICE(service), uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
 
 	item = g_new0 (EGoItem, 1);
 	item->entry = e_cal_backend_google_get_entry (cbgo);
@@ -361,7 +353,7 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 	}
 
 	/* Creating cache when in remote  */
-	if (GDATA_IS_GOOGLE_SERVICE (service)) {
+	if (GDATA_IS_CALENDAR_SERVICE (service)) {
 		cache = e_cal_backend_cache_new (e_cal_backend_get_uri (E_CAL_BACKEND (cbgo)),source_type);
 		e_cal_backend_google_set_cache (cbgo, cache);
 	}
@@ -391,10 +383,10 @@ e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo)
 
 /**
  * e_go_item_to_cal_component:
- * @item a EGoItem object
- * @cbgo a ECalBackendGoogle object
+ * @item: an #EGoItem
+ * @cbgo: an #ECalBackendGoogle
  *
- * Creates a EGoItem from ECalComponent
+ * Creates an #EGoItem from an #ECalComponent
  **/
 
 ECalComponent *
@@ -405,10 +397,12 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 	ECalComponentDateTime dt;
 	ECalComponentOrganizer *org = NULL;
 	icaltimezone *default_zone;
-	const char *description, *uid, *temp;
+	const char *description, *uid, *temp, *location = NULL;
+	GTimeVal timeval;
 	struct icaltimetype itt;
-	GSList *category_ids;
-	GSList *go_attendee_list = NULL, *l = NULL, *attendee_list = NULL;
+	GList *category_ids;
+	GList *go_attendee_list = NULL, *go_location_list = NULL, *l = NULL;
+	GSList *attendee_list = NULL;
 
 	comp = e_cal_component_new ();
 	default_zone = e_cal_backend_google_get_default_zone (cbgo);
@@ -427,22 +421,25 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 		l.data = &text;
 		l.next = NULL;
 		e_cal_component_set_description_list (comp, &l);
-
 	}
 
 	/* Creation/Last update */
-	if (gd_date_to_ical (item, gdata_entry_get_custom (item->entry, "published"), &itt, &dt, default_zone))
+	gdata_entry_get_published (item->entry, &timeval);
+	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
 		e_cal_component_set_created (comp, &itt);
 
-	if (gd_date_to_ical (item, gdata_entry_get_custom (item->entry, "updated"), &itt, &dt, default_zone))
+	gdata_entry_get_updated (item->entry, &timeval);
+	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
 		e_cal_component_set_dtstamp (comp, &itt);
 
 	/* Start time */
-	if (gd_date_to_ical (item, gdata_entry_get_start_time (item->entry), &itt, &dt, default_zone))
+	gdata_calendar_event_get_start_time (GDATA_CALENDAR_EVENT(item->entry), &timeval);
+	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
 		e_cal_component_set_dtstart (comp, &dt);
 
 	/* End time */
-	if (gd_date_to_ical (item, gdata_entry_get_end_time (item->entry), &itt, &dt, default_zone))
+	gdata_calendar_event_get_end_time (GDATA_CALENDAR_EVENT(item->entry), &timeval);
+	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
 		e_cal_component_set_dtend (comp, &dt);
 
 	/* Summary of the Entry */
@@ -459,9 +456,9 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 
 	/* Classification or Visibility */
 	temp = NULL;
-	temp = gdata_entry_get_visibility (item->entry);
+	temp = gdata_calendar_event_get_visibility (GDATA_CALENDAR_EVENT(item->entry));
 
-	if (temp)
+	if (strcmp (temp, "public") == 0)
 		e_cal_component_set_classification (comp, E_CAL_COMPONENT_CLASS_PUBLIC);
 	else
 		e_cal_component_set_classification (comp, E_CAL_COMPONENT_CLASS_NONE);
@@ -470,55 +467,68 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 	temp = NULL;
 
 	/* Transparency */
-	temp = gdata_entry_get_transparency (item->entry);
-	e_cal_component_set_transparency (comp, E_CAL_COMPONENT_TRANSP_TRANSPARENT);
+	temp = gdata_calendar_event_get_transparency (GDATA_CALENDAR_EVENT(item->entry));
+	if (strcmp (temp, "http://schemas.google.com/g/2005#event.opaque") == 0)
+		e_cal_component_set_transparency (comp, E_CAL_COMPONENT_TRANSP_OPAQUE);
+	else if (strcmp (temp, "http://schemas.google.com/g/2005#event.transparent") == 0)
+		e_cal_component_set_transparency (comp, E_CAL_COMPONENT_TRANSP_TRANSPARENT);
+	else
+		e_cal_component_set_transparency (comp, E_CAL_COMPONENT_TRANSP_UNKNOWN);
 
 	/* Attendees */
-	go_attendee_list = gdata_entry_get_attendee_list (item->entry);
-		
-	if (go_attendee_list != NULL) {
+	go_attendee_list = gdata_calendar_event_get_people (GDATA_CALENDAR_EVENT(item->entry));
 
-		for (l = go_attendee_list; l != NULL; l = l->next) {
-			Attendee *go_attendee;
-			ECalComponentAttendee *attendee;
+	for (l = go_attendee_list; l != NULL; l = l->next) {
+		GDataGDWho *go_attendee;
+		ECalComponentAttendee *attendee;
 
-			go_attendee = (Attendee *)l->data;
+		go_attendee = (GDataGDWho *)l->data;
 
-			attendee = g_new0 (ECalComponentAttendee, 1);
+		attendee = g_new0 (ECalComponentAttendee, 1);
 #if 0
-			_print_attendee ((Attendee *)l->data);
+		_print_attendee ((Attendee *)l->data);
 #endif
-			attendee->value = g_strconcat ("MAILTO:", go_attendee->attendee_email, NULL);
-			attendee->cn = g_strdup (go_attendee->attendee_value);
-			attendee->role = ICAL_ROLE_OPTPARTICIPANT;
-			attendee->status = ICAL_PARTSTAT_NEEDSACTION;
-			attendee->cutype =  ICAL_CUTYPE_INDIVIDUAL;
+		attendee->value = g_strconcat ("MAILTO:", go_attendee->email, NULL);
+		attendee->cn = g_strdup (go_attendee->value_string);
+		/* TODO: This could be made less static once the GData API's in place */
+		attendee->role = ICAL_ROLE_OPTPARTICIPANT;
+		attendee->status = ICAL_PARTSTAT_NEEDSACTION;
+		attendee->cutype =  ICAL_CUTYPE_INDIVIDUAL;
 
-			/* Check for Organizer */
-			if (go_attendee->attendee_rel) {
-				gchar *val;
-				val = strstr ((const gchar *)go_attendee->attendee_rel, (const gchar *)"organizer");
-				if (val != NULL && !strcmp ("organizer", val)) {	
-					org = g_new0 (ECalComponentOrganizer, 1);	
+		/* Check for Organizer */
+		if (go_attendee->rel) {
+			gchar *val;
+			val = strstr ((const gchar *)go_attendee->rel, (const gchar *)"organizer");
+			if (val != NULL && !strcmp ("organizer", val)) {	
+				org = g_new0 (ECalComponentOrganizer, 1);	
 
-					if (go_attendee->attendee_email) 
-						org->value = g_strconcat("MAILTO:", go_attendee->attendee_email, NULL);
-					if (go_attendee->attendee_value) 
-						org->cn =  g_strdup (go_attendee->attendee_value);
-				}	
-			}
-			
-			attendee_list = g_slist_prepend (attendee_list, attendee);	
+				if (go_attendee->email) 
+					org->value = g_strconcat ("MAILTO:", go_attendee->email, NULL);
+				if (go_attendee->value_string) 
+					org->cn = g_strdup (go_attendee->value_string);
+			}	
 		}
-		e_cal_component_set_attendee_list (comp, attendee_list);
+		
+		attendee_list = g_slist_prepend (attendee_list, attendee);	
 	}
-	
+	e_cal_component_set_attendee_list (comp, attendee_list);
+
 	/* Set the organizer if any */
 	if (org)
 		e_cal_component_set_organizer (comp, org);
-	
+
 	/* Location */
-	e_cal_component_set_location (comp, gdata_entry_get_location (item->entry));
+	go_location_list = gdata_calendar_event_get_places (GDATA_CALENDAR_EVENT(item->entry));
+
+	for (l = go_location_list; l != NULL; l = l->next) {
+		GDataGDWhere *go_location;
+
+		go_location = (GDataGDWhere *)l->data;
+
+		if (go_location->rel == NULL || strcmp (go_location->rel, "http://schemas.google.com/g/2005#event") == 0)
+			location = go_location->value_string;
+	}
+	e_cal_component_set_location (comp, location);
 
 #if 0
 	/* temp hack to see how recurrence work */
@@ -527,8 +537,8 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 	recur_id->datetime = dt;
 	recur_id->type = E_CAL_COMPONENT_RANGE_THISFUTURE;
 	e_cal_component_set_recurid (comp, recur_id);
-#endif
 	e_cal_component_set_dtend (comp, &dt);
+#endif
 
 	uid = gdata_entry_get_id (item->entry);
 	e_cal_component_set_uid (comp, (const char *)uid);
@@ -553,25 +563,29 @@ e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp)
 	EGoItem *item;
 	ECalComponentText text;
 	ECalComponentDateTime dt;
-	gchar *temp, *term = NULL;
+	gchar *term = NULL;
 	icaltimezone *default_zone;
 	icaltimetype itt;
+	GTimeVal timeval;
 	const char *uid;
 	const char *location;
 	GSList *list = NULL;
-	GDataEntry *entry;
+	GDataCalendarEvent *entry;
+	GDataCategory *category;
 	ECalComponentText *t;
 	GSList *attendee_list = NULL, *l = NULL;
 
 	priv = cbgo->priv;
 
+	e_cal_component_get_uid (comp, &uid);
+
 	item = g_new0 (EGoItem, 1);
-	entry = gdata_entry_new ();
+	entry = gdata_calendar_event_new (uid);
 
 	/* Summary */
 	e_cal_component_get_summary (comp, &text);
-	if (text.value!=NULL)
-		gdata_entry_set_title (entry, text.value);
+	if (text.value != NULL)
+		gdata_entry_set_title (GDATA_ENTRY(entry), text.value);
 
 	default_zone = e_cal_backend_google_get_default_zone (cbgo);
 
@@ -579,51 +593,73 @@ e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp)
 	e_cal_component_get_dtstart (comp, &dt);
 	itt = icaltime_convert_to_zone (*dt.value, default_zone);
 	dt.value = &itt;
-	temp = get_date (dt);
-	gdata_entry_set_start_time (entry, temp);
+	get_timeval (dt, &timeval);
+	gdata_calendar_event_set_start_time (entry, &timeval);
 
 	/* End Time */
 	e_cal_component_get_dtend (comp, &dt);
 	itt = icaltime_convert_to_zone (*dt.value, default_zone);
 	dt.value = &itt;
-	temp = get_date (dt);
-	gdata_entry_set_end_time (entry, temp);
+	get_timeval (dt, &timeval);
+	gdata_calendar_event_set_end_time (entry, &timeval);
 
 	/* Content / Description */
 	e_cal_component_get_description_list (comp, &list);
 	if (list != NULL) {
 		t = (ECalComponentText *)list->data;
-		gdata_entry_set_content (entry, t->value);
-	}
-	else
-		gdata_entry_set_content (entry, "");
-
-	e_cal_component_get_uid (comp, &uid);
-	gdata_entry_set_id (entry, g_strdup(uid));
+		gdata_entry_set_content (GDATA_ENTRY (entry), t->value);
+	} else
+		gdata_entry_set_content (GDATA_ENTRY (entry), "");
 
 	/* Location */
 	e_cal_component_get_location (comp, &location);
-	if (location)
-		gdata_entry_set_location (entry , location);
+	if (location) {
+		GDataGDWhere *where;
+
+		where = gdata_gd_where_new (NULL, location, NULL);
+		gdata_calendar_event_add_place (entry, where);
+	}
 
 	if (e_cal_backend_get_kind (E_CAL_BACKEND(cbgo)) == ICAL_VEVENT_COMPONENT)
-		term = g_strconcat (GDATA_SCHEMA, "event", NULL);
+		term = "http://schemas.google.com/g/2005#event";
 
-	gdata_entry_create_categories (entry, g_strconcat (GDATA_SCHEMA, "kind", NULL),
-			"label",
-			term);
+	category = gdata_category_new (term, "http://schemas.google.com/g/2005#kind", "label");
+	gdata_entry_add_category (GDATA_ENTRY(entry), category);
+
 	/* Attendee */
 	e_cal_component_get_attendee_list (comp, &attendee_list);
 
-	for (l = attendee_list; l!=NULL; l=l->next) {
+	for (l = attendee_list; l != NULL; l = l->next) {
 		ECalComponentAttendee *ecal_att;
-		ecal_att = (ECalComponentAttendee *)l->data;
-		/* TODO Convert ECalComponentAttendee to Attendee, and change during parsing to store the types */
+		GDataGDWho *who;
+		gchar *email;
+		const gchar *rel;
 
+		ecal_att = (ECalComponentAttendee *)l->data;
+
+		/* Extract the attendee's e-mail address from att->value, which should be in the form:
+		 * MAILTO:john@foobar.com
+		 */
+		email = strstr (ecal_att->value, "MAILTO:");
+		if (!email)
+			continue;
+		email += 7; /* length of MAILTO: */
+
+		rel = "http://schemas.google.com/g/2005#event.attendee";
+		if (e_cal_component_has_organizer (comp)) {
+			ECalComponentOrganizer org;
+
+			e_cal_component_get_organizer (comp, &org);
+			if (strcmp (org.value, ecal_att->value) == 0)
+				rel = "http://schemas.google.com/g/2005#event.organizer";
+		}
+
+		who = gdata_gd_who_new (rel, ecal_att->cn, email);
+		gdata_calendar_event_add_person (entry, who);
 	}
 
 	/* FIXME For transparency and status */
-	item->entry = entry;
+	item->entry = GDATA_ENTRY (entry);
 	return item;
 }
 
@@ -660,28 +696,6 @@ e_go_item_set_entry (EGoItem *item, GDataEntry *entry)
 	item->entry = entry;
 }
 
-/**
- *
- * gdata_entry_get_entry_by_id:
- * @entries List of entries
- * @id id to retreive
- * Gets the specified entry
- *
- **/
-GDataEntry *
-gdata_entry_get_entry_by_id (GSList *entries, const gchar *id)
-{
-	GSList *l = NULL;
-
-	for (l = entries; l != NULL;l = l->next) {
-		if (!strcmp (gdata_entry_get_id ((GDataEntry *)l->data), id)) {
-			return l->data;
-		}
-	}
-
-	return NULL;
-}
-
 
 /***************************************************************** Utility Functions *********************************************/
 
@@ -705,17 +719,16 @@ utils_update_insertion (ECalBackendGoogle *cbgo, ECalBackendCache *cache, EGoIte
 {
 	EGoItem *item_t;
 	ECalComponent *comp;
-	GSList *list = NULL, *entries_list = NULL;
+	GSList *list = NULL;
 	GDataEntry *entry;
 	gchar *temp;
 
 	comp = e_cal_component_new ();
 	item_t = g_new0 (EGoItem, 1);
 	item_t->feed = item->feed;
-	entries_list = gdata_feed_get_entries (item->feed);
 
 	for (list = uid_list; list != NULL; list = list->next) {
-		entry = gdata_entry_get_entry_by_id (entries_list, list->data);
+		entry = gdata_feed_look_up_entry (item->feed, list->data);
 		item_t->entry = entry;
 		comp = e_go_item_to_cal_component (item_t, cbgo);
 
@@ -735,8 +748,6 @@ utils_update_insertion (ECalBackendGoogle *cbgo, ECalBackendCache *cache, EGoIte
 	g_free (item_t);
 	if (list)
 		g_slist_free (list);
-	if (entries_list)
-		g_slist_free (entries_list);
 }
 
 
@@ -769,47 +780,20 @@ utils_update_deletion (ECalBackendGoogle *cbgo, ECalBackendCache *cache, GSList 
 }
 
 /**
- * get_date: Returns date in gdata format '2006-04-17T17:00:00.000Z'
+ * get_timeval: Returns date in a GTimeVal
  * @dt a #ECalComponentDateTime value
+ * @timeval a #GTimeVal
  **/
-/* FIXME use proper functions to manipulate the dates */
-gchar *
-get_date (ECalComponentDateTime dt)
+static void
+get_timeval (ECalComponentDateTime dt, GTimeVal *timeval)
 {
-	char *temp;
-	struct icaltimetype itt;
-	struct icaltimetype *itt_u;
-	gchar *month;
-	gchar *day, *minute, *hour, *second;
+	time_t tt;
 
-	itt_u = dt.value;
-	itt.year = itt_u->year;
-	itt.month = itt_u->month;
-	itt.day = itt_u->day;
-	itt.hour = itt_u->hour;
-	itt.minute = itt_u->minute;
-	itt.second = itt_u->second;
-	itt.is_utc = itt_u->is_utc;
-	itt.is_date = itt_u->is_date;
-	itt.is_daylight = itt_u->is_daylight;
-	itt.zone = itt_u->zone;
+	/* GTimeVals are always in UTC */
+	tt = icaltime_as_timet_with_zone (*(dt.value), icaltimezone_get_utc_timezone ());
 
-	month = (itt.month<10) ? g_strdup_printf("0%d", itt.month):g_strdup_printf ("%d", itt.month);
-	day = (itt.day < 10) ? g_strdup_printf("0%d", itt.day):g_strdup_printf ("%d", itt.day);
-
-	hour = (itt.hour<10) ? g_strdup_printf("0%d", itt.hour):g_strdup_printf ("%d", itt.hour);
-	minute = (itt.minute<10) ? g_strdup_printf("0%d", itt.minute):g_strdup_printf ("%d", itt.minute);
-	second = (itt.second<10) ? g_strdup_printf ("0%d", itt.second):g_strdup_printf ("%d", itt.second);
-
-	/* FIXME not the best way to do this */
-	temp =  g_strdup_printf ("%d-%s-%sT%s:%s:%s.000", itt.year, month, day, hour, minute, second);
-	g_free (month);
-	g_free (day);
-	g_free (hour);
-	g_free (minute);
-	g_free (second);
-
-	return temp;
+	timeval->tv_sec = (glong) tt;
+	timeval->tv_usec = 0;
 }
 
 static gboolean
@@ -831,10 +815,10 @@ get_deltas_timeout (gpointer cbgo)
 
 /**
  *
- * gd_date_to_ical:
+ * gd_timeval_to_ical:
  * Helper Function to convert a gdata format date to ical date
  * @item item from which the time comes. It's used to get to the feed's timezone
- * @google_time_string date in gdata format eg: '2006-04-17T17:00:00.000Z' or '2006-04-17T17:00:00.000+07:00'
+ * @timeval date as a #GTimeVal
  * @iit Resulting icaltimetype.
  * @dt Resulting ECalComponentDateTime.
  * @default_zone Default time zone for the backend. If set, then the time will be converted to that timezone.
@@ -842,67 +826,21 @@ get_deltas_timeout (gpointer cbgo)
  * @note Do not free itt or dt values, those come from buildin structures held by libical
  **/
 static gboolean
-gd_date_to_ical (EGoItem *item, const gchar *google_time_string, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone)
+gd_timeval_to_ical (EGoItem *item, GTimeVal *timeval, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone)
 {
-	gchar *s, *string, *dup;
-	int count = 0;
-	gboolean is_utc = TRUE;
-
 	g_return_val_if_fail (itt != NULL, FALSE);
 	g_return_val_if_fail (dt != NULL, FALSE);
 
-	if (!google_time_string || !*google_time_string)
+	if (!timeval)
 		return FALSE;
 
-	dup = g_strdup (google_time_string);
-	s = dup;
-	string = dup;
-
-	/* Strip of the string to the gdata format */
-	while (s[0] != '\0') {
-		if ((s[0] != '-') && (s[0] != '+') && (s[0] != ':') && (s[0] != '.')) {
-			*string = *s;
-			string = string + 1;
-			s = s + 1;
-			count = count + 1;
-		}else
-			s = s + 1;
-
-		if (count == 15) {
-			if (strlen (s) >= 5) {
-				is_utc = s [4] == 'Z';
-			}
-
-			string[0] = '\0';
-			break;
-		}
-		if (s[1] == '\0')
-			string[0] = '\0';
-	}
-
-	*itt = icaltime_from_string (dup);
-
-	if (!is_utc) {
-		const char *zone_name = item->feed ? gdata_feed_get_timezone (item->feed) : NULL;
-
-		if (zone_name) {
-			icaltimezone *zone = icaltimezone_get_builtin_timezone (zone_name);
-
-			if (zone)
-				icaltime_set_timezone (itt, zone);
-		}
-	}
-
-	if (!icaltime_get_timezone (*itt))
-		icaltime_set_timezone (itt, icaltimezone_get_utc_timezone ());
+	*itt = icaltime_from_timet_with_zone (timeval->tv_sec, 0, icaltimezone_get_utc_timezone ());
 
 	if (default_zone)
 		*itt = icaltime_convert_to_zone (*itt, default_zone);
 
 	dt->value = itt;
 	dt->tzid = icaltimezone_get_tzid ((icaltimezone *) icaltime_get_timezone (*itt));
-
-	g_free (dup);
 
 	return TRUE;
 }

@@ -4,4 +4,4 @@ else
 EXCHANGE =
 endif
 
-SUBDIRS = groupwise $(EXCHANGE) google
+SUBDIRS = groupwise $(EXCHANGE)

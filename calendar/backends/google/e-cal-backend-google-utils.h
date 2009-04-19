@@ -2,8 +2,9 @@
 /*
  * Authors :
  *  Ebby Wiselyn <ebbywiselyn@gmail.com>
+ *  Philip Withnall <philip@tecnocode.co.uk>
  *
- * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
+ * Copyright (C) 1999-2009 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -25,10 +26,7 @@
 #endif
 #include <e-cal-backend-google.h>
 #include <libecal/e-cal-component.h>
-#include <servers/google/libgdata/gdata-entry.h>
-#include <servers/google/libgdata/gdata-feed.h>
-#include <servers/google/libgdata-google/gdata-google-service.h>
-#include <servers/google/libgdata/gdata-service-iface.h>
+#include <gdata/gdata-entry.h>
 
 ECalComponent *
 e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo);
@@ -44,9 +42,6 @@ e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp);
 
 gpointer
 e_cal_backend_google_utils_update (gpointer handle);
-
-GDataEntry *
-gdata_entry_get_entry_by_id (GSList *entries, const gchar *id);
 
 ECalBackendSyncStatus
 e_cal_backend_google_utils_connect (ECalBackendGoogle *cbgo);

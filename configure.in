@@ -30,6 +30,7 @@ m4_define([libglade_minimum_version], [2.0.0])          # XXX Just a Guess
 m4_define([libgnome_minimum_version], [2.0.0])          # XXX Just a Guess
 m4_define([libxml_minimum_version], [2.0.0])            # XXX Just a Guess
 m4_define([libsoup_minimum_version], [2.3.0])
+m4_define([libgdata_minimum_version], [0.1.1])
 m4_define([gnome_keyring_minimum_version], [2.20.1])
 m4_define([sqlite_minimum_version], [3.5])
 m4_define([gweather_minimum_version], [2.25.4])
@@ -90,14 +91,6 @@ LIBEXCHANGE_STORAGE_CURRENT=3
 LIBEXCHANGE_STORAGE_REVISION=0
 LIBEXCHANGE_STORAGE_AGE=0
 
-LIBGDATA_CURRENT=1
-LIBGDATA_REVISION=0
-LIBGDATA_AGE=0
-
-LIBGDATA_GOOGLE_CURRENT=1
-LIBGDATA_GOOGLE_REVISION=0
-LIBGDATA_GOOGLE_AGE=0
-
 LIBEBACKEND_CURRENT=0
 LIBEBACKEND_REVISION=0
 LIBEBACKEND_AGE=0
@@ -132,12 +125,6 @@ AC_SUBST(LIBCAMEL_AGE)
 AC_SUBST(LIBEXCHANGE_STORAGE_CURRENT)
 AC_SUBST(LIBEXCHANGE_STORAGE_REVISION)
 AC_SUBST(LIBEXCHANGE_STORAGE_AGE)
-AC_SUBST(LIBGDATA_CURRENT)
-AC_SUBST(LIBGDATA_REVISION)
-AC_SUBST(LIBGDATA_AGE)
-AC_SUBST(LIBGDATA_GOOGLE_CURRENT)
-AC_SUBST(LIBGDATA_GOOGLE_REVISION)
-AC_SUBST(LIBGDATA_GOOGLE_AGE)
 AC_SUBST(LIBEBACKEND_CURRENT)
 AC_SUBST(LIBEBACKEND_REVISION)
 AC_SUBST(LIBEBACKEND_AGE)
@@ -241,7 +228,8 @@ PKG_CHECK_MODULES(GNOME_PLATFORM,
          libglade-2.0 >= libglade_minimum_version
          libgnome-2.0 >= libgnome_minimum_version
          libxml-2.0 >= libxml_minimum_version
-         libsoup-2.4 >= libsoup_minimum_version])
+         libsoup-2.4 >= libsoup_minimum_version
+         libgdata >= libgdata_minimum_version])
 
 LIBICAL_REQUIRED=libical_minimum_version
 AC_SUBST(LIBICAL_REQUIRED)
@@ -1564,8 +1552,10 @@ AC_SUBST(E_FACTORY_CFLAGS)
 AC_SUBST(E_FACTORY_LIBS)
 
 dnl --- Google flags
-GDATA_DEPS="libsoup-2.4 libxml-2.0"
-EVO_SET_COMPILE_FLAGS(GDATA, $GDATA_DEPS)
+LIBGDATA_REQUIRED=libgdata_minimum_version
+AC_SUBST(LIBGDATA_REQUIRED)
+
+EVO_SET_COMPILE_FLAGS(GDATA, libgdata)
 AC_SUBST(GDATA_CFLAGS)
 AC_SUBST(GDATA_LIBS)
 
@@ -1808,11 +1798,6 @@ servers/exchange/xntlm/Makefile
 servers/exchange/lib/Makefile
 servers/exchange/storage/Makefile
 servers/exchange/storage/libexchange-storage.pc
-servers/google/Makefile
-servers/google/libgdata/Makefile
-servers/google/libgdata/libgdata.pc
-servers/google/libgdata-google/Makefile 
-servers/google/libgdata-google/libgdata-google.pc
 src/Makefile
 win32/Makefile
 docs/Makefile

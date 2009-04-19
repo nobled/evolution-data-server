@@ -2,8 +2,9 @@
 /*
  * Authors :
  *  Ebby Wiselyn <ebbywiselyn@gmail.com>
+ *  Philip Withnall <philip@tecnocode.co.uk>
  *
- * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
+ * Copyright (C) 1999-2009 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -27,10 +28,9 @@
 #include <libedata-cal/e-cal-backend-sync.h>
 #include <libedata-cal/e-cal-backend-cache.h>
 
-#include <servers/google/libgdata/gdata-entry.h>
-#include <servers/google/libgdata/gdata-feed.h>
-#include <servers/google/libgdata-google/gdata-google-service.h>
-#include <servers/google/libgdata/gdata-service-iface.h>
+#include <gdata/gdata-entry.h>
+#include <gdata/gdata-feed.h>
+#include <gdata/services/calendar/gdata-calendar-service.h>
 
 G_BEGIN_DECLS
 
@@ -66,7 +66,7 @@ GType e_cal_backend_google_get_type (void);
 EGoItem * e_cal_backend_google_get_item (ECalBackendGoogle *cbgo);
 GDataEntry * e_cal_backend_google_get_entry (ECalBackendGoogle *cbgo);
 ECalBackendCache * e_cal_backend_google_get_cache (ECalBackendGoogle *cbgo);
-GDataGoogleService * e_cal_backend_google_get_service (ECalBackendGoogle *cbgo);
+GDataCalendarService * e_cal_backend_google_get_service (ECalBackendGoogle *cbgo);
 gchar * e_cal_backend_google_get_uri (ECalBackendGoogle *cbgo);
 icaltimezone * e_cal_backend_google_get_default_zone (ECalBackendGoogle *cbgo);
 gboolean e_cal_backend_google_get_mode_changed (ECalBackendGoogle *cbgo);
@@ -78,7 +78,7 @@ guint e_cal_backend_google_get_timeout_id (ECalBackendGoogle *cbgo);
 void e_cal_backend_google_set_entry (ECalBackendGoogle *cbgo, GDataEntry *entry);
 void e_cal_backend_google_set_cache (ECalBackendGoogle *cbgo, ECalBackendCache *cache);
 void e_cal_backend_google_set_item (ECalBackendGoogle *cbgo, EGoItem *item);
-void e_cal_backend_google_set_service (ECalBackendGoogle *cbgo, GDataGoogleService *service);
+void e_cal_backend_google_set_service (ECalBackendGoogle *cbgo, GDataCalendarService *service);
 void e_cal_backend_google_set_uri (ECalBackendGoogle *cbgo, gchar *uri);
 void e_cal_backend_google_set_item (ECalBackendGoogle *cbgo, EGoItem *item);
 void e_cal_backend_google_set_mode_changed (ECalBackendGoogle *cbgo, gboolean mode_changed);

@@ -2,8 +2,9 @@
 /*
  * Authors :
  *  Ebby Wiselyn <ebbyw@gnome.org>
+ *  Philip Withnall <philip@tecnocode.co.uk>
  *
- * Copyright (C) 1999-2008 Novell, Inc. (www.novell.com)
+ * Copyright (C) 1999-2009 Novell, Inc. (www.novell.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU Lesser General Public
@@ -46,10 +47,9 @@
 #include <libecal/e-cal-time-util.h>
 #include <libecal/e-cal-util.h>
 
-#include <servers/google/libgdata/gdata-entry.h>
-#include <servers/google/libgdata/gdata-feed.h>
-#include <servers/google/libgdata-google/gdata-google-service.h>
-#include <servers/google/libgdata/gdata-service-iface.h>
+#include <gdata/gdata-entry.h>
+#include <gdata/gdata-feed.h>
+#include <gdata/services/calendar/gdata-calendar-service.h>
 #include "e-cal-backend-google-utils.h"
 #include "e-cal-backend-google.h"
 
@@ -62,7 +62,7 @@ struct _ECalBackendGooglePrivate {
 	ECalBackendCache *cache;
 	ESource *source;
 
-	GDataGoogleService *service;
+	GDataCalendarService *service;
 	GMutex *mutex;
 	GDataEntry *entry;
 	GSList *entries;
@@ -578,7 +578,7 @@ static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *ic
 	if (!GDATA_IS_ENTRY(entry))
 		return GNOME_Evolution_Calendar_InvalidObject;	
 
-	updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL);
+	updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL, NULL);
 
 	if (updated_entry) {
 		/* FIXME */
@@ -890,10 +890,8 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 	icalcomponent *icalcomp;
 	ECalComponent *comp = NULL, *cache_comp = NULL;
 	EGoItem *item;
-	const char *uid=NULL, *rid=NULL;
-	GDataEntry *entry, *entry_from_server=NULL, *updated_entry=NULL;
-	gchar *edit_link;
-	GSList *l;
+	const char *uid = NULL, *rid = NULL;
+	GDataEntry *entry, *entry_from_server = NULL, *updated_entry = NULL;
 
 	*old_object = NULL;
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
@@ -928,7 +926,8 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 			}
 
 			item = e_go_item_from_cal_component (cbgo, comp);
-			item->feed = gdata_service_get_feed (GDATA_SERVICE(priv->service), priv->uri, NULL);
+			item->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT,
+							  NULL, NULL, NULL, NULL);
 			entry = item->entry;
 
 			if (!item->feed) {
@@ -937,22 +936,20 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			l = gdata_feed_get_entries (item->feed);
-			entry_from_server = gdata_entry_get_entry_by_id (l, uid);
+			entry_from_server = gdata_feed_look_up_entry (item->feed, uid);
 
 			if (!GDATA_IS_ENTRY(entry_from_server)) {
 				g_object_unref (comp);
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			edit_link = gdata_entry_get_edit_link (entry_from_server);
-			updated_entry = gdata_service_update_entry_with_link (GDATA_SERVICE (priv->service), 
-					entry, edit_link, NULL);
+			updated_entry = gdata_service_update_entry (GDATA_SERVICE(priv->service), entry, NULL, NULL);
 
 			if (updated_entry) {
 				/* FIXME Response from server contains, additional info about GDataEntry 
 				 * Store and use them later
 				 */
+				g_object_unref (updated_entry);
 			}
 
 			break;
@@ -982,7 +979,6 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	ECalBackendGooglePrivate *priv;
 	ECalComponent *comp = NULL;
 	char *calobj = NULL;
-	GSList *entries = NULL;
 	EGoItem *item;
 
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
@@ -991,9 +987,7 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 
 	*old_object = *object = NULL;
 	/* FIXME */
-	item->feed = gdata_service_get_feed (GDATA_SERVICE(priv->service), priv->uri, NULL);
-
-	entries = gdata_feed_get_entries (item->feed);
+	item->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
 
 	if (priv->mode == CAL_MODE_REMOTE) {
 		ECalBackendSyncStatus status;
@@ -1005,8 +999,6 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 
 		if (status != GNOME_Evolution_Calendar_Success) {
 			g_free (calobj);
-			if (entries)
-				g_slist_free (entries);
 			return status;
 		}
 
@@ -1017,8 +1009,6 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 
 		if (!icalcomp) {
 			g_free (calobj);
-			if (entries)
-				g_slist_free (entries);
 			return GNOME_Evolution_Calendar_InvalidObject;
 		}
 
@@ -1027,24 +1017,20 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		e_cal_backend_notify_object_removed (E_CAL_BACKEND (cbgo), id, comp_str, NULL);
 		g_free (comp_str);
 
-		entry = gdata_entry_get_entry_by_id (entries, uid);
+		entry = gdata_feed_look_up_entry (item->feed, uid);
 
 		if (!entry) {
 			g_free (calobj);
-			if (entries)
-				g_slist_free (entries);
 			return GNOME_Evolution_Calendar_InvalidObject;
 		}
 
-	        gdata_service_delete_entry (GDATA_SERVICE(priv->service), entry, NULL);
+	        gdata_service_delete_entry (GDATA_SERVICE(priv->service), entry, NULL, NULL);
 		*object = NULL;
 		*old_object = strdup (calobj);
 	}
 
 	if (calobj)
 		g_free (calobj);
-	if (entries)
-		g_slist_free (entries);
 
 	return GNOME_Evolution_Calendar_Success;
 }
@@ -1058,7 +1044,6 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 	ECalComponent *comp;
 	EGoItem *item;
 	GDataEntry *entry;
-	const gchar *id;
 
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
 
@@ -1090,18 +1075,21 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 		case CAL_MODE_REMOTE: {
 			/* Create an appointment */
 			GDataEntry *updated_entry;
+			const gchar *id;
 
 			item = e_go_item_from_cal_component (cbgo, comp);
 			entry = e_go_item_get_entry (item);
 
-			updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service),
-					priv->uri, entry, NULL);
-			if (!GDATA_IS_ENTRY (updated_entry)) {
+			updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL, NULL);
+
+			if (!updated_entry) {
 				g_message ("\n Entry Insertion Failed %s \n", G_STRLOC);
+				break;
 			}
 
 			id = gdata_entry_get_id (updated_entry);
 			e_cal_component_set_uid (comp, id);
+			g_object_unref (updated_entry);
 
 			break; }
 		default:
@@ -1478,7 +1466,7 @@ e_cal_backend_google_set_item (ECalBackendGoogle *cbgo, EGoItem *item)
  *
  **/
 void
-e_cal_backend_google_set_service (ECalBackendGoogle *cbgo, GDataGoogleService *service)
+e_cal_backend_google_set_service (ECalBackendGoogle *cbgo, GDataCalendarService *service)
 {
 	ECalBackendGooglePrivate *priv;
 
@@ -1632,10 +1620,10 @@ e_cal_backend_google_get_item (ECalBackendGoogle *cbgo)
 /**
  * e_cal_backend_google_get_service:
  * @cbgo a #ECalBackendGoogle object
- * Gets the #GDataGoogleService service object .
+ * Gets the #GDataCalendarService service object .
  *
  **/
-GDataGoogleService *
+GDataCalendarService *
 e_cal_backend_google_get_service (ECalBackendGoogle *cbgo)
 {
 	ECalBackendGooglePrivate *priv;
