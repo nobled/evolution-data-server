@@ -398,7 +398,7 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 	ECalComponentOrganizer *org = NULL;
 	icaltimezone *default_zone;
 	const char *description, *uid, *temp, *location = NULL;
-	GTimeVal timeval;
+	GTimeVal timeval, timeval2;
 	struct icaltimetype itt;
 	GList *category_ids;
 	GList *go_attendee_list = NULL, *go_location_list = NULL, *l = NULL;
@@ -432,14 +432,12 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
 		e_cal_component_set_dtstamp (comp, &itt);
 
-	/* Start time */
-	gdata_calendar_event_get_start_time (GDATA_CALENDAR_EVENT(item->entry), &timeval);
+	/* Start/End times */
+	/* TODO: deal with multiple time periods */
+	gdata_calendar_event_get_primary_time (GDATA_CALENDAR_EVENT(item->entry), &timeval, &timeval2, NULL);
 	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
 		e_cal_component_set_dtstart (comp, &dt);
-
-	/* End time */
-	gdata_calendar_event_get_end_time (GDATA_CALENDAR_EVENT(item->entry), &timeval);
-	if (gd_timeval_to_ical (item, &timeval, &itt, &dt, default_zone))
+	if (gd_timeval_to_ical (item, &timeval2, &itt, &dt, default_zone))
 		e_cal_component_set_dtend (comp, &dt);
 
 	/* Summary of the Entry */
@@ -566,12 +564,13 @@ e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp)
 	gchar *term = NULL;
 	icaltimezone *default_zone;
 	icaltimetype itt;
-	GTimeVal timeval;
+	GTimeVal timeval, timeval2;
 	const char *uid;
 	const char *location;
 	GSList *list = NULL;
 	GDataCalendarEvent *entry;
 	GDataCategory *category;
+	GDataGDWhen *when;
 	ECalComponentText *t;
 	GSList *attendee_list = NULL, *l = NULL;
 
@@ -589,19 +588,19 @@ e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp)
 
 	default_zone = e_cal_backend_google_get_default_zone (cbgo);
 
-	/* Start time */
+	/* Start/End times */
 	e_cal_component_get_dtstart (comp, &dt);
 	itt = icaltime_convert_to_zone (*dt.value, default_zone);
 	dt.value = &itt;
 	get_timeval (dt, &timeval);
-	gdata_calendar_event_set_start_time (entry, &timeval);
 
-	/* End Time */
 	e_cal_component_get_dtend (comp, &dt);
 	itt = icaltime_convert_to_zone (*dt.value, default_zone);
 	dt.value = &itt;
-	get_timeval (dt, &timeval);
-	gdata_calendar_event_set_end_time (entry, &timeval);
+	get_timeval (dt, &timeval2);
+
+	when = gdata_gd_when_new (&timeval, &timeval2, NULL, NULL);
+	gdata_calendar_event_add_time (entry, when);
 
 	/* Content / Description */
 	e_cal_component_get_description_list (comp, &list);
