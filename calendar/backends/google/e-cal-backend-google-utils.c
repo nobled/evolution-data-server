@@ -175,6 +175,7 @@ e_cal_backend_google_utils_update (gpointer handle)
 	ECalBackendGoogle *cbgo;
 	ECalBackendGooglePrivate *priv;
 	EGoItem *item;
+	GError *error = NULL;
 
 	ECalBackendCache *cache;
 
@@ -202,7 +203,15 @@ e_cal_backend_google_utils_update (gpointer handle)
 	service = GDATA_SERVICE (e_cal_backend_google_get_service (cbgo));
 	uri = e_cal_backend_google_get_uri (cbgo);
 
-	item->feed = gdata_service_query (GDATA_SERVICE(service), uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
+	item->feed = gdata_service_query (GDATA_SERVICE(service), uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, &error);
+
+	if (item->feed == NULL) {
+		g_warning ("Error querying Google Calendar %s: %s", uri, error->message);
+		g_error_free (error);
+		g_static_mutex_unlock (&updating);
+		return NULL;
+	}
+
 	entries_list = gdata_feed_get_entries (item->feed);
 	cache_keys = e_cal_backend_cache_get_keys (cache);
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgo));
@@ -599,7 +608,8 @@ e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp)
 	dt.value = &itt;
 	get_timeval (dt, &timeval2);
 
-	when = gdata_gd_when_new (&timeval, &timeval2, NULL, NULL);
+	/* TODO: deal with pure dates */
+	when = gdata_gd_when_new (&timeval, &timeval2, FALSE, NULL, NULL);
 	gdata_calendar_event_add_time (entry, when);
 
 	/* Content / Description */
