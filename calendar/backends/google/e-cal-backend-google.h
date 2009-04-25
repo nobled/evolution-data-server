@@ -28,7 +28,6 @@
 #include <libedata-cal/e-cal-backend-sync.h>
 #include <libedata-cal/e-cal-backend-cache.h>
 
-#include <gdata/gdata-entry.h>
 #include <gdata/gdata-feed.h>
 #include <gdata/services/calendar/gdata-calendar-service.h>
 

@@ -26,13 +26,16 @@
 #endif
 #include <e-cal-backend-google.h>
 #include <libecal/e-cal-component.h>
-#include <gdata/gdata-entry.h>
+#include <gdata/services/calendar/gdata-calendar-event.h>
 
 ECalComponent *
-e_gdata_entry_to_cal_component (GDataEntry *entry, ECalBackendGoogle *cbgo);
+e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cbgo);
 
-GDataEntry *
-e_gdata_entry_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp);
+GDataCalendarEvent *
+e_gdata_event_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp);
+
+void
+e_gdata_event_update_from_cal_component (ECalBackendGoogle *cbgo, GDataCalendarEvent *event, ECalComponent *comp);
 
 gpointer
 e_cal_backend_google_utils_update (gpointer handle);

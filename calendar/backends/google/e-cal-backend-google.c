@@ -559,12 +559,13 @@ static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *ic
 		fetch_attachments (cbgo, comp);
 
 	/* Sent to Server */
-	entry =	e_gdata_entry_from_cal_component (cbgo, comp);
+	entry =	GDATA_ENTRY (e_gdata_event_from_cal_component (cbgo, comp));
 
-	if (!GDATA_IS_ENTRY(entry))
+	if (!GDATA_IS_ENTRY (entry))
 		return GNOME_Evolution_Calendar_InvalidObject;	
 
-	updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL, NULL);
+	updated_entry = gdata_service_insert_entry (GDATA_SERVICE (priv->service), priv->uri, entry, NULL, NULL);
+	g_object_unref (entry);
 
 	if (updated_entry) {
 		/* FIXME */
@@ -872,7 +873,8 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 	icalcomponent *icalcomp;
 	ECalComponent *comp = NULL, *cache_comp = NULL;
 	const char *uid = NULL, *rid = NULL;
-	GDataEntry *entry, *entry_from_server = NULL, *updated_entry = NULL;
+	GDataFeed *feed;
+	GDataEntry *entry, *updated_entry = NULL;
 
 	*old_object = NULL;
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
@@ -906,35 +908,37 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 				return GNOME_Evolution_Calendar_ObjectNotFound;
 			}
 
-			if (priv->feed)
-				g_object_unref (priv->feed);
-			priv->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT,
-							  NULL, NULL, NULL, NULL);
+			feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT,
+						    NULL, NULL, NULL, NULL);
 
-			if (!priv->feed) {
+			if (!feed) {
 				g_message ("CRITICAL: Could not find feed %s", G_STRLOC);
 				g_object_unref (comp);
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			entry = e_gdata_entry_from_cal_component (cbgo, comp);
-			entry_from_server = gdata_feed_look_up_entry (priv->feed, uid);
+			e_cal_backend_google_set_feed (cbgo, feed);
+			g_object_unref (feed);
 
-			if (!GDATA_IS_ENTRY(entry_from_server)) {
+			entry = gdata_feed_look_up_entry (feed, uid);
+
+			if (!GDATA_IS_ENTRY (entry)) {
 				g_object_unref (comp);
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			updated_entry = gdata_service_update_entry (GDATA_SERVICE(priv->service), entry, NULL, NULL);
+			/* Send the update to the server */
+			e_gdata_event_update_from_cal_component (cbgo, GDATA_CALENDAR_EVENT (entry), comp);
+			updated_entry = gdata_service_update_entry (GDATA_SERVICE (priv->service), entry, NULL, NULL);
 
 			if (updated_entry) {
-				/* FIXME Response from server contains, additional info about GDataEntry 
+				/* FIXME Response from server contains additional info about GDataEntry 
 				 * Store and use them later
 				 */
 				g_object_unref (updated_entry);
 			}
 
-			break;
+			/* If successful, update the cache instead of breaking out of the switch */
 		case CAL_MODE_LOCAL:
 			e_cal_backend_cache_put_component (priv->cache, comp);
 			break;
@@ -972,6 +976,7 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		icalcomponent *icalcomp;
 		ECalComponentId *id;
 		char *comp_str;
+		GDataFeed *feed;
 
 		status = e_cal_backend_google_get_object (backend, cal, uid, rid, &calobj);
 
@@ -996,10 +1001,11 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		g_free (comp_str);
 
 		/* FIXME */
-		if (priv->feed)
-			g_object_unref (priv->feed);
-		priv->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
-		entry = gdata_feed_look_up_entry (priv->feed, uid);
+		feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
+		e_cal_backend_google_set_feed (cbgo, feed);
+		g_object_unref (feed);
+
+		entry = gdata_feed_look_up_entry (feed, uid);
 
 		if (!entry) {
 			g_free (calobj);
@@ -1058,9 +1064,9 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 			GDataEntry *updated_entry;
 			const gchar *id;
 
-			entry = e_gdata_entry_from_cal_component (cbgo, comp);
-
-			updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL, NULL);
+			entry = GDATA_ENTRY (e_gdata_event_from_cal_component (cbgo, comp));
+			updated_entry = gdata_service_insert_entry (GDATA_SERVICE (priv->service), priv->uri, entry, NULL, NULL);
+			g_object_unref (entry);
 
 			if (!updated_entry) {
 				g_message ("\n Entry Insertion Failed %s \n", G_STRLOC);
