@@ -748,7 +748,7 @@ proxy_settings_changed (EProxy *proxy, gpointer user_data)
 	if (e_proxy_require_proxy_for_uri (proxy, priv->base_uri)) {
 		proxy_uri = e_proxy_peek_uri_for (proxy, priv->base_uri);
 	}
-	gdata_service_set_proxy (GDATA_SERVICE (priv->service), proxy_uri);
+	gdata_service_set_proxy_uri (GDATA_SERVICE (priv->service), proxy_uri);
 }
 
 gboolean

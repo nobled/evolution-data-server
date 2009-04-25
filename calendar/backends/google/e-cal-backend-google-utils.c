@@ -21,7 +21,6 @@
  * Boston, MA 02110-1301, USA.
  */
 
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -56,10 +55,6 @@
 
 #include "e-cal-backend-google.h"
 #include "e-cal-backend-google-utils.h"
-
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
 
 #define CACHE_REFRESH_INTERVAL 10000
 
@@ -506,12 +501,12 @@ e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo)
 		if (go_attendee->rel) {
 			gchar *val;
 			val = strstr ((const gchar *)go_attendee->rel, (const gchar *)"organizer");
-			if (val != NULL && !strcmp ("organizer", val)) {	
-				org = g_new0 (ECalComponentOrganizer, 1);	
+			if (val != NULL && !strcmp ("organizer", val)) {
+				org = g_new0 (ECalComponentOrganizer, 1);
 
-				if (go_attendee->email) 
+				if (go_attendee->email)
 					org->value = g_strconcat ("MAILTO:", go_attendee->email, NULL);
-				if (go_attendee->value_string) 
+				if (go_attendee->value_string)
 					org->cn = g_strdup (go_attendee->value_string);
 			}	
 		}

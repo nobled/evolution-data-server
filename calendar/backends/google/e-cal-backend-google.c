@@ -83,15 +83,6 @@ struct _ECalBackendGooglePrivate {
 	EProxy *proxy;
 };
 
-gint compare_ids (gconstpointer cache_id, gconstpointer modified_cache_id);
-gchar * form_query (const char *query);
-
-gint
-compare_ids (gconstpointer cache_id, gconstpointer modified_cache_id)
-{
-	return strcmp (cache_id, modified_cache_id);
-}
-
 /************************************************** Calendar Backend Methods **********************************/
 
 static ECalBackendSyncStatus
@@ -1308,7 +1299,7 @@ proxy_settings_changed (EProxy *proxy, gpointer user_data)
 	if (e_proxy_require_proxy_for_uri (proxy, priv->uri)) {
 		proxy_uri = e_proxy_peek_uri_for (proxy, priv->uri);
 	}
-	gdata_service_set_proxy (GDATA_SERVICE (priv->service), proxy_uri);
+	gdata_service_set_proxy_uri (GDATA_SERVICE (priv->service), proxy_uri);
 }
  
 /* Object initialisation function for google backend */
@@ -1501,7 +1492,7 @@ e_cal_backend_google_set_uri (ECalBackendGoogle *cbgo, gchar *uri)
 		proxy_uri = e_proxy_peek_uri_for (priv->proxy, priv->uri);
 	}
 
-	gdata_service_set_proxy (GDATA_SERVICE (priv->service), proxy_uri);
+	gdata_service_set_proxy_uri (GDATA_SERVICE (priv->service), proxy_uri);
 }
 
 /**
@@ -1594,7 +1585,6 @@ e_cal_backend_google_get_cache (ECalBackendGoogle *cbgo)
 
 	g_return_val_if_fail (cbgo != NULL, NULL);
 	g_return_val_if_fail (E_IS_CAL_BACKEND_GOOGLE(cbgo), NULL);
-
 
 	priv = cbgo->priv;
 	return priv->cache;
