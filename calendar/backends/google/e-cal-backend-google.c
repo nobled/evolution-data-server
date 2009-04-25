@@ -63,18 +63,15 @@ struct _ECalBackendGooglePrivate {
 	ESource *source;
 
 	GDataCalendarService *service;
+	GDataFeed *feed;
 	GMutex *mutex;
-	GDataEntry *entry;
-	GSList *entries;
 	icaltimezone *default_zone;
 	CalMode	mode;
-	EGoItem *item;
 
 	guint timeout_id;
 	gchar *username;
 	gchar *password;
 	gchar *uri;
-	gchar *feed;
 	gchar *local_attachments_store;	
 
 	gboolean read_only;
@@ -417,7 +414,7 @@ e_cal_backend_google_set_mode (ECalBackend *backend, CalMode mode)
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
 	priv = cbgo->priv;
 
-	if (!priv->mode && priv->mode == mode) {
+	if (priv->mode == mode) {
 		e_cal_backend_notify_mode (backend, GNOME_Evolution_Calendar_CalListener_MODE_SET,
 				  	   cal_mode_to_corba (mode));
 		return;
@@ -529,7 +526,6 @@ ECalBackendSyncStatus
 static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *icalcomp)
 {
 	ECalBackendGooglePrivate *priv;
-	EGoItem *item = NULL;
 	GDataEntry *entry = NULL, *updated_entry = NULL;
 	ECalComponent *comp, *modif_comp;
 	GSList *comps = NULL, *l = NULL;
@@ -563,8 +559,7 @@ static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *ic
 		fetch_attachments (cbgo, comp);
 
 	/* Sent to Server */
-	item = e_go_item_from_cal_component (cbgo, comp);	
-	entry =	e_go_item_get_entry (item);
+	entry =	e_gdata_entry_from_cal_component (cbgo, comp);
 
 	if (!GDATA_IS_ENTRY(entry))
 		return GNOME_Evolution_Calendar_InvalidObject;	
@@ -577,7 +572,6 @@ static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *ic
 	}
 
 	/* Update the Cache */
-
 	modif_comp = g_object_ref (comp);
 	if (instances) {
 		const char *uid;
@@ -841,12 +835,9 @@ e_cal_backend_google_get_changes (ECalBackendSync *backend, EDataCal *cal, const
 static ECalBackendSyncStatus
 e_cal_backend_google_is_read_only (ECalBackendSync *backend, EDataCal *cal, gboolean *read_only)
 {
-	/* FIXME */
-	*read_only = FALSE;
-
+	*read_only = E_CAL_BACKEND_GOOGLE (backend)->priv->read_only;
 	return GNOME_Evolution_Calendar_Success;
 }
-
 
 /* Returns the email address of the person who opened the calendar */
 static ECalBackendSyncStatus
@@ -880,7 +871,6 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 	ECalBackendGooglePrivate *priv;
 	icalcomponent *icalcomp;
 	ECalComponent *comp = NULL, *cache_comp = NULL;
-	EGoItem *item;
 	const char *uid = NULL, *rid = NULL;
 	GDataEntry *entry, *entry_from_server = NULL, *updated_entry = NULL;
 
@@ -916,18 +906,19 @@ e_cal_backend_google_modify_object (ECalBackendSync *backend, EDataCal *cal, con
 				return GNOME_Evolution_Calendar_ObjectNotFound;
 			}
 
-			item = e_go_item_from_cal_component (cbgo, comp);
-			item->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT,
+			if (priv->feed)
+				g_object_unref (priv->feed);
+			priv->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT,
 							  NULL, NULL, NULL, NULL);
-			entry = item->entry;
 
-			if (!item->feed) {
-				g_message ("CRITICAL: Could not find feed in EGoItem %s", G_STRLOC);
+			if (!priv->feed) {
+				g_message ("CRITICAL: Could not find feed %s", G_STRLOC);
 				g_object_unref (comp);
 				return GNOME_Evolution_Calendar_OtherError;
 			}
 
-			entry_from_server = gdata_feed_look_up_entry (item->feed, uid);
+			entry = e_gdata_entry_from_cal_component (cbgo, comp);
+			entry_from_server = gdata_feed_look_up_entry (priv->feed, uid);
 
 			if (!GDATA_IS_ENTRY(entry_from_server)) {
 				g_object_unref (comp);
@@ -970,15 +961,11 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 	ECalBackendGooglePrivate *priv;
 	ECalComponent *comp = NULL;
 	char *calobj = NULL;
-	EGoItem *item;
 
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
 	priv = cbgo->priv;
-	item = priv->item;
 
 	*old_object = *object = NULL;
-	/* FIXME */
-	item->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
 
 	if (priv->mode == CAL_MODE_REMOTE) {
 		ECalBackendSyncStatus status;
@@ -1008,7 +995,11 @@ e_cal_backend_google_remove_object (ECalBackendSync *backend, EDataCal *cal,
 		e_cal_backend_notify_object_removed (E_CAL_BACKEND (cbgo), id, comp_str, NULL);
 		g_free (comp_str);
 
-		entry = gdata_feed_look_up_entry (item->feed, uid);
+		/* FIXME */
+		if (priv->feed)
+			g_object_unref (priv->feed);
+		priv->feed = gdata_service_query (GDATA_SERVICE(priv->service), priv->uri, NULL, GDATA_TYPE_CALENDAR_EVENT, NULL, NULL, NULL, NULL);
+		entry = gdata_feed_look_up_entry (priv->feed, uid);
 
 		if (!entry) {
 			g_free (calobj);
@@ -1033,7 +1024,6 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 	ECalBackendGooglePrivate *priv;
 	icalcomponent *icalcomp;
 	ECalComponent *comp;
-	EGoItem *item;
 	GDataEntry *entry;
 
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
@@ -1068,8 +1058,7 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 			GDataEntry *updated_entry;
 			const gchar *id;
 
-			item = e_go_item_from_cal_component (cbgo, comp);
-			entry = e_go_item_get_entry (item);
+			entry = e_gdata_entry_from_cal_component (cbgo, comp);
 
 			updated_entry = gdata_service_insert_entry (GDATA_SERVICE(priv->service), priv->uri, entry, NULL, NULL);
 
@@ -1218,6 +1207,10 @@ e_cal_backend_google_dispose (GObject *object)
 	cbgo = E_CAL_BACKEND_GOOGLE (object);
 	priv = cbgo->priv;
 
+	if (priv->feed)
+		g_object_unref (priv->feed);
+	priv->feed = NULL;
+
 	if (G_OBJECT_CLASS (parent_class)->dispose)
 		(* G_OBJECT_CLASS (parent_class)->dispose) (object);
 }
@@ -1311,9 +1304,9 @@ e_cal_backend_google_init (ECalBackendGoogle *cbgo, ECalBackendGoogleClass *clas
 	priv = g_new0 (ECalBackendGooglePrivate, 1);
 
 	priv->mutex = g_mutex_new ();
+	priv->read_only = FALSE;
 	priv->username = NULL;
 	priv->password = NULL;
-	priv->entry = NULL;
 	priv->service = NULL;
 	priv->timeout_id = 0;
 	cbgo->priv = priv;
@@ -1432,28 +1425,28 @@ e_cal_backend_google_set_cache (ECalBackendGoogle *cbgo, ECalBackendCache *cache
 }
 
 /**
- * e_cal_backend_google_set_item:
+ * e_cal_backend_google_set_feed:
  * @cbgo a #ECalBackendGoogle object
- * @cache a #EGoItem *item
+ * @feed a #GDataFeed
  *
  **/
 void
-e_cal_backend_google_set_item (ECalBackendGoogle *cbgo, EGoItem *item)
+e_cal_backend_google_set_feed (ECalBackendGoogle *cbgo, GDataFeed *feed)
 {
-	ECalBackendGooglePrivate *priv;
-
 	g_return_if_fail (cbgo != NULL);
 	g_return_if_fail (E_IS_CAL_BACKEND_GOOGLE(cbgo));
+	g_return_if_fail (GDATA_IS_FEED (feed));
 
-	priv = cbgo->priv;
-	priv->item = item;
+	if (cbgo->priv->feed)
+		g_object_unref (cbgo->priv->feed);
+	cbgo->priv->feed = g_object_ref (feed);
 }
 
 /**
- * e_cal_backend_google_set_item:
+ * e_cal_backend_google_set_service:
  * @cbgo a #ECalBackendGoogle object
- * @cache a #EGoItem *item
- * Sets the #EGoItem item on object
+ * @service a #GDataCalendarService
+ * Sets the #GDataCalendarService service on object
  *
  **/
 void
@@ -1493,25 +1486,6 @@ e_cal_backend_google_set_uri (ECalBackendGoogle *cbgo, gchar *uri)
 	}
 
 	gdata_service_set_proxy_uri (GDATA_SERVICE (priv->service), proxy_uri);
-}
-
-/**
- * e_cal_backend_google_set_entry:
- * @cbgo a #ECalBackendGoogle object
- * @entry a #GDataEntry entry
- * Sets the entry on object
- *
- **/
-void
-e_cal_backend_google_set_entry (ECalBackendGoogle *cbgo, GDataEntry *entry)
-{
-	ECalBackendGooglePrivate *priv;
-
-	g_return_if_fail (cbgo != NULL);
-	g_return_if_fail (E_IS_CAL_BACKEND_GOOGLE(cbgo));
-
-	priv = cbgo->priv;
-	priv->entry = entry;
 }
 
 /**
@@ -1555,13 +1529,13 @@ e_cal_backend_google_set_username (ECalBackendGoogle *cbgo,gchar *username)
 /**
  * e_cal_backend_google_set_password:
  * @cbgo a #ECalBackendGoogle object
- * @cache a #EGoItem *item
- * Sets the #EGoItem item on object
+ * @password a password
+ * Sets the password on object
  *
  **/
 
 void
-e_cal_backend_google_set_password (ECalBackendGoogle *cbgo,gchar *password)
+e_cal_backend_google_set_password (ECalBackendGoogle *cbgo, gchar *password)
 {
 	ECalBackendGooglePrivate *priv;
 	priv = cbgo->priv;
@@ -1591,20 +1565,17 @@ e_cal_backend_google_get_cache (ECalBackendGoogle *cbgo)
 }
 
 /**
- * e_cal_backend_google_get_item:
+ * e_cal_backend_google_get_feed:
  * @cbgo a #ECalBackendGoogle object
- * Gets the #EGoItem . from cbgo
+ * Gets the #GDataFeed from cbgo
  **/
-EGoItem *
-e_cal_backend_google_get_item (ECalBackendGoogle *cbgo)
+GDataFeed *
+e_cal_backend_google_get_feed (ECalBackendGoogle *cbgo)
 {
-	ECalBackendGooglePrivate *priv;
-
 	g_return_val_if_fail (cbgo != NULL, NULL);
 	g_return_val_if_fail (E_IS_CAL_BACKEND_GOOGLE(cbgo), NULL);
 
-	priv = cbgo->priv;
-	return priv->item;
+	return cbgo->priv->feed;
 }
 
 /**
@@ -1626,7 +1597,7 @@ e_cal_backend_google_get_service (ECalBackendGoogle *cbgo)
 }
 
 /**
- * e_cal_backend_google_set_item:
+ * e_cal_backend_google_get_uri:
  * @cbgo a #ECalBackendGoogle object
  * Gets the uri
  **/
@@ -1640,24 +1611,6 @@ e_cal_backend_google_get_uri (ECalBackendGoogle *cbgo)
 
 	priv = cbgo->priv;
 	return priv->uri;
-}
-
-/**
- * e_cal_backend_google_get_entry:
- * @cbgo a #ECalBackendGoogle object
- * Gets the #GDataEntry object.
- *
- **/
-GDataEntry *
-e_cal_backend_google_get_entry (ECalBackendGoogle *cbgo)
-{
-	ECalBackendGooglePrivate *priv;
-
-	g_return_val_if_fail (cbgo != NULL, NULL);
-	g_return_val_if_fail (E_IS_CAL_BACKEND_GOOGLE(cbgo), NULL);
-
-	priv = cbgo->priv;
-	return priv->entry;
 }
 
 /**

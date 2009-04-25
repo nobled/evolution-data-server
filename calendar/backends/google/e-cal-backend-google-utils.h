@@ -29,16 +29,10 @@
 #include <gdata/gdata-entry.h>
 
 ECalComponent *
-e_go_item_to_cal_component (EGoItem *item, ECalBackendGoogle *cbgo);
-
-void
-e_go_item_set_entry (EGoItem *item, GDataEntry *entry);
+e_gdata_entry_to_cal_component (GDataEntry *entry, ECalBackendGoogle *cbgo);
 
 GDataEntry *
-e_go_item_get_entry (EGoItem *item);
-
-EGoItem *
-e_go_item_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp);
+e_gdata_entry_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp);
 
 gpointer
 e_cal_backend_google_utils_update (gpointer handle);

@@ -56,15 +56,8 @@ struct _ECalBackendGoogleClass {
 	ECalBackendSyncClass parent_class;
 };
 
-struct _EGoItem {
-	GDataEntry *entry;
-	GDataFeed *feed;
-};
-typedef struct _EGoItem EGoItem;
-
 GType e_cal_backend_google_get_type (void);
-EGoItem * e_cal_backend_google_get_item (ECalBackendGoogle *cbgo);
-GDataEntry * e_cal_backend_google_get_entry (ECalBackendGoogle *cbgo);
+GDataFeed * e_cal_backend_google_get_feed (ECalBackendGoogle *cbgo);
 ECalBackendCache * e_cal_backend_google_get_cache (ECalBackendGoogle *cbgo);
 GDataCalendarService * e_cal_backend_google_get_service (ECalBackendGoogle *cbgo);
 gchar * e_cal_backend_google_get_uri (ECalBackendGoogle *cbgo);
@@ -75,12 +68,11 @@ gchar * e_cal_backend_google_get_password (ECalBackendGoogle *cbgo);
 gchar * e_cal_backend_google_get_local_attachments_store (ECalBackendGoogle *cbgo);
 guint e_cal_backend_google_get_timeout_id (ECalBackendGoogle *cbgo);
 
-void e_cal_backend_google_set_entry (ECalBackendGoogle *cbgo, GDataEntry *entry);
 void e_cal_backend_google_set_cache (ECalBackendGoogle *cbgo, ECalBackendCache *cache);
-void e_cal_backend_google_set_item (ECalBackendGoogle *cbgo, EGoItem *item);
+void e_cal_backend_google_set_feed (ECalBackendGoogle *cbgo, GDataFeed *feed);
 void e_cal_backend_google_set_service (ECalBackendGoogle *cbgo, GDataCalendarService *service);
 void e_cal_backend_google_set_uri (ECalBackendGoogle *cbgo, gchar *uri);
-void e_cal_backend_google_set_item (ECalBackendGoogle *cbgo, EGoItem *item);
+void e_cal_backend_google_set_feed (ECalBackendGoogle *cbgo, GDataFeed *feed);
 void e_cal_backend_google_set_mode_changed (ECalBackendGoogle *cbgo, gboolean mode_changed);
 void e_cal_backend_google_set_username (ECalBackendGoogle *cbgo, gchar *username);
 void e_cal_backend_google_set_password (ECalBackendGoogle *cbgo, gchar *password);
