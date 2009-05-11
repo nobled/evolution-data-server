@@ -379,10 +379,10 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 {
 	ECalComponent *comp;
 	ECalComponentText text;
-	ECalComponentDateTime dt;
+	ECalComponentDateTime dt, dt_start;
 	ECalComponentOrganizer *org = NULL;
 	icaltimezone *default_zone;
-	const char *description, *uid, *temp, *location = NULL;
+	const char *description, *temp, *location = NULL;
 	GTimeVal timeval, timeval2;
 	struct icaltimetype itt;
 	GList *category_ids;
@@ -420,8 +420,8 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 	/* Start/End times */
 	/* TODO: deal with multiple time periods */
 	gdata_calendar_event_get_primary_time (event, &timeval, &timeval2, NULL);
-	if (gd_timeval_to_ical (event, &timeval, &itt, &dt, default_zone))
-		e_cal_component_set_dtstart (comp, &dt);
+	if (gd_timeval_to_ical (event, &timeval, &itt, &dt_start, default_zone))
+		e_cal_component_set_dtstart (comp, &dt_start);
 	if (gd_timeval_to_ical (event, &timeval2, &itt, &dt, default_zone))
 		e_cal_component_set_dtend (comp, &dt);
 
@@ -511,18 +511,135 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 	}
 	e_cal_component_set_location (comp, location);
 
-#if 0
-	/* temp hack to see how recurrence work */
-	ECalComponentRange *recur_id;
-	recur_id = g_new0 (ECalComponentRange, 1);
-	recur_id->datetime = dt;
-	recur_id->type = E_CAL_COMPONENT_RANGE_THISFUTURE;
-	e_cal_component_set_recurid (comp, recur_id);
-	e_cal_component_set_dtend (comp, &dt);
-#endif
+	/* Recurrence */
+	if (gdata_calendar_event_get_recurrence (event) != NULL) {
+		/* We have to parse something like this (http://code.google.com/apis/gdata/elements.html#gdRecurrence):
+			DTSTART;TZID=America/Los_Angeles:20060314T060000
+			DURATION:PT3600S
+			RRULE:FREQ=DAILY;UNTIL=20060321T220000Z
+			BEGIN:VTIMEZONE
+			...
+			END:VTIMEZONE
+		 * For the moment, we can ignore the vtimezone component. */
 
-	uid = gdata_entry_get_id (GDATA_ENTRY (event));
-	e_cal_component_set_uid (comp, (const char *)uid);
+		gboolean in_timezone = FALSE;
+		const gchar *recurrence = gdata_calendar_event_get_recurrence (event);
+		const gchar *i = recurrence;
+		GSList *rrule_list = NULL, *rdate_list = NULL, *exrule_list = NULL, *exdate_list = NULL;
+		guint recurrence_length = strlen (recurrence);
+
+		do {
+			const gchar *f = NULL;
+
+			if (i == NULL || *i == '\0' || i - recurrence >= recurrence_length)
+				break;
+
+			f = strchr (i, '\n');
+
+			/* Ignore the timezone component */
+			if (strncmp (i, "BEGIN:VTIMEZONE", 15) == 0) {
+				in_timezone = TRUE;
+				goto next_property;
+			} else if (strncmp (i, "END:VTIMEZONE", 13) == 0) {
+				in_timezone = FALSE;
+				goto next_property;
+			}
+
+			/* Skip any rules inside the timezone block */
+			if (in_timezone == TRUE)
+				goto next_property;
+
+			/* Parse the recurrence properties */
+			if (strncmp (i, "RRULE:", 6) == 0) {
+				struct icalrecurrencetype recur;
+				gchar *recur_string;
+
+				/* Parse the rrule property */
+				recur_string = g_strndup (i + 6, f - i);
+				recur = icalrecurrencetype_from_string (recur_string);
+				g_free (recur_string);
+
+				rrule_list = g_slist_prepend (rrule_list, &recur);
+			} else if (strncmp (i, "RDATE:", 6) == 0) {
+				struct icaldatetimeperiodtype recur;
+				icalproperty *prop;
+				gchar *recur_string;
+
+				/* Parse the rdate property */
+				recur_string = g_strndup (i, f - i);
+				prop = icalproperty_new_from_string (recur_string);
+				g_free (recur_string);
+
+				recur = icalproperty_get_rdate (prop);
+				icalproperty_free (prop);
+
+				rdate_list = g_slist_prepend (rdate_list, &recur);
+			} else if (strncmp (i, "EXRULE:", 7) == 0) {
+				struct icalrecurrencetype recur;
+				gchar *recur_string;
+
+				/* Parse the exrule property */
+				recur_string = g_strndup (i + 7, f - i);
+				recur = icalrecurrencetype_from_string (recur_string);
+				g_free (recur_string);
+
+				exrule_list = g_slist_prepend (exrule_list, &recur);
+			} else if (strncmp (i, "EXDATE:", 7) == 0) {
+				struct icaltimetype recur;
+				gchar *recur_string;
+
+				/* Parse the exdate property */
+				recur_string = g_strndup (i + 7, f - i);
+				recur = icaltime_from_string (recur_string);
+				g_free (recur_string);
+
+				exdate_list = g_slist_prepend (exdate_list, &recur);
+			}
+
+next_property:
+			/* Advance to the next line, and hence the next property */
+			i = f + 1;
+		} while (TRUE);
+
+		rrule_list = g_slist_reverse (rrule_list);
+		e_cal_component_set_rrule_list (comp, rrule_list);
+		g_slist_free (rrule_list);
+
+		rdate_list = g_slist_reverse (rdate_list);
+		e_cal_component_set_rdate_list (comp, rdate_list);
+		g_slist_free (rdate_list);
+
+		exrule_list = g_slist_reverse (exrule_list);
+		e_cal_component_set_exrule_list (comp, exrule_list);
+		g_slist_free (exrule_list);
+
+		exdate_list = g_slist_reverse (exdate_list);
+		e_cal_component_set_exdate_list (comp, exdate_list);
+		g_slist_free (exdate_list);
+	}
+
+	/* Recurrence exceptions */
+	if (gdata_calendar_event_is_exception (event)) {
+		ECalComponentRange *recur_id;
+		gchar *original_id = NULL;
+
+		/* Provide the ID of the original event */
+		gdata_calendar_event_get_original_event_details (event, &original_id, NULL);
+		e_cal_component_set_uid (comp, original_id);
+		g_free (original_id);
+
+		/* Set the recurrence id and X-GW-RECORDID */
+		recur_id = g_new0 (ECalComponentRange, 1);
+		recur_id->type = E_CAL_COMPONENT_RANGE_SINGLE;
+		recur_id->datetime = dt_start;
+		e_cal_component_set_recurid (comp, recur_id);
+		g_free (recur_id);
+	} else {
+		/* The event is not an exception to a recurring event */
+		const gchar *uid = gdata_entry_get_id (GDATA_ENTRY (event));
+		e_cal_component_set_uid (comp, uid);
+	}
+
 	e_cal_component_commit_sequence (comp);
 
 	return comp;
