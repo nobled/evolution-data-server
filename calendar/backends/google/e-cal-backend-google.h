@@ -71,7 +71,6 @@ void e_cal_backend_google_set_cache (ECalBackendGoogle *cbgo, ECalBackendCache *
 void e_cal_backend_google_set_feed (ECalBackendGoogle *cbgo, GDataFeed *feed);
 void e_cal_backend_google_set_service (ECalBackendGoogle *cbgo, GDataCalendarService *service);
 void e_cal_backend_google_set_uri (ECalBackendGoogle *cbgo, gchar *uri);
-void e_cal_backend_google_set_feed (ECalBackendGoogle *cbgo, GDataFeed *feed);
 void e_cal_backend_google_set_mode_changed (ECalBackendGoogle *cbgo, gboolean mode_changed);
 void e_cal_backend_google_set_username (ECalBackendGoogle *cbgo, gchar *username);
 void e_cal_backend_google_set_password (ECalBackendGoogle *cbgo, gchar *password);

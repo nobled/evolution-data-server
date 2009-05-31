@@ -1035,7 +1035,7 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 	cbgo = E_CAL_BACKEND_GOOGLE (backend);
 
 	g_return_val_if_fail (E_IS_CAL_BACKEND_GOOGLE(cbgo), GNOME_Evolution_Calendar_InvalidObject);
-	g_return_val_if_fail (calobj != NULL && *calobj!=NULL,GNOME_Evolution_Calendar_InvalidObject);
+	g_return_val_if_fail (calobj != NULL && *calobj!=NULL, GNOME_Evolution_Calendar_InvalidObject);
 	priv = cbgo->priv;
 	if (priv->mode == CAL_MODE_LOCAL) {
 		/*FIXME call offline method */
@@ -1043,9 +1043,8 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 	}
 
 	icalcomp = icalparser_parse_string (*calobj);
-	if (!icalcomp)	{
+	if (!icalcomp)
 		return GNOME_Evolution_Calendar_InvalidObject;
-	}
 
 	if (e_cal_backend_get_kind(E_CAL_BACKEND(backend)) != icalcomponent_isa (icalcomp)) {
 		icalcomponent_free (icalcomp);
@@ -1063,14 +1062,16 @@ e_cal_backend_google_create_object (ECalBackendSync *backend, EDataCal *cal, cha
 			/* Create an appointment */
 			GDataEntry *updated_entry;
 			const gchar *id;
+			GError *error = NULL;
 
 			entry = GDATA_ENTRY (e_gdata_event_from_cal_component (cbgo, comp));
-			updated_entry = gdata_service_insert_entry (GDATA_SERVICE (priv->service), priv->uri, entry, NULL, NULL);
+			updated_entry = gdata_service_insert_entry (GDATA_SERVICE (priv->service), priv->uri, entry, NULL, &error);
 			g_object_unref (entry);
 
 			if (!updated_entry) {
-				g_message ("\n Entry Insertion Failed %s \n", G_STRLOC);
-				break;
+				g_message ("\n Entry Insertion Failed %s: %s \n", G_STRLOC, error->message);
+				g_error_free (error);
+				return GNOME_Evolution_Calendar_InvalidObject;
 			}
 
 			id = gdata_entry_get_id (updated_entry);

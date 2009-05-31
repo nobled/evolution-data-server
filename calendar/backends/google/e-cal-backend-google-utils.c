@@ -60,8 +60,7 @@
 
 /****************************************************** Google Connection Helper Functions ***********************************************/
 
-static gboolean gd_timeval_to_ical (GDataCalendarEvent *event, GTimeVal *timeval, struct icaltimetype *itt, ECalComponentDateTime *dt,
-				    icaltimezone *default_zone);
+static gboolean gd_timeval_to_ical (GTimeVal *timeval, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone);
 static void get_timeval (ECalComponentDateTime dt, GTimeVal *timeval);
 static gint utils_compare_ids (gconstpointer cache_id, gconstpointer modified_cache_id);
 static gchar * utils_form_query (const gchar *query);
@@ -221,14 +220,14 @@ e_cal_backend_google_utils_update (gpointer handle)
 	/* Find the Removed Item */
 	iter_list = NULL;
 	for (iter_list = ids_list; iter_list != NULL; iter_list = iter_list->next) {
-		GSList *remove = g_slist_find_custom (cache_keys, iter_list->data, (GCompareFunc) utils_compare_ids);
+		GSList *remove_list = g_slist_find_custom (cache_keys, iter_list->data, (GCompareFunc) utils_compare_ids);
 
-		if (!remove) {
+		if (!remove_list) {
 			uid_list = g_slist_prepend (uid_list, g_strdup ((gchar *)iter_list->data));
 			needs_to_insert = TRUE;
 		} else {
-			cache_keys = g_slist_remove_link (cache_keys, remove);
-			g_slist_free (remove);
+			cache_keys = g_slist_remove_link (cache_keys, remove_list);
+			g_slist_free (remove_list);
 		}
 	}
 
@@ -400,29 +399,29 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 	/* Description*/
 	description = gdata_entry_get_content (GDATA_ENTRY (event));
 	if (description) {
-		GSList l;
+		GSList li;
 		text.value = description;
 		text.altrep = NULL;
-		l.data = &text;
-		l.next = NULL;
-		e_cal_component_set_description_list (comp, &l);
+		li.data = &text;
+		li.next = NULL;
+		e_cal_component_set_description_list (comp, &li);
 	}
 
 	/* Creation/Last update */
 	gdata_entry_get_published (GDATA_ENTRY (event), &timeval);
-	if (gd_timeval_to_ical (event, &timeval, &itt, &dt, default_zone))
+	if (gd_timeval_to_ical (&timeval, &itt, &dt, default_zone))
 		e_cal_component_set_created (comp, &itt);
 
 	gdata_entry_get_updated (GDATA_ENTRY (event), &timeval);
-	if (gd_timeval_to_ical (event, &timeval, &itt, &dt, default_zone))
+	if (gd_timeval_to_ical (&timeval, &itt, &dt, default_zone))
 		e_cal_component_set_dtstamp (comp, &itt);
 
 	/* Start/End times */
 	/* TODO: deal with multiple time periods */
 	gdata_calendar_event_get_primary_time (event, &timeval, &timeval2, NULL);
-	if (gd_timeval_to_ical (event, &timeval, &itt, &dt_start, default_zone))
+	if (gd_timeval_to_ical (&timeval, &itt, &dt_start, default_zone))
 		e_cal_component_set_dtstart (comp, &dt_start);
-	if (gd_timeval_to_ical (event, &timeval2, &itt, &dt, default_zone))
+	if (gd_timeval_to_ical (&timeval2, &itt, &dt, default_zone))
 		e_cal_component_set_dtend (comp, &dt);
 
 	/* Summary of the event */
@@ -529,6 +528,7 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 		guint recurrence_length = strlen (recurrence);
 
 		do {
+			icalproperty *prop;
 			const gchar *f = NULL;
 
 			if (i == NULL || *i == '\0' || i - recurrence >= recurrence_length)
@@ -550,19 +550,68 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 				goto next_property;
 
 			/* Parse the recurrence properties */
-			if (strncmp (i, "RRULE:", 6) == 0) {
-				struct icalrecurrencetype recur;
+			if (strncmp (i, "DTSTART", 7) == 0) {
+				struct icaltimetype recur;
+				gchar *recur_string;
+
+				/* Parse the dtstart property; this takes priority over that retrieved from gdata_calendar_event_get_primary_time */
+				recur_string = g_strndup (i, f - i);
+				prop = icalproperty_new_from_string (recur_string);
+				g_free (recur_string);
+
+				if (icalproperty_isa (prop) != ICAL_DTSTART_PROPERTY) {
+					icalproperty_free (prop);
+					goto next_property;
+				}
+
+				recur = icalproperty_get_dtstart (prop);
+				icalproperty_free (prop);
+				itt = icaltime_convert_to_zone (recur, default_zone);
+				dt.value = &itt;
+				dt.tzid = NULL;
+				e_cal_component_set_dtstart (comp, &dt);
+			} else if (strncmp (i, "DTEND", 5) == 0) {
+				struct icaltimetype recur;
+				gchar *recur_string;
+
+				/* Parse the dtend property; this takes priority over that retrieved from gdata_calendar_event_get_primary_time */
+				recur_string = g_strndup (i, f - i);
+				prop = icalproperty_new_from_string (recur_string);
+				g_free (recur_string);
+
+				if (icalproperty_isa (prop) != ICAL_DTEND_PROPERTY) {
+					icalproperty_free (prop);
+					goto next_property;
+				}
+
+				recur = icalproperty_get_dtstart (prop);
+				icalproperty_free (prop);
+				itt = icaltime_convert_to_zone (recur, default_zone);
+				dt.value = &itt;
+				dt.tzid = NULL;
+				e_cal_component_set_dtend (comp, &dt);
+			} else if (strncmp (i, "RRULE", 5) == 0) {
+				struct icalrecurrencetype recur, *recur2;
 				gchar *recur_string;
 
 				/* Parse the rrule property */
-				recur_string = g_strndup (i + 6, f - i);
-				recur = icalrecurrencetype_from_string (recur_string);
+				recur_string = g_strndup (i, f - i);
+				prop = icalproperty_new_from_string (recur_string);
 				g_free (recur_string);
 
-				rrule_list = g_slist_prepend (rrule_list, &recur);
-			} else if (strncmp (i, "RDATE:", 6) == 0) {
+				if (icalproperty_isa (prop) != ICAL_RRULE_PROPERTY) {
+					icalproperty_free (prop);
+					goto next_property;
+				}
+
+				recur = icalproperty_get_rrule (prop);
+				icalproperty_free (prop);
+				recur2 = g_memdup (&recur, sizeof (recur));
+				rrule_list = g_slist_prepend (rrule_list, recur2);
+			} else if (strncmp (i, "RDATE", 5) == 0) {
 				struct icaldatetimeperiodtype recur;
-				icalproperty *prop;
+				ECalComponentPeriod *period;
+				icalvalue *value;
 				gchar *recur_string;
 
 				/* Parse the rdate property */
@@ -570,30 +619,68 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 				prop = icalproperty_new_from_string (recur_string);
 				g_free (recur_string);
 
+				if (icalproperty_isa (prop) != ICAL_RDATE_PROPERTY) {
+					icalproperty_free (prop);
+					goto next_property;
+				}
+
 				recur = icalproperty_get_rdate (prop);
+				value = icalproperty_get_value (prop);
+
+				period = g_new0 (ECalComponentPeriod, 1);
+				period->start = recur.period.start;
+				if (icalvalue_isa (value) == ICAL_VALUE_DATE || icalvalue_isa (value) == ICAL_VALUE_DATETIME) {
+					period->type = E_CAL_COMPONENT_PERIOD_DATETIME;
+					period->u.end = recur.period.end;
+				} else if (icalvalue_isa (value) == ICAL_VALUE_DURATION) {
+					period->type = E_CAL_COMPONENT_PERIOD_DURATION;
+					period->u.duration = recur.period.duration;
+				} else {
+					g_assert_not_reached ();
+				}
 				icalproperty_free (prop);
 
-				rdate_list = g_slist_prepend (rdate_list, &recur);
-			} else if (strncmp (i, "EXRULE:", 7) == 0) {
-				struct icalrecurrencetype recur;
+				rdate_list = g_slist_prepend (rdate_list, period);
+			} else if (strncmp (i, "EXRULE", 6) == 0) {
+				struct icalrecurrencetype recur, *recur2;
 				gchar *recur_string;
 
 				/* Parse the exrule property */
-				recur_string = g_strndup (i + 7, f - i);
-				recur = icalrecurrencetype_from_string (recur_string);
+				recur_string = g_strndup (i, f - i);
+				prop = icalproperty_new_from_string (recur_string);
 				g_free (recur_string);
 
-				exrule_list = g_slist_prepend (exrule_list, &recur);
-			} else if (strncmp (i, "EXDATE:", 7) == 0) {
+				if (icalproperty_isa (prop) != ICAL_EXRULE_PROPERTY) {
+					icalproperty_free (prop);
+					goto next_property;
+				}
+
+				recur = icalproperty_get_rrule (prop);
+				icalproperty_free (prop);
+				recur2 = g_memdup (&recur, sizeof (recur));
+				exrule_list = g_slist_prepend (exrule_list, recur2);
+			} else if (strncmp (i, "EXDATE", 6) == 0) {
 				struct icaltimetype recur;
+				ECalComponentDateTime *date_time;
 				gchar *recur_string;
 
 				/* Parse the exdate property */
-				recur_string = g_strndup (i + 7, f - i);
+				recur_string = g_strndup (i, f - i);
+				prop = icalproperty_new_from_string (recur_string);
 				recur = icaltime_from_string (recur_string);
 				g_free (recur_string);
 
-				exdate_list = g_slist_prepend (exdate_list, &recur);
+				if (icalproperty_isa (prop) != ICAL_EXDATE_PROPERTY) {
+					icalproperty_free (prop);
+					goto next_property;
+				}
+
+				recur = icalproperty_get_exdate (prop);
+				icalproperty_free (prop);
+				itt = icaltime_convert_to_zone (recur, default_zone);
+				date_time = g_new0 (ECalComponentDateTime, 1);
+				date_time->value = g_memdup (&itt, sizeof (itt));
+				exdate_list = g_slist_prepend (exdate_list, date_time);
 			}
 
 next_property:
@@ -603,18 +690,23 @@ next_property:
 
 		rrule_list = g_slist_reverse (rrule_list);
 		e_cal_component_set_rrule_list (comp, rrule_list);
+		g_slist_foreach (rrule_list, (GFunc) g_free, NULL);
 		g_slist_free (rrule_list);
 
 		rdate_list = g_slist_reverse (rdate_list);
 		e_cal_component_set_rdate_list (comp, rdate_list);
+		g_slist_foreach (rdate_list, (GFunc) g_free, NULL);
 		g_slist_free (rdate_list);
 
 		exrule_list = g_slist_reverse (exrule_list);
 		e_cal_component_set_exrule_list (comp, exrule_list);
+		g_slist_foreach (exrule_list, (GFunc) g_free, NULL);
 		g_slist_free (exrule_list);
 
 		exdate_list = g_slist_reverse (exdate_list);
 		e_cal_component_set_exdate_list (comp, exdate_list);
+		g_slist_foreach (exdate_list, (GFunc) e_cal_component_free_datetime, NULL);
+		g_slist_foreach (exdate_list, (GFunc) g_free, NULL);
 		g_slist_free (exdate_list);
 	}
 
@@ -668,15 +760,32 @@ e_gdata_event_from_cal_component (ECalBackendGoogle *cbgo, ECalComponent *comp)
 	return event;
 }
 
+static char *
+comp_date_time_as_ical_string (ECalComponentDateTime *dt, icaltimezone *default_zone)
+{
+	icaltimetype itt;
+	icalproperty *prop;
+	char *buf;
+
+	itt = icaltime_convert_to_zone (*(dt->value), default_zone);
+	dt->value = &itt;
+	prop = icalproperty_new_dtend (*(dt->value));
+	buf = icalproperty_get_value_as_string_r (prop);
+	icalproperty_free (prop);
+
+	return buf;
+}
+
 void
 e_gdata_event_update_from_cal_component (ECalBackendGoogle *cbgo, GDataCalendarEvent *event, ECalComponent *comp)
 {
 	ECalBackendGooglePrivate *priv;
 	ECalComponentText text;
 	ECalComponentDateTime dt;
-	gchar *term = NULL;
+	const gchar *term = NULL;
 	icaltimezone *default_zone;
 	icaltimetype itt;
+	icalproperty *prop;
 	GTimeVal timeval, timeval2;
 	const char *location;
 	GSList *list = NULL;
@@ -684,6 +793,8 @@ e_gdata_event_update_from_cal_component (ECalBackendGoogle *cbgo, GDataCalendarE
 	GDataGDWhen *when;
 	ECalComponentText *t;
 	GSList *attendee_list = NULL, *l = NULL;
+	GString *recur_string;
+	char *buf;
 
 	priv = cbgo->priv;
 
@@ -764,9 +875,80 @@ e_gdata_event_update_from_cal_component (ECalBackendGoogle *cbgo, GDataCalendarE
 		gdata_calendar_event_add_person (event, who);
 	}
 
+	/* Recurrence support */
+	recur_string = g_string_new (NULL);
+
+	e_cal_component_get_dtstart (comp, &dt);
+	buf = comp_date_time_as_ical_string (&dt, default_zone);
+	g_string_append_printf (recur_string, "DTSTART:%s\r\n", buf);
+	icalmemory_free_buffer (buf);
+
+	e_cal_component_get_dtend (comp, &dt);
+	buf = comp_date_time_as_ical_string (&dt, default_zone);
+	g_string_append_printf (recur_string, "DTEND:%s\r\n", buf);
+	icalmemory_free_buffer (buf);
+
+	e_cal_component_get_rrule_list (comp, &list);
+	for (l = list; l != NULL; l = l->next) {
+		/* Append each rrule to recur_string */
+		buf = icalrecurrencetype_as_string_r ((struct icalrecurrencetype*) l->data);
+		g_string_append_printf (recur_string, "RRULE:%s\r\n", buf);
+		icalmemory_free_buffer (buf);
+	}
+	e_cal_component_free_recur_list (list);
+
+	e_cal_component_get_rdate_list (comp, &list);
+	for (l = list; l != NULL; l = l->next) {
+		/* Append each rdate to recur_string */
+		struct icaldatetimeperiodtype date_time_period = { { 0, }, };
+		ECalComponentPeriod *period = l->data;
+
+		/* Build a struct icaldatetimeperiodtype… */
+		date_time_period.time = period->start;
+		date_time_period.period.start = period->start;
+		if (period->type == E_CAL_COMPONENT_PERIOD_DATETIME)
+			date_time_period.period.end = period->u.end;
+		else if (period->type == E_CAL_COMPONENT_PERIOD_DURATION)
+			date_time_period.period.duration = period->u.duration;
+		else
+			g_assert_not_reached ();
+
+		/* …allowing us to build an icalproperty and get it in string form */
+		prop = icalproperty_new_rdate (date_time_period);
+
+		buf = icalproperty_get_value_as_string_r (prop);
+		g_string_append_printf (recur_string, "RDATE:%s\r\n", buf);
+		icalmemory_free_buffer (buf);
+		icalproperty_free (prop);
+	}
+	e_cal_component_free_period_list (list);
+
+	e_cal_component_get_exrule_list (comp, &list);
+	for (l = list; l != NULL; l = l->next) {
+		/* Append each exrule to recur_string */
+		buf = icalrecurrencetype_as_string_r ((struct icalrecurrencetype*) l->data);
+		g_string_append_printf (recur_string, "EXRULE:%s\r\n", buf);
+		icalmemory_free_buffer (buf);
+	}
+	e_cal_component_free_recur_list (list);
+
+	e_cal_component_get_exdate_list (comp, &list);
+	for (l = list; l != NULL; l = l->next) {
+		/* Append each exdate to recur_string */
+		ECalComponentDateTime *date_time = l->data;
+
+		/* Build an icalproperty and get the exdate in string form */
+		buf = comp_date_time_as_ical_string (date_time, default_zone);
+		g_string_append_printf (recur_string, "EXDATE:%s\r\n", buf);
+		icalmemory_free_buffer (buf);
+	}
+	e_cal_component_free_exdate_list (list);
+
+	/* Set the recurrence data on the event */
+	gdata_calendar_event_set_recurrence (event, g_string_free (recur_string, FALSE));
+
 	/* FIXME For transparency and status */
 }
-
 
 /***************************************************************** Utility Functions *********************************************/
 
@@ -811,9 +993,6 @@ utils_update_insertion (ECalBackendGoogle *cbgo, ECalBackendCache *cache, GDataF
 			g_object_unref (comp);
 		}
 	}
-
-	if (list)
-		g_slist_free (list);
 }
 
 
@@ -892,7 +1071,7 @@ get_deltas_timeout (gpointer cbgo)
  * @note Do not free itt or dt values, those come from buildin structures held by libical
  **/
 static gboolean
-gd_timeval_to_ical (GDataCalendarEvent *event, GTimeVal *timeval, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone)
+gd_timeval_to_ical (GTimeVal *timeval, struct icaltimetype *itt, ECalComponentDateTime *dt, icaltimezone *default_zone)
 {
 	/* TODO: Event's timezone? */
 	g_return_val_if_fail (itt != NULL, FALSE);
