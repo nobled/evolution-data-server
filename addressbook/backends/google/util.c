@@ -158,6 +158,13 @@ _gdata_entry_update_from_e_contact (GDataEntry *entry,
                         (attr, &have_im_primary);
             if (im)
                 gdata_contacts_contact_add_im_address (GDATA_CONTACTS_CONTACT (entry), im);
+        } else if (e_vcard_attribute_is_single_valued (attr)) {
+            gchar *value;
+
+            /* Add the attribute as an extended property */
+            value = e_vcard_attribute_get_value (attr);
+            gboolean gdata_contacts_contact_set_extended_property (GDATA_CONTACTS_CONTACT (entry), name, value);
+            g_free (value);
         } else {
             GList *values;
 
@@ -173,6 +180,15 @@ _gdata_entry_update_from_e_contact (GDataEntry *entry,
     return TRUE;
 }
 
+static void
+foreach_extended_props_cb (const gchar *name, const gchar *value, EVCard *vcard)
+{
+    EVCardAttribute *attr;
+
+    attr = e_vcard_attribute_new (NULL, name);
+    e_vcard_add_attribute_with_value (vcard, attr, value);
+}
+
 EContact*
 _e_contact_new_from_gdata_entry (GDataEntry *entry)
 {
@@ -186,6 +202,7 @@ _e_contact_new_from_gdata_entry (GDataEntry *entry)
     GDataGDIMAddress *im;
     GDataGDPhoneNumber *phone_number;
     GDataGDPostalAddress *postal_address;
+    GHashTable *extended_props;
 
     uid = gdata_entry_get_id (entry);
     if (NULL == uid) {
@@ -272,6 +289,10 @@ _e_contact_new_from_gdata_entry (GDataEntry *entry)
             e_vcard_add_attribute (vcard, attr);
         }
     }
+
+    /* Extended properties */
+    extended_props = gdata_contacts_contact_get_extended_properties (GDATA_CONTACTS_CONTACT (entry));
+    g_hash_table_foreach (extended_props, (GHFunc) foreach_extended_props_cb, vcard);
 
     return E_CONTACT (vcard);
 }
@@ -393,7 +414,6 @@ add_label_param (EVCardAttribute *attr, const char *label)
     }
 }
 
-/* TODO: Can this be made const? */
 static char*
 _google_rel_from_types (GList *types,
                         const struct RelTypeMap rel_type_map[],
@@ -471,7 +491,6 @@ field_name_from_google_im_protocol (const char* google_protocol)
     return g_strdup_printf ("X-%s", protocol + 1);
 }
 
-/* TODO: Can this be made const? */
 static char*
 google_im_protocol_from_field_name (const char* field_name)
 {
