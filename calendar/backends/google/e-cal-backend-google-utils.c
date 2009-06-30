@@ -468,24 +468,24 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 #if 0
 		_print_attendee ((Attendee *)l->data);
 #endif
-		attendee->value = g_strconcat ("MAILTO:", go_attendee->email, NULL);
-		attendee->cn = g_strdup (go_attendee->value_string);
+		attendee->value = g_strconcat ("MAILTO:", gdata_gd_who_get_email_address (go_attendee), NULL);
+		attendee->cn = g_strdup (gdata_gd_who_get_value_string (go_attendee));
 		/* TODO: This could be made less static once the GData API's in place */
 		attendee->role = ICAL_ROLE_OPTPARTICIPANT;
 		attendee->status = ICAL_PARTSTAT_NEEDSACTION;
 		attendee->cutype =  ICAL_CUTYPE_INDIVIDUAL;
 
 		/* Check for Organizer */
-		if (go_attendee->rel) {
+		if (gdata_gd_who_get_relation_type (go_attendee)) {
 			gchar *val;
-			val = strstr ((const gchar *)go_attendee->rel, (const gchar *)"organizer");
+			val = strstr (gdata_gd_who_get_relation_type (go_attendee), "organizer");
 			if (val != NULL && !strcmp ("organizer", val)) {
 				org = g_new0 (ECalComponentOrganizer, 1);
 
-				if (go_attendee->email)
-					org->value = g_strconcat ("MAILTO:", go_attendee->email, NULL);
-				if (go_attendee->value_string)
-					org->cn = g_strdup (go_attendee->value_string);
+				if (gdata_gd_who_get_email_address (go_attendee))
+					org->value = g_strconcat ("MAILTO:", gdata_gd_who_get_email_address (go_attendee), NULL);
+				if (gdata_gd_who_get_value_string (go_attendee))
+					org->cn = g_strdup (gdata_gd_who_get_value_string (go_attendee));
 			}	
 		}
 		
@@ -505,8 +505,9 @@ e_gdata_event_to_cal_component (GDataCalendarEvent *event, ECalBackendGoogle *cb
 
 		go_location = (GDataGDWhere *)l->data;
 
-		if (go_location->rel == NULL || strcmp (go_location->rel, "http://schemas.google.com/g/2005#event") == 0)
-			location = go_location->value_string;
+		if (gdata_gd_where_get_relation_type (go_location) == NULL ||
+		    strcmp (gdata_gd_where_get_relation_type (go_location), "http://schemas.google.com/g/2005#event") == 0)
+			location = gdata_gd_where_get_value_string (go_location);
 	}
 	e_cal_component_set_location (comp, location);
 
@@ -817,7 +818,7 @@ e_gdata_event_update_from_cal_component (ECalBackendGoogle *cbgo, GDataCalendarE
 	get_timeval (dt, &timeval2);
 
 	/* TODO: deal with pure dates */
-	when = gdata_gd_when_new (&timeval, &timeval2, FALSE, NULL, NULL);
+	when = gdata_gd_when_new (&timeval, &timeval2, FALSE);
 	gdata_calendar_event_add_time (event, when);
 
 	/* Content / Description */

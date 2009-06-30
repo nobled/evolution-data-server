@@ -522,8 +522,8 @@ fetch_attachments (ECalBackendGoogle *cbgo, ECalComponent *comp)
 	e_cal_component_set_attachment_list (comp, new_attach_list);
 }	
 
-ECalBackendSyncStatus 
-static receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *icalcomp)
+static ECalBackendSyncStatus 
+receive_object (ECalBackendGoogle *cbgo, EDataCal *cal, icalcomponent *icalcomp)
 {
 	ECalBackendGooglePrivate *priv;
 	GDataEntry *entry = NULL, *updated_entry = NULL;
