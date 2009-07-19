@@ -1,6 +1,7 @@
 /* e-book-backend-google.c - Google contact backendy.
  *
  * Copyright (C) 2008 Joergen Scheibengruber
+ * Copyright (C) 2009 Philip Withnall
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
@@ -27,6 +28,7 @@
 #include <libedata-book/e-data-book.h>
 #include <libedata-book/e-data-book-view.h>
 #include <libedata-book/e-book-backend-sexp.h>
+#include <gdata/gdata-service.h>
 
 #include "e-book-backend-google.h"
 #include "google-book.h"
@@ -48,7 +50,7 @@ struct _EBookBackendGooglePrivate
 
 gboolean __e_book_backend_google_debug__;
 
-static EBookBackendSyncStatus e_book_backend_status_from_google_book_error (GoogleBookError error_code);
+static EBookBackendSyncStatus e_book_backend_status_from_google_book_error (GError *error);
 
 static EBookBackendSyncStatus
 e_book_backend_google_create_contact (EBookBackendSync 	*backend,
@@ -76,7 +78,7 @@ e_book_backend_google_create_contact (EBookBackendSync 	*backend,
     google_book_add_contact (priv->book, contact, out_contact, &error);
     g_object_unref (contact);
     if (error) {
-	status = e_book_backend_status_from_google_book_error (error->code);
+	status = e_book_backend_status_from_google_book_error (error);
 	__debug__ ("Creating contact failed: %s", error->message);
 	g_clear_error (&error);
 	*out_contact = NULL;
@@ -114,7 +116,7 @@ e_book_backend_google_remove_contacts (EBookBackendSync *backend,
 	google_book_remove_contact (priv->book, uid, &error);
 	if (error) {
 	    /* Only last error will be reported */
-	    status = e_book_backend_status_from_google_book_error (error->code);
+	    status = e_book_backend_status_from_google_book_error (error);
 	    __debug__ ("Deleting contact %s failed: %s", uid, error->message);
 	    g_clear_error (&error);
 	} else {
@@ -154,7 +156,7 @@ e_book_backend_google_modify_contact (EBookBackendSync 	*backend,
     google_book_update_contact (priv->book, contact, out_contact, &error);
     g_object_unref (contact);
     if (error) {
-	status = e_book_backend_status_from_google_book_error (error->code);
+	status = e_book_backend_status_from_google_book_error (error);
 	__debug__ ("Modifying contact failed: %s", error->message);
 	g_clear_error (&error);
 	*out_contact = NULL;
@@ -181,7 +183,7 @@ e_book_backend_google_get_contact (EBookBackendSync 	*backend,
 
     contact = google_book_get_contact (priv->book, uid, &error);
     if (error) {
-	status = e_book_backend_status_from_google_book_error (error->code);
+	status = e_book_backend_status_from_google_book_error (error);
 	__debug__ ("Getting contact with uid %s failed: %s", uid, error->message);
 	g_clear_error (&error);
 	return status;
@@ -212,7 +214,7 @@ e_book_backend_google_get_contact_list (EBookBackendSync *backend,
 
     all_contacts = google_book_get_all_contacts (priv->book, &error);
     if (error) {
-	status = e_book_backend_status_from_google_book_error (error->code);
+	status = e_book_backend_status_from_google_book_error (error);
 	__debug__ ("Getting all contacts failed: %s", error->message);
 	g_clear_error (&error);
 	return status;
@@ -283,9 +285,8 @@ on_google_book_sequence_complete (GoogleBook *book, GError *error, gpointer user
 
     priv = GET_PRIVATE (user_data);
     if (error) {
-	status = e_book_backend_status_from_google_book_error (error->code);
+	status = e_book_backend_status_from_google_book_error (error);
 	__debug__ ("Book-view query failed: %s", error->message);
-	status = e_book_backend_status_from_google_book_error (error->code);
 	g_clear_error (&error);
     }
     for (iter = priv->bookviews; iter; iter = iter->next) {
@@ -378,9 +379,8 @@ e_book_backend_google_authenticate_user (EBookBackendSync *backend,
 
     google_book_connect_to_google (priv->book, password, &error);
     if (error) {
-	status = e_book_backend_status_from_google_book_error (error->code);
+	status = e_book_backend_status_from_google_book_error (error);
 	__debug__ ("Authentication failed: %s", error->message);
-	status = e_book_backend_status_from_google_book_error (error->code);
 	g_clear_error (&error);
     } else {
 	e_book_backend_notify_writable (E_BOOK_BACKEND (backend), TRUE);
@@ -686,8 +686,54 @@ e_book_backend_google_new (void)
 }
 
 static EBookBackendSyncStatus
-e_book_backend_status_from_google_book_error (GoogleBookError error_code)
+e_book_backend_status_from_google_book_error (GError *error)
 {
+    if (!error)
+        return GNOME_Evolution_Addressbook_Success;
+
+    if (error->domain == GDATA_AUTHENTICATION_ERROR) {
+        /* Authentication errors */
+        switch (error->code) {
+        case GDATA_AUTHENTICATION_ERROR_BAD_AUTHENTICATION:
+            return GNOME_Evolution_Addressbook_AuthenticationFailed;
+        case GDATA_AUTHENTICATION_ERROR_NOT_VERIFIED:
+        case GDATA_AUTHENTICATION_ERROR_TERMS_NOT_AGREED:
+        case GDATA_AUTHENTICATION_ERROR_CAPTCHA_REQUIRED:
+        case GDATA_AUTHENTICATION_ERROR_ACCOUNT_DELETED:
+        case GDATA_AUTHENTICATION_ERROR_ACCOUNT_DISABLED:
+            return GNOME_Evolution_Addressbook_PermissionDenied;
+        case GDATA_AUTHENTICATION_ERROR_SERVICE_DISABLED:
+            return GNOME_Evolution_Addressbook_RepositoryOffline;
+        default:
+            return GNOME_Evolution_Addressbook_OtherError;
+        }
+    } else if (error->domain == GDATA_SERVICE_ERROR) {
+        /* General service errors */
+        switch (error->code) {
+        case GDATA_SERVICE_ERROR_UNAVAILABLE:
+            return GNOME_Evolution_Addressbook_RepositoryOffline;
+        case GDATA_SERVICE_ERROR_PROTOCOL_ERROR:
+            return GNOME_Evolution_Addressbook_InvalidQuery;
+        case GDATA_SERVICE_ERROR_ENTRY_ALREADY_INSERTED:
+            return GNOME_Evolution_Addressbook_ContactIdAlreadyExists;
+        case GDATA_SERVICE_ERROR_AUTHENTICATION_REQUIRED:
+            return GNOME_Evolution_Addressbook_AuthenticationRequired;
+        case GDATA_SERVICE_ERROR_NOT_FOUND:
+            return GNOME_Evolution_Addressbook_ContactNotFound;
+        case GDATA_SERVICE_ERROR_CONFLICT:
+            return GNOME_Evolution_Addressbook_ContactIdAlreadyExists;
+        case GDATA_SERVICE_ERROR_FORBIDDEN:
+            return GNOME_Evolution_Addressbook_QueryRefused;
+        case GDATA_SERVICE_ERROR_WITH_QUERY:
+        case GDATA_SERVICE_ERROR_WITH_INSERTION:
+        case GDATA_SERVICE_ERROR_WITH_UPDATE:
+        case GDATA_SERVICE_ERROR_WITH_DELETION:
+            return GNOME_Evolution_Addressbook_InvalidQuery;
+        default:
+            return GNOME_Evolution_Addressbook_OtherError;
+        }
+    }
+
     return GNOME_Evolution_Addressbook_OtherError;
 }
 

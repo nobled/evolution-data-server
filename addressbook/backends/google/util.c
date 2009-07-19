@@ -101,6 +101,12 @@ _gdata_entry_update_from_e_contact (GDataEntry *entry,
         e_contact_name_free (name);
     }
 
+    /* Clear out all the old attributes */
+    gdata_contacts_contact_remove_all_email_addresses (GDATA_CONTACTS_CONTACT (entry));
+    gdata_contacts_contact_remove_all_phone_numbers (GDATA_CONTACTS_CONTACT (entry));
+    gdata_contacts_contact_remove_all_postal_addresses (GDATA_CONTACTS_CONTACT (entry));
+    gdata_contacts_contact_remove_all_im_addresses (GDATA_CONTACTS_CONTACT (entry));
+
     /* We walk them in reverse order, so we can find
      * the correct primaries */
     iter = g_list_last (attributes);
@@ -158,7 +164,7 @@ _gdata_entry_update_from_e_contact (GDataEntry *entry,
                         (attr, &have_im_primary);
             if (im)
                 gdata_contacts_contact_add_im_address (GDATA_CONTACTS_CONTACT (entry), im);
-        } else if (e_vcard_attribute_is_single_valued (attr)) {
+        } else if (e_vcard_attribute_is_single_valued (attr) && g_ascii_strcasecmp (name, "X-MOZILLA-HTML") != 0) {
             gchar *value;
 
             /* Add the attribute as an extended property */
