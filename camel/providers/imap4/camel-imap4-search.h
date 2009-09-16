@@ -20,17 +20,29 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_SEARCH_H__
-#define __CAMEL_IMAP4_SEARCH_H__
+#ifndef CAMEL_IMAP4_SEARCH_H
+#define CAMEL_IMAP4_SEARCH_H
 
-#include <camel/camel-data-cache.h>
-#include <camel/camel-folder-search.h>
-#include <camel/camel-list-utils.h>
+#include <camel/camel.h>
 
-#define CAMEL_IMAP4_SEARCH_TYPE         (camel_imap4_search_get_type ())
-#define CAMEL_IMAP4_SEARCH(obj)         CAMEL_CHECK_CAST (obj, camel_imap4_search_get_type (), CamelIMAP4Search)
-#define CAMEL_IMAP4_SEARCH_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_imap4_search_get_type (), CamelIMAP4SearchClass)
-#define CAMEL_IS_IMAP4_SEARCH(obj)      CAMEL_CHECK_TYPE (obj, camel_imap4_search_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_SEARCH \
+	(camel_imap4_search_get_type ())
+#define CAMEL_IMAP4_SEARCH(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_SEARCH, CamelIMAP4Search))
+#define CAMEL_IMAP4_SEARCH_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_SEARCH, CamelIMAP4SearchClass))
+#define CAMEL_IS_IMAP4_SEARCH(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_SEARCH))
+#define CAMEL_IS_IMAP4_SEARCH_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_SEARCH))
+#define CAMEL_IMAP4_SEARCH_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP4_SEARCH, CamelIMAP4SearchClass))
 
 G_BEGIN_DECLS
 
@@ -40,7 +52,7 @@ typedef struct _CamelIMAP4SearchClass CamelIMAP4SearchClass;
 struct _CamelIMAP4Engine;
 
 struct _CamelIMAP4Search {
-	CamelFolderSearch parent_object;
+	CamelFolderSearch parent;
 
 	struct _CamelIMAP4Engine *engine;
 
@@ -60,10 +72,10 @@ struct _CamelIMAP4SearchClass {
 
 };
 
-CamelType camel_imap4_search_get_type (void);
+GType camel_imap4_search_get_type (void);
 
 CamelFolderSearch *camel_imap4_search_new (struct _CamelIMAP4Engine *engine, const gchar *cachedir);
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_SEARCH_H__ */
+#endif /* CAMEL_IMAP4_SEARCH_H */

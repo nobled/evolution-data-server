@@ -147,15 +147,16 @@ camel_imapx_stream_class_init (CamelStreamClass *camel_imapx_stream_class)
 {
 	CamelStreamClass *camel_stream_class = (CamelStreamClass *)camel_imapx_stream_class;
 
-	parent_class = camel_type_get_global_classfuncs( CAMEL_OBJECT_TYPE );
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method definition */
 	camel_stream_class->read = stream_read;
 	camel_stream_class->write = stream_write;
 	camel_stream_class->close = stream_close;
 	camel_stream_class->flush = stream_flush;
 	camel_stream_class->eos = stream_eos;
 	camel_stream_class->reset = stream_reset;
+
+	setup_table();
 }
 
 static void
@@ -172,7 +173,7 @@ camel_imapx_stream_finalise(CamelIMAPXStream *is)
 {
 	g_free(is->buf);
 	if (is->source)
-		camel_object_unref((CamelObject *)is->source);
+		g_object_unref (is->source);
 }
 
 CamelType

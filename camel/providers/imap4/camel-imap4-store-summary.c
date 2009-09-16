@@ -31,18 +31,15 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <camel/camel-file-utils.h>
-#include <camel/camel-store.h>
-
 #include "camel-imap4-store-summary.h"
 #include "camel-imap4-utils.h"
 
 #define CAMEL_IMAP4_STORE_SUMMARY_VERSION_0 (0)
 #define CAMEL_IMAP4_STORE_SUMMARY_VERSION (0)
 
-static void camel_imap4_store_summary_class_init (CamelIMAP4StoreSummaryClass *klass);
+static void camel_imap4_store_summary_class_init (CamelIMAP4StoreSummaryClass *class);
 static void camel_imap4_store_summary_init (CamelIMAP4StoreSummary *obj);
-static void camel_imap4_store_summary_finalize (CamelObject *obj);
+static void imap4_store_summary_finalize (CamelObject *obj);
 
 static gint summary_header_load (CamelStoreSummary *s, FILE *in);
 static gint summary_header_save (CamelStoreSummary *s, FILE *out);
@@ -51,40 +48,40 @@ static CamelStoreInfo *store_info_load (CamelStoreSummary *s, FILE *in);
 static gint store_info_save (CamelStoreSummary *s, FILE *out, CamelStoreInfo *info);
 static void store_info_free (CamelStoreSummary *s, CamelStoreInfo *info);
 
-static CamelStoreSummaryClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_store_summary_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_store_summary_get_type (),
-					    "CamelIMAP4StoreSummary",
-					    sizeof (CamelIMAP4StoreSummary),
-					    sizeof (CamelIMAP4StoreSummaryClass),
-					    (CamelObjectClassInitFunc) camel_imap4_store_summary_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_store_summary_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_store_summary_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_STORE_SUMMARY,
+			"CamelIMAP4StoreSummary",
+			sizeof (CamelIMAP4StoreSummary),
+			sizeof (CamelIMAP4StoreSummaryClass),
+			(GClassInitFunc) camel_imap4_store_summary_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_store_summary_init,
+			(GObjectFinalizeFunc) imap4_store_summary_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_store_summary_class_init (CamelIMAP4StoreSummaryClass *klass)
+camel_imap4_store_summary_class_init (CamelIMAP4StoreSummaryClass *class)
 {
-	CamelStoreSummaryClass *ssklass = (CamelStoreSummaryClass *) klass;
+	CamelStoreSummaryClass *ssclass = (CamelStoreSummaryClass *) class;
 
-	parent_class = (CamelStoreSummaryClass *) camel_store_summary_get_type ();
+	parent_class = g_type_class_peek_parent (class);
 
-	ssklass->summary_header_load = summary_header_load;
-	ssklass->summary_header_save = summary_header_save;
+	ssclass->summary_header_load = summary_header_load;
+	ssclass->summary_header_save = summary_header_save;
 
-	ssklass->store_info_load = store_info_load;
-	ssklass->store_info_save = store_info_save;
-	ssklass->store_info_free = store_info_free;
+	ssclass->store_info_load = store_info_load;
+	ssclass->store_info_save = store_info_save;
+	ssclass->store_info_free = store_info_free;
 }
 
 static void
@@ -96,7 +93,7 @@ camel_imap4_store_summary_init (CamelIMAP4StoreSummary *s)
 }
 
 static void
-camel_imap4_store_summary_finalize (CamelObject *obj)
+imap4_store_summary_finalize (CamelObject *obj)
 {
 	CamelIMAP4StoreSummary *s = (CamelIMAP4StoreSummary *) obj;
 
@@ -279,7 +276,7 @@ store_info_free (CamelStoreSummary *s, CamelStoreInfo *info)
 CamelIMAP4StoreSummary *
 camel_imap4_store_summary_new (void)
 {
-	return (CamelIMAP4StoreSummary *) camel_object_new (camel_imap4_store_summary_get_type ());
+	return g_object_new (CAMEL_TYPE_IMAP4_STORE_SUMMARY, NULL);
 }
 
 void
@@ -352,7 +349,7 @@ store_info_to_folder_info (CamelStoreSummary *s, CamelStoreInfo *si)
 
 	name = camel_store_info_name (s, si);
 	if (!g_ascii_strcasecmp (fi->full_name, "INBOX")) {
-		fi->flags |= CAMEL_FOLDER_SYSTEM | CAMEL_FOLDER_TYPE_INBOX;
+		fi->flags |= CAMEL_FOLDER_SYSTEM | CAMEL_TYPE_FOLDER_INBOX;
 		fi->name = g_strdup (_("Inbox"));
 	} else {
 		fi->name = g_strdup (name);

@@ -37,7 +37,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #ifndef G_OS_WIN32
@@ -182,7 +181,8 @@ check_header (struct _ESExp *f, gint argc, struct _ESExpResult **argv, FilterMes
 				}
 			}
 
-			for (header = ((CamelMimePart *)message)->headers; header && !matched; header = header->next) {
+			header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message));
+			for (; header && !matched; header = header->next) {
 				if (!g_ascii_strcasecmp(header->name, name)) {
 					for (i=1; i<argc && !matched; i++) {
 						if (argv[i]->type == ESEXP_RES_STRING)
@@ -279,7 +279,7 @@ get_full_header (CamelMimeMessage *message)
 	gchar   *ret;
 	struct _camel_header_raw *h;
 
-	for (h = mp->headers; h; h = h->next) {
+	for (h = camel_mime_part_get_raw_headers (mp); h; h = h->next) {
 		if (h->value != NULL) {
 			g_string_append (str, h->name);
 			if (isspace (h->value[0]))
@@ -589,7 +589,7 @@ run_command (struct _ESExp *f, gint argc, struct _ESExpResult **argv, FilterMess
 	stream = camel_stream_fs_new_with_fd (pipe_to_child);
 	camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (message), stream);
 	camel_stream_flush (stream);
-	camel_object_unref (stream);
+	g_object_unref (stream);
 
 	context = g_main_context_new ();
 	child_watch_data.loop = g_main_loop_new (context, FALSE);
@@ -754,13 +754,13 @@ camel_filter_search_match (CamelSession *session,
 	e_sexp_unref (sexp);
 
 	if (fms.message)
-		camel_object_unref (fms.message);
+		g_object_unref (fms.message);
 
 	return retval;
 
  error:
 	if (fms.message)
-		camel_object_unref (fms.message);
+		g_object_unref (fms.message);
 
 	e_sexp_unref (sexp);
 

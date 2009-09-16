@@ -33,12 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gstdio.h>
-
-#include "camel-folder.h"
-#include "camel-string-utils.h"
-#include "camel-utf8.h"
 
 #include "camel-imap-store.h"
 #include "camel-imap-summary.h"

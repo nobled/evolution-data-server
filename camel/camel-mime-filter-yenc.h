@@ -20,22 +20,39 @@
  *
  */
 
-#ifndef __CAMEL_MIME_FILTER_YENC_H__
-#define __CAMEL_MIME_FILTER_YENC_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_YENC_H
+#define CAMEL_MIME_FILTER_YENC_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_TYPE_MIME_FILTER_YENC            (camel_mime_filter_yenc_get_type ())
-#define CAMEL_MIME_FILTER_YENC(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYenc))
-#define CAMEL_MIME_FILTER_YENC_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYencClass))
-#define CAMEL_IS_MIME_FILTER_YENC(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_MIME_FILTER_YENC))
-#define CAMEL_IS_MIME_FILTER_YENC_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_MIME_FILTER_YENC))
-#define CAMEL_MIME_FILTER_YENC_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYencClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_YENC \
+	(camel_mime_filter_yenc_get_type ())
+#define CAMEL_MIME_FILTER_YENC(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYenc))
+#define CAMEL_MIME_FILTER_YENC_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYencClass))
+#define CAMEL_IS_MIME_FILTER_YENC(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_YENC))
+#define CAMEL_IS_MIME_FILTER_YENC_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_YENC))
+#define CAMEL_MIME_FILTER_YENC_GET_CLASS(obj) \
+	(CAMEL_CHECK_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYencClass))
 
 G_BEGIN_DECLS
 
 typedef struct _CamelMimeFilterYenc CamelMimeFilterYenc;
 typedef struct _CamelMimeFilterYencClass CamelMimeFilterYencClass;
+typedef struct _CamelMimeFilterYencPrivate CamelMimeFilterYencPrivate;
 
 typedef enum {
 	CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE,
@@ -62,40 +79,43 @@ typedef enum {
 #define CAMEL_MIME_YENCODE_CRC_FINAL(crc) (~crc)
 
 struct _CamelMimeFilterYenc {
-	CamelMimeFilter parent_object;
-
-	CamelMimeFilterYencDirection direction;
-
-	gint part;
-
-	gint state;
-	guint32 pcrc;
-	guint32 crc;
+	CamelMimeFilter parent;
+	CamelMimeFilterYencPrivate *priv;
 };
 
 struct _CamelMimeFilterYencClass {
 	CamelMimeFilterClass parent_class;
-
 };
 
-CamelType camel_mime_filter_yenc_get_type (void);
+GType		camel_mime_filter_yenc_get_type	(void);
+CamelMimeFilter *
+		camel_mime_filter_yenc_new	(CamelMimeFilterYencDirection direction);
+void		camel_mime_filter_yenc_set_state(CamelMimeFilterYenc *yenc,
+						 gint state);
+void		camel_mime_filter_yenc_set_crc	(CamelMimeFilterYenc *yenc,
+						 guint32 crc);
+guint32		camel_mime_filter_yenc_get_pcrc	(CamelMimeFilterYenc *yenc);
+guint32		camel_mime_filter_yenc_get_crc	(CamelMimeFilterYenc *yenc);
 
-CamelMimeFilter *camel_mime_filter_yenc_new (CamelMimeFilterYencDirection direction);
-
-void camel_mime_filter_yenc_set_state (CamelMimeFilterYenc *yenc, gint state);
-void camel_mime_filter_yenc_set_crc (CamelMimeFilterYenc *yenc, guint32 crc);
-
-/*int     camel_mime_filter_yenc_get_part (CamelMimeFilterYenc *yenc);*/
-guint32 camel_mime_filter_yenc_get_pcrc (CamelMimeFilterYenc *yenc);
-guint32 camel_mime_filter_yenc_get_crc (CamelMimeFilterYenc *yenc);
-
-gsize camel_ydecode_step  (const guchar *in, gsize inlen, guchar *out,
-			    gint *state, guint32 *pcrc, guint32 *crc);
-gsize camel_yencode_step  (const guchar *in, gsize inlen, guchar *out,
-			    gint *state, guint32 *pcrc, guint32 *crc);
-gsize camel_yencode_close (const guchar *in, gsize inlen, guchar *out,
-			    gint *state, guint32 *pcrc, guint32 *crc);
+gsize		camel_ydecode_step		(const guchar *in,
+						 gsize inlen,
+						 guchar *out,
+						 gint *state,
+						 guint32 *pcrc,
+						 guint32 *crc);
+gsize		camel_yencode_step		(const guchar *in,
+						 gsize inlen,
+						 guchar *out,
+						 gint *state,
+						 guint32 *pcrc,
+						 guint32 *crc);
+gsize		camel_yencode_close		(const guchar *in,
+						 gsize inlen,
+						 guchar *out,
+						 gint *state,
+						 guint32 *pcrc,
+						 guint32 *crc);
 
 G_END_DECLS
 
-#endif /* __CAMEL_MIME_FILTER_YENC_H__ */
+#endif /* CAMEL_MIME_FILTER_YENC_H */

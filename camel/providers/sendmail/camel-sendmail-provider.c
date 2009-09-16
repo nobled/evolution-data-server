@@ -26,12 +26,10 @@
 #include <config.h>
 #endif
 
+#include <camel/camel.h>
 #include <glib/gi18n-lib.h>
 
-#include "camel-provider.h"
 #include "camel-sendmail-transport.h"
-#include "camel-session.h"
-#include "camel-url.h"
 
 static CamelProvider sendmail_provider = {
 	"sendmail",
@@ -52,7 +50,7 @@ static CamelProvider sendmail_provider = {
 void
 camel_provider_module_init(void)
 {
-	sendmail_provider.object_types[CAMEL_PROVIDER_TRANSPORT] = camel_sendmail_transport_get_type();
+	sendmail_provider.object_types[CAMEL_PROVIDER_TRANSPORT] = camel_sendmail_transport_get_type ();
 
 	sendmail_provider.url_hash = camel_url_hash;
 	sendmail_provider.url_equal = camel_url_equal;

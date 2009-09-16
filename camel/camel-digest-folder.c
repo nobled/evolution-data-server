@@ -34,7 +34,9 @@
 
 #define d(x)
 
-#define _PRIVATE(o) (((CamelDigestFolder *)(o))->priv)
+#define CAMEL_DIGEST_FOLDER_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_DIGEST_FOLDER, CamelDigestFolderPrivate))
 
 struct _CamelDigestFolderPrivate {
 	CamelMimeMessage *message;
@@ -45,7 +47,7 @@ struct _CamelDigestFolderPrivate {
 #define CAMEL_DIGEST_FOLDER_LOCK(f, l) (g_mutex_lock(((CamelDigestFolder *)f)->priv->l))
 #define CAMEL_DIGEST_FOLDER_UNLOCK(f, l) (g_mutex_unlock(((CamelDigestFolder *)f)->priv->l))
 
-static CamelFolderClass *parent_class = NULL;
+static gpointer parent_class;
 
 static void digest_refresh_info (CamelFolder *folder, CamelException *ex);
 static void digest_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
@@ -70,81 +72,101 @@ static GPtrArray *digest_search_by_uids (CamelFolder *folder, const gchar *expre
 static void digest_search_free (CamelFolder *folder, GPtrArray *result);
 
 static void
-camel_digest_folder_class_init (CamelDigestFolderClass *camel_digest_folder_class)
+digest_dispose (GObject *object)
 {
-	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS (camel_digest_folder_class);
+	CamelDigestFolderPrivate *priv;
+	CamelFolder *folder;
 
-	parent_class = CAMEL_FOLDER_CLASS (camel_type_get_global_classfuncs (camel_folder_get_type ()));
+	folder = CAMEL_FOLDER (object);
+	priv = CAMEL_DIGEST_FOLDER_GET_PRIVATE (object);
 
-	/* virtual method definition */
+	if (folder->summary != NULL) {
+		g_object_unref (folder->summary);
+		folder->summary = NULL;
+	}
 
-	/* virtual method overload */
-	camel_folder_class->refresh_info = digest_refresh_info;
-	camel_folder_class->sync = digest_sync;
-	camel_folder_class->expunge = digest_expunge;
-	camel_folder_class->get_full_name = digest_get_full_name;
+	if (priv->message != NULL) {
+		g_object_unref (priv->message);
+		priv->message = NULL;
+	}
 
-	camel_folder_class->get_message = digest_get_message;
-	camel_folder_class->append_message = digest_append_message;
-	camel_folder_class->transfer_messages_to = digest_transfer_messages_to;
+	if (priv->search != NULL) {
+		g_object_unref (priv->search);
+		priv->search = NULL;
+	}
 
-	camel_folder_class->search_by_expression = digest_search_by_expression;
-	camel_folder_class->search_by_uids = digest_search_by_uids;
-	camel_folder_class->search_free = digest_search_free;
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_digest_folder_init (gpointer object, gpointer klass)
+digest_finalize (GObject *object)
 {
-	CamelDigestFolder *digest_folder = CAMEL_DIGEST_FOLDER (object);
-	CamelFolder *folder = CAMEL_FOLDER (object);
+	CamelDigestFolderPrivate *priv;
+
+	priv = CAMEL_DIGEST_FOLDER_GET_PRIVATE (object);
+
+	g_mutex_free (priv->search_lock);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+digest_folder_class_init (CamelDigestFolderClass *class)
+{
+	GObjectClass *object_class;
+	CamelFolderClass *folder_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelDigestFolderPrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = digest_dispose;
+	object_class->finalize = digest_finalize;
+
+	folder_class = CAMEL_FOLDER_CLASS (class);
+	folder_class->refresh_info = digest_refresh_info;
+	folder_class->sync = digest_sync;
+	folder_class->expunge = digest_expunge;
+	folder_class->get_full_name = digest_get_full_name;
+	folder_class->get_message = digest_get_message;
+	folder_class->append_message = digest_append_message;
+	folder_class->transfer_messages_to = digest_transfer_messages_to;
+	folder_class->search_by_expression = digest_search_by_expression;
+	folder_class->search_by_uids = digest_search_by_uids;
+	folder_class->search_free = digest_search_free;
+}
+
+static void
+digest_folder_init (CamelDigestFolder *digest_folder)
+{
+	CamelFolder *folder = CAMEL_FOLDER (digest_folder);
 
 	folder->folder_flags |= CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY | CAMEL_FOLDER_HAS_SEARCH_CAPABILITY;
 
 	folder->summary = camel_digest_summary_new ();
 
-	digest_folder->priv = g_new (struct _CamelDigestFolderPrivate, 1);
+	digest_folder->priv = CAMEL_DIGEST_FOLDER_GET_PRIVATE (digest_folder);
 	digest_folder->priv->message = NULL;
 	digest_folder->priv->search = NULL;
 	digest_folder->priv->search_lock = g_mutex_new ();
 }
 
-static void
-digest_finalize (CamelObject *object)
-{
-	CamelDigestFolder *digest_folder = CAMEL_DIGEST_FOLDER (object);
-	CamelFolder *folder = CAMEL_FOLDER (object);
-
-	if (folder->summary) {
-		camel_object_unref (folder->summary);
-		folder->summary = NULL;
-	}
-
-	camel_object_unref (digest_folder->priv->message);
-
-	if (digest_folder->priv->search)
-		camel_object_unref (digest_folder->priv->search);
-
-	g_mutex_free (digest_folder->priv->search_lock);
-
-	g_free (digest_folder->priv);
-}
-
-CamelType
+GType
 camel_digest_folder_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (CAMEL_FOLDER_TYPE,
-					    "CamelDigestFolder",
-					    sizeof (CamelDigestFolder),
-					    sizeof (CamelDigestFolderClass),
-					    (CamelObjectClassInitFunc) camel_digest_folder_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_digest_folder_init,
-					    (CamelObjectFinalizeFunc) digest_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_FOLDER,
+			"CamelDigestFolder",
+			sizeof (CamelDigestFolderClass),
+			(GClassInitFunc) digest_folder_class_init,
+			sizeof (CamelDigestFolder),
+			(GInstanceInitFunc) digest_folder_init,
+			0);
 
 	return type;
 }
@@ -160,7 +182,7 @@ multipart_contains_message_parts (CamelMultipart *multipart)
 	parts = camel_multipart_get_number (multipart);
 	for (i = 0; i < parts && !has_message_parts; i++) {
 		part = camel_multipart_get_part (multipart, i);
-		wrapper = camel_medium_get_content_object (CAMEL_MEDIUM (part));
+		wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
 		if (CAMEL_IS_MULTIPART (wrapper)) {
 			has_message_parts = multipart_contains_message_parts (CAMEL_MULTIPART (wrapper));
 		} else if (CAMEL_IS_MIME_MESSAGE (wrapper)) {
@@ -185,7 +207,7 @@ digest_add_multipart (CamelFolder *folder, CamelMultipart *multipart, const gcha
 		gchar *tmp;
 		part = camel_multipart_get_part (multipart, i);
 
-		wrapper = camel_medium_get_content_object (CAMEL_MEDIUM (part));
+		wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
 
 		if (CAMEL_IS_MULTIPART (wrapper)) {
 			uid = g_strdup_printf ("%s%d.", preuid, i);
@@ -218,7 +240,7 @@ camel_digest_folder_new (CamelStore *parent_store, CamelMimeMessage *message)
 	CamelDataWrapper *wrapper;
 	CamelFolder *folder;
 
-	wrapper = camel_medium_get_content_object (CAMEL_MEDIUM (message));
+	wrapper = camel_medium_get_content (CAMEL_MEDIUM (message));
 	if (!wrapper || !CAMEL_IS_MULTIPART (wrapper))
 		return NULL;
 
@@ -228,12 +250,12 @@ camel_digest_folder_new (CamelStore *parent_store, CamelMimeMessage *message)
 			return NULL;
 	}
 
-	folder = CAMEL_FOLDER (camel_object_new (camel_digest_folder_get_type ()));
+	folder = g_object_new (CAMEL_TYPE_DIGEST_FOLDER, NULL);
 	digest_folder = CAMEL_DIGEST_FOLDER (folder);
 
 	camel_folder_construct (folder, parent_store, "folder_name", "short_name");
 
-	camel_object_ref (message);
+	g_object_ref (message);
 	digest_folder->priv->message = message;
 
 	construct_summary (folder, CAMEL_MULTIPART (wrapper));
@@ -296,7 +318,7 @@ digest_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	gint id;
 
 	part = CAMEL_MIME_PART (digest->priv->message);
-	wrapper = camel_medium_get_content_object (CAMEL_MEDIUM (part));
+	wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
 
 	do {
 		id = strtoul (uid, &subuid, 10);
@@ -304,7 +326,7 @@ digest_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 			return NULL;
 
 		part = camel_multipart_get_part (CAMEL_MULTIPART (wrapper), id);
-		wrapper = camel_medium_get_content_object (CAMEL_MEDIUM (part));
+		wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
 		uid = subuid + 1;
 	} while (*subuid == '.');
 
@@ -312,7 +334,7 @@ digest_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 		return NULL;
 
 	message = CAMEL_MIME_MESSAGE (wrapper);
-	camel_object_ref (message);
+	g_object_ref (message);
 
 	return message;
 }

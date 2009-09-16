@@ -27,7 +27,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-mime-filter-crlf.h"
@@ -38,80 +37,102 @@
 #include "camel-stream-fs.h"
 #include "camel-stream-mem.h"
 
-static void camel_multipart_encrypted_class_init (CamelMultipartEncryptedClass *klass);
-static void camel_multipart_encrypted_init (gpointer object, gpointer klass);
-static void camel_multipart_encrypted_finalize (CamelObject *object);
+static gpointer parent_class;
 
-static void set_mime_type_field (CamelDataWrapper *data_wrapper, CamelContentType *mime_type);
-
-static CamelMultipartClass *parent_class = NULL;
-
-CamelType
-camel_multipart_encrypted_get_type (void)
+static void
+multipart_encrypted_dispose (GObject *object)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	CamelMultipartEncrypted *multipart;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_multipart_get_type (),
-					    "CamelMultipartEncrypted",
-					    sizeof (CamelMultipartEncrypted),
-					    sizeof (CamelMultipartEncryptedClass),
-					    (CamelObjectClassInitFunc) camel_multipart_encrypted_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_multipart_encrypted_init,
-					    (CamelObjectFinalizeFunc) camel_multipart_encrypted_finalize);
+	multipart = CAMEL_MULTIPART_ENCRYPTED (object);
+
+	if (multipart->decrypted) {
+		g_object_unref (multipart->decrypted);
+		multipart->decrypted = NULL;
 	}
 
-	return type;
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_multipart_encrypted_class_init (CamelMultipartEncryptedClass *klass)
+multipart_encrypted_finalize (GObject *object)
 {
-	CamelDataWrapperClass *camel_data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (klass);
+	CamelMultipartEncrypted *multipart;
 
-	parent_class = (CamelMultipartClass *) camel_multipart_get_type ();
+	multipart = CAMEL_MULTIPART_ENCRYPTED (object);
 
-	/* virtual method overload */
-	camel_data_wrapper_class->set_mime_type_field = set_mime_type_field;
-}
+	g_free (multipart->protocol);
 
-static void
-camel_multipart_encrypted_init (gpointer object, gpointer klass)
-{
-	CamelMultipartEncrypted *multipart = (CamelMultipartEncrypted *) object;
-
-	camel_data_wrapper_set_mime_type (CAMEL_DATA_WRAPPER (multipart), "multipart/encrypted");
-
-	multipart->decrypted = NULL;
-}
-
-static void
-camel_multipart_encrypted_finalize (CamelObject *object)
-{
-	CamelMultipartEncrypted *mpe = (CamelMultipartEncrypted *) object;
-
-	g_free (mpe->protocol);
-
-	if (mpe->decrypted)
-		camel_object_unref (mpe->decrypted);
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 /* we snoop the mime type to get the protocol */
 static void
-set_mime_type_field (CamelDataWrapper *data_wrapper, CamelContentType *mime_type)
+multipart_encrypted_set_mime_type_field (CamelDataWrapper *data_wrapper,
+                                         CamelContentType *mime_type)
 {
-	CamelMultipartEncrypted *mpe = (CamelMultipartEncrypted *) data_wrapper;
+	CamelMultipartEncrypted *multipart;
+	CamelDataWrapperClass *data_wrapper_class;
 
-	if (mime_type) {
+	multipart = CAMEL_MULTIPART_ENCRYPTED (data_wrapper);
+
+	if (mime_type != NULL) {
 		const gchar *protocol;
 
 		protocol = camel_content_type_param (mime_type, "protocol");
-		g_free (mpe->protocol);
-		mpe->protocol = g_strdup (protocol);
+		g_free (multipart->protocol);
+		multipart->protocol = g_strdup (protocol);
 	}
 
-	((CamelDataWrapperClass *) parent_class)->set_mime_type_field (data_wrapper, mime_type);
+	/* Chain up to parent's set_mime_type_field() method. */
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (parent_class);
+	data_wrapper_class->set_mime_type_field (data_wrapper, mime_type);
+}
+
+static void
+multipart_encrypted_class_init (CamelMultipartEncryptedClass *class)
+{
+	GObjectClass *object_class;
+	CamelDataWrapperClass *data_wrapper_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = multipart_encrypted_dispose;
+	object_class->finalize = multipart_encrypted_finalize;
+
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (class);
+	data_wrapper_class->set_mime_type_field =
+		multipart_encrypted_set_mime_type_field;
+}
+
+static void
+multipart_encrypted_init (CamelMultipartEncrypted *multipart)
+{
+	camel_data_wrapper_set_mime_type (
+		CAMEL_DATA_WRAPPER (multipart), "multipart/encrypted");
+
+	multipart->decrypted = NULL;
+}
+
+GType
+camel_multipart_encrypted_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MULTIPART,
+			"CamelMultipartEncrypted",
+			sizeof (CamelMultipartEncryptedClass),
+			(GClassInitFunc) multipart_encrypted_class_init,
+			sizeof (CamelMultipartEncrypted),
+			(GInstanceInitFunc) multipart_encrypted_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -127,9 +148,5 @@ set_mime_type_field (CamelDataWrapper *data_wrapper, CamelContentType *mime_type
 CamelMultipartEncrypted *
 camel_multipart_encrypted_new (void)
 {
-	CamelMultipartEncrypted *multipart;
-
-	multipart = (CamelMultipartEncrypted *) camel_object_new (CAMEL_MULTIPART_ENCRYPTED_TYPE);
-
-	return multipart;
+	return g_object_new (CAMEL_TYPE_MULTIPART_ENCRYPTED, NULL);
 }

@@ -22,14 +22,6 @@ CamelStore
 
 </para>
 
-@parent_object: 
-@priv: 
-@folders: 
-@cdb_r: 
-@cdb_w: 
-@flags: 
-@mode: 
-@later: 
 
 <!-- ##### STRUCT CamelFolderInfo ##### -->
 <para>
@@ -535,45 +527,5 @@ CamelStore
 @info: 
 @ex: 
 @Returns: 
-
-
-<!-- ##### STRUCT CamelISubscribe ##### -->
-<para>
-
-</para>
-
-@iface: 
-@subscribed: 
-@subscribe: 
-@unsubscribe: 
-
-<!-- ##### FUNCTION camel_isubscribe_subscribed ##### -->
-<para>
-
-</para>
-
-@store: 
-@name: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_isubscribe_subscribe ##### -->
-<para>
-
-</para>
-
-@store: 
-@folder_name: 
-@ex: 
-
-
-<!-- ##### FUNCTION camel_isubscribe_unsubscribe ##### -->
-<para>
-
-</para>
-
-@store: 
-@folder_name: 
-@ex: 
 
 

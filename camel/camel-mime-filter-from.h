@@ -19,33 +19,53 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_MIME_FILTER_FROM_H
-#define _CAMEL_MIME_FILTER_FROM_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_FROM_H
+#define CAMEL_MIME_FILTER_FROM_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_MIME_FILTER_FROM(obj)         CAMEL_CHECK_CAST (obj, camel_mime_filter_from_get_type (), CamelMimeFilterFrom)
-#define CAMEL_MIME_FILTER_FROM_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mime_filter_from_get_type (), CamelMimeFilterFromClass)
-#define CAMEL_IS_MIME_FILTER_FROM(obj)      CAMEL_CHECK_TYPE (obj, camel_mime_filter_from_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_FROM \
+	(camel_mime_filter_from_get_type ())
+#define CAMEL_MIME_FILTER_FROM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_FROM, CamelMimeFilterFrom))
+#define CAMEL_MIME_FILTER_FROM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_FROM, CamelMimeFilterFromClass))
+#define CAMEL_IS_MIME_FILTER_FROM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_FROM))
+#define CAMEL_IS_MIME_FILTER_FROM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_FROM))
+#define CAMEL_MIME_FILTER_FROM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_FROM, CamelMimeFilterFromClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelMimeFilterFrom      CamelMimeFilterFrom;
+typedef struct _CamelMimeFilterFrom CamelMimeFilterFrom;
 typedef struct _CamelMimeFilterFromClass CamelMimeFilterFromClass;
+typedef struct _CamelMimeFilterFromPrivate CamelMimeFilterFromPrivate;
 
 struct _CamelMimeFilterFrom {
 	CamelMimeFilter parent;
-
-	gint midline;		/* are we between lines? */
+	CamelMimeFilterFromPrivate *priv;
 };
 
 struct _CamelMimeFilterFromClass {
 	CamelMimeFilterClass parent_class;
 };
 
-CamelType		camel_mime_filter_from_get_type	(void);
-CamelMimeFilterFrom      *camel_mime_filter_from_new	(void);
+GType		camel_mime_filter_from_get_type	(void);
+CamelMimeFilter *
+		camel_mime_filter_from_new	(void);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_MIME_FILTER_FROM_H */
+#endif /* CAMEL_MIME_FILTER_FROM_H */

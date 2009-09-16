@@ -20,40 +20,57 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
-#ifndef __CAMEL_DIGEST_SUMMARY_H__
-#define __CAMEL_DIGEST_SUMMARY_H__
+#ifndef CAMEL_DIGEST_SUMMARY_H
+#define CAMEL_DIGEST_SUMMARY_H
 
 #include <camel/camel-folder-summary.h>
 #include <camel/camel-folder.h>
 #include <camel/camel-exception.h>
 
-#define CAMEL_DIGEST_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_digest_summary_get_type (), CamelDigestSummary)
-#define CAMEL_DIGEST_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_digest_summary_get_type (), CamelDigestSummaryClass)
-#define CAMEL_IS_DIGEST_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_digest_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_DIGEST_SUMMARY \
+	(camel_digest_summary_get_type ())
+#define CAMEL_DIGEST_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DIGEST_SUMMARY, CamelDigestSummary))
+#define CAMEL_DIGEST_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DIGEST_SUMMARY, CamelDigestSummaryClass))
+#define CAMEL_IS_DIGEST_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DIGEST_SUMMARY))
+#define CAMEL_IS_DIGEST_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DIGEST_SUMMARY))
+#define CAMEL_DIGEST_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DIGEST_SUMMARY, CamelDigestSummaryClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelDigestSummary      CamelDigestSummary;
+typedef struct _CamelDigestSummary CamelDigestSummary;
 typedef struct _CamelDigestSummaryClass CamelDigestSummaryClass;
 
 struct _CamelDigestSummary {
-	CamelFolderSummary parent_object;
-
+	CamelFolderSummary parent;
 };
 
 struct _CamelDigestSummaryClass {
 	CamelFolderSummaryClass parent_class;
-
 };
 
-CamelType camel_digest_summary_get_type (void);
+GType camel_digest_summary_get_type (void);
 
 CamelFolderSummary *camel_digest_summary_new (void);
 
 G_END_DECLS
 
-#endif /* __CAMEL_DIGEST_SUMMARY_H__ */
+#endif /* CAMEL_DIGEST_SUMMARY_H */
 
 #endif /* CAMEL_DISABLE_DEPRECATED */

@@ -22,7 +22,6 @@ CamelTcpStream
 
 </para>
 
-@parent_object: 
 
 <!-- ##### ENUM CamelSockOpt ##### -->
 <para>

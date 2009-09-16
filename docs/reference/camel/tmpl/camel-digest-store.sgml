@@ -22,7 +22,6 @@ CamelDigestStore
 
 </para>
 
-@parent: 
 
 <!-- ##### FUNCTION camel_digest_store_new ##### -->
 <para>

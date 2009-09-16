@@ -68,7 +68,7 @@ main (gint argc, gchar **argv)
 		}
 		g_free (outfile);
 
-		if (!(filter = camel_stream_filter_new_with_stream (CAMEL_STREAM (source)))) {
+		if (!(filter = camel_stream_filter_new (CAMEL_STREAM (source)))) {
 			camel_test_fail ("Couldn't create CamelStreamFilter??");
 			continue;
 		}
@@ -77,7 +77,7 @@ main (gint argc, gchar **argv)
 		ext = strchr (charset, '.');
 		*((gchar *) ext) = '\0';
 
-		if (!(f = (CamelMimeFilter *) camel_mime_filter_charset_new_convert (charset, "UTF-8"))) {
+		if (!(f = camel_mime_filter_charset_new (charset, "UTF-8"))) {
 			camel_test_fail ("Couldn't create CamelMimeFilterCharset??");
 			g_free (charset);
 			continue;
@@ -85,7 +85,7 @@ main (gint argc, gchar **argv)
 		g_free (charset);
 
 		camel_stream_filter_add (filter, f);
-		camel_object_unref (f);
+		g_object_unref (f);
 
 		camel_test_push ("Running filter and comparing to correct result");
 
@@ -131,9 +131,9 @@ main (gint argc, gchar **argv)
 
 		/* inefficient */
 		camel_test_push ("Cleaning up");
-		camel_object_unref (CAMEL_OBJECT (filter));
-		camel_object_unref (CAMEL_OBJECT (correct));
-		camel_object_unref (CAMEL_OBJECT (source));
+		g_object_unref (CAMEL_OBJECT (filter));
+		g_object_unref (CAMEL_OBJECT (correct));
+		g_object_unref (CAMEL_OBJECT (source));
 		camel_test_pull ();
 
 		camel_test_end ();

@@ -33,7 +33,6 @@
 #include <alloca.h>
 #endif
 
-#include <glib.h>
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
@@ -56,69 +55,137 @@ extern gint camel_verbose_debug;
    once an hour should be enough */
 #define CAMEL_DATA_CACHE_CYCLE_TIME (60*60)
 
+#define CAMEL_DATA_CACHE_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_DATA_CACHE, CamelDataCachePrivate))
+
 struct _CamelDataCachePrivate {
 	CamelObjectBag *busy_bag;
+
+	gchar *path;
+
+	time_t expire_age;
+	time_t expire_access;
 
 	time_t expire_last[1<<CAMEL_DATA_CACHE_BITS];
 };
 
-static CamelObject *camel_data_cache_parent;
+enum {
+	PROP_0,
+	PROP_PATH
+};
 
-static void data_cache_class_init(CamelDataCacheClass *klass)
+static gpointer parent_class;
+
+static void
+data_cache_set_property (GObject *object,
+                         guint property_id,
+                         const GValue *value,
+                         GParamSpec *pspec)
 {
-	camel_data_cache_parent = (CamelObject *)camel_object_get_type ();
-
-#if 0
-	klass->add = data_cache_add;
-	klass->get = data_cache_get;
-	klass->close = data_cache_close;
-	klass->remove = data_cache_remove;
-	klass->clear = data_cache_clear;
-#endif
-}
-
-static void data_cache_init(CamelDataCache *cdc, CamelDataCacheClass *klass)
-{
-	struct _CamelDataCachePrivate *p;
-
-	p = cdc->priv = g_malloc0(sizeof(*cdc->priv));
-	p->busy_bag = camel_object_bag_new(g_str_hash, g_str_equal, (CamelCopyFunc)g_strdup, g_free);
-}
-
-static void data_cache_finalise(CamelDataCache *cdc)
-{
-	struct _CamelDataCachePrivate *p;
-
-	p = cdc->priv;
-	camel_object_bag_destroy(p->busy_bag);
-	g_free(p);
-
-	g_free (cdc->path);
-}
-
-CamelType
-camel_data_cache_get_type(void)
-{
-	static CamelType camel_data_cache_type = CAMEL_INVALID_TYPE;
-
-	if (camel_data_cache_type == CAMEL_INVALID_TYPE) {
-		camel_data_cache_type = camel_type_register(
-			CAMEL_OBJECT_TYPE, "CamelDataCache",
-			sizeof (CamelDataCache),
-			sizeof (CamelDataCacheClass),
-			(CamelObjectClassInitFunc) data_cache_class_init,
-			NULL,
-			(CamelObjectInitFunc) data_cache_init,
-			(CamelObjectFinalizeFunc) data_cache_finalise);
+	switch (property_id) {
+		case PROP_PATH:
+			camel_data_cache_set_path (
+				CAMEL_DATA_CACHE (object),
+				g_value_get_string (value));
+			return;
 	}
 
-	return camel_data_cache_type;
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+}
+
+static void
+data_cache_get_property (GObject *object,
+                         guint property_id,
+                         GValue *value,
+                         GParamSpec *pspec)
+{
+	switch (property_id) {
+		case PROP_PATH:
+			g_value_set_string (
+				value, camel_data_cache_get_path (
+				CAMEL_DATA_CACHE (object)));
+			return;
+	}
+
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+}
+
+static void
+data_cache_finalize (GObject *object)
+{
+	CamelDataCachePrivate *priv;
+
+	priv = CAMEL_DATA_CACHE_GET_PRIVATE (object);
+
+	camel_object_bag_destroy (priv->busy_bag);
+	g_free (priv->path);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+data_cache_class_init (CamelDataCacheClass *class)
+{
+	GObjectClass *object_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelDataCachePrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->set_property = data_cache_set_property;
+	object_class->get_property = data_cache_get_property;
+	object_class->finalize = data_cache_finalize;
+
+	g_object_class_install_property (
+		object_class,
+		PROP_PATH,
+		g_param_spec_string (
+			"path",
+			"Path",
+			NULL,
+			NULL,
+			G_PARAM_READWRITE |
+			G_PARAM_CONSTRUCT));
+}
+
+static void
+data_cache_init (CamelDataCache *data_cache)
+{
+	CamelObjectBag *busy_bag;
+
+	busy_bag = camel_object_bag_new (
+		g_str_hash, g_str_equal,
+		(CamelCopyFunc) g_strdup,
+		(GFreeFunc) g_free);
+
+	data_cache->priv = CAMEL_DATA_CACHE_GET_PRIVATE (data_cache);
+	data_cache->priv->busy_bag = busy_bag;
+	data_cache->priv->expire_age = -1;
+	data_cache->priv->expire_access = -1;
+}
+
+GType
+camel_data_cache_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT, "CamelDataCache",
+			sizeof (CamelDataCacheClass),
+			(GClassInitFunc) data_cache_class_init,
+			sizeof (CamelDataCache),
+			(GInstanceInitFunc) data_cache_init,
+			0);
+
+	return type;
 }
 
 /**
  * camel_data_cache_new:
  * @path: Base path of cache, subdirectories will be created here.
- * @flags: Open flags, none defined.
  * @ex:
  *
  * Create a new data cache.
@@ -127,9 +194,10 @@ camel_data_cache_get_type(void)
  * be written to.
  **/
 CamelDataCache *
-camel_data_cache_new(const gchar *path, guint32 flags, CamelException *ex)
+camel_data_cache_new (const gchar *path,
+                      CamelException *ex)
 {
-	CamelDataCache *cdc;
+	g_return_val_if_fail (path != NULL, NULL);
 
 	if (g_mkdir_with_parents (path, 0700) == -1) {
 		camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM,
@@ -137,14 +205,28 @@ camel_data_cache_new(const gchar *path, guint32 flags, CamelException *ex)
 		return NULL;
 	}
 
-	cdc = (CamelDataCache *)camel_object_new(CAMEL_DATA_CACHE_TYPE);
+	return g_object_new (CAMEL_TYPE_DATA_CACHE, "path", path, NULL);
+}
 
-	cdc->path = g_strdup(path);
-	cdc->flags = flags;
-	cdc->expire_age = -1;
-	cdc->expire_access = -1;
+const gchar *
+camel_data_cache_get_path (CamelDataCache *cdc)
+{
+	g_return_val_if_fail (CAMEL_IS_DATA_CACHE (cdc), NULL);
 
-	return cdc;
+	return cdc->priv->path;
+}
+
+void
+camel_data_cache_set_path (CamelDataCache *cdc,
+                           const gchar *path)
+{
+	g_return_if_fail (CAMEL_IS_DATA_CACHE (cdc));
+	g_return_if_fail (path != NULL);
+
+	g_free (cdc->priv->path);
+	cdc->priv->path = g_strdup (path);
+
+	g_object_notify (G_OBJECT (cdc), "path");
 }
 
 /**
@@ -165,7 +247,7 @@ camel_data_cache_new(const gchar *path, guint32 flags, CamelException *ex)
 void
 camel_data_cache_set_expire_age(CamelDataCache *cdc, time_t when)
 {
-	cdc->expire_age = when;
+	cdc->priv->expire_age = when;
 }
 
 /**
@@ -186,7 +268,7 @@ camel_data_cache_set_expire_age(CamelDataCache *cdc, time_t when)
 void
 camel_data_cache_set_expire_access(CamelDataCache *cdc, time_t when)
 {
-	cdc->expire_access = when;
+	cdc->priv->expire_access = when;
 }
 
 static void
@@ -211,14 +293,14 @@ data_cache_expire(CamelDataCache *cdc, const gchar *path, const gchar *keep, tim
 		dd(printf("Checking '%s' for expiry\n", s->str));
 		if (g_stat(s->str, &st) == 0
 		    && S_ISREG(st.st_mode)
-		    && ((cdc->expire_age != -1 && st.st_mtime + cdc->expire_age < now)
-			|| (cdc->expire_access != -1 && st.st_atime + cdc->expire_access < now))) {
+		    && ((cdc->priv->expire_age != -1 && st.st_mtime + cdc->priv->expire_age < now)
+			|| (cdc->priv->expire_access != -1 && st.st_atime + cdc->priv->expire_access < now))) {
 			dd(printf("Has expired!  Removing!\n"));
 			g_unlink(s->str);
 			stream = camel_object_bag_get(cdc->priv->busy_bag, s->str);
 			if (stream) {
 				camel_object_bag_remove(cdc->priv->busy_bag, stream);
-				camel_object_unref(stream);
+				g_object_unref (stream);
 			}
 		}
 	}
@@ -238,8 +320,8 @@ data_cache_path(CamelDataCache *cdc, gint create, const gchar *path, const gchar
 
 	hash = g_str_hash(key);
 	hash = (hash>>5)&CAMEL_DATA_CACHE_MASK;
-	dir = alloca(strlen(cdc->path) + strlen(path) + 8);
-	sprintf(dir, "%s/%s/%02x", cdc->path, path, hash);
+	dir = alloca(strlen(cdc->priv->path) + strlen(path) + 8);
+	sprintf(dir, "%s/%s/%02x", cdc->priv->path, path, hash);
 
 #ifdef G_OS_WIN32
 	if (g_access(dir, F_OK) == -1) {
@@ -248,7 +330,7 @@ data_cache_path(CamelDataCache *cdc, gint create, const gchar *path, const gchar
 #endif
 		if (create)
 			g_mkdir_with_parents (dir, 0700);
-	} else if (cdc->expire_age != -1 || cdc->expire_access != -1) {
+	} else if (cdc->priv->expire_age != -1 || cdc->priv->expire_access != -1) {
 		time_t now;
 
 		dd(printf("Checking expire cycle time on dir '%s'\n", dir));
@@ -301,7 +383,7 @@ camel_data_cache_add(CamelDataCache *cdc, const gchar *path, const gchar *key, C
 		if (stream) {
 			g_unlink(real);
 			camel_object_bag_remove(cdc->priv->busy_bag, stream);
-			camel_object_unref(stream);
+			g_object_unref (stream);
 		}
 	} while (stream != NULL);
 
@@ -393,7 +475,7 @@ camel_data_cache_remove(CamelDataCache *cdc, const gchar *path, const gchar *key
 	stream = camel_object_bag_get(cdc->priv->busy_bag, real);
 	if (stream) {
 		camel_object_bag_remove(cdc->priv->busy_bag, stream);
-		camel_object_unref(stream);
+		g_object_unref (stream);
 	}
 
 	/* maybe we were a mem stream */

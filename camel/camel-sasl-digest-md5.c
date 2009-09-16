@@ -29,7 +29,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-charset-map.h"
@@ -41,6 +40,10 @@
 #define d(x)
 
 #define PARANOID(x) x
+
+#define CAMEL_SASL_DIGEST_MD5_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_SASL_DIGEST_MD5, CamelSaslDigestMd5Private))
 
 /* Implements rfc2831 */
 
@@ -54,12 +57,7 @@ CamelServiceAuthType camel_sasl_digest_md5_authtype = {
 	TRUE
 };
 
-static CamelSaslClass *parent_class = NULL;
-
-/* Returns the class for a CamelSaslDigestMd5 */
-#define CSCM_CLASS(so) CAMEL_SASL_DIGEST_MD5_CLASS (CAMEL_OBJECT_GET_CLASS (so))
-
-static GByteArray *digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex);
+static gpointer parent_class;
 
 enum {
 	STATE_AUTH,
@@ -167,91 +165,6 @@ struct _CamelSaslDigestMd5Private {
 	struct _DigestResponse *response;
 	gint state;
 };
-
-static void
-camel_sasl_digest_md5_class_init (CamelSaslDigestMd5Class *camel_sasl_digest_md5_class)
-{
-	CamelSaslClass *camel_sasl_class = CAMEL_SASL_CLASS (camel_sasl_digest_md5_class);
-
-	parent_class = CAMEL_SASL_CLASS (camel_type_get_global_classfuncs (camel_sasl_get_type ()));
-
-	/* virtual method overload */
-	camel_sasl_class->challenge = digest_md5_challenge;
-}
-
-static void
-camel_sasl_digest_md5_init (gpointer object, gpointer klass)
-{
-	CamelSaslDigestMd5 *sasl_digest = CAMEL_SASL_DIGEST_MD5 (object);
-
-	sasl_digest->priv = g_new0 (struct _CamelSaslDigestMd5Private, 1);
-}
-
-static void
-camel_sasl_digest_md5_finalize (CamelObject *object)
-{
-	CamelSaslDigestMd5 *sasl = CAMEL_SASL_DIGEST_MD5 (object);
-	struct _DigestChallenge *c = sasl->priv->challenge;
-	struct _DigestResponse *r = sasl->priv->response;
-	GList *p;
-	gint i;
-
-	if (c != NULL) {
-		for (i = 0; i < c->realms->len; i++)
-			g_free (c->realms->pdata[i]);
-		g_ptr_array_free (c->realms, TRUE);
-
-		g_free (c->nonce);
-		g_free (c->charset);
-		g_free (c->algorithm);
-		for (p = c->params; p; p = p->next) {
-			struct _param *param = p->data;
-
-			g_free (param->name);
-			g_free (param->value);
-			g_free (param);
-		}
-		g_list_free (c->params);
-		g_free (c);
-	}
-
-	if (r != NULL) {
-		g_free (r->username);
-		g_free (r->realm);
-		g_free (r->nonce);
-		g_free (r->cnonce);
-		if (r->uri) {
-			g_free (r->uri->type);
-			g_free (r->uri->host);
-		g_free (r->uri->name);
-		}
-		g_free (r->charset);
-		g_free (r->authzid);
-		g_free (r->param);
-		g_free (r);
-	}
-
-	g_free (sasl->priv);
-}
-
-CamelType
-camel_sasl_digest_md5_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_sasl_get_type (),
-					    "CamelSaslDigestMd5",
-					    sizeof (CamelSaslDigestMd5),
-					    sizeof (CamelSaslDigestMd5Class),
-					    (CamelObjectClassInitFunc) camel_sasl_digest_md5_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_sasl_digest_md5_init,
-					    (CamelObjectFinalizeFunc) camel_sasl_digest_md5_finalize);
-	}
-
-	return type;
-}
 
 static void
 decode_lwsp (const gchar **in)
@@ -818,11 +731,62 @@ digest_response (struct _DigestResponse *resp)
 	return buffer;
 }
 
+static void
+sasl_digest_md5_finalize (GObject *object)
+{
+	CamelSaslDigestMd5 *sasl = CAMEL_SASL_DIGEST_MD5 (object);
+	struct _DigestChallenge *c = sasl->priv->challenge;
+	struct _DigestResponse *r = sasl->priv->response;
+	GList *p;
+	gint i;
+
+	if (c != NULL) {
+		for (i = 0; i < c->realms->len; i++)
+			g_free (c->realms->pdata[i]);
+		g_ptr_array_free (c->realms, TRUE);
+
+		g_free (c->nonce);
+		g_free (c->charset);
+		g_free (c->algorithm);
+		for (p = c->params; p; p = p->next) {
+			struct _param *param = p->data;
+
+			g_free (param->name);
+			g_free (param->value);
+			g_free (param);
+		}
+		g_list_free (c->params);
+		g_free (c);
+	}
+
+	if (r != NULL) {
+		g_free (r->username);
+		g_free (r->realm);
+		g_free (r->nonce);
+		g_free (r->cnonce);
+		if (r->uri) {
+			g_free (r->uri->type);
+			g_free (r->uri->host);
+		g_free (r->uri->name);
+		}
+		g_free (r->charset);
+		g_free (r->authzid);
+		g_free (r->param);
+		g_free (r);
+	}
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
 static GByteArray *
-digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
+sasl_digest_md5_challenge (CamelSasl *sasl,
+                           GByteArray *token,
+                           CamelException *ex)
 {
 	CamelSaslDigestMd5 *sasl_digest = CAMEL_SASL_DIGEST_MD5 (sasl);
 	struct _CamelSaslDigestMd5Private *priv = sasl_digest->priv;
+	CamelService *service;
 	struct _param *rspauth;
 	GByteArray *ret = NULL;
 	gboolean abort = FALSE;
@@ -830,12 +794,15 @@ digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 	guchar out[33];
 	gchar *tokens;
 	struct addrinfo *ai, hints;
+	const gchar *service_name;
 
 	/* Need to wait for the server */
 	if (!token)
 		return NULL;
 
-	g_return_val_if_fail (sasl->service->url->passwd != NULL, NULL);
+	service = camel_sasl_get_service (sasl);
+	service_name = camel_sasl_get_service_name (sasl);
+	g_return_val_if_fail (service->url->passwd != NULL, NULL);
 
 	switch (priv->state) {
 	case STATE_AUTH:
@@ -863,15 +830,15 @@ digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_flags = AI_CANONNAME;
-		ai = camel_getaddrinfo(sasl->service->url->host?sasl->service->url->host:"localhost", NULL, &hints, NULL);
+		ai = camel_getaddrinfo(service->url->host?service->url->host:"localhost", NULL, &hints, NULL);
 		if (ai && ai->ai_canonname)
 			ptr = ai->ai_canonname;
 		else
 			ptr = "localhost.localdomain";
 
-		priv->response = generate_response (priv->challenge, ptr, sasl->service_name,
-						    sasl->service->url->user,
-						    sasl->service->url->passwd);
+		priv->response = generate_response (priv->challenge, ptr, service_name,
+						    service->url->user,
+						    service->url->passwd);
 		if (ai)
 			camel_freeaddrinfo(ai);
 		ret = digest_response (priv->response);
@@ -908,14 +875,14 @@ digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 			return NULL;
 		}
 
-		compute_response (priv->response, sasl->service->url->passwd, FALSE, out);
+		compute_response (priv->response, service->url->passwd, FALSE, out);
 		if (memcmp (out, rspauth->value, 32) != 0) {
 			g_free (rspauth->name);
 			g_free (rspauth->value);
 			g_free (rspauth);
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_CANT_AUTHENTICATE,
 					      _("Server response does not match"));
-			sasl->authenticated = TRUE;
+			camel_sasl_set_authenticated (sasl, TRUE);
 
 			return NULL;
 		}
@@ -926,7 +893,7 @@ digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 
 		ret = g_byte_array_new ();
 
-		sasl->authenticated = TRUE;
+		camel_sasl_set_authenticated (sasl, TRUE);
 	default:
 		break;
 	}
@@ -934,4 +901,44 @@ digest_md5_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 	priv->state++;
 
 	return ret;
+}
+
+static void
+sasl_digest_md5_class_init (CamelSaslDigestMd5Class *class)
+{
+	GObjectClass *object_class;
+	CamelSaslClass *sasl_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelSaslDigestMd5Private));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = sasl_digest_md5_finalize;
+
+	sasl_class = CAMEL_SASL_CLASS (class);
+	sasl_class->challenge = sasl_digest_md5_challenge;
+}
+
+static void
+sasl_digest_md5_init (CamelSaslDigestMd5 *sasl)
+{
+	sasl->priv = CAMEL_SASL_DIGEST_MD5_GET_PRIVATE (sasl);
+}
+
+GType
+camel_sasl_digest_md5_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SASL,
+			"CamelSaslDigestMd5",
+			sizeof (CamelSaslDigestMd5Class),
+			(GClassInitFunc) sasl_digest_md5_class_init,
+			sizeof (CamelSaslDigestMd5),
+			(GInstanceInitFunc) sasl_digest_md5_init,
+			0);
+
+	return type;
 }

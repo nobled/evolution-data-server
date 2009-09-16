@@ -22,8 +22,6 @@ CamelSMIMEContext
 
 </para>
 
-@cipher: 
-@priv: 
 
 <!-- ##### ENUM camel_smime_sign_t ##### -->
 <para>

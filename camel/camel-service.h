@@ -22,20 +22,44 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_SERVICE_H
-#define CAMEL_SERVICE_H 1
+#define CAMEL_SERVICE_H
 
 #include <camel/camel-object.h>
 #include <camel/camel-url.h>
 #include <camel/camel-provider.h>
 #include <camel/camel-operation.h>
 
-#define CAMEL_SERVICE_TYPE     (camel_service_get_type ())
-#define CAMEL_SERVICE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SERVICE_TYPE, CamelService))
-#define CAMEL_SERVICE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SERVICE_TYPE, CamelServiceClass))
-#define CAMEL_IS_SERVICE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SERVICE_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_SERVICE \
+	(camel_service_get_type ())
+#define CAMEL_SERVICE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SERVICE, CamelService))
+#define CAMEL_SERVICE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SERVICE, CamelServiceClass))
+#define CAMEL_IS_SERVICE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SERVICE))
+#define CAMEL_IS_SERVICE_CLASS(obj) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SERVICE))
+#define CAMEL_SERVICE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SERVICE, CamelServiceClass))
 
 G_BEGIN_DECLS
+
+struct _CamelSession;
+
+typedef struct _CamelService CamelService;
+typedef struct _CamelServiceClass CamelServiceClass;
+typedef struct _CamelServicePrivate CamelServicePrivate;
 
 enum {
 	CAMEL_SERVICE_ARG_FIRST  = CAMEL_ARG_FIRST + 100,
@@ -60,21 +84,21 @@ typedef enum {
 } CamelServiceConnectionStatus;
 
 struct _CamelService {
-	CamelObject parent_object;
-	struct _CamelServicePrivate *priv;
+	CamelObject parent;
+	CamelServicePrivate *priv;
 
-	CamelSession *session;
+	struct _CamelSession *session;
 	CamelProvider *provider;
 	CamelServiceConnectionStatus status;
 	CamelOperation *connect_op;
 	CamelURL *url;
 };
 
-typedef struct {
+struct _CamelServiceClass {
 	CamelObjectClass parent_class;
 
 	void      (*construct)         (CamelService *service,
-					CamelSession *session,
+					struct _CamelSession *session,
 					CamelProvider *provider,
 					CamelURL *url,
 					CamelException *ex);
@@ -92,8 +116,7 @@ typedef struct {
 	gchar *    (*get_name)          (CamelService *service,
 					gboolean brief);
 	gchar *    (*get_path)          (CamelService *service);
-
-} CamelServiceClass;
+};
 
 /* query_auth_types returns a GList of these */
 typedef struct {
@@ -106,7 +129,7 @@ typedef struct {
 
 /* public methods */
 void                camel_service_construct          (CamelService *service,
-						      CamelSession *session,
+						      struct _CamelSession *session,
 						      CamelProvider *provider,
 						      CamelURL *url,
 						      CamelException *ex);
@@ -120,13 +143,12 @@ gchar *              camel_service_get_url            (CamelService *service);
 gchar *              camel_service_get_name           (CamelService *service,
 						      gboolean brief);
 gchar *              camel_service_get_path           (CamelService *service);
-CamelSession *      camel_service_get_session        (CamelService *service);
+struct _CamelSession *      camel_service_get_session        (CamelService *service);
 CamelProvider *     camel_service_get_provider       (CamelService *service);
 GList *             camel_service_query_auth_types   (CamelService *service,
 						      CamelException *ex);
 
-/* Standard Camel function */
-CamelType camel_service_get_type (void);
+GType camel_service_get_type (void);
 
 G_END_DECLS
 

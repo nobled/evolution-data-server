@@ -19,8 +19,12 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_MIME_PARSER_H
-#define _CAMEL_MIME_PARSER_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_PARSER_H
+#define CAMEL_MIME_PARSER_H
 
 #include <camel/camel-object.h>
 
@@ -28,13 +32,30 @@
 #include <camel/camel-mime-filter.h>
 #include <camel/camel-stream.h>
 
-#define CAMEL_MIME_PARSER(obj)         CAMEL_CHECK_CAST (obj, camel_mime_parser_get_type (), CamelMimeParser)
-#define CAMEL_MIME_PARSER_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mime_parser_get_type (), CamelMimeParserClass)
-#define CAMEL_IS_MIME_PARSER(obj)      CAMEL_CHECK_TYPE (obj, camel_mime_parser_get_type ())
+/* Stardard GObject macros */
+#define CAMEL_TYPE_MIME_PARSER \
+	(camel_mime_parser_get_type ())
+#define CAMEL_MIME_PARSER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_PARSER, CamelMimeParser))
+#define CAMEL_MIME_PARSER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_PARSER, CamelMimeParserClass))
+#define CAMEL_IS_MIME_PARSER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_PARSER))
+#define CAMEL_IS_MIME_PARSER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_PARSER))
+#define CAMEL_MIME_PARSER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_PARSER, CamelMimeParserClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelMimeParser CamelMimeParser;
 typedef struct _CamelMimeParserClass CamelMimeParserClass;
+typedef struct _CamelMimeParserPrivate CamelMimeParserPrivate;
 
 /* NOTE: if you add more states, you may need to bump the
    start of the END tags to 16 or 32, etc - so they are
@@ -63,8 +84,7 @@ typedef enum _camel_mime_parser_state_t {
 
 struct _CamelMimeParser {
 	CamelObject parent;
-
-	struct _CamelMimeParserPrivate *priv;
+	CamelMimeParserPrivate *priv;
 };
 
 struct _CamelMimeParserClass {
@@ -75,7 +95,7 @@ struct _CamelMimeParserClass {
 	void (*content) (CamelMimeParser *parser);
 };
 
-CamelType camel_mime_parser_get_type (void);
+GType camel_mime_parser_get_type (void);
 CamelMimeParser *camel_mime_parser_new (void);
 
 /* quick-fix for parser not erroring, we can find out if it had an error afterwards */
@@ -139,4 +159,4 @@ off_t camel_mime_parser_tell_start_boundary(CamelMimeParser *parser);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_MIME_PARSER_H */
+#endif /* CAMEL_MIME_PARSER_H */

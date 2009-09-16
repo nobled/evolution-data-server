@@ -19,15 +19,29 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_STREAM_H__
-#define __CAMEL_IMAP4_STREAM_H__
+#ifndef CAMEL_IMAP4_STREAM_H
+#define CAMEL_IMAP4_STREAM_H
 
-#include <camel/camel-stream.h>
+#include <camel/camel.h>
 
-#define CAMEL_TYPE_IMAP4_STREAM     (camel_imap4_stream_get_type ())
-#define CAMEL_IMAP4_STREAM(obj)     (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_IMAP4_STREAM, CamelIMAP4Stream))
-#define CAMEL_IMAP4_STREAM_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_TYPE_IMAP4_STREAM, CamelIMAP4StreamClass))
-#define CAMEL_IS_IMAP4_STREAM(o)    (CAMEL_CHECK_TYPE((o), CAMEL_TYPE_IMAP4_STREAM))
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_STREAM \
+	(camel_imap4_stream_get_type ())
+#define CAMEL_IMAP4_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_STREAM, CamelIMAP4Stream))
+#define CAMEL_IMAP4_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_STREAM, CamelIMAP4StreamClass))
+#define CAMEL_IS_IMAP4_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_STREAM))
+#define CAMEL_IS_IMAP4_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_STREAM))
+#define CAMEL_IMAP4_STREAM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP4_STREAM, CamelIMAP4StreamClass))
 
 #define IMAP4_READ_PRELEN   128
 #define IMAP4_READ_BUFLEN   4096
@@ -73,7 +87,7 @@ enum {
 };
 
 struct _CamelIMAP4Stream {
-	CamelStream parent_object;
+	CamelStream parent;
 
 	CamelStream *stream;
 
@@ -104,8 +118,7 @@ struct _CamelIMAP4StreamClass {
 	/* Virtual methods */
 };
 
-/* Standard Camel function */
-CamelType camel_imap4_stream_get_type (void);
+GType camel_imap4_stream_get_type (void);
 
 CamelStream *camel_imap4_stream_new (CamelStream *stream);
 
@@ -117,4 +130,4 @@ gint camel_imap4_stream_literal (CamelIMAP4Stream *stream, guchar **literal, gsi
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_STREAM_H__ */
+#endif /* CAMEL_IMAP4_STREAM_H */

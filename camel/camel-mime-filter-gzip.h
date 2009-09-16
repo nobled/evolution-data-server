@@ -20,22 +20,39 @@
  *
  */
 
-#ifndef __CAMEL_MIME_FILTER_GZIP_H__
-#define __CAMEL_MIME_FILTER_GZIP_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_GZIP_H
+#define CAMEL_MIME_FILTER_GZIP_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_TYPE_MIME_FILTER_GZIP            (camel_mime_filter_gzip_get_type ())
-#define CAMEL_MIME_FILTER_GZIP(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_MIME_FILTER_GZIP, CamelMimeFilterGZip))
-#define CAMEL_MIME_FILTER_GZIP_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_MIME_FILTER_GZIP, CamelMimeFilterGZipClass))
-#define CAMEL_IS_MIME_FILTER_GZIP(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_MIME_FILTER_GZIP))
-#define CAMEL_IS_MIME_FILTER_GZIP_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_MIME_FILTER_GZIP))
-#define CAMEL_MIME_FILTER_GZIP_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_MIME_FILTER_GZIP, CamelMimeFilterGZipClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_GZIP \
+	(camel_mime_filter_gzip_get_type ())
+#define CAMEL_MIME_FILTER_GZIP(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_GZIP, CamelMimeFilterGZip))
+#define CAMEL_MIME_FILTER_GZIP_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_GZIP, CamelMimeFilterGZipClass))
+#define CAMEL_IS_MIME_FILTER_GZIP(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_GZIP))
+#define CAMEL_IS_MIME_FILTER_GZIP_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_GZIP))
+#define CAMEL_MIME_FILTER_GZIP_GET_CLASS(obj) \
+	(CAMEL_CHECK_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_GZIP, CamelMimeFilterGZipClass))
 
 G_BEGIN_DECLS
 
 typedef struct _CamelMimeFilterGZip CamelMimeFilterGZip;
 typedef struct _CamelMimeFilterGZipClass CamelMimeFilterGZipClass;
+typedef struct _CamelMimeFilterGZipPrivate CamelMimeFilterGZipPrivate;
 
 typedef enum {
 	CAMEL_MIME_FILTER_GZIP_MODE_ZIP,
@@ -43,23 +60,19 @@ typedef enum {
 } CamelMimeFilterGZipMode;
 
 struct _CamelMimeFilterGZip {
-	CamelMimeFilter parent_object;
-
-	struct _CamelMimeFilterGZipPrivate *priv;
-
-	CamelMimeFilterGZipMode mode;
-	gint level;
+	CamelMimeFilter parent;
+	CamelMimeFilterGZipPrivate *priv;
 };
 
 struct _CamelMimeFilterGZipClass {
 	CamelMimeFilterClass parent_class;
-
 };
 
-CamelType camel_mime_filter_gzip_get_type (void);
-
-CamelMimeFilter *camel_mime_filter_gzip_new (CamelMimeFilterGZipMode mode, gint level);
+GType		camel_mime_filter_gzip_get_type (void);
+CamelMimeFilter *
+		camel_mime_filter_gzip_new	(CamelMimeFilterGZipMode mode,
+						 gint level);
 
 G_END_DECLS
 
-#endif /* __CAMEL_MIME_FILTER_GZIP_H__ */
+#endif /* CAMEL_MIME_FILTER_GZIP_H */

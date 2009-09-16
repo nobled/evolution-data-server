@@ -14,7 +14,7 @@ HTML_DIR = $(datadir)/gtk-doc/html
 SCAN_OPTIONS = --deprecated-guards="CAMEL_DISABLE_DEPRECATED"
 
 # Extra options to pass to gtkdoc-scangobj
-SCANGOBJ_OPTIONS=--type-init-func="camel_init (\".\", 0)"
+SCANGOBJ_OPTIONS = --type-init-func="g_thread_init (NULL); g_type_init ()"
 
 # Extra options to supply to gtkdoc-mkdb
 MKDB_OPTIONS = --sgml-mode --output-format=xml --ignore-files=trio
@@ -26,8 +26,9 @@ GTKDOC_CFLAGS = 		\
 	-I$(top_builddir)/camel	\
 	$(GLIB_CFLAGS)
 
-GTKDOC_LIBS = 					\
-	$(top_builddir)/camel/libcamel-2.0.la	\
+GTKDOC_LIBS = 						\
+	$(top_builddir)/camel/libcamel-1.2.la		\
+	$(top_builddir)/camel/libcamel-provider-1.2.la	\
 	$(GLIB_LIBS)
 
 # Extra SGML files that are included by $(DOC_MAIN_SGML_FILE)

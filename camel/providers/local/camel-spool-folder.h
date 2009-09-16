@@ -20,37 +20,50 @@
  */
 
 #ifndef CAMEL_SPOOL_FOLDER_H
-#define CAMEL_SPOOL_FOLDER_H 1
+#define CAMEL_SPOOL_FOLDER_H
+
+#include <camel/camel.h>
 
 #include "camel-mbox-folder.h"
-#include <camel/camel-folder-search.h>
-#include <camel/camel-index.h>
 #include "camel-spool-summary.h"
-#include "camel-lock.h"
 
-/*  #include "camel-store.h" */
-
-#define CAMEL_SPOOL_FOLDER_TYPE     (camel_spool_folder_get_type ())
-#define CAMEL_SPOOL_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SPOOL_FOLDER_TYPE, CamelSpoolFolder))
-#define CAMEL_SPOOL_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SPOOL_FOLDER_TYPE, CamelSpoolFolderClass))
-#define CAMEL_IS_SPOOL_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SPOOL_FOLDER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_SPOOL_FOLDER \
+	(camel_spool_folder_get_type ())
+#define CAMEL_SPOOL_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SPOOL_FOLDER, CamelSpoolFolder))
+#define CAMEL_SPOOL_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SPOOL_FOLDER, CamelSpoolFolderClass))
+#define CAMEL_IS_SPOOL_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SPOOL_FOLDER))
+#define CAMEL_IS_SPOOL_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SPOOL_FOLDER))
+#define CAMEL_SPOOL_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SPOOL_FOLDER, CamelSpoolFolderClass))
 
 G_BEGIN_DECLS
 
-typedef struct {
-	CamelMboxFolder parent;
+typedef struct _CamelSpoolFolder CamelSpoolFolder;
+typedef struct _CamelSpoolFolderClass CamelSpoolFolderClass;
+typedef struct _CamelSpoolFolderPrivate CamelSpoolFolderPrivate;
 
-	struct _CamelSpoolFolderPrivate *priv;
+struct _CamelSpoolFolder {
+	CamelMboxFolder parent;
+	CamelSpoolFolderPrivate *priv;
 
 	gint lockid;		/* lock id for dot locking */
-} CamelSpoolFolder;
+};
 
-typedef struct {
+struct _CamelSpoolFolderClass {
 	CamelMboxFolderClass parent_class;
-} CamelSpoolFolderClass;
+};
 
-/* Standard Camel function */
-CamelType camel_spool_folder_get_type(void);
+GType camel_spool_folder_get_type(void);
 
 CamelFolder *camel_spool_folder_new(CamelStore *parent_store, const gchar *full_name, guint32 flags, CamelException *ex);
 

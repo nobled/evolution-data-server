@@ -36,31 +36,11 @@
 
 #include <glib/gi18n-lib.h>
 
+#include "camel-smtp-transport.h"
+
 #undef MIN
 #undef MAX
 
-#include "camel-exception.h"
-#include "camel-mime-filter-progress.h"
-#include "camel-mime-filter-crlf.h"
-#include "camel-mime-message.h"
-#include "camel-mime-part.h"
-#include "camel-multipart.h"
-#include "camel-net-utils.h"
-#include "camel-operation.h"
-#include "camel-sasl.h"
-#include "camel-session.h"
-#include "camel-smtp-transport.h"
-#include "camel-stream-buffer.h"
-#include "camel-stream-filter.h"
-#include "camel-stream-null.h"
-#include "camel-tcp-stream-raw.h"
-#include "camel-tcp-stream.h"
-
-#ifdef HAVE_SSL
-#include "camel-tcp-stream-ssl.h"
-#endif
-
-extern gint camel_verbose_debug;
 #define d(x) (camel_verbose_debug ? (x) : 0)
 
 /* Specified in RFC 821 */
@@ -72,9 +52,6 @@ static gboolean smtp_send_to (CamelTransport *transport, CamelMimeMessage *messa
 			      CamelAddress *from, CamelAddress *recipients, CamelException *ex);
 
 /* support prototypes */
-static void smtp_construct (CamelService *service, CamelSession *session,
-			    CamelProvider *provider, CamelURL *url,
-			    CamelException *ex);
 static gboolean smtp_connect (CamelService *service, CamelException *ex);
 static gboolean smtp_disconnect (CamelService *service, gboolean clean, CamelException *ex);
 static GHashTable *esmtp_get_authtypes (const guchar *buffer);
@@ -93,63 +70,49 @@ static gboolean smtp_quit (CamelSmtpTransport *transport, CamelException *ex);
 static void smtp_set_exception (CamelSmtpTransport *transport, gboolean disconnect, const gchar *respbuf,
 				const gchar *message, CamelException *ex);
 
-/* private data members */
-static CamelTransportClass *parent_class = NULL;
+static gpointer parent_class;
 
 static void
-camel_smtp_transport_class_init (CamelSmtpTransportClass *camel_smtp_transport_class)
+smtp_transport_class_init (CamelSmtpTransportClass *class)
 {
-	CamelTransportClass *camel_transport_class =
-		CAMEL_TRANSPORT_CLASS (camel_smtp_transport_class);
-	CamelServiceClass *camel_service_class =
-		CAMEL_SERVICE_CLASS (camel_smtp_transport_class);
+	CamelTransportClass *transport_class;
+	CamelServiceClass *service_class;
 
-	parent_class = CAMEL_TRANSPORT_CLASS (camel_type_get_global_classfuncs (camel_transport_get_type ()));
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method overload */
-	camel_service_class->construct = smtp_construct;
-	camel_service_class->connect = smtp_connect;
-	camel_service_class->disconnect = smtp_disconnect;
-	camel_service_class->query_auth_types = query_auth_types;
-	camel_service_class->get_name = get_name;
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->connect = smtp_connect;
+	service_class->disconnect = smtp_disconnect;
+	service_class->query_auth_types = query_auth_types;
+	service_class->get_name = get_name;
 
-	camel_transport_class->send_to = smtp_send_to;
+	transport_class = CAMEL_TRANSPORT_CLASS (class);
+	transport_class->send_to = smtp_send_to;
 }
 
 static void
-camel_smtp_transport_init (gpointer object)
+smtp_transport_init (CamelSmtpTransport *smtp)
 {
-	CamelSmtpTransport *smtp = CAMEL_SMTP_TRANSPORT (object);
-
 	smtp->flags = 0;
 	smtp->connected = FALSE;
 }
 
-CamelType
+GType
 camel_smtp_transport_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (CAMEL_TRANSPORT_TYPE,
-					    "CamelSmtpTransport",
-					    sizeof (CamelSmtpTransport),
-					    sizeof (CamelSmtpTransportClass),
-					    (CamelObjectClassInitFunc) camel_smtp_transport_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_smtp_transport_init,
-					    NULL);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_TRANSPORT,
+			"CamelSmtpTransport",
+			sizeof (CamelSmtpTransportClass),
+			(GClassInitFunc) smtp_transport_class_init,
+			sizeof (CamelSmtpTransport),
+			(GInstanceInitFunc) smtp_transport_init,
+			0);
 
 	return type;
-}
-
-static void
-smtp_construct (CamelService *service, CamelSession *session,
-		CamelProvider *provider, CamelURL *url,
-		CamelException *ex)
-{
-	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
 }
 
 static const gchar *
@@ -274,7 +237,7 @@ connect_to_server (CamelService *service, struct addrinfo *ai, gint ssl_mode, Ca
 					      _("Could not connect to %s: %s"),
 					      service->url->host, g_strerror (errno));
 
-		camel_object_unref (tcp_stream);
+		g_object_unref (tcp_stream);
 
 		return FALSE;
 	}
@@ -384,9 +347,9 @@ connect_to_server (CamelService *service, struct addrinfo *ai, gint ssl_mode, Ca
 
  exception_cleanup:
 
-	camel_object_unref (transport->istream);
+	g_object_unref (transport->istream);
 	transport->istream = NULL;
-	camel_object_unref (transport->ostream);
+	g_object_unref (transport->ostream);
 	transport->ostream = NULL;
 
 	transport->connected = FALSE;
@@ -468,10 +431,10 @@ smtp_connect (CamelService *service, CamelException *ex)
 
 		sasl = camel_sasl_new ("smtp", "POPB4SMTP", service);
 		chal = camel_sasl_challenge (sasl, NULL, ex);
-		truth = camel_sasl_authenticated (sasl);
+		truth = camel_sasl_get_authenticated (sasl);
 		if (chal)
 			g_byte_array_free (chal, TRUE);
-		camel_object_unref (sasl);
+		g_object_unref (sasl);
 
 		if (!truth)
 			return FALSE;
@@ -614,12 +577,12 @@ smtp_disconnect (CamelService *service, gboolean clean, CamelException *ex)
 	}
 
 	if (transport->istream) {
-		camel_object_unref (transport->istream);
+		g_object_unref (transport->istream);
 		transport->istream = NULL;
 	}
 
 	if (transport->ostream) {
-		camel_object_unref (transport->ostream);
+		g_object_unref (transport->ostream);
 		transport->ostream = NULL;
 	}
 
@@ -1121,7 +1084,7 @@ smtp_auth (CamelSmtpTransport *transport, const gchar *mech, CamelException *ex)
 	respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
 	d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
 
-	while (!camel_sasl_authenticated (sasl)) {
+	while (!camel_sasl_get_authenticated (sasl)) {
 		if (!respbuf) {
 			camel_exception_setv (ex, errno == EINTR ? CAMEL_EXCEPTION_USER_CANCEL : CAMEL_EXCEPTION_SYSTEM,
 					      _("AUTH command failed: %s"), g_strerror (errno));
@@ -1185,7 +1148,7 @@ smtp_auth (CamelSmtpTransport *transport, const gchar *mech, CamelException *ex)
 	if (strncmp (respbuf, "235", 3) != 0)
 		goto lose;
 
-	camel_object_unref (sasl);
+	g_object_unref (sasl);
 	camel_operation_end (NULL);
 
 	return TRUE;
@@ -1203,7 +1166,7 @@ smtp_auth (CamelSmtpTransport *transport, const gchar *mech, CamelException *ex)
 				     _("Bad authentication response from server.\n"));
 	}
 
-	camel_object_unref (sasl);
+	g_object_unref (sasl);
 	camel_operation_end (NULL);
 
 	g_free (respbuf);
@@ -1304,7 +1267,7 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelExcept
 {
 	struct _camel_header_raw *header, *savedbcc, *n, *tail;
 	CamelBestencEncoding enctype = CAMEL_BESTENC_8BIT;
-	CamelStreamFilter *filtered_stream;
+	CamelStream *filtered_stream;
 	gchar *cmdbuf, *respbuf = NULL;
 	CamelMimeFilter *filter;
 	CamelStreamNull *null;
@@ -1356,7 +1319,7 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelExcept
 	savedbcc = NULL;
 	tail = (struct _camel_header_raw *) &savedbcc;
 
-	header = (struct _camel_header_raw *) &CAMEL_MIME_PART (message)->headers;
+	header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message));
 	n = header->next;
 	while (n != NULL) {
 		if (!g_ascii_strcasecmp (n->name, "Bcc")) {
@@ -1373,23 +1336,29 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelExcept
 
 	/* find out how large the message is... */
 	null = CAMEL_STREAM_NULL (camel_stream_null_new ());
-	camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (message), CAMEL_STREAM (null));
+	camel_data_wrapper_write_to_stream (
+		CAMEL_DATA_WRAPPER (message), CAMEL_STREAM (null));
 
-	filtered_stream = camel_stream_filter_new_with_stream (transport->ostream);
+	filtered_stream = camel_stream_filter_new (transport->ostream);
 
 	/* setup progress reporting for message sending... */
 	filter = camel_mime_filter_progress_new (NULL, null->written);
-	camel_stream_filter_add (filtered_stream, filter);
-	camel_object_unref (filter);
-	camel_object_unref (null);
+	camel_stream_filter_add (
+		CAMEL_STREAM_FILTER (filtered_stream), filter);
+	g_object_unref (filter);
+	g_object_unref (null);
 
 	/* setup LF->CRLF conversion */
-	filter = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_ENCODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_DOTS);
-	camel_stream_filter_add (filtered_stream, filter);
-	camel_object_unref (filter);
+	filter = camel_mime_filter_crlf_new (
+		CAMEL_MIME_FILTER_CRLF_ENCODE,
+		CAMEL_MIME_FILTER_CRLF_MODE_CRLF_DOTS);
+	camel_stream_filter_add (
+		CAMEL_STREAM_FILTER (filtered_stream), filter);
+	g_object_unref (filter);
 
 	/* write the message */
-	ret = camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (message), CAMEL_STREAM (filtered_stream));
+	ret = camel_data_wrapper_write_to_stream (
+		CAMEL_DATA_WRAPPER (message), filtered_stream);
 
 	/* restore the bcc headers */
 	header->next = savedbcc;
@@ -1399,15 +1368,15 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelExcept
 				      _("DATA command failed: %s: mail not sent"),
 				      g_strerror (errno));
 
-		camel_object_unref (filtered_stream);
+		g_object_unref (filtered_stream);
 
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
 
 		return FALSE;
 	}
 
-	camel_stream_flush (CAMEL_STREAM (filtered_stream));
-	camel_object_unref (filtered_stream);
+	camel_stream_flush (filtered_stream);
+	g_object_unref (filtered_stream);
 
 	/* terminate the message body */
 

@@ -26,11 +26,18 @@
 
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-sasl-plain.h"
 #include "camel-service.h"
+
+#define CAMEL_SASL_PLAIN_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_SASL_PLAIN, CamelSaslPlainPrivate))
+
+struct _CamelSaslPlainPrivate {
+	gint placeholder;  /* allow for future expansion */
+};
 
 CamelServiceAuthType camel_sasl_plain_authtype = {
 	N_("PLAIN"),
@@ -42,57 +49,19 @@ CamelServiceAuthType camel_sasl_plain_authtype = {
 	TRUE
 };
 
-static CamelSaslClass *parent_class = NULL;
-
-/* Returns the class for a CamelSaslPlain */
-#define CSP_CLASS(so) CAMEL_SASL_PLAIN_CLASS (CAMEL_OBJECT_GET_CLASS (so))
-
-static GByteArray *plain_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex);
-
-static void
-camel_sasl_plain_class_init (CamelSaslPlainClass *camel_sasl_plain_class)
-{
-	CamelSaslClass *camel_sasl_class = CAMEL_SASL_CLASS (camel_sasl_plain_class);
-
-	parent_class = CAMEL_SASL_CLASS (camel_type_get_global_classfuncs (camel_sasl_get_type ()));
-
-	/* virtual method overload */
-	camel_sasl_class->challenge = plain_challenge;
-}
-
-CamelType
-camel_sasl_plain_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_sasl_get_type (),
-					    "CamelSaslPlain",
-					    sizeof (CamelSaslPlain),
-					    sizeof (CamelSaslPlainClass),
-					    (CamelObjectClassInitFunc) camel_sasl_plain_class_init,
-					    NULL,
-					    NULL,
-					    NULL);
-	}
-
-	return type;
-}
+static gpointer parent_class;
 
 static GByteArray *
-plain_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
+sasl_plain_challenge (CamelSasl *sasl,
+                      GByteArray *token,
+                      CamelException *ex)
 {
 	GByteArray *buf = NULL;
-	CamelURL *url = sasl->service->url;
+	CamelService *service;
+	CamelURL *url;
 
-#if 0
-	if (token) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_CANT_AUTHENTICATE,
-				     _("Authentication failed."));
-		return NULL;
-	}
-#endif
-
+	service = camel_sasl_get_service (sasl);
+	url = service->url;
 	g_return_val_if_fail (url->passwd != NULL, NULL);
 
 	/* FIXME: make sure these are "UTF8-SAFE" */
@@ -102,7 +71,43 @@ plain_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 	g_byte_array_append (buf, (guint8 *) "", 1);
 	g_byte_array_append (buf, (guint8 *) url->passwd, strlen (url->passwd));
 
-	sasl->authenticated = TRUE;
+	camel_sasl_set_authenticated (sasl, TRUE);
 
 	return buf;
+}
+
+static void
+sasl_plain_class_init (CamelSaslPlainClass *class)
+{
+	CamelSaslClass *sasl_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelSaslPlainPrivate));
+
+	sasl_class = CAMEL_SASL_CLASS (class);
+	sasl_class->challenge = sasl_plain_challenge;
+}
+
+static void
+sasl_plain_init (CamelSaslPlain *sasl)
+{
+	sasl->priv = CAMEL_SASL_PLAIN_GET_PRIVATE (sasl);
+}
+
+GType
+camel_sasl_plain_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SASL,
+			"CamelSaslPlain",
+			sizeof (CamelSaslPlainClass),
+			(GClassInitFunc) sasl_plain_class_init,
+			sizeof (CamelSaslPlain),
+			(GInstanceInitFunc) sasl_plain_init,
+			0);
+
+	return type;
 }

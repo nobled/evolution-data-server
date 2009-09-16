@@ -29,8 +29,6 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include <camel/camel-debug.h>
-
 #include "camel-imap4-specials.h"
 #include "camel-imap4-stream.h"
 
@@ -38,9 +36,9 @@
 
 #define IMAP4_TOKEN_LEN  128
 
-static void camel_imap4_stream_class_init (CamelIMAP4StreamClass *klass);
-static void camel_imap4_stream_init (CamelIMAP4Stream *stream, CamelIMAP4StreamClass *klass);
-static void camel_imap4_stream_finalize (CamelObject *object);
+static void camel_imap4_stream_class_init (CamelIMAP4StreamClass *class);
+static void camel_imap4_stream_init (CamelIMAP4Stream *stream, CamelIMAP4StreamClass *class);
+static void imap4_stream_finalize (CamelObject *object);
 
 static gssize stream_read (CamelStream *stream, gchar *buffer, gsize n);
 static gssize stream_write (CamelStream *stream, const gchar *buffer, gsize n);
@@ -48,35 +46,34 @@ static gint stream_flush  (CamelStream *stream);
 static gint stream_close  (CamelStream *stream);
 static gboolean stream_eos (CamelStream *stream);
 
-static CamelStreamClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_stream_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (CAMEL_STREAM_TYPE,
-					    "CamelIMAP4Stream",
-					    sizeof (CamelIMAP4Stream),
-					    sizeof (CamelIMAP4StreamClass),
-					    (CamelObjectClassInitFunc) camel_imap4_stream_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_stream_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_stream_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_STREAM,
+			"CamelIMAP4Stream",
+			sizeof (CamelIMAP4Stream),
+			sizeof (CamelIMAP4StreamClass),
+			(GClassInitFunc) camel_imap4_stream_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_stream_init,
+			(GObjectFinalizeFunc) imap4_stream_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_stream_class_init (CamelIMAP4StreamClass *klass)
+camel_imap4_stream_class_init (CamelIMAP4StreamClass *class)
 {
-	CamelStreamClass *stream_class = (CamelStreamClass *) klass;
+	CamelStreamClass *stream_class = (CamelStreamClass *) class;
 
-	parent_class = (CamelStreamClass *) camel_type_get_global_classfuncs (CAMEL_STREAM_TYPE);
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method overload */
 	stream_class->read = stream_read;
 	stream_class->write = stream_write;
 	stream_class->flush = stream_flush;
@@ -85,7 +82,7 @@ camel_imap4_stream_class_init (CamelIMAP4StreamClass *klass)
 }
 
 static void
-camel_imap4_stream_init (CamelIMAP4Stream *imap4, CamelIMAP4StreamClass *klass)
+camel_imap4_stream_init (CamelIMAP4Stream *imap4, CamelIMAP4StreamClass *class)
 {
 	imap4->stream = NULL;
 
@@ -106,12 +103,12 @@ camel_imap4_stream_init (CamelIMAP4Stream *imap4, CamelIMAP4StreamClass *klass)
 }
 
 static void
-camel_imap4_stream_finalize (CamelObject *object)
+imap4_stream_finalize (CamelObject *object)
 {
 	CamelIMAP4Stream *imap4 = (CamelIMAP4Stream *) object;
 
 	if (imap4->stream)
-		camel_object_unref (imap4->stream);
+		g_object_unref (imap4->stream);
 
 	g_free (imap4->tokenbuf);
 }
@@ -239,7 +236,7 @@ stream_close (CamelStream *stream)
 	if (camel_stream_close (imap4->stream) == -1)
 		return -1;
 
-	camel_object_unref (imap4->stream);
+	g_object_unref (imap4->stream);
 	imap4->stream = NULL;
 
 	imap4->disconnected = TRUE;
@@ -277,9 +274,8 @@ camel_imap4_stream_new (CamelStream *stream)
 
 	g_return_val_if_fail (CAMEL_IS_STREAM (stream), NULL);
 
-	imap4 = (CamelIMAP4Stream *) camel_object_new (CAMEL_TYPE_IMAP4_STREAM);
-	camel_object_ref (stream);
-	imap4->stream = stream;
+	imap4 = g_object_new (CAMEL_TYPE_IMAP4_STREAM, NULL);
+	imap4->stream = g_object_ref (stream);
 
 	return (CamelStream *) imap4;
 }

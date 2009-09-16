@@ -31,9 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "camel-file-utils.h"
 #include "camel-private.h"
-#include "camel-utf8.h"
 
 #include "camel-groupwise-store-summary.h"
 
@@ -54,57 +52,48 @@ static void store_info_set_string(CamelStoreSummary *s, CamelStoreInfo *mi, gint
 static const gchar *store_info_string(CamelStoreSummary *s, const CamelStoreInfo *mi, gint type);
 CamelGroupwiseStoreNamespace *camel_groupwise_store_summary_namespace_find_full(CamelGroupwiseStoreSummary *s, const gchar *full);
 
-static void camel_groupwise_store_summary_class_init (CamelGroupwiseStoreSummaryClass *klass);
-static void camel_groupwise_store_summary_init       (CamelGroupwiseStoreSummary *obj);
-static void camel_groupwise_store_summary_finalise   (CamelObject *obj);
-
-static CamelStoreSummaryClass *camel_groupwise_store_summary_parent;
+static gpointer parent_class;
 
 static void
-camel_groupwise_store_summary_class_init (CamelGroupwiseStoreSummaryClass *klass)
+groupwise_store_summary_class_init (CamelGroupwiseStoreSummaryClass *class)
 {
-	CamelStoreSummaryClass *ssklass = (CamelStoreSummaryClass *)klass;
+	CamelStoreSummaryClass *store_summary_class;
 
-	ssklass->summary_header_load = summary_header_load;
-	ssklass->summary_header_save = summary_header_save;
+	parent_class = g_type_class_peek_parent (class);
 
-	ssklass->store_info_load = store_info_load;
-	ssklass->store_info_save = store_info_save;
-	ssklass->store_info_free = store_info_free;
-
-	ssklass->store_info_string = store_info_string;
-	ssklass->store_info_set_string = store_info_set_string;
-
+	store_summary_class = CAMEL_STORE_SUMMARY_CLASS (class);
+	store_summary_class->summary_header_load = summary_header_load;
+	store_summary_class->summary_header_save = summary_header_save;
+	store_summary_class->store_info_load = store_info_load;
+	store_summary_class->store_info_save = store_info_save;
+	store_summary_class->store_info_free = store_info_free;
+	store_summary_class->store_info_string = store_info_string;
+	store_summary_class->store_info_set_string = store_info_set_string;
 }
 
 static void
-camel_groupwise_store_summary_init (CamelGroupwiseStoreSummary *s)
+groupwise_store_summary_init (CamelGroupwiseStoreSummary *gw_summary)
 {
+	CamelStoreSummary *summary = CAMEL_STORE_SUMMARY (gw_summary);
 
-	((CamelStoreSummary *)s)->store_info_size = sizeof(CamelGroupwiseStoreInfo);
-	s->version = CAMEL_GW_STORE_SUMMARY_VERSION;
+	summary->store_info_size = sizeof (CamelGroupwiseStoreInfo);
+	gw_summary->version = CAMEL_GW_STORE_SUMMARY_VERSION;
 }
 
-static void
-camel_groupwise_store_summary_finalise (CamelObject *obj)
-{
-}
-
-CamelType
+GType
 camel_groupwise_store_summary_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		camel_groupwise_store_summary_parent = (CamelStoreSummaryClass *)camel_store_summary_get_type();
-		type = camel_type_register((CamelType)camel_groupwise_store_summary_parent, "CamelGroupwiseStoreSummary",
-				sizeof (CamelGroupwiseStoreSummary),
-				sizeof (CamelGroupwiseStoreSummaryClass),
-				(CamelObjectClassInitFunc) camel_groupwise_store_summary_class_init,
-				NULL,
-				(CamelObjectInitFunc) camel_groupwise_store_summary_init,
-				(CamelObjectFinalizeFunc) camel_groupwise_store_summary_finalise);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_STORE_SUMMARY,
+			"CamelGroupwiseStoreSummary",
+			sizeof (CamelGroupwiseStoreSummaryClass),
+			(GClassInitFunc) groupwise_store_summary_class_init,
+			sizeof (CamelGroupwiseStoreSummary),
+			(GInstanceInitFunc) groupwise_store_summary_init,
+			0);
 
 	return type;
 }
@@ -112,9 +101,7 @@ camel_groupwise_store_summary_get_type (void)
 CamelGroupwiseStoreSummary *
 camel_groupwise_store_summary_new (void)
 {
-	CamelGroupwiseStoreSummary *new = CAMEL_GW_STORE_SUMMARY ( camel_object_new (camel_groupwise_store_summary_get_type ()));
-
-	return new;
+	return g_object_new (CAMEL_TYPE_GROUPWISE_STORE_SUMMARY, NULL);
 }
 
 CamelGroupwiseStoreInfo *
@@ -458,7 +445,7 @@ summary_header_load(CamelStoreSummary *s, FILE *in)
 
 	namespace_clear (s);
 
-	if (camel_groupwise_store_summary_parent->summary_header_load ((CamelStoreSummary *)s, in) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->summary_header_load ((CamelStoreSummary *)s, in) == -1
 			|| camel_file_util_decode_fixed_int32(in, &version) == -1)
 		return -1;
 
@@ -484,7 +471,7 @@ summary_header_save(CamelStoreSummary *s, FILE *out)
 	guint32 count;
 
 	count = summary->namespace?1:0;
-	if (camel_groupwise_store_summary_parent->summary_header_save((CamelStoreSummary *)s, out) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->summary_header_save((CamelStoreSummary *)s, out) == -1
 			|| camel_file_util_encode_fixed_int32(out, 0) == -1
 			|| camel_file_util_encode_fixed_int32(out, summary->capabilities) == -1
 			|| camel_file_util_encode_fixed_int32(out, count) == -1)
@@ -501,7 +488,7 @@ store_info_load(CamelStoreSummary *s, FILE *in)
 {
 	CamelGroupwiseStoreInfo *si;
 
-	si = (CamelGroupwiseStoreInfo *)camel_groupwise_store_summary_parent->store_info_load(s, in);
+	si = (CamelGroupwiseStoreInfo *)CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_load(s, in);
 	if (si) {
 		if (camel_file_util_decode_string(in, &si->full_name) == -1) {
 			camel_store_summary_info_free(s, (CamelStoreInfo *)si);
@@ -517,7 +504,7 @@ store_info_save(CamelStoreSummary *s, FILE *out, CamelStoreInfo *mi)
 {
 	CamelGroupwiseStoreInfo *summary = (CamelGroupwiseStoreInfo *)mi;
 
-	if (camel_groupwise_store_summary_parent->store_info_save(s, out, mi) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_save(s, out, mi) == -1
 			|| camel_file_util_encode_string(out, summary->full_name) == -1)
 		return -1;
 
@@ -530,7 +517,7 @@ store_info_free(CamelStoreSummary *s, CamelStoreInfo *mi)
 	CamelGroupwiseStoreInfo *si = (CamelGroupwiseStoreInfo *)mi;
 
 	g_free(si->full_name);
-	camel_groupwise_store_summary_parent->store_info_free(s, mi);
+	CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_free(s, mi);
 }
 
 static const gchar *
@@ -546,7 +533,7 @@ store_info_string(CamelStoreSummary *s, const CamelStoreInfo *mi, gint type)
 		case CAMEL_STORE_INFO_LAST:
 			return isi->full_name;
 		default:
-			return camel_groupwise_store_summary_parent->store_info_string(s, mi, type);
+			return CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_string(s, mi, type);
 	}
 }
 
@@ -566,7 +553,7 @@ store_info_set_string(CamelStoreSummary *s, CamelStoreInfo *mi, gint type, const
 			CAMEL_STORE_SUMMARY_UNLOCK(s, summary_lock);
 			break;
 		default:
-			camel_groupwise_store_summary_parent->store_info_set_string(s, mi, type, str);
+			CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_set_string(s, mi, type, str);
 			break;
 	}
 }

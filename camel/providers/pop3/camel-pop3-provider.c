@@ -30,10 +30,6 @@
 #include <glib/gi18n-lib.h>
 
 #include "camel-pop3-store.h"
-#include "camel-provider.h"
-#include "camel-sasl.h"
-#include "camel-session.h"
-#include "camel-url.h"
 
 static guint pop3_url_hash (gconstpointer key);
 static gint pop3_url_equal (gconstpointer a, gconstpointer b);
@@ -96,7 +92,7 @@ camel_provider_module_init(void)
 {
 	CamelServiceAuthType *auth;
 
-	pop3_provider.object_types[CAMEL_PROVIDER_STORE] = camel_pop3_store_get_type();
+	pop3_provider.object_types[CAMEL_PROVIDER_STORE] = camel_pop3_store_get_type ();
 	pop3_provider.url_hash = pop3_url_hash;
 	pop3_provider.url_equal = pop3_url_equal;
 

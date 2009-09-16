@@ -41,46 +41,24 @@ static CamelFolder *digest_get_junk  (CamelStore *store, CamelException *ex);
 
 static CamelFolderInfo *digest_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, CamelException *ex);
 
-static void camel_digest_store_class_init (CamelDigestStoreClass *klass);
-static void camel_digest_store_init       (CamelDigestStore *obj);
-static void camel_digest_store_finalise   (CamelObject *obj);
-
 static gint digest_setv (CamelObject *object, CamelException *ex, CamelArgV *args);
 static gint digest_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args);
 
-static CamelStoreClass *parent_class = NULL;
-
-CamelType
-camel_digest_store_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_store_get_type (),
-					    "CamelDigestStore",
-					    sizeof (CamelDigestStore),
-					    sizeof (CamelDigestStoreClass),
-					    (CamelObjectClassInitFunc) camel_digest_store_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_digest_store_init,
-					    (CamelObjectFinalizeFunc) camel_digest_store_finalise);
-	}
-
-	return type;
-}
+static gpointer parent_class;
 
 static void
-camel_digest_store_class_init (CamelDigestStoreClass *klass)
+digest_store_class_init (CamelDigestStoreClass *class)
 {
-	CamelObjectClass *object_class = (CamelObjectClass *) klass;
-	CamelStoreClass *store_class = (CamelStoreClass *) klass;
+	CamelObjectClass *camel_object_class;
+	CamelStoreClass *store_class;
 
-	parent_class = CAMEL_STORE_CLASS(camel_type_get_global_classfuncs (camel_store_get_type ()));
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method overload */
-	object_class->setv = digest_setv;
-	object_class->getv = digest_getv;
+	camel_object_class = CAMEL_OBJECT_CLASS (class);
+	camel_object_class->setv = digest_setv;
+	camel_object_class->getv = digest_getv;
 
+	store_class = CAMEL_STORE_CLASS (class);
 	store_class->get_folder = digest_get_folder;
 	store_class->rename_folder = digest_rename_folder;
 	store_class->delete_folder = digest_delete_folder;
@@ -92,18 +70,30 @@ camel_digest_store_class_init (CamelDigestStoreClass *klass)
 }
 
 static void
-camel_digest_store_init (CamelDigestStore *obj)
+digest_store_init (CamelDigestStore *digest_store)
 {
-	CamelStore *store = (CamelStore *) obj;
+	CamelStore *store = CAMEL_STORE (digest_store);
 
 	/* we dont want a vtrash and vjunk on this one */
 	store->flags &= ~(CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK);
 }
 
-static void
-camel_digest_store_finalise (CamelObject *obj)
+GType
+camel_digest_store_get_type (void)
 {
+	static GType type = G_TYPE_INVALID;
 
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_STORE,
+			"CamelDigestStore",
+			sizeof (CamelDigestStoreClass),
+			(GClassInitFunc) digest_store_class_init,
+			sizeof (CamelDigestStore),
+			(GInstanceInitFunc) digest_store_init,
+			0);
+
+	return type;
 }
 
 static gint
@@ -138,7 +128,7 @@ camel_digest_store_new (const gchar *url)
 	if (!uri)
 		return NULL;
 
-	store = CAMEL_STORE (camel_object_new (camel_digest_store_get_type ()));
+	store = g_object_new (CAMEL_TYPE_DIGEST_STORE, NULL);
 	CAMEL_SERVICE (store)->url = uri;
 
 	return store;

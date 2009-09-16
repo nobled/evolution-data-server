@@ -28,13 +28,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-pop3-engine.h"
 #include "camel-pop3-stream.h"
-#include "camel-sasl.h"
-#include "camel-service.h"
 
 /* max 'outstanding' bytes in output stream, so we can't deadlock waiting
    for the server to accept our data when pipelining */
@@ -43,61 +40,77 @@
 extern CamelServiceAuthType camel_pop3_password_authtype;
 extern CamelServiceAuthType camel_pop3_apop_authtype;
 
-extern gint camel_verbose_debug;
 #define dd(x) (camel_verbose_debug?(x):0)
 
 static void get_capabilities(CamelPOP3Engine *pe);
 
-static CamelObjectClass *parent_class = NULL;
-
-/* Returns the class for a CamelStream */
-#define CS_CLASS(so) CAMEL_POP3_ENGINE_CLASS(CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static void
-camel_pop3_engine_class_init (CamelPOP3EngineClass *camel_pop3_engine_class)
+pop3_engine_dispose (GObject *object)
 {
-	parent_class = camel_type_get_global_classfuncs( CAMEL_OBJECT_TYPE );
-}
+	CamelPOP3Engine *engine = CAMEL_POP3_ENGINE (object);
 
-static void
-camel_pop3_engine_init(CamelPOP3Engine *pe, CamelPOP3EngineClass *peclass)
-{
-	camel_dlist_init(&pe->active);
-	camel_dlist_init(&pe->queue);
-	camel_dlist_init(&pe->done);
-	pe->state = CAMEL_POP3_ENGINE_DISCONNECT;
-}
-
-static void
-camel_pop3_engine_finalise(CamelPOP3Engine *pe)
-{
-	/* FIXME: Also flush/free any outstanding requests, etc */
-
-	if (pe->stream)
-		camel_object_unref(pe->stream);
-
-	g_list_free(pe->auth);
-	if (pe->apop)
-		g_free(pe->apop);
-}
-
-CamelType
-camel_pop3_engine_get_type (void)
-{
-	static CamelType camel_pop3_engine_type = CAMEL_INVALID_TYPE;
-
-	if (camel_pop3_engine_type == CAMEL_INVALID_TYPE) {
-		camel_pop3_engine_type = camel_type_register(camel_object_get_type(),
-							     "CamelPOP3Engine",
-							     sizeof( CamelPOP3Engine ),
-							     sizeof( CamelPOP3EngineClass ),
-							     (CamelObjectClassInitFunc) camel_pop3_engine_class_init,
-							     NULL,
-							     (CamelObjectInitFunc) camel_pop3_engine_init,
-							     (CamelObjectFinalizeFunc) camel_pop3_engine_finalise );
+	if (engine->stream != NULL) {
+		g_object_unref (engine->stream);
+		engine->stream = NULL;
 	}
 
-	return camel_pop3_engine_type;
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
+}
+
+static void
+pop3_engine_finalize (GObject *object)
+{
+	CamelPOP3Engine *engine = CAMEL_POP3_ENGINE (object);
+
+	/* FIXME: Also flush/free any outstanding requests, etc */
+
+	g_list_free (engine->auth);
+	g_free (engine->apop);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+camel_pop3_engine_class_init (CamelPOP3EngineClass *class)
+{
+	GObjectClass *object_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = pop3_engine_dispose;
+	object_class->finalize = pop3_engine_finalize;
+}
+
+static void
+camel_pop3_engine_init (CamelPOP3Engine *engine)
+{
+	camel_dlist_init (&engine->active);
+	camel_dlist_init (&engine->queue);
+	camel_dlist_init (&engine->done);
+	engine->state = CAMEL_POP3_ENGINE_DISCONNECT;
+}
+
+GType
+camel_pop3_engine_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelPOP3Engine",
+			sizeof (CamelPOP3EngineClass),
+			(GClassInitFunc) camel_pop3_engine_class_init,
+			sizeof (CamelPOP3Engine),
+			(GInstanceInitFunc) camel_pop3_engine_init,
+			0);
+
+	return type;
 }
 
 static gint
@@ -139,14 +152,14 @@ camel_pop3_engine_new(CamelStream *source, guint32 flags)
 {
 	CamelPOP3Engine *pe;
 
-	pe = (CamelPOP3Engine *)camel_object_new(camel_pop3_engine_get_type ());
+	pe = g_object_new (CAMEL_TYPE_POP3_ENGINE, NULL);
 
 	pe->stream = (CamelPOP3Stream *)camel_pop3_stream_new(source);
 	pe->state = CAMEL_POP3_ENGINE_AUTH;
 	pe->flags = flags;
 
 	if (read_greeting (pe) == -1) {
-		camel_object_unref (pe);
+		g_object_unref (pe);
 		return NULL;
 	}
 

@@ -22,9 +22,6 @@ CamelDiscoStore
 
 </para>
 
-@parent_object: 
-@status: 
-@diary: 
 
 <!-- ##### ENUM CamelDiscoStoreStatus ##### -->
 <para>

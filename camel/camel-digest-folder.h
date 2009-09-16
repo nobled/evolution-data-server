@@ -20,41 +20,59 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
-#ifndef _CAMEL_DIGEST_FOLDER_H
-#define _CAMEL_DIGEST_FOLDER_H
+#ifndef CAMEL_DIGEST_FOLDER_H
+#define CAMEL_DIGEST_FOLDER_H
 
-#include <glib.h>
 #include <camel/camel-store.h>
 #include <camel/camel-folder.h>
 #include <camel/camel-mime-message.h>
 
-#define CAMEL_DIGEST_FOLDER(obj)         CAMEL_CHECK_CAST (obj, camel_digest_folder_get_type (), CamelDigestFolder)
-#define CAMEL_DIGEST_FOLDER_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_digest_folder_get_type (), CamelDigestFolderClass)
-#define CAMEL_IS_DIGEST_FOLDER(obj)      CAMEL_CHECK_TYPE (obj, camel_digest_folder_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_DIGEST_FOLDER \
+	(camel_digest_folder_get_type ())
+#define CAMEL_DIGEST_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DIGEST_FOLDER, CamelDigestFolder))
+#define CAMEL_DIGEST_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DIGEST_FOLDER, CamelDigestFolderClass))
+#define CAMEL_IS_DIGEST_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DIGEST_FOLDER))
+#define CAMEL_IS_DIGEST_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DIGEST_FOLDER))
+#define CAMEL_DIGEST_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DIGEST_FOLDER, CamelDigestFolderClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelDigestFolder CamelDigestFolder;
 typedef struct _CamelDigestFolderClass CamelDigestFolderClass;
+typedef struct _CamelDigestFolderPrivate CamelDigestFolderPrivate;
 
 struct _CamelDigestFolder {
 	CamelFolder parent;
-
-	struct _CamelDigestFolderPrivate *priv;
+	CamelDigestFolderPrivate *priv;
 };
 
 struct _CamelDigestFolderClass {
 	CamelFolderClass parent_class;
-
 };
 
-CamelType    camel_digest_folder_get_type (void);
+GType    camel_digest_folder_get_type (void);
 
 CamelFolder *camel_digest_folder_new      (CamelStore *parent_store, CamelMimeMessage *message);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_DIGEST_FOLDER_H */
+#endif /* CAMEL_DIGEST_FOLDER_H */
 
 #endif /* CAMEL_DISABLE_DEPRECATED */

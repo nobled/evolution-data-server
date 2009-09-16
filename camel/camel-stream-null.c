@@ -28,52 +28,61 @@
 
 #include "camel-stream-null.h"
 
-static CamelObjectClass *parent_class = NULL;
+static gpointer parent_class;
 
-/* Returns the class for a CamelStream */
-#define CS_CLASS(so) CAMEL_STREAM_NULL_CLASS(CAMEL_OBJECT_GET_CLASS(so))
-
-/* dummy implementations, for a NULL stream */
-static gssize   stream_read       (CamelStream *stream, gchar *buffer, gsize n) { return 0; }
-static gssize   stream_write      (CamelStream *stream, const gchar *buffer, gsize n) { ((CamelStreamNull *)stream)->written += n; return n; }
-static gint       stream_close      (CamelStream *stream) { return 0; }
-static gint       stream_flush      (CamelStream *stream) { return 0; }
-static gboolean  stream_eos        (CamelStream *stream) { return TRUE; }
-static gint       stream_reset      (CamelStream *stream) { ((CamelStreamNull *)stream)->written = 0; return 0; }
-
-static void
-camel_stream_null_class_init (CamelStreamClass *camel_stream_null_class)
+static gssize
+stream_null_write (CamelStream *stream,
+                   const gchar *buffer,
+                   gsize n)
 {
-	CamelStreamClass *camel_stream_class = (CamelStreamClass *)camel_stream_null_class;
+	CAMEL_STREAM_NULL (stream)->written += n;
 
-	parent_class = camel_type_get_global_classfuncs( CAMEL_OBJECT_TYPE );
-
-	/* virtual method definition */
-	camel_stream_class->read = stream_read;
-	camel_stream_class->write = stream_write;
-	camel_stream_class->close = stream_close;
-	camel_stream_class->flush = stream_flush;
-	camel_stream_class->eos = stream_eos;
-	camel_stream_class->reset = stream_reset;
+	return n;
 }
 
-CamelType
+static gboolean
+stream_null_eos (CamelStream *stream)
+{
+	return TRUE;
+}
+
+static gint
+stream_null_reset (CamelStream *stream)
+{
+	CAMEL_STREAM_NULL (stream)->written = 0;
+
+	return 0;
+}
+
+static void
+stream_null_class_init (CamelStreamClass *class)
+{
+	CamelStreamClass *stream_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	stream_class = CAMEL_STREAM_CLASS (class);
+	stream_class->write = stream_null_write;
+	stream_class->eos = stream_null_eos;
+	stream_class->reset = stream_null_reset;
+}
+
+GType
 camel_stream_null_get_type (void)
 {
-	static CamelType camel_stream_null_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_stream_null_type == CAMEL_INVALID_TYPE) {
-		camel_stream_null_type = camel_type_register( camel_stream_get_type(),
-							      "CamelStreamNull",
-							      sizeof( CamelStreamNull ),
-							      sizeof( CamelStreamNullClass ),
-							      (CamelObjectClassInitFunc) camel_stream_null_class_init,
-							      NULL,
-							      NULL,
-							      NULL );
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_STREAM,
+			"CamelStreamNull",
+			sizeof (CamelStreamNullClass),
+			(GClassInitFunc) stream_null_class_init,
+			sizeof (CamelStreamNull),
+			(GInstanceInitFunc) NULL,
+			0);
 
-	return camel_stream_null_type;
+	return type;
 }
 
 /**
@@ -87,5 +96,5 @@ camel_stream_null_get_type (void)
 CamelStream *
 camel_stream_null_new(void)
 {
-	return (CamelStream *)camel_object_new(camel_stream_null_get_type ());
+	return g_object_new (CAMEL_TYPE_STREAM_NULL, NULL);
 }

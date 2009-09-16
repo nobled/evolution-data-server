@@ -20,10 +20,12 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_TCP_STREAM_H
 #define CAMEL_TCP_STREAM_H
-
-#include <glib.h>
 
 #ifndef G_OS_WIN32
 #include <sys/types.h>
@@ -39,12 +41,29 @@
 
 #include <camel/camel-stream.h>
 
-#define CAMEL_TCP_STREAM_TYPE     (camel_tcp_stream_get_type ())
-#define CAMEL_TCP_STREAM(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_TCP_STREAM_TYPE, CamelTcpStream))
-#define CAMEL_TCP_STREAM_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_TCP_STREAM_TYPE, CamelTcpStreamClass))
-#define CAMEL_IS_TCP_STREAM(o)    (CAMEL_CHECK_TYPE((o), CAMEL_TCP_STREAM_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_TCP_STREAM \
+	(camel_tcp_stream_get_type ())
+#define CAMEL_TCP_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_TCP_STREAM, CamelTcpStream))
+#define CAMEL_TCP_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_TCP_STREAM, CamelTcpStreamClass))
+#define CAMEL_IS_TCP_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_TCP_STREAM))
+#define CAMEL_IS_TCP_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_TCP_STREAM))
+#define CAMEL_TCP_STREAM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_TCP_STREAM, CamelTcpStreamClass))
 
 G_BEGIN_DECLS
+
+typedef struct _CamelTcpStream CamelTcpStream;
+typedef struct _CamelTcpStreamClass CamelTcpStreamClass;
 
 typedef enum {
 	CAMEL_SOCKOPT_NONBLOCKING,     /* nonblocking io */
@@ -91,11 +110,10 @@ typedef struct _CamelSockOptData {
 } CamelSockOptData;
 
 struct _CamelTcpStream {
-	CamelStream parent_object;
-
+	CamelStream parent;
 };
 
-typedef struct {
+struct _CamelTcpStreamClass {
 	CamelStreamClass parent_class;
 
 	/* Virtual methods */
@@ -105,10 +123,9 @@ typedef struct {
 
 	struct sockaddr * (*get_local_address)  (CamelTcpStream *stream, socklen_t *len);
 	struct sockaddr * (*get_remote_address) (CamelTcpStream *stream, socklen_t *len);
-} CamelTcpStreamClass;
+};
 
-/* Standard Camel function */
-CamelType camel_tcp_stream_get_type (void);
+GType camel_tcp_stream_get_type (void);
 
 /* public methods */
 gint         camel_tcp_stream_connect    (CamelTcpStream *stream, struct addrinfo *host);

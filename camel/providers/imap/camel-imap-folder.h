@@ -24,17 +24,31 @@
  */
 
 #ifndef CAMEL_IMAP_FOLDER_H
-#define CAMEL_IMAP_FOLDER_H 1
+#define CAMEL_IMAP_FOLDER_H
 
-#include "camel-imap-types.h"
-#include <camel/camel-offline-folder.h>
-#include <camel/camel-folder-search.h>
-#include <camel/camel-offline-journal.h>
+#include <camel.h>
 
-#define CAMEL_IMAP_FOLDER_TYPE     (camel_imap_folder_get_type ())
-#define CAMEL_IMAP_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_IMAP_FOLDER_TYPE, CamelImapFolder))
-#define CAMEL_IMAP_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_IMAP_FOLDER_TYPE, CamelImapFolderClass))
-#define CAMEL_IS_IMAP_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_IMAP_FOLDER_TYPE))
+#include "camel-imap-command.h"
+#include "camel-imap-message-cache.h"
+
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP_FOLDER \
+	(camel_imap_folder_get_type ())
+#define CAMEL_IMAP_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP_FOLDER, CamelImapFolder))
+#define CAMEL_IMAP_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP_FOLDER, CamelImapFolderClass))
+#define CAMEL_IS_IMAP_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP_FOLDER))
+#define CAMEL_IS_IMAP_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP_FOLDER))
+#define CAMEL_IMAP_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP_FOLDER, CamelImapFolderClass))
 
 G_BEGIN_DECLS
 
@@ -49,11 +63,12 @@ enum {
 	CAMEL_IMAP_FOLDER_CHECK_FOLDER = CAMEL_IMAP_FOLDER_ARG_CHECK_FOLDER | CAMEL_ARG_BOO
 };
 
+typedef struct _CamelImapFolder CamelImapFolder;
 typedef struct _CamelImapFolderClass CamelImapFolderClass;
 typedef struct _CamelImapFolderPrivate CamelImapFolderPrivate;
 
 struct _CamelImapFolder {
-	CamelOfflineFolder parent_object;
+	CamelOfflineFolder parent;
 
 	CamelImapFolderPrivate *priv;
 
@@ -69,9 +84,6 @@ struct _CamelImapFolder {
 
 struct _CamelImapFolderClass {
 	CamelOfflineFolderClass parent_class;
-
-	/* Virtual methods */
-
 };
 
 /* public methods */
@@ -103,8 +115,7 @@ imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
 void
 imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelException *ex);
 
-/* Standard Camel function */
-CamelType camel_imap_folder_get_type (void);
+GType camel_imap_folder_get_type (void);
 
 G_END_DECLS
 

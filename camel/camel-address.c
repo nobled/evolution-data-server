@@ -20,45 +20,51 @@
 
 #include "camel-address.h"
 
-static void camel_address_class_init (CamelAddressClass *klass);
-static void camel_address_init       (CamelAddress *obj);
-static void camel_address_finalize   (CamelObject *obj);
-
-static CamelObjectClass *camel_address_parent;
+static gpointer parent_class;
 
 static void
-camel_address_class_init (CamelAddressClass *klass)
+address_finalize (GObject *object)
 {
-	camel_address_parent = camel_type_get_global_classfuncs (camel_object_get_type ());
+	CamelAddress *address = CAMEL_ADDRESS (object);
+
+	camel_address_remove (address, -1);
+	g_ptr_array_free (address->addresses, TRUE);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
-camel_address_init (CamelAddress *obj)
+address_class_init (CamelAddressClass *class)
 {
-	obj->addresses = g_ptr_array_new();
+	GObjectClass *object_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = address_finalize;
 }
 
 static void
-camel_address_finalize (CamelObject *obj)
+address_init (CamelAddress *address)
 {
-	camel_address_remove((CamelAddress *)obj, -1);
-	g_ptr_array_free(((CamelAddress *)obj)->addresses, TRUE);
+	address->addresses = g_ptr_array_new();
 }
 
-CamelType
+GType
 camel_address_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_object_get_type (), "CamelAddress",
-					    sizeof (CamelAddress),
-					    sizeof (CamelAddressClass),
-					    (CamelObjectClassInitFunc) camel_address_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_address_init,
-					    (CamelObjectFinalizeFunc) camel_address_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelAddress",
+			sizeof (CamelAddressClass),
+			(GClassInitFunc) address_class_init,
+			sizeof (CamelAddress),
+			(GInstanceInitFunc) address_init,
+			0);
 
 	return type;
 }
@@ -73,8 +79,7 @@ camel_address_get_type (void)
 CamelAddress *
 camel_address_new (void)
 {
-	CamelAddress *new = CAMEL_ADDRESS(camel_object_new(camel_address_get_type()));
-	return new;
+	return g_object_new (CAMEL_TYPE_ADDRESS, NULL);
 }
 
 /**
@@ -86,11 +91,13 @@ camel_address_new (void)
  * Returns: the cloned address
  **/
 CamelAddress *
-camel_address_new_clone (const CamelAddress *addr)
+camel_address_new_clone (CamelAddress *addr)
 {
-	CamelAddress *new = CAMEL_ADDRESS(camel_object_new(CAMEL_OBJECT_GET_TYPE(addr)));
+	CamelAddress *new;
 
-	camel_address_cat(new, addr);
+	new = g_object_new (CAMEL_TYPE_ADDRESS, NULL);
+	camel_address_cat (new, addr);
+
 	return new;
 }
 
@@ -120,9 +127,14 @@ camel_address_length (CamelAddress *addr)
 gint
 camel_address_decode (CamelAddress *addr, const gchar *raw)
 {
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(addr), -1);
+	CamelAddressClass *class;
 
-	return CAMEL_ADDRESS_CLASS (CAMEL_OBJECT_GET_CLASS (addr))->decode(addr, raw);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (addr), -1);
+
+	class = CAMEL_ADDRESS_GET_CLASS (addr);
+	g_return_val_if_fail (class->decode != NULL, -1);
+
+	return class->decode (addr, raw);
 }
 
 /**
@@ -136,9 +148,14 @@ camel_address_decode (CamelAddress *addr, const gchar *raw)
 gchar *
 camel_address_encode (CamelAddress *addr)
 {
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(addr), NULL);
+	CamelAddressClass *class;
 
-	return CAMEL_ADDRESS_CLASS (CAMEL_OBJECT_GET_CLASS (addr))->encode(addr);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (addr), NULL);
+
+	class = CAMEL_ADDRESS_GET_CLASS (addr);
+	g_return_val_if_fail (class->encode != NULL, NULL);
+
+	return class->encode (addr);
 }
 
 /**
@@ -154,9 +171,14 @@ camel_address_encode (CamelAddress *addr)
 gint
 camel_address_unformat(CamelAddress *addr, const gchar *raw)
 {
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(addr), -1);
+	CamelAddressClass *class;
 
-	return CAMEL_ADDRESS_CLASS (CAMEL_OBJECT_GET_CLASS (addr))->unformat(addr, raw);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (addr), -1);
+
+	class = CAMEL_ADDRESS_GET_CLASS (addr);
+	g_return_val_if_fail (class->unformat != NULL, -1);
+
+	return class->unformat (addr, raw);
 }
 
 /**
@@ -170,9 +192,14 @@ camel_address_unformat(CamelAddress *addr, const gchar *raw)
 gchar *
 camel_address_format (CamelAddress *addr)
 {
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(addr), NULL);
+	CamelAddressClass *class;
 
-	return CAMEL_ADDRESS_CLASS (CAMEL_OBJECT_GET_CLASS (addr))->format(addr);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (addr), NULL);
+
+	class = CAMEL_ADDRESS_GET_CLASS (addr);
+	g_return_val_if_fail (class->format != NULL, NULL);
+
+	return class->format (addr);
 }
 
 /**
@@ -186,12 +213,17 @@ camel_address_format (CamelAddress *addr)
  * Returns: the number of addresses concatenated
  **/
 gint
-camel_address_cat (CamelAddress *dest, const CamelAddress *source)
+camel_address_cat (CamelAddress *dest, CamelAddress *source)
 {
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(dest), -1);
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(source), -1);
+	CamelAddressClass *class;
 
-	return CAMEL_ADDRESS_CLASS(CAMEL_OBJECT_GET_CLASS(dest))->cat(dest, source);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (dest), -1);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (source), -1);
+
+	class = CAMEL_ADDRESS_GET_CLASS (dest);
+	g_return_val_if_fail (class->cat != NULL, -1);
+
+	return class->cat (dest, source);
 }
 
 /**
@@ -204,10 +236,10 @@ camel_address_cat (CamelAddress *dest, const CamelAddress *source)
  * Returns: the number of addresses copied
  **/
 gint
-camel_address_copy (CamelAddress *dest, const CamelAddress *source)
+camel_address_copy (CamelAddress *dest, CamelAddress *source)
 {
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(dest), -1);
-	g_return_val_if_fail(CAMEL_IS_ADDRESS(source), -1);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (dest), -1);
+	g_return_val_if_fail (CAMEL_IS_ADDRESS (source), -1);
 
 	camel_address_remove(dest, -1);
 	return camel_address_cat(dest, source);
@@ -223,12 +255,16 @@ camel_address_copy (CamelAddress *dest, const CamelAddress *source)
 void
 camel_address_remove (CamelAddress *addr, gint index)
 {
-	g_return_if_fail(CAMEL_IS_ADDRESS(addr));
+	CamelAddressClass *class;
+
+	g_return_if_fail (CAMEL_IS_ADDRESS (addr));
+
+	class = CAMEL_ADDRESS_GET_CLASS (addr);
+	g_return_if_fail (class->remove != NULL);
 
 	if (index == -1) {
 		for (index = addr->addresses->len; index>-1; index--)
-			CAMEL_ADDRESS_CLASS (CAMEL_OBJECT_GET_CLASS (addr))->remove(addr, index);
-	} else {
-		CAMEL_ADDRESS_CLASS (CAMEL_OBJECT_GET_CLASS (addr))->remove(addr, index);
-	}
+			class->remove (addr, index);
+	} else
+		class->remove (addr, index);
 }

@@ -31,7 +31,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-debug.h"
@@ -399,6 +398,8 @@ camel_db_open (const gchar *path, CamelException *ex)
 	CamelDB *cdb;
 	sqlite3 *db;
 	gint ret;
+
+	g_once (&vfs_once, (GThreadFunc) init_sqlite_vfs, NULL);
 
 	g_once (&vfs_once, (GThreadFunc) init_sqlite_vfs, NULL);
 

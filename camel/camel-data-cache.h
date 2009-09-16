@@ -20,75 +20,84 @@
  * USA
  */
 
-#ifndef CAMEL_DATA_CACHE_H
-#define CAMEL_DATA_CACHE_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <glib.h>
+#ifndef CAMEL_DATA_CACHE_H
+#define CAMEL_DATA_CACHE_H
 
 #include <camel/camel-stream.h>
 #include <camel/camel-exception.h>
 
-#define CAMEL_DATA_CACHE_TYPE     (camel_data_cache_get_type ())
-#define CAMEL_DATA_CACHE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_DATA_CACHE_TYPE, CamelFolder))
-#define CAMEL_DATA_CACHE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_DATA_CACHE_TYPE, CamelFolderClass))
-#define CAMEL_IS_DATA_CACHE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_DATA_CACHE_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_DATA_CACHE \
+	(camel_data_cache_get_type ())
+#define CAMEL_DATA_CACHE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DATA_CACHE, CamelDataCache))
+#define CAMEL_DATA_CACHE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DATA_CACHE, CamelDataCacheClass))
+#define CAMEL_IS_DATA_CACHE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DATA_CACHE))
+#define CAMEL_IS_DATA_CACHE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DATA_CACHE))
+#define CAMEL_DATA_CACHE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DATA_CACHE, CamelDataCacheClass))
 
 G_BEGIN_DECLS
 
 typedef struct _CamelDataCache CamelDataCache;
 typedef struct _CamelDataCacheClass CamelDataCacheClass;
+typedef struct _CamelDataCachePrivate CamelDataCachePrivate;
 
 struct _CamelDataCache {
-	CamelObject parent_object;
-
-	struct _CamelDataCachePrivate *priv;
-
-	gchar *path;
-	guint32 flags;
-
-	time_t expire_age;
-	time_t expire_access;
+	CamelObject parent;
+	CamelDataCachePrivate *priv;
 };
 
 struct _CamelDataCacheClass {
 	CamelObjectClass parent_class;
-
-	/* None are virtual yet */
-#if 0
-	/* Virtual methods */
-	CamelStream *(*add)(CamelDataCache *cmc, const gchar *path, const gchar *key, CamelException *ex);
-	CamelStream *(*get)(CamelDataCache *cmc, const gchar *path, const gchar *key, CamelException *ex);
-	gint (*close)(CamelDataCache *cmc, CamelStream *stream, CamelException *ex);
-	gint (*remove)(CamelDataCache *cmc, const gchar *path, const gchar *key, CamelException *ex);
-
-	gint (*clear)(CamelDataCache *cmc, const gchar *path, CamelException *ex);
-#endif
 };
 
-/* public methods */
-CamelDataCache *camel_data_cache_new(const gchar *path, guint32 flags, CamelException *ex);
-
-void camel_data_cache_set_expire_age(CamelDataCache *cdc, time_t when);
-void camel_data_cache_set_expire_access(CamelDataCache *cdc, time_t when);
-
-gint             camel_data_cache_rename(CamelDataCache *cache,
-					const gchar *old, const gchar *new, CamelException *ex);
-
-CamelStream    *camel_data_cache_add(CamelDataCache *cdc,
-				     const gchar *path, const gchar *key, CamelException *ex);
-CamelStream    *camel_data_cache_get(CamelDataCache *cdc,
-				     const gchar *path, const gchar *key, CamelException *ex);
-gint             camel_data_cache_remove(CamelDataCache *cdc,
-					const gchar *path, const gchar *key, CamelException *ex);
-
-gint             camel_data_cache_clear(CamelDataCache *cache,
-				       const gchar *path, CamelException *ex);
-
-gchar *         camel_data_cache_get_filename(CamelDataCache *cdc,
-					      const gchar *path, const gchar *key, CamelException *ex);
-
-/* Standard Camel function */
-CamelType camel_data_cache_get_type (void);
+GType		camel_data_cache_get_type	(void);
+CamelDataCache *camel_data_cache_new		(const gchar *path,
+						 CamelException *ex);
+const gchar *	camel_data_cache_get_path	(CamelDataCache *cdc);
+void		camel_data_cache_set_path	(CamelDataCache *cdc,
+						 const gchar *path);
+void		camel_data_cache_set_expire_age	(CamelDataCache *cdc,
+						 time_t when);
+void		camel_data_cache_set_expire_access
+						(CamelDataCache *cdc,
+						 time_t when);
+gint		camel_data_cache_rename		(CamelDataCache *cache,
+						 const gchar *old,
+						 const gchar *new,
+						 CamelException *ex);
+CamelStream *	camel_data_cache_add		(CamelDataCache *cdc,
+						 const gchar *path,
+						 const gchar *key,
+						 CamelException *ex);
+CamelStream *	camel_data_cache_get		(CamelDataCache *cdc,
+						 const gchar *path,
+						 const gchar *key,
+						 CamelException *ex);
+gint		camel_data_cache_remove		(CamelDataCache *cdc,
+						 const gchar *path,
+						 const gchar *key,
+						 CamelException *ex);
+gint		camel_data_cache_clear		(CamelDataCache *cache,
+						 const gchar *path,
+						 CamelException *ex);
+gchar *		camel_data_cache_get_filename	(CamelDataCache *cdc,
+						 const gchar *path,
+						 const gchar *key,
+						 CamelException *ex);
 
 G_END_DECLS
 

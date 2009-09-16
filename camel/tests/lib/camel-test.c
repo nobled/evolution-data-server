@@ -96,7 +96,7 @@ current_state(void)
 	return info;
 }
 
-void camel_test_init(gint argc, gchar **argv)
+void test_init(gint argc, gchar **argv)
 {
 	struct stat st;
 	gchar *path;
@@ -120,7 +120,7 @@ void camel_test_init(gint argc, gchar **argv)
 	camel_init (path, FALSE);
 	g_free (path);
 
-	camel_type_init ();
+	type_init ();
 
 	info_table = g_hash_table_new(0, 0);
 
@@ -153,7 +153,7 @@ void camel_test_start(const gchar *what)
 	s = current_state();
 
 	if (!setup)
-		camel_test_init(0, 0);
+		test_init(0, 0);
 
 	ok = 1;
 

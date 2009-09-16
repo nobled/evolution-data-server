@@ -85,7 +85,7 @@ main (gint argc, gchar **argv)
 			}
 			g_free (outfile);
 
-			filter = camel_stream_filter_new_with_stream (CAMEL_STREAM (source));
+			filter = camel_stream_filter_new (CAMEL_STREAM (source));
 			if (!filter) {
 				camel_test_fail ("Couldn't create CamelStreamFilter??");
 				continue;
@@ -144,10 +144,10 @@ main (gint argc, gchar **argv)
 
 			/* inefficient */
 			camel_test_push ("Cleaning up");
-			camel_object_unref (CAMEL_OBJECT (filter));
-			camel_object_unref (CAMEL_OBJECT (correct));
-			camel_object_unref (CAMEL_OBJECT (source));
-			camel_object_unref (CAMEL_OBJECT (sh));
+			g_object_unref (CAMEL_OBJECT (filter));
+			g_object_unref (CAMEL_OBJECT (correct));
+			g_object_unref (CAMEL_OBJECT (source));
+			g_object_unref (CAMEL_OBJECT (sh));
 			camel_test_pull ();
 
 			camel_test_pull ();

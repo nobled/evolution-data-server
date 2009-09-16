@@ -30,15 +30,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
-
-#include "camel-db.h"
-#include "camel-file-utils.h"
-#include "camel-mime-message.h"
-#include "camel-stream-null.h"
-#include "camel-string-utils.h"
 
 #include "camel-local-summary.h"
 
@@ -67,75 +60,96 @@ static gint local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFo
 static CamelMessageInfo *local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *, CamelException *ex);
 static gint local_summary_need_index(void);
 
-static void camel_local_summary_class_init (CamelLocalSummaryClass *klass);
-static void camel_local_summary_init       (CamelLocalSummary *obj);
-static void camel_local_summary_finalise   (CamelObject *obj);
-static CamelFolderSummaryClass *camel_local_summary_parent;
+static gpointer parent_class;
 
-CamelType
-camel_local_summary_get_type(void)
+static void
+local_summary_dispose (GObject *object)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	CamelLocalSummary *local_summary;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(camel_folder_summary_get_type(), "CamelLocalSummary",
-					   sizeof (CamelLocalSummary),
-					   sizeof (CamelLocalSummaryClass),
-					   (CamelObjectClassInitFunc) camel_local_summary_class_init,
-					   NULL,
-					   (CamelObjectInitFunc) camel_local_summary_init,
-					   (CamelObjectFinalizeFunc) camel_local_summary_finalise);
+	local_summary = CAMEL_LOCAL_SUMMARY (object);
+
+	if (local_summary->index != NULL) {
+		g_object_unref (local_summary->index);
+		local_summary->index = NULL;
 	}
 
-	return type;
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_local_summary_class_init(CamelLocalSummaryClass *klass)
+local_summary_finalize (GObject *object)
 {
-	CamelFolderSummaryClass *sklass = (CamelFolderSummaryClass *) klass;
+	CamelLocalSummary *local_summary;
 
-	camel_local_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS(camel_type_get_global_classfuncs(camel_folder_summary_get_type()));
+	local_summary = CAMEL_LOCAL_SUMMARY (object);
 
-	sklass->summary_header_load = summary_header_load;
-	sklass->summary_header_save = summary_header_save;
+	g_free (local_summary->folder_path);
 
-	sklass->summary_header_from_db = summary_header_from_db;
-	sklass->summary_header_to_db = summary_header_to_db;
-
-	sklass->message_info_new_from_header  = message_info_new_from_header;
-
-	klass->load = local_summary_load;
-	klass->check = local_summary_check;
-	klass->sync = local_summary_sync;
-	klass->add = local_summary_add;
-
-	klass->encode_x_evolution = local_summary_encode_x_evolution;
-	klass->decode_x_evolution = local_summary_decode_x_evolution;
-	klass->need_index = local_summary_need_index;
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
-camel_local_summary_init(CamelLocalSummary *obj)
+local_summary_class_init (CamelLocalSummaryClass *class)
 {
-	struct _CamelFolderSummary *s = (CamelFolderSummary *)obj;
+	GObjectClass *object_class;
+	CamelFolderSummaryClass *folder_summary_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = local_summary_dispose;
+	object_class->finalize = local_summary_finalize;
+
+	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->summary_header_load = summary_header_load;
+	folder_summary_class->summary_header_save = summary_header_save;
+	folder_summary_class->summary_header_from_db = summary_header_from_db;
+	folder_summary_class->summary_header_to_db = summary_header_to_db;
+	folder_summary_class->message_info_new_from_header  = message_info_new_from_header;
+
+	class->load = local_summary_load;
+	class->check = local_summary_check;
+	class->sync = local_summary_sync;
+	class->add = local_summary_add;
+	class->encode_x_evolution = local_summary_encode_x_evolution;
+	class->decode_x_evolution = local_summary_decode_x_evolution;
+	class->need_index = local_summary_need_index;
+}
+
+static void
+local_summary_init (CamelLocalSummary *local_summary)
+{
+	CamelFolderSummary *folder_summary;
+
+	folder_summary = CAMEL_FOLDER_SUMMARY (local_summary);
 
 	/* subclasses need to set the right instance data sizes */
-	s->message_info_size = sizeof(CamelLocalMessageInfo);
-	s->content_info_size = sizeof(CamelMessageContentInfo);
+	folder_summary->message_info_size = sizeof (CamelLocalMessageInfo);
+	folder_summary->content_info_size = sizeof (CamelMessageContentInfo);
 
 	/* and a unique file version */
-	s->version += CAMEL_LOCAL_SUMMARY_VERSION;
+	folder_summary->version += CAMEL_LOCAL_SUMMARY_VERSION;
 }
 
-static void
-camel_local_summary_finalise(CamelObject *obj)
+GType
+camel_local_summary_get_type(void)
 {
-	CamelLocalSummary *mbs = CAMEL_LOCAL_SUMMARY(obj);
+	static GType type = G_TYPE_INVALID;
 
-	if (mbs->index)
-		camel_object_unref((CamelObject *)mbs->index);
-	g_free(mbs->folder_path);
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_FOLDER_SUMMARY,
+			"CamelLocalSummary",
+			sizeof (CamelLocalSummaryClass),
+			(GClassInitFunc) local_summary_class_init,
+			sizeof (CamelLocalSummary),
+			(GInstanceInitFunc) local_summary_init,
+			0);
+
+	return type;
 }
 
 void
@@ -146,7 +160,7 @@ camel_local_summary_construct(CamelLocalSummary *new, const gchar *filename, con
 	new->folder_path = g_strdup(local_name);
 	new->index = index;
 	if (index)
-		camel_object_ref((CamelObject *)index);
+		g_object_ref (index);
 }
 
 static gint
@@ -160,10 +174,14 @@ local_summary_load(CamelLocalSummary *cls, gint forceindex, CamelException *ex)
 gint
 camel_local_summary_load(CamelLocalSummary *cls, gint forceindex, CamelException *ex)
 {
+	CamelLocalSummaryClass *class;
+
 	d(printf("Loading summary ...\n"));
 
-	if ((forceindex && ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->need_index())
-	    || ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->load(cls, forceindex, ex) == -1) {
+	class = CAMEL_LOCAL_SUMMARY_GET_CLASS (cls);
+
+	if ((forceindex && class->need_index())
+	    || class->load(cls, forceindex, ex) == -1) {
 		w(g_warning("Could not load summary: flags may be reset"));
 		camel_folder_summary_clear((CamelFolderSummary *)cls);
 		return -1;
@@ -180,13 +198,13 @@ void camel_local_summary_check_force(CamelLocalSummary *cls)
 gchar *
 camel_local_summary_encode_x_evolution(CamelLocalSummary *cls, const CamelLocalMessageInfo *info)
 {
-	return ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->encode_x_evolution(cls, info);
+	return CAMEL_LOCAL_SUMMARY_GET_CLASS (cls)->encode_x_evolution (cls, info);
 }
 
 gint
 camel_local_summary_decode_x_evolution(CamelLocalSummary *cls, const gchar *xev, CamelLocalMessageInfo *info)
 {
-	return ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->decode_x_evolution(cls, xev, info);
+	return CAMEL_LOCAL_SUMMARY_GET_CLASS (cls)->decode_x_evolution (cls, xev, info);
 }
 
 /*#define DOSTATS*/
@@ -274,7 +292,7 @@ camel_local_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changei
 {
 	gint ret;
 
-	ret = ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->check(cls, changeinfo, ex);
+	ret = CAMEL_LOCAL_SUMMARY_GET_CLASS (cls)->check (cls, changeinfo, ex);
 
 #ifdef DOSTATS
 	if (ret != -1) {
@@ -303,13 +321,13 @@ camel_local_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changei
 gint
 camel_local_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
 {
-	return ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->sync(cls, expunge, changeinfo, ex);
+	return CAMEL_LOCAL_SUMMARY_GET_CLASS (cls)->sync (cls, expunge, changeinfo, ex);
 }
 
 CamelMessageInfo *
 camel_local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMessageInfo *info, CamelFolderChangeInfo *ci, CamelException *ex)
 {
-	return ((CamelLocalSummaryClass *)(CAMEL_OBJECT_GET_CLASS(cls)))->add(cls, msg, info, ci, ex);
+	return CAMEL_LOCAL_SUMMARY_GET_CLASS (cls)->add (cls, msg, info, ci, ex);
 }
 
 /**
@@ -501,7 +519,7 @@ local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMess
 
 			camel_data_wrapper_write_to_stream((CamelDataWrapper *)msg, (CamelStream *)sn);
 			mi->info.size = sn->written;
-			camel_object_unref((CamelObject *)sn);
+			g_object_unref (sn);
 		}
 
 		mi->info.flags &= ~(CAMEL_MESSAGE_FOLDER_NOXEV|CAMEL_MESSAGE_FOLDER_FLAGGED);
@@ -645,7 +663,7 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *fir)
 
 	/* We dont actually add our own headers, but version that we don't anyway */
 
-	if (((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_from_db(s, fir) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_from_db(s, fir) == -1)
 		return -1;
 
 	part = fir->bdata;
@@ -668,7 +686,7 @@ summary_header_load(CamelFolderSummary *s, FILE *in)
 
 	/* We dont actually add our own headers, but version that we don't anyway */
 
-	if (((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_load(s, in) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_load(s, in) == -1)
 		return -1;
 
 	/* Legacy version, version is in summary only */
@@ -684,7 +702,7 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 {
 	struct _CamelFIRecord *fir;
 
-	fir = ((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_to_db (s, ex);
+	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, ex);
 	if (fir)
 		fir->bdata = g_strdup_printf ("%d", CAMEL_LOCAL_SUMMARY_VERSION);
 
@@ -696,7 +714,7 @@ summary_header_save(CamelFolderSummary *s, FILE *out)
 {
 	/*CamelLocalSummary *cls = (CamelLocalSummary *)s;*/
 
-	if (((CamelFolderSummaryClass *)camel_local_summary_parent)->summary_header_save(s, out) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_save(s, out) == -1)
 		return -1;
 
 	return camel_file_util_encode_fixed_int32(out, CAMEL_LOCAL_SUMMARY_VERSION);
@@ -708,7 +726,7 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	CamelLocalMessageInfo *mi;
 	CamelLocalSummary *cls = (CamelLocalSummary *)s;
 
-	mi = (CamelLocalMessageInfo *)((CamelFolderSummaryClass *)camel_local_summary_parent)->message_info_new_from_header(s, h);
+	mi = (CamelLocalMessageInfo *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header(s, h);
 	if (mi) {
 		const gchar *xev;
 		gint doindex = FALSE;

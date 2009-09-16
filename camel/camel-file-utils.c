@@ -33,8 +33,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
-
 #ifdef G_OS_WIN32
 #include <winsock2.h>
 #define EWOULDBLOCK EAGAIN

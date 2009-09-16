@@ -23,18 +23,40 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_STREAM_BUFFER_H
-#define CAMEL_STREAM_BUFFER_H 1
+#define CAMEL_STREAM_BUFFER_H
 
 #include <stdio.h>
 #include <camel/camel-seekable-stream.h>
 
-#define CAMEL_STREAM_BUFFER_TYPE     (camel_stream_buffer_get_type ())
-#define CAMEL_STREAM_BUFFER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_STREAM_BUFFER_TYPE, CamelStreamBuffer))
-#define CAMEL_STREAM_BUFFER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_STREAM_BUFFER_TYPE, CamelStreamBufferClass))
-#define CAMEL_IS_STREAM_BUFFER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_STREAM_BUFFER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_STREAM_BUFFER \
+	(camel_stream_buffer_get_type ())
+#define CAMEL_STREAM_BUFFER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_STREAM_BUFFER, CamelStreamBuffer))
+#define CAMEL_STREAM_BUFFER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_STREAM_BUFFER, CamelStreamBufferClass))
+#define CAMEL_IS_STREAM_BUFFER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_STREAM_BUFFER))
+#define CAMEL_IS_STREAM_BUFFER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_STREAM_BUFFER))
+#define CAMEL_STREAM_BUFFER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_STREAM_BUFFER, CamelStreamBufferClass))
 
 G_BEGIN_DECLS
+
+typedef struct _CamelStreamBuffer CamelStreamBuffer;
+typedef struct _CamelStreamBufferClass CamelStreamBufferClass;
+typedef struct _CamelStreamBufferPrivate CamelStreamBufferPrivate;
 
 typedef enum {
 	CAMEL_STREAM_BUFFER_BUFFER = 0,
@@ -44,52 +66,38 @@ typedef enum {
 	CAMEL_STREAM_BUFFER_MODE = 0x80
 } CamelStreamBufferMode;
 
-struct _CamelStreamBuffer
-{
-	CamelStream parent_object;
-
-	/* these are all of course, private */
-	CamelStream *stream;
-
-	guchar *buf, *ptr, *end;
-	gint size;
-
-	guchar *linebuf;	/* for reading lines at a time */
-	gint linesize;
-
-	CamelStreamBufferMode mode;
-	guint flags;	/* internal flags */
+struct _CamelStreamBuffer {
+	CamelStream parent;
+	CamelStreamBufferPrivate *priv;
 };
 
-typedef struct {
+struct _CamelStreamBufferClass {
 	CamelStreamClass parent_class;
 
-	/* Virtual methods */
-	void (*init) (CamelStreamBuffer *stream_buffer, CamelStream *stream,
-		      CamelStreamBufferMode mode);
-	void (*init_vbuf) (CamelStreamBuffer *stream_buffer,
-			   CamelStream *stream, CamelStreamBufferMode mode,
-			   gchar *buf, guint32 size);
+	void		(*init)		(CamelStreamBuffer *stream_buffer,
+					 CamelStream *stream,
+					 CamelStreamBufferMode mode);
+	void		(*init_vbuf)	(CamelStreamBuffer *stream_buffer,
+					 CamelStream *stream,
+					 CamelStreamBufferMode mode,
+					 gchar *buf,
+					 guint32 size);
+};
 
-} CamelStreamBufferClass;
-
-/* Standard Camel function */
-CamelType camel_stream_buffer_get_type (void);
-
-/* public methods */
-CamelStream *camel_stream_buffer_new (CamelStream *stream,
-				      CamelStreamBufferMode mode);
-CamelStream *camel_stream_buffer_new_with_vbuf (CamelStream *stream,
-						CamelStreamBufferMode mode,
-						gchar *buf, guint32 size);
-
-/* unimplemented
-   CamelStream *camel_stream_buffer_set_vbuf (CamelStreamBuffer *b, CamelStreamBufferMode mode, gchar *buf, guint32 size); */
+GType		camel_stream_buffer_get_type	(void);
+CamelStream *	camel_stream_buffer_new		(CamelStream *stream,
+						 CamelStreamBufferMode mode);
+CamelStream *	camel_stream_buffer_new_with_vbuf
+						(CamelStream *stream,
+						 CamelStreamBufferMode mode,
+						 gchar *buf,
+						 guint32 size);
 
 /* read a line of characters */
-gint camel_stream_buffer_gets (CamelStreamBuffer *sbf, gchar *buf, guint max);
-
-gchar *camel_stream_buffer_read_line (CamelStreamBuffer *sbf);
+gint		camel_stream_buffer_gets	(CamelStreamBuffer *sbf,
+						 gchar *buf,
+						 guint max);
+gchar *		camel_stream_buffer_read_line	(CamelStreamBuffer *sbf);
 
 G_END_DECLS
 

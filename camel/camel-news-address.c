@@ -20,30 +20,20 @@
 
 #include "camel-news-address.h"
 
-static void camel_news_address_class_init (CamelNewsAddressClass *klass);
-
-static CamelAddressClass *camel_news_address_parent;
-
-static void
-camel_news_address_class_init (CamelNewsAddressClass *klass)
-{
-	camel_news_address_parent = CAMEL_ADDRESS_CLASS (camel_type_get_global_classfuncs (camel_address_get_type ()));
-}
-
-CamelType
+GType
 camel_news_address_get_type (void)
 {
-	static guint type = CAMEL_INVALID_TYPE;
+	static guint type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_address_get_type (), "CamelNewsAddress",
-					    sizeof (CamelNewsAddress),
-					    sizeof (CamelNewsAddressClass),
-					    (CamelObjectClassInitFunc) camel_news_address_class_init,
-					    NULL,
-					    NULL,
-					    NULL);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_ADDRESS,
+			"CamelNewsAddress",
+			sizeof (CamelNewsAddressClass),
+			(GClassInitFunc) NULL,
+			sizeof (CamelNewsAddress),
+			(GInstanceInitFunc) NULL,
+			0);
 
 	return type;
 }
@@ -58,6 +48,5 @@ camel_news_address_get_type (void)
 CamelNewsAddress *
 camel_news_address_new (void)
 {
-	CamelNewsAddress *new = CAMEL_NEWS_ADDRESS ( camel_object_new (camel_news_address_get_type ()));
-	return new;
+	return g_object_new (CAMEL_TYPE_NEWS_ADDRESS, NULL);
 }

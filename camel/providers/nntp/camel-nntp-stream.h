@@ -18,19 +18,34 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_NNTP_STREAM_H
-#define _CAMEL_NNTP_STREAM_H
+#ifndef CAMEL_NNTP_STREAM_H
+#define CAMEL_NNTP_STREAM_H
 
-#include <camel/camel-stream.h>
+#include <camel/camel.h>
 
-#define CAMEL_NNTP_STREAM(obj)         CAMEL_CHECK_CAST (obj, camel_nntp_stream_get_type (), CamelNNTPStream)
-#define CAMEL_NNTP_STREAM_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_nntp_stream_get_type (), CamelNNTPStreamClass)
-#define CAMEL_IS_NNTP_STREAM(obj)      CAMEL_CHECK_TYPE (obj, camel_nntp_stream_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_NNTP_STREAM \
+	(camel_nntp_stream_get_type ())
+#define CAMEL_NNTP_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_NNTP_STREAM, CamelNNTPStream))
+#define CAMEL_NNTP_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_NNTP_STREAM, CamelNNTPStreamClass))
+#define CAMEL_IS_NNTP_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_NNTP_STREAM))
+#define CAMEL_IS_NNTP_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_NNTP_STREAM))
+#define CAMEL_NNTP_STREAM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_NNTP_STREAM, CamelNNTPStreamClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelNNTPStreamClass CamelNNTPStreamClass;
 typedef struct _CamelNNTPStream CamelNNTPStream;
+typedef struct _CamelNNTPStreamClass CamelNNTPStreamClass;
 
 typedef enum {
 	CAMEL_NNTP_STREAM_LINE,
@@ -54,7 +69,7 @@ struct _CamelNNTPStreamClass {
 	CamelStreamClass parent_class;
 };
 
-CamelType		 camel_nntp_stream_get_type	(void);
+GType		 camel_nntp_stream_get_type	(void);
 
 CamelStream     *camel_nntp_stream_new		(CamelStream *source);
 
@@ -66,4 +81,4 @@ gint		 camel_nntp_stream_getd		(CamelNNTPStream *is, guchar **start, guint *len)
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_NNTP_STREAM_H */
+#endif /* CAMEL_NNTP_STREAM_H */

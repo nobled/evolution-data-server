@@ -42,8 +42,6 @@
 #define MAXHOSTNAMELEN 1024
 #endif
 
-#include <glib.h>
-
 #include <libedataserver/e-time-utils.h>
 
 #include "camel-charset-map.h"

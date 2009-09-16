@@ -36,9 +36,9 @@
 #include "session.h"
 
 #define CAMEL_PGP_SESSION_TYPE     (camel_pgp_session_get_type ())
-#define CAMEL_PGP_SESSION(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_PGP_SESSION_TYPE, CamelPgpSession))
-#define CAMEL_PGP_SESSION_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_PGP_SESSION_TYPE, CamelPgpSessionClass))
-#define CAMEL_PGP_IS_SESSION(o)    (CAMEL_CHECK_TYPE((o), CAMEL_PGP_SESSION_TYPE))
+#define CAMEL_PGP_SESSION(obj)     (G_TYPE_CHECK_INSTANCE_CAST((obj), CAMEL_PGP_SESSION_TYPE, CamelPgpSession))
+#define CAMEL_PGP_SESSION_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), CAMEL_PGP_SESSION_TYPE, CamelPgpSessionClass))
+#define CAMEL_PGP_IS_SESSION(o)    (G_TYPE_CHECK_INSTANCE_TYPE((o), CAMEL_PGP_SESSION_TYPE))
 
 typedef struct _CamelPgpSession {
 	CamelSession parent_object;
@@ -67,26 +67,24 @@ class_init (CamelPgpSessionClass *camel_pgp_session_class)
 	CamelSessionClass *camel_session_class =
 		CAMEL_SESSION_CLASS (camel_pgp_session_class);
 
-	/* virtual method override */
 	camel_session_class->get_password = get_password;
 }
 
-static CamelType
+static GType
 camel_pgp_session_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
 		type = camel_type_register (
 			camel_test_session_get_type (),
 			"CamelPgpSession",
 			sizeof (CamelPgpSession),
 			sizeof (CamelPgpSessionClass),
-			(CamelObjectClassInitFunc) class_init,
+			(GClassInitFunc) class_init,
 			NULL,
-			(CamelObjectInitFunc) init,
+			(GInstanceInitFunc) init,
 			NULL);
-	}
 
 	return type;
 }
@@ -103,8 +101,7 @@ camel_pgp_session_new (const gchar *path)
 {
 	CamelSession *session;
 
-	session = CAMEL_SESSION (camel_object_new (CAMEL_PGP_SESSION_TYPE));
-
+	session = g_object_new (CAMEL_TYPE_PGP_SESSION, NULL);
 	camel_session_construct (session, path);
 
 	return session;
@@ -161,9 +158,9 @@ gint main (gint argc, gchar **argv)
 	conpart = camel_mime_part_new();
 	dw = camel_data_wrapper_new();
 	camel_data_wrapper_construct_from_stream(dw, stream1);
-	camel_medium_set_content_object((CamelMedium *)conpart, dw);
-	camel_object_unref(stream1);
-	camel_object_unref(dw);
+	camel_medium_set_content((CamelMedium *)conpart, dw);
+	g_object_unref (stream1);
+	g_object_unref (dw);
 
 	sigpart = camel_mime_part_new();
 
@@ -185,8 +182,8 @@ gint main (gint argc, gchar **argv)
 	camel_cipher_validity_free (valid);
 	camel_test_pull ();
 
-	camel_object_unref(conpart);
-	camel_object_unref(sigpart);
+	g_object_unref (conpart);
+	g_object_unref (sigpart);
 
 	stream1 = camel_stream_mem_new ();
 	camel_stream_write (stream1, "Hello, I am a test of encryption/decryption.", 44);
@@ -196,9 +193,9 @@ gint main (gint argc, gchar **argv)
 	dw = camel_data_wrapper_new();
 	camel_stream_reset(stream1);
 	camel_data_wrapper_construct_from_stream(dw, stream1);
-	camel_medium_set_content_object((CamelMedium *)conpart, dw);
-	camel_object_unref(stream1);
-	camel_object_unref(dw);
+	camel_medium_set_content((CamelMedium *)conpart, dw);
+	g_object_unref (stream1);
+	g_object_unref (dw);
 
 	encpart = camel_mime_part_new();
 
@@ -234,16 +231,16 @@ gint main (gint argc, gchar **argv)
 	g_free (before);
 	g_free (after);
 
-	camel_object_unref(stream1);
-	camel_object_unref(stream2);
-	camel_object_unref(conpart);
-	camel_object_unref(encpart);
-	camel_object_unref(outpart);
+	g_object_unref (stream1);
+	g_object_unref (stream2);
+	g_object_unref (conpart);
+	g_object_unref (encpart);
+	g_object_unref (outpart);
 
 	camel_test_pull ();
 
-	camel_object_unref (CAMEL_OBJECT (ctx));
-	camel_object_unref (CAMEL_OBJECT (session));
+	g_object_unref (CAMEL_OBJECT (ctx));
+	g_object_unref (CAMEL_OBJECT (session));
 
 	camel_test_end ();
 

@@ -32,7 +32,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gstdio.h>
 
 #include "camel-block-file.h"
@@ -41,6 +40,8 @@
 #include "camel-private.h"
 
 #define d(x) /*(printf("%s(%d):%s: ",  __FILE__, __LINE__, __PRETTY_FUNCTION__),(x))*/
+
+static gpointer block_file_parent_class;
 
 /* Locks must be obtained in the order defined */
 
@@ -73,8 +74,6 @@ static CamelDList block_file_list = CAMEL_DLIST_INITIALISER(block_file_list);
 static CamelDList block_file_active_list = CAMEL_DLIST_INITIALISER(block_file_active_list);
 static gint block_file_count = 0;
 static gint block_file_threshhold = 10;
-
-#define CBF_CLASS(o) ((CamelBlockFileClass *)(((CamelObject *)o)->klass))
 
 static gint sync_nolock(CamelBlockFile *bs);
 static gint sync_block_nolock(CamelBlockFile *bs, CamelBlock *bl);
@@ -144,60 +143,9 @@ block_file_init_root(CamelBlockFile *bs)
 }
 
 static void
-camel_block_file_class_init(CamelBlockFileClass *klass)
+block_file_finalize(GObject *object)
 {
-	klass->validate_root = block_file_validate_root;
-	klass->init_root = block_file_init_root;
-}
-
-static guint
-block_hash_func(gconstpointer v)
-{
-	return ((camel_block_t) GPOINTER_TO_UINT(v)) >> CAMEL_BLOCK_SIZE_BITS;
-}
-
-static void
-camel_block_file_init(CamelBlockFile *bs)
-{
-	struct _CamelBlockFilePrivate *p;
-
-	bs->fd = -1;
-	bs->block_size = CAMEL_BLOCK_SIZE;
-	camel_dlist_init(&bs->block_cache);
-	bs->blocks = g_hash_table_new((GHashFunc)block_hash_func, NULL);
-	/* this cache size and the text index size have been tuned for about the best
-	   with moderate memory usage.  Doubling the memory usage barely affects performance. */
-	bs->block_cache_limit = 256;
-
-	p = bs->priv = g_malloc0(sizeof(*bs->priv));
-	p->base = bs;
-
-	pthread_mutex_init(&p->root_lock, NULL);
-	pthread_mutex_init(&p->cache_lock, NULL);
-	pthread_mutex_init(&p->io_lock, NULL);
-
-	/* link into lru list */
-	LOCK(block_file_lock);
-	camel_dlist_addhead(&block_file_list, (CamelDListNode *)p);
-
-#if 0
-	{
-		printf("dumping block list\n");
-		printf(" head = %p p = %p\n", block_file_list.head, p);
-		p = block_file_list.head;
-		while (p->next) {
-			printf(" '%s'\n", p->base->path);
-			p = p->next;
-		}
-	}
-#endif
-
-	UNLOCK(block_file_lock);
-}
-
-static void
-camel_block_file_finalise(CamelBlockFile *bs)
-{
+	CamelBlockFile *bs = CAMEL_BLOCK_FILE (object);
 	CamelBlock *bl, *bn;
 	struct _CamelBlockFilePrivate *p;
 
@@ -236,22 +184,84 @@ camel_block_file_finalise(CamelBlockFile *bs)
 	pthread_mutex_destroy(&p->root_lock);
 
 	g_free(p);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (block_file_parent_class)->finalize (object);
 }
 
-CamelType
+static void
+block_file_class_init(CamelBlockFileClass *class)
+{
+	GObjectClass *object_class;
+
+	block_file_parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = block_file_finalize;
+
+	class->validate_root = block_file_validate_root;
+	class->init_root = block_file_init_root;
+}
+
+static guint
+block_hash_func(gconstpointer v)
+{
+	return ((camel_block_t) GPOINTER_TO_UINT(v)) >> CAMEL_BLOCK_SIZE_BITS;
+}
+
+static void
+block_file_init(CamelBlockFile *bs)
+{
+	struct _CamelBlockFilePrivate *p;
+
+	bs->fd = -1;
+	bs->block_size = CAMEL_BLOCK_SIZE;
+	camel_dlist_init(&bs->block_cache);
+	bs->blocks = g_hash_table_new((GHashFunc)block_hash_func, NULL);
+	/* this cache size and the text index size have been tuned for about the best
+	   with moderate memory usage.  Doubling the memory usage barely affects performance. */
+	bs->block_cache_limit = 256;
+
+	p = bs->priv = g_malloc0(sizeof(*bs->priv));
+	p->base = bs;
+
+	pthread_mutex_init(&p->root_lock, NULL);
+	pthread_mutex_init(&p->cache_lock, NULL);
+	pthread_mutex_init(&p->io_lock, NULL);
+
+	/* link into lru list */
+	LOCK(block_file_lock);
+	camel_dlist_addhead(&block_file_list, (CamelDListNode *)p);
+
+#if 0
+	{
+		printf("dumping block list\n");
+		printf(" head = %p p = %p\n", block_file_list.head, p);
+		p = block_file_list.head;
+		while (p->next) {
+			printf(" '%s'\n", p->base->path);
+			p = p->next;
+		}
+	}
+#endif
+
+	UNLOCK(block_file_lock);
+}
+
+GType
 camel_block_file_get_type(void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(camel_object_get_type(), "CamelBlockFile",
-					   sizeof (CamelBlockFile),
-					   sizeof (CamelBlockFileClass),
-					   (CamelObjectClassInitFunc) camel_block_file_class_init,
-					   NULL,
-					   (CamelObjectInitFunc) camel_block_file_init,
-					   (CamelObjectFinalizeFunc) camel_block_file_finalise);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelBlockFile",
+			sizeof (CamelBlockFileClass),
+			(GClassInitFunc) block_file_class_init,
+			sizeof (CamelBlockFile),
+			(GInstanceInitFunc) block_file_init,
+			0);
 
 	return type;
 }
@@ -364,16 +374,17 @@ camel_cache_remove(c, key);
  **/
 CamelBlockFile *camel_block_file_new(const gchar *path, gint flags, const gchar version[8], gsize block_size)
 {
+	CamelBlockFileClass *class;
 	CamelBlockFile *bs;
 
-	bs = (CamelBlockFile *)camel_object_new(camel_block_file_get_type());
+	bs = g_object_new (CAMEL_TYPE_BLOCK_FILE, NULL);
 	memcpy(bs->version, version, 8);
 	bs->path = g_strdup(path);
 	bs->flags = flags;
 
 	bs->root_block = camel_block_file_get_block(bs, 0);
 	if (bs->root_block == NULL) {
-		camel_object_unref((CamelObject *)bs);
+		g_object_unref (bs);
 		return NULL;
 	}
 	camel_block_file_detach_block(bs, bs->root_block);
@@ -382,20 +393,22 @@ CamelBlockFile *camel_block_file_new(const gchar *path, gint flags, const gchar 
 	/* we only need these flags on first open */
 	bs->flags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
+	class = CAMEL_BLOCK_FILE_GET_CLASS (bs);
+
 	/* Do we need to init the root block? */
-	if (CBF_CLASS(bs)->validate_root(bs) == -1) {
+	if (class->validate_root(bs) == -1) {
 		d(printf("Initialise root block: %.8s\n", version));
 
-		CBF_CLASS(bs)->init_root(bs);
+		class->init_root(bs);
 		camel_block_file_touch_block(bs, bs->root_block);
 		if (block_file_use(bs) == -1) {
-			camel_object_unref((CamelObject *)bs);
+			g_object_unref (bs);
 			return NULL;
 		}
 		if (sync_block_nolock(bs, bs->root_block) == -1
 		    || ftruncate(bs->fd, bs->root->last) == -1) {
 			block_file_unuse(bs);
-			camel_object_unref((CamelObject *)bs);
+			g_object_unref (bs);
 			return NULL;
 		}
 		block_file_unuse(bs);
@@ -795,6 +808,8 @@ gint camel_block_file_sync(CamelBlockFile *bs)
 
 /* ********************************************************************** */
 
+static gpointer key_file_parent_class;
+
 struct _CamelKeyFilePrivate {
 	struct _CamelKeyFilePrivate *next;
 	struct _CamelKeyFilePrivate *prev;
@@ -817,28 +832,9 @@ static gint key_file_count = 0;
 static const gint key_file_threshhold = 10;
 
 static void
-camel_key_file_class_init(CamelKeyFileClass *klass)
+key_file_finalize(GObject *object)
 {
-}
-
-static void
-camel_key_file_init(CamelKeyFile *bs)
-{
-	struct _CamelKeyFilePrivate *p;
-
-	p = bs->priv = g_malloc0(sizeof(*bs->priv));
-	p->base = bs;
-
-	pthread_mutex_init(&p->lock, NULL);
-
-	LOCK(key_file_lock);
-	camel_dlist_addhead(&key_file_list, (CamelDListNode *)p);
-	UNLOCK(key_file_lock);
-}
-
-static void
-camel_key_file_finalise(CamelKeyFile *bs)
-{
+	CamelKeyFile *bs = CAMEL_KEY_FILE (object);
 	struct _CamelKeyFilePrivate *p = bs->priv;
 
 	LOCK(key_file_lock);
@@ -856,22 +852,51 @@ camel_key_file_finalise(CamelKeyFile *bs)
 	pthread_mutex_destroy(&p->lock);
 
 	g_free(p);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (key_file_parent_class)->finalize (object);
 }
 
-CamelType
+static void
+key_file_class_init(CamelKeyFileClass *class)
+{
+	GObjectClass *object_class;
+
+	key_file_parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = key_file_finalize;
+}
+
+static void
+key_file_init(CamelKeyFile *bs)
+{
+	struct _CamelKeyFilePrivate *p;
+
+	p = bs->priv = g_malloc0(sizeof(*bs->priv));
+	p->base = bs;
+
+	pthread_mutex_init(&p->lock, NULL);
+
+	LOCK(key_file_lock);
+	camel_dlist_addhead(&key_file_list, (CamelDListNode *)p);
+	UNLOCK(key_file_lock);
+}
+
+GType
 camel_key_file_get_type(void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(camel_object_get_type(), "CamelKeyFile",
-					   sizeof (CamelKeyFile),
-					   sizeof (CamelKeyFileClass),
-					   (CamelObjectClassInitFunc) camel_key_file_class_init,
-					   NULL,
-					   (CamelObjectInitFunc) camel_key_file_init,
-					   (CamelObjectFinalizeFunc) camel_key_file_finalise);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelKeyFile",
+			sizeof (CamelKeyFileClass),
+			(GClassInitFunc) key_file_class_init,
+			sizeof (CamelKeyFile),
+			(GInstanceInitFunc) key_file_init,
+			0);
 
 	return type;
 }
@@ -986,14 +1011,14 @@ camel_key_file_new(const gchar *path, gint flags, const gchar version[8])
 
 	d(printf("New key file '%s'\n", path));
 
-	kf = (CamelKeyFile *)camel_object_new(camel_key_file_get_type());
+	kf = g_object_new (CAMEL_TYPE_KEY_FILE, NULL);
 	kf->path = g_strdup(path);
 	kf->fp = NULL;
 	kf->flags = flags;
 	kf->last = 8;
 
 	if (key_file_use(kf) == -1) {
-		camel_object_unref((CamelObject *)kf);
+		g_object_unref (kf);
 		kf = NULL;
 	} else {
 		fseek(kf->fp, 0, SEEK_END);
@@ -1011,7 +1036,7 @@ camel_key_file_new(const gchar *path, gint flags, const gchar version[8])
 		kf->flags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
 		if (err) {
-			camel_object_unref((CamelObject *)kf);
+			g_object_unref (kf);
 			kf = NULL;
 		}
 	}

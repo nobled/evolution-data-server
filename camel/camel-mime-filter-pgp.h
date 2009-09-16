@@ -19,31 +19,53 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_MIME_FILTER_PGP_H
-#define _CAMEL_MIME_FILTER_PGP_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_PGP_H
+#define CAMEL_MIME_FILTER_PGP_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_MIME_FILTER_PGP_TYPE         (camel_mime_filter_canon_get_type ())
-#define CAMEL_MIME_FILTER_PGP(obj)         CAMEL_CHECK_CAST (obj, CAMEL_MIME_FILTER_PGP_TYPE, CamelMimeFilterPgp)
-#define CAMEL_MIME_FILTER_PGP_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, CAMEL_MIME_FILTER_PGP_TYPE, CamelMimeFilterPgpClass)
-#define CAMEL_IS_MIME_FILTER_PGP(obj)      CAMEL_CHECK_TYPE (obj, CAMEL_MIME_FILTER_PGP_TYPE)
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_PGP \
+	(camel_mime_filter_pgp_get_type ())
+#define CAMEL_MIME_FILTER_PGP(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_PGP, CamelMimeFilterPgp))
+#define CAMEL_MIME_FILTER_PGP_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_PGP, CamelMimeFilterPgpClass))
+#define CAMEL_IS_MIME_FILTER_PGP(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_PGP))
+#define CAMEL_IS_MIME_FILTER_PGP_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_PGP))
+#define CAMEL_MIME_FILTER_PGP_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_PGP, CamelMimeFilterPgpClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelMimeFilterPgp {
-	CamelMimeFilter filter;
-	gint state;
-} CamelMimeFilterPgp;
+typedef struct _CamelMimeFilterPgp CamelMimeFilterPgp;
+typedef struct _CamelMimeFilterPgpClass CamelMimeFilterPgpClass;
+typedef struct _CamelMimeFilterPgpPrivate CamelMimeFilterPgpPrivate;
 
-typedef struct _CamelMimeFilterPgpClass {
+struct _CamelMimeFilterPgp {
+	CamelMimeFilter parent;
+	CamelMimeFilterPgpPrivate *priv;
+};
+
+struct _CamelMimeFilterPgpClass {
 	CamelMimeFilterClass parent_class;
-} CamelMimeFilterPgpClass;
+};
 
-CamelType camel_mime_filter_pgp_get_type (void);
-
-CamelMimeFilter *camel_mime_filter_pgp_new(void);
+GType		camel_mime_filter_pgp_get_type	(void);
+CamelMimeFilter *
+		camel_mime_filter_pgp_new	(void);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_MIME_FILTER_PGP_H */
+#endif /* CAMEL_MIME_FILTER_PGP_H */

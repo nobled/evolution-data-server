@@ -21,23 +21,30 @@
  *
  */
 
-#ifndef __CAMEL_IMAP_JOURNAL_H__
-#define __CAMEL_IMAP_JOURNAL_H__
+#ifndef CAMEL_IMAP_JOURNAL_H
+#define CAMEL_IMAP_JOURNAL_H
 
 #include <stdarg.h>
+#include <camel/camel.h>
 
-#include <glib.h>
-
-#include <camel/camel-list-utils.h>
-#include <camel/camel-offline-journal.h>
-#include <camel/camel-mime-message.h>
-
-#define CAMEL_TYPE_IMAP_JOURNAL            (camel_imap_journal_get_type ())
-#define CAMEL_IMAP_JOURNAL(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_IMAP_JOURNAL, CamelIMAPJournal))
-#define CAMEL_IMAP_JOURNAL_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_IMAP_JOURNAL, CamelIMAPJournalClass))
-#define CAMEL_IS_IMAP_JOURNAL(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_IMAP_JOURNAL))
-#define CAMEL_IS_IMAP_JOURNAL_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_IMAP_JOURNAL))
-#define CAMEL_IMAP_JOURNAL_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_IMAP_JOURNAL, CamelIMAPJournalClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP_JOURNAL \
+	(camel_imap_journal_get_type ())
+#define CAMEL_IMAP_JOURNAL(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP_JOURNAL, CamelIMAPJournal))
+#define CAMEL_IMAP_JOURNAL_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP_JOURNAL, CamelIMAPJournalClass))
+#define CAMEL_IS_IMAP_JOURNAL(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP_JOURNAL))
+#define CAMEL_IS_IMAP_JOURNAL_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP_JOURNAL))
+#define CAMEL_IMAP_JOURNAL_GET_CLASS(obj) \
+	(CAMEL_CHECK_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP_JOURNAL, CamelIMAPJournalClass))
 
 G_BEGIN_DECLS
 
@@ -66,7 +73,7 @@ struct _CamelIMAPJournalEntry {
 };
 
 struct _CamelIMAPJournal {
-	CamelOfflineJournal parent_object;
+	CamelOfflineJournal parent;
 
 	GHashTable *folders;
 	GHashTable *uidmap;
@@ -78,7 +85,7 @@ struct _CamelIMAPJournalClass {
 
 };
 
-CamelType camel_imap_journal_get_type (void);
+GType camel_imap_journal_get_type (void);
 
 CamelOfflineJournal *camel_imap_journal_new (struct _CamelImapFolder *folder, const gchar *filename);
 void camel_imap_journal_log (CamelOfflineJournal *journal, CamelOfflineAction action, ...);
@@ -88,4 +95,4 @@ void camel_imap_journal_close_folders (CamelIMAPJournal *journal);
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP_JOURNAL_H__ */
+#endif /* CAMEL_IMAP_JOURNAL_H */

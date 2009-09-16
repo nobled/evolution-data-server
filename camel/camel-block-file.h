@@ -18,14 +18,54 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_BLOCK_FILE_H
-#define _CAMEL_BLOCK_FILE_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_BLOCK_FILE_H
+#define CAMEL_BLOCK_FILE_H
 
 #include <camel/camel-object.h>
 #include <camel/camel-list-utils.h>
-#include <glib.h>
 #include <stdio.h>
 #include <sys/types.h>
+
+/* Standard GObject macros */
+#define CAMEL_TYPE_BLOCK_FILE \
+	(camel_block_file_get_type ())
+#define CAMEL_BLOCK_FILE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_BLOCK_FILE, CamelBlockFile))
+#define CAMEL_BLOCK_FILE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_BLOCK_FILE, CamelBlockFileClass))
+#define CAMEL_IS_BLOCK_FILE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_BLOCK_FILE))
+#define CAMEL_IS_BLOCK_FILE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_BLOCK_FILE))
+#define CAMEL_BLOCK_FILE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_BLOCK_FILE, CamelBlockFileClass))
+
+#define CAMEL_TYPE_KEY_FILE \
+	(camel_key_file_get_type ())
+#define CAMEL_KEY_FILE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_KEY_FILE, CamelKeyFile))
+#define CAMEL_KEY_FILE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_KEY_FILE, CamelKeyFileClass))
+#define CAMEL_IS_KEY_FILE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_KEY_FILE))
+#define CAMEL_IS_KEY_FILE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_KEY_FILE))
+#define CAMEL_KEY_FILE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_KEY_FILE, CamelKeyFileClass))
 
 G_BEGIN_DECLS
 
@@ -36,6 +76,7 @@ typedef struct _CamelBlockRoot CamelBlockRoot;
 typedef struct _CamelBlock CamelBlock;
 typedef struct _CamelBlockFile CamelBlockFile;
 typedef struct _CamelBlockFileClass CamelBlockFileClass;
+typedef struct _CamelBlockFilePrivate CamelBlockFilePrivate;
 
 #define CAMEL_BLOCK_FILE_SYNC (1<<0)
 
@@ -71,8 +112,7 @@ struct _CamelBlock {
 
 struct _CamelBlockFile {
 	CamelObject parent;
-
-	struct _CamelBlockFilePrivate *priv;
+	CamelBlockFilePrivate *priv;
 
 	gchar version[8];
 	gchar *path;
@@ -98,7 +138,7 @@ struct _CamelBlockFileClass {
 	gint (*init_root)(CamelBlockFile *);
 };
 
-CamelType camel_block_file_get_type(void);
+GType camel_block_file_get_type(void);
 
 CamelBlockFile *camel_block_file_new(const gchar *path, gint flags, const gchar version[8], gsize block_size);
 gint camel_block_file_rename(CamelBlockFile *bs, const gchar *path);
@@ -118,11 +158,11 @@ gint camel_block_file_sync(CamelBlockFile *bs);
 
 typedef struct _CamelKeyFile CamelKeyFile;
 typedef struct _CamelKeyFileClass CamelKeyFileClass;
+typedef struct _CamelKeyFilePrivate CamelKeyFilePrivate;
 
 struct _CamelKeyFile {
 	CamelObject parent;
-
-	struct _CamelKeyFilePrivate *priv;
+	CamelKeyFilePrivate *priv;
 
 	FILE *fp;
 	gchar *path;
@@ -134,7 +174,7 @@ struct _CamelKeyFileClass {
 	CamelObjectClass parent;
 };
 
-CamelType      camel_key_file_get_type(void);
+GType      camel_key_file_get_type(void);
 
 CamelKeyFile * camel_key_file_new(const gchar *path, gint flags, const gchar version[8]);
 gint	       camel_key_file_rename(CamelKeyFile *kf, const gchar *path);
@@ -145,4 +185,4 @@ gint            camel_key_file_read(CamelKeyFile *kf, camel_block_t *start, gsiz
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_BLOCK_FILE_H */
+#endif /* CAMEL_BLOCK_FILE_H */

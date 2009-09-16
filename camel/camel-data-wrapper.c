@@ -36,10 +36,11 @@
 
 #define d(x)
 
-static CamelObjectClass *parent_class = NULL;
+#define CAMEL_DATA_WRAPPER_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_DATA_WRAPPER, CamelDataWrapperPrivate))
 
-/* Returns the class for a CamelDataWrapper */
-#define CDW_CLASS(so) CAMEL_DATA_WRAPPER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static gint construct_from_stream(CamelDataWrapper *, CamelStream *);
 static gssize write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream);
@@ -51,65 +52,84 @@ static void set_mime_type_field (CamelDataWrapper *data_wrapper, CamelContentTyp
 static gboolean is_offline (CamelDataWrapper *data_wrapper);
 
 static void
-camel_data_wrapper_class_init (CamelDataWrapperClass *camel_data_wrapper_class)
+data_wrapper_dispose (GObject *object)
 {
-	parent_class = camel_type_get_global_classfuncs (camel_object_get_type ());
+	CamelDataWrapper *data_wrapper = CAMEL_DATA_WRAPPER (object);
 
-	/* virtual method definition */
-	camel_data_wrapper_class->write_to_stream = write_to_stream;
-	camel_data_wrapper_class->decode_to_stream = decode_to_stream;
-	camel_data_wrapper_class->set_mime_type = set_mime_type;
-	camel_data_wrapper_class->get_mime_type = get_mime_type;
-	camel_data_wrapper_class->get_mime_type_field = get_mime_type_field;
-	camel_data_wrapper_class->set_mime_type_field = set_mime_type_field;
-	camel_data_wrapper_class->construct_from_stream = construct_from_stream;
-	camel_data_wrapper_class->is_offline = is_offline;
+	if (data_wrapper->mime_type != NULL) {
+		camel_content_type_unref (data_wrapper->mime_type);
+		data_wrapper->mime_type = NULL;
+	}
+
+	if (data_wrapper->stream != NULL) {
+		g_object_unref (data_wrapper->stream);
+		data_wrapper->stream = NULL;
+	}
+
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_data_wrapper_init (gpointer object, gpointer klass)
+data_wrapper_finalize (GObject *object)
 {
-	CamelDataWrapper *camel_data_wrapper = CAMEL_DATA_WRAPPER (object);
+	CamelDataWrapper *data_wrapper = CAMEL_DATA_WRAPPER (object);
 
-	camel_data_wrapper->priv = g_malloc (sizeof (struct _CamelDataWrapperPrivate));
-	pthread_mutex_init (&camel_data_wrapper->priv->stream_lock, NULL);
+	pthread_mutex_destroy (&data_wrapper->priv->stream_lock);
 
-	camel_data_wrapper->mime_type = camel_content_type_new ("application", "octet-stream");
-	camel_data_wrapper->encoding = CAMEL_TRANSFER_ENCODING_DEFAULT;
-	camel_data_wrapper->offline = FALSE;
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
-camel_data_wrapper_finalize (CamelObject *object)
+data_wrapper_class_init (CamelDataWrapperClass *class)
 {
-	CamelDataWrapper *camel_data_wrapper = CAMEL_DATA_WRAPPER (object);
+	GObjectClass *object_class;
 
-	pthread_mutex_destroy (&camel_data_wrapper->priv->stream_lock);
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelDataWrapperPrivate));
 
-	g_free (camel_data_wrapper->priv);
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = data_wrapper_dispose;
+	object_class->finalize = data_wrapper_finalize;
 
-	if (camel_data_wrapper->mime_type)
-		camel_content_type_unref (camel_data_wrapper->mime_type);
-
-	if (camel_data_wrapper->stream)
-		camel_object_unref (camel_data_wrapper->stream);
+	class->write_to_stream = write_to_stream;
+	class->decode_to_stream = decode_to_stream;
+	class->set_mime_type = set_mime_type;
+	class->get_mime_type = get_mime_type;
+	class->get_mime_type_field = get_mime_type_field;
+	class->set_mime_type_field = set_mime_type_field;
+	class->construct_from_stream = construct_from_stream;
+	class->is_offline = is_offline;
 }
 
-CamelType
+static void
+data_wrapper_init (CamelDataWrapper *data_wrapper)
+{
+	data_wrapper->priv = CAMEL_DATA_WRAPPER_GET_PRIVATE (data_wrapper);
+
+	pthread_mutex_init (&data_wrapper->priv->stream_lock, NULL);
+
+	data_wrapper->mime_type = camel_content_type_new (
+		"application", "octet-stream");
+	data_wrapper->encoding = CAMEL_TRANSFER_ENCODING_DEFAULT;
+	data_wrapper->offline = FALSE;
+}
+
+GType
 camel_data_wrapper_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (CAMEL_OBJECT_TYPE,
-					    "CamelDataWrapper",
-					    sizeof (CamelDataWrapper),
-					    sizeof (CamelDataWrapperClass),
-					    (CamelObjectClassInitFunc) camel_data_wrapper_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_data_wrapper_init,
-					    (CamelObjectFinalizeFunc) camel_data_wrapper_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelDataWrapper",
+			sizeof (CamelDataWrapperClass),
+			(GClassInitFunc) data_wrapper_class_init,
+			sizeof (CamelDataWrapper),
+			(GInstanceInitFunc) data_wrapper_init,
+			0);
 
 	return type;
 }
@@ -124,7 +144,7 @@ camel_data_wrapper_get_type (void)
 CamelDataWrapper *
 camel_data_wrapper_new (void)
 {
-	return (CamelDataWrapper *) camel_object_new (CAMEL_DATA_WRAPPER_TYPE);
+	return g_object_new (CAMEL_TYPE_DATA_WRAPPER, NULL);
 }
 
 static gssize
@@ -163,12 +183,17 @@ write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
  **/
 gssize
 camel_data_wrapper_write_to_stream (CamelDataWrapper *data_wrapper,
-				    CamelStream *stream)
+                                    CamelStream *stream)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper), -1);
 	g_return_val_if_fail (CAMEL_IS_STREAM (stream), -1);
 
-	return CDW_CLASS (data_wrapper)->write_to_stream (data_wrapper, stream);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_val_if_fail (class->write_to_stream != NULL, -1);
+
+	return class->write_to_stream (data_wrapper, stream);
 }
 
 static gssize
@@ -178,23 +203,23 @@ decode_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 	CamelStream *fstream;
 	gssize ret;
 
-	fstream = (CamelStream *) camel_stream_filter_new_with_stream (stream);
+	fstream = camel_stream_filter_new (stream);
 
 	switch (data_wrapper->encoding) {
 	case CAMEL_TRANSFER_ENCODING_BASE64:
-		filter = (CamelMimeFilter *) camel_mime_filter_basic_new_type (CAMEL_MIME_FILTER_BASIC_BASE64_DEC);
+		filter = camel_mime_filter_basic_new (CAMEL_MIME_FILTER_BASIC_BASE64_DEC);
 		camel_stream_filter_add (CAMEL_STREAM_FILTER (fstream), filter);
-		camel_object_unref (filter);
+		g_object_unref (filter);
 		break;
 	case CAMEL_TRANSFER_ENCODING_QUOTEDPRINTABLE:
-		filter = (CamelMimeFilter *) camel_mime_filter_basic_new_type (CAMEL_MIME_FILTER_BASIC_QP_DEC);
+		filter = camel_mime_filter_basic_new (CAMEL_MIME_FILTER_BASIC_QP_DEC);
 		camel_stream_filter_add (CAMEL_STREAM_FILTER (fstream), filter);
-		camel_object_unref (filter);
+		g_object_unref (filter);
 		break;
 	case CAMEL_TRANSFER_ENCODING_UUENCODE:
-		filter = (CamelMimeFilter *) camel_mime_filter_basic_new_type (CAMEL_MIME_FILTER_BASIC_UU_DEC);
+		filter = camel_mime_filter_basic_new (CAMEL_MIME_FILTER_BASIC_UU_DEC);
 		camel_stream_filter_add (CAMEL_STREAM_FILTER (fstream), filter);
-		camel_object_unref (filter);
+		g_object_unref (filter);
 		break;
 	default:
 		break;
@@ -204,12 +229,12 @@ decode_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 		filter = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_DECODE,
 						     CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
 		camel_stream_filter_add (CAMEL_STREAM_FILTER (fstream), filter);
-		camel_object_unref (filter);
+		g_object_unref (filter);
 	}
 
 	ret = camel_data_wrapper_write_to_stream (data_wrapper, fstream);
 	camel_stream_flush (fstream);
-	camel_object_unref (fstream);
+	g_object_unref (fstream);
 
 	return ret;
 }
@@ -225,22 +250,27 @@ decode_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
  **/
 gssize
 camel_data_wrapper_decode_to_stream (CamelDataWrapper *data_wrapper,
-				     CamelStream *stream)
+                                     CamelStream *stream)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper), -1);
 	g_return_val_if_fail (CAMEL_IS_STREAM (stream), -1);
 
-	return CDW_CLASS (data_wrapper)->decode_to_stream (data_wrapper, stream);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_val_if_fail (class->decode_to_stream != NULL, -1);
+
+	return class->decode_to_stream (data_wrapper, stream);
 }
 
 static gint
 construct_from_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 {
 	if (data_wrapper->stream)
-		camel_object_unref (data_wrapper->stream);
+		g_object_unref (data_wrapper->stream);
 
 	data_wrapper->stream = stream;
-	camel_object_ref (stream);
+	g_object_ref (stream);
 	return 0;
 }
 
@@ -255,12 +285,17 @@ construct_from_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
  **/
 gint
 camel_data_wrapper_construct_from_stream (CamelDataWrapper *data_wrapper,
-					  CamelStream *stream)
+                                          CamelStream *stream)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper), -1);
 	g_return_val_if_fail (CAMEL_IS_STREAM (stream), -1);
 
-	return CDW_CLASS (data_wrapper)->construct_from_stream (data_wrapper, stream);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_val_if_fail (class->construct_from_stream != NULL, -1);
+
+	return class->construct_from_stream (data_wrapper, stream);
 }
 
 static void
@@ -286,12 +321,17 @@ set_mime_type (CamelDataWrapper *data_wrapper, const gchar *mime_type)
  **/
 void
 camel_data_wrapper_set_mime_type (CamelDataWrapper *data_wrapper,
-				  const gchar *mime_type)
+                                  const gchar *mime_type)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper));
 	g_return_if_fail (mime_type != NULL);
 
-	CDW_CLASS (data_wrapper)->set_mime_type (data_wrapper, mime_type);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_if_fail (class->set_mime_type);
+
+	class->set_mime_type (data_wrapper, mime_type);
 }
 
 static gchar *
@@ -309,9 +349,14 @@ get_mime_type (CamelDataWrapper *data_wrapper)
 gchar *
 camel_data_wrapper_get_mime_type (CamelDataWrapper *data_wrapper)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper), NULL);
 
-	return CDW_CLASS (data_wrapper)->get_mime_type (data_wrapper);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_val_if_fail (class->get_mime_type != NULL, NULL);
+
+	return class->get_mime_type (data_wrapper);
 }
 
 static CamelContentType *
@@ -329,9 +374,14 @@ get_mime_type_field (CamelDataWrapper *data_wrapper)
 CamelContentType *
 camel_data_wrapper_get_mime_type_field (CamelDataWrapper *data_wrapper)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper), NULL);
 
-	return CDW_CLASS (data_wrapper)->get_mime_type_field (data_wrapper);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_val_if_fail (class->get_mime_type_field != NULL, NULL);
+
+	return class->get_mime_type_field (data_wrapper);
 }
 
 static void
@@ -355,12 +405,17 @@ set_mime_type_field (CamelDataWrapper *data_wrapper,
  **/
 void
 camel_data_wrapper_set_mime_type_field (CamelDataWrapper *data_wrapper,
-					CamelContentType *mime_type)
+                                        CamelContentType *mime_type)
 {
+	CamelDataWrapperClass *class;
+
 	g_return_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper));
 	g_return_if_fail (mime_type != NULL);
 
-	CDW_CLASS (data_wrapper)->set_mime_type_field (data_wrapper, mime_type);
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_if_fail (class->set_mime_type_field != NULL);
+
+	class->set_mime_type_field (data_wrapper, mime_type);
 }
 
 static gboolean
@@ -380,5 +435,12 @@ is_offline (CamelDataWrapper *data_wrapper)
 gboolean
 camel_data_wrapper_is_offline (CamelDataWrapper *data_wrapper)
 {
-	return CDW_CLASS (data_wrapper)->is_offline (data_wrapper);
+	CamelDataWrapperClass *class;
+
+	g_return_val_if_fail (CAMEL_IS_DATA_WRAPPER (data_wrapper), TRUE);
+
+	class = CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper);
+	g_return_val_if_fail (class->is_offline != NULL, TRUE);
+
+	return class->is_offline (data_wrapper);
 }

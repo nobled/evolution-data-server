@@ -35,7 +35,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-exception.h"
@@ -59,14 +58,16 @@
 #define r(x)
 #define dd(x) if (camel_debug("search")) x
 
+#define CAMEL_FOLDER_SEARCH_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_FOLDER_SEARCH, CamelFolderSearchPrivate))
+
 struct _CamelFolderSearchPrivate {
 	CamelException *ex;
 
 	CamelFolderThread *threads;
 	GHashTable *threads_hash;
 };
-
-#define _PRIVATE(o) (((CamelFolderSearch *)(o))->priv)
 
 static ESExpResult *search_not(struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 
@@ -94,90 +95,95 @@ static ESExpResult *search_message_location(struct _ESExp *f, gint argc, struct 
 
 static ESExpResult *search_dummy(struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 
-static void camel_folder_search_class_init (CamelFolderSearchClass *klass);
-static void camel_folder_search_init       (CamelFolderSearch *obj);
-static void camel_folder_search_finalize   (CamelObject *obj);
-
 static gint read_uid_callback (gpointer  ref, gint ncol, gchar ** cols, gchar **name);
 
-static CamelObjectClass *camel_folder_search_parent;
+static gpointer parent_class;
 
 static void
-camel_folder_search_class_init (CamelFolderSearchClass *klass)
+folder_search_dispose (GObject *object)
 {
-	camel_folder_search_parent = camel_type_get_global_classfuncs (camel_object_get_type ());
+	CamelFolderSearch *search = CAMEL_FOLDER_SEARCH (object);
 
-	klass->not = search_not;
+	if (search->sexp != NULL) {
+		e_sexp_unref (search->sexp);
+		search->sexp = NULL;
+	}
 
-	klass->match_all = search_match_all;
-	klass->match_threads = search_match_threads;
-	klass->body_contains = search_body_contains;
-	klass->body_regex = search_body_regex;
-	klass->header_contains = search_header_contains;
-	klass->header_matches = search_header_matches;
-	klass->header_starts_with = search_header_starts_with;
-	klass->header_ends_with = search_header_ends_with;
-	klass->header_exists = search_header_exists;
-	klass->header_soundex = search_header_soundex;
-	klass->header_regex = search_header_regex;
-	klass->header_full_regex = search_header_full_regex;
-	klass->user_tag = search_user_tag;
-	klass->user_flag = search_user_flag;
-	klass->system_flag = search_system_flag;
-	klass->get_sent_date = search_get_sent_date;
-	klass->get_received_date = search_get_received_date;
-	klass->get_current_date = search_get_current_date;
-	klass->get_size = search_get_size;
-	klass->uid = search_uid;
-	klass->message_location = search_message_location;
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_folder_search_init (CamelFolderSearch *obj)
+folder_search_finalize (GObject *object)
 {
-	struct _CamelFolderSearchPrivate *p;
+	CamelFolderSearch *search = CAMEL_FOLDER_SEARCH (object);
 
-	p = _PRIVATE(obj) = g_malloc0(sizeof(*p));
+	g_free (search->last_search);
 
-	obj->sexp = e_sexp_new();
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
-camel_folder_search_finalize (CamelObject *obj)
+folder_search_class_init (CamelFolderSearchClass *class)
 {
-	CamelFolderSearch *search = (CamelFolderSearch *)obj;
-	struct _CamelFolderSearchPrivate *p = _PRIVATE(obj);
+	GObjectClass *object_class;
 
-	if (search->sexp)
-		e_sexp_unref(search->sexp);
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelFolderSearchPrivate));
 
-	g_free(search->last_search);
-	g_free(p);
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = folder_search_dispose;
+	object_class->finalize = folder_search_finalize;
+
+	class->not = search_not;
+	class->match_all = search_match_all;
+	class->match_threads = search_match_threads;
+	class->body_contains = search_body_contains;
+	class->body_regex = search_body_regex;
+	class->header_contains = search_header_contains;
+	class->header_matches = search_header_matches;
+	class->header_starts_with = search_header_starts_with;
+	class->header_ends_with = search_header_ends_with;
+	class->header_exists = search_header_exists;
+	class->header_soundex = search_header_soundex;
+	class->header_regex = search_header_regex;
+	class->header_full_regex = search_header_full_regex;
+	class->user_tag = search_user_tag;
+	class->user_flag = search_user_flag;
+	class->system_flag = search_system_flag;
+	class->get_sent_date = search_get_sent_date;
+	class->get_received_date = search_get_received_date;
+	class->get_current_date = search_get_current_date;
+	class->get_size = search_get_size;
+	class->uid = search_uid;
+	class->message_location = search_message_location;
 }
 
-CamelType
+static void
+folder_search_init (CamelFolderSearch *search)
+{
+	search->priv = CAMEL_FOLDER_SEARCH_GET_PRIVATE (search);
+	search->sexp = e_sexp_new();
+}
+
+GType
 camel_folder_search_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_object_get_type (), "CamelFolderSearch",
-					    sizeof (CamelFolderSearch),
-					    sizeof (CamelFolderSearchClass),
-					    (CamelObjectClassInitFunc) camel_folder_search_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_folder_search_init,
-					    (CamelObjectFinalizeFunc) camel_folder_search_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelFolderSearch",
+			sizeof (CamelFolderSearchClass),
+			(GClassInitFunc) folder_search_class_init,
+			sizeof (CamelFolderSearch),
+			(GInstanceInitFunc) folder_search_init,
+			0);
 
 	return type;
 }
-
-#ifdef offsetof
-#define CAMEL_STRUCT_OFFSET(type, field)        ((gint) offsetof (type, field))
-#else
-#define CAMEL_STRUCT_OFFSET(type, field)        ((gint) ((gchar *) &((type *) 0)->field))
-#endif
 
 static struct {
 	const gchar *name;
@@ -185,51 +191,53 @@ static struct {
 	gint flags;		/* 0x02 = immediate, 0x01 = always enter */
 } builtins[] = {
 	/* these have default implementations in e-sexp */
-	{ "and", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, and), 2 },
-	{ "or", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, or), 2 },
+	{ "and", G_STRUCT_OFFSET(CamelFolderSearchClass, and), 2 },
+	{ "or", G_STRUCT_OFFSET(CamelFolderSearchClass, or), 2 },
 	/* we need to override this one though to implement an 'array not' */
-	{ "not", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, not), 0 },
-	{ "<", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, lt), 2 },
-	{ ">", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, gt), 2 },
-	{ "=", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, eq), 2 },
+	{ "not", G_STRUCT_OFFSET(CamelFolderSearchClass, not), 0 },
+	{ "<", G_STRUCT_OFFSET(CamelFolderSearchClass, lt), 2 },
+	{ ">", G_STRUCT_OFFSET(CamelFolderSearchClass, gt), 2 },
+	{ "=", G_STRUCT_OFFSET(CamelFolderSearchClass, eq), 2 },
 
 	/* these we have to use our own default if there is none */
 	/* they should all be defined in the language? so it parses, or should they not?? */
-	{ "match-all", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, match_all), 3 },
-	{ "match-threads", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, match_threads), 3 },
-	{ "body-contains", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, body_contains), 1 },
-	{ "body-regex",  CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, body_regex), 1  },
-	{ "header-contains", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_contains), 1 },
-	{ "header-matches", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_matches), 1 },
-	{ "header-starts-with", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_starts_with), 1 },
-	{ "header-ends-with", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_ends_with), 1 },
-	{ "header-exists", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_exists), 1 },
-	{ "header-soundex", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_soundex), 1 },
-	{ "header-regex", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_regex), 1 },
-	{ "header-full-regex", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, header_full_regex), 1 },
-	{ "user-tag", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, user_tag), 1 },
-	{ "user-flag", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, user_flag), 1 },
-	{ "system-flag", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, system_flag), 1 },
-	{ "get-sent-date", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, get_sent_date), 1 },
-	{ "get-received-date", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, get_received_date), 1 },
-	{ "get-current-date", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, get_current_date), 1 },
-	{ "get-size", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, get_size), 1 },
-	{ "uid", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, uid), 1 },
-	{ "message-location", CAMEL_STRUCT_OFFSET(CamelFolderSearchClass, message_location), 1 },
+	{ "match-all", G_STRUCT_OFFSET(CamelFolderSearchClass, match_all), 3 },
+	{ "match-threads", G_STRUCT_OFFSET(CamelFolderSearchClass, match_threads), 3 },
+	{ "body-contains", G_STRUCT_OFFSET(CamelFolderSearchClass, body_contains), 1 },
+	{ "body-regex",  G_STRUCT_OFFSET(CamelFolderSearchClass, body_regex), 1  },
+	{ "header-contains", G_STRUCT_OFFSET(CamelFolderSearchClass, header_contains), 1 },
+	{ "header-matches", G_STRUCT_OFFSET(CamelFolderSearchClass, header_matches), 1 },
+	{ "header-starts-with", G_STRUCT_OFFSET(CamelFolderSearchClass, header_starts_with), 1 },
+	{ "header-ends-with", G_STRUCT_OFFSET(CamelFolderSearchClass, header_ends_with), 1 },
+	{ "header-exists", G_STRUCT_OFFSET(CamelFolderSearchClass, header_exists), 1 },
+	{ "header-soundex", G_STRUCT_OFFSET(CamelFolderSearchClass, header_soundex), 1 },
+	{ "header-regex", G_STRUCT_OFFSET(CamelFolderSearchClass, header_regex), 1 },
+	{ "header-full-regex", G_STRUCT_OFFSET(CamelFolderSearchClass, header_full_regex), 1 },
+	{ "user-tag", G_STRUCT_OFFSET(CamelFolderSearchClass, user_tag), 1 },
+	{ "user-flag", G_STRUCT_OFFSET(CamelFolderSearchClass, user_flag), 1 },
+	{ "system-flag", G_STRUCT_OFFSET(CamelFolderSearchClass, system_flag), 1 },
+	{ "get-sent-date", G_STRUCT_OFFSET(CamelFolderSearchClass, get_sent_date), 1 },
+	{ "get-received-date", G_STRUCT_OFFSET(CamelFolderSearchClass, get_received_date), 1 },
+	{ "get-current-date", G_STRUCT_OFFSET(CamelFolderSearchClass, get_current_date), 1 },
+	{ "get-size", G_STRUCT_OFFSET(CamelFolderSearchClass, get_size), 1 },
+	{ "uid", G_STRUCT_OFFSET(CamelFolderSearchClass, uid), 1 },
+	{ "message-location", G_STRUCT_OFFSET(CamelFolderSearchClass, message_location), 1 },
 };
 
 void
 camel_folder_search_construct (CamelFolderSearch *search)
 {
 	gint i;
-	CamelFolderSearchClass *klass = (CamelFolderSearchClass *)CAMEL_OBJECT_GET_CLASS(search);
+	CamelFolderSearchClass *class;
+
+	class = CAMEL_FOLDER_SEARCH_GET_CLASS (search);
 
 	for (i = 0; i < G_N_ELEMENTS (builtins); i++) {
 		gpointer func;
 		/* c is sure messy sometimes */
-		func = *((gpointer *)(((gchar *)klass)+builtins[i].offset));
+		func = *((gpointer *)(((gchar *)class)+builtins[i].offset));
 		if (func == NULL && builtins[i].flags&1) {
-			g_warning("Search class doesn't implement '%s' method: %s", builtins[i].name, camel_type_to_name(CAMEL_OBJECT_GET_CLASS(search)));
+			g_warning("Search class doesn't implement '%s' method: %s", builtins[i].name, G_OBJECT_TYPE_NAME (search));
 			func = (gpointer)search_dummy;
 		}
 		if (func != NULL) {
@@ -257,9 +265,11 @@ camel_folder_search_construct (CamelFolderSearch *search)
 CamelFolderSearch *
 camel_folder_search_new (void)
 {
-	CamelFolderSearch *new = CAMEL_FOLDER_SEARCH (camel_object_new (camel_folder_search_get_type ()));
+	CamelFolderSearch *new;
 
+	new = g_object_new (CAMEL_TYPE_FOLDER_SEARCH, NULL);
 	camel_folder_search_construct(new);
+
 	return new;
 }
 
@@ -308,10 +318,10 @@ void
 camel_folder_search_set_body_index(CamelFolderSearch *search, CamelIndex *index)
 {
 	if (search->body_index)
-		camel_object_unref((CamelObject *)search->body_index);
+		g_object_unref (search->body_index);
 	search->body_index = index;
 	if (index)
-		camel_object_ref((CamelObject *)index);
+		g_object_ref (index);
 }
 
 /**
@@ -339,7 +349,7 @@ camel_folder_search_execute_expression(CamelFolderSearch *search, const gchar *e
 	GPtrArray *matches;
 	gint i;
 	GHashTable *results;
-	struct _CamelFolderSearchPrivate *p = _PRIVATE(search);
+	CamelFolderSearchPrivate *p = search->priv;
 
 	p->ex = ex;
 
@@ -432,7 +442,7 @@ camel_folder_search_count(CamelFolderSearch *search, const gchar *expr, CamelExc
 	GHashTable *results;
 	guint32 count = 0;
 
-	struct _CamelFolderSearchPrivate *p = _PRIVATE(search);
+	CamelFolderSearchPrivate *p = search->priv;
 
 	g_assert(search->folder);
 
@@ -575,7 +585,7 @@ camel_folder_search_search(CamelFolderSearch *search, const gchar *expr, GPtrArr
 	gchar *sql_query, *tmp, *tmp1;
 	GHashTable *results;
 
-	struct _CamelFolderSearchPrivate *p = _PRIVATE(search);
+	CamelFolderSearchPrivate *p = search->priv;
 
 	g_assert(search->folder);
 
@@ -895,7 +905,7 @@ static ESExpResult *
 search_match_threads(struct _ESExp *f, gint argc, struct _ESExpTerm **argv, CamelFolderSearch *search)
 {
 	ESExpResult *r;
-	struct _CamelFolderSearchPrivate *p = search->priv;
+	CamelFolderSearchPrivate *p = search->priv;
 	gint i, type;
 	GHashTable *results;
 	gchar *error_msg;
@@ -1089,7 +1099,7 @@ check_header (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFold
 					truth = TRUE;
 					for (j=0;j<words->len && truth;j++) {
 						if (message) {
-							for (raw_header = ((CamelMimePart *)message)->headers; raw_header; raw_header = raw_header->next) {
+							for (raw_header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message)); raw_header; raw_header = raw_header->next) {
 								if (!g_ascii_strcasecmp (raw_header->name, headername)) {
 									if (camel_search_header_match (raw_header->value, words->words[j]->word, how, type, charset))
 										break;;
@@ -1103,7 +1113,7 @@ check_header (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFold
 					camel_search_words_free(words);
 				} else {
 					if (message) {
-						for (raw_header = ((CamelMimePart *)message)->headers; raw_header && !truth; raw_header = raw_header->next) {
+						for (raw_header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message)); raw_header && !truth; raw_header = raw_header->next) {
 							if (!g_ascii_strcasecmp (raw_header->name, headername)) {
 								truth = camel_search_header_match(raw_header->value, argv[i]->value.string, how, type, charset);
 							}
@@ -1115,7 +1125,7 @@ check_header (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFold
 		}
 
 		if (message)
-			camel_object_unref (message);
+			g_object_unref (message);
 	}
 	/* TODO: else, find all matches */
 
@@ -1205,7 +1215,7 @@ search_header_regex (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Ca
 		} else
 			r->value.bool = FALSE;
 
-		camel_object_unref (msg);
+		g_object_unref (msg);
 	} else {
 		r = e_sexp_result_new (f, ESEXP_RES_ARRAY_PTR);
 		r->value.ptrarray = g_ptr_array_new();
@@ -1221,7 +1231,7 @@ get_full_header (CamelMimeMessage *message)
 	GString *str = g_string_new ("");
 	struct _camel_header_raw *h;
 
-	for (h = mp->headers; h; h = h->next) {
+	for (h = camel_mime_part_get_raw_headers (mp); h; h = h->next) {
 		if (h->value != NULL) {
 			g_string_append (str, h->name);
 			if (isspace (h->value[0]))
@@ -1260,7 +1270,7 @@ search_header_full_regex (struct _ESExp *f, gint argc, struct _ESExpResult **arg
 		} else
 			r->value.bool = FALSE;
 
-		camel_object_unref (msg);
+		g_object_unref (msg);
 	} else {
 		r = e_sexp_result_new (f, ESEXP_RES_ARRAY_PTR);
 		r->value.ptrarray = g_ptr_array_new();
@@ -1306,11 +1316,11 @@ match_message_index(CamelIndex *idx, const gchar *uid, const gchar *match, Camel
 				if (nc) {
 					while (!truth && (name = camel_index_cursor_next(nc)))
 						truth = strcmp(name, uid) == 0;
-					camel_object_unref((CamelObject *)nc);
+					g_object_unref (nc);
 				}
 			}
 		}
-		camel_object_unref((CamelObject *)wc);
+		g_object_unref (wc);
 	}
 
 	return truth;
@@ -1353,12 +1363,12 @@ match_words_index(CamelFolderSearch *search, struct _camel_search_words *words, 
 								mask = (GPOINTER_TO_INT(g_hash_table_lookup(ht, name))) | (1<<i);
 								g_hash_table_insert(ht, (gchar *) camel_pstring_peek(name), GINT_TO_POINTER(mask));
 						}
-						camel_object_unref((CamelObject *)nc);
+						g_object_unref (nc);
 					}
 				}
 			}
 		}
-		camel_object_unref((CamelObject *)wc);
+		g_object_unref (wc);
 
 		lambdafoo.uids = result;
 		lambdafoo.count = (1<<words->len) - 1;
@@ -1376,7 +1386,7 @@ match_words_1message (CamelDataWrapper *object, struct _camel_search_words *word
 	gint truth = FALSE;
 	gint parts, i;
 
-	containee = camel_medium_get_content_object (CAMEL_MEDIUM (object));
+	containee = camel_medium_get_content (CAMEL_MEDIUM (object));
 
 	if (containee == NULL)
 		return FALSE;
@@ -1394,14 +1404,18 @@ match_words_1message (CamelDataWrapper *object, struct _camel_search_words *word
 		truth = match_words_1message((CamelDataWrapper *)containee, words, mask);
 	} else if (camel_content_type_is(CAMEL_DATA_WRAPPER (containee)->mime_type, "text", "*")) {
 		/* for all other text parts, we look inside, otherwise we dont care */
-		CamelStreamMem *mem = (CamelStreamMem *)camel_stream_mem_new ();
+		CamelStream *stream;
+		GByteArray *byte_array;
+
+		byte_array = g_byte_array_new ();
+		stream = camel_stream_mem_new_with_byte_array (byte_array);
 
 		/* FIXME: The match should be part of a stream op */
-		camel_data_wrapper_decode_to_stream (containee, CAMEL_STREAM (mem));
-		camel_stream_write (CAMEL_STREAM (mem), "", 1);
+		camel_data_wrapper_decode_to_stream (containee, stream);
+		camel_stream_write (stream, "", 1);
 		for (i=0;i<words->len;i++) {
 			/* FIXME: This is horridly slow, and should use a real search algorithm */
-			if (camel_ustrstrcase((const gchar *) mem->buffer->data, words->words[i]->word) != NULL) {
+			if (camel_ustrstrcase((const gchar *) byte_array->data, words->words[i]->word) != NULL) {
 				*mask |= (1<<i);
 				/* shortcut a match */
 				if (*mask == (1<<(words->len))-1)
@@ -1409,7 +1423,7 @@ match_words_1message (CamelDataWrapper *object, struct _camel_search_words *word
 			}
 		}
 
-		camel_object_unref (mem);
+		g_object_unref (stream);
 	}
 
 	return truth;
@@ -1427,7 +1441,7 @@ match_words_message(CamelFolder *folder, const gchar *uid, struct _camel_search_
 	if (msg) {
 		mask = 0;
 		truth = match_words_1message((CamelDataWrapper *)msg, words, &mask);
-		camel_object_unref((CamelObject *)msg);
+		g_object_unref (msg);
 	} else {
 		camel_exception_clear(&x);
 		truth = FALSE;
@@ -1561,7 +1575,7 @@ search_body_regex (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Came
 		} else
 			r->value.bool = FALSE;
 
-		camel_object_unref (msg);
+		g_object_unref (msg);
 	} else {
 		regex_t pattern;
 
@@ -1583,7 +1597,7 @@ search_body_regex (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Came
 						g_ptr_array_add (r->value.ptrarray, uid);
 					}
 
-					camel_object_unref ((CamelObject *)message);
+					g_object_unref (message);
 				} else {
 					camel_exception_clear (&x);
 				}

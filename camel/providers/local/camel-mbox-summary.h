@@ -18,21 +18,36 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_MBOX_SUMMARY_H
-#define _CAMEL_MBOX_SUMMARY_H
+#ifndef CAMEL_MBOX_SUMMARY_H
+#define CAMEL_MBOX_SUMMARY_H
 
 #include "camel-local-summary.h"
 
 /* Enable the use of elm/pine style "Status" & "X-Status" headers */
 #define STATUS_PINE
 
-#define CAMEL_MBOX_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_mbox_summary_get_type (), CamelMboxSummary)
-#define CAMEL_MBOX_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mbox_summary_get_type (), CamelMboxSummaryClass)
-#define CAMEL_IS_MBOX_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_mbox_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_MBOX_SUMMARY \
+	(camel_mbox_summary_get_type ())
+#define CAMEL_MBOX_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MBOX_SUMMARY, CamelMboxSummary))
+#define CAMEL_MBOX_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MBOX_SUMMARY, CamelMboxSummaryClass))
+#define CAMEL_IS_MBOX_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MBOX_SUMMARY))
+#define CAMEL_IS_MBOX_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MBOX_SUMMARY))
+#define CAMEL_MBOX_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MBOX_SUMMARY, CamelMboxSummaryClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelMboxSummary      CamelMboxSummary;
+typedef struct _CamelMboxSummary CamelMboxSummary;
 typedef struct _CamelMboxSummaryClass CamelMboxSummaryClass;
 
 typedef struct _CamelMboxMessageContentInfo {
@@ -65,7 +80,7 @@ struct _CamelMboxSummaryClass {
 	gint (*sync_full)(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
 };
 
-CamelType		camel_mbox_summary_get_type	(void);
+GType		camel_mbox_summary_get_type	(void);
 CamelMboxSummary      *camel_mbox_summary_new	(struct _CamelFolder *, const gchar *filename, const gchar *mbox_name, CamelIndex *index);
 
 /* do we honour/use xstatus headers, etc */
@@ -76,4 +91,4 @@ gint camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFol
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_MBOX_SUMMARY_H */
+#endif /* CAMEL_MBOX_SUMMARY_H */

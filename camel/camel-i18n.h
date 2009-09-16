@@ -20,10 +20,14 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
-#ifndef __CAMEL_I18N_H__
-#define __CAMEL_I18N_H__
+#ifndef CAMEL_I18N_H
+#define CAMEL_I18N_H
 
 #include <glib.h>
 
@@ -51,6 +55,6 @@
 #    define N_(String) (String)
 #endif
 
-#endif /* __CAMEL_I18N_H__ */
+#endif /* CAMEL_I18N_H */
 
 #endif /* CAMEL_DISABLE_DEPRECATED */

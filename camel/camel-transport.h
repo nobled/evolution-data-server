@@ -23,38 +23,59 @@
  * USA
  */
 
-#ifndef CAMEL_TRANSPORT_H
-#define CAMEL_TRANSPORT_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <glib.h>
+#ifndef CAMEL_TRANSPORT_H
+#define CAMEL_TRANSPORT_H
+
+#include <camel/camel-address.h>
+#include <camel/camel-mime-message.h>
 #include <camel/camel-service.h>
 
-#define CAMEL_TRANSPORT_TYPE     (camel_transport_get_type ())
-#define CAMEL_TRANSPORT(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_TRANSPORT_TYPE, CamelTransport))
-#define CAMEL_TRANSPORT_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_TRANSPORT_TYPE, CamelTransportClass))
-#define CAMEL_IS_TRANSPORT(o)    (CAMEL_CHECK_TYPE((o), CAMEL_TRANSPORT_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_TRANSPORT \
+	(camel_transport_get_type ())
+#define CAMEL_TRANSPORT(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_TRANSPORT, CamelTransport))
+#define CAMEL_TRANSPORT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_TRANSPORT, CamelTransportClass))
+#define CAMEL_IS_TRANSPORT(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_TRANSPORT))
+#define CAMEL_IS_TRANSPORT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_TRANSPORT))
+#define CAMEL_TRANSPORT_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_TRANSPORT, CamelTransportClass))
 
 G_BEGIN_DECLS
+
+typedef struct _CamelTransport CamelTransport;
+typedef struct _CamelTransportClass CamelTransportClass;
+typedef struct _CamelTransportPrivate CamelTransportPrivate;
 
 enum {
 	CAMEL_TRANSPORT_ARG_FIRST  = CAMEL_SERVICE_ARG_FIRST + 100
 };
 
-struct _CamelTransport
-{
-	CamelService parent_object;
-
-	struct _CamelTransportPrivate *priv;
+struct _CamelTransport {
+	CamelService parent;
+	CamelTransportPrivate *priv;
 };
 
-typedef struct {
+struct _CamelTransportClass {
 	CamelServiceClass parent_class;
 
 	gboolean (*send_to) (CamelTransport *transport,
 			     CamelMimeMessage *message,
 			     CamelAddress *from, CamelAddress *recipients,
 			     CamelException *ex);
-} CamelTransportClass;
+};
 
 /* public methods */
 gboolean camel_transport_send_to (CamelTransport *transport,
@@ -63,8 +84,7 @@ gboolean camel_transport_send_to (CamelTransport *transport,
 				  CamelAddress *recipients,
 				  CamelException *ex);
 
-/* Standard Camel function */
-CamelType camel_transport_get_type (void);
+GType camel_transport_get_type (void);
 
 G_END_DECLS
 

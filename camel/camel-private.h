@@ -21,7 +21,7 @@
  */
 
 #ifndef CAMEL_PRIVATE_H
-#define CAMEL_PRIVATE_H 1
+#define CAMEL_PRIVATE_H
 
 /* need a way to configure and save this data, if this header is to
    be installed.  For now, dont install it */
@@ -30,6 +30,7 @@
 #include "config.h"
 #endif
 
+#include <glib.h>
 #include <pthread.h>
 
 G_BEGIN_DECLS
@@ -107,14 +108,14 @@ struct _CamelSessionPrivate {
 struct _CamelFolderSummaryPrivate {
 	GHashTable *filter_charset;	/* CamelMimeFilterCharset's indexed by source charset */
 
-	struct _CamelMimeFilterIndex *filter_index;
-	struct _CamelMimeFilterBasic *filter_64;
-	struct _CamelMimeFilterBasic *filter_qp;
-	struct _CamelMimeFilterBasic *filter_uu;
-	struct _CamelMimeFilterSave *filter_save;
-	struct _CamelMimeFilterHTML *filter_html;
+	struct _CamelMimeFilter *filter_index;
+	struct _CamelMimeFilter *filter_64;
+	struct _CamelMimeFilter *filter_qp;
+	struct _CamelMimeFilter *filter_uu;
+	struct _CamelMimeFilter *filter_save;
+	struct _CamelMimeFilter *filter_html;
 
-	struct _CamelStreamFilter *filter_stream;
+	struct _CamelStream *filter_stream;
 
 	struct _CamelIndex *index;
 

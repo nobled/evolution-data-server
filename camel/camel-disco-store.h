@@ -21,19 +21,42 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
 #ifndef CAMEL_DISCO_STORE_H
-#define CAMEL_DISCO_STORE_H 1
+#define CAMEL_DISCO_STORE_H
 
 #include <camel/camel-store.h>
 
-#define CAMEL_DISCO_STORE_TYPE     (camel_disco_store_get_type ())
-#define CAMEL_DISCO_STORE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_DISCO_STORE_TYPE, CamelDiscoStore))
-#define CAMEL_DISCO_STORE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_DISCO_STORE_TYPE, CamelDiscoStoreClass))
-#define CAMEL_IS_DISCO_STORE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_DISCO_STORE_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_DISCO_STORE \
+	(camel_disco_store_get_type ())
+#define CAMEL_DISCO_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DISCO_STORE, CamelDiscoStore))
+#define CAMEL_DISCO_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DISCO_STORE, CamelDiscoStoreClass))
+#define CAMEL_IS_DISCO_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DISCO_STORE))
+#define CAMEL_IS_DISCO_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DISCO_STORE))
+#define CAMEL_DISCO_STORE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DISCO_STORE, CamelDiscoStoreClass))
 
 G_BEGIN_DECLS
+
+struct _CamelDiscoDiary;
+
+typedef struct _CamelDiscoStore CamelDiscoStore;
+typedef struct _CamelDiscoStoreClass CamelDiscoStoreClass;
 
 enum {
 	CAMEL_DISCO_STORE_ARG_FIRST  = CAMEL_STORE_ARG_FIRST + 100
@@ -46,13 +69,13 @@ typedef enum {
 } CamelDiscoStoreStatus;
 
 struct _CamelDiscoStore {
-	CamelStore parent_object;
+	CamelStore parent;
 
 	CamelDiscoStoreStatus status;
-	CamelDiscoDiary *diary;
+	struct _CamelDiscoDiary *diary;
 };
 
-typedef struct {
+struct _CamelDiscoStoreClass {
 	CamelStoreClass parent_class;
 
 	void              (*set_status)              (CamelDiscoStore *,
@@ -95,11 +118,9 @@ typedef struct {
 							const gchar *top,
 							guint32 flags,
 							CamelException *ex);
+};
 
-} CamelDiscoStoreClass;
-
-/* Standard Camel function */
-CamelType camel_disco_store_get_type (void);
+GType camel_disco_store_get_type (void);
 
 /* Public methods */
 CamelDiscoStoreStatus camel_disco_store_status           (CamelDiscoStore *store);

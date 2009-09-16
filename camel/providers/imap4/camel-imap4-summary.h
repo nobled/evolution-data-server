@@ -19,20 +19,30 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_SUMMARY_H__
-#define __CAMEL_IMAP4_SUMMARY_H__
+#ifndef CAMEL_IMAP4_SUMMARY_H
+#define CAMEL_IMAP4_SUMMARY_H
 
 #include <sys/types.h>
+#include <camel/camel.h>
 
-#include <camel/camel-folder.h>
-#include <camel/camel-folder-summary.h>
-
-#define CAMEL_TYPE_IMAP4_SUMMARY            (camel_imap4_summary_get_type ())
-#define CAMEL_IMAP4_SUMMARY(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_IMAP4_SUMMARY, CamelIMAP4Summary))
-#define CAMEL_IMAP4_SUMMARY_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_IMAP4_SUMMARY, CamelIMAP4SummaryClass))
-#define CAMEL_IS_IMAP4_SUMMARY(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_IMAP4_SUMMARY))
-#define CAMEL_IS_IMAP4_SUMMARY_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_IMAP4_SUMMARY))
-#define CAMEL_IMAP4_SUMMARY_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_FOLDER_SUMMARY, CamelIMAP4SummaryClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_SUMMARY \
+	(camel_imap4_summary_get_type ())
+#define CAMEL_IMAP4_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_SUMMARY, CamelIMAP4Summary))
+#define CAMEL_IMAP4_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_SUMMARY, CamelIMAP4SummaryClass))
+#define CAMEL_IS_IMAP4_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_SUMMARY))
+#define CAMEL_IS_IMAP4_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_SUMMARY))
+#define CAMEL_IMAP4_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_FOLDER_SUMMARY, CamelIMAP4SummaryClass))
 
 G_BEGIN_DECLS
 
@@ -60,7 +70,7 @@ struct _CamelIMAP4MessageContentInfo {
 };
 
 struct _CamelIMAP4Summary {
-	CamelFolderSummary parent_object;
+	CamelFolderSummary parent;
 
 	guint32 version;
 
@@ -79,7 +89,7 @@ struct _CamelIMAP4SummaryClass {
 
 };
 
-CamelType camel_imap4_summary_get_type (void);
+GType camel_imap4_summary_get_type (void);
 
 CamelFolderSummary *camel_imap4_summary_new (CamelFolder *folder);
 
@@ -96,4 +106,4 @@ gint camel_imap4_summary_flush_updates (CamelFolderSummary *summary, CamelExcept
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_SUMMARY_H__ */
+#endif /* CAMEL_IMAP4_SUMMARY_H */

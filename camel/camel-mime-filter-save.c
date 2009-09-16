@@ -27,89 +27,91 @@
 #include "camel-mime-filter-save.h"
 #include "camel-stream-mem.h"
 
-static void filter (CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace,
-		    gchar **out, gsize *outlen, gsize *outprespace);
-static void complete (CamelMimeFilter *f, const gchar *in, gsize len,
-		      gsize prespace, gchar **out, gsize *outlen,
-		      gsize *outprespace);
-static void reset (CamelMimeFilter *f);
+#define CAMEL_MIME_FILTER_SAVE_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_MIME_FILTER_SAVE, CamelMimeFilterSavePrivate))
+
+struct _CamelMimeFilterSavePrivate {
+	CamelStream *stream;
+};
+
+static gpointer parent_class;
 
 static void
-camel_mime_filter_save_class_init (CamelMimeFilterSaveClass *klass)
+mime_filter_save_filter (CamelMimeFilter *mime_filter,
+                         const gchar *in,
+                         gsize len,
+                         gsize prespace,
+                         gchar **out,
+                         gsize *outlen,
+                         gsize *outprespace)
 {
-	CamelMimeFilterClass *mime_filter_class =
-		(CamelMimeFilterClass *) klass;
+	CamelMimeFilterSavePrivate *priv;
 
-	mime_filter_class->filter = filter;
-	mime_filter_class->complete = complete;
-	mime_filter_class->reset = reset;
+	priv = CAMEL_MIME_FILTER_SAVE_GET_PRIVATE (mime_filter);
+
+	if (priv->stream != NULL)
+		camel_stream_write (priv->stream, in, len);
+
+	*out = (gchar *) in;
+	*outlen = len;
+	*outprespace = mime_filter->outpre;
 }
 
-CamelType
+static void
+mime_filter_save_complete (CamelMimeFilter *mime_filter,
+                           const gchar *in,
+                           gsize len,
+                           gsize prespace,
+                           gchar **out,
+                           gsize *outlen,
+                           gsize *outprespace)
+{
+	if (len)
+		mime_filter_save_filter (
+			mime_filter, in, len, prespace,
+			out, outlen, outprespace);
+}
+
+static void
+mime_filter_save_class_init (CamelMimeFilterSaveClass *class)
+{
+	CamelMimeFilterClass *mime_filter_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMimeFilterSavePrivate));
+
+	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
+	mime_filter_class->filter = mime_filter_save_filter;
+	mime_filter_class->complete = mime_filter_save_complete;
+}
+
+static void
+mime_filter_save_init (CamelMimeFilterSave *filter)
+{
+	filter->priv = CAMEL_MIME_FILTER_SAVE_GET_PRIVATE (filter);
+}
+
+GType
 camel_mime_filter_save_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_mime_filter_get_type(), "CamelMimeFilterSave",
-					    sizeof (CamelMimeFilterSave),
-					    sizeof (CamelMimeFilterSaveClass),
-					    (CamelObjectClassInitFunc) camel_mime_filter_save_class_init,
-					    NULL,
-					    NULL,
-					    NULL);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MIME_FILTER,
+			"CamelMimeFilterSave",
+			sizeof (CamelMimeFilterSaveClass),
+			(GClassInitFunc) mime_filter_save_class_init,
+			sizeof (CamelMimeFilterSave),
+			(GInstanceInitFunc) mime_filter_save_init,
+			0);
 
 	return type;
 }
 
-static void
-filter (CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace,
-	gchar **out, gsize *outlen, gsize *outprespace)
-{
-	CamelMimeFilterSave *save = (CamelMimeFilterSave *) f;
-
-	if (save->stream)
-		camel_stream_write (save->stream, in, len);
-
-	*out = (gchar *) in;
-	*outlen = len;
-	*outprespace = f->outpre;
-}
-
-static void
-complete (CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace,
-	  gchar **out, gsize *outlen, gsize *outprespace)
-{
-	if (len)
-		filter (f, in, len, prespace, out, outlen, outprespace);
-}
-
-static void
-reset (CamelMimeFilter *f)
-{
-	/* no-op */
-}
-
 /**
  * camel_mime_filter_save_new:
- *
- * Create a new #CamelMimeFilterSave filter object.
- *
- * Returns: a new #CamelMimeFilterSave object
- **/
-CamelMimeFilter *
-camel_mime_filter_save_new (void)
-{
-	CamelMimeFilterSave *save = CAMEL_MIME_FILTER_SAVE (camel_object_new (CAMEL_MIME_FILTER_SAVE_TYPE));
-
-	save->stream = camel_stream_mem_new ();
-
-	return (CamelMimeFilter *) save;
-}
-
-/**
- * camel_mime_filter_save_new_with_stream:
  * @stream: a #CamelStream object
  *
  * Create a new #CamelMimeFilterSave filter object that will save a
@@ -118,12 +120,21 @@ camel_mime_filter_save_new (void)
  * Returns: a new #CamelMimeFilterSave object
  **/
 CamelMimeFilter *
-camel_mime_filter_save_new_with_stream (CamelStream *stream)
+camel_mime_filter_save_new (CamelStream *stream)
 {
-	CamelMimeFilterSave *save = CAMEL_MIME_FILTER_SAVE (camel_object_new (CAMEL_MIME_FILTER_SAVE_TYPE));
+	CamelMimeFilter *filter;
+	CamelMimeFilterSavePrivate *priv;
 
-	save->stream = stream;
-	camel_object_ref (stream);
+	if (stream != NULL)
+		g_return_val_if_fail (CAMEL_IS_STREAM (stream), NULL);
 
-	return (CamelMimeFilter *) save;
+	filter = g_object_new (CAMEL_TYPE_MIME_FILTER_SAVE, NULL);
+	priv = CAMEL_MIME_FILTER_SAVE_GET_PRIVATE (filter);
+
+	if (stream != NULL)
+		priv->stream = g_object_ref (stream);
+	else
+		priv->stream = camel_stream_mem_new ();
+
+	return filter;
 }

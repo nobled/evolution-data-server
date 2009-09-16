@@ -20,38 +20,55 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
-#ifndef __CAMEL_DIGEST_STORE_H__
-#define __CAMEL_DIGEST_STORE_H__
+#ifndef CAMEL_DIGEST_STORE_H
+#define CAMEL_DIGEST_STORE_H
 
-#include <glib.h>
 #include <camel/camel-store.h>
 
-#define CAMEL_DIGEST_STORE(obj)         CAMEL_CHECK_CAST (obj, camel_digest_store_get_type (), CamelDigestStore)
-#define CAMEL_DIGEST_STORE_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_digest_store_get_type (), CamelDigestStoreClass)
-#define CAMEL_IS_DIGEST_STORE(obj)      CAMEL_CHECK_TYPE (obj, camel_digest_store_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_DIGEST_STORE \
+	(camel_digest_store_get_type ())
+#define CAMEL_DIGEST_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DIGEST_STORE, CamelDigestStore))
+#define CAMEL_DIGEST_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DIGEST_STORE, CamelDigestStoreClass))
+#define CAMEL_IS_DIGEST_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DIGEST_STORE))
+#define CAMEL_IS_DIGEST_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DIGEST_STORE))
+#define CAMEL_DIGEST_STORE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DIGEST_STORE, CamelDigestStoreClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelDigestStore CamelDigestStore;
 typedef struct _CamelDigestStoreClass CamelDigestStoreClass;
 
 struct _CamelDigestStore {
 	CamelStore parent;
-
 };
 
 struct _CamelDigestStoreClass {
 	CamelStoreClass parent_class;
-
 };
 
-CamelType camel_digest_store_get_type (void);
+GType camel_digest_store_get_type (void);
 
 CamelStore *camel_digest_store_new (const gchar *url);
 
 G_END_DECLS
 
-#endif /* __CAMEL_DIGEST_STORE_H__ */
+#endif /* CAMEL_DIGEST_STORE_H */
 
 #endif /* CAMEL_DISABLE_DEPRECATED */

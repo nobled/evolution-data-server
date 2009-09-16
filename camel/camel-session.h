@@ -23,20 +23,44 @@
  * USA
  */
 
-#ifndef CAMEL_SESSION_H
-#define CAMEL_SESSION_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
+#ifndef CAMEL_SESSION_H
+#define CAMEL_SESSION_H
+
+#include <camel/camel-filter-driver.h>
+#include <camel/camel-junk-plugin.h>
 #include <camel/camel-msgport.h>
 #include <camel/camel-object.h>
 #include <camel/camel-provider.h>
-#include <camel/camel-junk-plugin.h>
+#include <camel/camel-service.h>
 
-#define CAMEL_SESSION_TYPE     (camel_session_get_type ())
-#define CAMEL_SESSION(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SESSION_TYPE, CamelSession))
-#define CAMEL_SESSION_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SESSION_TYPE, CamelSessionClass))
-#define CAMEL_IS_SESSION(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SESSION_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_SESSION \
+	(camel_session_get_type ())
+#define CAMEL_SESSION(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SESSION, CamelSession))
+#define CAMEL_SESSION_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SESSION, CamelSessionClass))
+#define CAMEL_IS_SESSION(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SESSION))
+#define CAMEL_IS_SESSION_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SESSION))
+#define CAMEL_SESSION_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SESSION, CamelSessionClass))
 
 G_BEGIN_DECLS
+
+typedef struct _CamelSession CamelSession;
+typedef struct _CamelSessionClass CamelSessionClass;
+typedef struct _CamelSessionPrivate CamelSessionPrivate;
 
 typedef gboolean (*CamelTimeoutCallback) (gpointer data);
 typedef enum {
@@ -52,10 +76,9 @@ enum {
 	CAMEL_SESSION_PASSPHRASE = 1 << 4
 };
 
-struct _CamelSession
-{
-	CamelObject parent_object;
-	struct _CamelSessionPrivate *priv;
+struct _CamelSession {
+	CamelObject parent;
+	CamelSessionPrivate *priv;
 
 	gchar *storage_path;
 	CamelJunkPlugin *junk_plugin;
@@ -68,7 +91,7 @@ struct _CamelSession
 typedef struct _CamelSessionThreadOps CamelSessionThreadOps;
 typedef struct _CamelSessionThreadMsg CamelSessionThreadMsg;
 
-typedef struct {
+struct _CamelSessionClass {
 	CamelObjectClass parent_class;
 
 	CamelService *  (*get_service)       (CamelSession *session,
@@ -122,12 +145,9 @@ typedef struct {
 					      struct _CamelMimeMessage *message,
 					      const gchar *address,
 					      CamelException *ex);
-} CamelSessionClass;
+};
 
-/* public methods */
-
-/* Standard Camel function */
-CamelType camel_session_get_type (void);
+GType camel_session_get_type (void);
 
 void            camel_session_construct             (CamelSession *session,
 						     const gchar *storage_path);

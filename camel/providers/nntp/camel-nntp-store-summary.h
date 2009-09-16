@@ -21,20 +21,35 @@
 
 /* currently, this is just a straigt s/imap/nntp from the IMAP file*/
 
-#ifndef _CAMEL_NNTP_STORE_SUMMARY_H
-#define _CAMEL_NNTP_STORE_SUMMARY_H
+#ifndef CAMEL_NNTP_STORE_SUMMARY_H
+#define CAMEL_NNTP_STORE_SUMMARY_H
 
-#include <camel/camel-object.h>
-#include <camel/camel-store-summary.h>
+#include <camel/camel.h>
 
-#define CAMEL_NNTP_STORE_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_nntp_store_summary_get_type (), CamelNNTPStoreSummary)
-#define CAMEL_NNTP_STORE_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_nntp_store_summary_get_type (), CamelNNTPStoreSummaryClass)
-#define CAMEL_IS_NNTP_STORE_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_nntp_store_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_NNTP_STORE_SUMMARY \
+	(camel_nntp_store_summary_get_type ())
+#define CAMEL_NNTP_STORE_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_NNTP_STORE_SUMMARY, CamelNNTPStoreSummary))
+#define CAMEL_NNTP_STORE_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_NNTP_STORE_SUMMARY, CamelNNTPStoreSummaryClass))
+#define CAMEL_IS_NNTP_STORE_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_NNTP_STORE_SUMMARY))
+#define CAMEL_IS_NNTP_STORE_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_NNTP_STORE_SUMMARY))
+#define CAMEL_NNTP_STORE_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_NNTP_STORE_SUMMARY, CamelNNTPStoreSummaryClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelNNTPStoreSummary      CamelNNTPStoreSummary;
+typedef struct _CamelNNTPStoreSummary CamelNNTPStoreSummary;
 typedef struct _CamelNNTPStoreSummaryClass CamelNNTPStoreSummaryClass;
+typedef struct _CamelNNTPStoreSummaryPrivate CamelNNTPStoreSummaryPrivate;
 
 typedef struct _CamelNNTPStoreInfo CamelNNTPStoreInfo;
 
@@ -55,7 +70,7 @@ struct _CamelNNTPStoreInfo {
 struct _CamelNNTPStoreSummary {
 	CamelStoreSummary summary;
 
-	struct _CamelNNTPStoreSummaryPrivate *priv;
+	CamelNNTPStoreSummaryPrivate *priv;
 
 	/* header info */
 	guint32 version;	/* version of base part of file */
@@ -66,7 +81,7 @@ struct _CamelNNTPStoreSummaryClass {
 	CamelStoreSummaryClass summary_class;
 };
 
-CamelType			 camel_nntp_store_summary_get_type	(void);
+GType			 camel_nntp_store_summary_get_type	(void);
 CamelNNTPStoreSummary      *camel_nntp_store_summary_new	(void);
 
 /* TODO: this api needs some more work, needs to support lists */
@@ -92,4 +107,4 @@ gchar *camel_nntp_store_summary_full_from_path(CamelNNTPStoreSummary *s, const g
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_NNTP_STORE_SUMMARY_H */
+#endif /* CAMEL_NNTP_STORE_SUMMARY_H */

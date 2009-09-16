@@ -22,8 +22,12 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_STREAM_FS_H
-#define CAMEL_STREAM_FS_H 1
+#define CAMEL_STREAM_FS_H
 
 /* for open flags */
 #include <sys/types.h>
@@ -32,34 +36,55 @@
 
 #include <camel/camel-seekable-stream.h>
 
-#define CAMEL_STREAM_FS_TYPE     (camel_stream_fs_get_type ())
-#define CAMEL_STREAM_FS(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_STREAM_FS_TYPE, CamelStreamFs))
-#define CAMEL_STREAM_FS_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_STREAM_FS_TYPE, CamelStreamFsClass))
-#define CAMEL_IS_STREAM_FS(o)    (CAMEL_CHECK_TYPE((o), CAMEL_STREAM_FS_TYPE))
+#define CAMEL_TYPE_STREAM_FS \
+	(camel_stream_fs_get_type ())
+#define CAMEL_STREAM_FS(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_STREAM_FS, CamelStreamFs))
+#define CAMEL_STREAM_FS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_STREAM_FS, CamelStreamFsClass))
+#define CAMEL_IS_STREAM_FS(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_STREAM_FS))
+#define CAMEL_IS_STREAM_FS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_STREAM_FS))
+#define CAMEL_STREAM_FS_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_STREAM_FS, CamelStreamFsClass))
 
 G_BEGIN_DECLS
 
-struct _CamelStreamFs {
-	CamelSeekableStream parent_object;
+typedef struct _CamelStreamFs CamelStreamFs;
+typedef struct _CamelStreamFsClass CamelStreamFsClass;
+typedef struct _CamelStreamFsPrivate CamelStreamFsPrivate;
 
-	gint fd;             /* file descriptor on the underlying file */
+struct _CamelStreamFs {
+	CamelSeekableStream parent;
+	CamelStreamFsPrivate *priv;
 };
 
-typedef struct {
+struct _CamelStreamFsClass {
 	CamelSeekableStreamClass parent_class;
+};
 
-} CamelStreamFsClass;
-
-/* Standard Camel function */
-CamelType camel_stream_fs_get_type (void);
-
-/* public methods */
-CamelStream * camel_stream_fs_new_with_name            (const gchar *name, gint flags, mode_t mode);
-CamelStream * camel_stream_fs_new_with_name_and_bounds (const gchar *name, gint flags, mode_t mode,
-							off_t start, off_t end);
-
-CamelStream * camel_stream_fs_new_with_fd              (gint fd);
-CamelStream * camel_stream_fs_new_with_fd_and_bounds   (gint fd, off_t start, off_t end);
+GType		camel_stream_fs_get_type	(void);
+CamelStream *	camel_stream_fs_new_with_name	(const gchar *name,
+						 gint flags,
+						 mode_t mode);
+CamelStream *	camel_stream_fs_new_with_name_and_bounds
+						(const gchar *name,
+						 gint flags,
+						 mode_t mode,
+						 off_t start,
+						 off_t end);
+CamelStream *	camel_stream_fs_new_with_fd	(gint fd);
+CamelStream *	camel_stream_fs_new_with_fd_and_bounds
+						(gint fd,
+						 off_t start,
+						 off_t end);
+gint		camel_stream_fs_get_fd		(CamelStreamFs *stream);
 
 G_END_DECLS
 

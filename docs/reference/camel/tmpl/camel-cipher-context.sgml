@@ -22,12 +22,11 @@ CamelCipherContext
 
 </para>
 
-@parent_object: 
-@priv: 
-@session: 
-@sign_protocol: 
-@encrypt_protocol: 
-@key_protocol: 
+
+<!-- ##### ARG CamelCipherContext:session ##### -->
+<para>
+
+</para>
 
 <!-- ##### STRUCT CamelCipherValidity ##### -->
 <para>
@@ -102,13 +101,13 @@ CamelCipherContext
 @Returns: 
 
 
-<!-- ##### FUNCTION camel_cipher_context_construct ##### -->
+<!-- ##### FUNCTION camel_cipher_context_get_session ##### -->
 <para>
 
 </para>
 
 @context: 
-@session: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_cipher_id_to_hash ##### -->

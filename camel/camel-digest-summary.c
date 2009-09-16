@@ -28,59 +28,49 @@
 
 #define CAMEL_DIGEST_SUMMARY_VERSION 0
 
-static void camel_digest_summary_class_init (CamelDigestSummaryClass *klass);
-static void camel_digest_summary_init       (CamelDigestSummary *obj);
-static void camel_digest_summary_finalise   (CamelObject *obj);
+static gpointer parent_class;
 
-static CamelFolderSummaryClass *parent_class = NULL;
-
-CamelType
-camel_digest_summary_get_type(void)
+static void
+digest_summary_class_init (CamelDigestSummaryClass *class)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (
-			camel_folder_summary_get_type (),
-			"CamelDigestSummary",
-			sizeof (CamelDigestSummary),
-			sizeof (CamelDigestSummaryClass),
-			(CamelObjectClassInitFunc) camel_digest_summary_class_init,
-			NULL,
-			(CamelObjectInitFunc) camel_digest_summary_init,
-			(CamelObjectFinalizeFunc) camel_digest_summary_finalise);
-	}
-
-	return type;
+	parent_class = g_type_class_peek_parent (class);
 }
 
 static void
-camel_digest_summary_class_init (CamelDigestSummaryClass *klass)
+digest_summary_init (CamelDigestSummary *digest_summary)
 {
-	parent_class = CAMEL_FOLDER_SUMMARY_CLASS (camel_type_get_global_classfuncs (camel_folder_summary_get_type ()));
-}
+	CamelFolderSummary *summary;
 
-static void
-camel_digest_summary_init (CamelDigestSummary *summary)
-{
-	CamelFolderSummary *s = (CamelFolderSummary *) summary;
+	summary = CAMEL_FOLDER_SUMMARY (digest_summary);
 
 	/* subclasses need to set the right instance data sizes */
-	s->message_info_size = sizeof (CamelMessageInfo);
-	s->content_info_size = sizeof (CamelMessageContentInfo);
+	summary->message_info_size = sizeof (CamelMessageInfo);
+	summary->content_info_size = sizeof (CamelMessageContentInfo);
 
 	/* and a unique file version */
-	s->version += CAMEL_DIGEST_SUMMARY_VERSION;
+	summary->version += CAMEL_DIGEST_SUMMARY_VERSION;
 }
 
-static void
-camel_digest_summary_finalise (CamelObject *object)
+GType
+camel_digest_summary_get_type(void)
 {
+	static GType type = G_TYPE_INVALID;
 
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_FOLDER_SUMMARY,
+			"CamelDigestSummary",
+			sizeof (CamelDigestSummaryClass),
+			(GClassInitFunc) digest_summary_class_init,
+			sizeof (CamelDigestSummary),
+			(GInstanceInitFunc) digest_summary_init,
+			0);
+
+	return type;
 }
 
 CamelFolderSummary *
 camel_digest_summary_new (void)
 {
-	return (CamelFolderSummary *) camel_object_new (camel_digest_summary_get_type ());
+	return g_object_new (CAMEL_TYPE_DIGEST_SUMMARY, NULL);
 }

@@ -31,52 +31,34 @@
 
 #include "camel-mime-filter-canon.h"
 
-static void filter (CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace,
-		    gchar **out, gsize *outlen, gsize *outprespace);
-static void complete (CamelMimeFilter *f, const gchar *in, gsize len,
-		      gsize prespace, gchar **out, gsize *outlen,
-		      gsize *outprespace);
-static void reset (CamelMimeFilter *f);
+#define CAMEL_MIME_FILTER_CANON_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_MIME_FILTER_CANON, CamelMimeFilterCanonPrivate))
+
+struct _CamelMimeFilterCanonPrivate {
+	guint32 flags;
+};
+
+static gpointer parent_class;
 
 static void
-camel_mime_filter_canon_class_init (CamelMimeFilterCanonClass *klass)
+mime_filter_canon_run (CamelMimeFilter *mime_filter,
+                       const gchar *in,
+                       gsize len,
+                       gsize prespace,
+                       gchar **out,
+                       gsize *outlen,
+                       gsize *outprespace,
+                       gint last)
 {
-	CamelMimeFilterClass *mime_filter_class = (CamelMimeFilterClass *) klass;
-
-	mime_filter_class->filter = filter;
-	mime_filter_class->complete = complete;
-	mime_filter_class->reset = reset;
-}
-
-CamelType
-camel_mime_filter_canon_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_mime_filter_get_type(), "CamelMimeFilterCanon",
-					    sizeof (CamelMimeFilterCanon),
-					    sizeof (CamelMimeFilterCanonClass),
-					    (CamelObjectClassInitFunc) camel_mime_filter_canon_class_init,
-					    NULL,
-					    NULL,
-					    NULL);
-	}
-
-	return type;
-}
-
-static void
-filter_run(CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace, gchar **out, gsize *outlen, gsize *outprespace, gint last)
-{
+	CamelMimeFilterCanonPrivate *priv;
 	register guchar *inptr, c;
 	const guchar *inend, *start;
 	gchar *starto;
 	register gchar *o;
 	gint lf = 0;
-	guint32 flags;
 
-	flags = ((CamelMimeFilterCanon *)f)->flags;
+	priv = CAMEL_MIME_FILTER_CANON_GET_PRIVATE (mime_filter);
 
 	/* first, work out how much space we need */
 	inptr = (guchar *)in;
@@ -89,16 +71,16 @@ filter_run(CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace, gchar
 	   "From \n" -> "=46rom \r\n"
 	   We add 1 extra incase we're called from complete, when we didn't end in \n */
 
-	camel_mime_filter_set_size(f, len+lf*3+4, FALSE);
+	camel_mime_filter_set_size(mime_filter, len+lf*3+4, FALSE);
 
-	o = f->outbuf;
+	o = mime_filter->outbuf;
 	inptr = (guchar *)in;
 	start = inptr;
 	starto = o;
 	while (inptr < inend) {
 		/* first, check start of line, we always start at the start of the line */
 		c = *inptr;
-		if (flags & CAMEL_MIME_FILTER_CANON_FROM && c == 'F') {
+		if (priv->flags & CAMEL_MIME_FILTER_CANON_FROM && c == 'F') {
 			inptr++;
 			if (inptr < inend-4) {
 				if (strncmp((gchar *)inptr, "rom ", 4) == 0) {
@@ -118,20 +100,20 @@ filter_run(CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace, gchar
 			c = *inptr++;
 			if (c == '\n') {
 				/* check to strip trailing space */
-				if (flags & CAMEL_MIME_FILTER_CANON_STRIP) {
+				if (priv->flags & CAMEL_MIME_FILTER_CANON_STRIP) {
 					while (o>starto && (o[-1] == ' ' || o[-1] == '\t' || o[-1]=='\r'))
 						o--;
 				}
 				/* check end of line canonicalisation */
 				if (o>starto) {
-					if (flags & CAMEL_MIME_FILTER_CANON_CRLF) {
+					if (priv->flags & CAMEL_MIME_FILTER_CANON_CRLF) {
 						if (o[-1] != '\r')
 							*o++ = '\r';
 					} else {
 						if (o[-1] == '\r')
 							o--;
 					}
-				} else if (flags & CAMEL_MIME_FILTER_CANON_CRLF) {
+				} else if (priv->flags & CAMEL_MIME_FILTER_CANON_CRLF) {
 					/* empty line */
 					*o++ = '\r';
 				}
@@ -150,32 +132,86 @@ filter_run(CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace, gchar
 
 	/* we got to the end of the data without finding anything, backup to start and re-process next time around */
 	if (last) {
-		*outlen = o - f->outbuf;
+		*outlen = o - mime_filter->outbuf;
 	} else {
-		camel_mime_filter_backup(f, (const gchar *)start, inend - start);
-		*outlen = starto - f->outbuf;
+		camel_mime_filter_backup (
+			mime_filter, (const gchar *)start, inend - start);
+		*outlen = starto - mime_filter->outbuf;
 	}
 
-	*out = f->outbuf;
-	*outprespace = f->outpre;
+	*out = mime_filter->outbuf;
+	*outprespace = mime_filter->outpre;
 }
 
 static void
-filter(CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace, gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_canon_filter (CamelMimeFilter *mime_filter,
+                          const gchar *in,
+                          gsize len,
+                          gsize prespace,
+                          gchar **out,
+                          gsize *outlen,
+                          gsize *outprespace)
 {
-	filter_run(f, in, len, prespace, out, outlen, outprespace, FALSE);
+	mime_filter_canon_run (
+		mime_filter, in, len, prespace,
+		out, outlen, outprespace, FALSE);
 }
 
 static void
-complete(CamelMimeFilter *f, const gchar *in, gsize len, gsize prespace, gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_canon_complete (CamelMimeFilter *mime_filter,
+                            const gchar *in,
+                            gsize len,
+                            gsize prespace,
+                            gchar **out,
+                            gsize *outlen,
+                            gsize *outprespace)
 {
-	filter_run(f, in, len, prespace, out, outlen, outprespace, TRUE);
+	mime_filter_canon_run (
+		mime_filter, in, len, prespace,
+		out, outlen, outprespace, TRUE);
 }
 
 static void
-reset (CamelMimeFilter *f)
+mime_filter_canon_reset (CamelMimeFilter *mime_filter)
 {
 	/* no-op */
+}
+
+static void
+mime_filter_canon_class_init (CamelMimeFilterCanonClass *class)
+{
+	CamelMimeFilterClass *mime_filter_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMimeFilterCanonPrivate));
+
+	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
+	mime_filter_class->filter = mime_filter_canon_filter;
+	mime_filter_class->complete = mime_filter_canon_complete;
+	mime_filter_class->reset = mime_filter_canon_reset;
+}
+
+static void
+mime_filter_canon_init (CamelMimeFilterCanon *filter)
+{
+	filter->priv = CAMEL_MIME_FILTER_CANON_GET_PRIVATE (filter);
+}
+
+GType
+camel_mime_filter_canon_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MIME_FILTER, "CamelMimeFilterCanon",
+			sizeof (CamelMimeFilterCanonClass),
+			(GClassInitFunc) mime_filter_canon_class_init,
+			sizeof (CamelMimeFilterCanon),
+			(GInstanceInitFunc) mime_filter_canon_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -189,9 +225,10 @@ reset (CamelMimeFilter *f)
 CamelMimeFilter *
 camel_mime_filter_canon_new(guint32 flags)
 {
-	CamelMimeFilterCanon *chomp = CAMEL_MIME_FILTER_CANON (camel_object_new (CAMEL_MIME_FILTER_CANON_TYPE));
+	CamelMimeFilter *filter;
 
-	chomp->flags = flags;
+	filter = g_object_new (CAMEL_TYPE_MIME_FILTER_CANON, NULL);
+	CAMEL_MIME_FILTER_CANON (filter)->priv->flags = flags;
 
-	return (CamelMimeFilter *) chomp;
+	return filter;
 }

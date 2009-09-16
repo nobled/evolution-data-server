@@ -59,86 +59,88 @@ static gssize               write_to_stream   (CamelDataWrapper *data_wrapper,
 
 static gint construct_from_parser(CamelMultipart *multipart, struct _CamelMimeParser *mp);
 
-static CamelDataWrapperClass *parent_class = NULL;
-
-/* Returns the class for a CamelMultipart */
-#define CMP_CLASS(so) CAMEL_MULTIPART_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-
-/* Returns the class for a CamelDataWrapper */
-#define CDW_CLASS(so) CAMEL_DATA_WRAPPER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static void
-camel_multipart_class_init (CamelMultipartClass *camel_multipart_class)
-{
-	CamelDataWrapperClass *camel_data_wrapper_class =
-		CAMEL_DATA_WRAPPER_CLASS (camel_multipart_class);
-
-	parent_class = (CamelDataWrapperClass *) camel_data_wrapper_get_type ();
-
-	/* virtual method definition */
-	camel_multipart_class->add_part = add_part;
-	camel_multipart_class->add_part_at = add_part_at;
-	camel_multipart_class->remove_part = remove_part;
-	camel_multipart_class->remove_part_at = remove_part_at;
-	camel_multipart_class->get_part = get_part;
-	camel_multipart_class->get_number = get_number;
-	camel_multipart_class->set_boundary = set_boundary;
-	camel_multipart_class->get_boundary = get_boundary;
-	camel_multipart_class->construct_from_parser = construct_from_parser;
-
-	/* virtual method overload */
-	camel_data_wrapper_class->write_to_stream = write_to_stream;
-	camel_data_wrapper_class->decode_to_stream = write_to_stream;
-	camel_data_wrapper_class->is_offline = is_offline;
-}
-
-static void
-camel_multipart_init (gpointer object, gpointer klass)
+multipart_dispose (GObject *object)
 {
 	CamelMultipart *multipart = CAMEL_MULTIPART (object);
 
-	camel_data_wrapper_set_mime_type (CAMEL_DATA_WRAPPER (multipart),
-					  "multipart/mixed");
+	g_list_foreach (multipart->parts, (GFunc) g_object_unref, NULL);
+	g_list_free (multipart->parts);
+	multipart->parts = NULL;
+
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
+}
+
+static void
+multipart_finalize (GObject *object)
+{
+	CamelMultipart *multipart = CAMEL_MULTIPART (object);
+
+	g_free (multipart->preface);
+	g_free (multipart->postface);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+multipart_class_init (CamelMultipartClass *class)
+{
+	GObjectClass *object_class;
+	CamelDataWrapperClass *data_wrapper_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = multipart_dispose;
+	object_class->finalize = multipart_finalize;
+
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (class);
+	data_wrapper_class->write_to_stream = write_to_stream;
+	data_wrapper_class->decode_to_stream = write_to_stream;
+	data_wrapper_class->is_offline = is_offline;
+
+	class->add_part = add_part;
+	class->add_part_at = add_part_at;
+	class->remove_part = remove_part;
+	class->remove_part_at = remove_part_at;
+	class->get_part = get_part;
+	class->get_number = get_number;
+	class->set_boundary = set_boundary;
+	class->get_boundary = get_boundary;
+	class->construct_from_parser = construct_from_parser;
+}
+
+static void
+multipart_init (CamelMultipart *multipart)
+{
+	camel_data_wrapper_set_mime_type (
+		CAMEL_DATA_WRAPPER (multipart), "multipart/mixed");
 	multipart->parts = NULL;
 	multipart->preface = NULL;
 	multipart->postface = NULL;
 }
 
-static void
-camel_multipart_finalize (CamelObject *object)
-{
-	CamelMultipart *multipart = CAMEL_MULTIPART (object);
-
-	g_list_foreach (multipart->parts, (GFunc) camel_object_unref, NULL);
-
-	if (multipart->parts)
-		g_list_free (multipart->parts);
-
-	/*if (multipart->boundary)
-	  g_free (multipart->boundary);*/
-
-	if (multipart->preface)
-		g_free (multipart->preface);
-	if (multipart->postface)
-		g_free (multipart->postface);
-}
-
-CamelType
+GType
 camel_multipart_get_type (void)
 {
-	static CamelType camel_multipart_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_multipart_type == CAMEL_INVALID_TYPE) {
-		camel_multipart_type = camel_type_register (camel_data_wrapper_get_type (), "CamelMultipart",
-							    sizeof (CamelMultipart),
-							    sizeof (CamelMultipartClass),
-							    (CamelObjectClassInitFunc) camel_multipart_class_init,
-							    NULL,
-							    (CamelObjectInitFunc) camel_multipart_init,
-							    (CamelObjectFinalizeFunc) camel_multipart_finalize);
+	if (G_UNLIKELY (type == G_TYPE_INVALID)) {
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_DATA_WRAPPER,
+			"CamelMultipart",
+			sizeof (CamelMultipartClass),
+			(GClassInitFunc) multipart_class_init,
+			sizeof (CamelMultipart),
+			(GInstanceInitFunc) multipart_init,
+			0);
 	}
 
-	return camel_multipart_type;
+	return type;
 }
 
 /**
@@ -153,7 +155,7 @@ camel_multipart_new (void)
 {
 	CamelMultipart *multipart;
 
-	multipart = (CamelMultipart *)camel_object_new (CAMEL_MULTIPART_TYPE);
+	multipart = g_object_new (CAMEL_TYPE_MULTIPART, NULL);
 	multipart->preface = NULL;
 	multipart->postface = NULL;
 
@@ -164,7 +166,7 @@ static void
 add_part (CamelMultipart *multipart, CamelMimePart *part)
 {
 	multipart->parts = g_list_append (multipart->parts, part);
-	camel_object_ref (part);
+	g_object_ref (part);
 }
 
 /**
@@ -175,19 +177,25 @@ add_part (CamelMultipart *multipart, CamelMimePart *part)
  * Appends the part to the multipart object.
  **/
 void
-camel_multipart_add_part (CamelMultipart *multipart, CamelMimePart *part)
+camel_multipart_add_part (CamelMultipart *multipart,
+                          CamelMimePart *part)
 {
+	CamelMultipartClass *class;
+
 	g_return_if_fail (CAMEL_IS_MULTIPART (multipart));
 	g_return_if_fail (CAMEL_IS_MIME_PART (part));
 
-	CMP_CLASS (multipart)->add_part (multipart, part);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_if_fail (class->add_part != NULL);
+
+	class->add_part (multipart, part);
 }
 
 static void
 add_part_at (CamelMultipart *multipart, CamelMimePart *part, guint index)
 {
 	multipart->parts = g_list_insert (multipart->parts, part, index);
-	camel_object_ref (part);
+	g_object_ref (part);
 }
 
 /**
@@ -202,12 +210,17 @@ add_part_at (CamelMultipart *multipart, CamelMimePart *part, guint index)
  **/
 void
 camel_multipart_add_part_at (CamelMultipart *multipart,
-			     CamelMimePart *part, guint index)
+                             CamelMimePart *part, guint index)
 {
+	CamelMultipartClass *class;
+
 	g_return_if_fail (CAMEL_IS_MULTIPART (multipart));
 	g_return_if_fail (CAMEL_IS_MIME_PART (part));
 
-	CMP_CLASS (multipart)->add_part_at (multipart, part, index);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_if_fail (class->add_part_at != NULL);
+
+	class->add_part_at (multipart, part, index);
 }
 
 static void
@@ -216,7 +229,7 @@ remove_part (CamelMultipart *multipart, CamelMimePart *part)
 	if (!multipart->parts)
 		return;
 	multipart->parts = g_list_remove (multipart->parts, part);
-	camel_object_unref (part);
+	g_object_unref (part);
 }
 
 /**
@@ -228,12 +241,17 @@ remove_part (CamelMultipart *multipart, CamelMimePart *part)
  **/
 void
 camel_multipart_remove_part (CamelMultipart *multipart,
-			     CamelMimePart *part)
+                             CamelMimePart *part)
 {
+	CamelMultipartClass *class;
+
 	g_return_if_fail (CAMEL_IS_MULTIPART (multipart));
 	g_return_if_fail (CAMEL_IS_MIME_PART (part));
 
-	CMP_CLASS (multipart)->remove_part (multipart, part);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_if_fail (class->remove_part != NULL);
+
+	class->remove_part (multipart, part);
 }
 
 static CamelMimePart *
@@ -257,7 +275,7 @@ remove_part_at (CamelMultipart *multipart, guint index)
 
 	multipart->parts = g_list_remove_link (parts_list, part_to_remove);
 	if (part_to_remove->data)
-		camel_object_unref (part_to_remove->data);
+		g_object_unref (part_to_remove->data);
 	g_list_free_1 (part_to_remove);
 
 	return removed_part;
@@ -270,15 +288,21 @@ remove_part_at (CamelMultipart *multipart, guint index)
  *
  * Remove the indicated part from the multipart object.
  *
- * Returns: the removed part. Note that it is #camel_object_unref'ed
+ * Returns: the removed part. Note that it is #g_object_unref'ed
  * before being returned, which may cause it to be destroyed.
  **/
 CamelMimePart *
-camel_multipart_remove_part_at (CamelMultipart *multipart, guint index)
+camel_multipart_remove_part_at (CamelMultipart *multipart,
+                                guint index)
 {
+	CamelMultipartClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_MULTIPART (multipart), NULL);
 
-	return CMP_CLASS (multipart)->remove_part_at (multipart, index);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_val_if_fail (class->remove_part_at != NULL, NULL);
+
+	return class->remove_part_at (multipart, index);
 }
 
 static CamelMimePart *
@@ -304,11 +328,17 @@ get_part (CamelMultipart *multipart, guint index)
  * Returns: the indicated subpart, or %NULL
  **/
 CamelMimePart *
-camel_multipart_get_part (CamelMultipart *multipart, guint index)
+camel_multipart_get_part (CamelMultipart *multipart,
+                          guint index)
 {
+	CamelMultipartClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_MULTIPART (multipart), NULL);
 
-	return CMP_CLASS (multipart)->get_part (multipart, index);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_val_if_fail (class->get_part != NULL, NULL);
+
+	return class->get_part (multipart, index);
 }
 
 static guint
@@ -326,9 +356,14 @@ get_number (CamelMultipart *multipart)
 guint
 camel_multipart_get_number (CamelMultipart *multipart)
 {
+	CamelMultipartClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_MULTIPART (multipart), 0);
 
-	return CMP_CLASS (multipart)->get_number (multipart);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_val_if_fail (class->get_number != NULL, 0);
+
+	return class->get_number (multipart);
 }
 
 static void
@@ -383,11 +418,17 @@ set_boundary (CamelMultipart *multipart, const gchar *boundary)
  * be used.
  **/
 void
-camel_multipart_set_boundary (CamelMultipart *multipart, const gchar *boundary)
+camel_multipart_set_boundary (CamelMultipart *multipart,
+                              const gchar *boundary)
 {
+	CamelMultipartClass *class;
+
 	g_return_if_fail (CAMEL_IS_MULTIPART (multipart));
 
-	CMP_CLASS (multipart)->set_boundary (multipart, boundary);
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_if_fail (class->set_boundary != NULL);
+
+	class->set_boundary (multipart, boundary);
 }
 
 static const gchar *
@@ -408,7 +449,14 @@ get_boundary (CamelMultipart *multipart)
 const gchar *
 camel_multipart_get_boundary (CamelMultipart *multipart)
 {
-	return CMP_CLASS (multipart)->get_boundary (multipart);
+	CamelMultipartClass *class;
+
+	g_return_val_if_fail (CAMEL_IS_MULTIPART (multipart), NULL);
+
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_val_if_fail (class->get_boundary != NULL, NULL);
+
+	return class->get_boundary (multipart);
 }
 
 static gboolean
@@ -418,7 +466,7 @@ is_offline (CamelDataWrapper *data_wrapper)
 	GList *node;
 	CamelDataWrapper *part;
 
-	if (parent_class->is_offline (data_wrapper))
+	if (CAMEL_DATA_WRAPPER_CLASS (parent_class)->is_offline (data_wrapper))
 		return TRUE;
 	for (node = multipart->parts; node; node = node->next) {
 		part = node->data;
@@ -559,7 +607,7 @@ construct_from_parser(CamelMultipart *multipart, struct _CamelMimeParser *mp)
 		bodypart = camel_mime_part_new();
 		camel_mime_part_construct_from_parser(bodypart, mp);
 		camel_multipart_add_part(multipart, bodypart);
-		camel_object_unref((CamelObject *)bodypart);
+		g_object_unref (bodypart);
 	}
 
 	/* these are only return valid data in the MULTIPART_END state */
@@ -584,9 +632,16 @@ construct_from_parser(CamelMultipart *multipart, struct _CamelMimeParser *mp)
  * Returns: %0 on success or %-1 on fail
  **/
 gint
-camel_multipart_construct_from_parser(CamelMultipart *multipart, struct _CamelMimeParser *mp)
+camel_multipart_construct_from_parser (CamelMultipart *multipart,
+                                       CamelMimeParser *mp)
 {
-	g_return_val_if_fail(CAMEL_IS_MULTIPART(multipart), -1);
+	CamelMultipartClass *class;
 
-	return CMP_CLASS(multipart)->construct_from_parser(multipart, mp);
+	g_return_val_if_fail (CAMEL_IS_MULTIPART(multipart), -1);
+	g_return_val_if_fail (CAMEL_IS_MIME_PARSER (mp), -1);
+
+	class = CAMEL_MULTIPART_GET_CLASS (multipart);
+	g_return_val_if_fail (class->construct_from_parser != NULL, -1);
+
+	return class->construct_from_parser(multipart, mp);
 }

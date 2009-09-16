@@ -19,31 +19,55 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_FOLDER_SUMMARY_H
-#define _CAMEL_FOLDER_SUMMARY_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_FOLDER_SUMMARY_H
+#define CAMEL_FOLDER_SUMMARY_H
 
 #include <stdio.h>
 #include <time.h>
+
+#include <camel/camel-mime-message.h>
 #include <camel/camel-mime-parser.h>
 #include <camel/camel-object.h>
 #include <camel/camel-index.h>
 
-#define CAMEL_FOLDER_SUMMARY_TYPE         camel_folder_summary_get_type ()
-#define CAMEL_FOLDER_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_folder_summary_get_type (), CamelFolderSummary)
-#define CAMEL_FOLDER_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_folder_summary_get_type (), CamelFolderSummaryClass)
-#define CAMEL_IS_FOLDER_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_folder_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_FOLDER_SUMMARY \
+	(camel_folder_summary_get_type ())
+#define CAMEL_FOLDER_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_FOLDER_SUMMARY, CamelFolderSummary))
+#define CAMEL_FOLDER_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_FOLDER_SUMMARY, CamelFolderSummaryClass))
+#define CAMEL_IS_FOLDER_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_FOLDER_SUMMARY))
+#define CAMEL_IS_FOLDER_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_FOLDER_SUMMARY))
+#define CAMEL_FOLDER_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_FOLDER_SUMMARY, CamelFolderSummaryClass))
 
 G_BEGIN_DECLS
 
 struct _CamelFolder;
+struct _CamelStore;
 
-/*typedef struct _CamelFolderSummary      CamelFolderSummary;*/
+typedef struct _CamelFolderSummary CamelFolderSummary;
 typedef struct _CamelFolderSummaryClass CamelFolderSummaryClass;
+typedef struct _CamelFolderSummaryPrivate CamelFolderSummaryPrivate;
 
 typedef struct _CamelMessageInfo CamelMessageInfo;
 typedef struct _CamelMessageInfoBase CamelMessageInfoBase;
 
 typedef struct _CamelFolderMetaSummary CamelFolderMetaSummary;
+
+typedef struct _CamelMessageContentInfo CamelMessageContentInfo;
 
 /* A tree of message content info structures
    describe the content structure of the message (if it has any) */
@@ -207,8 +231,7 @@ typedef enum _CamelFolderSummaryFlags {
 
 struct _CamelFolderSummary {
 	CamelObject parent;
-
-	struct _CamelFolderSummaryPrivate *priv;
+	CamelFolderSummaryPrivate *priv;
 
 	/* header info */
 	guint32 version;	/* version of file loaded/loading */
@@ -323,7 +346,7 @@ struct _CamelFolderMetaSummary {
 	gchar *path;		/* Path to meta-summary-file */
 };
 
-CamelType			 camel_folder_summary_get_type	(void);
+GType			 camel_folder_summary_get_type	(void);
 CamelFolderSummary      *camel_folder_summary_new	(struct _CamelFolder *folder);
 
 /* Deprecated */
@@ -346,7 +369,7 @@ gint camel_folder_summary_load_from_db (CamelFolderSummary *s, CamelException *e
 
 /* only load the header */
 gint camel_folder_summary_header_load(CamelFolderSummary *summary);
-gint camel_folder_summary_header_load_from_db (CamelFolderSummary *s, CamelStore *store, const gchar *folder_name, CamelException *ex);
+gint camel_folder_summary_header_load_from_db (CamelFolderSummary *s, struct _CamelStore *store, const gchar *folder_name, CamelException *ex);
 gint camel_folder_summary_header_save_to_db (CamelFolderSummary *s, CamelException *ex);
 
 /* set the dirty bit on the summary */
@@ -485,4 +508,4 @@ gint camel_folder_summary_migrate_infos(CamelFolderSummary *s);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_FOLDER_SUMMARY_H */
+#endif /* CAMEL_FOLDER_SUMMARY_H */

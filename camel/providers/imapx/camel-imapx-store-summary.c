@@ -65,18 +65,20 @@ static CamelStoreSummaryClass *camel_imapx_store_summary_parent;
 static void
 camel_imapx_store_summary_class_init (CamelIMAPXStoreSummaryClass *klass)
 {
-	CamelStoreSummaryClass *ssklass = (CamelStoreSummaryClass *)klass;
+	CamelStoreSummaryClass *ssclass = (CamelStoreSummaryClass *)class;
 
-	ssklass->summary_header_load = summary_header_load;
-	ssklass->summary_header_save = summary_header_save;
+	parent_class = (CamelStoreSummaryClass *)CAMEL_TYPE_STORE_SUMMARY;
 
-	/*ssklass->store_info_new  = store_info_new;*/
-	ssklass->store_info_load = store_info_load;
-	ssklass->store_info_save = store_info_save;
-	ssklass->store_info_free = store_info_free;
+	ssclass->summary_header_load = summary_header_load;
+	ssclass->summary_header_save = summary_header_save;
 
-	ssklass->store_info_string = store_info_string;
-	ssklass->store_info_set_string = store_info_set_string;
+	/*ssclass->store_info_new  = store_info_new;*/
+	ssclass->store_info_load = store_info_load;
+	ssclass->store_info_save = store_info_save;
+	ssclass->store_info_free = store_info_free;
+
+	ssclass->store_info_string = store_info_string;
+	ssclass->store_info_set_string = store_info_set_string;
 }
 
 static void

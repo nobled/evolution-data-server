@@ -29,9 +29,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <camel/camel-sasl.h>
-#include <camel/camel-stream-buffer.h>
-
 #include "camel-imap4-command.h"
 #include "camel-imap4-engine.h"
 #include "camel-imap4-folder.h"
@@ -41,44 +38,44 @@
 
 #define d(x)
 
-static void camel_imap4_engine_class_init (CamelIMAP4EngineClass *klass);
-static void camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *klass);
-static void camel_imap4_engine_finalize (CamelObject *object);
+static void camel_imap4_engine_class_init (CamelIMAP4EngineClass *class);
+static void camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *class);
+static void imap4_engine_finalize (CamelObject *object);
 
 static gint parse_xgwextensions (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index,
 				camel_imap4_token_t *token, CamelException *ex);
 
-static CamelObjectClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_engine_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (camel_object_get_type (),
-					    "CamelIMAP4Engine",
-					    sizeof (CamelIMAP4Engine),
-					    sizeof (CamelIMAP4EngineClass),
-					    (CamelObjectClassInitFunc) camel_imap4_engine_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_engine_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_engine_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_OBJECT,
+			"CamelIMAP4Engine",
+			sizeof (CamelIMAP4Engine),
+			sizeof (CamelIMAP4EngineClass),
+			(GClassInitFunc) camel_imap4_engine_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_engine_init,
+			(GObjectFinalizeFunc) imap4_engine_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_engine_class_init (CamelIMAP4EngineClass *klass)
+camel_imap4_engine_class_init (CamelIMAP4EngineClass *class)
 {
-	parent_class = camel_type_get_global_classfuncs (CAMEL_OBJECT_TYPE);
+	parent_class = g_type_class_peek_parent (class);
 
-	klass->tagprefix = 'A';
+	class->tagprefix = 'A';
 }
 
 static void
-camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *klass)
+camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *class)
 {
 	engine->state = CAMEL_IMAP4_ENGINE_DISCONNECTED;
 	engine->level = CAMEL_IMAP4_LEVEL_UNKNOWN;
@@ -102,10 +99,10 @@ camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *klass)
 	engine->namespaces.other = NULL;
 	engine->namespaces.shared = NULL;
 
-	if (klass->tagprefix > 'Z')
-		klass->tagprefix = 'A';
+	if (class->tagprefix > 'Z')
+		class->tagprefix = 'A';
 
-	engine->tagprefix = klass->tagprefix++;
+	engine->tagprefix = class->tagprefix++;
 	engine->tag = 0;
 
 	engine->nextid = 1;
@@ -116,16 +113,16 @@ camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineClass *klass)
 }
 
 static void
-camel_imap4_engine_finalize (CamelObject *object)
+imap4_engine_finalize (CamelObject *object)
 {
 	CamelIMAP4Engine *engine = (CamelIMAP4Engine *) object;
 	CamelDListNode *node;
 
 	if (engine->istream)
-		camel_object_unref (engine->istream);
+		g_object_unref (engine->istream);
 
 	if (engine->ostream)
-		camel_object_unref (engine->ostream);
+		g_object_unref (engine->ostream);
 
 	g_hash_table_foreach (engine->authtypes, (GHFunc) g_free, NULL);
 	g_hash_table_destroy (engine->authtypes);
@@ -135,7 +132,7 @@ camel_imap4_engine_finalize (CamelObject *object)
 	camel_imap4_namespace_clear (&engine->namespaces.shared);
 
 	if (engine->folder)
-		camel_object_unref (engine->folder);
+		g_object_unref (engine->folder);
 
 	while ((node = camel_dlist_remhead (&engine->queue))) {
 		node->next = NULL;
@@ -159,7 +156,7 @@ camel_imap4_engine_new (CamelService *service, CamelIMAP4ReconnectFunc reconnect
 
 	g_return_val_if_fail (CAMEL_IS_SERVICE (service), NULL);
 
-	engine = (CamelIMAP4Engine *) camel_object_new (CAMEL_TYPE_IMAP4_ENGINE);
+	engine = g_object_new (CAMEL_TYPE_IMAP4_ENGINE, NULL);
 	engine->session = service->session;
 	engine->url = service->url;
 	engine->service = service;
@@ -191,15 +188,15 @@ camel_imap4_engine_take_stream (CamelIMAP4Engine *engine, CamelStream *stream, C
 	g_return_val_if_fail (CAMEL_IS_STREAM (stream), -1);
 
 	if (engine->istream)
-		camel_object_unref (engine->istream);
+		g_object_unref (engine->istream);
 
 	if (engine->ostream)
-		camel_object_unref (engine->ostream);
+		g_object_unref (engine->ostream);
 
 	engine->istream = (CamelIMAP4Stream *) camel_imap4_stream_new (stream);
 	engine->ostream = camel_stream_buffer_new (stream, CAMEL_STREAM_BUFFER_WRITE);
 	engine->state = CAMEL_IMAP4_ENGINE_CONNECTED;
-	camel_object_unref (stream);
+	g_object_unref (stream);
 
 	if (camel_imap4_engine_next_token (engine, &token, ex) == -1)
 		goto exception;
@@ -239,12 +236,12 @@ camel_imap4_engine_disconnect (CamelIMAP4Engine *engine)
 	engine->state = CAMEL_IMAP4_ENGINE_DISCONNECTED;
 
 	if (engine->istream) {
-		camel_object_unref (engine->istream);
+		g_object_unref (engine->istream);
 		engine->istream = NULL;
 	}
 
 	if (engine->ostream) {
-		camel_object_unref (engine->ostream);
+		g_object_unref (engine->ostream);
 		engine->ostream = NULL;
 	}
 }
@@ -1306,9 +1303,9 @@ engine_state_change (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
 	if (!strncmp (cmd, "SELECT ", 7) || !strncmp (cmd, "EXAMINE ", 8)) {
 		if (ic->result == CAMEL_IMAP4_RESULT_OK) {
 			/* Update the selected folder */
-			camel_object_ref (ic->folder);
+			g_object_ref (ic->folder);
 			if (engine->folder)
-				camel_object_unref (engine->folder);
+				g_object_unref (engine->folder);
 			engine->folder = ic->folder;
 
 			engine->state = CAMEL_IMAP4_ENGINE_SELECTED;

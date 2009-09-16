@@ -26,11 +26,14 @@
 
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-sasl-login.h"
 #include "camel-service.h"
+
+#define CAMEL_SASL_LOGIN_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_SASL_LOGIN, CamelSaslLoginPrivate))
 
 CamelServiceAuthType camel_sasl_login_authtype = {
 	N_("Login"),
@@ -47,70 +50,26 @@ enum {
 	LOGIN_PASSWD
 };
 
-static CamelSaslClass *parent_class = NULL;
-
-/* Returns the class for a CamelSaslLogin */
-#define CSP_CLASS(so) CAMEL_SASL_LOGIN_CLASS (CAMEL_OBJECT_GET_CLASS (so))
-
-static GByteArray *login_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex);
-
 struct _CamelSaslLoginPrivate {
 	gint state;
 };
 
-static void
-camel_sasl_login_class_init (CamelSaslLoginClass *camel_sasl_login_class)
-{
-	CamelSaslClass *camel_sasl_class = CAMEL_SASL_CLASS (camel_sasl_login_class);
-
-	parent_class = CAMEL_SASL_CLASS (camel_type_get_global_classfuncs (camel_sasl_get_type ()));
-
-	/* virtual method overload */
-	camel_sasl_class->challenge = login_challenge;
-}
-
-static void
-camel_sasl_login_init (gpointer object, gpointer klass)
-{
-	CamelSaslLogin *sasl_login = CAMEL_SASL_LOGIN (object);
-
-	sasl_login->priv = g_new0 (struct _CamelSaslLoginPrivate, 1);
-}
-
-static void
-camel_sasl_login_finalize (CamelObject *object)
-{
-	CamelSaslLogin *sasl = CAMEL_SASL_LOGIN (object);
-
-	g_free (sasl->priv);
-}
-
-CamelType
-camel_sasl_login_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_sasl_get_type (),
-					    "CamelSaslLogin",
-					    sizeof (CamelSaslLogin),
-					    sizeof (CamelSaslLoginClass),
-					    (CamelObjectClassInitFunc) camel_sasl_login_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_sasl_login_init,
-					    (CamelObjectFinalizeFunc) camel_sasl_login_finalize);
-	}
-
-	return type;
-}
+static gpointer parent_class;
 
 static GByteArray *
-login_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
+sasl_login_challenge (CamelSasl *sasl,
+                      GByteArray *token,
+                      CamelException *ex)
 {
-	struct _CamelSaslLoginPrivate *priv = CAMEL_SASL_LOGIN (sasl)->priv;
+	CamelSaslLoginPrivate *priv;
 	GByteArray *buf = NULL;
-	CamelURL *url = sasl->service->url;
+	CamelService *service;
+	CamelURL *url;
 
+	priv = CAMEL_SASL_LOGIN_GET_PRIVATE (sasl);
+
+	service = camel_sasl_get_service (sasl);
+	url = service->url;
 	g_return_val_if_fail (url->passwd != NULL, NULL);
 
 	/* Need to wait for the server */
@@ -126,7 +85,7 @@ login_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 		buf = g_byte_array_new ();
 		g_byte_array_append (buf, (guint8 *) url->passwd, strlen (url->passwd));
 
-		sasl->authenticated = TRUE;
+		camel_sasl_set_authenticated (sasl, TRUE);
 		break;
 	default:
 		if (!camel_exception_is_set (ex)) {
@@ -138,4 +97,40 @@ login_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 	priv->state++;
 
 	return buf;
+}
+
+static void
+sasl_login_class_init (CamelSaslLoginClass *class)
+{
+	CamelSaslClass *sasl_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelSaslLoginPrivate));
+
+	sasl_class = CAMEL_SASL_CLASS (class);
+	sasl_class->challenge = sasl_login_challenge;
+}
+
+static void
+sasl_login_init (CamelSaslLogin *sasl)
+{
+	sasl->priv = CAMEL_SASL_LOGIN_GET_PRIVATE (sasl);
+}
+
+GType
+camel_sasl_login_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SASL,
+			"CamelSaslLogin",
+			sizeof (CamelSaslLoginClass),
+			(GClassInitFunc) sasl_login_class_init,
+			sizeof (CamelSaslLogin),
+			(GInstanceInitFunc) sasl_login_init,
+			0);
+
+	return type;
 }

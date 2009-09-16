@@ -32,7 +32,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-exception.h"

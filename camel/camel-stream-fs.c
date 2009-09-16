@@ -32,7 +32,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gstdio.h>
 
 #include "camel-file-utils.h"
@@ -40,71 +39,194 @@
 #include "camel-private.h"
 #include "camel-stream-fs.h"
 
-static CamelSeekableStreamClass *parent_class = NULL;
+#define CAMEL_STREAM_FS_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_STREAM_FS, CamelStreamFsPrivate))
 
-/* Returns the class for a CamelStreamFS */
-#define CSFS_CLASS(so) CAMEL_STREAM_FS_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+struct _CamelStreamFsPrivate {
+	gint fd;	/* file descriptor on the underlying file */
+};
 
-static gssize stream_read   (CamelStream *stream, gchar *buffer, gsize n);
-static gssize stream_write  (CamelStream *stream, const gchar *buffer, gsize n);
-static gint stream_flush  (CamelStream *stream);
-static gint stream_close  (CamelStream *stream);
-static off_t stream_seek (CamelSeekableStream *stream, off_t offset,
-			  CamelStreamSeekPolicy policy);
+static gpointer parent_class;
 
 static void
-camel_stream_fs_class_init (CamelStreamFsClass *camel_stream_fs_class)
+stream_fs_finalize (GObject *object)
 {
-	CamelSeekableStreamClass *camel_seekable_stream_class =
-		CAMEL_SEEKABLE_STREAM_CLASS (camel_stream_fs_class);
-	CamelStreamClass *camel_stream_class =
-		CAMEL_STREAM_CLASS (camel_stream_fs_class);
+	CamelStreamFsPrivate *priv;
 
-	parent_class = CAMEL_SEEKABLE_STREAM_CLASS (camel_type_get_global_classfuncs (camel_seekable_stream_get_type ()));
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (object);
 
-	/* virtual method overload */
-	camel_stream_class->read = stream_read;
-	camel_stream_class->write = stream_write;
-	camel_stream_class->flush = stream_flush;
-	camel_stream_class->close = stream_close;
+	if (priv->fd != -1)
+		close (priv->fd);
 
-	camel_seekable_stream_class->seek = stream_seek;
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
-static void
-camel_stream_fs_init (gpointer object, gpointer klass)
+static gssize
+stream_fs_read (CamelStream *stream,
+                gchar *buffer,
+                gsize n)
 {
-	CamelStreamFs *stream = CAMEL_STREAM_FS (object);
+	CamelStreamFsPrivate *priv;
+	CamelSeekableStream *seekable;
+	gssize nread;
 
-	stream->fd = -1;
-	((CamelSeekableStream *)stream)->bound_end = CAMEL_STREAM_UNBOUND;
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+	seekable = CAMEL_SEEKABLE_STREAM (stream);
+
+	if (seekable->bound_end != CAMEL_STREAM_UNBOUND)
+		n = MIN (seekable->bound_end - seekable->position, n);
+
+	if ((nread = camel_read (priv->fd, buffer, n)) > 0)
+		seekable->position += nread;
+	else if (nread == 0)
+		stream->eos = TRUE;
+
+	return nread;
 }
 
-static void
-camel_stream_fs_finalize (CamelObject *object)
+static gssize
+stream_fs_write (CamelStream *stream,
+                 const gchar *buffer,
+                 gsize n)
 {
-	CamelStreamFs *stream_fs = CAMEL_STREAM_FS (object);
+	CamelStreamFsPrivate *priv;
+	CamelSeekableStream *seekable;
+	gssize nwritten;
 
-	if (stream_fs->fd != -1)
-		close (stream_fs->fd);
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+	seekable = CAMEL_SEEKABLE_STREAM (stream);
+
+	if (seekable->bound_end != CAMEL_STREAM_UNBOUND)
+		n = MIN (seekable->bound_end - seekable->position, n);
+
+	if ((nwritten = camel_write (priv->fd, buffer, n)) > 0)
+		seekable->position += nwritten;
+
+	return nwritten;
 }
 
-CamelType
-camel_stream_fs_get_type (void)
+static gint
+stream_fs_flush (CamelStream *stream)
 {
-	static CamelType camel_stream_fs_type = CAMEL_INVALID_TYPE;
+	CamelStreamFsPrivate *priv;
 
-	if (camel_stream_fs_type == CAMEL_INVALID_TYPE) {
-		camel_stream_fs_type = camel_type_register (camel_seekable_stream_get_type (), "CamelStreamFs",
-							    sizeof (CamelStreamFs),
-							    sizeof (CamelStreamFsClass),
-							    (CamelObjectClassInitFunc) camel_stream_fs_class_init,
-							    NULL,
-							    (CamelObjectInitFunc) camel_stream_fs_init,
-							    (CamelObjectFinalizeFunc) camel_stream_fs_finalize);
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+
+	return fsync (priv->fd);
+}
+
+static gint
+stream_fs_close (CamelStream *stream)
+{
+	CamelStreamFsPrivate *priv;
+
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+
+	if (close (priv->fd) == -1)
+		return -1;
+
+	priv->fd = -1;
+
+	return 0;
+}
+
+static off_t
+stream_fs_seek (CamelSeekableStream *stream,
+                off_t offset,
+                CamelStreamSeekPolicy policy)
+{
+	CamelStreamFsPrivate *priv;
+	off_t real = 0;
+
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+
+	switch (policy) {
+	case CAMEL_STREAM_SET:
+		real = offset;
+		break;
+	case CAMEL_STREAM_CUR:
+		real = stream->position + offset;
+		break;
+	case CAMEL_STREAM_END:
+		if (stream->bound_end == CAMEL_STREAM_UNBOUND) {
+			real = lseek(priv->fd, offset, SEEK_END);
+			if (real != -1) {
+				if (real<stream->bound_start)
+					real = stream->bound_start;
+				stream->position = real;
+			}
+			return real;
+		}
+		real = stream->bound_end + offset;
+		break;
 	}
 
-	return camel_stream_fs_type;
+	if (stream->bound_end != CAMEL_STREAM_UNBOUND)
+		real = MIN (real, stream->bound_end);
+	real = MAX (real, stream->bound_start);
+
+	real = lseek(priv->fd, real, SEEK_SET);
+	if (real == -1)
+		return -1;
+
+	if (real != stream->position && ((CamelStream *)stream)->eos)
+		((CamelStream *)stream)->eos = FALSE;
+
+	stream->position = real;
+
+	return real;
+}
+
+static void
+stream_fs_class_init (CamelStreamFsClass *class)
+{
+	GObjectClass *object_class;
+	CamelStreamClass *stream_class;
+	CamelSeekableStreamClass *seekable_stream_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelStreamFsPrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = stream_fs_finalize;
+
+	stream_class = CAMEL_STREAM_CLASS (class);
+	stream_class->read = stream_fs_read;
+	stream_class->write = stream_fs_write;
+	stream_class->flush = stream_fs_flush;
+	stream_class->close = stream_fs_close;
+
+	seekable_stream_class = CAMEL_SEEKABLE_STREAM_CLASS (class);
+	seekable_stream_class->seek = stream_fs_seek;
+}
+
+static void
+stream_fs_init (CamelStreamFs *stream)
+{
+	stream->priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+	stream->priv->fd = -1;
+
+	CAMEL_SEEKABLE_STREAM (stream)->bound_end = CAMEL_STREAM_UNBOUND;
+}
+
+GType
+camel_stream_fs_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SEEKABLE_STREAM,
+			"CamelStreamFs",
+			sizeof (CamelStreamFsClass),
+			(GClassInitFunc) stream_fs_class_init,
+			sizeof (CamelStreamFs),
+			(GInstanceInitFunc) stream_fs_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -120,20 +242,23 @@ camel_stream_fs_get_type (void)
 CamelStream *
 camel_stream_fs_new_with_fd (gint fd)
 {
-	CamelStreamFs *stream_fs;
+	CamelStreamFsPrivate *priv;
+	CamelStream *stream;
 	off_t offset;
 
 	if (fd == -1)
 		return NULL;
 
-	stream_fs = CAMEL_STREAM_FS (camel_object_new (camel_stream_fs_get_type ()));
-	stream_fs->fd = fd;
+	stream = g_object_new (CAMEL_TYPE_STREAM_FS, NULL);
+	priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
+
+	priv->fd = fd;
 	offset = lseek (fd, 0, SEEK_CUR);
 	if (offset == -1)
 		offset = 0;
-	CAMEL_SEEKABLE_STREAM (stream_fs)->position = offset;
+	CAMEL_SEEKABLE_STREAM (stream)->position = offset;
 
-	return CAMEL_STREAM (stream_fs);
+	return stream;
 }
 
 /**
@@ -153,7 +278,8 @@ camel_stream_fs_new_with_fd_and_bounds (gint fd, off_t start, off_t end)
 	CamelStream *stream;
 
 	stream = camel_stream_fs_new_with_fd (fd);
-	camel_seekable_stream_set_bounds (CAMEL_SEEKABLE_STREAM (stream), start, end);
+	camel_seekable_stream_set_bounds (
+		CAMEL_SEEKABLE_STREAM (stream), start, end);
 
 	return stream;
 }
@@ -210,95 +336,10 @@ camel_stream_fs_new_with_name_and_bounds (const gchar *name, gint flags,
 	return stream;
 }
 
-static gssize
-stream_read (CamelStream *stream, gchar *buffer, gsize n)
+gint
+camel_stream_fs_get_fd (CamelStreamFs *stream)
 {
-	CamelStreamFs *stream_fs = CAMEL_STREAM_FS (stream);
-	CamelSeekableStream *seekable = CAMEL_SEEKABLE_STREAM (stream);
-	gssize nread;
+	g_return_val_if_fail (CAMEL_IS_STREAM_FS (stream), -1);
 
-	if (seekable->bound_end != CAMEL_STREAM_UNBOUND)
-		n = MIN (seekable->bound_end - seekable->position, n);
-
-	if ((nread = camel_read (stream_fs->fd, buffer, n)) > 0)
-		seekable->position += nread;
-	else if (nread == 0)
-		stream->eos = TRUE;
-
-	return nread;
-}
-
-static gssize
-stream_write (CamelStream *stream, const gchar *buffer, gsize n)
-{
-	CamelStreamFs *stream_fs = CAMEL_STREAM_FS (stream);
-	CamelSeekableStream *seekable = CAMEL_SEEKABLE_STREAM (stream);
-	gssize nwritten;
-
-	if (seekable->bound_end != CAMEL_STREAM_UNBOUND)
-		n = MIN (seekable->bound_end - seekable->position, n);
-
-	if ((nwritten = camel_write (stream_fs->fd, buffer, n)) > 0)
-		seekable->position += nwritten;
-
-	return nwritten;
-}
-
-static gint
-stream_flush (CamelStream *stream)
-{
-	return fsync(((CamelStreamFs *)stream)->fd);
-}
-
-static gint
-stream_close (CamelStream *stream)
-{
-	if (close (((CamelStreamFs *)stream)->fd) == -1)
-		return -1;
-
-	((CamelStreamFs *)stream)->fd = -1;
-	return 0;
-}
-
-static off_t
-stream_seek (CamelSeekableStream *stream, off_t offset, CamelStreamSeekPolicy policy)
-{
-	CamelStreamFs *stream_fs = CAMEL_STREAM_FS (stream);
-	off_t real = 0;
-
-	switch (policy) {
-	case CAMEL_STREAM_SET:
-		real = offset;
-		break;
-	case CAMEL_STREAM_CUR:
-		real = stream->position + offset;
-		break;
-	case CAMEL_STREAM_END:
-		if (stream->bound_end == CAMEL_STREAM_UNBOUND) {
-			real = lseek(stream_fs->fd, offset, SEEK_END);
-			if (real != -1) {
-				if (real<stream->bound_start)
-					real = stream->bound_start;
-				stream->position = real;
-			}
-			return real;
-		}
-		real = stream->bound_end + offset;
-		break;
-	}
-
-	if (stream->bound_end != CAMEL_STREAM_UNBOUND)
-		real = MIN (real, stream->bound_end);
-	real = MAX (real, stream->bound_start);
-
-	real = lseek(stream_fs->fd, real, SEEK_SET);
-	if (real == -1)
-		return -1;
-
-	if (real != stream->position && ((CamelStream *)stream)->eos)
-		((CamelStream *)stream)->eos = FALSE;
-
-	stream->position = real;
-
-	return real;
+	return stream->priv->fd;
 }

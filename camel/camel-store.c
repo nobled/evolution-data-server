@@ -31,7 +31,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-db.h"
@@ -46,174 +45,78 @@
 #define d(x)
 #define w(x)
 
-static CamelServiceClass *parent_class = NULL;
+#define CAMEL_STORE_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_STORE, CamelStorePrivate))
 
-/* Returns the class for a CamelStore */
-#define CS_CLASS(so) ((CamelStoreClass *)((CamelObject *)(so))->klass)
+static gpointer parent_class;
 
-static CamelFolder *get_folder (CamelStore *store, const gchar *folder_name,
-				guint32 flags, CamelException *ex);
-static CamelFolder *get_inbox (CamelStore *store, CamelException *ex);
-
-static CamelFolder *get_trash (CamelStore *store, CamelException *ex);
-static CamelFolder *get_junk (CamelStore *store, CamelException *ex);
-
-static CamelFolderInfo *create_folder (CamelStore *store,
-				       const gchar *parent_name,
-				       const gchar *folder_name,
-				       CamelException *ex);
-static void delete_folder (CamelStore *store, const gchar *folder_name,
-			   CamelException *ex);
-static void rename_folder (CamelStore *store, const gchar *old_name,
-			   const gchar *new_name, CamelException *ex);
-
-static void store_sync (CamelStore *store, gint expunge, CamelException *ex);
-static CamelFolderInfo *get_folder_info (CamelStore *store, const gchar *top,
-					 guint32 flags, CamelException *ex);
-static void free_folder_info (CamelStore *store, CamelFolderInfo *tree);
-
-static gboolean folder_subscribed (CamelStore *store, const gchar *folder_name);
-static void subscribe_folder (CamelStore *store, const gchar *folder_name, CamelException *ex);
-static void unsubscribe_folder (CamelStore *store, const gchar *folder_name, CamelException *ex);
-
-static void noop (CamelStore *store, CamelException *ex);
-
-static gboolean can_refresh_folder (CamelStore *store, CamelFolderInfo *info, CamelException *ex);
-
-static void construct (CamelService *service, CamelSession *session,
-		       CamelProvider *provider, CamelURL *url,
-		       CamelException *ex);
-
-static gint store_setv (CamelObject *object, CamelException *ex, CamelArgV *args);
-static gint store_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args);
-
+/**
+ * ignore_no_such_table_exception:
+ * Clears the exception 'ex' when it's the 'no such table' exception.
+ **/
 static void
-camel_store_class_init (CamelStoreClass *camel_store_class)
+ignore_no_such_table_exception (CamelException *ex)
 {
-	CamelObjectClass *camel_object_class = CAMEL_OBJECT_CLASS (camel_store_class);
-	CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS(camel_store_class);
+	if (ex && camel_exception_is_set (ex) && g_ascii_strncasecmp (camel_exception_get_description (ex), "no such table", 13) == 0)
+		camel_exception_clear (ex);
+}
 
-	parent_class = CAMEL_SERVICE_CLASS (camel_type_get_global_classfuncs (camel_service_get_type ()));
+static CamelFolder *
+store_get_special (CamelStore *store,
+                   camel_vtrash_folder_t type)
+{
+	CamelFolder *folder;
+	GPtrArray *folders;
+	gint i;
 
-	/* virtual method definition */
-	camel_store_class->hash_folder_name = g_str_hash;
-	camel_store_class->compare_folder_name = g_str_equal;
-	camel_store_class->get_folder = get_folder;
-	camel_store_class->get_inbox = get_inbox;
-	camel_store_class->get_trash = get_trash;
-	camel_store_class->get_junk = get_junk;
-	camel_store_class->create_folder = create_folder;
-	camel_store_class->delete_folder = delete_folder;
-	camel_store_class->rename_folder = rename_folder;
-	camel_store_class->sync = store_sync;
-	camel_store_class->get_folder_info = get_folder_info;
-	camel_store_class->free_folder_info = free_folder_info;
-	camel_store_class->folder_subscribed = folder_subscribed;
-	camel_store_class->subscribe_folder = subscribe_folder;
-	camel_store_class->unsubscribe_folder = unsubscribe_folder;
-	camel_store_class->noop = noop;
-	camel_store_class->can_refresh_folder = can_refresh_folder;
+	folder = camel_vtrash_folder_new(store, type);
+	folders = camel_object_bag_list(store->folders);
+	for (i=0;i<folders->len;i++) {
+		if (!CAMEL_IS_VTRASH_FOLDER(folders->pdata[i]))
+			camel_vee_folder_add_folder((CamelVeeFolder *)folder, (CamelFolder *)folders->pdata[i]);
+		g_object_unref (folders->pdata[i]);
+	}
+	g_ptr_array_free(folders, TRUE);
 
-	/* virtual method overload */
-	camel_service_class->construct = construct;
-
-	camel_object_class->setv = store_setv;
-	camel_object_class->getv = store_getv;
-
-	camel_object_class_add_event(camel_object_class, "folder_opened", NULL);
-	camel_object_class_add_event(camel_object_class, "folder_created", NULL);
-	camel_object_class_add_event(camel_object_class, "folder_deleted", NULL);
-	camel_object_class_add_event(camel_object_class, "folder_renamed", NULL);
-	camel_object_class_add_event(camel_object_class, "folder_subscribed", NULL);
-	camel_object_class_add_event(camel_object_class, "folder_unsubscribed", NULL);
+	return folder;
 }
 
 static void
-camel_store_init (gpointer o)
-{
-	CamelStore *store = o;
-	CamelStoreClass *store_class = (CamelStoreClass *)CAMEL_OBJECT_GET_CLASS (o);
-
-	if (store_class->hash_folder_name) {
-		store->folders = camel_object_bag_new(store_class->hash_folder_name,
-						      store_class->compare_folder_name,
-						      (CamelCopyFunc)g_strdup, g_free);
-	} else
-		store->folders = NULL;
-
-	/* set vtrash and vjunk on by default */
-	store->flags = CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK;
-	store->mode = CAMEL_STORE_READ|CAMEL_STORE_WRITE;
-
-	store->priv = g_malloc0 (sizeof (*store->priv));
-	g_static_rec_mutex_init (&store->priv->folder_lock);
-}
-
-static void
-camel_store_finalize (CamelObject *object)
+store_finalize (GObject *object)
 {
 	CamelStore *store = CAMEL_STORE (object);
 
-	d(printf ("\ncamel_store_finalize called \n"));
-	if (store->folders)
-		camel_object_bag_destroy(store->folders);
+	if (store->folders != NULL)
+		camel_object_bag_destroy (store->folders);
 
 	g_static_rec_mutex_free (&store->priv->folder_lock);
 
-	if (store->cdb_r) {
+	if (store->cdb_r != NULL) {
 		camel_db_close (store->cdb_r);
 		store->cdb_r = NULL;
 	}
 
-	if (store->cdb_w) {
+	if (store->cdb_w != NULL) {
 		camel_db_close (store->cdb_w);
 		store->cdb_w = NULL;
 	}
 
-	g_free (store->priv);
-}
-
-CamelType
-camel_store_get_type (void)
-{
-	static CamelType camel_store_type = CAMEL_INVALID_TYPE;
-
-	if (camel_store_type == CAMEL_INVALID_TYPE) {
-		camel_store_type = camel_type_register (CAMEL_SERVICE_TYPE, "CamelStore",
-							sizeof (CamelStore),
-							sizeof (CamelStoreClass),
-							(CamelObjectClassInitFunc) camel_store_class_init,
-							NULL,
-							(CamelObjectInitFunc) camel_store_init,
-							(CamelObjectFinalizeFunc) camel_store_finalize );
-	}
-
-	return camel_store_type;
-}
-
-static gint
-store_setv (CamelObject *object, CamelException *ex, CamelArgV *args)
-{
-	/* CamelStore doesn't currently have anything to set */
-	return CAMEL_OBJECT_CLASS (parent_class)->setv (object, ex, args);
-}
-
-static gint
-store_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args)
-{
-	/* CamelStore doesn't currently have anything to get */
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, ex, args);
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
-construct (CamelService *service, CamelSession *session,
-	   CamelProvider *provider, CamelURL *url,
-	   CamelException *ex)
+store_construct (CamelService *service,
+                 CamelSession *session,
+                 CamelProvider *provider,
+                 CamelURL *url,
+                 CamelException *ex)
 {
 	CamelStore *store = CAMEL_STORE(service);
 	gchar *store_db_path, *store_path = NULL;
 
-	parent_class->construct(service, session, provider, url, ex);
+	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
 	if (camel_exception_is_set (ex))
 		return;
 
@@ -274,15 +177,147 @@ construct (CamelService *service, CamelSession *session,
 }
 
 static CamelFolder *
-get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, CamelException *ex)
+store_get_inbox (CamelStore *store,
+                 CamelException *ex)
 {
-	w(g_warning ("CamelStore::get_folder not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
+	CamelStoreClass *class;
 
-	camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_INVALID,
-			      _("Cannot get folder: Invalid operation on this store"));
+	/* Assume the inbox's name is "inbox" and open with default flags. */
+	class = CAMEL_STORE_GET_CLASS (store);
+	return class->get_folder (store, "inbox", 0, ex);
+}
 
-	return NULL;
+static CamelFolder *
+store_get_trash (CamelStore *store,
+                 CamelException *ex)
+{
+	return store_get_special (store, CAMEL_VTRASH_FOLDER_TRASH);
+}
+
+static CamelFolder *
+store_get_junk (CamelStore *store,
+                CamelException *ex)
+{
+	return store_get_special (store, CAMEL_VTRASH_FOLDER_JUNK);
+}
+
+static void
+store_sync (CamelStore *store,
+            gint expunge,
+            CamelException *ex)
+{
+	GPtrArray *folders;
+	CamelFolder *folder;
+	CamelException x;
+	gint i;
+
+	if (store->folders == NULL)
+		return;
+
+	/* We don't sync any vFolders, that is used to update certain
+	 * vfolder queries mainly, and we're really only interested in
+	 * storing/expunging the physical mails. */
+	camel_exception_init(&x);
+	folders = camel_object_bag_list(store->folders);
+	for (i=0;i<folders->len;i++) {
+		folder = folders->pdata[i];
+		if (!CAMEL_IS_VEE_FOLDER(folder)
+		    && !camel_exception_is_set(&x)) {
+			camel_folder_sync(folder, expunge, &x);
+			ignore_no_such_table_exception (&x);
+		} else if (CAMEL_IS_VEE_FOLDER(folder))
+			camel_vee_folder_sync_headers(folder, NULL); /* Literally don't care of vfolder exceptions */
+		g_object_unref (folder);
+	}
+	camel_exception_xfer(ex, &x);
+	g_ptr_array_free(folders, TRUE);
+}
+
+static void
+store_noop (CamelStore *store,
+            CamelException *ex)
+{
+	/* no-op */
+}
+
+static gboolean
+store_can_refresh_folder (CamelStore *store,
+                          CamelFolderInfo *info,
+                          CamelException *ex)
+{
+	return ((info->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_INBOX);
+}
+
+static void
+store_class_init (CamelStoreClass *class)
+{
+	GObjectClass *object_class;
+	CamelObjectClass *camel_object_class;
+	CamelServiceClass *service_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelStorePrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = store_finalize;
+
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->construct = store_construct;
+
+	class->hash_folder_name = g_str_hash;
+	class->compare_folder_name = g_str_equal;
+	class->get_inbox = store_get_inbox;
+	class->get_trash = store_get_trash;
+	class->get_junk = store_get_junk;
+	class->sync = store_sync;
+	class->noop = store_noop;
+	class->can_refresh_folder = store_can_refresh_folder;
+
+	camel_object_class = CAMEL_OBJECT_CLASS (class);
+	camel_object_class_add_event(camel_object_class, "folder_opened", NULL);
+	camel_object_class_add_event(camel_object_class, "folder_created", NULL);
+	camel_object_class_add_event(camel_object_class, "folder_deleted", NULL);
+	camel_object_class_add_event(camel_object_class, "folder_renamed", NULL);
+	camel_object_class_add_event(camel_object_class, "folder_subscribed", NULL);
+	camel_object_class_add_event(camel_object_class, "folder_unsubscribed", NULL);
+}
+
+static void
+store_init (CamelStore *store,
+            CamelStoreClass *store_class)
+{
+	store->priv = CAMEL_STORE_GET_PRIVATE (store);
+
+	if (store_class->hash_folder_name) {
+		store->folders = camel_object_bag_new(store_class->hash_folder_name,
+						      store_class->compare_folder_name,
+						      (CamelCopyFunc)g_strdup, g_free);
+	} else
+		store->folders = NULL;
+
+	/* set vtrash and vjunk on by default */
+	store->flags = CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK;
+	store->mode = CAMEL_STORE_READ | CAMEL_STORE_WRITE;
+
+	g_static_rec_mutex_init (&store->priv->folder_lock);
+}
+
+GType
+camel_store_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SERVICE,
+			"CamelStore",
+			sizeof (CamelStoreClass),
+			(GClassInitFunc) store_class_init,
+			sizeof (CamelStore),
+			(GInstanceInitFunc) store_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -316,7 +351,7 @@ camel_store_get_folder (CamelStore *store, const gchar *folder_name, guint32 fla
 					      _("Cannot create folder '%s': folder exists"),
 					      folder_name);
                         camel_object_bag_abort (store->folders, folder_name);
-			camel_object_unref (folder);
+			g_object_unref (folder);
 			return NULL;
 		}
 	}
@@ -338,24 +373,24 @@ camel_store_get_folder (CamelStore *store, const gchar *folder_name, guint32 fla
 		}
 
 		if ((store->flags & CAMEL_STORE_VTRASH) && strcmp(folder_name, CAMEL_VTRASH_NAME) == 0) {
-			folder = CS_CLASS(store)->get_trash(store, ex);
+			folder = CAMEL_STORE_GET_CLASS(store)->get_trash(store, ex);
 		} else if ((store->flags & CAMEL_STORE_VJUNK) && strcmp(folder_name, CAMEL_VJUNK_NAME) == 0) {
-			folder = CS_CLASS(store)->get_junk(store, ex);
+			folder = CAMEL_STORE_GET_CLASS(store)->get_junk(store, ex);
 		} else {
-			folder = CS_CLASS (store)->get_folder(store, folder_name, flags, ex);
+			folder = CAMEL_STORE_GET_CLASS (store)->get_folder(store, folder_name, flags, ex);
 			if (folder) {
 				CamelVeeFolder *vfolder;
 
 				if ((store->flags & CAMEL_STORE_VTRASH)
 				    && (vfolder = camel_object_bag_get(store->folders, CAMEL_VTRASH_NAME))) {
 					camel_vee_folder_add_folder(vfolder, folder);
-					camel_object_unref(vfolder);
+					g_object_unref (vfolder);
 				}
 
 				if ((store->flags & CAMEL_STORE_VJUNK)
 				    && (vfolder = camel_object_bag_get(store->folders, CAMEL_VJUNK_NAME))) {
 					camel_vee_folder_add_folder(vfolder, folder);
-					camel_object_unref(vfolder);
+					g_object_unref (vfolder);
 				}
 			}
 		}
@@ -384,19 +419,6 @@ camel_store_get_folder (CamelStore *store, const gchar *folder_name, guint32 fla
 	return folder;
 }
 
-static CamelFolderInfo *
-create_folder (CamelStore *store, const gchar *parent_name,
-	       const gchar *folder_name, CamelException *ex)
-{
-	w(g_warning ("CamelStore::create_folder not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
-
-	camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_INVALID,
-			      _("Cannot create folder: Invalid operation on this store"));
-
-	return NULL;
-}
-
 /**
  * camel_store_create_folder:
  * @store: a #CamelStore object
@@ -411,10 +433,16 @@ create_folder (CamelStore *store, const gchar *parent_name,
  * free with #camel_store_free_folder_info, or %NULL.
  **/
 CamelFolderInfo *
-camel_store_create_folder (CamelStore *store, const gchar *parent_name,
-			   const gchar *folder_name, CamelException *ex)
+camel_store_create_folder (CamelStore *store,
+                           const gchar *parent_name,
+                           const gchar *folder_name,
+                           CamelException *ex)
 {
+	CamelStoreClass *class;
 	CamelFolderInfo *fi;
+
+	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
+	g_return_val_if_fail (folder_name != NULL, NULL);
 
 	if ((parent_name == NULL || parent_name[0] == 0)
 	    && (((store->flags & CAMEL_STORE_VTRASH) && strcmp(folder_name, CAMEL_VTRASH_NAME) == 0)
@@ -424,8 +452,11 @@ camel_store_create_folder (CamelStore *store, const gchar *parent_name,
 		return NULL;
 	}
 
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->create_folder != NULL, NULL);
+
 	CAMEL_STORE_LOCK(store, folder_lock);
-	fi = CS_CLASS (store)->create_folder (store, parent_name, folder_name, ex);
+	fi = class->create_folder (store, parent_name, folder_name, ex);
 	CAMEL_STORE_UNLOCK(store, folder_lock);
 
 	return fi;
@@ -444,27 +475,20 @@ cs_delete_cached_folder(CamelStore *store, const gchar *folder_name)
 		if ((store->flags & CAMEL_STORE_VTRASH)
 		    && (vfolder = camel_object_bag_get(store->folders, CAMEL_VTRASH_NAME))) {
 			camel_vee_folder_remove_folder(vfolder, folder);
-			camel_object_unref(vfolder);
+			g_object_unref (vfolder);
 		}
 
 		if ((store->flags & CAMEL_STORE_VJUNK)
 		    && (vfolder = camel_object_bag_get(store->folders, CAMEL_VJUNK_NAME))) {
 			camel_vee_folder_remove_folder(vfolder, folder);
-			camel_object_unref(vfolder);
+			g_object_unref (vfolder);
 		}
 
 		camel_folder_delete(folder);
 
 		camel_object_bag_remove(store->folders, folder);
-		camel_object_unref(folder);
+		g_object_unref (folder);
 	}
-}
-
-static void
-delete_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
-{
-	w(g_warning ("CamelStore::delete_folder not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
 }
 
 /**
@@ -476,9 +500,15 @@ delete_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
  * Deletes the named folder. The folder must be empty.
  **/
 void
-camel_store_delete_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
+camel_store_delete_folder (CamelStore *store,
+                           const gchar *folder_name,
+                           CamelException *ex)
 {
+	CamelStoreClass *class;
 	CamelException local;
+
+	g_return_if_fail (CAMEL_IS_STORE (store));
+	g_return_if_fail (folder_name != NULL);
 
 	/* TODO: should probably be a parameter/bit on the storeinfo */
 	if (((store->flags & CAMEL_STORE_VTRASH) && strcmp(folder_name, CAMEL_VTRASH_NAME) == 0)
@@ -488,11 +518,14 @@ camel_store_delete_folder (CamelStore *store, const gchar *folder_name, CamelExc
 		return;
 	}
 
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->delete_folder != NULL);
+
 	camel_exception_init(&local);
 
 	CAMEL_STORE_LOCK(store, folder_lock);
 
-	CS_CLASS(store)->delete_folder(store, folder_name, &local);
+	class->delete_folder(store, folder_name, &local);
 
 	/* ignore 'no such table' errors */
 	if (camel_exception_is_set (&local) && camel_exception_get_description (&local) &&
@@ -509,13 +542,6 @@ camel_store_delete_folder (CamelStore *store, const gchar *folder_name, CamelExc
 	CAMEL_STORE_UNLOCK(store, folder_lock);
 }
 
-static void
-rename_folder (CamelStore *store, const gchar *old_name, const gchar *new_name, CamelException *ex)
-{
-	w(g_warning ("CamelStore::rename_folder not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
-}
-
 /**
  * camel_store_rename_folder:
  * @store: a #CamelStore object
@@ -526,8 +552,12 @@ rename_folder (CamelStore *store, const gchar *old_name, const gchar *new_name, 
  * Rename a named folder to a new name.
  **/
 void
-camel_store_rename_folder (CamelStore *store, const gchar *old_namein, const gchar *new_name, CamelException *ex)
+camel_store_rename_folder (CamelStore *store,
+                           const gchar *old_namein,
+                           const gchar *new_name,
+                           CamelException *ex)
 {
+	CamelStoreClass *class;
 	CamelFolder *folder;
 	gint i, oldlen, namelen;
 	GPtrArray *folders = NULL;
@@ -544,6 +574,9 @@ camel_store_rename_folder (CamelStore *store, const gchar *old_namein, const gch
 				     _("Cannot rename folder: %s: Invalid operation"), old_namein);
 		return;
 	}
+
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->rename_folder != NULL);
 
 	/* need to save this, since old_namein might be folder->full_name, which could go away */
 	old_name = g_strdup(old_namein);
@@ -568,13 +601,13 @@ camel_store_rename_folder (CamelStore *store, const gchar *old_namein, const gch
 			} else {
 				g_ptr_array_remove_index_fast(folders, i);
 				i--;
-				camel_object_unref(folder);
+				g_object_unref (folder);
 			}
 		}
 	}
 
 	/* Now try the real rename (will emit renamed event) */
-	CS_CLASS (store)->rename_folder (store, old_name, new_name, ex);
+	class->rename_folder (store, old_name, new_name, ex);
 
 	/* If it worked, update all open folders/unlock them */
 	if (folders) {
@@ -593,7 +626,7 @@ camel_store_rename_folder (CamelStore *store, const gchar *old_namein, const gch
 				g_free(new);
 
 				CAMEL_FOLDER_REC_UNLOCK(folder, lock);
-				camel_object_unref(folder);
+				g_object_unref (folder);
 			}
 
 			/* Emit renamed signal */
@@ -601,17 +634,17 @@ camel_store_rename_folder (CamelStore *store, const gchar *old_namein, const gch
 				flags |= CAMEL_STORE_FOLDER_INFO_SUBSCRIBED;
 
 			reninfo.old_base = (gchar *)old_name;
-			reninfo.new = ((CamelStoreClass *)((CamelObject *)store)->klass)->get_folder_info(store, new_name, flags, ex);
+			reninfo.new = class->get_folder_info(store, new_name, flags, ex);
 			if (reninfo.new != NULL) {
 				camel_object_trigger_event (store, "folder_renamed", &reninfo);
-				((CamelStoreClass *)((CamelObject *)store)->klass)->free_folder_info(store, reninfo.new);
+				class->free_folder_info(store, reninfo.new);
 			}
 		} else {
 			/* Failed, just unlock our folders for re-use */
 			for (i=0;i<folders->len;i++) {
 				folder = folders->pdata[i];
 				CAMEL_FOLDER_REC_UNLOCK(folder, lock);
-				camel_object_unref(folder);
+				g_object_unref (folder);
 			}
 		}
 	}
@@ -620,15 +653,6 @@ camel_store_rename_folder (CamelStore *store, const gchar *old_namein, const gch
 
 	g_ptr_array_free(folders, TRUE);
 	g_free(old_name);
-}
-
-static CamelFolder *
-get_inbox (CamelStore *store, CamelException *ex)
-{
-	/* Default: assume the inbox's name is "inbox"
-	 * and open with default flags.
-	 */
-	return CS_CLASS (store)->get_folder (store, "inbox", 0, ex);
 }
 
 /**
@@ -640,46 +664,22 @@ get_inbox (CamelStore *store, CamelException *ex)
  * or %NULL if no such folder exists.
  **/
 CamelFolder *
-camel_store_get_inbox (CamelStore *store, CamelException *ex)
+camel_store_get_inbox (CamelStore *store,
+                       CamelException *ex)
 {
+	CamelStoreClass *class;
 	CamelFolder *folder;
 
+	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
+
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->get_inbox != NULL, NULL);
+
 	CAMEL_STORE_LOCK(store, folder_lock);
-	folder = CS_CLASS (store)->get_inbox (store, ex);
+	folder = class->get_inbox (store, ex);
 	CAMEL_STORE_UNLOCK(store, folder_lock);
 
 	return folder;
-}
-
-static CamelFolder *
-get_special(CamelStore *store, camel_vtrash_folder_t type)
-{
-	CamelFolder *folder;
-	GPtrArray *folders;
-	gint i;
-
-	folder = camel_vtrash_folder_new(store, type);
-	folders = camel_object_bag_list(store->folders);
-	for (i=0;i<folders->len;i++) {
-		if (!CAMEL_IS_VTRASH_FOLDER(folders->pdata[i]))
-			camel_vee_folder_add_folder((CamelVeeFolder *)folder, (CamelFolder *)folders->pdata[i]);
-		camel_object_unref(folders->pdata[i]);
-	}
-	g_ptr_array_free(folders, TRUE);
-
-	return folder;
-}
-
-static CamelFolder *
-get_trash(CamelStore *store, CamelException *ex)
-{
-	return get_special(store, CAMEL_VTRASH_FOLDER_TRASH);
-}
-
-static CamelFolder *
-get_junk(CamelStore *store, CamelException *ex)
-{
-	return get_special(store, CAMEL_VTRASH_FOLDER_JUNK);
 }
 
 /**
@@ -691,12 +691,21 @@ get_junk(CamelStore *store, CamelException *ex)
  * %NULL if no such folder exists.
  **/
 CamelFolder *
-camel_store_get_trash (CamelStore *store, CamelException *ex)
+camel_store_get_trash (CamelStore *store,
+                       CamelException *ex)
 {
-	if ((store->flags & CAMEL_STORE_VTRASH) == 0)
-		return CS_CLASS(store)->get_trash(store, ex);
-	else
-		return camel_store_get_folder(store, CAMEL_VTRASH_NAME, 0, ex);
+	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
+
+	if ((store->flags & CAMEL_STORE_VTRASH) == 0) {
+		CamelStoreClass *class;
+
+		class = CAMEL_STORE_GET_CLASS (store);
+		g_return_val_if_fail (class->get_trash != NULL, NULL);
+
+		return class->get_trash (store, ex);
+	}
+
+	return camel_store_get_folder (store, CAMEL_VTRASH_NAME, 0, ex);
 }
 
 /**
@@ -710,49 +719,18 @@ camel_store_get_trash (CamelStore *store, CamelException *ex)
 CamelFolder *
 camel_store_get_junk (CamelStore *store, CamelException *ex)
 {
-	if ((store->flags & CAMEL_STORE_VJUNK) == 0)
-		return CS_CLASS(store)->get_junk(store, ex);
-	else
-		return camel_store_get_folder(store, CAMEL_VJUNK_NAME, 0, ex);
-}
+	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
 
-/**
- * ignore_no_such_table_exception:
- * Clears the exception 'ex' when it's the 'no such table' exception.
- **/
-static void
-ignore_no_such_table_exception (CamelException *ex)
-{
-	if (ex && camel_exception_is_set (ex) && g_ascii_strncasecmp (camel_exception_get_description (ex), "no such table", 13) == 0)
-		camel_exception_clear (ex);
-}
+	if ((store->flags & CAMEL_STORE_VJUNK) == 0) {
+		CamelStoreClass *class;
 
-static void
-store_sync (CamelStore *store, gint expunge, CamelException *ex)
-{
-	if (store->folders) {
-		GPtrArray *folders;
-		CamelFolder *folder;
-		CamelException x;
-		gint i;
+		class = CAMEL_STORE_GET_CLASS (store);
+		g_return_val_if_fail (class->get_junk != NULL, NULL);
 
-		/* we don't sync any vFolders, that is used to update certain vfolder queries mainly,
-		   and we're really only interested in storing/expunging the physical mails */
-		camel_exception_init(&x);
-		folders = camel_object_bag_list(store->folders);
-		for (i=0;i<folders->len;i++) {
-			folder = folders->pdata[i];
-			if (!CAMEL_IS_VEE_FOLDER(folder)
-			    && !camel_exception_is_set(&x)) {
-				camel_folder_sync(folder, expunge, &x);
-				ignore_no_such_table_exception (&x);
-			} else if (CAMEL_IS_VEE_FOLDER(folder))
-				camel_vee_folder_sync_headers(folder, NULL); /* Literally don't care of vfolder exceptions */
-			camel_object_unref(folder);
-		}
-		camel_exception_xfer(ex, &x);
-		g_ptr_array_free(folders, TRUE);
+		return class->get_junk (store, ex);
 	}
+
+	return camel_store_get_folder (store, CAMEL_VJUNK_NAME, 0, ex);
 }
 
 /**
@@ -765,20 +743,18 @@ store_sync (CamelStore *store, gint expunge, CamelException *ex)
  * folders with the real store.
  **/
 void
-camel_store_sync(CamelStore *store, gint expunge, CamelException *ex)
+camel_store_sync (CamelStore *store,
+                  gint expunge,
+                  CamelException *ex)
 {
+	CamelStoreClass *class;
+
 	g_return_if_fail (CAMEL_IS_STORE (store));
 
-	CS_CLASS(store)->sync(store, expunge, ex);
-}
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->sync != NULL);
 
-static CamelFolderInfo *
-get_folder_info (CamelStore *store, const gchar *top, guint32 flags, CamelException *ex)
-{
-	w(g_warning ("CamelStore::get_folder_info not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
-
-	return NULL;
+	class->sync (store, expunge, ex);
 }
 
 static void
@@ -886,13 +862,20 @@ dump_fi(CamelFolderInfo *fi, gint depth)
  * #camel_store_free_folder_info, or %NULL.
  **/
 CamelFolderInfo *
-camel_store_get_folder_info(CamelStore *store, const gchar *top, guint32 flags, CamelException *ex)
+camel_store_get_folder_info (CamelStore *store,
+                             const gchar *top,
+                             guint32 flags,
+                             CamelException *ex)
 {
+	CamelStoreClass *class;
 	CamelFolderInfo *info;
 
 	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
 
-	info = CS_CLASS (store)->get_folder_info (store, top, flags, ex);
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->get_folder_info != NULL, NULL);
+
+	info = class->get_folder_info (store, top, flags, ex);
 
 	if (info && (top == NULL || *top == '\0') && (flags & CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL) == 0) {
 		if (info->uri && (store->flags & CAMEL_STORE_VTRASH))
@@ -914,13 +897,6 @@ camel_store_get_folder_info(CamelStore *store, const gchar *top, guint32 flags, 
 	return info;
 }
 
-static void
-free_folder_info (CamelStore *store, CamelFolderInfo *fi)
-{
-	w(g_warning ("CamelStore::free_folder_info not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
-}
-
 /**
  * camel_store_free_folder_info:
  * @store: a #CamelStore object
@@ -930,14 +906,20 @@ free_folder_info (CamelStore *store, CamelFolderInfo *fi)
  * nothing is done, the routine simply returns.
  **/
 void
-camel_store_free_folder_info (CamelStore *store, CamelFolderInfo *fi)
+camel_store_free_folder_info (CamelStore *store,
+                              CamelFolderInfo *fi)
 {
+	CamelStoreClass *class;
+
 	g_return_if_fail (CAMEL_IS_STORE (store));
 
 	if (!fi)
 		return;
 
-	CS_CLASS (store)->free_folder_info (store, fi);
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->free_folder_info != NULL);
+
+	class->free_folder_info (store, fi);
 }
 
 /**
@@ -1187,15 +1169,6 @@ camel_store_supports_subscriptions (CamelStore *store)
 	return (store->flags & CAMEL_STORE_SUBSCRIPTIONS);
 }
 
-static gboolean
-folder_subscribed(CamelStore *store, const gchar *folder_name)
-{
-	w(g_warning ("CamelStore::folder_subscribed not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
-
-	return FALSE;
-}
-
 /**
  * camel_store_folder_subscribed:
  * @store: a #CamelStore object
@@ -1206,27 +1179,24 @@ folder_subscribed(CamelStore *store, const gchar *folder_name)
  * Returns: %TRUE if the folder has been subscribed to or %FALSE otherwise
  **/
 gboolean
-camel_store_folder_subscribed(CamelStore *store, const gchar *folder_name)
+camel_store_folder_subscribed (CamelStore *store,
+                               const gchar *folder_name)
 {
+	CamelStoreClass *class;
 	gboolean ret;
 
 	g_return_val_if_fail (CAMEL_IS_STORE (store), FALSE);
+	g_return_val_if_fail (folder_name != NULL, FALSE);
 	g_return_val_if_fail (store->flags & CAMEL_STORE_SUBSCRIPTIONS, FALSE);
 
-	CAMEL_STORE_LOCK(store, folder_lock);
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->folder_subscribed != NULL, FALSE);
 
-	ret = CS_CLASS (store)->folder_subscribed (store, folder_name);
-
-	CAMEL_STORE_UNLOCK(store, folder_lock);
+	CAMEL_STORE_LOCK (store, folder_lock);
+	ret = class->folder_subscribed (store, folder_name);
+	CAMEL_STORE_UNLOCK (store, folder_lock);
 
 	return ret;
-}
-
-static void
-subscribe_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
-{
-	w(g_warning ("CamelStore::subscribe_folder not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
 }
 
 /**
@@ -1238,23 +1208,22 @@ subscribe_folder(CamelStore *store, const gchar *folder_name, CamelException *ex
  * Subscribe to the folder described by @folder_name.
  **/
 void
-camel_store_subscribe_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
+camel_store_subscribe_folder (CamelStore *store,
+                              const gchar *folder_name,
+                              CamelException *ex)
 {
+	CamelStoreClass *class;
+
 	g_return_if_fail (CAMEL_IS_STORE (store));
+	g_return_if_fail (folder_name != NULL);
 	g_return_if_fail (store->flags & CAMEL_STORE_SUBSCRIPTIONS);
 
-	CAMEL_STORE_LOCK(store, folder_lock);
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->subscribe_folder != NULL);
 
-	CS_CLASS (store)->subscribe_folder (store, folder_name, ex);
-
-	CAMEL_STORE_UNLOCK(store, folder_lock);
-}
-
-static void
-unsubscribe_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
-{
-	w(g_warning ("CamelStore::unsubscribe_folder not implemented for '%s'",
-		     camel_type_to_name (CAMEL_OBJECT_GET_TYPE (store))));
+	CAMEL_STORE_LOCK (store, folder_lock);
+	class->subscribe_folder (store, folder_name, ex);
+	CAMEL_STORE_UNLOCK (store, folder_lock);
 }
 
 /**
@@ -1266,32 +1235,32 @@ unsubscribe_folder(CamelStore *store, const gchar *folder_name, CamelException *
  * Unsubscribe from the folder described by @folder_name.
  **/
 void
-camel_store_unsubscribe_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
+camel_store_unsubscribe_folder (CamelStore *store,
+                                const gchar *folder_name,
+                                CamelException *ex)
 {
+	CamelStoreClass *class;
 	CamelException local;
 
 	g_return_if_fail (CAMEL_IS_STORE (store));
+	g_return_if_fail (folder_name != NULL);
 	g_return_if_fail (store->flags & CAMEL_STORE_SUBSCRIPTIONS);
 
-	camel_exception_init(&local);
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->unsubscribe_folder != NULL);
 
-	CAMEL_STORE_LOCK(store, folder_lock);
+	camel_exception_init (&local);
 
-	CS_CLASS (store)->unsubscribe_folder (store, folder_name, ex);
+	CAMEL_STORE_LOCK (store, folder_lock);
 
-	if (!camel_exception_is_set(&local))
-		cs_delete_cached_folder(store, folder_name);
+	class->unsubscribe_folder (store, folder_name, ex);
+
+	if (!camel_exception_is_set (&local))
+		cs_delete_cached_folder (store, folder_name);
 	else
-		camel_exception_xfer(ex, &local);
+		camel_exception_xfer (ex, &local);
 
-	CAMEL_STORE_UNLOCK(store, folder_lock);
-}
-
-static void
-noop (CamelStore *store, CamelException *ex)
-{
-	/* no-op */
-	;
+	CAMEL_STORE_UNLOCK (store, folder_lock);
 }
 
 /**
@@ -1302,9 +1271,17 @@ noop (CamelStore *store, CamelException *ex)
  * Pings @store so that its connection doesn't timeout.
  **/
 void
-camel_store_noop (CamelStore *store, CamelException *ex)
+camel_store_noop (CamelStore *store,
+                  CamelException *ex)
 {
-	CS_CLASS (store)->noop (store, ex);
+	CamelStoreClass *class;
+
+	g_return_if_fail (CAMEL_IS_STORE (store));
+
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_if_fail (class->noop != NULL);
+
+	class->noop (store, ex);
 }
 
 /**
@@ -1318,7 +1295,9 @@ camel_store_noop (CamelStore *store, CamelException *ex)
  * Returns: %TRUE if they are equal or %FALSE otherwise
  **/
 gint
-camel_store_folder_uri_equal (CamelStore *store, const gchar *uri0, const gchar *uri1)
+camel_store_folder_uri_equal (CamelStore *store,
+                              const gchar *uri0,
+                              const gchar *uri1)
 {
 	CamelProvider *provider;
 	CamelURL *url0, *url1;
@@ -1354,19 +1333,13 @@ camel_store_folder_uri_equal (CamelStore *store, const gchar *uri0, const gchar 
 		if (name1 == NULL)
 			g_warning("URI is badly formed, missing folder name: %s", uri1);
 
-		equal = name0 && name1 && CS_CLASS (store)->compare_folder_name (name0, name1);
+		equal = name0 && name1 && CAMEL_STORE_GET_CLASS (store)->compare_folder_name (name0, name1);
 	}
 
 	camel_url_free (url0);
 	camel_url_free (url1);
 
 	return equal;
-}
-
-static gboolean
-can_refresh_folder (CamelStore *store, CamelFolderInfo *info, CamelException *ex)
-{
-	return ((info->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_INBOX);
 }
 
 /**
@@ -1383,68 +1356,17 @@ can_refresh_folder (CamelStore *store, CamelFolderInfo *info, CamelException *ex
  * Returns: whether folder should be checked for new mails
  **/
 gboolean
-camel_store_can_refresh_folder (CamelStore *store, CamelFolderInfo *info, CamelException *ex)
+camel_store_can_refresh_folder (CamelStore *store,
+                                CamelFolderInfo *info,
+                                CamelException *ex)
 {
-	g_return_val_if_fail (store != NULL, FALSE);
+	CamelStoreClass *class;
+
+	g_return_val_if_fail (CAMEL_IS_STORE (store), FALSE);
 	g_return_val_if_fail (info != NULL, FALSE);
 
-	return CS_CLASS (store)->can_refresh_folder (store, info, ex);
-}
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->can_refresh_folder != NULL, FALSE);
 
-/* subscriptions interface */
-
-static void
-cis_interface_init (CamelISubscribe *cis)
-{
-	camel_object_class_add_event((CamelType)cis, "subscribed", NULL);
-	camel_object_class_add_event((CamelType)cis, "unsubscribed", NULL);
-}
-
-CamelType camel_isubscribe_get_type (void)
-{
-	static CamelType camel_isubscribe_type = CAMEL_INVALID_TYPE;
-
-	if (camel_isubscribe_type == CAMEL_INVALID_TYPE) {
-		camel_isubscribe_type = camel_interface_register (CAMEL_INTERFACE_TYPE, "CamelISubscribe",
-								  sizeof (CamelISubscribe),
-								  (CamelObjectClassInitFunc) cis_interface_init,
-								  NULL);
-	}
-
-	return camel_isubscribe_type;
-}
-
-gboolean camel_isubscribe_subscribed(CamelStore *store, const gchar *name)
-{
-	CamelISubscribe *iface = camel_object_get_interface(store, camel_isubscribe_get_type());
-
-	if (iface && iface->subscribed)
-		return iface->subscribed(store, name);
-
-	g_warning("Trying to invoke unimplemented subscribed method on a store");
-	return FALSE;
-}
-
-void camel_isubscribe_subscribe(CamelStore *store, const gchar *folder_name, CamelException *ex)
-{
-	CamelISubscribe *iface = camel_object_get_interface(store, camel_isubscribe_get_type());
-
-	if (iface && iface->subscribe) {
-		iface->subscribe(store, folder_name, ex);
-		return;
-	}
-
-	g_warning("Trying to invoke unimplemented subscribe method on a store");
-}
-
-void camel_isubscribe_unsubscribe(CamelStore *store, const gchar *folder_name, CamelException *ex)
-{
-	CamelISubscribe *iface = camel_object_get_interface(store, camel_isubscribe_get_type());
-
-	if (iface && iface->unsubscribe) {
-		iface->unsubscribe(store, folder_name, ex);
-		return;
-	}
-
-	g_warning("Trying to invoke unimplemented unsubscribe method on a store");
+	return class->can_refresh_folder (store, info, ex);
 }

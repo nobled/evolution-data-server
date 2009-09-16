@@ -22,8 +22,6 @@ CamelOfflineStore
 
 </para>
 
-@parent_object: 
-@state: 
 
 <!-- ##### FUNCTION camel_offline_store_set_network_state ##### -->
 <para>

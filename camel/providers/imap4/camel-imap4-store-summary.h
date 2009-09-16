@@ -19,20 +19,37 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP_STORE_SUMMARY_H__
-#define __CAMEL_IMAP_STORE_SUMMARY_H__
+#ifndef CAMEL_IMAP_STORE_SUMMARY_H
+#define CAMEL_IMAP_STORE_SUMMARY_H
 
-#include <camel/camel-store-summary.h>
+#include <camel/camel.h>
+
 #include "camel-imap4-engine.h"
 
-#define CAMEL_IMAP4_STORE_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_imap4_store_summary_get_type (), CamelIMAP4StoreSummary)
-#define CAMEL_IMAP4_STORE_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_imap4_store_summary_get_type (), CamelIMAP4StoreSummaryClass)
-#define CAMEL_IS_IMAP4_STORE_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_imap4_store_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_STORE_SUMMARY \
+	(camel_imap4_store_summary_get_type ())
+#define CAMEL_IMAP4_STORE_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_STORE_SUMMARY, CamelIMAP4StoreSummary))
+#define CAMEL_IMAP4_STORE_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_STORE_SUMMARY, CamelIMAP4StoreSummaryClass))
+#define CAMEL_IS_IMAP4_STORE_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_STORE_SUMMARY))
+#define CAMEL_IS_IMAP4_STORE_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_STORE_SUMMARY))
+#define CAMEL_IMAP4_STORE_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP4_STORE_SUMMARY, CamelIMAP4StoreSummaryClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelIMAP4StoreSummary      CamelIMAP4StoreSummary;
+typedef struct _CamelIMAP4StoreSummary CamelIMAP4StoreSummary;
 typedef struct _CamelIMAP4StoreSummaryClass CamelIMAP4StoreSummaryClass;
+typedef struct _CamelIMAP4StoreSummaryPrivate CamelIMAP4StoreSummaryPrivate;
 
 typedef struct _CamelIMAP4StoreInfo CamelIMAP4StoreInfo;
 
@@ -49,8 +66,7 @@ struct _CamelIMAP4StoreInfo {
 
 struct _CamelIMAP4StoreSummary {
 	CamelStoreSummary summary;
-
-	struct _CamelIMAP4StoreSummaryPrivate *priv;
+	CamelIMAP4StoreSummaryPrivate *priv;
 
 	/* header info */
 	guint32 version;
@@ -63,7 +79,7 @@ struct _CamelIMAP4StoreSummaryClass {
 	CamelStoreSummaryClass summary_class;
 };
 
-CamelType camel_imap4_store_summary_get_type (void);
+GType camel_imap4_store_summary_get_type (void);
 
 CamelIMAP4StoreSummary *camel_imap4_store_summary_new (void);
 
@@ -79,4 +95,4 @@ struct _CamelFolderInfo *camel_imap4_store_summary_get_folder_info (CamelIMAP4St
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_STORE_SUMMARY_H__ */
+#endif /* CAMEL_IMAP4_STORE_SUMMARY_H */

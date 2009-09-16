@@ -20,39 +20,54 @@
  *
  */
 
-#ifndef __CAMEL_SASL_GSSAPI_H__
-#define __CAMEL_SASL_GSSAPI_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_SASL_GSSAPI_H
+#define CAMEL_SASL_GSSAPI_H
 
 #include <sys/types.h>
 #include <camel/camel-sasl.h>
 
-#define CAMEL_SASL_GSSAPI_TYPE     (camel_sasl_gssapi_get_type ())
-#define CAMEL_SASL_GSSAPI(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SASL_GSSAPI_TYPE, CamelSaslGssapi))
-#define CAMEL_SASL_GSSAPI_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SASL_GSSAPI_TYPE, CamelSaslGssapiClass))
-#define CAMEL_IS_SASL_GSSAPI(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SASL_GSSAPI_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_SASL_GSSAPI \
+	(camel_sasl_gssapi_get_type ())
+#define CAMEL_SASL_GSSAPI(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SASL_GSSAPI, CamelSaslGssapi))
+#define CAMEL_SASL_GSSAPI_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SASL_GSSAPI, CamelSaslGssapiClass))
+#define CAMEL_IS_SASL_GSSAPI(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SASL_GSSAPI))
+#define CAMEL_IS_SASL_GSSAPI_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SASL_GSSAPI))
+#define CAMEL_SASL_GSSAPI_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SASL_GSSAPI, CamelSaslGssapiClass))
 
 G_BEGIN_DECLS
 
 typedef struct _CamelSaslGssapi CamelSaslGssapi;
 typedef struct _CamelSaslGssapiClass CamelSaslGssapiClass;
+typedef struct _CamelSaslGssapiPrivate CamelSaslGssapiPrivate;
 
 struct _CamelSaslGssapi {
-	CamelSasl parent_object;
-
-	struct _CamelSaslGssapiPrivate *priv;
-
+	CamelSasl parent;
+	CamelSaslGssapiPrivate *priv;
 };
 
 struct _CamelSaslGssapiClass {
 	CamelSaslClass parent_class;
-
 };
 
-/* Standard Camel function */
-CamelType camel_sasl_gssapi_get_type (void);
+GType camel_sasl_gssapi_get_type (void);
 
 extern CamelServiceAuthType camel_sasl_gssapi_authtype;
 
 G_END_DECLS
 
-#endif /* __CAMEL_SASL_GSSAPI_H__ */
+#endif /* CAMEL_SASL_GSSAPI_H */

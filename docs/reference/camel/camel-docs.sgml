@@ -117,7 +117,6 @@
 <!ENTITY CamelVeeStore SYSTEM "xml/camel-vee-store.xml">
 <!ENTITY CamelVeeSummary SYSTEM "xml/camel-vee-summary.xml">
 <!ENTITY CamelVTrashFolder SYSTEM "xml/camel-vtrash-folder.xml">
-
 <!ENTITY index-Class-Tree SYSTEM "tree_index.sgml">
 ]>
 

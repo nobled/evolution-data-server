@@ -11,22 +11,21 @@ class_init (CamelTestSessionClass *camel_test_session_class)
 		CAMEL_SESSION_CLASS (camel_test_session_class);
 }
 
-CamelType
+GType
 camel_test_session_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
 		type = camel_type_register (
-			camel_session_get_type (),
+			CAMEL_TYPE_SESSION,
 			"CamelTestSession",
 			sizeof (CamelTestSession),
 			sizeof (CamelTestSessionClass),
-			(CamelObjectClassInitFunc) class_init,
+			(GClassInitFunc) class_init,
 			NULL,
 			NULL,
 			NULL);
-	}
 
 	return type;
 }
@@ -36,8 +35,7 @@ camel_test_session_new (const gchar *path)
 {
 	CamelSession *session;
 
-	session = CAMEL_SESSION (camel_object_new (CAMEL_TEST_SESSION_TYPE));
-
+	session = g_object_new (CAMEL_TYPE_TEST_SESSION, NULL);
 	camel_session_construct (session, path);
 
 	return session;

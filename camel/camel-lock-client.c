@@ -90,7 +90,7 @@ static gint write_n(gint fd, gpointer buffer, gint inlen)
 	return inlen;
 }
 
-static gint camel_lock_helper_init(CamelException *ex)
+static gint lock_helper_init(CamelException *ex)
 {
 	gint i;
 
@@ -162,7 +162,7 @@ gint camel_lock_helper_lock(const gchar *path, CamelException *ex)
 	LOCK();
 
 	if (lock_helper_pid == -1) {
-		if (camel_lock_helper_init(ex) == -1) {
+		if (lock_helper_init(ex) == -1) {
 			UNLOCK();
 			return -1;
 		}
@@ -313,7 +313,7 @@ gint main(gint argc, gchar **argv)
 	gint id1, id2;
 
 	d(printf("locking started\n"));
-	camel_lock_helper_init();
+	lock_helper_init();
 
 	id1 = camel_lock_helper_lock("1 path 1");
 	if (id1 != -1) {

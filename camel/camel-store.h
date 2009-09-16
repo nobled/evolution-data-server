@@ -24,14 +24,38 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_STORE_H
-#define CAMEL_STORE_H 1
+#define CAMEL_STORE_H
 
 /* for mode_t */
 #include <sys/types.h>
 
+#include <camel/camel-folder.h>
 #include <camel/camel-object.h>
 #include <camel/camel-service.h>
+
+/* Standard GObject macros */
+#define CAMEL_TYPE_STORE \
+	(camel_store_get_type ())
+#define CAMEL_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_STORE, CamelStore))
+#define CAMEL_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_STORE, CamelStoreClass))
+#define CAMEL_IS_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_STORE))
+#define CAMEL_IS_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_STORE))
+#define CAMEL_STORE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_STORE, CamelStoreClass))
 
 G_BEGIN_DECLS
 
@@ -104,11 +128,6 @@ typedef struct _CamelRenameInfo {
 	struct _CamelFolderInfo *new;
 } CamelRenameInfo;
 
-#define CAMEL_STORE_TYPE     (camel_store_get_type ())
-#define CAMEL_STORE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_STORE_TYPE, CamelStore))
-#define CAMEL_STORE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_STORE_TYPE, CamelStoreClass))
-#define CAMEL_IS_STORE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_STORE_TYPE))
-
 /* Flags for store flags */
 #define CAMEL_STORE_SUBSCRIPTIONS	(1 << 0)
 #define CAMEL_STORE_VTRASH		(1 << 1)
@@ -119,9 +138,13 @@ typedef struct _CamelRenameInfo {
 
 struct _CamelDB;
 
+typedef struct _CamelStore CamelStore;
+typedef struct _CamelStoreClass CamelStoreClass;
+typedef struct _CamelStorePrivate CamelStorePrivate;
+
 struct _CamelStore {
-	CamelService parent_object;
-	struct _CamelStorePrivate *priv;
+	CamelService parent;
+	CamelStorePrivate *priv;
 
 	CamelObjectBag *folders;
 	struct _CamelDB *cdb_r;
@@ -154,7 +177,7 @@ struct _CamelStore {
 /* folder fetching */
 #define CAMEL_STORE_FOLDER_INFO_SUBSCRIPTION_LIST (1 << 4)
 
-typedef struct {
+struct _CamelStoreClass {
 	CamelServiceClass parent_class;
 
 	GHashFunc       hash_folder_name;
@@ -204,11 +227,9 @@ typedef struct {
 	gboolean        (*can_refresh_folder)       (CamelStore *store,
 						     CamelFolderInfo *info,
 						     CamelException *ex);
+};
 
-} CamelStoreClass;
-
-/* Standard Camel function */
-CamelType camel_store_get_type (void);
+GType camel_store_get_type (void);
 
 /* public methods */
 CamelFolder *    camel_store_get_folder         (CamelStore *store,
@@ -279,22 +300,6 @@ gint              camel_store_folder_uri_equal         (CamelStore *store,
 gboolean         camel_store_can_refresh_folder       (CamelStore *store,
 						       CamelFolderInfo *info,
 						       CamelException *ex);
-
-#ifndef CAMEL_DISABLE_DEPRECATED
-typedef struct _CamelISubscribe CamelISubscribe;
-struct _CamelISubscribe {
-	CamelInterface iface;
-
-	gboolean (*subscribed)(CamelStore *store, const gchar *folder_name);
-	void (*subscribe)(CamelStore *store, const gchar *folder_name, CamelException *ex);
-	void (*unsubscribe)(CamelStore *store, const gchar *folder_name, CamelException *ex);
-};
-
-CamelType camel_isubscribe_get_type (void);
-gboolean camel_isubscribe_subscribed(CamelStore *store, const gchar *name);
-void camel_isubscribe_subscribe(CamelStore *store, const gchar *folder_name, CamelException *ex);
-void camel_isubscribe_unsubscribe(CamelStore *store, const gchar *folder_name, CamelException *ex);
-#endif /* CAMEL_DISABLE_DEPRECATED */
 
 G_END_DECLS
 

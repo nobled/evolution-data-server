@@ -28,74 +28,48 @@
 
 #include "camel-mime-filter-yenc.h"
 
-static void camel_mime_filter_yenc_class_init (CamelMimeFilterYencClass *klass);
-static void camel_mime_filter_yenc_init (CamelMimeFilterYenc *filter, CamelMimeFilterYencClass *klass);
+#define CAMEL_MIME_FILTER_YENC_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_MIME_FILTER_YENC, CamelMimeFilterYencPrivate))
 
-static void filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-			   gchar **out, gsize *outlen, gsize *outprespace);
-static void filter_complete (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-			     gchar **out, gsize *outlen, gsize *outprespace);
-static void filter_reset (CamelMimeFilter *filter);
+struct _CamelMimeFilterYencPrivate {
 
-static CamelMimeFilterClass *parent_class = NULL;
+	CamelMimeFilterYencDirection direction;
 
-CamelType
-camel_mime_filter_yenc_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
+	gint part;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_mime_filter_get_type (),
-					    "CamelMimeFilterYenc",
-					    sizeof (CamelMimeFilterYenc),
-					    sizeof (CamelMimeFilterYencClass),
-					    (CamelObjectClassInitFunc) camel_mime_filter_yenc_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_mime_filter_yenc_init,
-					    NULL);
-	}
+	gint state;
+	guint32 pcrc;
+	guint32 crc;
+};
 
-	return type;
-}
-
-static void
-camel_mime_filter_yenc_class_init (CamelMimeFilterYencClass *klass)
-{
-	CamelMimeFilterClass *filter_class = (CamelMimeFilterClass *) klass;
-
-	parent_class = CAMEL_MIME_FILTER_CLASS (camel_type_get_global_classfuncs (camel_mime_filter_get_type ()));
-
-	filter_class->reset = filter_reset;
-	filter_class->filter = filter_filter;
-	filter_class->complete = filter_complete;
-}
-
-static void
-camel_mime_filter_yenc_init (CamelMimeFilterYenc *filter, CamelMimeFilterYencClass *klass)
-{
-	filter->part = 0;
-	filter->pcrc = CAMEL_MIME_YENCODE_CRC_INIT;
-	filter->crc = CAMEL_MIME_YENCODE_CRC_INIT;
-}
+static gpointer parent_class;
 
 /* here we do all of the basic yEnc filtering */
 static void
-filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-	       gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_yenc_filter (CamelMimeFilter *mime_filter,
+                         const gchar *in,
+                         gsize len,
+                         gsize prespace,
+                         gchar **out,
+                         gsize *outlen,
+                         gsize *outprespace)
 {
-	CamelMimeFilterYenc *yenc = (CamelMimeFilterYenc *) filter;
+	CamelMimeFilterYencPrivate *priv;
 	gsize newlen = 0;
 
-	switch (yenc->direction) {
+	priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (mime_filter);
+
+	switch (priv->direction) {
 	case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
 		/* won't go to more than 2 * (x + 2) + 62 */
-		camel_mime_filter_set_size (filter, (len + 2) * 2 + 62, FALSE);
-		newlen = camel_yencode_step ((const guchar *) in, len, (guchar *) filter->outbuf, &yenc->state,
-					     &yenc->pcrc, &yenc->crc);
+		camel_mime_filter_set_size (mime_filter, (len + 2) * 2 + 62, FALSE);
+		newlen = camel_yencode_step ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state,
+					     &priv->pcrc, &priv->crc);
 		g_assert (newlen <= (len + 2) * 2 + 62);
 		break;
 	case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
-		if (!(yenc->state & CAMEL_MIME_YDECODE_STATE_DECODE)) {
+		if (!(priv->state & CAMEL_MIME_YDECODE_STATE_DECODE)) {
 			const gchar *inptr, *inend;
 			gsize left;
 
@@ -103,25 +77,25 @@ filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespa
 			inend = inptr + len;
 
 			/* we cannot start decoding until we have found an =ybegin line */
-			if (!(yenc->state & CAMEL_MIME_YDECODE_STATE_BEGIN)) {
+			if (!(priv->state & CAMEL_MIME_YDECODE_STATE_BEGIN)) {
 				while (inptr < inend) {
 					left = inend - inptr;
 					if (left < 8) {
 						if (!strncmp (inptr, "=ybegin ", left))
-							camel_mime_filter_backup (filter, inptr, left);
+							camel_mime_filter_backup (mime_filter, inptr, left);
 						break;
 					} else if (!strncmp (inptr, "=ybegin ", 8)) {
 						for (in = inptr; inptr < inend && *inptr != '\n'; inptr++);
 						if (inptr < inend) {
 							inptr++;
-							yenc->state |= CAMEL_MIME_YDECODE_STATE_BEGIN;
+							priv->state |= CAMEL_MIME_YDECODE_STATE_BEGIN;
 							/* we can start ydecoding if the next line isn't
 							   a ypart... */
 							in = inptr;
 							len = inend - in;
 						} else {
 							/* we don't have enough... */
-							camel_mime_filter_backup (filter, in, left);
+							camel_mime_filter_backup (mime_filter, in, left);
 						}
 						break;
 					}
@@ -136,32 +110,32 @@ filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespa
 			}
 
 			left = inend - inptr;
-			if ((yenc->state & CAMEL_MIME_YDECODE_STATE_BEGIN) && left > 0) {
+			if ((priv->state & CAMEL_MIME_YDECODE_STATE_BEGIN) && left > 0) {
 				/* we have found an '=ybegin' line but we may yet have an "=ypart" line to
 				   yield before decoding the content */
 				if (left < 7 && !strncmp (inptr, "=ypart ", left)) {
-					camel_mime_filter_backup (filter, inptr, left);
+					camel_mime_filter_backup (mime_filter, inptr, left);
 				} else if (!strncmp (inptr, "=ypart ", 7)) {
 					for (in = inptr; inptr < inend && *inptr != '\n'; inptr++);
 					if (inptr < inend) {
 						inptr++;
-						yenc->state |= CAMEL_MIME_YDECODE_STATE_PART | CAMEL_MIME_YDECODE_STATE_DECODE;
+						priv->state |= CAMEL_MIME_YDECODE_STATE_PART | CAMEL_MIME_YDECODE_STATE_DECODE;
 						in = inptr;
 						len = inend - in;
 					} else {
-						camel_mime_filter_backup (filter, in, left);
+						camel_mime_filter_backup (mime_filter, in, left);
 					}
 				} else {
 					/* guess it doesn't have a =ypart line */
-					yenc->state |= CAMEL_MIME_YDECODE_STATE_DECODE;
+					priv->state |= CAMEL_MIME_YDECODE_STATE_DECODE;
 				}
 			}
 		}
 
-		if ((yenc->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(yenc->state & CAMEL_MIME_YDECODE_STATE_END)) {
+		if ((priv->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(priv->state & CAMEL_MIME_YDECODE_STATE_END)) {
 			/* all yEnc headers have been found so we can now start decoding */
-			camel_mime_filter_set_size (filter, len + 3, FALSE);
-			newlen = camel_ydecode_step ((const guchar *) in, len, (guchar *) filter->outbuf, &yenc->state, &yenc->pcrc, &yenc->crc);
+			camel_mime_filter_set_size (mime_filter, len + 3, FALSE);
+			newlen = camel_ydecode_step ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, &priv->pcrc, &priv->crc);
 			g_assert (newlen <= len + 3);
 		} else {
 			newlen = 0;
@@ -169,32 +143,39 @@ filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespa
 		break;
 	}
 
-	*out = filter->outbuf;
+	*out = mime_filter->outbuf;
 	*outlen = newlen;
-	*outprespace = filter->outpre;
+	*outprespace = mime_filter->outpre;
 }
 
 static void
-filter_complete (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-		 gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_yenc_complete (CamelMimeFilter *mime_filter,
+                           const gchar *in,
+                           gsize len,
+                           gsize prespace,
+                           gchar **out,
+                           gsize *outlen,
+                           gsize *outprespace)
 {
-	CamelMimeFilterYenc *yenc = (CamelMimeFilterYenc *) filter;
+	CamelMimeFilterYencPrivate *priv;
 	gsize newlen = 0;
 
-	switch (yenc->direction) {
+	priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (mime_filter);
+
+	switch (priv->direction) {
 	case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
 		/* won't go to more than 2 * (x + 2) + 62 */
-		camel_mime_filter_set_size (filter, (len + 2) * 2 + 62, FALSE);
-		newlen = camel_yencode_close ((const guchar *) in, len, (guchar *) filter->outbuf, &yenc->state,
-					       &yenc->pcrc, &yenc->crc);
+		camel_mime_filter_set_size (mime_filter, (len + 2) * 2 + 62, FALSE);
+		newlen = camel_yencode_close ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state,
+					       &priv->pcrc, &priv->crc);
 		g_assert (newlen <= (len + 2) * 2 + 62);
 		break;
 	case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
-		if ((yenc->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(yenc->state & CAMEL_MIME_YDECODE_STATE_END)) {
+		if ((priv->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(priv->state & CAMEL_MIME_YDECODE_STATE_END)) {
 			/* all yEnc headers have been found so we can now start decoding */
-			camel_mime_filter_set_size (filter, len + 3, FALSE);
-			newlen = camel_ydecode_step ((const guchar *) in, len, (guchar *) filter->outbuf, &yenc->state,
-						      &yenc->pcrc, &yenc->crc);
+			camel_mime_filter_set_size (mime_filter, len + 3, FALSE);
+			newlen = camel_ydecode_step ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state,
+						      &priv->pcrc, &priv->crc);
 			g_assert (newlen <= len + 3);
 		} else {
 			newlen = 0;
@@ -202,27 +183,71 @@ filter_complete (CamelMimeFilter *filter, const gchar *in, gsize len, gsize pres
 		break;
 	}
 
-	*out = filter->outbuf;
+	*out = mime_filter->outbuf;
 	*outlen = newlen;
-	*outprespace = filter->outpre;
+	*outprespace = mime_filter->outpre;
 }
 
 /* should this 'flush' outstanding state/data bytes? */
 static void
-filter_reset (CamelMimeFilter *filter)
+mime_filter_yenc_reset (CamelMimeFilter *mime_filter)
 {
-	CamelMimeFilterYenc *yenc = (CamelMimeFilterYenc *) filter;
+	CamelMimeFilterYencPrivate *priv;
 
-	switch (yenc->direction) {
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
-		yenc->state = CAMEL_MIME_YENCODE_STATE_INIT;
-		break;
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
-		yenc->state = CAMEL_MIME_YDECODE_STATE_INIT;
-		break;
+	priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (mime_filter);
+
+	switch (priv->direction) {
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
+			priv->state = CAMEL_MIME_YENCODE_STATE_INIT;
+			break;
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
+			priv->state = CAMEL_MIME_YDECODE_STATE_INIT;
+			break;
 	}
-	yenc->pcrc = CAMEL_MIME_YENCODE_CRC_INIT;
-	yenc->crc = CAMEL_MIME_YENCODE_CRC_INIT;
+	priv->pcrc = CAMEL_MIME_YENCODE_CRC_INIT;
+	priv->crc = CAMEL_MIME_YENCODE_CRC_INIT;
+}
+
+static void
+mime_filter_yenc_class_init (CamelMimeFilterYencClass *class)
+{
+	CamelMimeFilterClass *mime_filter_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMimeFilterYencPrivate));
+
+	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
+	mime_filter_class->reset = mime_filter_yenc_reset;
+	mime_filter_class->filter = mime_filter_yenc_filter;
+	mime_filter_class->complete = mime_filter_yenc_complete;
+}
+
+static void
+mime_filter_yenc_init (CamelMimeFilterYenc *filter)
+{
+	filter->priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (filter);
+
+	filter->priv->part = 0;
+	filter->priv->pcrc = CAMEL_MIME_YENCODE_CRC_INIT;
+	filter->priv->crc = CAMEL_MIME_YENCODE_CRC_INIT;
+}
+
+GType
+camel_mime_filter_yenc_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MIME_FILTER,
+			"CamelMimeFilterYenc",
+			sizeof (CamelMimeFilterYencClass),
+			(GClassInitFunc) mime_filter_yenc_class_init,
+			sizeof (CamelMimeFilterYenc),
+			(GInstanceInitFunc) mime_filter_yenc_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -236,23 +261,26 @@ filter_reset (CamelMimeFilter *filter)
 CamelMimeFilter *
 camel_mime_filter_yenc_new (CamelMimeFilterYencDirection direction)
 {
-	CamelMimeFilterYenc *new;
+	CamelMimeFilter *filter;
+	CamelMimeFilterYencPrivate *priv;
 
-	new = (CamelMimeFilterYenc *) camel_object_new (CAMEL_TYPE_MIME_FILTER_YENC);
-	new->direction = direction;
+	filter = g_object_new (CAMEL_TYPE_MIME_FILTER_YENC, NULL);
+	priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (filter);
+
+	priv->direction = direction;
 
 	switch (direction) {
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
-		new->state = CAMEL_MIME_YENCODE_STATE_INIT;
-		break;
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
-		new->state = CAMEL_MIME_YDECODE_STATE_INIT;
-		break;
-	default:
-		g_assert_not_reached ();
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
+			priv->state = CAMEL_MIME_YENCODE_STATE_INIT;
+			break;
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
+			priv->state = CAMEL_MIME_YDECODE_STATE_INIT;
+			break;
+		default:
+			g_assert_not_reached ();
 	}
 
-	return (CamelMimeFilter *) new;
+	return filter;
 }
 
 /**
@@ -267,7 +295,7 @@ camel_mime_filter_yenc_set_state (CamelMimeFilterYenc *yenc, gint state)
 {
 	g_return_if_fail (CAMEL_IS_MIME_FILTER_YENC (yenc));
 
-	yenc->state = state;
+	yenc->priv->state = state;
 }
 
 /**
@@ -282,31 +310,8 @@ camel_mime_filter_yenc_set_crc (CamelMimeFilterYenc *yenc, guint32 crc)
 {
 	g_return_if_fail (CAMEL_IS_MIME_FILTER_YENC (yenc));
 
-	yenc->crc = crc;
+	yenc->priv->crc = crc;
 }
-
-#if 0
-/* FIXME: once we parse out the yenc part id, we can re-enable this interface */
-/**
- * camel_mime_filter_yenc_get_part:
- * @yenc: a #CamelMimeFilterYenc object
- *
- * Gets the part id of the current decoded yEnc stream or %-1 on fail.
- *
- * Returns: the part id of the current decoded yEnc stream or %-1 on
- * fail.
- **/
-gint
-camel_mime_filter_yenc_get_part (CamelMimeFilterYenc *yenc)
-{
-	g_return_val_if_fail (CAMEL_IS_MIME_FILTER_YENC (yenc), -1);
-
-	if (yenc->state & CAMEL_MIME_YDECODE_STATE_PART)
-		return yenc->part;
-
-	return -1;
-}
-#endif
 
 /**
  * camel_mime_filter_yenc_get_pcrc:
@@ -321,7 +326,7 @@ camel_mime_filter_yenc_get_pcrc (CamelMimeFilterYenc *yenc)
 {
 	g_return_val_if_fail (CAMEL_IS_MIME_FILTER_YENC (yenc), -1);
 
-	return CAMEL_MIME_YENCODE_CRC_FINAL (yenc->pcrc);
+	return CAMEL_MIME_YENCODE_CRC_FINAL (yenc->priv->pcrc);
 }
 
 /**
@@ -337,7 +342,7 @@ camel_mime_filter_yenc_get_crc (CamelMimeFilterYenc *yenc)
 {
 	g_return_val_if_fail (CAMEL_IS_MIME_FILTER_YENC (yenc), -1);
 
-	return CAMEL_MIME_YENCODE_CRC_FINAL (yenc->crc);
+	return CAMEL_MIME_YENCODE_CRC_FINAL (yenc->priv->crc);
 }
 
 static const gint yenc_crc_table[256] = {

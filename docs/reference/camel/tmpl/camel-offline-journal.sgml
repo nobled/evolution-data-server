@@ -22,10 +22,6 @@ CamelOfflineJournal
 
 </para>
 
-@parent_object: 
-@folder: 
-@filename: 
-@queue: 
 
 <!-- ##### STRUCT CamelOfflineJournalEntry ##### -->
 <para>

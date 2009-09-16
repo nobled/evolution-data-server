@@ -19,28 +19,47 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_FILTER_DRIVER_H
-#define _CAMEL_FILTER_DRIVER_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <glib.h>
+#ifndef CAMEL_FILTER_DRIVER_H
+#define CAMEL_FILTER_DRIVER_H
+
 #include <camel/camel-object.h>
-#include <camel/camel-session.h>
 #include <camel/camel-folder.h>
 #include <camel/camel-uid-cache.h>
 
-#define CAMEL_FILTER_DRIVER_TYPE         (camel_filter_driver_get_type ())
-#define CAMEL_FILTER_DRIVER(obj)         CAMEL_CHECK_CAST (obj, CAMEL_FILTER_DRIVER_TYPE, CamelFilterDriver)
-#define CAMEL_FILTER_DRIVER_CLASS(klass) CAMEL__CHECK_CLASS_CAST (klass, CAMEL_FILTER_DRIVER_TYPE, CamelFilterDriverClass)
-#define CAMEL_IS_FILTER_DRIVER(obj)      CAMEL_CHECK_TYPE (obj, CAMEL_FILTER_DRIVER_TYPE)
+/* Standard GObject macros */
+#define CAMEL_TYPE_FILTER_DRIVER \
+	(camel_filter_driver_get_type ())
+#define CAMEL_FILTER_DRIVER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_FILTER_DRIVER, CamelFilterDriver))
+#define CAMEL_FILTER_DRIVER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_FILTER_DRIVER, CamelFilterDriverClass)
+#define CAMEL_IS_FILTER_DRIVER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_FILTER_DRIVER))
+#define CAMEL_IS_FILTER_DRIVER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_FILTER_DRIVER))
+#define CAMEL_FILTER_DRIVER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_FILTER_DRIVER, CamelFilterDriverClass))
 
 G_BEGIN_DECLS
 
+struct _CamelSession;
+
+typedef struct _CamelFilterDriver CamelFilterDriver;
 typedef struct _CamelFilterDriverClass CamelFilterDriverClass;
+typedef struct _CamelFilterDriverPrivate CamelFilterDriverPrivate;
 
 struct _CamelFilterDriver {
 	CamelObject parent;
-
-	struct _CamelFilterDriverPrivate *priv;
+	CamelFilterDriverPrivate *priv;
 };
 
 struct _CamelFilterDriverClass {
@@ -67,8 +86,8 @@ typedef void (CamelFilterShellFunc)      (CamelFilterDriver *driver, gint argc, 
 typedef void (CamelFilterPlaySoundFunc)  (CamelFilterDriver *driver, const gchar *filename, gpointer data);
 typedef void (CamelFilterSystemBeepFunc) (CamelFilterDriver *driver, gpointer data);
 
-CamelType          camel_filter_driver_get_type (void);
-CamelFilterDriver  *camel_filter_driver_new     (CamelSession *);
+GType          camel_filter_driver_get_type (void);
+CamelFilterDriver  *camel_filter_driver_new     (struct _CamelSession *);
 
 /* modifiers */
 void camel_filter_driver_set_logfile          (CamelFilterDriver *d, FILE *logfile);
@@ -111,4 +130,4 @@ struct filter_option *camel_filter_driver_rule_get (CamelFilterDriver *d, gint n
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_FILTER_DRIVER_H */
+#endif /* CAMEL_FILTER_DRIVER_H */

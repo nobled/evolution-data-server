@@ -29,11 +29,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <camel/camel-debug.h>
-#include <camel/camel-mime-filter-crlf.h>
-#include <camel/camel-stream-filter.h>
-#include <camel/camel-stream-null.h>
-
 #include "camel-imap4-command.h"
 #include "camel-imap4-engine.h"
 #include "camel-imap4-folder.h"
@@ -98,9 +93,9 @@ camel_imap4_literal_length (CamelIMAP4Literal *literal)
 
 	null = camel_stream_null_new ();
 	crlf = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_ENCODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
-	stream = (CamelStream *) camel_stream_filter_new_with_stream (null);
+	stream = camel_stream_filter_new (null);
 	camel_stream_filter_add ((CamelStreamFilter *) stream, crlf);
-	camel_object_unref (crlf);
+	g_object_unref (crlf);
 
 	switch (literal->type) {
 	case CAMEL_IMAP4_LITERAL_STREAM:
@@ -117,8 +112,8 @@ camel_imap4_literal_length (CamelIMAP4Literal *literal)
 
 	len = ((CamelStreamNull *) null)->written;
 
-	camel_object_unref (stream);
-	camel_object_unref (null);
+	g_object_unref (stream);
+	g_object_unref (null);
 
 	return len;
 }
@@ -267,7 +262,7 @@ camel_imap4_command_newv (CamelIMAP4Engine *engine, CamelIMAP4Folder *imap4_fold
 					g_assert_not_reached ();
 				}
 
-				camel_object_ref (obj);
+				g_object_ref (obj);
 
 				/* FIXME: take advantage of LITERAL+? */
 				len = camel_imap4_literal_length (literal);
@@ -352,7 +347,7 @@ camel_imap4_command_newv (CamelIMAP4Engine *engine, CamelIMAP4Folder *imap4_fold
 	ic->user_data = NULL;
 
 	if (imap4_folder) {
-		camel_object_ref (imap4_folder);
+		g_object_ref (imap4_folder);
 		ic->folder = imap4_folder;
 	} else
 		ic->folder = NULL;
@@ -397,7 +392,7 @@ camel_imap4_command_unref (CamelIMAP4Command *ic)
 	ic->ref_count--;
 	if (ic->ref_count == 0) {
 		if (ic->folder)
-			camel_object_unref (ic->folder);
+			g_object_unref (ic->folder);
 
 		g_free (ic->tag);
 
@@ -423,10 +418,10 @@ camel_imap4_command_unref (CamelIMAP4Command *ic)
 					g_free (part->literal->literal.string);
 					break;
 				case CAMEL_IMAP4_LITERAL_STREAM:
-					camel_object_unref (part->literal->literal.stream);
+					g_object_unref (part->literal->literal.stream);
 					break;
 				case CAMEL_IMAP4_LITERAL_WRAPPER:
-					camel_object_unref (part->literal->literal.wrapper);
+					g_object_unref (part->literal->literal.wrapper);
 					break;
 				}
 
@@ -459,9 +454,9 @@ imap4_literal_write_to_stream (CamelIMAP4Literal *literal, CamelStream *stream)
 	}
 
 	crlf = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_ENCODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
-	ostream = (CamelStream *) camel_stream_filter_new_with_stream (stream);
+	ostream = camel_stream_filter_new (stream);
 	camel_stream_filter_add ((CamelStreamFilter *) ostream, crlf);
-	camel_object_unref (crlf);
+	g_object_unref (crlf);
 
 	/* write the literal */
 	switch (literal->type) {
@@ -477,7 +472,7 @@ imap4_literal_write_to_stream (CamelIMAP4Literal *literal, CamelStream *stream)
 		break;
 	}
 
-	camel_object_unref (ostream);
+	g_object_unref (ostream);
 	ostream = NULL;
 
 #if 0
@@ -489,7 +484,7 @@ imap4_literal_write_to_stream (CamelIMAP4Literal *literal, CamelStream *stream)
 
  exception:
 
-	camel_object_unref (ostream);
+	g_object_unref (ostream);
 
 	return -1;
 }

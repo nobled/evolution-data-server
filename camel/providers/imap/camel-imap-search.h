@@ -23,20 +23,33 @@
  *
  */
 
-#ifndef _CAMEL_IMAP_SEARCH_H
-#define _CAMEL_IMAP_SEARCH_H
+#ifndef CAMEL_IMAP_SEARCH_H
+#define CAMEL_IMAP_SEARCH_H
 
-#include <camel/camel-folder-search.h>
-#include <camel/camel-list-utils.h>
-#include <camel/camel-data-cache.h>
+#include <camel/camel.h>
 
-#define CAMEL_IMAP_SEARCH_TYPE         (camel_imap_search_get_type ())
-#define CAMEL_IMAP_SEARCH(obj)         CAMEL_CHECK_CAST (obj, camel_imap_search_get_type (), CamelImapSearch)
-#define CAMEL_IMAP_SEARCH_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_imap_search_get_type (), CamelImapSearchClass)
-#define CAMEL_IS_IMAP_SEARCH(obj)      CAMEL_CHECK_TYPE (obj, camel_imap_search_get_type ())
+/* Standard GObject class */
+#define CAMEL_TYPE_IMAP_SEARCH \
+	(camel_imap_search_get_type ())
+#define CAMEL_IMAP_SEARCH(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP_SEARCH, CamelImapSearch))
+#define CAMEL_IMAP_SEARCH_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP_SEARCH, CamelImapSearchClass))
+#define CAMEL_IS_IMAP_SEARCH(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP_SEARCH))
+#define CAMEL_IS_IMAP_SEARCH_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP_SEARCH))
+#define CAMEL_IMAP_SEARCH_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP_SEARCH, CamelImapSearchClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelImapSearch CamelImapSearch;
 typedef struct _CamelImapSearchClass CamelImapSearchClass;
 
 struct _CamelImapSearch {
@@ -58,9 +71,9 @@ struct _CamelImapSearchClass {
 
 };
 
-CamelType              camel_imap_search_get_type (void);
+GType              camel_imap_search_get_type (void);
 CamelFolderSearch *camel_imap_search_new      (const gchar *cachedir);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_IMAP_SEARCH_H */
+#endif /* CAMEL_IMAP_SEARCH_H */

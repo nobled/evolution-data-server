@@ -48,7 +48,7 @@ test_filter(CamelMimeFilter *f, const gchar *inname, const gchar *outname)
 
 	in = (CamelStreamMem *)camel_stream_mem_new();
 
-	filter = (CamelStream *)camel_stream_filter_new_with_stream(indisk);
+	filter = camel_stream_filter_new (indisk);
 	check_count(indisk, 2);
 	id = camel_stream_filter_add((CamelStreamFilter *)filter, f);
 	check_count(f, 2);
@@ -75,7 +75,7 @@ test_filter(CamelMimeFilter *f, const gchar *inname, const gchar *outname)
 	camel_test_push("writing through filter stream");
 
 	in = (CamelStreamMem *)camel_stream_mem_new();
-	filter = (CamelStream *)camel_stream_filter_new_with_stream((CamelStream *)in);
+	filter = camel_stream_filter_new ((CamelStream *)in);
 	check_count(in, 2);
 	id = camel_stream_filter_add((CamelStreamFilter *)filter, f);
 	check_count(f, 2);

@@ -20,25 +20,46 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_CIPHER_CONTEXT_H
 #define CAMEL_CIPHER_CONTEXT_H
 
-#include <camel/camel-list-utils.h>
-#include <camel/camel-session.h>
 #include <camel/camel-exception.h>
+#include <camel/camel-list-utils.h>
+#include <camel/camel-mime-part.h>
+#include <camel/camel-object.h>
+#include <camel/camel-session.h>
 
-#define CAMEL_CIPHER_CONTEXT_TYPE     (camel_cipher_context_get_type ())
-#define CAMEL_CIPHER_CONTEXT(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_CIPHER_CONTEXT_TYPE, CamelCipherContext))
-#define CAMEL_CIPHER_CONTEXT_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_CIPHER_CONTEXT_TYPE, CamelCipherContextClass))
-#define CAMEL_IS_CIPHER_CONTEXT(o)    (CAMEL_CHECK_TYPE((o), CAMEL_CIPHER_CONTEXT_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_CIPHER_CONTEXT \
+	(camel_cipher_context_get_type ())
+#define CAMEL_CIPHER_CONTEXT(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_CIPHER_CONTEXT, CamelCipherContext))
+#define CAMEL_CIPHER_CONTEXT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_CIPHER_CONTEXT, CamelCipherContextClass))
+#define CAMEL_IS_CIPHER_CONTEXT(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_CIPHER_CONTEXT))
+#define CAMEL_IS_CIPHER_CONTEXT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_CIPHER_CONTEXT))
+#define CAMEL_CIPHER_CONTEXT_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_CIPHER_CONTEXT, CamelCipherContextClass))
 
 G_BEGIN_DECLS
 
-struct _CamelStream;
-struct _CamelMimePart;
-
 typedef struct _CamelCipherValidity CamelCipherValidity;
 typedef struct _CamelCipherCertInfo CamelCipherCertInfo;
+
+typedef struct _CamelCipherContext CamelCipherContext;
+typedef struct _CamelCipherContextClass CamelCipherContextClass;
+typedef struct _CamelCipherContextPrivate CamelCipherContextPrivate;
 
 typedef enum {
 	CAMEL_CIPHER_HASH_DEFAULT,
@@ -99,49 +120,57 @@ struct _CamelCipherValidity {
 	} encrypt;
 };
 
-typedef struct _CamelCipherContext {
-	CamelObject parent_object;
+struct _CamelCipherContext {
+	CamelObject parent;
+	CamelCipherContextPrivate *priv;
+};
 
-	struct _CamelCipherContextPrivate *priv;
-
-	CamelSession *session;
+struct _CamelCipherContextClass {
+	CamelObjectClass parent_class;
 
 	/* these MUST be set by implementors */
 	const gchar *sign_protocol;
 	const gchar *encrypt_protocol;
 	const gchar *key_protocol;
-} CamelCipherContext;
 
-typedef struct _CamelCipherContextClass {
-	CamelObjectClass parent_class;
+	CamelCipherHash	(*id_to_hash)		(CamelCipherContext *context,
+						 const gchar *id);
+	const gchar *	(*hash_to_id)		(CamelCipherContext *context,
+						 CamelCipherHash hash);
+	gint		(*sign)			(CamelCipherContext *context,
+						 const gchar *userid,
+						 CamelCipherHash hash,
+						 CamelMimePart *ipart,
+						 CamelMimePart *opart,
+						 CamelException *ex);
+	CamelCipherValidity *
+			(*verify)		(CamelCipherContext *context,
+						 CamelMimePart *ipart,
+						 CamelException *ex);
+	gint		(*encrypt)		(CamelCipherContext *context,
+						 const gchar *userid,
+						 GPtrArray *recipients,
+						 CamelMimePart *ipart,
+						 CamelMimePart *opart,
+						 CamelException *ex);
+	CamelCipherValidity *
+			(*decrypt)		(CamelCipherContext *context,
+						 CamelMimePart *ipart,
+						 CamelMimePart *opart,
+						 CamelException *ex);
+	gint		(*import_keys)		(CamelCipherContext *context,
+						 CamelStream *istream,
+						 CamelException *ex);
+	gint		(*export_keys)		(CamelCipherContext *context,
+						 GPtrArray *keys,
+						 CamelStream *ostream,
+						 CamelException *ex);
+};
 
-	CamelCipherHash	      (*id_to_hash)(CamelCipherContext *context, const gchar *id);
-	const gchar *	      (*hash_to_id)(CamelCipherContext *context, CamelCipherHash hash);
-
-	gint                   (*sign)      (CamelCipherContext *context, const gchar *userid, CamelCipherHash hash,
-					    struct _CamelMimePart *ipart, struct _CamelMimePart *opart, CamelException *ex);
-
-	CamelCipherValidity * (*verify)    (CamelCipherContext *context, struct _CamelMimePart *ipart, CamelException *ex);
-
-	gint                   (*encrypt)   (CamelCipherContext *context, const gchar *userid,
-					    GPtrArray *recipients, struct _CamelMimePart *ipart, struct _CamelMimePart *opart,
-					    CamelException *ex);
-
-	CamelCipherValidity  *(*decrypt)  (CamelCipherContext *context, struct _CamelMimePart *ipart, struct _CamelMimePart *opart,
-					   CamelException *ex);
-
-	gint                   (*import_keys) (CamelCipherContext *context, struct _CamelStream *istream,
-					      CamelException *ex);
-
-	gint                   (*export_keys) (CamelCipherContext *context, GPtrArray *keys,
-					      struct _CamelStream *ostream, CamelException *ex);
-} CamelCipherContextClass;
-
-CamelType            camel_cipher_context_get_type (void);
-
-CamelCipherContext  *camel_cipher_context_new (CamelSession *session);
-
-void                 camel_cipher_context_construct (CamelCipherContext *context, CamelSession *session);
+GType		camel_cipher_context_get_type	(void);
+CamelCipherContext *
+		camel_cipher_context_new	(CamelSession *session);
+CamelSession *	camel_cipher_context_get_session(CamelCipherContext *context);
 
 /* cipher context util routines */
 CamelCipherHash	     camel_cipher_id_to_hash (CamelCipherContext *context, const gchar *id);
@@ -154,19 +183,19 @@ const gchar *	     camel_cipher_hash_to_id (CamelCipherContext *context, CamelCi
 
 /* cipher routines */
 gint                  camel_cipher_sign (CamelCipherContext *context, const gchar *userid, CamelCipherHash hash,
-					struct _CamelMimePart *ipart, struct _CamelMimePart *opart, CamelException *ex);
-CamelCipherValidity *camel_cipher_verify (CamelCipherContext *context, struct _CamelMimePart *ipart, CamelException *ex);
+					CamelMimePart *ipart, CamelMimePart *opart, CamelException *ex);
+CamelCipherValidity *camel_cipher_verify (CamelCipherContext *context, CamelMimePart *ipart, CamelException *ex);
 gint                  camel_cipher_encrypt (CamelCipherContext *context, const gchar *userid,
-					   GPtrArray *recipients, struct _CamelMimePart *ipart, struct _CamelMimePart *opart,
+					   GPtrArray *recipients, CamelMimePart *ipart, CamelMimePart *opart,
 					   CamelException *ex);
-CamelCipherValidity *camel_cipher_decrypt (CamelCipherContext *context, struct _CamelMimePart *ipart, struct _CamelMimePart *opart,
+CamelCipherValidity *camel_cipher_decrypt (CamelCipherContext *context, CamelMimePart *ipart, CamelMimePart *opart,
 					   CamelException *ex);
 
 /* key/certificate routines */
-gint                  camel_cipher_import_keys (CamelCipherContext *context, struct _CamelStream *istream,
+gint                  camel_cipher_import_keys (CamelCipherContext *context, CamelStream *istream,
 					       CamelException *ex);
 gint                  camel_cipher_export_keys (CamelCipherContext *context, GPtrArray *keys,
-					       struct _CamelStream *ostream, CamelException *ex);
+					       CamelStream *ostream, CamelException *ex);
 
 /* CamelCipherValidity utility functions */
 CamelCipherValidity *camel_cipher_validity_new (void);

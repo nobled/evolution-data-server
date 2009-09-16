@@ -20,15 +20,34 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_VEE_SUMMARY_H
-#define _CAMEL_VEE_SUMMARY_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_VEE_SUMMARY_H
+#define CAMEL_VEE_SUMMARY_H
 
 #include <camel/camel-folder-summary.h>
 #include <camel/camel-exception.h>
 
-#define CAMEL_VEE_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_vee_summary_get_type (), CamelVeeSummary)
-#define CAMEL_VEE_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_vee_summary_get_type (), CamelVeeSummaryClass)
-#define CAMEL_IS_VEE_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_vee_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_VEE_SUMMARY \
+	(camel_vee_summary_get_type ())
+#define CAMEL_VEE_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_VEE_SUMMARY, CamelVeeSummary))
+#define CAMEL_VEE_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_VEE_SUMMARY, CamelVeeSummaryClass))
+#define CAMEL_IS_VEE_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_VEE_SUMMARY))
+#define CAMEL_IS_VEE_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_VEE_SUMMARY))
+#define CAMEL_VEE_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_VEE_SUMMARY, CamelVeeSummaryClass))
 
 G_BEGIN_DECLS
 
@@ -57,7 +76,7 @@ struct _CamelVeeSummaryClass {
 
 };
 
-CamelType               camel_vee_summary_get_type     (void);
+GType               camel_vee_summary_get_type     (void);
 CamelFolderSummary *camel_vee_summary_new(struct _CamelFolder *parent);
 
 CamelVeeMessageInfo * camel_vee_summary_add(CamelVeeSummary *s, CamelFolderSummary *summary, const gchar *uid, const gchar hash[8]);
@@ -66,5 +85,5 @@ void camel_vee_summary_load_check_unread_vfolder  (CamelVeeSummary *vs);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_VEE_SUMMARY_H */
+#endif /* CAMEL_VEE_SUMMARY_H */
 

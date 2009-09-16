@@ -18,22 +18,35 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_SPOOL_SUMMARY_H
-#define _CAMEL_SPOOL_SUMMARY_H
+#ifndef CAMEL_SPOOL_SUMMARY_H
+#define CAMEL_SPOOL_SUMMARY_H
 
-#include <camel/camel-folder-summary.h>
-#include <camel/camel-folder.h>
-#include <camel/camel-exception.h>
-#include <camel/camel-index.h>
+#include <camel/camel.h>
+
 #include "camel-mbox-summary.h"
 
-#define CAMEL_SPOOL_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_spool_summary_get_type (), CamelSpoolSummary)
-#define CAMEL_SPOOL_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_spool_summary_get_type (), CamelSpoolSummaryClass)
-#define CAMEL_IS_SPOOL_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_spool_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_SPOOL_SUMMARY \
+	(camel_spool_summary_get_type ())
+#define CAMEL_SPOOL_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SPOOL_SUMMARY, CamelSpoolSummary))
+#define CAMEL_SPOOL_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SPOOL_SUMMARY, CamelSpoolSummaryClass))
+#define CAMEL_IS_SPOOL_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SPOOL_SUMMARY))
+#define CAMEL_IS_SPOOL_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SPOOL_SUMMARY))
+#define CAMEL_SPOOL_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SPOOL_SUMMARY, CamelSpoolSummaryClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelSpoolSummary      CamelSpoolSummary;
+typedef struct _CamelSpoolSummary CamelSpoolSummary;
 typedef struct _CamelSpoolSummaryClass CamelSpoolSummaryClass;
 
 struct _CamelSpoolSummary {
@@ -45,7 +58,7 @@ struct _CamelSpoolSummaryClass {
 	CamelMboxSummaryClass parent_class;
 };
 
-CamelType	camel_spool_summary_get_type	(void);
+GType	camel_spool_summary_get_type	(void);
 void	camel_spool_summary_construct	(CamelSpoolSummary *new, const gchar *filename, const gchar *spool_name, CamelIndex *index);
 
 /* create the summary, in-memory only */
@@ -69,4 +82,4 @@ gint camel_spool_summary_write_headers(gint fd, struct _camel_header_raw *header
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_SPOOL_SUMMARY_H */
+#endif /* CAMEL_SPOOL_SUMMARY_H */

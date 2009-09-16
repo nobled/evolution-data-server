@@ -20,31 +20,43 @@
  */
 
 #ifndef CAMEL_MBOX_STORE_H
-#define CAMEL_MBOX_STORE_H 1
+#define CAMEL_MBOX_STORE_H
 
 #include "camel-local-store.h"
 
-#define CAMEL_MBOX_STORE_TYPE     (camel_mbox_store_get_type ())
-#define CAMEL_MBOX_STORE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_MBOX_STORE_TYPE, CamelMboxStore))
-#define CAMEL_MBOX_STORE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_MBOX_STORE_TYPE, CamelMboxStoreClass))
-#define CAMEL_IS_MBOX_STORE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_MBOX_STORE_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_MBOX_STORE \
+	(camel_mbox_store_get_type ())
+#define CAMEL_MBOX_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MBOX_STORE, CamelMboxStore))
+#define CAMEL_MBOX_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MBOX_STORE, CamelMboxStoreClass))
+#define CAMEL_IS_MBOX_STORE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MBOX_STORE))
+#define CAMEL_IS_MBOX_STORE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MBOX_STORE))
+#define CAMEL_MBOX_STORE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MBOX_STORE, CamelMboxStoreClass))
 
 G_BEGIN_DECLS
 
-typedef struct {
-	CamelLocalStore parent_object;
+typedef struct _CamelMboxStore CamelMboxStore;
+typedef struct _CamelMboxStoreClass CamelMboxStoreClass;
 
-} CamelMboxStore;
+struct _CamelMboxStore {
+	CamelLocalStore parent;
+};
 
-typedef struct {
+struct _CamelMboxStoreClass {
 	CamelLocalStoreClass parent_class;
+};
 
-} CamelMboxStoreClass;
-
-/* public methods */
-
-/* Standard Camel function */
-CamelType camel_mbox_store_get_type (void);
+GType camel_mbox_store_get_type (void);
 
 G_END_DECLS
 

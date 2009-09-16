@@ -34,78 +34,54 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-data-wrapper.h"
-#include "camel-exception.h"
-#include "camel-file-utils.h"
-#include "camel-local-private.h"
-#include "camel-lock-client.h"
-#include "camel-mime-filter-from.h"
-#include "camel-mime-message.h"
-#include "camel-session.h"
-#include "camel-stream-filter.h"
-#include "camel-stream-fs.h"
-
 #include "camel-spool-folder.h"
 #include "camel-spool-store.h"
 #include "camel-spool-summary.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
-static CamelFolderClass *parent_class = NULL;
-
-/* Returns the class for a CamelSpoolFolder */
-#define CSPOOLF_CLASS(so) CAMEL_SPOOL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CSPOOLS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static CamelLocalSummary *spool_create_summary(CamelLocalFolder *lf, const gchar *path, const gchar *folder, CamelIndex *index);
 
 static gint spool_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
 static void spool_unlock(CamelLocalFolder *lf);
 
-static void spool_finalize(CamelObject * object);
-
 static void
-camel_spool_folder_class_init(CamelSpoolFolderClass *klass)
+spool_folder_class_init (CamelSpoolFolderClass *class)
 {
-	CamelLocalFolderClass *lklass = (CamelLocalFolderClass *)klass;
+	CamelLocalFolderClass *local_folder_class;
 
-	parent_class = (CamelFolderClass *)camel_mbox_folder_get_type();
+	parent_class = g_type_class_peek_parent (class);
 
-	lklass->create_summary = spool_create_summary;
-	lklass->lock = spool_lock;
-	lklass->unlock = spool_unlock;
+	local_folder_class = CAMEL_LOCAL_FOLDER_CLASS (class);
+	local_folder_class->create_summary = spool_create_summary;
+	local_folder_class->lock = spool_lock;
+	local_folder_class->unlock = spool_unlock;
 }
 
 static void
-spool_init(gpointer object, gpointer klass)
+spool_folder_init (CamelSpoolFolder *spool_folder)
 {
-	CamelSpoolFolder *spool_folder = object;
-
 	spool_folder->lockid = -1;
 }
 
-static void
-spool_finalize(CamelObject * object)
+GType
+camel_spool_folder_get_type (void)
 {
-	/*CamelSpoolFolder *spool_folder = CAMEL_SPOOL_FOLDER(object);*/
-}
+	static GType type = G_TYPE_INVALID;
 
-CamelType camel_spool_folder_get_type(void)
-{
-	static CamelType camel_spool_folder_type = CAMEL_INVALID_TYPE;
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MBOX_FOLDER,
+			"CamelSpoolFolder",
+			sizeof (CamelSpoolFolderClass),
+			(GClassInitFunc) spool_folder_class_init,
+			sizeof (CamelSpoolFolder),
+			(GInstanceInitFunc) spool_folder_init,
+			0);
 
-	if (camel_spool_folder_type == CAMEL_INVALID_TYPE) {
-		camel_spool_folder_type = camel_type_register(camel_mbox_folder_get_type(), "CamelSpoolFolder",
-							     sizeof(CamelSpoolFolder),
-							     sizeof(CamelSpoolFolderClass),
-							     (CamelObjectClassInitFunc) camel_spool_folder_class_init,
-							     NULL,
-							     (CamelObjectInitFunc) spool_init,
-							     (CamelObjectFinalizeFunc) spool_finalize);
-	}
-
-	return camel_spool_folder_type;
+	return type;
 }
 
 CamelFolder *
@@ -115,7 +91,7 @@ camel_spool_folder_new(CamelStore *parent_store, const gchar *full_name, guint32
 
 	d(printf("Creating spool folder: %s in %s\n", full_name, camel_local_store_get_toplevel_dir((CamelLocalStore *)parent_store)));
 
-	folder = (CamelFolder *)camel_object_new(CAMEL_SPOOL_FOLDER_TYPE);
+	folder = g_object_new (CAMEL_TYPE_SPOOL_FOLDER, NULL);
 
 	if (parent_store->flags & CAMEL_STORE_FILTER_INBOX
 	    && strcmp(full_name, "INBOX") == 0)

@@ -26,94 +26,55 @@
 
 #define d(x)
 
-static gint    nntp_decode		(CamelAddress *, const gchar *raw);
-static gchar * nntp_encode		(CamelAddress *);
-static gint    nntp_cat		(CamelAddress *dest, const CamelAddress *source);
-static void   nntp_remove		(CamelAddress *, gint index);
+static gint    nntp_address_decode		(CamelAddress *, const gchar *raw);
+static gchar * nntp_address_encode		(CamelAddress *);
+static gint    nntp_address_cat		(CamelAddress *dest, CamelAddress *source);
+static void   nntp_address_remove		(CamelAddress *, gint index);
 
-static void camel_nntp_address_class_init (CamelNNTPAddressClass *klass);
-static void camel_nntp_address_init       (CamelNNTPAddress *obj);
-
-static CamelAddressClass *camel_nntp_address_parent;
+static gpointer parent_class;
 
 struct _address {
 	gchar *name;
 	gchar *address;
 };
 
-static void
-camel_nntp_address_class_init(CamelNNTPAddressClass *klass)
-{
-	CamelAddressClass *address = (CamelAddressClass *) klass;
-
-	camel_nntp_address_parent = CAMEL_ADDRESS_CLASS(camel_type_get_global_classfuncs(camel_address_get_type()));
-
-	address->decode = nntp_decode;
-	address->encode = nntp_encode;
-	address->unformat = nntp_decode;
-	address->format = nntp_encode;
-	address->remove = nntp_remove;
-	address->cat = nntp_cat;
-}
-
-static void
-camel_nntp_address_init(CamelNNTPAddress *obj)
-{
-}
-
-CamelType
-camel_nntp_address_get_type(void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(camel_address_get_type(), "CamelNNTPAddress",
-					   sizeof (CamelNNTPAddress),
-					   sizeof (CamelNNTPAddressClass),
-					   (CamelObjectClassInitFunc) camel_nntp_address_class_init,
-					   NULL,
-					   (CamelObjectInitFunc) camel_nntp_address_init,
-					   NULL);
-	}
-
-	return type;
-}
-
 /* since newsgropus are 7bit ascii, decode/unformat are the same */
 static gint
-nntp_decode(CamelAddress *a, const gchar *raw)
+nntp_address_decode (CamelAddress *address,
+                     const gchar *raw)
 {
 	struct _camel_header_newsgroup *ha, *n;
-	gint count = a->addresses->len;
+	gint count = address->addresses->len;
 
 	ha = camel_header_newsgroups_decode(raw);
 	if (ha) {
 		for (n = ha;n;n=n->next)
-			camel_nntp_address_add((CamelNNTPAddress *)a, n->newsgroup);
+			camel_nntp_address_add (
+				CAMEL_NNTP_ADDRESS (address), n->newsgroup);
 		camel_header_newsgroups_free(ha);
 	}
 
-	return a->addresses->len - count;
+	return address->addresses->len - count;
 }
 
 /* since newsgropus are 7bit ascii, encode/format are the same */
 static gchar *
-nntp_encode(CamelAddress *a)
+nntp_address_encode (CamelAddress *address)
 {
 	gint i;
 	GString *out;
 	gchar *ret;
 
-	if (a->addresses->len == 0)
+	if (address->addresses->len == 0)
 		return NULL;
 
 	out = g_string_new("");
 
-	for (i = 0;i < a->addresses->len; i++) {
+	for (i = 0;i < address->addresses->len; i++) {
 		if (i != 0)
 			g_string_append(out, ", ");
 
-		g_string_append(out, g_ptr_array_index(a->addresses, i));
+		g_string_append(out, g_ptr_array_index(address->addresses, i));
 	}
 
 	ret = out->str;
@@ -123,26 +84,64 @@ nntp_encode(CamelAddress *a)
 }
 
 static gint
-nntp_cat (CamelAddress *dest, const CamelAddress *source)
+nntp_address_cat (CamelAddress *dest,
+                  CamelAddress *source)
 {
-	gint i;
+	gint ii;
 
 	g_assert(CAMEL_IS_NNTP_ADDRESS(source));
 
-	for (i=0;i<source->addresses->len;i++)
-		camel_nntp_address_add((CamelNNTPAddress *)dest, g_ptr_array_index(source->addresses, i));
+	for (ii = 0; ii < source->addresses->len; ii++)
+		camel_nntp_address_add (
+			CAMEL_NNTP_ADDRESS (dest),
+			g_ptr_array_index (source->addresses, ii));
 
-	return i;
+	return ii;
 }
 
 static void
-nntp_remove	(CamelAddress *a, gint index)
+nntp_address_remove (CamelAddress *address,
+                     gint index)
 {
-	if (index < 0 || index >= a->addresses->len)
+	if (index < 0 || index >= address->addresses->len)
 		return;
 
-	g_free(g_ptr_array_index(a->addresses, index));
-	g_ptr_array_remove_index(a->addresses, index);
+	g_free (g_ptr_array_index (address->addresses, index));
+	g_ptr_array_remove_index (address->addresses, index);
+}
+
+static void
+nntp_address_class_init(CamelNNTPAddressClass *class)
+{
+	CamelAddressClass *address_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	address_class = CAMEL_ADDRESS_CLASS (class);
+	address_class->decode = nntp_address_decode;
+	address_class->encode = nntp_address_encode;
+	address_class->unformat = nntp_address_decode;
+	address_class->format = nntp_address_encode;
+	address_class->remove = nntp_address_remove;
+	address_class->cat = nntp_address_cat;
+}
+
+GType
+camel_nntp_address_get_type(void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_ADDRESS,
+			"CamelNNTPAddress",
+			sizeof (CamelNNTPAddressClass),
+			(GClassInitFunc) nntp_address_class_init,
+			sizeof (CamelNNTPAddress),
+			(GInstanceInitFunc) NULL,
+			0);
+
+	return type;
 }
 
 /**
@@ -155,8 +154,7 @@ nntp_remove	(CamelAddress *a, gint index)
 CamelNNTPAddress *
 camel_nntp_address_new (void)
 {
-	CamelNNTPAddress *new = CAMEL_NNTP_ADDRESS(camel_object_new(camel_nntp_address_get_type()));
-	return new;
+	return g_object_new (CAMEL_TYPE_NNTP_ADDRESS, NULL);
 }
 
 /**

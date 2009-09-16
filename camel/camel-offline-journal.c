@@ -33,7 +33,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
@@ -46,55 +45,58 @@
 
 #define d(x)
 
-static void camel_offline_journal_class_init (CamelOfflineJournalClass *klass);
-static void camel_offline_journal_init (CamelOfflineJournal *journal, CamelOfflineJournalClass *klass);
-static void camel_offline_journal_finalize (CamelObject *object);
-
-static CamelObjectClass *parent_class = NULL;
-
-CamelType
-camel_offline_journal_get_type (void)
-{
-	static CamelType type = NULL;
-
-	if (!type) {
-		type = camel_type_register (camel_object_get_type (),
-					    "CamelOfflineJournal",
-					    sizeof (CamelOfflineJournal),
-					    sizeof (CamelOfflineJournalClass),
-					    (CamelObjectClassInitFunc) camel_offline_journal_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_offline_journal_init,
-					    (CamelObjectFinalizeFunc) camel_offline_journal_finalize);
-	}
-
-	return type;
-}
+static gpointer parent_class;
 
 static void
-camel_offline_journal_class_init (CamelOfflineJournalClass *klass)
+offline_journal_finalize (GObject *object)
 {
-	parent_class = camel_type_get_global_classfuncs (CAMEL_OBJECT_TYPE);
-}
-
-static void
-camel_offline_journal_init (CamelOfflineJournal *journal, CamelOfflineJournalClass *klass)
-{
-	journal->folder = NULL;
-	journal->filename = NULL;
-	camel_dlist_init (&journal->queue);
-}
-
-static void
-camel_offline_journal_finalize (CamelObject *object)
-{
-	CamelOfflineJournal *journal = (CamelOfflineJournal *) object;
+	CamelOfflineJournal *journal = CAMEL_OFFLINE_JOURNAL (object);
 	CamelDListNode *entry;
 
 	g_free (journal->filename);
 
 	while ((entry = camel_dlist_remhead (&journal->queue)))
 		CAMEL_OFFLINE_JOURNAL_GET_CLASS (journal)->entry_free (journal, entry);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+offline_journal_class_init (CamelOfflineJournalClass *class)
+{
+	GObjectClass *object_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = offline_journal_finalize;
+}
+
+static void
+offline_journal_init (CamelOfflineJournal *journal)
+{
+	journal->folder = NULL;
+	journal->filename = NULL;
+	camel_dlist_init (&journal->queue);
+}
+
+GType
+camel_offline_journal_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelOfflineJournal",
+			sizeof (CamelOfflineJournalClass),
+			(GClassInitFunc) offline_journal_class_init,
+			sizeof (CamelOfflineJournal),
+			(GInstanceInitFunc) offline_journal_init,
+			0);
+
+	return type;
 }
 
 /**

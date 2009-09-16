@@ -47,7 +47,7 @@ gint main(gint argc, gchar **argv)
 		g_free(path);
 	}
 
-	camel_object_unref((CamelObject *)session);
+	g_object_unref (session);
 	camel_exception_free(ex);
 
 	return 0;

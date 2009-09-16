@@ -41,7 +41,6 @@
 #include <alloca.h>
 #endif
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-exception.h"
@@ -453,7 +452,7 @@ camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex)
 	gchar *buffer;
 	gint len;
 	gint sfd;
-	CamelMimeFilterFrom *ffrom;
+	CamelMimeFilter *ffrom;
 	gint ret = 1;
 	gchar *from = NULL;
 
@@ -509,7 +508,7 @@ camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex)
 				newpos = length+body;
 			}
 			/* copy body->length converting From lines */
-			if (camel_movemail_copy_filter(sfd, dfd, body, length, (CamelMimeFilter *)ffrom) == -1)
+			if (camel_movemail_copy_filter(sfd, dfd, body, length, ffrom) == -1)
 				goto fail;
 			if (newpos != -1)
 				camel_mime_parser_seek(mp, newpos, SEEK_SET);
@@ -519,8 +518,8 @@ camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex)
 		g_free(from);
 	}
 
-	camel_object_unref((CamelObject *)mp);
-	camel_object_unref((CamelObject *)ffrom);
+	g_object_unref (mp);
+	g_object_unref (ffrom);
 
 	return ret;
 
@@ -531,8 +530,8 @@ fail:
 			      _("Error copying mail temp file: %s"),
 			      g_strerror (errno));
 
-	camel_object_unref((CamelObject *)mp);
-	camel_object_unref((CamelObject *)ffrom);
+	g_object_unref (mp);
+	g_object_unref (ffrom);
 
 	return -1;
 }

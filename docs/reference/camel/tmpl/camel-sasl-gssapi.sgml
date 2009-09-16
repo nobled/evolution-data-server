@@ -22,8 +22,6 @@ CamelSaslGssapi
 
 </para>
 
-@parent_object: 
-@priv: 
 
 <!-- ##### VARIABLE camel_sasl_gssapi_authtype ##### -->
 <para>

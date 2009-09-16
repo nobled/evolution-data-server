@@ -23,11 +23,14 @@
  * USA
  */
 
-#ifndef CAMEL_URL_H
-#define CAMEL_URL_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <glib.h>
-#include <camel/camel-types.h>
+#ifndef CAMEL_URL_H
+#define CAMEL_URL_H
+
+#include <camel/camel-exception.h>
 
 G_BEGIN_DECLS
 

@@ -22,8 +22,6 @@ CamelDigestFolder
 
 </para>
 
-@parent: 
-@priv: 
 
 <!-- ##### FUNCTION camel_digest_folder_new ##### -->
 <para>

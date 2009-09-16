@@ -22,8 +22,11 @@ CamelGpgContext
 
 </para>
 
-@parent_object: 
-@always_trust: 
+
+<!-- ##### ARG CamelGpgContext:always-trust ##### -->
+<para>
+
+</para>
 
 <!-- ##### FUNCTION camel_gpg_context_new ##### -->
 <para>
@@ -34,12 +37,21 @@ CamelGpgContext
 @Returns: 
 
 
+<!-- ##### FUNCTION camel_gpg_context_get_always_trust ##### -->
+<para>
+
+</para>
+
+@context: 
+@Returns: 
+
+
 <!-- ##### FUNCTION camel_gpg_context_set_always_trust ##### -->
 <para>
 
 </para>
 
-@ctx: 
-@trust: 
+@context: 
+@always_trust: 
 
 

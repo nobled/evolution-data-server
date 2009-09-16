@@ -26,7 +26,6 @@
 
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-internet-address.h"
@@ -41,76 +40,12 @@ CamelServiceAuthType camel_sasl_anonymous_authtype = {
 	FALSE
 };
 
-static CamelSaslClass *parent_class = NULL;
-
-/* Returns the class for a CamelSaslAnonymous */
-#define CSA_CLASS(so) CAMEL_SASL_ANONYMOUS_CLASS (CAMEL_OBJECT_GET_CLASS (so))
-
-static GByteArray *anon_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex);
-
-static void
-camel_sasl_anonymous_class_init (CamelSaslAnonymousClass *camel_sasl_anonymous_class)
-{
-	CamelSaslClass *camel_sasl_class = CAMEL_SASL_CLASS (camel_sasl_anonymous_class);
-
-	parent_class = CAMEL_SASL_CLASS (camel_type_get_global_classfuncs (camel_sasl_get_type ()));
-
-	/* virtual method overload */
-	camel_sasl_class->challenge = anon_challenge;
-}
-
-static void
-camel_sasl_anonymous_finalize (CamelObject *object)
-{
-	CamelSaslAnonymous *sasl = CAMEL_SASL_ANONYMOUS (object);
-
-	g_free (sasl->trace_info);
-}
-
-CamelType
-camel_sasl_anonymous_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_sasl_get_type (),
-					    "CamelSaslAnonymous",
-					    sizeof (CamelSaslAnonymous),
-					    sizeof (CamelSaslAnonymousClass),
-					    (CamelObjectClassInitFunc) camel_sasl_anonymous_class_init,
-					    NULL,
-					    NULL,
-					    (CamelObjectFinalizeFunc) camel_sasl_anonymous_finalize);
-	}
-
-	return type;
-}
-
-/**
- * camel_sasl_anonymous_new:
- * @type: trace type
- * @trace_info: trace info
- *
- * Create a new #CamelSaslAnonymous object.
- *
- * Returns: a new #CamelSasl object
- **/
-CamelSasl *
-camel_sasl_anonymous_new (CamelSaslAnonTraceType type, const gchar *trace_info)
-{
-	CamelSaslAnonymous *sasl_anon;
-
-	if (!trace_info && type != CAMEL_SASL_ANON_TRACE_EMPTY) return NULL;
-
-	sasl_anon = CAMEL_SASL_ANONYMOUS (camel_object_new (camel_sasl_anonymous_get_type ()));
-	sasl_anon->trace_info = g_strdup (trace_info);
-	sasl_anon->type = type;
-
-	return CAMEL_SASL (sasl_anon);
-}
+static gpointer parent_class;
 
 static GByteArray *
-anon_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
+sasl_anonymous_challenge (CamelSasl *sasl,
+                          GByteArray *token,
+                          CamelException *ex)
 {
 	CamelSaslAnonymous *sasl_anon = CAMEL_SASL_ANONYMOUS (sasl);
 	CamelInternetAddress *cia;
@@ -129,10 +64,10 @@ anon_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 			camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_CANT_AUTHENTICATE,
 					      _("Invalid email address trace information:\n%s"),
 					      sasl_anon->trace_info);
-			camel_object_unref (cia);
+			g_object_unref (cia);
 			return NULL;
 		}
-		camel_object_unref (cia);
+		g_object_unref (cia);
 		ret = g_byte_array_new ();
 		g_byte_array_append (ret, (guint8 *) sasl_anon->trace_info, strlen (sasl_anon->trace_info));
 		break;
@@ -156,6 +91,74 @@ anon_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 		return NULL;
 	}
 
-	sasl->authenticated = TRUE;
+	camel_sasl_set_authenticated (sasl, TRUE);
 	return ret;
+}
+
+static void
+sasl_anonymous_finalize (GObject *object)
+{
+	CamelSaslAnonymous *sasl = CAMEL_SASL_ANONYMOUS (object);
+
+	g_free (sasl->trace_info);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+sasl_anonymous_class_init (CamelSaslAnonymousClass *class)
+{
+	GObjectClass *object_class;
+	CamelSaslClass *sasl_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = sasl_anonymous_finalize;
+
+	sasl_class = CAMEL_SASL_CLASS (class);
+	sasl_class->challenge = sasl_anonymous_challenge;
+}
+
+GType
+camel_sasl_anonymous_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SASL,
+			"CamelSaslAnonymous",
+			sizeof (CamelSaslAnonymousClass),
+			(GClassInitFunc) sasl_anonymous_class_init,
+			sizeof (CamelSaslAnonymous),
+			(GInstanceInitFunc) NULL,
+			0);
+
+	return type;
+}
+
+/**
+ * camel_sasl_anonymous_new:
+ * @type: trace type
+ * @trace_info: trace info
+ *
+ * Create a new #CamelSaslAnonymous object.
+ *
+ * Returns: a new #CamelSasl object
+ **/
+CamelSasl *
+camel_sasl_anonymous_new (CamelSaslAnonTraceType type, const gchar *trace_info)
+{
+	CamelSaslAnonymous *sasl_anon;
+
+	if (!trace_info && type != CAMEL_SASL_ANON_TRACE_EMPTY)
+		return NULL;
+
+	sasl_anon = g_object_new (CAMEL_TYPE_SASL_ANONYMOUS, NULL);
+	sasl_anon->trace_info = g_strdup (trace_info);
+	sasl_anon->type = type;
+
+	return CAMEL_SASL (sasl_anon);
 }

@@ -24,176 +24,67 @@
 #include "camel-mime-filter-basic.h"
 #include "camel-mime-utils.h"
 
-static void reset(CamelMimeFilter *mf);
-static void complete(CamelMimeFilter *mf, const gchar *in, gsize len,
-		     gsize prespace, gchar **out,
-		     gsize *outlen, gsize *outprespace);
-static void filter(CamelMimeFilter *mf, const gchar *in, gsize len,
-		   gsize prespace, gchar **out,
-		   gsize *outlen, gsize *outprespace);
+#define CAMEL_MIME_FILTER_BASIC_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_MIME_FILTER_BASIC, CamelMimeFilterBasicPrivate))
 
-static void camel_mime_filter_basic_class_init (CamelMimeFilterBasicClass *klass);
-static void camel_mime_filter_basic_init       (CamelMimeFilterBasic *obj);
+struct _CamelMimeFilterBasicPrivate {
+	CamelMimeFilterBasicType type;
+	guchar uubuf[60];
+	gint state;
+	gint save;
+};
 
-static CamelMimeFilterClass *camel_mime_filter_basic_parent;
-
-static void
-camel_mime_filter_basic_class_init (CamelMimeFilterBasicClass *klass)
-{
-	CamelMimeFilterClass *filter_class = (CamelMimeFilterClass *) klass;
-
-	camel_mime_filter_basic_parent = CAMEL_MIME_FILTER_CLASS(camel_type_get_global_classfuncs (camel_mime_filter_get_type ()));
-
-	filter_class->reset = reset;
-	filter_class->filter = filter;
-	filter_class->complete = complete;
-}
-
-static void
-camel_mime_filter_basic_init (CamelMimeFilterBasic *obj)
-{
-	obj->state = 0;
-	obj->save = 0;
-}
-
-CamelType
-camel_mime_filter_basic_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_mime_filter_get_type (), "CamelMimeFilterBasic",
-					    sizeof (CamelMimeFilterBasic),
-					    sizeof (CamelMimeFilterBasicClass),
-					    (CamelObjectClassInitFunc) camel_mime_filter_basic_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_mime_filter_basic_init,
-					    NULL);
-	}
-
-	return type;
-}
-
-/* should this 'flush' outstanding state/data bytes? */
-static void
-reset(CamelMimeFilter *mf)
-{
-	CamelMimeFilterBasic *f = (CamelMimeFilterBasic *)mf;
-
-	switch (f->type) {
-	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
-		f->state = -1;
-		break;
-	default:
-		f->state = 0;
-	}
-	f->save = 0;
-}
-
-static void
-complete(CamelMimeFilter *mf, const gchar *in, gsize len, gsize prespace, gchar **out, gsize *outlen, gsize *outprespace)
-{
-	CamelMimeFilterBasic *f = (CamelMimeFilterBasic *)mf;
-	gsize newlen = 0;
-
-	switch (f->type) {
-	case CAMEL_MIME_FILTER_BASIC_BASE64_ENC:
-		/* wont go to more than 2x size (overly conservative) */
-		camel_mime_filter_set_size(mf, len*2+6, FALSE);
-		if (len > 0)
-			newlen += g_base64_encode_step((const guchar *) in, len, TRUE, mf->outbuf, &f->state, &f->save);
-		newlen += g_base64_encode_close(TRUE, mf->outbuf, &f->state, &f->save);
-		g_assert(newlen <= len*2+6);
-		break;
-	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
-		/* *4 is definetly more than needed ... */
-		camel_mime_filter_set_size(mf, len*4+4, FALSE);
-		newlen = camel_quoted_encode_close((guchar *) in, len, (guchar *) mf->outbuf, &f->state, &f->save);
-		g_assert(newlen <= len*4+4);
-		break;
-	case CAMEL_MIME_FILTER_BASIC_UU_ENC:
-		/* won't go to more than 2 * (x + 2) + 62 */
-		camel_mime_filter_set_size (mf, (len + 2) * 2 + 62, FALSE);
-		newlen = camel_uuencode_close ((guchar *) in, len, (guchar *) mf->outbuf, f->uubuf, &f->state, (guint32 *) &f->save);
-		g_assert (newlen <= (len + 2) * 2 + 62);
-		break;
-	case CAMEL_MIME_FILTER_BASIC_BASE64_DEC:
-		/* output can't possibly exceed the input size */
-		camel_mime_filter_set_size(mf, len, FALSE);
-		newlen = g_base64_decode_step(in, len, (guchar *) mf->outbuf, &f->state, (guint *) &f->save);
-		g_assert(newlen <= len);
-		break;
-	case CAMEL_MIME_FILTER_BASIC_QP_DEC:
-		/* output can't possibly exceed the input size, well unless its not really qp, then +2 max */
-		camel_mime_filter_set_size(mf, len+2, FALSE);
-		newlen = camel_quoted_decode_step((guchar *) in, len, (guchar *) mf->outbuf, &f->state, (gint *) &f->save);
-		g_assert(newlen <= len+2);
-		break;
-	case CAMEL_MIME_FILTER_BASIC_UU_DEC:
-		if ((f->state & CAMEL_UUDECODE_STATE_BEGIN) && !(f->state & CAMEL_UUDECODE_STATE_END)) {
-			/* "begin <mode> <filename>\n" has been found, so we can now start decoding */
-			camel_mime_filter_set_size (mf, len + 3, FALSE);
-			newlen = camel_uudecode_step ((guchar *) in, len, (guchar *) mf->outbuf, &f->state, (guint32 *) &f->save);
-		} else {
-			newlen = 0;
-		}
-		break;
-	default:
-		g_warning ("unknown type %u in CamelMimeFilterBasic", f->type);
-		goto donothing;
-	}
-
-	*out = mf->outbuf;
-	*outlen = newlen;
-	*outprespace = mf->outpre;
-
-	return;
-donothing:
-	*out = (gchar *) in;
-	*outlen = len;
-	*outprespace = prespace;
-}
+static gpointer parent_class;
 
 /* here we do all of the basic mime filtering */
 static void
-filter(CamelMimeFilter *mf, const gchar *in, gsize len, gsize prespace, gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_basic_filter (CamelMimeFilter *mime_filter,
+                          const gchar *in,
+                          gsize len,
+                          gsize prespace,
+                          gchar **out,
+                          gsize *outlen,
+                          gsize *outprespace)
 {
-	CamelMimeFilterBasic *f = (CamelMimeFilterBasic *)mf;
+	CamelMimeFilterBasicPrivate *priv;
 	gsize newlen;
 
-	switch (f->type) {
+	priv = CAMEL_MIME_FILTER_BASIC_GET_PRIVATE (mime_filter);
+
+	switch (priv->type) {
 	case CAMEL_MIME_FILTER_BASIC_BASE64_ENC:
 		/* wont go to more than 2x size (overly conservative) */
-		camel_mime_filter_set_size(mf, len*2+6, FALSE);
-		newlen = g_base64_encode_step((const guchar *) in, len, TRUE, mf->outbuf, &f->state, &f->save);
+		camel_mime_filter_set_size(mime_filter, len*2+6, FALSE);
+		newlen = g_base64_encode_step((const guchar *) in, len, TRUE, mime_filter->outbuf, &priv->state, &priv->save);
 		g_assert(newlen <= len*2+6);
 		break;
 	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
 		/* *4 is overly conservative, but will do */
-		camel_mime_filter_set_size(mf, len*4+4, FALSE);
-		newlen = camel_quoted_encode_step((guchar *) in, len, (guchar *) mf->outbuf, &f->state, (gint *) &f->save);
+		camel_mime_filter_set_size(mime_filter, len*4+4, FALSE);
+		newlen = camel_quoted_encode_step((guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, (gint *) &priv->save);
 		g_assert(newlen <= len*4+4);
 		break;
 	case CAMEL_MIME_FILTER_BASIC_UU_ENC:
 		/* won't go to more than 2 * (x + 2) + 62 */
-		camel_mime_filter_set_size (mf, (len + 2) * 2 + 62, FALSE);
-		newlen = camel_uuencode_step ((guchar *) in, len, (guchar *) mf->outbuf, f->uubuf, &f->state, (guint32 *) &f->save);
+		camel_mime_filter_set_size (mime_filter, (len + 2) * 2 + 62, FALSE);
+		newlen = camel_uuencode_step ((guchar *) in, len, (guchar *) mime_filter->outbuf, priv->uubuf, &priv->state, (guint32 *) &priv->save);
 		g_assert (newlen <= (len + 2) * 2 + 62);
 		break;
 	case CAMEL_MIME_FILTER_BASIC_BASE64_DEC:
 		/* output can't possibly exceed the input size */
-		camel_mime_filter_set_size(mf, len+3, FALSE);
-		newlen = g_base64_decode_step(in, len, (guchar *) mf->outbuf, &f->state, (guint *) &f->save);
+		camel_mime_filter_set_size(mime_filter, len+3, FALSE);
+		newlen = g_base64_decode_step(in, len, (guchar *) mime_filter->outbuf, &priv->state, (guint *) &priv->save);
 		g_assert(newlen <= len+3);
 		break;
 	case CAMEL_MIME_FILTER_BASIC_QP_DEC:
 		/* output can't possibly exceed the input size */
-		camel_mime_filter_set_size(mf, len + 2, FALSE);
-		newlen = camel_quoted_decode_step((guchar *) in, len, (guchar *) mf->outbuf, &f->state, (gint *) &f->save);
+		camel_mime_filter_set_size(mime_filter, len + 2, FALSE);
+		newlen = camel_quoted_decode_step((guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, (gint *) &priv->save);
 		g_assert(newlen <= len + 2);
 		break;
 	case CAMEL_MIME_FILTER_BASIC_UU_DEC:
-		if (!(f->state & CAMEL_UUDECODE_STATE_BEGIN)) {
+		if (!(priv->state & CAMEL_UUDECODE_STATE_BEGIN)) {
 			const gchar *inptr, *inend;
 			gsize left;
 
@@ -204,18 +95,18 @@ filter(CamelMimeFilter *mf, const gchar *in, gsize len, gsize prespace, gchar **
 				left = inend - inptr;
 				if (left < 6) {
 					if (!strncmp (inptr, "begin ", left))
-						camel_mime_filter_backup (mf, inptr, left);
+						camel_mime_filter_backup (mime_filter, inptr, left);
 					break;
 				} else if (!strncmp (inptr, "begin ", 6)) {
 					for (in = inptr; inptr < inend && *inptr != '\n'; inptr++);
 					if (inptr < inend) {
 						inptr++;
-						f->state |= CAMEL_UUDECODE_STATE_BEGIN;
+						priv->state |= CAMEL_UUDECODE_STATE_BEGIN;
 						/* we can start uudecoding... */
 						in = inptr;
 						len = inend - in;
 					} else {
-						camel_mime_filter_backup (mf, in, left);
+						camel_mime_filter_backup (mime_filter, in, left);
 					}
 					break;
 				}
@@ -228,22 +119,22 @@ filter(CamelMimeFilter *mf, const gchar *in, gsize len, gsize prespace, gchar **
 			}
 		}
 
-		if ((f->state & CAMEL_UUDECODE_STATE_BEGIN) && !(f->state & CAMEL_UUDECODE_STATE_END)) {
+		if ((priv->state & CAMEL_UUDECODE_STATE_BEGIN) && !(priv->state & CAMEL_UUDECODE_STATE_END)) {
 			/* "begin <mode> <filename>\n" has been found, so we can now start decoding */
-			camel_mime_filter_set_size (mf, len + 3, FALSE);
-			newlen = camel_uudecode_step ((guchar *) in, len, (guchar *) mf->outbuf, &f->state, (guint32 *) &f->save);
+			camel_mime_filter_set_size (mime_filter, len + 3, FALSE);
+			newlen = camel_uudecode_step ((guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, (guint32 *) &priv->save);
 		} else {
 			newlen = 0;
 		}
 		break;
 	default:
-		g_warning ("unknown type %u in CamelMimeFilterBasic", f->type);
+		g_warning ("unknown type %u in CamelMimeFilterBasic", priv->type);
 		goto donothing;
 	}
 
-	*out = mf->outbuf;
+	*out = mime_filter->outbuf;
 	*outlen = newlen;
-	*outprespace = mf->outpre;
+	*outprespace = mime_filter->outpre;
 
 	return;
 donothing:
@@ -252,18 +143,132 @@ donothing:
 	*outprespace = prespace;
 }
 
-/**
- * camel_mime_filter_basic_new:
- *
- * Create a new #CamelMimeFilterBasic object.
- *
- * Returns: a new #CamelMimeFilterBasic object
- **/
-CamelMimeFilterBasic *
-camel_mime_filter_basic_new (void)
+static void
+mime_filter_basic_complete (CamelMimeFilter *mime_filter,
+                            const gchar *in,
+                            gsize len,
+                            gsize prespace,
+                            gchar **out,
+                            gsize *outlen,
+                            gsize *outprespace)
 {
-	CamelMimeFilterBasic *new = CAMEL_MIME_FILTER_BASIC ( camel_object_new (camel_mime_filter_basic_get_type ()));
-	return new;
+	CamelMimeFilterBasicPrivate *priv;
+	gsize newlen = 0;
+
+	priv = CAMEL_MIME_FILTER_BASIC_GET_PRIVATE (mime_filter);
+
+	switch (priv->type) {
+	case CAMEL_MIME_FILTER_BASIC_BASE64_ENC:
+		/* wont go to more than 2x size (overly conservative) */
+		camel_mime_filter_set_size(mime_filter, len*2+6, FALSE);
+		if (len > 0)
+			newlen += g_base64_encode_step((const guchar *) in, len, TRUE, mime_filter->outbuf, &priv->state, &priv->save);
+		newlen += g_base64_encode_close(TRUE, mime_filter->outbuf, &priv->state, &priv->save);
+		g_assert(newlen <= len*2+6);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
+		/* *4 is definetly more than needed ... */
+		camel_mime_filter_set_size(mime_filter, len*4+4, FALSE);
+		newlen = camel_quoted_encode_close((guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, &priv->save);
+		g_assert(newlen <= len*4+4);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_UU_ENC:
+		/* won't go to more than 2 * (x + 2) + 62 */
+		camel_mime_filter_set_size (mime_filter, (len + 2) * 2 + 62, FALSE);
+		newlen = camel_uuencode_close ((guchar *) in, len, (guchar *) mime_filter->outbuf, priv->uubuf, &priv->state, (guint32 *) &priv->save);
+		g_assert (newlen <= (len + 2) * 2 + 62);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_BASE64_DEC:
+		/* output can't possibly exceed the input size */
+		camel_mime_filter_set_size(mime_filter, len, FALSE);
+		newlen = g_base64_decode_step(in, len, (guchar *) mime_filter->outbuf, &priv->state, (guint *) &priv->save);
+		g_assert(newlen <= len);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_QP_DEC:
+		/* output can't possibly exceed the input size, well unless its not really qp, then +2 max */
+		camel_mime_filter_set_size(mime_filter, len+2, FALSE);
+		newlen = camel_quoted_decode_step((guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, (gint *) &priv->save);
+		g_assert(newlen <= len+2);
+		break;
+	case CAMEL_MIME_FILTER_BASIC_UU_DEC:
+		if ((priv->state & CAMEL_UUDECODE_STATE_BEGIN) && !(priv->state & CAMEL_UUDECODE_STATE_END)) {
+			/* "begin <mode> <filename>\n" has been found, so we can now start decoding */
+			camel_mime_filter_set_size (mime_filter, len + 3, FALSE);
+			newlen = camel_uudecode_step ((guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, (guint32 *) &priv->save);
+		} else {
+			newlen = 0;
+		}
+		break;
+	default:
+		g_warning ("unknown type %u in CamelMimeFilterBasic", priv->type);
+		goto donothing;
+	}
+
+	*out = mime_filter->outbuf;
+	*outlen = newlen;
+	*outprespace = mime_filter->outpre;
+
+	return;
+donothing:
+	*out = (gchar *) in;
+	*outlen = len;
+	*outprespace = prespace;
+}
+
+/* should this 'flush' outstanding state/data bytes? */
+static void
+mime_filter_basic_reset (CamelMimeFilter *mime_filter)
+{
+	CamelMimeFilterBasicPrivate *priv;
+
+	priv = CAMEL_MIME_FILTER_BASIC_GET_PRIVATE (mime_filter);
+
+	switch (priv->type) {
+	case CAMEL_MIME_FILTER_BASIC_QP_ENC:
+		priv->state = -1;
+		break;
+	default:
+		priv->state = 0;
+	}
+	priv->save = 0;
+}
+
+static void
+mime_filter_basic_class_init (CamelMimeFilterBasicClass *class)
+{
+	CamelMimeFilterClass *mime_filter_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMimeFilterBasicPrivate));
+
+	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
+	mime_filter_class->filter = mime_filter_basic_filter;
+	mime_filter_class->complete = mime_filter_basic_complete;
+	mime_filter_class->reset = mime_filter_basic_reset;
+}
+
+static void
+mime_filter_basic_init (CamelMimeFilterBasic *filter)
+{
+	filter->priv = CAMEL_MIME_FILTER_BASIC_GET_PRIVATE (filter);
+}
+
+GType
+camel_mime_filter_basic_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MIME_FILTER,
+			"CamelMimeFilterBasic",
+			sizeof (CamelMimeFilterBasicClass),
+			(GClassInitFunc) mime_filter_basic_class_init,
+			sizeof (CamelMimeFilterBasic),
+			(GInstanceInitFunc) mime_filter_basic_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -274,10 +279,10 @@ camel_mime_filter_basic_new (void)
  *
  * Returns: a new #CamelMimeFilterBasic object
  **/
-CamelMimeFilterBasic *
-camel_mime_filter_basic_new_type(CamelMimeFilterBasicType type)
+CamelMimeFilter *
+camel_mime_filter_basic_new (CamelMimeFilterBasicType type)
 {
-	CamelMimeFilterBasic *new;
+	CamelMimeFilter *new;
 
 	switch (type) {
 	case CAMEL_MIME_FILTER_BASIC_BASE64_ENC:
@@ -286,15 +291,16 @@ camel_mime_filter_basic_new_type(CamelMimeFilterBasicType type)
 	case CAMEL_MIME_FILTER_BASIC_QP_DEC:
 	case CAMEL_MIME_FILTER_BASIC_UU_ENC:
 	case CAMEL_MIME_FILTER_BASIC_UU_DEC:
-		new = camel_mime_filter_basic_new();
-		new->type = type;
+		new = g_object_new (CAMEL_TYPE_MIME_FILTER_BASIC, NULL);
+		CAMEL_MIME_FILTER_BASIC (new)->priv->type = type;
 		break;
 	default:
 		g_warning ("Invalid type of CamelMimeFilterBasic requested: %u", type);
 		new = NULL;
 		break;
 	}
-	camel_mime_filter_reset((CamelMimeFilter *)new);
+	camel_mime_filter_reset (new);
+
 	return new;
 }
 

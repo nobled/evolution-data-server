@@ -28,14 +28,8 @@
 
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <gmodule.h>
-
-#include "camel-provider.h"
-#include "camel-sasl.h"
-#include "camel-session.h"
-#include "camel-url.h"
 
 static void add_hash (guint *hash, gchar *s);
 static guint hula_url_hash (gconstpointer key);

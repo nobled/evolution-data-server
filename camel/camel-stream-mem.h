@@ -22,49 +22,63 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_STREAM_MEM_H
-#define CAMEL_STREAM_MEM_H 1
+#define CAMEL_STREAM_MEM_H
 
 #include <sys/types.h>
 #include <camel/camel-seekable-stream.h>
 
-#define CAMEL_STREAM_MEM_TYPE     (camel_stream_mem_get_type ())
-#define CAMEL_STREAM_MEM(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_STREAM_MEM_TYPE, CamelStreamMem))
-#define CAMEL_STREAM_MEM_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_STREAM_MEM_TYPE, CamelStreamMemClass))
-#define CAMEL_IS_STREAM_MEM(o)    (CAMEL_CHECK_TYPE((o), CAMEL_STREAM_MEM_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_STREAM_MEM \
+	(camel_stream_mem_get_type ())
+#define CAMEL_STREAM_MEM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_STREAM_MEM, CamelStreamMem))
+#define CAMEL_STREAM_MEM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_STREAM_MEM, CamelStreamMemClass))
+#define CAMEL_IS_STREAM_MEM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_STREAM_MEM))
+#define CAMEL_IS_STREAM_MEM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_STREAM_MEM))
+#define CAMEL_STREAM_MEM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_STREAM_MEM, CamelStreamMemClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelStreamMem CamelStreamMem;
 typedef struct _CamelStreamMemClass CamelStreamMemClass;
+typedef struct _CamelStreamMemPrivate CamelStreamMemPrivate;
 
 struct _CamelStreamMem {
-	CamelSeekableStream parent_object;
-
-	guint owner:1;	/* do we own the buffer? */
-	guint secure:1;	/* do we clear the buffer on finalise (if we own it) */
-	GByteArray *buffer;
+	CamelSeekableStream parent;
+	CamelStreamMemPrivate *priv;
 };
 
 struct _CamelStreamMemClass {
 	CamelSeekableStreamClass parent_class;
-
-	/* Virtual methods */
 };
 
-/* Standard Camel function */
-CamelType camel_stream_mem_get_type (void);
-
-/* public methods */
-CamelStream *camel_stream_mem_new(void);
-CamelStream *camel_stream_mem_new_with_byte_array(GByteArray *buffer);
-CamelStream *camel_stream_mem_new_with_buffer(const gchar *buffer, gsize len);
-
-/* 'secure' data, currently just clears memory on finalise */
-void camel_stream_mem_set_secure(CamelStreamMem *mem);
-
-/* these are really only here for implementing classes */
-void camel_stream_mem_set_byte_array(CamelStreamMem *mem, GByteArray *buffer);
-void camel_stream_mem_set_buffer(CamelStreamMem *mem, const gchar *buffer, gsize len);
+GType		camel_stream_mem_get_type	(void);
+CamelStream *	camel_stream_mem_new		(void);
+CamelStream *	camel_stream_mem_new_with_byte_array
+						(GByteArray *buffer);
+CamelStream *	camel_stream_mem_new_with_buffer(const gchar *buffer,
+						 gsize len);
+void		camel_stream_mem_set_secure	(CamelStreamMem *mem);
+GByteArray *	camel_stream_mem_get_byte_array (CamelStreamMem *mem);
+void		camel_stream_mem_set_byte_array	(CamelStreamMem *mem,
+						 GByteArray *buffer);
+void		camel_stream_mem_set_buffer	(CamelStreamMem *mem,
+						 const gchar *buffer,
+						 gsize len);
 
 G_END_DECLS
 

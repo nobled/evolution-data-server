@@ -22,7 +22,6 @@ CamelDigestSummary
 
 </para>
 
-@parent_object: 
 
 <!-- ##### FUNCTION camel_digest_summary_new ##### -->
 <para>

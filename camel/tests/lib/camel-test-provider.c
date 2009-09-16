@@ -5,7 +5,7 @@
 
 #include "camel-provider.h"
 
-void camel_test_provider_init(gint argc, gchar **argv)
+void test_provider_init(gint argc, gchar **argv)
 {
 	gchar *name, *path;
 	gint i;

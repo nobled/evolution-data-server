@@ -23,10 +23,14 @@
  * USA
  */
 
-#ifndef CAMEL_EXCEPTION_H
-#define CAMEL_EXCEPTION_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <camel/camel-types.h>
+#ifndef CAMEL_EXCEPTION_H
+#define CAMEL_EXCEPTION_H
+
+#include <glib.h>
 
 G_BEGIN_DECLS
 
@@ -34,6 +38,8 @@ typedef enum {
 #include "camel-exception-list.def"
 
 } ExceptionId;
+
+typedef struct _CamelException CamelException;
 
 struct _CamelException {
 	/* do not access the fields directly */

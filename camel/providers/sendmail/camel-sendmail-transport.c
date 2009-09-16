@@ -35,13 +35,7 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-data-wrapper.h"
-#include "camel-exception.h"
-#include "camel-mime-filter-crlf.h"
-#include "camel-mime-message.h"
 #include "camel-sendmail-transport.h"
-#include "camel-stream-filter.h"
-#include "camel-stream-fs.h"
 
 static gchar *get_name (CamelService *service, gboolean brief);
 
@@ -51,35 +45,34 @@ static gboolean sendmail_send_to (CamelTransport *transport,
 				  CamelException *ex);
 
 static void
-camel_sendmail_transport_class_init (CamelSendmailTransportClass *camel_sendmail_transport_class)
+sendmail_transport_class_init (CamelSendmailTransportClass *class)
 {
-	CamelTransportClass *camel_transport_class =
-		CAMEL_TRANSPORT_CLASS (camel_sendmail_transport_class);
-	CamelServiceClass *camel_service_class =
-		CAMEL_SERVICE_CLASS (camel_sendmail_transport_class);
+	CamelServiceClass *service_class;
+	CamelTransportClass *transport_class;
 
-	/* virtual method overload */
-	camel_service_class->get_name = get_name;
-	camel_transport_class->send_to = sendmail_send_to;
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->get_name = get_name;
+
+	transport_class = CAMEL_TRANSPORT_CLASS (class);
+	transport_class->send_to = sendmail_send_to;
 }
 
-CamelType
+GType
 camel_sendmail_transport_get_type (void)
 {
-	static CamelType camel_sendmail_transport_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_sendmail_transport_type == CAMEL_INVALID_TYPE)	{
-		camel_sendmail_transport_type =
-			camel_type_register (CAMEL_TRANSPORT_TYPE, "CamelSendmailTransport",
-					     sizeof (CamelSendmailTransport),
-					     sizeof (CamelSendmailTransportClass),
-					     (CamelObjectClassInitFunc) camel_sendmail_transport_class_init,
-					     NULL,
-					     (CamelObjectInitFunc) NULL,
-					     NULL);
-	}
+	if (type == G_TYPE_INVALID)
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_TRANSPORT,
+			"CamelSendmailTransport",
+			sizeof (CamelSendmailTransportClass),
+			(GClassInitFunc) sendmail_transport_class_init,
+			sizeof (CamelSendmailTransport),
+			(GInstanceInitFunc) NULL,
+			0);
 
-	return camel_sendmail_transport_type;
+	return type;
 }
 
 static gboolean
@@ -90,7 +83,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	struct _camel_header_raw *header, *savedbcc, *n, *tail;
 	const gchar *from_addr, *addr, **argv;
 	gint i, len, fd[2], nullfd, wstat;
-	CamelStreamFilter *filter;
+	CamelStream *filter;
 	CamelMimeFilter *crlf;
 	sigset_t mask, omask;
 	CamelStream *out;
@@ -124,7 +117,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	savedbcc = NULL;
 	tail = (struct _camel_header_raw *) &savedbcc;
 
-	header = (struct _camel_header_raw *) &CAMEL_MIME_PART (message)->headers;
+	header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message));
 	n = header->next;
 	while (n != NULL) {
 		if (!g_ascii_strcasecmp (n->name, "Bcc")) {
@@ -193,16 +186,16 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	out = camel_stream_fs_new_with_fd (fd[1]);
 
 	/* workaround for lame sendmail implementations that can't handle CRLF eoln sequences */
-	filter = camel_stream_filter_new_with_stream (out);
+	filter = camel_stream_filter_new (out);
 	crlf = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_DECODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
-	camel_stream_filter_add (filter, crlf);
-	camel_object_unref (crlf);
-	camel_object_unref (out);
+	camel_stream_filter_add (CAMEL_STREAM_FILTER (filter), crlf);
+	g_object_unref (crlf);
+	g_object_unref (out);
 
-	out = (CamelStream *) filter;
+	out = filter;
 	if (camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (message), out) == -1
 	    || camel_stream_close (out) == -1) {
-		camel_object_unref (CAMEL_OBJECT (out));
+		g_object_unref (CAMEL_OBJECT (out));
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Could not send message: %s"),
 				      g_strerror (errno));
@@ -219,7 +212,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		return FALSE;
 	}
 
-	camel_object_unref (CAMEL_OBJECT (out));
+	g_object_unref (CAMEL_OBJECT (out));
 
 	/* Wait for sendmail to exit. */
 	while (waitpid (pid, &wstat, 0) == -1 && errno == EINTR)

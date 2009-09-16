@@ -22,12 +22,6 @@ CamelMimeFilterToHTML
 
 </para>
 
-@parent: 
-@scanner: 
-@flags: 
-@colour: 
-@column: 
-@pre_open: 
 
 <!-- ##### MACRO CAMEL_MIME_FILTER_TOHTML_PRE ##### -->
 <para>
@@ -105,7 +99,7 @@ CamelMimeFilterToHTML
 </para>
 
 @flags: 
-@colour: 
+@color: 
 @Returns: 
 
 
@@ -116,7 +110,7 @@ CamelMimeFilterToHTML
 
 @in: 
 @flags: 
-@colour: 
+@color: 
 @Returns: 
 
 

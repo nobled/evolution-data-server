@@ -19,36 +19,56 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
-#ifndef _CAMEL_NEWS_ADDRESS_H
-#define _CAMEL_NEWS_ADDRESS_H
+#ifndef CAMEL_NEWS_ADDRESS_H
+#define CAMEL_NEWS_ADDRESS_H
 
 #include <camel/camel-address.h>
 
-#define CAMEL_NEWS_ADDRESS(obj)         CAMEL_CHECK_CAST (obj, camel_news_address_get_type (), CamelNewsAddress)
-#define CAMEL_NEWS_ADDRESS_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_news_address_get_type (), CamelNewsAddressClass)
-#define CAMEL_IS_NEWS_ADDRESS(obj)      CAMEL_CHECK_TYPE (obj, camel_news_address_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_NEWS_ADDRESS \
+	(camel_news_address_get_type ())
+#define CAMEL_NEWS_ADDRESS(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_NEWS_ADDRESS, CamelNewsAddress))
+#define CAMEL_NEWS_ADDRESS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_NEWS_ADDRESS, CamelNewsAddressClass))
+#define CAMEL_IS_NEWS_ADDRESS(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_NEWS_ADDRESS))
+#define CAMEL_IS_NEWS_ADDRESS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_NEWS_ADDRESS))
+#define CAMEL_NEWS_ADDRESS_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_NEWS_ADDRESS, CamelNewsAddressClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelNewsAddress CamelNewsAddress;
 typedef struct _CamelNewsAddressClass CamelNewsAddressClass;
+typedef struct _CamelNewsAddressPrivate CamelNewsAddressPrivate;
 
 struct _CamelNewsAddress {
 	CamelAddress parent;
-
-	struct _CamelNewsAddressPrivate *priv;
+	CamelNewsAddressPrivate *priv;
 };
 
 struct _CamelNewsAddressClass {
 	CamelAddressClass parent_class;
 };
 
-CamelType		camel_news_address_get_type	(void);
+GType		camel_news_address_get_type	(void);
 CamelNewsAddress      *camel_news_address_new	(void);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_NEWS_ADDRESS_H */
+#endif /* CAMEL_NEWS_ADDRESS_H */
 
 #endif /* CAMEL_DISABLE_DEPRECATED */

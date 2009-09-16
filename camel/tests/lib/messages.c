@@ -37,7 +37,7 @@ test_message_create_simple(void)
 }
 
 static void
-content_finalise(CamelObject *folder, gpointer crap, gpointer ba)
+content_finalize(CamelObject *folder, gpointer crap, gpointer ba)
 {
 	g_byte_array_free(ba, TRUE);
 }
@@ -74,7 +74,7 @@ test_message_set_content_simple(CamelMimePart *part, gint how, const gchar *type
 		content = (CamelStreamMem *)camel_stream_mem_new();
 		camel_stream_mem_set_byte_array(content, ba);
 
-		camel_object_hook_event((CamelObject *)content, "finalize", content_finalise, ba);
+		camel_object_hook_event((CamelObject *)content, "finalize", content_finalize, ba);
 		break;
 	}
 
@@ -83,7 +83,7 @@ test_message_set_content_simple(CamelMimePart *part, gint how, const gchar *type
                 camel_data_wrapper_set_mime_type (dw, type);
 
 		camel_data_wrapper_construct_from_stream(dw, (CamelStream *)content);
-		camel_medium_set_content_object((CamelMedium *)part, dw);
+		camel_medium_set_content((CamelMedium *)part, dw);
 
 		check_unref(content, 2);
 		check_unref(dw, 2);
@@ -101,7 +101,7 @@ test_message_write_file(CamelMimeMessage *msg, const gchar *name)
 	ret = camel_stream_close((CamelStream *)file);
 
 	check(((CamelObject *)file)->ref_count == 1);
-	camel_object_unref((CamelObject *)file);
+	g_object_unref (file);
 
 	return ret;
 }
@@ -118,7 +118,7 @@ test_message_read_file(const gchar *name)
 	camel_data_wrapper_construct_from_stream((CamelDataWrapper *)msg2, (CamelStream *)file);
 	/* file's refcount may be > 1 if the message is real big */
 	check(CAMEL_OBJECT(file)->ref_count >=1);
-	camel_object_unref((CamelObject *)file);
+	g_object_unref (file);
 
 	return msg2;
 }
@@ -211,7 +211,7 @@ test_message_compare (CamelMimeMessage *msg)
 		printf("msg2:\n");
 		test_message_dump_structure(msg2);
 
-		content = camel_medium_get_content_object ((CamelMedium *) msg);
+		content = camel_medium_get_content ((CamelMedium *) msg);
 	}
 
 	check_unref(msg2, 1);
@@ -222,8 +222,8 @@ test_message_compare (CamelMimeMessage *msg)
 
 	check_msg (memcmp (mem1->buffer->data, mem2->buffer->data, mem1->buffer->len) == 0, "msg/stream compare");
 
-	camel_object_unref (mem1);
-	camel_object_unref (mem2);
+	g_object_unref (mem1);
+	g_object_unref (mem2);
 
 	return 0;
 }
@@ -253,19 +253,19 @@ message_dump_rec(CamelMimeMessage *msg, CamelMimePart *part, gint depth)
 	s[depth] = 0;
 
 	mime_type = camel_data_wrapper_get_mime_type((CamelDataWrapper *)part);
-	printf("%sPart <%s>\n", s, ((CamelObject *)part)->klass->name);
+	printf("%sPart <%s>\n", s, ((CamelObject *)part)->class->name);
 	printf("%sContent-Type: %s\n", s, mime_type);
 	g_free(mime_type);
 	printf("%s encoding: %s\n", s, camel_transfer_encoding_to_string(((CamelDataWrapper *)part)->encoding));
 	printf("%s part encoding: %s\n", s, camel_transfer_encoding_to_string(part->encoding));
 
-	containee = camel_medium_get_content_object (CAMEL_MEDIUM (part));
+	containee = camel_medium_get_content (CAMEL_MEDIUM (part));
 
 	if (containee == NULL)
 		return;
 
 	mime_type = camel_data_wrapper_get_mime_type(containee);
-	printf("%sContent <%s>\n", s, ((CamelObject *)containee)->klass->name);
+	printf("%sContent <%s>\n", s, ((CamelObject *)containee)->class->name);
 	printf ("%sContent-Type: %s\n", s, mime_type);
 	g_free (mime_type);
 	printf("%s encoding: %s\n", s, camel_transfer_encoding_to_string(((CamelDataWrapper *)containee)->encoding));

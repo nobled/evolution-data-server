@@ -90,7 +90,7 @@ worker(gpointer d)
 
 		content = g_strdup_printf("Test message %08x contents\n\n", id+i);
 		push("comparing content '%s': '%s'", res->pdata[0], content);
-		test_message_compare_content(camel_medium_get_content_object((CamelMedium *)msg), content, strlen(content));
+		test_message_compare_content(camel_medium_get_content((CamelMedium *)msg), content, strlen(content));
 		test_free(content);
 		pull();
 
@@ -200,7 +200,7 @@ gint main(gint argc, gchar **argv)
 		}
 	}
 
-	camel_object_unref((CamelObject *)session);
+	g_object_unref (session);
 	camel_exception_free(ex);
 
 	return 0;

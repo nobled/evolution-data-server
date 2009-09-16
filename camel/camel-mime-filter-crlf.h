@@ -20,19 +20,39 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_MIME_FILTER_CRLF_H
-#define _CAMEL_MIME_FILTER_CRLF_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_CRLF_H
+#define CAMEL_MIME_FILTER_CRLF_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_MIME_FILTER_CRLF_TYPE         (camel_mime_filter_crlf_get_type ())
-#define CAMEL_MIME_FILTER_CRLF(obj)         CAMEL_CHECK_CAST (obj, CAMEL_MIME_FILTER_CRLF_TYPE, CamelMimeFilterCRLF)
-#define CAMEL_MIME_FILTER_CRLF_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, CAMEL_MIME_FILTER_CRLF_TYPE, CamelMimeFilterCRLFClass)
-#define CAMEL_IS_MIME_FILTER_CRLF(obj)      CAMEL_CHECK_TYPE (obj, CAMEL_MIME_FILTER_CRLF_TYPE)
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_CRLF \
+	(camel_mime_filter_crlf_get_type ())
+#define CAMEL_MIME_FILTER_CRLF(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_CRLF, CamelMimeFilterCRLF))
+#define CAMEL_MIME_FILTER_CRLF_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_CRLF, CamelMimeFilterCRLFClass))
+#define CAMEL_IS_MIME_FILTER_CRLF(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_CRLF))
+#define CAMEL_IS_MIME_FILTER_CRLF_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_CRLF))
+#define CAMEL_MIME_FILTER_CRLF_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_CRLF, CamelMimeFilterCRLFClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelMimeFilterCRLF CamelMimeFilterCRLF;
 typedef struct _CamelMimeFilterCRLFClass CamelMimeFilterCRLFClass;
+typedef struct _CamelMimeFilterCRLFPrivate CamelMimeFilterCRLFPrivate;
 
 typedef enum {
 	CAMEL_MIME_FILTER_CRLF_ENCODE,
@@ -46,22 +66,18 @@ typedef enum {
 
 struct _CamelMimeFilterCRLF {
 	CamelMimeFilter parent;
-
-	CamelMimeFilterCRLFDirection direction;
-	CamelMimeFilterCRLFMode mode;
-	gboolean saw_cr;
-	gboolean saw_lf;
-	gboolean saw_dot;
+	CamelMimeFilterCRLFPrivate *priv;
 };
 
 struct _CamelMimeFilterCRLFClass {
 	CamelMimeFilterClass parent_class;
 };
 
-CamelType camel_mime_filter_crlf_get_type (void);
-
-CamelMimeFilter *camel_mime_filter_crlf_new (CamelMimeFilterCRLFDirection direction, CamelMimeFilterCRLFMode mode);
+GType		camel_mime_filter_crlf_get_type	(void);
+CamelMimeFilter *
+		camel_mime_filter_crlf_new	(CamelMimeFilterCRLFDirection direction,
+						 CamelMimeFilterCRLFMode mode);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_MIME_FILTER_CRLF_H */
+#endif /* CAMEL_MIME_FILTER_CRLF_H */

@@ -19,22 +19,30 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_JOURNAL_H__
-#define __CAMEL_IMAP4_JOURNAL_H__
+#ifndef CAMEL_IMAP4_JOURNAL_H
+#define CAMEL_IMAP4_JOURNAL_H
 
 #include <stdarg.h>
+#include <camel/camel.h>
 
-#include <glib.h>
-
-#include <camel/camel-offline-journal.h>
-#include <camel/camel-mime-message.h>
-
-#define CAMEL_TYPE_IMAP4_JOURNAL            (camel_imap4_journal_get_type ())
-#define CAMEL_IMAP4_JOURNAL(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_IMAP4_JOURNAL, CamelIMAP4Journal))
-#define CAMEL_IMAP4_JOURNAL_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_IMAP4_JOURNAL, CamelIMAP4JournalClass))
-#define CAMEL_IS_IMAP4_JOURNAL(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_IMAP4_JOURNAL))
-#define CAMEL_IS_IMAP4_JOURNAL_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_IMAP4_JOURNAL))
-#define CAMEL_IMAP4_JOURNAL_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_IMAP4_JOURNAL, CamelIMAP4JournalClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_JOURNAL \
+	(camel_imap4_journal_get_type ())
+#define CAMEL_IMAP4_JOURNAL(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_JOURNAL, CamelIMAP4Journal))
+#define CAMEL_IMAP4_JOURNAL_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_JOURNAL, CamelIMAP4JournalClass))
+#define CAMEL_IS_IMAP4_JOURNAL(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_JOURNAL))
+#define CAMEL_IS_IMAP4_JOURNAL_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_JOURNAL))
+#define CAMEL_IMAP4_JOURNAL_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP4_JOURNAL, CamelIMAP4JournalClass))
 
 G_BEGIN_DECLS
 
@@ -59,7 +67,7 @@ struct _CamelIMAP4JournalEntry {
 };
 
 struct _CamelIMAP4Journal {
-	CamelOfflineJournal parent_object;
+	CamelOfflineJournal parent;
 
 	GPtrArray *failed;
 };
@@ -69,7 +77,7 @@ struct _CamelIMAP4JournalClass {
 
 };
 
-CamelType camel_imap4_journal_get_type (void);
+GType camel_imap4_journal_get_type (void);
 
 CamelOfflineJournal *camel_imap4_journal_new (struct _CamelIMAP4Folder *folder, const gchar *filename);
 
@@ -81,4 +89,4 @@ void camel_imap4_journal_append (CamelIMAP4Journal *journal, CamelMimeMessage *m
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_JOURNAL_H__ */
+#endif /* CAMEL_IMAP4_JOURNAL_H */

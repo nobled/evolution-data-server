@@ -33,12 +33,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "camel-db.h"
-#include "camel-data-cache.h"
-#include "camel-file-utils.h"
-#include "camel-folder.h"
-#include "camel-string-utils.h"
-
 #include "camel-groupwise-folder.h"
 #include "camel-groupwise-summary.h"
 
@@ -67,31 +61,9 @@ static CamelMessageInfo * message_info_from_db (CamelFolderSummary *s, CamelMIRe
 static gint content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir);
 static CamelMessageContentInfo * content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir);
 
-static void camel_groupwise_summary_class_init (CamelGroupwiseSummaryClass *klass);
-static void camel_groupwise_summary_init       (CamelGroupwiseSummary *obj);
-
 /*End of Prototypes*/
 
-static CamelFolderSummaryClass *camel_groupwise_summary_parent;
-
-CamelType
-camel_groupwise_summary_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register(
-				camel_folder_summary_get_type(), "CamelGroupwiseSummary",
-				sizeof (CamelGroupwiseSummary),
-				sizeof (CamelGroupwiseSummaryClass),
-				(CamelObjectClassInitFunc) camel_groupwise_summary_class_init,
-				NULL,
-				(CamelObjectInitFunc) camel_groupwise_summary_init,
-				NULL);
-	}
-
-	return type;
-}
+static gpointer parent_class;
 
 static CamelMessageInfo *
 gw_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
@@ -99,7 +71,7 @@ gw_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
 	CamelGroupwiseMessageInfo *to;
 	const CamelGroupwiseMessageInfo *from = (const CamelGroupwiseMessageInfo *)mi;
 
-	to = (CamelGroupwiseMessageInfo *)camel_groupwise_summary_parent->message_info_clone(s, mi);
+	to = (CamelGroupwiseMessageInfo *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_clone(s, mi);
 	to->server_flags = from->server_flags;
 
 	/* FIXME: parent clone should do this */
@@ -109,41 +81,58 @@ gw_message_info_clone(CamelFolderSummary *s, const CamelMessageInfo *mi)
 }
 
 static void
-camel_groupwise_summary_class_init (CamelGroupwiseSummaryClass *klass)
+groupwise_summary_class_init (CamelGroupwiseSummaryClass *class)
 {
-	CamelFolderSummaryClass *cfs_class = (CamelFolderSummaryClass *) klass;
+	CamelFolderSummaryClass *folder_summary_class;
 
-	camel_groupwise_summary_parent = CAMEL_FOLDER_SUMMARY_CLASS (camel_type_get_global_classfuncs (camel_folder_summary_get_type()));
+	parent_class = g_type_class_peek_parent (class);
 
-	cfs_class->message_info_clone = gw_message_info_clone;
-	cfs_class->summary_header_load = gw_summary_header_load;
-	cfs_class->summary_header_save = gw_summary_header_save;
-	cfs_class->message_info_load = gw_message_info_load;
-	cfs_class->message_info_save = gw_message_info_save;
-	cfs_class->content_info_load = gw_content_info_load;
-	cfs_class->content_info_save = gw_content_info_save;
-	cfs_class->info_set_flags = gw_info_set_flags;
-
-	cfs_class->summary_header_to_db = summary_header_to_db;
-	cfs_class->summary_header_from_db = summary_header_from_db;
-	cfs_class->message_info_to_db = message_info_to_db;
-	cfs_class->message_info_from_db = message_info_from_db;
-	cfs_class->content_info_to_db = content_info_to_db;
-	cfs_class->content_info_from_db = content_info_from_db;
-
+	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_clone = gw_message_info_clone;
+	folder_summary_class->summary_header_load = gw_summary_header_load;
+	folder_summary_class->summary_header_save = gw_summary_header_save;
+	folder_summary_class->message_info_load = gw_message_info_load;
+	folder_summary_class->message_info_save = gw_message_info_save;
+	folder_summary_class->content_info_load = gw_content_info_load;
+	folder_summary_class->content_info_save = gw_content_info_save;
+	folder_summary_class->info_set_flags = gw_info_set_flags;
+	folder_summary_class->summary_header_to_db = summary_header_to_db;
+	folder_summary_class->summary_header_from_db = summary_header_from_db;
+	folder_summary_class->message_info_to_db = message_info_to_db;
+	folder_summary_class->message_info_from_db = message_info_from_db;
+	folder_summary_class->content_info_to_db = content_info_to_db;
+	folder_summary_class->content_info_from_db = content_info_from_db;
 }
 
 static void
-camel_groupwise_summary_init (CamelGroupwiseSummary *obj)
+groupwise_summary_init (CamelGroupwiseSummary *gw_summary)
 {
-	CamelFolderSummary *s = (CamelFolderSummary *)obj;
+	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (gw_summary);
 
 	/* subclasses need to set the right instance data sizes */
-	s->message_info_size = sizeof(CamelGroupwiseMessageInfo);
-	s->content_info_size = sizeof(CamelGroupwiseMessageContentInfo);
+	summary->message_info_size = sizeof (CamelGroupwiseMessageInfo);
+	summary->content_info_size = sizeof (CamelGroupwiseMessageContentInfo);
 
 	/* Meta-summary - Overriding UID len */
-	s->meta_summary->uid_len = 2048;
+	summary->meta_summary->uid_len = 2048;
+}
+
+GType
+camel_groupwise_summary_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_FOLDER_SUMMARY,
+			"CamelGroupwiseSummary",
+			sizeof (CamelGroupwiseSummaryClass),
+			(GClassInitFunc) groupwise_summary_class_init,
+			sizeof (CamelGroupwiseSummary),
+			(GInstanceInitFunc) groupwise_summary_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -159,9 +148,9 @@ CamelFolderSummary *
 camel_groupwise_summary_new (struct _CamelFolder *folder, const gchar *filename)
 {
 	CamelException ex;
-	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (
-			camel_object_new (camel_groupwise_summary_get_type ()));
+	CamelFolderSummary *summary;
 
+	summary = g_object_new (CAMEL_TYPE_GROUPWISE_SUMMARY, NULL);
 	summary->folder = folder;
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);
@@ -180,7 +169,7 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 	CamelGroupwiseSummary *gms = CAMEL_GROUPWISE_SUMMARY (s);
 	gchar *part;
 
-	if (camel_groupwise_summary_parent->summary_header_from_db (s, mir) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_from_db (s, mir) == -1)
 		return -1;
 
 	part = mir->bdata;
@@ -203,7 +192,7 @@ gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 {
 	CamelGroupwiseSummary *gms = CAMEL_GROUPWISE_SUMMARY (s);
 
-	if (camel_groupwise_summary_parent->summary_header_load (s, in) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_load (s, in) == -1)
 		return -1;
 
 	if (camel_file_util_decode_fixed_int32(in, &gms->version) == -1
@@ -221,7 +210,7 @@ summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
 	CamelGroupwiseSummary *ims = CAMEL_GROUPWISE_SUMMARY(s);
 	struct _CamelFIRecord *fir;
 
-	fir = camel_groupwise_summary_parent->summary_header_to_db (s, ex);
+	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, ex);
 	if (!fir)
 		return NULL;
 
@@ -236,7 +225,7 @@ gw_summary_header_save (CamelFolderSummary *s, FILE *out)
 {
 	CamelGroupwiseSummary *gms = CAMEL_GROUPWISE_SUMMARY(s);
 
-	if (camel_groupwise_summary_parent->summary_header_save (s, out) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_save (s, out) == -1)
 		return -1;
 
 	camel_file_util_encode_fixed_int32(out, CAMEL_GW_SUMMARY_VERSION);
@@ -250,7 +239,7 @@ message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
 	CamelMessageInfo *info;
 	CamelGroupwiseMessageInfo *iinfo;
 
-	info = camel_groupwise_summary_parent->message_info_from_db (s, mir);
+	info = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_from_db (s, mir);
 	if (info) {
 		gchar *part = mir->bdata;
 		iinfo = (CamelGroupwiseMessageInfo *)info;
@@ -265,7 +254,7 @@ gw_message_info_load (CamelFolderSummary *s, FILE *in)
 	CamelMessageInfo *info;
 	CamelGroupwiseMessageInfo *gw_info;
 
-	info = camel_groupwise_summary_parent->message_info_load(s,in);
+	info = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_load(s,in);
 	if (info) {
 		gw_info = (CamelGroupwiseMessageInfo*) info;
 		if (camel_file_util_decode_uint32 (in, &gw_info->server_flags) == -1)
@@ -284,7 +273,7 @@ message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info)
 	CamelGroupwiseMessageInfo *iinfo = (CamelGroupwiseMessageInfo *)info;
 	struct _CamelMIRecord *mir;
 
-	mir = camel_groupwise_summary_parent->message_info_to_db (s, info);
+	mir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_to_db (s, info);
 	if (mir)
 		mir->bdata = g_strdup_printf ("%u", iinfo->server_flags);
 
@@ -296,7 +285,7 @@ gw_message_info_save (CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 {
 	CamelGroupwiseMessageInfo *gw_info = (CamelGroupwiseMessageInfo *)info;
 
-	if (camel_groupwise_summary_parent->message_info_save (s, out, info) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_save (s, out, info) == -1)
 		return -1;
 
 	return camel_file_util_encode_uint32 (out, gw_info->server_flags);
@@ -317,7 +306,7 @@ content_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir)
 	}
 	mir->cinfo = part;
 	if (type)
-		return camel_groupwise_summary_parent->content_info_from_db (s, mir);
+		return CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->content_info_from_db (s, mir);
 	else
 		return camel_folder_summary_content_info_new (s);
 }
@@ -326,7 +315,7 @@ static CamelMessageContentInfo *
 gw_content_info_load (CamelFolderSummary *s, FILE *in)
 {
 	if (fgetc (in))
-		return camel_groupwise_summary_parent->content_info_load (s, in);
+		return CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->content_info_load (s, in);
 	else
 		return camel_folder_summary_content_info_new (s);
 }
@@ -337,7 +326,7 @@ content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelM
 
 	if (info->type) {
 		mir->cinfo = g_strdup ("1");
-		return camel_groupwise_summary_parent->content_info_to_db (s, info, mir);
+		return CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->content_info_to_db (s, info, mir);
 	} else {
 		mir->cinfo = g_strdup ("0");
 		return 0;
@@ -350,7 +339,7 @@ gw_content_info_save (CamelFolderSummary *s, FILE *out,
 {
 	if (info->type) {
 		fputc (1, out);
-		return camel_groupwise_summary_parent->content_info_save (s, out, info);
+		return CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->content_info_save (s, out, info);
 	} else
 		return fputc (0, out);
 }

@@ -30,11 +30,20 @@
 #include "camel-mime-filter-enriched.h"
 #include "camel-string-utils.h"
 
+#define CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_MIME_FILTER_ENRICHED, CamelMimeFilterEnrichedPrivate))
+
+struct _CamelMimeFilterEnrichedPrivate {
+	guint32 flags;
+	gint nofill;
+};
+
 /* text/enriched is rfc1896 */
 
 typedef gchar * (*EnrichedParamParser) (const gchar *inptr, gint inlen);
 
-static gchar *param_parse_colour (const gchar *inptr, gint inlen);
+static gchar *param_parse_color (const gchar *inptr, gint inlen);
 static gchar *param_parse_font (const gchar *inptr, gint inlen);
 static gchar *param_parse_lang (const gchar *inptr, gint inlen);
 
@@ -72,7 +81,7 @@ static struct {
 	{ "np",          "<hr>",                FALSE, NULL               },
 	{ "fontfamily",  "<font face=\"%s\">",  TRUE,  param_parse_font   },
 	{ "/fontfamily", "</font>",             FALSE, NULL               },
-	{ "color",       "<font color=\"%s\">", TRUE,  param_parse_colour },
+	{ "color",       "<font color=\"%s\">", TRUE,  param_parse_color },
 	{ "/color",      "</font>",             FALSE, NULL               },
 	{ "lang",        "<span lang=\"%s\">",  TRUE,  param_parse_lang   },
 	{ "/lang",       "</span>",             FALSE, NULL               },
@@ -90,71 +99,7 @@ static struct {
 
 static GHashTable *enriched_hash = NULL;
 
-static void camel_mime_filter_enriched_class_init (CamelMimeFilterEnrichedClass *klass);
-static void camel_mime_filter_enriched_init       (CamelMimeFilterEnriched *filter);
-static void camel_mime_filter_enriched_finalize   (CamelObject *obj);
-
-static void filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-			   gchar **out, gsize *outlen, gsize *outprespace);
-static void filter_complete (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-			     gchar **out, gsize *outlen, gsize *outprespace);
-static void filter_reset (CamelMimeFilter *filter);
-
-static CamelMimeFilterClass *parent_class = NULL;
-
-CamelType
-camel_mime_filter_enriched_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_mime_filter_get_type (),
-					    "CamelMimeFilterEnriched",
-					    sizeof (CamelMimeFilterEnriched),
-					    sizeof (CamelMimeFilterEnrichedClass),
-					    (CamelObjectClassInitFunc) camel_mime_filter_enriched_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_mime_filter_enriched_init,
-					    (CamelObjectFinalizeFunc) camel_mime_filter_enriched_finalize);
-	}
-
-	return type;
-}
-
-static void
-camel_mime_filter_enriched_class_init (CamelMimeFilterEnrichedClass *klass)
-{
-	CamelMimeFilterClass *filter_class = (CamelMimeFilterClass *) klass;
-	gint i;
-
-	parent_class = CAMEL_MIME_FILTER_CLASS (camel_mime_filter_get_type ());
-
-	filter_class->reset = filter_reset;
-	filter_class->filter = filter_filter;
-	filter_class->complete = filter_complete;
-
-	if (!enriched_hash) {
-		enriched_hash = g_hash_table_new (camel_strcase_hash, camel_strcase_equal);
-		for (i = 0; i < G_N_ELEMENTS (enriched_tags); i++)
-			g_hash_table_insert (
-				enriched_hash,
-				(gpointer) enriched_tags[i].enriched,
-				(gpointer) enriched_tags[i].html);
-	}
-}
-
-static void
-camel_mime_filter_enriched_finalize (CamelObject *obj)
-{
-	;
-}
-
-static void
-camel_mime_filter_enriched_init (CamelMimeFilterEnriched *filter)
-{
-	filter->flags = 0;
-	filter->nofill = 0;
-}
+static gpointer parent_class;
 
 #if 0
 static gboolean
@@ -176,28 +121,28 @@ html_tag_needs_param (const gchar *tag)
 	return strstr (tag, "%s") != NULL;
 }
 
-static const gchar *valid_colours[] = {
+static const gchar *valid_colors[] = {
 	"red", "green", "blue", "yellow", "cyan", "magenta", "black", "white"
 };
 
 static gchar *
-param_parse_colour (const gchar *inptr, gint inlen)
+param_parse_color (const gchar *inptr, gint inlen)
 {
 	const gchar *inend, *end;
 	guint32 rgb = 0;
 	guint v;
 	gint i;
 
-	for (i = 0; i < G_N_ELEMENTS (valid_colours); i++) {
-		if (!g_ascii_strncasecmp (inptr, valid_colours[i], inlen))
-			return g_strdup (valid_colours[i]);
+	for (i = 0; i < G_N_ELEMENTS (valid_colors); i++) {
+		if (!g_ascii_strncasecmp (inptr, valid_colors[i], inlen))
+			return g_strdup (valid_colors[i]);
 	}
 
 	/* check for numeric r/g/b in the format: ####,####,#### */
 	if (inptr[4] != ',' || inptr[9] != ',') {
 		/* okay, mailer must have used a string name that
 		 * rfc1896 did not specify? do some simple scanning
-		 * action, a colour name MUST be [a-zA-Z] */
+		 * action, a color name MUST be [a-zA-Z] */
 		end = inptr;
 		inend = inptr + inlen;
 		while (end < inend && ((*end >= 'a' && *end <= 'z') || (*end >= 'A' && *end <= 'Z')))
@@ -221,7 +166,7 @@ param_parse_colour (const gchar *inptr, gint inlen)
 
  invalid_format:
 
-	/* default colour? */
+	/* default color? */
 	return g_strdup ("black");
 }
 
@@ -269,13 +214,21 @@ param_parse (const gchar *enriched, const gchar *inptr, gint inlen)
 #define IS_RICHTEXT CAMEL_MIME_FILTER_ENRICHED_IS_RICHTEXT
 
 static void
-enriched_to_html (CamelMimeFilter *filter, const gchar *in, gsize inlen, gsize prespace,
-		  gchar **out, gsize *outlen, gsize *outprespace, gboolean flush)
+enriched_to_html (CamelMimeFilter *filter,
+                  const gchar *in,
+                  gsize inlen,
+                  gsize prespace,
+                  gchar **out,
+                  gsize *outlen,
+                  gsize *outprespace,
+                  gboolean flush)
 {
-	CamelMimeFilterEnriched *enriched = (CamelMimeFilterEnriched *) filter;
+	CamelMimeFilterEnrichedPrivate *priv;
 	const gchar *tag, *inend, *outend;
 	register const gchar *inptr;
 	register gchar *outptr;
+
+	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (filter);
 
 	camel_mime_filter_set_size (filter, inlen * 2 + 6, FALSE);
 
@@ -308,9 +261,9 @@ enriched_to_html (CamelMimeFilter *filter, const gchar *in, gsize inlen, gsize p
 
 			break;
 		case '\n':
-			if (!(enriched->flags & IS_RICHTEXT)) {
+			if (!(priv->flags & IS_RICHTEXT)) {
 				/* text/enriched */
-				if (enriched->nofill > 0) {
+				if (priv->nofill > 0) {
 					if ((outptr + 4) < outend) {
 						memcpy (outptr, "<br>", 4);
 						outptr += 4;
@@ -356,7 +309,7 @@ enriched_to_html (CamelMimeFilter *filter, const gchar *in, gsize inlen, gsize p
 			}
 			break;
 		case '<':
-			if (!(enriched->flags & IS_RICHTEXT)) {
+			if (!(priv->flags & IS_RICHTEXT)) {
 				/* text/enriched */
 				if (*inptr == '<') {
 					if ((outptr + 4) < outend) {
@@ -400,14 +353,14 @@ enriched_to_html (CamelMimeFilter *filter, const gchar *in, gsize inlen, gsize p
 
 			if (!g_ascii_strncasecmp (tag, "nofill>", 7)) {
 				if ((outptr + 5) < outend) {
-					enriched->nofill++;
+					priv->nofill++;
 				} else {
 					inptr = tag - 1;
 					goto backup;
 				}
 			} else if (!g_ascii_strncasecmp (tag, "/nofill>", 8)) {
 				if ((outptr + 6) < outend) {
-					enriched->nofill--;
+					priv->nofill--;
 				} else {
 					inptr = tag - 1;
 					goto backup;
@@ -534,25 +487,86 @@ enriched_to_html (CamelMimeFilter *filter, const gchar *in, gsize inlen, gsize p
 }
 
 static void
-filter_filter (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-	       gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_enriched_filter (CamelMimeFilter *filter,
+                             const gchar *in,
+                             gsize len,
+                             gsize prespace,
+                             gchar **out,
+                             gsize *outlen,
+                             gsize *outprespace)
 {
-	enriched_to_html (filter, in, len, prespace, out, outlen, outprespace, FALSE);
+	enriched_to_html (
+		filter, in, len, prespace, out, outlen, outprespace, FALSE);
 }
 
 static void
-filter_complete (CamelMimeFilter *filter, const gchar *in, gsize len, gsize prespace,
-		 gchar **out, gsize *outlen, gsize *outprespace)
+mime_filter_enriched_complete (CamelMimeFilter *filter,
+                               const gchar *in,
+                               gsize len,
+                               gsize prespace,
+                               gchar **out,
+                               gsize *outlen,
+                               gsize *outprespace)
 {
-	enriched_to_html (filter, in, len, prespace, out, outlen, outprespace, TRUE);
+	enriched_to_html (
+		filter, in, len, prespace, out, outlen, outprespace, TRUE);
 }
 
 static void
-filter_reset (CamelMimeFilter *filter)
+mime_filter_enriched_reset (CamelMimeFilter *filter)
 {
-	CamelMimeFilterEnriched *enriched = (CamelMimeFilterEnriched *) filter;
+	CamelMimeFilterEnrichedPrivate *priv;
 
-	enriched->nofill = 0;
+	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (filter);
+
+	priv->nofill = 0;
+}
+
+static void
+mime_filter_enriched_class_init (CamelMimeFilterEnrichedClass *class)
+{
+	CamelMimeFilterClass *mime_filter_class;
+	gint i;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMimeFilterEnrichedPrivate));
+
+	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
+	mime_filter_class->filter = mime_filter_enriched_filter;
+	mime_filter_class->complete = mime_filter_enriched_complete;
+	mime_filter_class->reset = mime_filter_enriched_reset;
+
+	enriched_hash = g_hash_table_new (
+		camel_strcase_hash, camel_strcase_equal);
+	for (i = 0; i < G_N_ELEMENTS (enriched_tags); i++)
+		g_hash_table_insert (
+			enriched_hash,
+			(gpointer) enriched_tags[i].enriched,
+			(gpointer) enriched_tags[i].html);
+}
+
+static void
+mime_filter_enriched_init (CamelMimeFilterEnriched *filter)
+{
+	filter->priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (filter);
+}
+
+GType
+camel_mime_filter_enriched_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MIME_FILTER,
+			"CamelMimeFilterEnriched",
+			sizeof (CamelMimeFilterEnrichedClass),
+			(GClassInitFunc) mime_filter_enriched_class_init,
+			sizeof (CamelMimeFilterEnriched),
+			(GInstanceInitFunc) mime_filter_enriched_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -567,12 +581,15 @@ filter_reset (CamelMimeFilter *filter)
 CamelMimeFilter *
 camel_mime_filter_enriched_new (guint32 flags)
 {
-	CamelMimeFilterEnriched *new;
+	CamelMimeFilter *new;
+	CamelMimeFilterEnrichedPrivate *priv;
 
-	new = (CamelMimeFilterEnriched *) camel_object_new (CAMEL_TYPE_MIME_FILTER_ENRICHED);
-	new->flags = flags;
+	new = g_object_new (CAMEL_TYPE_MIME_FILTER_ENRICHED, NULL);
+	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (new);
 
-	return CAMEL_MIME_FILTER (new);
+	priv->flags = flags;
+
+	return new;
 }
 
 /**
@@ -600,7 +617,7 @@ camel_enriched_to_html(const gchar *in, guint32 flags)
 
 	camel_mime_filter_complete(filter, (gchar *)in, strlen(in), 0, &outbuf, &outlen, &outpre);
 	outbuf = g_strndup (outbuf, outlen);
-	camel_object_unref (filter);
+	g_object_unref (filter);
 
 	return outbuf;
 }

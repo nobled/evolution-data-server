@@ -34,18 +34,9 @@
 #include <errno.h>
 #include <time.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include <libedataserver/e-data-server-util.h>
-
-#include <camel/camel-private.h>
-#include <camel/camel-file-utils.h>
-#include <camel/camel-stream-filter.h>
-#include <camel/camel-mime-filter-crlf.h>
-#include <camel/camel-mime-message.h>
-#include <camel/camel-stream-mem.h>
-#include <camel/camel-utf8.h>
 
 #include "camel-imap4-utils.h"
 #include "camel-imap4-store.h"
@@ -59,9 +50,9 @@
 
 #define d(x)
 
-static void camel_imap4_folder_class_init (CamelIMAP4FolderClass *klass);
-static void camel_imap4_folder_init (CamelIMAP4Folder *folder, CamelIMAP4FolderClass *klass);
-static void camel_imap4_folder_finalize (CamelObject *object);
+static void camel_imap4_folder_class_init (CamelIMAP4FolderClass *class);
+static void camel_imap4_folder_init (CamelIMAP4Folder *folder, CamelIMAP4FolderClass *class);
+static void imap4_folder_finalize (CamelObject *object);
 
 static gint imap4_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args);
 static gint imap4_setv (CamelObject *object, CamelException *ex, CamelArgV *args);
@@ -79,7 +70,7 @@ static GPtrArray *imap4_search_by_uids (CamelFolder *folder, const gchar *expr, 
 static void imap4_search_free (CamelFolder *folder, GPtrArray *uids);
 static gchar * imap4_get_filename (CamelFolder *folder, const gchar *uid, CamelException *ex);
 
-static CamelOfflineFolderClass *parent_class = NULL;
+static gpointer parent_class;
 
 static GSList *imap4_folder_props = NULL;
 
@@ -89,33 +80,33 @@ static CamelProperty imap4_prop_list[] = {
 	{ CAMEL_IMAP4_FOLDER_EXPIRE_AGE, "expire-age", N_("Expire cached messages older than X seconds") },
 };
 
-CamelType
+GType
 camel_imap4_folder_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (camel_offline_folder_get_type (),
-					    "CamelIMAP4Folder",
-					    sizeof (CamelIMAP4Folder),
-					    sizeof (CamelIMAP4FolderClass),
-					    (CamelObjectClassInitFunc) camel_imap4_folder_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_folder_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_folder_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_OFFLINE_FOLDER,
+			"CamelIMAP4Folder",
+			sizeof (CamelIMAP4Folder),
+			sizeof (CamelIMAP4FolderClass),
+			(GClassInitFunc) camel_imap4_folder_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_folder_init,
+			(GObjectFinalizeFunc) imap4_folder_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_folder_class_init (CamelIMAP4FolderClass *klass)
+camel_imap4_folder_class_init (CamelIMAP4FolderClass *class)
 {
-	CamelFolderClass *folder_class = (CamelFolderClass *) klass;
-	CamelObjectClass *object_class = (CamelObjectClass *) klass;
+	CamelFolderClass *folder_class = (CamelFolderClass *) class;
+	CamelObjectClass *object_class = (CamelObjectClass *) class;
 	gint i;
 
-	parent_class = (CamelOfflineFolderClass *) camel_type_get_global_classfuncs (CAMEL_OFFLINE_FOLDER_TYPE);
+	parent_class = g_type_class_peek_parent (class);
 
 	if (imap4_folder_props == NULL) {
 		for (i = 0; i < G_N_ELEMENTS (imap4_prop_list); i++) {
@@ -140,7 +131,7 @@ camel_imap4_folder_class_init (CamelIMAP4FolderClass *klass)
 }
 
 static void
-camel_imap4_folder_init (CamelIMAP4Folder *folder, CamelIMAP4FolderClass *klass)
+camel_imap4_folder_init (CamelIMAP4Folder *folder, CamelIMAP4FolderClass *class)
 {
 	((CamelFolder *) folder)->folder_flags |= CAMEL_FOLDER_HAS_SUMMARY_CAPABILITY | CAMEL_FOLDER_HAS_SEARCH_CAPABILITY;
 
@@ -151,17 +142,17 @@ camel_imap4_folder_init (CamelIMAP4Folder *folder, CamelIMAP4FolderClass *klass)
 }
 
 static void
-camel_imap4_folder_finalize (CamelObject *object)
+imap4_folder_finalize (CamelObject *object)
 {
 	CamelIMAP4Folder *folder = (CamelIMAP4Folder *) object;
 
-	camel_object_unref (folder->search);
+	g_object_unref (folder->search);
 
-	camel_object_unref (folder->cache);
+	g_object_unref (folder->cache);
 
 	if (folder->journal) {
 		camel_offline_journal_write (folder->journal, NULL);
-		camel_object_unref (folder->journal);
+		g_object_unref (folder->journal);
 	}
 
 	g_free (folder->utf7_name);
@@ -368,7 +359,7 @@ camel_imap4_folder_new (CamelStore *store, const gchar *full_name, CamelExceptio
 
 	utf7_name = camel_utf8_utf7 (utf7_name);
 
-	folder = (CamelFolder *) (imap4_folder = (CamelIMAP4Folder *) camel_object_new (CAMEL_TYPE_IMAP4_FOLDER));
+	folder = g_object_new (CAMEL_TYPE_IMAP4_FOLDER, NULL);
 	camel_folder_construct (folder, store, full_name, name);
 	imap4_folder->utf7_name = utf7_name;
 
@@ -376,7 +367,7 @@ camel_imap4_folder_new (CamelStore *store, const gchar *full_name, CamelExceptio
 	imap4_folder->cachedir = imap4_store_build_filename (store, folder->full_name);
 	g_mkdir_with_parents (imap4_folder->cachedir, 0777);
 
-	imap4_folder->cache = camel_data_cache_new (imap4_folder->cachedir, 0, NULL);
+	imap4_folder->cache = camel_data_cache_new (imap4_folder->cachedir, NULL);
 
 	path = imap4_get_summary_filename (imap4_folder->cachedir);
 	camel_folder_summary_set_filename (folder->summary, path);
@@ -412,12 +403,12 @@ camel_imap4_folder_new (CamelStore *store, const gchar *full_name, CamelExceptio
 		camel_folder_summary_load (folder->summary);
 
 		if (camel_imap4_engine_select_folder (((CamelIMAP4Store *) store)->engine, folder, ex) == -1) {
-			camel_object_unref (folder);
+			g_object_unref (folder);
 			folder = NULL;
 		}
 
 		if (folder && camel_imap4_summary_flush_updates (folder->summary, ex) == -1) {
-			camel_object_unref (folder);
+			g_object_unref (folder);
 			folder = NULL;
 		}
 	} else {
@@ -427,7 +418,7 @@ camel_imap4_folder_new (CamelStore *store, const gchar *full_name, CamelExceptio
 					      _("Cannot access folder '%s': %s"),
 					      full_name, g_strerror (ENOENT));
 
-			camel_object_unref (folder);
+			g_object_unref (folder);
 			folder = NULL;
 		}
 	}
@@ -738,14 +729,14 @@ untagged_fetch (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, 
 			if (token->token != CAMEL_IMAP4_TOKEN_LITERAL)
 				goto unexpected;
 
-			fstream = (CamelStream *) camel_stream_filter_new_with_stream (stream);
+			fstream = camel_stream_filter_new (stream);
 			crlf = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_DECODE, CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
 			camel_stream_filter_add ((CamelStreamFilter *) fstream, crlf);
-			camel_object_unref (crlf);
+			g_object_unref (crlf);
 
 			camel_stream_write_to_stream ((CamelStream *) engine->istream, fstream);
 			camel_stream_flush (fstream);
-			camel_object_unref (fstream);
+			g_object_unref (fstream);
 		} else if (!strcmp (token->v.atom, "UID")) {
 			if (camel_imap4_engine_next_token (engine, token, ex) == -1)
 				goto exception;
@@ -812,18 +803,18 @@ imap4_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 			if (errno == EINTR) {
 				CAMEL_SERVICE_REC_UNLOCK (folder->parent_store, connect_lock);
 				camel_exception_setv (ex, CAMEL_EXCEPTION_USER_CANCEL, _("User canceled"));
-				camel_object_unref (message);
-				camel_object_unref (stream);
+				g_object_unref (message);
+				g_object_unref (stream);
 				return NULL;
 			} else {
 				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot get message %s: %s"),
 						      uid, g_strerror (errno));
-				camel_object_unref (message);
+				g_object_unref (message);
 				message = NULL;
 			}
 		}
 
-		camel_object_unref (stream);
+		g_object_unref (stream);
 	}
 
 	if (message != NULL) {
@@ -865,7 +856,7 @@ imap4_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	if (id == -1 || ic->status != CAMEL_IMAP4_COMMAND_COMPLETE) {
 		camel_exception_xfer (ex, &ic->ex);
 		camel_imap4_command_unref (ic);
-		camel_object_unref (stream);
+		g_object_unref (stream);
 		goto done;
 	}
 
@@ -881,7 +872,7 @@ imap4_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 			if (camel_stream_write_to_stream (stream, cache) == -1
 			    || camel_stream_flush (cache) == -1)
 				camel_data_cache_remove (imap4_folder->cache, "cache", uid, NULL);
-			camel_object_unref (cache);
+			g_object_unref (cache);
 		}
 
 		break;
@@ -900,7 +891,7 @@ imap4_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 
 	camel_imap4_command_unref (ic);
 
-	camel_object_unref (stream);
+	g_object_unref (stream);
 
  done:
 
@@ -1139,7 +1130,7 @@ imap4_transfer_messages_to (CamelFolder *src, GPtrArray *uids, CamelFolder *dest
 				break;
 
 			camel_imap4_journal_append (journal, message, info, NULL, ex);
-			camel_object_unref (message);
+			g_object_unref (message);
 
 			if (camel_exception_is_set (ex))
 				break;

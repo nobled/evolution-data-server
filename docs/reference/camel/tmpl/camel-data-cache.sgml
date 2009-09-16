@@ -22,12 +22,11 @@ CamelDataCache
 
 </para>
 
-@parent_object: 
-@priv: 
-@path: 
-@flags: 
-@expire_age: 
-@expire_access: 
+
+<!-- ##### ARG CamelDataCache:path ##### -->
+<para>
+
+</para>
 
 <!-- ##### FUNCTION camel_data_cache_new ##### -->
 <para>
@@ -35,9 +34,26 @@ CamelDataCache
 </para>
 
 @path: 
-@flags: 
 @ex: 
 @Returns: 
+
+
+<!-- ##### FUNCTION camel_data_cache_get_path ##### -->
+<para>
+
+</para>
+
+@cdc: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_data_cache_set_path ##### -->
+<para>
+
+</para>
+
+@cdc: 
+@path: 
 
 
 <!-- ##### FUNCTION camel_data_cache_set_expire_age ##### -->

@@ -22,7 +22,9 @@
  */
 
 #ifndef CAMEL_H
-#define CAMEL_H 1
+#define CAMEL_H
+
+#define __CAMEL_H_INSIDE__
 
 #include <camel/camel-address.h>
 #include <camel/camel-arg.h>
@@ -32,6 +34,8 @@
 #include <camel/camel-cipher-context.h>
 #include <camel/camel-data-cache.h>
 #include <camel/camel-data-wrapper.h>
+#include <camel/camel-db.h>
+#include <camel/camel-debug.h>
 #include <camel/camel-digest-folder.h>
 #include <camel/camel-digest-store.h>
 #include <camel/camel-digest-summary.h>
@@ -71,8 +75,10 @@
 #include <camel/camel-mime-filter-index.h>
 #include <camel/camel-mime-filter-linewrap.h>
 #include <camel/camel-mime-filter-pgp.h>
+#include <camel/camel-mime-filter-progress.h>
 #include <camel/camel-mime-filter-save.h>
 #include <camel/camel-mime-filter-tohtml.h>
+#include <camel/camel-mime-filter-windows.h>
 #include <camel/camel-mime-filter-yenc.h>
 #include <camel/camel-mime-message.h>
 #include <camel/camel-mime-parser.h>
@@ -88,6 +94,7 @@
 #include <camel/camel-news-address.h>
 #include <camel/camel-nntp-address.h>
 #include <camel/camel-object.h>
+#include <camel/camel-object-bag.h>
 #include <camel/camel-offline-folder.h>
 #include <camel/camel-offline-journal.h>
 #include <camel/camel-offline-store.h>
@@ -126,7 +133,6 @@
 #include <camel/camel-text-index.h>
 #include <camel/camel-transport.h>
 #include <camel/camel-trie.h>
-#include <camel/camel-types.h>
 #include <camel/camel-uid-cache.h>
 #include <camel/camel-url.h>
 #include <camel/camel-url-scanner.h>
@@ -136,7 +142,7 @@
 #include <camel/camel-vee-summary.h>
 #include <camel/camel-vtrash-folder.h>
 
-#include <glib.h>
+#undef __CAMEL_H_INSIDE__
 
 G_BEGIN_DECLS
 

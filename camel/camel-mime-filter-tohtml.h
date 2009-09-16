@@ -20,14 +20,33 @@
  *
  */
 
-#ifndef __CAMEL_MIME_FILTER_TOHTML_H__
-#define __CAMEL_MIME_FILTER_TOHTML_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_TOHTML_H
+#define CAMEL_MIME_FILTER_TOHTML_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_MIME_FILTER_TOHTML(obj)         CAMEL_CHECK_CAST (obj, camel_mime_filter_tohtml_get_type (), CamelMimeFilterToHTML)
-#define CAMEL_MIME_FILTER_TOHTML_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mime_filter_tohtml_get_type (), CamelMimeFilterToHTMLClass)
-#define CAMEL_IS_MIME_FILTER_TOHTML(obj)      CAMEL_CHECK_TYPE (obj, camel_mime_filter_tohtml_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_TOHTML \
+	(camel_mime_filter_tohtml_get_type ())
+#define CAMEL_MIME_FILTER_TOHTML(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_TOHTML, CamelMimeFilterToHTML))
+#define CAMEL_MIME_FILTER_TOHTML_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_TOHTML, CamelMimeFilterToHTMLClass))
+#define CAMEL_IS_MIME_FILTER_TOHTML(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_TOHTML))
+#define CAMEL_IS_MIME_FILTER_TOHTML_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_TOHTML))
+#define CAMEL_MIME_FILTER_TOHTML_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_TOHTML, CamelMimeFilterToHTMLClass))
 
 #define CAMEL_MIME_FILTER_TOHTML_PRE               (1 << 0)
 #define CAMEL_MIME_FILTER_TOHTML_CONVERT_NL        (1 << 1)
@@ -42,33 +61,30 @@
 
 G_BEGIN_DECLS
 
-typedef struct _CamelMimeFilterToHTMLClass CamelMimeFilterToHTMLClass;
 typedef struct _CamelMimeFilterToHTML CamelMimeFilterToHTML;
+typedef struct _CamelMimeFilterToHTMLClass CamelMimeFilterToHTMLClass;
+typedef struct _CamelMimeFilterToHTMLPrivate CamelMimeFilterToHTMLPrivate;
 
 struct _CamelMimeFilterToHTML {
 	CamelMimeFilter parent;
-
-	struct _CamelUrlScanner *scanner;
-
-	guint32 flags;
-	guint32 colour;
-
-	guint32 column   : 31;
-	guint32 pre_open : 1;
+	CamelMimeFilterToHTMLPrivate *priv;
 };
 
 struct _CamelMimeFilterToHTMLClass {
 	CamelMimeFilterClass parent_class;
 };
 
-CamelType        camel_mime_filter_tohtml_get_type (void);
-
-CamelMimeFilter *camel_mime_filter_tohtml_new (guint32 flags, guint32 colour);
+GType		camel_mime_filter_tohtml_get_type (void);
+CamelMimeFilter *
+		camel_mime_filter_tohtml_new	(guint32 flags,
+						 guint32 color);
 
 /* utility functions to replace e_text_to_html */
 
-gchar *camel_text_to_html (const gchar *in, guint32 flags, guint32 colour);
+gchar *		camel_text_to_html		(const gchar *in,
+						 guint32 flags,
+						 guint32 color);
 
 G_END_DECLS
 
-#endif /* __CAMEL_MIME_FILTER_TOHTML_H__ */
+#endif /* CAMEL_MIME_FILTER_TOHTML_H */

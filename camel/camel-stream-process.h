@@ -19,19 +19,38 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_STREAM_NULL_H
-#define _CAMEL_STREAM_NULL_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_STREAM_PROCESS_H
+#define CAMEL_STREAM_PROCESS_H
 
 #include <camel/camel-stream.h>
 
-#define CAMEL_STREAM_PROCESS(obj)         CAMEL_CHECK_CAST (obj, camel_stream_process_get_type (), CamelStreamProcess)
-#define CAMEL_STREAM_PROCESS_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_stream_process_get_type (), CamelStreamProcessClass)
-#define CAMEL_IS_STREAM_PROCESS(obj)      CAMEL_CHECK_TYPE (obj, camel_stream_process_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_STREAM_PROCESS \
+	(camel_stream_process_get_type ())
+#define CAMEL_STREAM_PROCESS(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_STREAM_PROCESS, CamelStreamProcess))
+#define CAMEL_STREAM_PROCESS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_STREAM_PROCESS, CamelStreamProcessClass))
+#define CAMEL_IS_STREAM_PROCESS(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_STREAM_PROCESS))
+#define CAMEL_IS_STREAM_PROCESS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_STREAM_PROCESS))
+#define CAMEL_STREAM_PROCESS_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_STREAM_PROCSS, CamelStreamProcessClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelStreamProcessClass CamelStreamProcessClass;
 typedef struct _CamelStreamProcess CamelStreamProcess;
+typedef struct _CamelStreamProcessClass CamelStreamProcessClass;
 
 struct _CamelStreamProcess {
 	CamelStream parent;
@@ -44,10 +63,10 @@ struct _CamelStreamProcessClass {
 	CamelStreamClass parent_class;
 };
 
-CamelType		camel_stream_process_get_type	(void);
+GType		camel_stream_process_get_type	(void);
 CamelStream            *camel_stream_process_new		(void);
 gint camel_stream_process_connect(CamelStreamProcess *, const gchar *, const gchar **);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_STREAM_PROCESS_H */
+#endif /* CAMEL_STREAM_PROCESS_H */

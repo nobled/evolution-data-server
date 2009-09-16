@@ -21,13 +21,36 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_MIME_MESSAGE_H
-#define CAMEL_MIME_MESSAGE_H 1
+#define CAMEL_MIME_MESSAGE_H
 
 #include <camel/camel-mime-part.h>
 #include <camel/camel-mime-utils.h>
 #include <camel/camel-internet-address.h>
 #include <camel/camel-mime-filter-bestenc.h>
+
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_MESSAGE \
+	(camel_mime_message_get_type ())
+#define CAMEL_MIME_MESSAGE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_MESSAGE, CamelMimeMessage))
+#define CAMEL_MIME_MESSAGE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_MESSAGE, CamelMimeMessageClass))
+#define CAMEL_IS_MIME_MESSAGE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_MESSAGE))
+#define CAMEL_IS_MIME_MESSAGE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_MESSAGE))
+#define CAMEL_MIME_MESSAGE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_MESSAGE, CamelMimeMessageClass))
 
 #define CAMEL_RECIPIENT_TYPE_TO "To"
 #define CAMEL_RECIPIENT_TYPE_CC "Cc"
@@ -37,19 +60,16 @@
 #define CAMEL_RECIPIENT_TYPE_RESENT_CC "Resent-Cc"
 #define CAMEL_RECIPIENT_TYPE_RESENT_BCC "Resent-Bcc"
 
-#define CAMEL_MIME_MESSAGE_TYPE     (camel_mime_message_get_type ())
-#define CAMEL_MIME_MESSAGE(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_MIME_MESSAGE_TYPE, CamelMimeMessage))
-#define CAMEL_MIME_MESSAGE_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_MIME_MESSAGE_TYPE, CamelMimeMessageClass))
-#define CAMEL_IS_MIME_MESSAGE(o)    (CAMEL_CHECK_TYPE((o), CAMEL_MIME_MESSAGE_TYPE))
-
 /* specify local time */
 #define CAMEL_MESSAGE_DATE_CURRENT (~0)
 
 G_BEGIN_DECLS
 
-struct _CamelMimeMessage
-{
-	CamelMimePart parent_object;
+typedef struct _CamelMimeMessage CamelMimeMessage;
+typedef struct _CamelMimeMessageClass CamelMimeMessageClass;
+
+struct _CamelMimeMessage {
+	CamelMimePart parent;
 
 	/* header fields */
 	time_t date;
@@ -69,15 +89,11 @@ struct _CamelMimeMessage
 	GHashTable *recipients;	/* hash table of CamelInternetAddress's */
 };
 
-typedef struct {
+struct _CamelMimeMessageClass {
 	CamelMimePartClass parent_class;
+};
 
-	/* Virtual methods */
-
-} CamelMimeMessageClass;
-
-/* Standard Camel function */
-CamelType                   camel_mime_message_get_type           (void);
+GType                   camel_mime_message_get_type           (void);
 
 /* public methods */
 CamelMimeMessage           *camel_mime_message_new                (void);

@@ -18,14 +18,29 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_NNTP_SUMMARY_H
-#define _CAMEL_NNTP_SUMMARY_H
+#ifndef CAMEL_NNTP_SUMMARY_H
+#define CAMEL_NNTP_SUMMARY_H
 
-#include <camel/camel-folder-summary.h>
+#include <camel/camel.h>
 
-#define CAMEL_NNTP_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_nntp_summary_get_type (), CamelNNTPSummary)
-#define CAMEL_NNTP_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_nntp_summary_get_type (), CamelNNTPSummaryClass)
-#define CAMEL_IS_LOCAL_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_nntp_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_NNTP_SUMMARY \
+	(camel_nntp_summary_get_type ())
+#define CAMEL_NNTP_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_NNTP_SUMMARY, CamelNNTPSummary))
+#define CAMEL_NNTP_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_NNTP_SUMMARY, CamelNNTPSummaryClass))
+#define CAMEL_IS_NNTP_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_NNTP_SUMMARY))
+#define CAMEL_IS_NNTP_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_NNTP_SUMMARY))
+#define CAMEL_NNTP_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_NNTP_SUMMARY, CamelNNTPSummaryClass))
 
 G_BEGIN_DECLS
 
@@ -33,13 +48,14 @@ struct _CamelNNTPStore;
 struct _CamelFolderChangeInfo;
 struct _CamelException;
 
-typedef struct _CamelNNTPSummary      CamelNNTPSummary;
+typedef struct _CamelNNTPSummary CamelNNTPSummary;
 typedef struct _CamelNNTPSummaryClass CamelNNTPSummaryClass;
+typedef struct _CamelNNTPSummaryPrivate CamelNNTPSummaryPrivate;
 
 struct _CamelNNTPSummary {
 	CamelFolderSummary parent;
 
-	struct _CamelNNTPSummaryPrivate *priv;
+	CamelNNTPSummaryPrivate *priv;
 
 	guint32 version;
 	guint32 high, low;
@@ -49,12 +65,12 @@ struct _CamelNNTPSummaryClass {
 	CamelFolderSummaryClass parent_class;
 };
 
-CamelType	camel_nntp_summary_get_type	(void);
+GType	camel_nntp_summary_get_type	(void);
 CamelNNTPSummary *camel_nntp_summary_new(struct _CamelFolder *folder, const gchar *path);
 
 gint camel_nntp_summary_check(CamelNNTPSummary *cns, struct _CamelNNTPStore *store, gchar *line, struct _CamelFolderChangeInfo *changes, struct _CamelException *ex);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_NNTP_SUMMARY_H */
+#endif /* CAMEL_NNTP_SUMMARY_H */
 

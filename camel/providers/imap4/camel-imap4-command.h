@@ -19,17 +19,11 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_COMMAND_H__
-#define __CAMEL_IMAP4_COMMAND_H__
+#ifndef CAMEL_IMAP4_COMMAND_H
+#define CAMEL_IMAP4_COMMAND_H
 
 #include <stdarg.h>
-
-#include <glib.h>
-
-#include <camel/camel-stream.h>
-#include <camel/camel-exception.h>
-#include <camel/camel-list-utils.h>
-#include <camel/camel-data-wrapper.h>
+#include <camel/camel.h>
 
 G_BEGIN_DECLS
 
@@ -139,4 +133,4 @@ void camel_imap4_command_reset (CamelIMAP4Command *ic);
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_COMMAND_H__ */
+#endif /* CAMEL_IMAP4_COMMAND_H */

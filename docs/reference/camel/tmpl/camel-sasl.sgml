@@ -22,11 +22,26 @@ CamelSasl
 
 </para>
 
-@parent_object: 
-@service_name: 
-@mech: 
-@service: 
-@authenticated: 
+
+<!-- ##### ARG CamelSasl:authenticated ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG CamelSasl:mechanism ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG CamelSasl:service ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG CamelSasl:service-name ##### -->
+<para>
+
+</para>
 
 <!-- ##### FUNCTION camel_sasl_challenge ##### -->
 <para>
@@ -50,15 +65,6 @@ CamelSasl
 @Returns: 
 
 
-<!-- ##### FUNCTION camel_sasl_authenticated ##### -->
-<para>
-
-</para>
-
-@sasl: 
-@Returns: 
-
-
 <!-- ##### FUNCTION camel_sasl_new ##### -->
 <para>
 
@@ -67,6 +73,51 @@ CamelSasl
 @service_name: 
 @mechanism: 
 @service: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_sasl_get_authenticated ##### -->
+<para>
+
+</para>
+
+@sasl: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_sasl_set_authenticated ##### -->
+<para>
+
+</para>
+
+@sasl: 
+@authenticated: 
+
+
+<!-- ##### FUNCTION camel_sasl_get_mechanism ##### -->
+<para>
+
+</para>
+
+@sasl: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_sasl_get_service ##### -->
+<para>
+
+</para>
+
+@sasl: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_sasl_get_service_name ##### -->
+<para>
+
+</para>
+
+@sasl: 
 @Returns: 
 
 

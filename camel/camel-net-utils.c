@@ -29,7 +29,6 @@
 #include <pthread.h>
 #include <stdio.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-exception.h"

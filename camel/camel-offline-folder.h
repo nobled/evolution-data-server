@@ -20,15 +20,33 @@
  *
  */
 
-#ifndef __CAMEL_OFFLINE_FOLDER_H__
-#define __CAMEL_OFFLINE_FOLDER_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_OFFLINE_FOLDER_H
+#define CAMEL_OFFLINE_FOLDER_H
 
 #include <camel/camel-folder.h>
 
-#define CAMEL_OFFLINE_FOLDER_TYPE     (camel_offline_folder_get_type ())
-#define CAMEL_OFFLINE_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_OFFLINE_FOLDER_TYPE, CamelOfflineFolder))
-#define CAMEL_OFFLINE_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_OFFLINE_FOLDER_TYPE, CamelOfflineFolderClass))
-#define CAMEL_IS_OFFLINE_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_OFFLINE_FOLDER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_OFFLINE_FOLDER \
+	(camel_offline_folder_get_type ())
+#define CAMEL_OFFLINE_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_OFFLINE_FOLDER, CamelOfflineFolder))
+#define CAMEL_OFFLINE_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_OFFLINE_FOLDER, CamelOfflineFolderClass))
+#define CAMEL_IS_OFFLINE_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_OFFLINE_FOLDER))
+#define CAMEL_IS_OFFLINE_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_OFFLINE_FOLDER))
+#define CAMEL_OFFLINE_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_OFFLINE_FOLDER, CamelOfflineFolderClass))
 
 G_BEGIN_DECLS
 
@@ -45,7 +63,7 @@ enum {
 };
 
 struct _CamelOfflineFolder {
-	CamelFolder parent_object;
+	CamelFolder parent;
 
 	guint sync_offline:1;
 };
@@ -56,10 +74,10 @@ struct _CamelOfflineFolderClass {
 	void (* downsync) (CamelOfflineFolder *folder, const gchar *expression, CamelException *ex);
 };
 
-CamelType camel_offline_folder_get_type (void);
+GType camel_offline_folder_get_type (void);
 
 void camel_offline_folder_downsync (CamelOfflineFolder *offline, const gchar *expression, CamelException *ex);
 
 G_END_DECLS
 
-#endif /* __CAMEL_OFFLINE_FOLDER_H__ */
+#endif /* CAMEL_OFFLINE_FOLDER_H */

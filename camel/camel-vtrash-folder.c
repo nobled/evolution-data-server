@@ -27,7 +27,6 @@
 
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-db.h"
@@ -40,7 +39,7 @@
 #include "camel-string-utils.h"
 
 /* Returns the class for a CamelFolder */
-#define CF_CLASS(so) ((CamelFolderClass *)((CamelObject *)(so))->klass)
+#define CF_CLASS(so) ((CamelFolderClass *)((CamelObject *)(so))->class)
 
 static struct {
 	const gchar *full_name;
@@ -57,67 +56,35 @@ static struct {
 	  N_("Cannot copy messages to the Junk folder"), "junk" },
 };
 
-static CamelVeeFolderClass *camel_vtrash_folder_parent;
+struct _transfer_data {
+	CamelFolder *folder;
+	CamelFolder *dest;
+	GPtrArray *uids;
+	gboolean delete;
+};
 
-static void camel_vtrash_folder_class_init (CamelVTrashFolderClass *klass);
+static gpointer parent_class;
 
 static void
-camel_vtrash_folder_init (CamelVTrashFolder *vtrash)
+transfer_messages(CamelFolder *folder, struct _transfer_data *md, CamelException *ex)
 {
-	/*CamelFolder *folder = CAMEL_FOLDER (vtrash);*/
-}
+	gint i;
 
-CamelType
-camel_vtrash_folder_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
+	if (!camel_exception_is_set (ex))
+		camel_folder_transfer_messages_to(md->folder, md->uids, md->dest, NULL, md->delete, ex);
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_vee_folder_get_type (),
-					    "CamelVTrashFolder",
-					    sizeof (CamelVTrashFolder),
-					    sizeof (CamelVTrashFolderClass),
-					    (CamelObjectClassInitFunc) camel_vtrash_folder_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_vtrash_folder_init,
-					    NULL);
-	}
-
-	return type;
-}
-
-/**
- * camel_vtrash_folder_new:
- * @parent_store: the parent #CamelVeeStore object
- * @type: type of vfolder, #CAMEL_VTRASH_FOLDER_TRASH or
- * #CAMEL_VTRASH_FOLDER_JUNK currently.
- *
- * Create a new CamelVTrashFolder object.
- *
- * Returns: a new #CamelVTrashFolder object
- **/
-CamelFolder *
-camel_vtrash_folder_new (CamelStore *parent_store, camel_vtrash_folder_t type)
-{
-	CamelVTrashFolder *vtrash;
-
-	g_assert(type < CAMEL_VTRASH_FOLDER_LAST);
-
-	vtrash = (CamelVTrashFolder *)camel_object_new(camel_vtrash_folder_get_type());
-	camel_vee_folder_construct(CAMEL_VEE_FOLDER (vtrash), parent_store, vdata[type].full_name, _(vdata[type].name),
-				   CAMEL_STORE_FOLDER_PRIVATE|CAMEL_STORE_FOLDER_CREATE|CAMEL_STORE_VEE_FOLDER_AUTO|CAMEL_STORE_VEE_FOLDER_SPECIAL);
-
-	((CamelFolder *)vtrash)->folder_flags |= vdata[type].flags;
-	camel_vee_folder_set_expression((CamelVeeFolder *)vtrash, vdata[type].expr);
-	vtrash->bit = vdata[type].bit;
-	vtrash->type = type;
-
-	return (CamelFolder *)vtrash;
+	for (i=0;i<md->uids->len;i++)
+		g_free(md->uids->pdata[i]);
+	g_ptr_array_free(md->uids, TRUE);
+	g_object_unref (md->folder);
+	g_free(md);
 }
 
 /* This entire code will be useless, since we sync the counts always. */
 static gint
-vtrash_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
+vtrash_folder_getv (CamelObject *object,
+                    CamelException *ex,
+                    CamelArgGetV *args)
 {
 	CamelFolder *folder = (CamelFolder *)object;
 	gint i;
@@ -200,44 +167,28 @@ vtrash_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return ((CamelObjectClass *)camel_vtrash_folder_parent)->getv(object, ex, args);
+	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, ex, args);
 }
 
 static void
-vtrash_append_message (CamelFolder *folder, CamelMimeMessage *message,
-		       const CamelMessageInfo *info, gchar **appended_uid,
-		       CamelException *ex)
+vtrash_folder_append_message (CamelFolder *folder,
+                              CamelMimeMessage *message,
+                              const CamelMessageInfo *info,
+                              gchar **appended_uid,
+                              CamelException *ex)
 {
-	camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, "%s",
-			     _(vdata[((CamelVTrashFolder *)folder)->type].error_copy));
-}
-
-struct _transfer_data {
-	CamelFolder *folder;
-	CamelFolder *dest;
-	GPtrArray *uids;
-	gboolean delete;
-};
-
-static void
-transfer_messages(CamelFolder *folder, struct _transfer_data *md, CamelException *ex)
-{
-	gint i;
-
-	if (!camel_exception_is_set (ex))
-		camel_folder_transfer_messages_to(md->folder, md->uids, md->dest, NULL, md->delete, ex);
-
-	for (i=0;i<md->uids->len;i++)
-		g_free(md->uids->pdata[i]);
-	g_ptr_array_free(md->uids, TRUE);
-	camel_object_unref((CamelObject *)md->folder);
-	g_free(md);
+	camel_exception_setv (
+		ex, CAMEL_EXCEPTION_SYSTEM, "%s",
+		_(vdata[((CamelVTrashFolder *)folder)->type].error_copy));
 }
 
 static void
-vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
-			     CamelFolder *dest, GPtrArray **transferred_uids,
-			     gboolean delete_originals, CamelException *ex)
+vtrash_folder_transfer_messages_to (CamelFolder *source,
+                                    GPtrArray *uids,
+                                    CamelFolder *dest,
+                                    GPtrArray **transferred_uids,
+                                    gboolean delete_originals,
+                                    CamelException *ex)
 {
 	CamelVeeMessageInfo *mi;
 	gint i;
@@ -291,7 +242,7 @@ vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 			if (md == NULL) {
 				md = g_malloc0(sizeof(*md));
 				md->folder = mi->summary->folder;
-				camel_object_ref((CamelObject *)md->folder);
+				g_object_ref (md->folder);
 				md->uids = g_ptr_array_new();
 				md->dest = dest;
 				g_hash_table_insert(batch, mi->summary->folder, md);
@@ -312,15 +263,65 @@ vtrash_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 }
 
 static void
-camel_vtrash_folder_class_init (CamelVTrashFolderClass *klass)
+vtrash_folder_class_init (CamelVTrashFolderClass *class)
 {
-	CamelFolderClass *folder_class = (CamelFolderClass *) klass;
+	CamelObjectClass *camel_object_class;
+	CamelFolderClass *folder_class;
 
-	camel_vtrash_folder_parent = CAMEL_VEE_FOLDER_CLASS(camel_vee_folder_get_type());
+	parent_class = g_type_class_peek_parent (class);
 
 	/* Not required from here on. We don't count */
-	((CamelObjectClass *)klass)->getv = vtrash_getv;
+	camel_object_class = CAMEL_OBJECT_CLASS (class);
+	camel_object_class->getv = vtrash_folder_getv;
 
-	folder_class->append_message = vtrash_append_message;
-	folder_class->transfer_messages_to = vtrash_transfer_messages_to;
+	folder_class = CAMEL_FOLDER_CLASS (class);
+	folder_class->append_message = vtrash_folder_append_message;
+	folder_class->transfer_messages_to = vtrash_folder_transfer_messages_to;
+}
+
+GType
+camel_vtrash_folder_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_VEE_FOLDER,
+			"CamelVTrashFolder",
+			sizeof (CamelVTrashFolderClass),
+			(GClassInitFunc) vtrash_folder_class_init,
+			sizeof (CamelVTrashFolder),
+			(GInstanceInitFunc) NULL,
+			0);
+
+	return type;
+}
+
+/**
+ * camel_vtrash_folder_new:
+ * @parent_store: the parent #CamelVeeStore object
+ * @type: type of vfolder, #CAMEL_VTRASH_FOLDER_TRASH or
+ * #CAMEL_VTRASH_FOLDER_JUNK currently.
+ *
+ * Create a new CamelVTrashFolder object.
+ *
+ * Returns: a new #CamelVTrashFolder object
+ **/
+CamelFolder *
+camel_vtrash_folder_new (CamelStore *parent_store, camel_vtrash_folder_t type)
+{
+	CamelVTrashFolder *vtrash;
+
+	g_assert(type < CAMEL_VTRASH_FOLDER_LAST);
+
+	vtrash = g_object_new (CAMEL_TYPE_VTRASH_FOLDER, NULL);
+	camel_vee_folder_construct(CAMEL_VEE_FOLDER (vtrash), parent_store, vdata[type].full_name, _(vdata[type].name),
+				   CAMEL_STORE_FOLDER_PRIVATE|CAMEL_STORE_FOLDER_CREATE|CAMEL_STORE_VEE_FOLDER_AUTO|CAMEL_STORE_VEE_FOLDER_SPECIAL);
+
+	((CamelFolder *)vtrash)->folder_flags |= vdata[type].flags;
+	camel_vee_folder_set_expression((CamelVeeFolder *)vtrash, vdata[type].expr);
+	vtrash->bit = vdata[type].bit;
+	vtrash->type = type;
+
+	return (CamelFolder *)vtrash;
 }

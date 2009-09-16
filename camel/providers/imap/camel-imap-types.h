@@ -20,9 +20,9 @@
  */
 
 #ifndef CAMEL_IMAP_TYPES_H
-#define CAMEL_IMAP_TYPES_H 1
+#define CAMEL_IMAP_TYPES_H
 
-#include "camel-types.h"
+#include <glib.h>
 
 G_BEGIN_DECLS
 

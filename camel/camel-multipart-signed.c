@@ -34,7 +34,6 @@
 #include <alloca.h>
 #endif
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 
 #include "camel-exception.h"
@@ -64,82 +63,102 @@ static void set_mime_type_field (CamelDataWrapper *data_wrapper, CamelContentTyp
 static gint construct_from_stream (CamelDataWrapper *data_wrapper, CamelStream *stream);
 static gint signed_construct_from_parser (CamelMultipart *multipart, struct _CamelMimeParser *mp);
 
-static CamelMultipartClass *parent_class = NULL;
-
-/* Returns the class for a CamelMultipartSigned */
-#define CMP_CLASS(so) CAMEL_MULTIPART_SIGNED_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-
-/* Returns the class for a CamelDataWrapper */
-#define CDW_CLASS(so) CAMEL_DATA_WRAPPER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static void
-camel_multipart_signed_class_init (CamelMultipartSignedClass *camel_multipart_signed_class)
+multipart_signed_dispose (GObject *object)
 {
-	CamelDataWrapperClass *camel_data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS(camel_multipart_signed_class);
-	CamelMultipartClass *mpclass = (CamelMultipartClass *)camel_multipart_signed_class;
+	CamelMultipartSigned *multipart;
 
-	parent_class = (CamelMultipartClass *)camel_multipart_get_type();
+	multipart = CAMEL_MULTIPART_SIGNED (object);
 
-	/* virtual method overload */
-	camel_data_wrapper_class->construct_from_stream = construct_from_stream;
-	camel_data_wrapper_class->write_to_stream = write_to_stream;
-	camel_data_wrapper_class->decode_to_stream = write_to_stream;
-	camel_data_wrapper_class->set_mime_type_field = set_mime_type_field;
+	if (multipart->signature != NULL) {
+		g_object_unref (multipart->signature);
+		multipart->signature = NULL;
+	}
 
-	mpclass->add_part = signed_add_part;
-	mpclass->add_part_at = signed_add_part_at;
-	mpclass->remove_part = signed_remove_part;
-	mpclass->remove_part_at = signed_remove_part_at;
-	mpclass->get_part = signed_get_part;
-	mpclass->get_number = signed_get_number;
-	mpclass->construct_from_parser = signed_construct_from_parser;
+	if (multipart->content != NULL) {
+		g_object_unref (multipart->content);
+		multipart->content = NULL;
+	}
 
-/*
-	mpclass->get_boundary = signed_get_boundary;
-	mpclass->set_boundary = signed_set_boundary;
-*/
+	if (multipart->contentraw != NULL) {
+		g_object_unref (multipart->contentraw);
+		multipart->contentraw = NULL;
+	}
+
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_multipart_signed_init (gpointer object, gpointer klass)
+multipart_signed_finalize (GObject *object)
 {
-	CamelMultipartSigned *multipart = (CamelMultipartSigned *)object;
+	CamelMultipartSigned *multipart;
 
-	camel_data_wrapper_set_mime_type(CAMEL_DATA_WRAPPER(multipart), "multipart/signed");
+	multipart = CAMEL_MULTIPART_SIGNED (object);
+
+	g_free (multipart->protocol);
+	g_free (multipart->micalg);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+multipart_signed_class_init (CamelMultipartSignedClass *class)
+{
+	GObjectClass *object_class;
+	CamelDataWrapperClass *data_wrapper_class;
+	CamelMultipartClass *multipart_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = multipart_signed_dispose;
+	object_class->finalize = multipart_signed_finalize;
+
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (class);
+	data_wrapper_class->construct_from_stream = construct_from_stream;
+	data_wrapper_class->write_to_stream = write_to_stream;
+	data_wrapper_class->decode_to_stream = write_to_stream;
+	data_wrapper_class->set_mime_type_field = set_mime_type_field;
+
+	multipart_class = CAMEL_MULTIPART_CLASS (class);
+	multipart_class->add_part = signed_add_part;
+	multipart_class->add_part_at = signed_add_part_at;
+	multipart_class->remove_part = signed_remove_part;
+	multipart_class->remove_part_at = signed_remove_part_at;
+	multipart_class->get_part = signed_get_part;
+	multipart_class->get_number = signed_get_number;
+	multipart_class->construct_from_parser = signed_construct_from_parser;
+}
+
+static void
+multipart_signed_init (CamelMultipartSigned *multipart)
+{
+	camel_data_wrapper_set_mime_type (
+		CAMEL_DATA_WRAPPER (multipart), "multipart/signed");
+
 	multipart->start1 = -1;
 }
 
-static void
-camel_multipart_signed_finalize (CamelObject *object)
-{
-	CamelMultipartSigned *mps = (CamelMultipartSigned *)object;
-
-	g_free(mps->protocol);
-	g_free(mps->micalg);
-	if (mps->signature)
-		camel_object_unref((CamelObject *)mps->signature);
-	if (mps->content)
-		camel_object_unref((CamelObject *)mps->content);
-	if (mps->contentraw)
-		camel_object_unref((CamelObject *)mps->contentraw);
-}
-
-CamelType
+GType
 camel_multipart_signed_get_type (void)
 {
-	static CamelType camel_multipart_signed_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_multipart_signed_type == CAMEL_INVALID_TYPE) {
-		camel_multipart_signed_type = camel_type_register (camel_multipart_get_type (), "CamelMultipartSigned",
-								   sizeof (CamelMultipartSigned),
-								   sizeof (CamelMultipartSignedClass),
-								   (CamelObjectClassInitFunc) camel_multipart_signed_class_init,
-								   NULL,
-								   (CamelObjectInitFunc) camel_multipart_signed_init,
-								   (CamelObjectFinalizeFunc) camel_multipart_signed_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MULTIPART,
+			"CamelMultipartSigned",
+			sizeof (CamelMultipartSignedClass),
+			(GClassInitFunc) multipart_signed_class_init,
+			sizeof (CamelMultipartSigned),
+			(GInstanceInitFunc) multipart_signed_init,
+			0);
 
-	return camel_multipart_signed_type;
+	return type;
 }
 
 /**
@@ -173,11 +192,7 @@ camel_multipart_signed_get_type (void)
 CamelMultipartSigned *
 camel_multipart_signed_new (void)
 {
-	CamelMultipartSigned *multipart;
-
-	multipart = (CamelMultipartSigned *)camel_object_new(CAMEL_MULTIPART_SIGNED_TYPE);
-
-	return multipart;
+	return g_object_new (CAMEL_TYPE_MULTIPART_SIGNED, NULL);
 }
 
 static gint
@@ -229,7 +244,7 @@ parse_content(CamelMultipartSigned *mps)
 {
 	CamelMimeParser *cmp;
 	CamelMultipart *mp = (CamelMultipart *)mps;
-	CamelStreamMem *mem;
+	CamelStream *stream;
 	const gchar *boundary;
 	gchar *buf;
 	gsize len;
@@ -241,8 +256,8 @@ parse_content(CamelMultipartSigned *mps)
 		return -1;
 	}
 
-	mem = (CamelStreamMem *)((CamelDataWrapper *)mps)->stream;
-	if (mem == NULL) {
+	stream = ((CamelDataWrapper *)mps)->stream;
+	if (stream == NULL) {
 		g_warning("Trying to parse multipart/signed without constructing first");
 		return -1;
 	}
@@ -251,9 +266,9 @@ parse_content(CamelMultipartSigned *mps)
 	   This is so we can parse all cases properly, without altering the content.
 	   All we are doing is finding part offsets. */
 
-	camel_stream_reset((CamelStream *)mem);
+	camel_stream_reset(stream);
 	cmp = camel_mime_parser_new();
-	camel_mime_parser_init_with_stream(cmp, (CamelStream *)mem);
+	camel_mime_parser_init_with_stream(cmp, stream);
 	camel_mime_parser_push_state(cmp, CAMEL_MIME_PARSER_STATE_MULTIPART, boundary);
 
 	mps->start1 = -1;
@@ -265,11 +280,15 @@ parse_content(CamelMultipartSigned *mps)
 		if (mps->start1 == -1) {
 			mps->start1 = camel_mime_parser_tell_start_headers(cmp);
 		} else if (mps->start2 == -1) {
+			GByteArray *buffer;
+
+			buffer = camel_stream_mem_get_byte_array (
+				CAMEL_STREAM_MEM (stream));
 			mps->start2 = camel_mime_parser_tell_start_headers(cmp);
 			mps->end1 = camel_mime_parser_tell_start_boundary(cmp);
-			if (mps->end1 > mps->start1 && mem->buffer->data[mps->end1-1] == '\n')
+			if (mps->end1 > mps->start1 && buffer->data[mps->end1-1] == '\n')
 				mps->end1--;
-			if (mps->end1 > mps->start1 && mem->buffer->data[mps->end1-1] == '\r')
+			if (mps->end1 > mps->start1 && buffer->data[mps->end1-1] == '\r')
 				mps->end1--;
 		} else {
 			g_warning("multipart/signed has more than 2 parts, remaining parts ignored");
@@ -287,7 +306,7 @@ parse_content(CamelMultipartSigned *mps)
 		camel_multipart_set_postface(mp, camel_mime_parser_postface(cmp));
 	}
 
-	camel_object_unref(cmp);
+	g_object_unref (cmp);
 
 	if (mps->end2 == -1 || mps->start2 == -1) {
 		return -1;
@@ -354,7 +373,7 @@ signed_get_part(CamelMultipart *multipart, guint index)
 			return mps->content;
 		if (mps->contentraw) {
 			stream = mps->contentraw;
-			camel_object_ref((CamelObject *)stream);
+			g_object_ref (stream);
 		} else if (mps->start1 == -1
 			   && parse_content(mps) == -1
 			   && (stream = ((CamelDataWrapper *)mps)->stream) == NULL) {
@@ -364,14 +383,14 @@ signed_get_part(CamelMultipart *multipart, guint index)
 			return NULL;
 		} else if (mps->start1 == -1) {
 			stream = dw->stream;
-			camel_object_ref(stream);
+			g_object_ref (stream);
 		} else {
 			stream = camel_seekable_substream_new((CamelSeekableStream *)dw->stream, mps->start1, mps->end1);
 		}
 		camel_stream_reset(stream);
 		mps->content = camel_mime_part_new();
 		camel_data_wrapper_construct_from_stream((CamelDataWrapper *)mps->content, stream);
-		camel_object_unref(stream);
+		g_object_unref (stream);
 		return mps->content;
 	case CAMEL_MULTIPART_SIGNED_SIGNATURE:
 		if (mps->signature)
@@ -387,7 +406,7 @@ signed_get_part(CamelMultipart *multipart, guint index)
 		camel_stream_reset(stream);
 		mps->signature = camel_mime_part_new();
 		camel_data_wrapper_construct_from_stream((CamelDataWrapper *)mps->signature, stream);
-		camel_object_unref((CamelObject *)stream);
+		g_object_unref (stream);
 		return mps->signature;
 	default:
 		g_warning("trying to get object out of bounds for multipart");
@@ -418,25 +437,25 @@ signed_get_number(CamelMultipart *multipart)
 }
 
 static void
-set_stream(CamelMultipartSigned *mps, CamelStream *mem)
+set_stream(CamelMultipartSigned *mps, CamelStream *stream)
 {
 	CamelDataWrapper *dw = (CamelDataWrapper *)mps;
 
 	if (dw->stream)
-		camel_object_unref((CamelObject *)dw->stream);
-	dw->stream = (CamelStream *)mem;
+		g_object_unref (dw->stream);
+	dw->stream = stream;
 
 	mps->start1 = -1;
 	if (mps->content) {
-		camel_object_unref((CamelObject *)mps->content);
+		g_object_unref (mps->content);
 		mps->content = NULL;
 	}
 	if (mps->contentraw) {
-		camel_object_unref((CamelObject *)mps->contentraw);
+		g_object_unref (mps->contentraw);
 		mps->contentraw = NULL;
 	}
 	if (mps->signature) {
-		camel_object_unref((CamelObject *)mps->signature);
+		g_object_unref (mps->signature);
 		mps->signature = NULL;
 	}
 }
@@ -463,7 +482,7 @@ signed_construct_from_parser(CamelMultipart *multipart, struct _CamelMimeParser 
 	CamelMultipartSigned *mps = (CamelMultipartSigned *)multipart;
 	gchar *buf;
 	gsize len;
-	CamelStream *mem;
+	CamelStream *stream;
 
 	/* we *must not* be in multipart state, otherwise the mime parser will
 	   parse the headers which is a no no @#$@# stupid multipart/signed spec */
@@ -473,11 +492,11 @@ signed_construct_from_parser(CamelMultipart *multipart, struct _CamelMimeParser 
 	content_type = camel_mime_parser_content_type(mp);
 	camel_multipart_set_boundary(multipart, camel_content_type_param(content_type, "boundary"));
 
-	mem = camel_stream_mem_new();
+	stream = camel_stream_mem_new();
 	while (camel_mime_parser_step(mp, &buf, &len) != CAMEL_MIME_PARSER_STATE_BODY_END)
-		camel_stream_write(mem, buf, len);
+		camel_stream_write(stream, buf, len);
 
-	set_stream(mps, mem);
+	set_stream(mps, stream);
 
 	err = camel_mime_parser_errno(mp);
 	if (err != 0) {
@@ -583,7 +602,7 @@ camel_multipart_signed_get_content_stream(CamelMultipartSigned *mps, CamelExcept
 
 	if (mps->contentraw) {
 		constream = mps->contentraw;
-		camel_object_ref((CamelObject *)constream);
+		g_object_ref (constream);
 	} else {
 		CamelStream *sub;
 		CamelMimeFilter *canon_filter;
@@ -595,13 +614,13 @@ camel_multipart_signed_get_content_stream(CamelMultipartSigned *mps, CamelExcept
 
 		/* first, prepare our parts */
 		sub = camel_seekable_substream_new((CamelSeekableStream *)((CamelDataWrapper *)mps)->stream, mps->start1, mps->end1);
-		constream = (CamelStream *)camel_stream_filter_new_with_stream(sub);
-		camel_object_unref((CamelObject *)sub);
+		constream = camel_stream_filter_new (sub);
+		g_object_unref (sub);
 
 		/* Note: see rfc2015 or rfc3156, section 5 */
 		canon_filter = camel_mime_filter_canon_new (CAMEL_MIME_FILTER_CANON_CRLF);
 		camel_stream_filter_add((CamelStreamFilter *)constream, (CamelMimeFilter *)canon_filter);
-		camel_object_unref((CamelObject *)canon_filter);
+		g_object_unref (canon_filter);
 	}
 
 	return constream;

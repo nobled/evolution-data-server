@@ -22,24 +22,47 @@
  *
  */
 
-#ifndef CAMEL_DATA_WRAPPER_H
-#define CAMEL_DATA_WRAPPER_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <glib.h>
+#ifndef CAMEL_DATA_WRAPPER_H
+#define CAMEL_DATA_WRAPPER_H
+
 #include <sys/types.h>
+
 #include <camel/camel-object.h>
 #include <camel/camel-mime-utils.h>
+#include <camel/camel-stream.h>
 
-#define CAMEL_DATA_WRAPPER_TYPE     (camel_data_wrapper_get_type ())
-#define CAMEL_DATA_WRAPPER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_DATA_WRAPPER_TYPE, CamelDataWrapper))
-#define CAMEL_DATA_WRAPPER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_DATA_WRAPPER_TYPE, CamelDataWrapperClass))
-#define CAMEL_IS_DATA_WRAPPER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_DATA_WRAPPER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_DATA_WRAPPER \
+	(camel_data_wrapper_get_type ())
+#define CAMEL_DATA_WRAPPER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DATA_WRAPPER, CamelDataWrapper))
+#define CAMEL_DATA_WRAPPER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DATA_WRAPPER, CamelDataWrapperClass))
+#define CAMEL_IS_DATA_WRAPPER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DATA_WRAPPER))
+#define CAMEL_IS_DATA_WRAPPER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DATA_WRAPPER))
+#define CAMEL_DATA_WRAPPER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DATA_WRAPPER, CamelDataWrapperClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelDataWrapper CamelDataWrapper;
+typedef struct _CamelDataWrapperClass CamelDataWrapperClass;
+typedef struct _CamelDataWrapperPrivate CamelDataWrapperPrivate;
+
 struct _CamelDataWrapper {
-	CamelObject parent_object;
-	struct _CamelDataWrapperPrivate *priv;
+	CamelObject parent;
+	CamelDataWrapperPrivate *priv;
 
 	CamelTransferEncoding encoding;
 
@@ -49,7 +72,7 @@ struct _CamelDataWrapper {
 	guint offline:1;
 };
 
-typedef struct {
+struct _CamelDataWrapperClass {
 	CamelObjectClass parent_class;
 
 	/* Virtual methods */
@@ -70,10 +93,9 @@ typedef struct {
 						       CamelStream *);
 
 	gboolean            (*is_offline)             (CamelDataWrapper *data_wrapper);
-} CamelDataWrapperClass;
+};
 
-/* Standard Camel function */
-CamelType camel_data_wrapper_get_type (void);
+GType camel_data_wrapper_get_type (void);
 
 /* public methods */
 CamelDataWrapper *camel_data_wrapper_new(void);

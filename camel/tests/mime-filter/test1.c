@@ -77,7 +77,7 @@ main (gint argc, gchar **argv)
 			camel_test_push("Chunk size %d\n", step);
 
 			out = (CamelStreamMem *)camel_stream_mem_new();
-			filter = camel_stream_filter_new_with_stream((CamelStream *)out);
+			filter = camel_stream_filter_new ((CamelStream *)out);
 			sh = camel_mime_filter_canon_new(tests[i].flags);
 			check(camel_stream_filter_add(filter, sh) != -1);
 			check_unref(sh, 2);

@@ -35,23 +35,13 @@
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
-#include "camel-data-wrapper.h"
-#include "camel-exception.h"
-#include "camel-mime-message.h"
-#include "camel-stream-fs.h"
-
 #include "camel-maildir-folder.h"
 #include "camel-maildir-store.h"
 #include "camel-maildir-summary.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
-static CamelLocalFolderClass *parent_class = NULL;
-
-/* Returns the class for a CamelMaildirFolder */
-#define CMAILDIRF_CLASS(so) CAMEL_MAILDIR_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CMAILDIRS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static CamelLocalSummary *maildir_create_summary(CamelLocalFolder *lf, const gchar *path, const gchar *folder, CamelIndex *index);
 
@@ -60,8 +50,6 @@ static CamelMimeMessage *maildir_get_message(CamelFolder * folder, const gchar *
 static gchar * maildir_get_filename (CamelFolder *folder, const gchar *uid, CamelException *ex);
 static gint maildir_cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2);
 static void maildir_sort_uids (CamelFolder *folder, GPtrArray *uids);
-static void maildir_transfer_messages_to (CamelFolder *source, GPtrArray *uids, CamelFolder *dest, GPtrArray **transferred_uids, gboolean delete_originals, CamelException *ex);
-static void maildir_finalize(CamelObject * object);
 
 static gint
 maildir_folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
@@ -92,54 +80,45 @@ maildir_folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 	return ((CamelObjectClass *)parent_class)->getv(object, ex, args);
 }
 
-static void camel_maildir_folder_class_init(CamelObjectClass * camel_maildir_folder_class)
+static void
+maildir_folder_class_init (CamelObjectClass *class)
 {
-	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_maildir_folder_class);
-	CamelLocalFolderClass *lclass = (CamelLocalFolderClass *)camel_maildir_folder_class;
+	CamelObjectClass *camel_object_class;
+	CamelFolderClass *folder_class;
+	CamelLocalFolderClass *local_folder_class;
 
-	parent_class = CAMEL_LOCAL_FOLDER_CLASS (camel_type_get_global_classfuncs(camel_local_folder_get_type()));
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method definition */
+	camel_object_class = CAMEL_OBJECT_CLASS (class);
+	camel_object_class->getv = maildir_folder_getv;
 
-	/* virtual method overload */
-	((CamelObjectClass *)camel_folder_class)->getv = maildir_folder_getv;
+	folder_class = CAMEL_FOLDER_CLASS (class);
+	folder_class->append_message = maildir_append_message;
+	folder_class->get_message = maildir_get_message;
+	folder_class->get_filename = maildir_get_filename;
+	folder_class->cmp_uids = maildir_cmp_uids;
+	folder_class->sort_uids = maildir_sort_uids;
 
-	camel_folder_class->append_message = maildir_append_message;
-	camel_folder_class->get_message = maildir_get_message;
-	camel_folder_class->get_filename = maildir_get_filename;
-	camel_folder_class->cmp_uids = maildir_cmp_uids;
-	camel_folder_class->sort_uids = maildir_sort_uids;
-	camel_folder_class->transfer_messages_to = maildir_transfer_messages_to;
-
-	lclass->create_summary = maildir_create_summary;
+	local_folder_class = CAMEL_LOCAL_FOLDER_CLASS (class);
+	local_folder_class->create_summary = maildir_create_summary;
 }
 
-static void maildir_init(gpointer object, gpointer klass)
+GType
+camel_maildir_folder_get_type (void)
 {
-	/*CamelFolder *folder = object;
-	  CamelMaildirFolder *maildir_folder = object;*/
-}
+	static GType type = G_TYPE_INVALID;
 
-static void maildir_finalize(CamelObject * object)
-{
-	/*CamelMaildirFolder *maildir_folder = CAMEL_MAILDIR_FOLDER(object);*/
-}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_LOCAL_FOLDER,
+			"CamelMaildirFolder",
+			sizeof (CamelMaildirFolderClass),
+			(GClassInitFunc) maildir_folder_class_init,
+			sizeof (CamelMaildirFolder),
+			(GInstanceInitFunc) NULL,
+			0);
 
-CamelType camel_maildir_folder_get_type(void)
-{
-	static CamelType camel_maildir_folder_type = CAMEL_INVALID_TYPE;
-
-	if (camel_maildir_folder_type == CAMEL_INVALID_TYPE) {
-		camel_maildir_folder_type = camel_type_register(CAMEL_LOCAL_FOLDER_TYPE, "CamelMaildirFolder",
-							   sizeof(CamelMaildirFolder),
-							   sizeof(CamelMaildirFolderClass),
-							   (CamelObjectClassInitFunc) camel_maildir_folder_class_init,
-							   NULL,
-							   (CamelObjectInitFunc) maildir_init,
-							   (CamelObjectFinalizeFunc) maildir_finalize);
-	}
-
-	return camel_maildir_folder_type;
+	return type;
 }
 
 CamelFolder *
@@ -149,7 +128,7 @@ camel_maildir_folder_new(CamelStore *parent_store, const gchar *full_name, guint
 
 	d(printf("Creating maildir folder: %s\n", full_name));
 
-	folder = (CamelFolder *)camel_object_new(CAMEL_MAILDIR_FOLDER_TYPE);
+	folder = g_object_new (CAMEL_TYPE_MAILDIR_FOLDER, NULL);
 
 	if (parent_store->flags & CAMEL_STORE_FILTER_INBOX
 	    && strcmp(full_name, ".") == 0)
@@ -215,7 +194,7 @@ maildir_append_message (CamelFolder *folder, CamelMimeMessage *message, const Ca
 		*appended_uid = g_strdup(camel_message_info_uid(mi));
 
 	if (output_stream)
-		camel_object_unref (output_stream);
+		g_object_unref (output_stream);
 
 	goto check_changed;
 
@@ -234,7 +213,7 @@ maildir_append_message (CamelFolder *folder, CamelMimeMessage *message, const Ca
 				      name, g_strerror (errno));
 
 	if (output_stream) {
-		camel_object_unref (CAMEL_OBJECT (output_stream));
+		g_object_unref (CAMEL_OBJECT (output_stream));
 		unlink (name);
 	}
 
@@ -313,11 +292,11 @@ maildir_get_message(CamelFolder * folder, const gchar * uid, CamelException * ex
 		camel_exception_setv(ex, (errno==EINTR)?CAMEL_EXCEPTION_USER_CANCEL:CAMEL_EXCEPTION_SYSTEM,
 				     _("Cannot get message: %s from folder %s\n  %s"),
 				     uid, lf->folder_path, _("Invalid message contents"));
-		camel_object_unref((CamelObject *)message);
+		g_object_unref (message);
 		message = NULL;
 
 	}
-	camel_object_unref((CamelObject *)message_stream);
+	g_object_unref (message_stream);
  fail:
 	g_free (name);
 

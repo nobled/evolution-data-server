@@ -31,8 +31,6 @@
 #include <glib/gi18n-lib.h>
 
 #include "camel-nntp-store.h"
-#include "camel-provider.h"
-#include "camel-session.h"
 
 static void add_hash (guint *hash, gchar *s);
 static guint nntp_url_hash (gconstpointer key);
@@ -83,7 +81,7 @@ CamelServiceAuthType camel_nntp_password_authtype = {
 void
 camel_provider_module_init(void)
 {
-	news_provider.object_types[CAMEL_PROVIDER_STORE] = camel_nntp_store_get_type();
+	news_provider.object_types[CAMEL_PROVIDER_STORE] = camel_nntp_store_get_type ();
 
 	news_provider.url_hash = nntp_url_hash;
 	news_provider.url_equal = nntp_url_equal;

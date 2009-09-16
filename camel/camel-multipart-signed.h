@@ -24,15 +24,33 @@
    No, because we dont have different parts?
    I'm not really sure yet ... ? */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_MULTIPART_SIGNED_H
-#define CAMEL_MULTIPART_SIGNED_H 1
+#define CAMEL_MULTIPART_SIGNED_H
 
 #include <camel/camel-multipart.h>
 
-#define CAMEL_MULTIPART_SIGNED_TYPE     (camel_multipart_signed_get_type ())
-#define CAMEL_MULTIPART_SIGNED(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_MULTIPART_SIGNED_TYPE, CamelMultipartSigned))
-#define CAMEL_MULTIPART_SIGNED_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_MULTIPART_SIGNED_TYPE, CamelMultipartSignedClass))
-#define CAMEL_IS_MULTIPART_SIGNED(o)    (CAMEL_CHECK_TYPE((o), CAMEL_MULTIPART_SIGNED_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_MULTIPART_SIGNED \
+	(camel_multipart_signed_get_type ())
+#define CAMEL_MULTIPART_SIGNED(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MULTIPART_SIGNED, CamelMultipartSigned))
+#define CAMEL_MULTIPART_SIGNED_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MULTIPART_SIGNED, CamelMultipartSignedClass))
+#define CAMEL_IS_MULTIPART_SIGNED(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MULTIPART_SIGNED))
+#define CAMEL_IS_MULTIPART_SIGNED_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MULTIPART_SIGNED))
+#define CAMEL_MULTIPART_SIGNED_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MULTIPART_SIGNED, CamelMultipartSignedClass))
 
 G_BEGIN_DECLS
 
@@ -55,7 +73,7 @@ typedef struct _CamelMultipartSigned CamelMultipartSigned;
 
 struct _CamelMultipartSigned
 {
-	CamelMultipart parent_object;
+	CamelMultipart parent;
 
 	/* these are the client visible parts, decoded forms of our data wrapper content */
 	CamelMimePart *content;
@@ -81,8 +99,7 @@ typedef struct {
 	CamelMultipartClass parent_class;
 } CamelMultipartSignedClass;
 
-/* Standard Camel function */
-CamelType camel_multipart_signed_get_type (void);
+GType camel_multipart_signed_get_type (void);
 
 /* public methods */
 CamelMultipartSigned *camel_multipart_signed_new           (void);

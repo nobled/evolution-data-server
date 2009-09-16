@@ -22,8 +22,6 @@ CamelStreamFs
 
 </para>
 
-@parent_object: 
-@fd: 
 
 <!-- ##### FUNCTION camel_stream_fs_new_with_name ##### -->
 <para>
@@ -66,6 +64,15 @@ CamelStreamFs
 @fd: 
 @start: 
 @end: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_stream_fs_get_fd ##### -->
+<para>
+
+</para>
+
+@stream: 
 @Returns: 
 
 

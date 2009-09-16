@@ -27,59 +27,57 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <camel/camel-offline-store.h>
-
 #include "camel-imap4-command.h"
 #include "camel-imap4-engine.h"
 #include "camel-imap4-search.h"
 #include "camel-imap4-stream.h"
 #include "camel-imap4-utils.h"
 
-static void camel_imap4_search_class_init (CamelIMAP4SearchClass *klass);
-static void camel_imap4_search_init (CamelIMAP4Search *search, CamelIMAP4SearchClass *klass);
-static void camel_imap4_search_finalize (CamelObject *object);
+static void camel_imap4_search_class_init (CamelIMAP4SearchClass *class);
+static void camel_imap4_search_init (CamelIMAP4Search *search, CamelIMAP4SearchClass *class);
+static void imap4_search_finalize (CamelObject *object);
 
 static ESExpResult *imap4_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 
-static CamelFolderSearchClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_search_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (camel_folder_search_get_type (),
-					    "CamelIMAP4Search",
-					    sizeof (CamelIMAP4Search),
-					    sizeof (CamelIMAP4SearchClass),
-					    (CamelObjectClassInitFunc) camel_imap4_search_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_search_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_search_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_FOLDER_SEARCH,
+			"CamelIMAP4Search",
+			sizeof (CamelIMAP4Search),
+			sizeof (CamelIMAP4SearchClass),
+			(GClassInitFunc) camel_imap4_search_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_search_init,
+			(GObjectFinalizeFunc) imap4_search_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_search_class_init (CamelIMAP4SearchClass *klass)
+camel_imap4_search_class_init (CamelIMAP4SearchClass *class)
 {
-	CamelFolderSearchClass *search_class = (CamelFolderSearchClass *) klass;
+	CamelFolderSearchClass *search_class = (CamelFolderSearchClass *) class;
 
-	parent_class = (CamelFolderSearchClass *) camel_type_get_global_classfuncs (CAMEL_FOLDER_SEARCH_TYPE);
+	parent_class = g_type_class_peek_parent (class);
 
 	search_class->body_contains = imap4_body_contains;
 }
 
 static void
-camel_imap4_search_init (CamelIMAP4Search *search, CamelIMAP4SearchClass *klass)
+camel_imap4_search_init (CamelIMAP4Search *search, CamelIMAP4SearchClass *class)
 {
 	search->engine = NULL;
 }
 
 static void
-camel_imap4_search_finalize (CamelObject *object)
+imap4_search_finalize (CamelObject *object)
 {
 	;
 }
@@ -89,7 +87,7 @@ camel_imap4_search_new (CamelIMAP4Engine *engine, const gchar *cachedir)
 {
 	CamelIMAP4Search *search;
 
-	search = (CamelIMAP4Search *) camel_object_new (camel_imap4_search_get_type ());
+	search = g_object_new (CAMEL_TYPE_IMAP4_SEARCH, NULL);
 	camel_folder_search_construct ((CamelFolderSearch *) search);
 	search->engine = engine;
 

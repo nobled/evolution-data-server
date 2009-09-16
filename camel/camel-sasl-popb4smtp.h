@@ -20,30 +20,50 @@
  *
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_SASL_POPB4SMTP_H
 #define CAMEL_SASL_POPB4SMTP_H
 
 #include <camel/camel-sasl.h>
 
-#define CAMEL_SASL_POPB4SMTP_TYPE     (camel_sasl_popb4smtp_get_type ())
-#define CAMEL_SASL_POPB4SMTP(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SASL_POPB4SMTP_TYPE, CamelSaslPOPB4SMTP))
-#define CAMEL_SASL_POPB4SMTP_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SASL_POPB4SMTP_TYPE, CamelSaslPOPB4SMTPClass))
-#define CAMEL_IS_SASL_POPB4SMTP(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SASL_POPB4SMTP_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_SASL_POPB4SMTP \
+	(camel_sasl_popb4smtp_get_type ())
+#define CAMEL_SASL_POPB4SMTP(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SASL_POPB4SMTP, CamelSaslPOPB4SMTP))
+#define CAMEL_SASL_POPB4SMTP_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SASL_POPB4SMTP, CamelSaslPOPB4SMTPClass))
+#define CAMEL_IS_SASL_POPB4SMTP(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SASL_POPB4SMTP))
+#define CAMEL_IS_SASL_POPB4SMTP_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SASL_POPB4SMTP))
+#define CAMEL_SASL_POPB4SMTP_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SASL_POPB4SMTP, CamelSaslPOPB4SMTPClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelSaslPOPB4SMTP {
-	CamelSasl parent_object;
+typedef struct _CamelSaslPOPB4SMTP CamelSaslPOPB4SMTP;
+typedef struct _CamelSaslPOPB4SMTPClass CamelSaslPOPB4SMTPClass;
+typedef struct _CamelSaslPOPB4SMTPPrivate CamelSaslPOPB4SMTPPrivate;
 
-} CamelSaslPOPB4SMTP;
+struct _CamelSaslPOPB4SMTP {
+	CamelSasl parent;
+	CamelSaslPOPB4SMTPPrivate *priv;
+};
 
-typedef struct _CamelSaslPOPB4SMTPClass {
+struct _CamelSaslPOPB4SMTPClass {
 	CamelSaslClass parent_class;
+};
 
-} CamelSaslPOPB4SMTPClass;
-
-/* Standard Camel function */
-CamelType camel_sasl_popb4smtp_get_type (void);
+GType camel_sasl_popb4smtp_get_type (void);
 
 extern CamelServiceAuthType camel_sasl_popb4smtp_authtype;
 

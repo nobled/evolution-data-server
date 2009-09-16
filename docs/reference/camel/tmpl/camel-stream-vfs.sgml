@@ -22,8 +22,6 @@ CamelStreamVFS
 
 </para>
 
-@parent_object: 
-@stream: 
 
 <!-- ##### ENUM CamelStreamVFSOpenMethod ##### -->
 <para>

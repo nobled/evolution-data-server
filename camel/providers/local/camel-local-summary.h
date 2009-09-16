@@ -18,17 +18,29 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_LOCAL_SUMMARY_H
-#define _CAMEL_LOCAL_SUMMARY_H
+#ifndef CAMEL_LOCAL_SUMMARY_H
+#define CAMEL_LOCAL_SUMMARY_H
 
-#include <camel/camel-folder-summary.h>
-#include <camel/camel-folder.h>
-#include <camel/camel-exception.h>
-#include <camel/camel-index.h>
+#include <camel/camel.h>
 
-#define CAMEL_LOCAL_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_local_summary_get_type (), CamelLocalSummary)
-#define CAMEL_LOCAL_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_local_summary_get_type (), CamelLocalSummaryClass)
-#define CAMEL_IS_LOCAL_SUMMARY(obj)      CAMEL_CHECK_TYPE (obj, camel_local_summary_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_LOCAL_SUMMARY \
+	(camel_local_summary_get_type ())
+#define CAMEL_LOCAL_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_LOCAL_SUMMARY, CamelLocalSummary))
+#define CAMEL_LOCAL_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_LOCAL_SUMMARY, CamelLocalSummaryClass))
+#define CAMEL_IS_LOCAL_SUMMARY(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_LOCAL_SUMMARY))
+#define CAMEL_IS_LOCAL_SUMMARY_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_LOCAL_SUMMARY))
+#define CAMEL_LOCAL_SUMMARY_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_LOCAL_SUMMARY, CamelLocalSummaryClass))
 
 G_BEGIN_DECLS
 
@@ -73,7 +85,7 @@ struct _CamelLocalSummaryClass {
 	gint (*need_index)(void);
 };
 
-CamelType	camel_local_summary_get_type	(void);
+GType	camel_local_summary_get_type	(void);
 void	camel_local_summary_construct	(CamelLocalSummary *new, const gchar *filename, const gchar *local_name, CamelIndex *index);
 
 /* load/check the summary */
@@ -97,4 +109,4 @@ gint camel_local_summary_write_headers(gint fd, struct _camel_header_raw *header
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_LOCAL_SUMMARY_H */
+#endif /* CAMEL_LOCAL_SUMMARY_H */

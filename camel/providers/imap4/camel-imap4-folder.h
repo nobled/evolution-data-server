@@ -19,21 +19,29 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_FOLDER_H__
-#define __CAMEL_IMAP4_FOLDER_H__
+#ifndef CAMEL_IMAP4_FOLDER_H
+#define CAMEL_IMAP4_FOLDER_H
 
-#include <camel/camel-store.h>
-#include <camel/camel-folder.h>
-#include <camel/camel-data-cache.h>
-#include <camel/camel-offline-folder.h>
-#include <camel/camel-offline-journal.h>
+#include <camel/camel.h>
 
-#define CAMEL_TYPE_IMAP4_FOLDER            (camel_imap4_folder_get_type ())
-#define CAMEL_IMAP4_FOLDER(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_IMAP4_FOLDER, CamelIMAP4Folder))
-#define CAMEL_IMAP4_FOLDER_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_IMAP4_FOLDER, CamelIMAP4FolderClass))
-#define CAMEL_IS_IMAP4_FOLDER(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_IMAP4_FOLDER))
-#define CAMEL_IS_IMAP4_FOLDER_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_IMAP4_FOLDER))
-#define CAMEL_IMAP4_FOLDER_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_IMAP4_FOLDER, CamelIMAP4FolderClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_FOLDER \
+	(camel_imap4_folder_get_type ())
+#define CAMEL_IMAP4_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_FOLDER, CamelIMAP4Folder))
+#define CAMEL_IMAP4_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_FOLDER, CamelIMAP4FolderClass))
+#define CAMEL_IS_IMAP4_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_FOLDER))
+#define CAMEL_IS_IMAP4_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_FOLDER))
+#define CAMEL_IMAP4_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP4_FOLDER, CamelIMAP4FolderClass))
 
 G_BEGIN_DECLS
 
@@ -56,7 +64,7 @@ enum {
 };
 
 struct _CamelIMAP4Folder {
-	CamelOfflineFolder parent_object;
+	CamelOfflineFolder parent;
 
 	CamelFolderSearch *search;
 
@@ -75,7 +83,7 @@ struct _CamelIMAP4FolderClass {
 
 };
 
-CamelType camel_imap4_folder_get_type (void);
+GType camel_imap4_folder_get_type (void);
 
 CamelFolder *camel_imap4_folder_new (CamelStore *store, const gchar *full_name, CamelException *ex);
 
@@ -83,4 +91,4 @@ const gchar *camel_imap4_folder_utf7_name (CamelIMAP4Folder *folder);
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_FOLDER_H__ */
+#endif /* CAMEL_IMAP4_FOLDER_H */

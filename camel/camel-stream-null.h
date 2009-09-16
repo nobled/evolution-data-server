@@ -19,17 +19,37 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_STREAM_NULL_H
-#define _CAMEL_STREAM_NULL_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_STREAM_NULL_H
+#define CAMEL_STREAM_NULL_H
 
 #include <camel/camel-stream.h>
 
-#define CAMEL_STREAM_NULL(obj)         CAMEL_CHECK_CAST (obj, camel_stream_null_get_type (), CamelStreamNull)
-#define CAMEL_STREAM_NULL_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_stream_null_get_type (), CamelStreamNullClass)
-#define CAMEL_IS_STREAM_NULL(obj)      CAMEL_CHECK_TYPE (obj, camel_stream_null_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_STREAM_NULL \
+	(camel_stream_null_get_type ())
+#define CAMEL_STREAM_NULL(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_STREAM_NULL, CamelStreamNull))
+#define CAMEL_STREAM_NULL_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_STREAM_NULL, CamelStreamNullClass))
+#define CAMEL_IS_STREAM_NULL(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_STREAM_NULL))
+#define CAMEL_IS_STREAM_NULL_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_STREAM_NULL))
+#define CAMEL_STREAM_NULL_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_STREAM_NULL, CamelStreamNullClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelStreamNull CamelStreamNull;
 typedef struct _CamelStreamNullClass CamelStreamNullClass;
 
 struct _CamelStreamNull {
@@ -42,10 +62,10 @@ struct _CamelStreamNullClass {
 	CamelStreamClass parent_class;
 };
 
-CamelType camel_stream_null_get_type (void);
+GType camel_stream_null_get_type (void);
 
 CamelStream *camel_stream_null_new (void);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_STREAM_NULL_H */
+#endif /* CAMEL_STREAM_NULL_H */

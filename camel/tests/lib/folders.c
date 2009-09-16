@@ -107,7 +107,7 @@ test_folder_message(CamelFolder *folder, const gchar *uid)
 	/* cross check with info */
 	test_message_info(msg, info);
 
-	camel_object_unref((CamelObject *)msg);
+	g_object_unref (msg);
 
 	/* see if it is in the summary (only once) */
 	s = camel_folder_get_summary(folder);

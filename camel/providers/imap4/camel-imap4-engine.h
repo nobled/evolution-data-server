@@ -19,24 +19,30 @@
  *  Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __CAMEL_IMAP4_ENGINE_H__
-#define __CAMEL_IMAP4_ENGINE_H__
+#ifndef CAMEL_IMAP4_ENGINE_H
+#define CAMEL_IMAP4_ENGINE_H
 
 #include <stdarg.h>
+#include <camel/camel.h>
 
-#include <glib.h>
-
-#include <camel/camel-stream.h>
-#include <camel/camel-folder.h>
-#include <camel/camel-session.h>
-#include <camel/camel-list-utils.h>
-
-#define CAMEL_TYPE_IMAP4_ENGINE            (camel_imap4_engine_get_type ())
-#define CAMEL_IMAP4_ENGINE(obj)            (CAMEL_CHECK_CAST ((obj), CAMEL_TYPE_IMAP4_ENGINE, CamelIMAP4Engine))
-#define CAMEL_IMAP4_ENGINE_CLASS(klass)    (CAMEL_CHECK_CLASS_CAST ((klass), CAMEL_TYPE_IMAP4_ENGINE, CamelIMAP4EngineClass))
-#define CAMEL_IS_IMAP4_ENGINE(obj)         (CAMEL_CHECK_TYPE ((obj), CAMEL_TYPE_IMAP4_ENGINE))
-#define CAMEL_IS_IMAP4_ENGINE_CLASS(klass) (CAMEL_CHECK_CLASS_TYPE ((klass), CAMEL_TYPE_IMAP4_ENGINE))
-#define CAMEL_IMAP4_ENGINE_GET_CLASS(obj)  (CAMEL_CHECK_GET_CLASS ((obj), CAMEL_TYPE_IMAP4_ENGINE, CamelIMAP4EngineClass))
+/* Standard GObject macros */
+#define CAMEL_TYPE_IMAP4_ENGINE \
+	(camel_imap4_engine_get_type ())
+#define CAMEL_IMAP4_ENGINE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_IMAP4_ENGINE, CamelIMAP4Engine))
+#define CAMEL_IMAP4_ENGINE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_IMAP4_ENGINE, CamelIMAP4EngineClass))
+#define CAMEL_IS_IMAP4_ENGINE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_IMAP4_ENGINE))
+#define CAMEL_IS_IMAP4_ENGINE_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_IMAP4_ENGINE))
+#define CAMEL_IMAP4_ENGINE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_IMAP4_ENGINE, CamelIMAP4EngineClass))
 
 G_BEGIN_DECLS
 
@@ -152,7 +158,7 @@ enum {
 typedef gboolean (* CamelIMAP4ReconnectFunc) (CamelIMAP4Engine *engine, CamelException *ex);
 
 struct _CamelIMAP4Engine {
-	CamelObject parent_object;
+	CamelObject parent;
 
 	CamelIMAP4ReconnectFunc reconnect;
 	gboolean reconnecting;
@@ -190,7 +196,7 @@ struct _CamelIMAP4EngineClass {
 	guchar tagprefix;
 };
 
-CamelType camel_imap4_engine_get_type (void);
+GType camel_imap4_engine_get_type (void);
 
 CamelIMAP4Engine *camel_imap4_engine_new (CamelService *service, CamelIMAP4ReconnectFunc reconnect);
 
@@ -230,4 +236,4 @@ void camel_imap4_resp_code_free (CamelIMAP4RespCode *rcode);
 
 G_END_DECLS
 
-#endif /* __CAMEL_IMAP4_ENGINE_H__ */
+#endif /* CAMEL_IMAP4_ENGINE_H */

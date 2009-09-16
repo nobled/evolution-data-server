@@ -19,20 +19,41 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_MIME_FILTER_BESTENC_H
-#define _CAMEL_MIME_FILTER_BESTENC_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_BESTENC_H
+#define CAMEL_MIME_FILTER_BESTENC_H
 
 #include <camel/camel-mime-filter.h>
 #include <camel/camel-mime-part.h>
 #include <camel/camel-charset-map.h>
 
-#define CAMEL_MIME_FILTER_BESTENC(obj)         CAMEL_CHECK_CAST (obj, camel_mime_filter_bestenc_get_type (), CamelMimeFilterBestenc)
-#define CAMEL_MIME_FILTER_BESTENC_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mime_filter_bestenc_get_type (), CamelMimeFilterBestencClass)
-#define CAMEL_IS_MIME_FILTER_BESTENC(obj)      CAMEL_CHECK_TYPE (obj, camel_mime_filter_bestenc_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_BESTENC \
+	(camel_mime_filter_bestenc_get_type ())
+#define CAMEL_MIME_FILTER_BESTENC(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_BESTENC, CamelMimeFilterBestenc))
+#define CAMEL_MIME_FILTER_BESTENC_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_BESTENC, CamelMimeFilterBestencClass))
+#define CAMEL_IS_MIME_FILTER_BESTENC(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_BESTENC))
+#define CAMEL_IS_MIME_FILTER_BESTENC_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_BESTENC))
+#define CAMEL_MIME_FILTER_BESTENC_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_BESTENC, CamelMimeFilterBestencClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelMimeFilterBestenc CamelMimeFilterBestenc;
 typedef struct _CamelMimeFilterBestencClass CamelMimeFilterBestencClass;
+typedef struct _CamelMimeFilterBestencPrivate CamelMimeFilterBestencPrivate;
 
 typedef enum _CamelBestencRequired {
 	CAMEL_BESTENC_GET_ENCODING = 1<<0,
@@ -55,39 +76,26 @@ typedef enum _CamelBestencEncoding {
 
 struct _CamelMimeFilterBestenc {
 	CamelMimeFilter parent;
-
-	guint flags;	/* our creation flags, see above */
-
-	guint count0;	/* count of NUL characters */
-	guint count8;	/* count of 8 bit characters */
-	guint total;	/* total characters read */
-
-	guint lastc;	/* the last character read */
-	gint crlfnoorder;	/* if crlf's occured where they shouldn't have */
-
-	gint startofline;	/* are we at the start of a new line? */
-
-	gint fromcount;
-	gchar fromsave[6];	/* save a few characters if we found an \n near the end of the buffer */
-	gint hadfrom;		/* did we encounter a "\nFrom " in the data? */
-
-	guint countline;	/* current count of characters on a given line */
-	guint maxline;	/* max length of any line */
-
-	CamelCharset charset;	/* used to determine the best charset to use */
+	CamelMimeFilterBestencPrivate *priv;
 };
 
 struct _CamelMimeFilterBestencClass {
 	CamelMimeFilterClass parent_class;
 };
 
-CamelType		camel_mime_filter_bestenc_get_type	(void);
-CamelMimeFilterBestenc      *camel_mime_filter_bestenc_new	(guint flags);
-
-CamelTransferEncoding	camel_mime_filter_bestenc_get_best_encoding(CamelMimeFilterBestenc *filter, CamelBestencEncoding required);
-const gchar *		camel_mime_filter_bestenc_get_best_charset(CamelMimeFilterBestenc *filter);
-void			camel_mime_filter_bestenc_set_flags(CamelMimeFilterBestenc *filter, guint flags);
+GType		camel_mime_filter_bestenc_get_type (void);
+CamelMimeFilter *
+		camel_mime_filter_bestenc_new	(guint flags);
+CamelTransferEncoding
+		camel_mime_filter_bestenc_get_best_encoding
+						(CamelMimeFilterBestenc *filter,
+						 CamelBestencEncoding required);
+const gchar *	camel_mime_filter_bestenc_get_best_charset
+						(CamelMimeFilterBestenc *filter);
+void		camel_mime_filter_bestenc_set_flags
+						(CamelMimeFilterBestenc *filter,
+						 guint flags);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_MIME_FILTER_BESTENC_H */
+#endif /* CAMEL_MIME_FILTER_BESTENC_H */

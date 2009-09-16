@@ -29,22 +29,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <glib.h>
-
 #include "camel-html-parser.h"
 
 /* if defined, must also compile in dump_tag() below somewhere */
 #define d(x)
 
-static void camel_html_parser_class_init (CamelHTMLParserClass *klass);
-static void camel_html_parser_init       (CamelObject *o);
-static void camel_html_parser_finalize   (CamelObject *o);
-
-static CamelObjectClass *camel_html_parser_parent;
+static gpointer parent_class;
 
 /* Parser definitions, see below object code for details */
-
-typedef struct _CamelHTMLParserPrivate CamelHTMLParserPrivate;
 
 struct _CamelHTMLParserPrivate {
 	gchar *inbuf,
@@ -63,53 +55,56 @@ struct _CamelHTMLParserPrivate {
 	gint quote;
 };
 
-static void tokenise_setup(void);
-static CamelHTMLParserPrivate *tokenise_init(void);
-static void tokenise_free(CamelHTMLParserPrivate *p);
-static gint tokenise_step(CamelHTMLParserPrivate *p, gchar **datap, gint *lenp);
+static void tokenize_setup(void);
+static CamelHTMLParserPrivate *tokenize_init(void);
+static void tokenize_free(CamelHTMLParserPrivate *p);
+static gint tokenize_step(CamelHTMLParserPrivate *p, gchar **datap, gint *lenp);
 
 /* ********************************************************************** */
 
-CamelType
+static void
+html_parser_finalize (GObject *object)
+{
+	CamelHTMLParser *parser = CAMEL_HTML_PARSER (object);
+
+	tokenize_free (parser->priv);
+}
+
+static void
+html_parser_class_init (CamelHTMLParserClass *class)
+{
+	GObjectClass *object_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = html_parser_finalize;
+
+	tokenize_setup();
+}
+
+static void
+html_parser_init (CamelHTMLParser *parser)
+{
+	parser->priv = tokenize_init();
+}
+
+GType
 camel_html_parser_get_type (void)
 {
-	static CamelType type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (camel_object_get_type (), "CamelHTMLParser",
-					    sizeof (CamelHTMLParser),
-					    sizeof (CamelHTMLParserClass),
-					    (CamelObjectClassInitFunc) camel_html_parser_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_html_parser_init,
-					    (CamelObjectFinalizeFunc) camel_html_parser_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OBJECT,
+			"CamelHTMLParser",
+			sizeof (CamelHTMLParserClass),
+			(GClassInitFunc) html_parser_class_init,
+			sizeof (CamelHTMLParser),
+			(GInstanceInitFunc) html_parser_init,
+			0);
 
 	return type;
-}
-
-static void
-camel_html_parser_finalize(CamelObject *o)
-{
-	CamelHTMLParser *f = (CamelHTMLParser *)o;
-
-	tokenise_free(f->priv);
-}
-
-static void
-camel_html_parser_init       (CamelObject *o)
-{
-	CamelHTMLParser *f = (CamelHTMLParser *)o;
-
-	f->priv = tokenise_init();
-}
-
-static void
-camel_html_parser_class_init (CamelHTMLParserClass *klass)
-{
-	camel_html_parser_parent = CAMEL_OBJECT_CLASS (camel_type_get_global_classfuncs (camel_object_get_type ()));
-
-	tokenise_setup();
 }
 
 /**
@@ -122,8 +117,7 @@ camel_html_parser_class_init (CamelHTMLParserClass *klass)
 CamelHTMLParser *
 camel_html_parser_new (void)
 {
-	CamelHTMLParser *new = CAMEL_HTML_PARSER ( camel_object_new (camel_html_parser_get_type ()));
-	return new;
+	return g_object_new (CAMEL_TYPE_HTML_PARSER, NULL);
 }
 
 void camel_html_parser_set_data(CamelHTMLParser *hp, const gchar *start, gint len, gint last)
@@ -137,7 +131,7 @@ void camel_html_parser_set_data(CamelHTMLParser *hp, const gchar *start, gint le
 
 camel_html_parser_t camel_html_parser_step(CamelHTMLParser *hp, const gchar **datap, gint *lenp)
 {
-	return tokenise_step(hp->priv, (gchar **)datap, lenp);
+	return tokenize_step(hp->priv, (gchar **)datap, lenp);
 }
 
 const gchar *camel_html_parser_left(CamelHTMLParser *hp, gint *lenp)
@@ -460,7 +454,7 @@ static struct {
 static GHashTable *entities;
 
 /* this cannot be called in a thread context */
-static void tokenise_setup(void)
+static void tokenize_setup(void)
 {
 	gint i;
 
@@ -472,7 +466,7 @@ static void tokenise_setup(void)
 	}
 }
 
-static CamelHTMLParserPrivate *tokenise_init(void)
+static CamelHTMLParserPrivate *tokenize_init(void)
 {
 	CamelHTMLParserPrivate *p;
 
@@ -487,12 +481,12 @@ static CamelHTMLParserPrivate *tokenise_init(void)
 	p->charset = NULL;
 
 	if (entities == NULL)
-		tokenise_setup();
+		tokenize_setup();
 
 	return p;
 }
 
-static void tokenise_free(CamelHTMLParserPrivate *p)
+static void tokenize_free(CamelHTMLParserPrivate *p)
 {
 	gint i;
 
@@ -536,7 +530,7 @@ static void dump_tag(CamelHTMLParserPrivate *p)
 }
 #endif
 
-static gint tokenise_step(CamelHTMLParserPrivate *p, gchar **datap, gint *lenp)
+static gint tokenize_step(CamelHTMLParserPrivate *p, gchar **datap, gint *lenp)
 {
 	gchar *in = p->inptr;
 	gchar *inend = p->inend;

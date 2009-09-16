@@ -59,6 +59,10 @@ extern gss_OID gss_nt_service_name;
 #include "camel-net-utils.h"
 #include "camel-sasl-gssapi.h"
 
+#define CAMEL_SASL_GSSAPI_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_SASL_GSSAPI, CamelSaslGssapiPrivate))
+
 CamelServiceAuthType camel_sasl_gssapi_authtype = {
 	N_("GSSAPI"),
 
@@ -88,66 +92,7 @@ struct _CamelSaslGssapiPrivate {
 	gss_name_t target;
 };
 
-static GByteArray *gssapi_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex);
-
-static CamelSaslClass *parent_class = NULL;
-
-static void
-camel_sasl_gssapi_class_init (CamelSaslGssapiClass *klass)
-{
-	CamelSaslClass *camel_sasl_class = CAMEL_SASL_CLASS (klass);
-
-	parent_class = CAMEL_SASL_CLASS (camel_type_get_global_classfuncs (camel_sasl_get_type ()));
-
-	/* virtual method overload */
-	camel_sasl_class->challenge = gssapi_challenge;
-}
-
-static void
-camel_sasl_gssapi_init (gpointer object, gpointer klass)
-{
-	CamelSaslGssapi *gssapi = CAMEL_SASL_GSSAPI (object);
-
-	gssapi->priv = g_new (struct _CamelSaslGssapiPrivate, 1);
-	gssapi->priv->state = GSSAPI_STATE_INIT;
-	gssapi->priv->ctx = GSS_C_NO_CONTEXT;
-	gssapi->priv->target = GSS_C_NO_NAME;
-}
-
-static void
-camel_sasl_gssapi_finalize (CamelObject *object)
-{
-	CamelSaslGssapi *gssapi = CAMEL_SASL_GSSAPI (object);
-	guint32 status;
-
-	if (gssapi->priv->ctx != GSS_C_NO_CONTEXT)
-		gss_delete_sec_context (&status, &gssapi->priv->ctx, GSS_C_NO_BUFFER);
-
-	if (gssapi->priv->target != GSS_C_NO_NAME)
-		gss_release_name (&status, &gssapi->priv->target);
-
-	g_free (gssapi->priv);
-}
-
-CamelType
-camel_sasl_gssapi_get_type (void)
-{
-	static CamelType type = CAMEL_INVALID_TYPE;
-
-	if (type == CAMEL_INVALID_TYPE) {
-		type = camel_type_register (
-			camel_sasl_get_type (),
-			"CamelSaslGssapi",
-			sizeof (CamelSaslGssapi),
-			sizeof (CamelSaslGssapiClass),
-			(CamelObjectClassInitFunc) camel_sasl_gssapi_class_init,
-			NULL,
-			(CamelObjectInitFunc) camel_sasl_gssapi_init,
-			(CamelObjectFinalizeFunc) camel_sasl_gssapi_finalize);
-	}
-
-	return type;
-}
+static gpointer parent_class;
 
 static void
 gssapi_set_exception (OM_uint32 major, OM_uint32 minor, CamelException *ex)
@@ -203,10 +148,30 @@ gssapi_set_exception (OM_uint32 major, OM_uint32 minor, CamelException *ex)
 	camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_CANT_AUTHENTICATE, str);
 }
 
-static GByteArray *
-gssapi_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
+static void
+sasl_gssapi_finalize (GObject *object)
 {
-	struct _CamelSaslGssapiPrivate *priv = CAMEL_SASL_GSSAPI (sasl)->priv;
+	CamelSaslGssapi *sasl = CAMEL_SASL_GSSAPI (object);
+	guint32 status;
+
+	if (sasl->priv->ctx != GSS_C_NO_CONTEXT)
+		gss_delete_sec_context (
+			&status, &sasl->priv->ctx, GSS_C_NO_BUFFER);
+
+	if (sasl->priv->target != GSS_C_NO_NAME)
+		gss_release_name (&status, &sasl->priv->target);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static GByteArray *
+sasl_gssapi_challenge (CamelSasl *sasl,
+                       GByteArray *token,
+                       CamelException *ex)
+{
+	CamelSaslGssapiPrivate *priv;
+	CamelService *service;
 	OM_uint32 major, minor, flags, time;
 	gss_buffer_desc inbuf, outbuf;
 	GByteArray *challenge = NULL;
@@ -216,16 +181,22 @@ gssapi_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 	gss_OID mech;
 	gchar *str;
 	struct addrinfo *ai, hints;
+	const gchar *service_name;
+
+	priv = CAMEL_SASL_GSSAPI_GET_PRIVATE (sasl);
+
+	service = camel_sasl_get_service (sasl);
+	service_name = camel_sasl_get_service_name (sasl);
 
 	switch (priv->state) {
 	case GSSAPI_STATE_INIT:
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_flags = AI_CANONNAME;
-		ai = camel_getaddrinfo(sasl->service->url->host?sasl->service->url->host:"localhost", NULL, &hints, ex);
+		ai = camel_getaddrinfo(service->url->host?service->url->host:"localhost", NULL, &hints, ex);
 		if (ai == NULL)
 			return NULL;
 
-		str = g_strdup_printf("%s@%s", sasl->service_name, ai->ai_canonname);
+		str = g_strdup_printf("%s@%s", service_name, ai->ai_canonname);
 		camel_freeaddrinfo(ai);
 
 		inbuf.value = str;
@@ -313,11 +284,11 @@ gssapi_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 			return NULL;
 		}
 
-		inbuf.length = 4 + strlen (sasl->service->url->user);
+		inbuf.length = 4 + strlen (service->url->user);
 		inbuf.value = str = g_malloc (inbuf.length);
 		memcpy (inbuf.value, outbuf.value, 4);
 		str[0] = DESIRED_SECURITY_LAYER;
-		memcpy (str + 4, sasl->service->url->user, inbuf.length - 4);
+		memcpy (str + 4, service->url->user, inbuf.length - 4);
 
 #ifndef HAVE_HEIMDAL_KRB5
 		gss_release_buffer (&minor, &outbuf);
@@ -340,13 +311,57 @@ gssapi_challenge (CamelSasl *sasl, GByteArray *token, CamelException *ex)
 
 		priv->state = GSSAPI_STATE_AUTHENTICATED;
 
-		sasl->authenticated = TRUE;
+		camel_sasl_set_authenticated (sasl, TRUE);
 		break;
 	default:
 		return NULL;
 	}
 
 	return challenge;
+}
+
+static void
+sasl_gssapi_class_init (CamelSaslGssapiClass *class)
+{
+	GObjectClass *object_class;
+	CamelSaslClass *sasl_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelSaslGssapiPrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = sasl_gssapi_finalize;
+
+	sasl_class = CAMEL_SASL_CLASS (class);
+	sasl_class->challenge = sasl_gssapi_challenge;
+}
+
+static void
+sasl_gssapi_init (CamelSaslGssapi *sasl)
+{
+	sasl->priv = CAMEL_SASL_GSSAPI_GET_PRIVATE (sasl);
+
+	sasl->priv->state = GSSAPI_STATE_INIT;
+	sasl->priv->ctx = GSS_C_NO_CONTEXT;
+	sasl->priv->target = GSS_C_NO_NAME;
+}
+
+GType
+camel_sasl_gssapi_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_SASL,
+			"CamelSaslGssapi",
+			sizeof (CamelSaslGssapiClass),
+			(GClassInitFunc) sasl_gssapi_class_init,
+			sizeof (CamelSaslGssapi),
+			(GInstanceInitFunc) sasl_gssapi_init,
+			0);
+
+	return type;
 }
 
 #endif /* HAVE_KRB5 */

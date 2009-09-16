@@ -22,15 +22,26 @@ CamelMimePart
 
 </para>
 
-@parent_object: 
-@headers: 
-@description: 
-@disposition: 
-@content_id: 
-@content_MD5: 
-@content_location: 
-@content_languages: 
-@encoding: 
+
+<!-- ##### ARG CamelMimePart:content-id ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG CamelMimePart:content-md5 ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG CamelMimePart:description ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG CamelMimePart:disposition ##### -->
+<para>
+
+</para>
 
 <!-- ##### FUNCTION camel_mime_part_new ##### -->
 <para>
@@ -112,7 +123,7 @@ CamelMimePart
 @Returns: 
 
 
-<!-- ##### FUNCTION camel_mime_part_set_content_MD5 ##### -->
+<!-- ##### FUNCTION camel_mime_part_set_content_md5 ##### -->
 <para>
 
 </para>
@@ -121,7 +132,7 @@ CamelMimePart
 @md5sum: 
 
 
-<!-- ##### FUNCTION camel_mime_part_get_content_MD5 ##### -->
+<!-- ##### FUNCTION camel_mime_part_get_content_md5 ##### -->
 <para>
 
 </para>
@@ -194,6 +205,15 @@ CamelMimePart
 
 
 <!-- ##### FUNCTION camel_mime_part_get_content_type ##### -->
+<para>
+
+</para>
+
+@mime_part: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_mime_part_get_raw_headers ##### -->
 <para>
 
 </para>

@@ -19,27 +19,46 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _CAMEL_FOLDER_SEARCH_H
-#define _CAMEL_FOLDER_SEARCH_H
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_FOLDER_SEARCH_H
+#define CAMEL_FOLDER_SEARCH_H
 
 #include <libedataserver/e-sexp.h>
 #include <camel/camel-folder.h>
 #include <camel/camel-object.h>
 #include <camel/camel-index.h>
 
-#define CAMEL_FOLDER_SEARCH_TYPE         (camel_folder_search_get_type ())
-#define CAMEL_FOLDER_SEARCH(obj)         CAMEL_CHECK_CAST (obj, camel_folder_search_get_type (), CamelFolderSearch)
-#define CAMEL_FOLDER_SEARCH_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_folder_search_get_type (), CamelFolderSearchClass)
-#define CAMEL_IS_FOLDER_SEARCH(obj)      CAMEL_CHECK_TYPE (obj, camel_folder_search_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_FOLDER_SEARCH \
+	(camel_folder_search_get_type ())
+#define CAMEL_FOLDER_SEARCH(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_FOLDER_SEARCH, CamelFolderSearch))
+#define CAMEL_FOLDER_SEARCH_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_FOLDER_SEARCH, CamelFolderSearchClass))
+#define CAMEL_IS_FOLDER_SEARCH(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_FOLDER_SEARCH))
+#define CAMEL_IS_FOLDER_SEARCH_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_FOLDER_SEARCH))
+#define CAMEL_FOLDER_SEARCH_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_FOLDER_SEARCH, CamelFolderSearchClass))
 
 G_BEGIN_DECLS
 
+typedef struct _CamelFolderSearch CamelFolderSearch;
 typedef struct _CamelFolderSearchClass CamelFolderSearchClass;
+typedef struct _CamelFolderSearchPrivate CamelFolderSearchPrivate;
 
 struct _CamelFolderSearch {
 	CamelObject parent;
-
-	struct _CamelFolderSearchPrivate *priv;
+	CamelFolderSearchPrivate *priv;
 
 	ESExp *sexp;		/* s-exp evaluator */
 	gchar *last_search;	/* last searched expression */
@@ -130,7 +149,7 @@ struct _CamelFolderSearchClass {
 
 };
 
-CamelType		camel_folder_search_get_type	(void);
+GType		camel_folder_search_get_type	(void);
 CamelFolderSearch      *camel_folder_search_new	(void);
 void camel_folder_search_construct (CamelFolderSearch *search);
 
@@ -147,4 +166,4 @@ void camel_folder_search_free_result(CamelFolderSearch *search, GPtrArray *);
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_FOLDER_SEARCH_H */
+#endif /* CAMEL_FOLDER_SEARCH_H */

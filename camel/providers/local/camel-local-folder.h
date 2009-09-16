@@ -20,20 +20,30 @@
  */
 
 #ifndef CAMEL_LOCAL_FOLDER_H
-#define CAMEL_LOCAL_FOLDER_H 1
+#define CAMEL_LOCAL_FOLDER_H
 
-#include <camel/camel-folder.h>
-#include <camel/camel-folder-search.h>
-#include <camel/camel-index.h>
+#include <camel/camel.h>
+
 #include "camel-local-summary.h"
-#include "camel-lock.h"
 
-/*  #include "camel-store.h" */
-
-#define CAMEL_LOCAL_FOLDER_TYPE     (camel_local_folder_get_type ())
-#define CAMEL_LOCAL_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_LOCAL_FOLDER_TYPE, CamelLocalFolder))
-#define CAMEL_LOCAL_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_LOCAL_FOLDER_TYPE, CamelLocalFolderClass))
-#define CAMEL_IS_LOCAL_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_LOCAL_FOLDER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_LOCAL_FOLDER \
+	(camel_local_folder_get_type ())
+#define CAMEL_LOCAL_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_LOCAL_FOLDER, CamelLocalFolder))
+#define CAMEL_LOCAL_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_LOCAL_FOLDER, CamelLocalFolderClass))
+#define CAMEL_IS_LOCAL_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_LOCAL_FOLDER))
+#define CAMEL_IS_LOCAL_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_LOCAL_FOLDER))
+#define CAMEL_LOCAL_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_LOCAL_FOLDER, CamelLocalFolderClass))
 
 G_BEGIN_DECLS
 
@@ -52,7 +62,7 @@ typedef struct _CamelLocalFolderClass CamelLocalFolderClass;
 typedef struct _CamelLocalFolderPrivate CamelLocalFolderPrivate;
 
 struct _CamelLocalFolder {
-	CamelFolder parent_object;
+	CamelFolder parent;
 	CamelLocalFolderPrivate *priv;
 
 	guint32 flags;		/* open mode flags */
@@ -90,8 +100,7 @@ struct _CamelLocalFolderClass {
 CamelLocalFolder *camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store,
 					       const gchar *full_name, guint32 flags, CamelException *ex);
 
-/* Standard Camel function */
-CamelType camel_local_folder_get_type(void);
+GType camel_local_folder_get_type(void);
 
 /* Lock the folder for internal use.  May be called repeatedly */
 /* UNIMPLEMENTED */

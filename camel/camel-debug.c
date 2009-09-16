@@ -33,7 +33,7 @@ gint camel_verbose_debug;
 static GHashTable *debug_table = NULL;
 
 /**
- * camel_debug_init:
+ * debug_init:
  * @void:
  *
  * Init camel debug.  Maintain legacy CAMEL_VERBOSE_DEBUG as well as the
@@ -47,7 +47,8 @@ static GHashTable *debug_table = NULL;
  * for imap debug, or 'imap:folder' for imap folder debug.  Additionaly,
  * ':folder' can be used for a wildcard for any folder operations.
  **/
-void camel_debug_init(void)
+void
+camel_debug_init (void)
 {
 	gchar *d;
 

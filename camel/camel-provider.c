@@ -34,7 +34,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 #include <gmodule.h>
@@ -175,7 +174,7 @@ void
 camel_provider_load(const gchar *path, CamelException *ex)
 {
 	GModule *module;
-	CamelProvider *(*camel_provider_module_init) (void);
+	CamelProvider *(*provider_module_init) (void);
 
 	pthread_once(&setup_once, provider_setup);
 
@@ -196,7 +195,7 @@ camel_provider_load(const gchar *path, CamelException *ex)
 	}
 
 	if (!g_module_symbol (module, "camel_provider_module_init",
-			      (gpointer *)&camel_provider_module_init)) {
+			      (gpointer *)&provider_module_init)) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
 				      _("Could not load %s: No initialization "
 					"code in module."), path);
@@ -204,7 +203,7 @@ camel_provider_load(const gchar *path, CamelException *ex)
 		return;
 	}
 
-	camel_provider_module_init ();
+	provider_module_init ();
 }
 
 /**

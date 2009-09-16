@@ -22,18 +22,8 @@ CamelMimeFilterSave
 
 </para>
 
-@parent: 
-@stream: 
 
 <!-- ##### FUNCTION camel_mime_filter_save_new ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_mime_filter_save_new_with_stream ##### -->
 <para>
 
 </para>

@@ -20,38 +20,59 @@
  *
  */
 
-#ifndef __CAMEL_GPG_CONTEXT_H__
-#define __CAMEL_GPG_CONTEXT_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_GPG_CONTEXT_H
+#define CAMEL_GPG_CONTEXT_H
 
 #include <camel/camel-cipher-context.h>
+#include <camel/camel-session.h>
 
-#define CAMEL_GPG_CONTEXT_TYPE     (camel_gpg_context_get_type ())
-#define CAMEL_GPG_CONTEXT(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_GPG_CONTEXT_TYPE, CamelGpgContext))
-#define CAMEL_GPG_CONTEXT_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_GPG_CONTEXT_TYPE, CamelGpgContextClass))
-#define CAMEL_IS_GPG_CONTEXT(o)    (CAMEL_CHECK_TYPE((o), CAMEL_GPG_CONTEXT_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_GPG_CONTEXT \
+	(camel_gpg_context_get_type ())
+#define CAMEL_GPG_CONTEXT(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_GPG_CONTEXT, CamelGpgContext))
+#define CAMEL_GPG_CONTEXT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_GPG_CONTEXT, CamelGpgContextClass))
+#define CAMEL_IS_GPG_CONTEXT(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_GPG_CONTEXT))
+#define CAMEL_IS_GPG_CONTEXT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_GPG_CONTEXT))
+#define CAMEL_GPG_CONTEXT_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_GPG_CONTEXT, CamelGpgContextClass))
 
 G_BEGIN_DECLS
 
 typedef struct _CamelGpgContext CamelGpgContext;
 typedef struct _CamelGpgContextClass CamelGpgContextClass;
+typedef struct _CamelGpgContextPrivate CamelGpgContextPrivate;
 
 struct _CamelGpgContext {
-	CamelCipherContext parent_object;
-
-	gboolean always_trust;
+	CamelCipherContext parent;
+	CamelGpgContextPrivate *priv;
 };
 
 struct _CamelGpgContextClass {
 	CamelCipherContextClass parent_class;
-
 };
 
-CamelType camel_gpg_context_get_type (void);
-
-CamelCipherContext *camel_gpg_context_new (CamelSession *session);
-
-void camel_gpg_context_set_always_trust (CamelGpgContext *ctx, gboolean trust);
+GType		camel_gpg_context_get_type	(void);
+CamelCipherContext *
+		camel_gpg_context_new		(CamelSession *session);
+gboolean	camel_gpg_context_get_always_trust
+						(CamelGpgContext *context);
+void		camel_gpg_context_set_always_trust
+						(CamelGpgContext *context,
+						 gboolean always_trust);
 
 G_END_DECLS
 
-#endif /* __CAMEL_GPG_CONTEXT_H__ */
+#endif /* CAMEL_GPG_CONTEXT_H */

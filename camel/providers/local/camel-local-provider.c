@@ -28,10 +28,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-provider.h"
-#include "camel-session.h"
-#include "camel-url.h"
-
 #include "camel-maildir-store.h"
 #include "camel-mbox-store.h"
 #include "camel-mh-store.h"
@@ -211,7 +207,8 @@ local_url_equal(gconstpointer v, gconstpointer v2)
 		&& check_equal(u1->protocol, u2->protocol);
 }
 
-void camel_provider_module_init(void)
+void
+camel_provider_module_init(void)
 {
 #ifndef G_OS_WIN32
 	gchar *path;
@@ -238,7 +235,7 @@ void camel_provider_module_init(void)
 #else
 	mbox_conf_entries[0].value = "";  /* default path */
 #endif
-	mbox_provider.object_types[CAMEL_PROVIDER_STORE] = camel_mbox_store_get_type ();
+	mbox_provider.object_types[CAMEL_PROVIDER_STORE] = CAMEL_TYPE_MBOX_STORE;
 	mbox_provider.url_hash = local_url_hash;
 	mbox_provider.url_equal = local_url_equal;
 	mbox_provider.translation_domain = GETTEXT_PACKAGE;

@@ -34,16 +34,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
-#include "camel-debug.h"
-#include "camel-folder.h"
-#include "camel-net-utils.h"
 #include "camel-private.h"
-#include "camel-session.h"
-#include "camel-types.h"
 
 #include "camel-groupwise-folder.h"
 #include "camel-groupwise-store-summary.h"
@@ -55,6 +49,10 @@
 #define CURSOR_ITEM_LIMIT 100
 #define JUNK_ENABLE 1
 #define JUNK_PERSISTENCE 14
+
+#define CAMEL_GROUPWISE_STORE_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_GROUPWISE_STORE, CamelGroupwiseStorePrivate))
 
 const gchar * CREATE_CURSOR_VIEW = "peek id default recipient threading hasAttachment subject status priority startDate created delivered size recurrenceKey";
 
@@ -73,7 +71,7 @@ struct _CamelGroupwiseStorePrivate {
 	EGwConnection *cnc;
 };
 
-static CamelOfflineStoreClass *parent_class = NULL;
+static gpointer parent_class;
 
 extern CamelServiceAuthType camel_groupwise_password_authtype; /*for the query_auth_types function*/
 static CamelFolderInfo *convert_to_folder_info (CamelGroupwiseStore *store, EGwContainer *container, const gchar *url, CamelException *ex);
@@ -263,12 +261,12 @@ groupwise_store_set_current_folder (CamelGroupwiseStore *groupwise_store, CamelF
 	CAMEL_SERVICE_REC_LOCK (groupwise_store, connect_lock);
 
 	if (groupwise_store->current_folder) {
-		camel_object_unref (groupwise_store->current_folder);
+		g_object_unref (groupwise_store->current_folder);
 		groupwise_store->current_folder = NULL;
 	}
 
 	if (folder) {
-		camel_object_ref (folder);
+		g_object_ref (folder);
 		groupwise_store->current_folder = folder;
 	}
 
@@ -346,10 +344,10 @@ groupwise_disconnect_cleanup (CamelService *service, gboolean clean, CamelExcept
 	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (service);
 	CamelGroupwiseStorePrivate *priv = groupwise_store->priv;
 
-	g_print ("camel_groupwise_store_finalize\n");
+	g_print ("groupwise_store_finalize\n");
 	if (groupwise_store->summary) {
 		camel_store_summary_save ((CamelStoreSummary *)groupwise_store->summary);
-		camel_object_unref (groupwise_store->summary);
+		g_object_unref (groupwise_store->summary);
 	}
 
 	if (priv) {
@@ -647,7 +645,7 @@ groupwise_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags
 						camel_folder_summary_save_to_db (folder->summary, ex);
 						camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_INVALID, _("Authentication failed"));
 						camel_operation_end (NULL);
-						camel_object_unref (folder);
+						g_object_unref (folder);
 						g_free (container_id);
 						return NULL;*/
 				}
@@ -919,7 +917,7 @@ convert_to_folder_info (CamelGroupwiseStore *store, EGwContainer *container, con
 	if (store->current_folder
 	    && !strcmp (store->current_folder->full_name, fi->full_name)
 	    && type != E_GW_CONTAINER_TYPE_INBOX) {
-		CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS (store->current_folder))->refresh_info(store->current_folder, ex);
+		CAMEL_FOLDER_GET_CLASS (store->current_folder)->refresh_info (store->current_folder, ex);
 	}
 	return fi;
 }
@@ -1124,7 +1122,7 @@ store_refresh_free(CamelSession *session, CamelSessionThreadMsg *msg)
 {
 	struct _store_refresh_msg *m = (struct _store_refresh_msg *)msg;
 
-	camel_object_unref (m->store);
+	g_object_unref (m->store);
 	camel_exception_clear (&m->ex);
 }
 
@@ -1194,7 +1192,7 @@ groupwise_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, C
 		}
 		if (camel_groupwise_store_connected (groupwise_store, ex)) {
 			if (groupwise_store->current_folder)
-				CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS (groupwise_store->current_folder))->sync(groupwise_store->current_folder, FALSE, ex);
+				CAMEL_FOLDER_GET_CLASS (groupwise_store->current_folder)->sync (groupwise_store->current_folder, FALSE, ex);
 			groupwise_folders_sync (groupwise_store, ex);
 			if (camel_exception_is_set (ex)) {
 				CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
@@ -1519,131 +1517,121 @@ match_path(const gchar *path, const gchar *name)
 	return n == 0 && (p == '%' || p == 0);
 }
 
-/* GObject Init and finalise methods */
 static void
-camel_groupwise_store_class_init (CamelGroupwiseStoreClass *camel_groupwise_store_class)
+groupwise_store_dispose (GObject *object)
 {
-	CamelServiceClass *camel_service_class =
-		CAMEL_SERVICE_CLASS (camel_groupwise_store_class);
-	CamelStoreClass *camel_store_class =
-		CAMEL_STORE_CLASS (camel_groupwise_store_class);
+	CamelGroupwiseStore *groupwise_store;
 
-	parent_class = CAMEL_OFFLINE_STORE_CLASS (camel_type_get_global_classfuncs (camel_offline_store_get_type ()));
+	groupwise_store = CAMEL_GROUPWISE_STORE (object);
 
-	camel_service_class->construct = groupwise_store_construct;
-	camel_service_class->query_auth_types = groupwise_store_query_auth_types;
-	camel_service_class->get_name = groupwise_get_name;
-	camel_service_class->connect = groupwise_connect;
-	camel_service_class->disconnect = groupwise_disconnect;
-
-	camel_store_class->hash_folder_name = groupwise_hash_folder_name;
-	camel_store_class->compare_folder_name = groupwise_compare_folder_name;
-
-	camel_store_class->get_folder = groupwise_get_folder;
-	camel_store_class->create_folder = groupwise_create_folder;
-	camel_store_class->delete_folder = groupwise_delete_folder;
-	camel_store_class->rename_folder = groupwise_rename_folder;
-	camel_store_class->get_folder_info = groupwise_get_folder_info;
-	camel_store_class->free_folder_info = camel_store_free_folder_info_full;
-	camel_store_class->get_trash = groupwise_get_trash;
-	camel_store_class->can_refresh_folder = groupwise_can_refresh_folder;
-}
-
-/*This frees the private structure*/
-static void
-camel_groupwise_store_finalize (CamelObject *object)
-{
-	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (object);
-	CamelGroupwiseStorePrivate *priv = groupwise_store->priv;
-
-	g_print ("camel_groupwise_store_finalize\n");
-	if (groupwise_store->summary) {
-		camel_store_summary_save ((CamelStoreSummary *)groupwise_store->summary);
-		camel_object_unref (groupwise_store->summary);
+	if (groupwise_store->summary != NULL) {
+		camel_store_summary_save (
+			CAMEL_STORE_SUMMARY (groupwise_store->summary));
+		g_object_unref (groupwise_store->summary);
+		groupwise_store->summary = NULL;
 	}
 
-	if (priv) {
-		if (priv->user) {
-			g_free (priv->user);
-			priv->user = NULL;
-		}
-		if (priv->server_name) {
-			g_free (priv->server_name);
-			priv->server_name = NULL;
-		}
-		if (priv->port) {
-			g_free (priv->port);
-			priv->port = NULL;
-		}
-		if (priv->use_ssl) {
-			g_free (priv->use_ssl);
-			priv->use_ssl = NULL;
-		}
-		if (priv->base_url) {
-			g_free (priv->base_url);
-			priv->base_url = NULL;
-		}
-
-		if (E_IS_GW_CONNECTION (priv->cnc)) {
-			g_object_unref (priv->cnc);
-			priv->cnc = NULL;
-		}
-
-		if (priv->storage_path)
-			g_free(priv->storage_path);
-
-		if (groupwise_store->root_container)
-			g_free (groupwise_store->root_container);
-
-		if (priv->id_hash)
-			g_hash_table_destroy (priv->id_hash);
-
-		if (priv->name_hash)
-			g_hash_table_destroy (priv->name_hash);
-
-		if (priv->parent_hash)
-			g_hash_table_destroy (priv->parent_hash);
-
-		g_free (groupwise_store->priv);
-		groupwise_store->priv = NULL;
+	if (groupwise_store->priv->cnc != NULL) {
+		g_object_unref (groupwise_store->priv->cnc);
+		groupwise_store->priv->cnc = NULL;
 	}
 
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static void
-camel_groupwise_store_init (gpointer object, gpointer klass)
+groupwise_store_finalize (GObject *object)
 {
-	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (object);
-	CamelGroupwiseStorePrivate *priv = g_new0 (CamelGroupwiseStorePrivate, 1);
+	CamelGroupwiseStore *groupwise_store;
+
+	groupwise_store = CAMEL_GROUPWISE_STORE (object);
+
+	g_free (groupwise_store->priv->user);
+	g_free (groupwise_store->priv->server_name);
+	g_free (groupwise_store->priv->port);
+	g_free (groupwise_store->priv->use_ssl);
+	g_free (groupwise_store->priv->base_url);
+	g_free (groupwise_store->priv->storage_path);
+	g_free (groupwise_store->root_container);
+
+	if (groupwise_store->priv->id_hash != NULL)
+		g_hash_table_destroy (groupwise_store->priv->id_hash);
+
+	if (groupwise_store->priv->name_hash != NULL)
+		g_hash_table_destroy (groupwise_store->priv->name_hash);
+
+	if (groupwise_store->priv->parent_hash != NULL)
+		g_hash_table_destroy (groupwise_store->priv->parent_hash);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
+groupwise_store_class_init (CamelGroupwiseStoreClass *class)
+{
+	GObjectClass *object_class;
+	CamelServiceClass *service_class;
+	CamelStoreClass *store_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelGroupwiseStorePrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = groupwise_store_dispose;
+	object_class->finalize = groupwise_store_finalize;
+
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->construct = groupwise_store_construct;
+	service_class->query_auth_types = groupwise_store_query_auth_types;
+	service_class->get_name = groupwise_get_name;
+	service_class->connect = groupwise_connect;
+	service_class->disconnect = groupwise_disconnect;
+
+	store_class = CAMEL_STORE_CLASS (class);
+	store_class->hash_folder_name = groupwise_hash_folder_name;
+	store_class->compare_folder_name = groupwise_compare_folder_name;
+	store_class->get_folder = groupwise_get_folder;
+	store_class->create_folder = groupwise_create_folder;
+	store_class->delete_folder = groupwise_delete_folder;
+	store_class->rename_folder = groupwise_rename_folder;
+	store_class->get_folder_info = groupwise_get_folder_info;
+	store_class->free_folder_info = camel_store_free_folder_info_full;
+	store_class->get_trash = groupwise_get_trash;
+	store_class->can_refresh_folder = groupwise_can_refresh_folder;
+}
+
+static void
+groupwise_store_init (CamelGroupwiseStore *groupwise_store)
+{
+	groupwise_store->priv =
+		CAMEL_GROUPWISE_STORE_GET_PRIVATE (groupwise_store);
 
 	d("in groupwise store init\n");
-	priv->server_name = NULL;
-	priv->port = NULL;
-	priv->use_ssl = NULL;
-	priv->user = NULL;
-	priv->cnc = NULL;
-	groupwise_store->priv = priv;
+	groupwise_store->priv->server_name = NULL;
+	groupwise_store->priv->port = NULL;
+	groupwise_store->priv->use_ssl = NULL;
+	groupwise_store->priv->user = NULL;
+	groupwise_store->priv->cnc = NULL;
 	groupwise_store->current_folder = NULL;
-
 }
 
-CamelType
+GType
 camel_groupwise_store_get_type (void)
 {
-	static CamelType camel_groupwise_store_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_groupwise_store_type == CAMEL_INVALID_TYPE)	{
-		camel_groupwise_store_type =
-			camel_type_register (camel_offline_store_get_type (),
-					     "CamelGroupwiseStore",
-					     sizeof (CamelGroupwiseStore),
-					     sizeof (CamelGroupwiseStoreClass),
-					     (CamelObjectClassInitFunc) camel_groupwise_store_class_init,
-					     NULL,
-					     (CamelObjectInitFunc) camel_groupwise_store_init,
-					     (CamelObjectFinalizeFunc) camel_groupwise_store_finalize);
-	}
+	if (type == G_TYPE_INVALID)
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_OFFLINE_STORE,
+			"CamelGroupwiseStore",
+			sizeof (CamelGroupwiseStoreClass),
+			(GClassInitFunc) groupwise_store_class_init,
+			sizeof (CamelGroupwiseStore),
+			(GInstanceInitFunc) groupwise_store_init,
+			0);
 
-	return camel_groupwise_store_type;
+	return type;
 }
 

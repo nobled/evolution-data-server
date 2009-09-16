@@ -29,27 +29,15 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
 #include <libedataserver/e-data-server-util.h>
 
-#include "camel/camel-exception.h"
-#include "camel/camel-file-utils.h"
-#include "camel/camel-private.h"
-#include "camel/camel-text-index.h"
-#include "camel/camel-url.h"
-#include "camel/camel-vtrash-folder.h"
-
 #include "camel-local-folder.h"
 #include "camel-local-store.h"
 
 #define d(x)
-
-/* Returns the class for a CamelLocalStore */
-#define CLOCALS_CLASS(so) CAMEL_LOCAL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 static void construct (CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex);
 static CamelFolder *get_folder(CamelStore * store, const gchar *folder_name, guint32 flags, CamelException * ex);
@@ -66,64 +54,67 @@ static gboolean local_can_refresh_folder (CamelStore *store, CamelFolderInfo *in
 static gchar *local_get_full_path(CamelLocalStore *lf, const gchar *full_name);
 static gchar *local_get_meta_path(CamelLocalStore *lf, const gchar *full_name, const gchar *ext);
 
-static CamelStoreClass *parent_class = NULL;
+static gpointer parent_class;
 
 static void
-camel_local_store_class_init (CamelLocalStoreClass *camel_local_store_class)
+local_store_finalize (GObject *object)
 {
-	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS (camel_local_store_class);
-	CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS (camel_local_store_class);
+	CamelLocalStore *local_store = CAMEL_LOCAL_STORE (object);
 
-	parent_class = CAMEL_STORE_CLASS (camel_type_get_global_classfuncs (camel_store_get_type ()));
+	g_free (local_store->toplevel_dir);
 
-	/* virtual method overload */
-	camel_service_class->construct = construct;
-	camel_service_class->get_name = get_name;
-	camel_store_class->get_folder = get_folder;
-	camel_store_class->get_inbox = local_get_inbox;
-	camel_store_class->get_trash = local_get_trash;
-	camel_store_class->get_junk = local_get_junk;
-	camel_store_class->get_folder_info = get_folder_info;
-	camel_store_class->free_folder_info = camel_store_free_folder_info_full;
-
-	camel_store_class->create_folder = create_folder;
-	camel_store_class->delete_folder = delete_folder;
-	camel_store_class->rename_folder = rename_folder;
-	camel_store_class->can_refresh_folder = local_can_refresh_folder;
-
-	camel_local_store_class->get_full_path = local_get_full_path;
-	camel_local_store_class->get_meta_path = local_get_meta_path;
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
-camel_local_store_finalize (CamelLocalStore *local_store)
+local_store_class_init (CamelLocalStoreClass *class)
 {
-	CamelStore *store;
+	GObjectClass *object_class;
+	CamelServiceClass *service_class;
+	CamelStoreClass *store_class;
 
-	if (local_store->toplevel_dir)
-		g_free (local_store->toplevel_dir);
+	parent_class = g_type_class_peek_parent (class);
 
-	store = ((CamelStore *)local_store);
-	d(printf ("\n\aLocal Store Finalize \n\a"));
+	object_class = G_OBJECT_CLASS (class);
+	object_class->finalize = local_store_finalize;
 
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->construct = construct;
+	service_class->get_name = get_name;
+
+	store_class = CAMEL_STORE_CLASS (class);
+	store_class->get_folder = get_folder;
+	store_class->get_inbox = local_get_inbox;
+	store_class->get_trash = local_get_trash;
+	store_class->get_junk = local_get_junk;
+	store_class->get_folder_info = get_folder_info;
+	store_class->free_folder_info = camel_store_free_folder_info_full;
+	store_class->create_folder = create_folder;
+	store_class->delete_folder = delete_folder;
+	store_class->rename_folder = rename_folder;
+	store_class->can_refresh_folder = local_can_refresh_folder;
+
+	class->get_full_path = local_get_full_path;
+	class->get_meta_path = local_get_meta_path;
 }
 
-CamelType
+GType
 camel_local_store_get_type (void)
 {
-	static CamelType camel_local_store_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_local_store_type == CAMEL_INVALID_TYPE)	{
-		camel_local_store_type = camel_type_register (CAMEL_STORE_TYPE, "CamelLocalStore",
-							     sizeof (CamelLocalStore),
-							     sizeof (CamelLocalStoreClass),
-							     (CamelObjectClassInitFunc) camel_local_store_class_init,
-							     NULL,
-							     NULL,
-							     (CamelObjectFinalizeFunc) camel_local_store_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_STORE,
+			"CamelLocalStore",
+			sizeof (CamelLocalStoreClass),
+			(GClassInitFunc) local_store_class_init,
+			sizeof (CamelLocalStore),
+			(GInstanceInitFunc) NULL,
+			0);
 
-	return camel_local_store_type;
+	return type;
 }
 
 static void
@@ -297,10 +288,10 @@ create_folder(CamelStore *store, const gchar *parent_name, const gchar *folder_n
 	else
 		name = g_strdup_printf("%s", folder_name);
 
-	folder = ((CamelStoreClass *)((CamelObject *)store)->klass)->get_folder(store, name, CAMEL_STORE_FOLDER_CREATE, ex);
+	folder = CAMEL_STORE_GET_CLASS (store)->get_folder (store, name, CAMEL_STORE_FOLDER_CREATE, ex);
 	if (folder) {
-		camel_object_unref((CamelObject *)folder);
-		info = ((CamelStoreClass *)((CamelObject *)store)->klass)->get_folder_info(store, name, 0, ex);
+		g_object_unref (folder);
+		info = CAMEL_STORE_GET_CLASS (store)->get_folder_info (store, name, 0, ex);
 
 		/* get_folder(CREATE) will emit a folder_created event for us */
 		/*if (info)
@@ -387,7 +378,7 @@ rename_folder(CamelStore *store, const gchar *old, const gchar *new, CamelExcept
 	g_free(oldibex);
 
 	if (folder)
-		camel_object_unref (folder);
+		g_object_unref (folder);
 
 	return;
 
@@ -414,7 +405,7 @@ ibex_failed:
 	g_free(oldibex);
 
 	if (folder)
-		camel_object_unref(folder);
+		g_object_unref (folder);
 }
 
 /* default implementation, only delete metadata */
@@ -445,7 +436,7 @@ delete_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
 	if ((lf = camel_store_get_folder (store, folder_name, 0, &lex))) {
 		camel_object_get (lf, NULL, CAMEL_OBJECT_STATE_FILE, &str, NULL);
 		camel_object_set (lf, NULL, CAMEL_OBJECT_STATE_FILE, NULL, NULL);
-		camel_object_unref (lf);
+		g_object_unref (lf);
 	} else {
 		camel_exception_clear (&lex);
 	}

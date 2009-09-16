@@ -30,16 +30,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <camel/camel-private.h>
-#include <camel/camel-net-utils.h>
-#include <camel/camel-tcp-stream-raw.h>
-#include <camel/camel-sasl.h>
-#include <camel/camel-utf8.h>
-
-#ifdef HAVE_SSL
-#include <camel/camel-tcp-stream-ssl.h>
-#endif
-
 #include "camel-imap4-command.h"
 #include "camel-imap4-engine.h"
 #include "camel-imap4-folder.h"
@@ -51,9 +41,9 @@
 
 #define d(x)
 
-static void camel_imap4_store_class_init (CamelIMAP4StoreClass *klass);
-static void camel_imap4_store_init (CamelIMAP4Store *store, CamelIMAP4StoreClass *klass);
-static void camel_imap4_store_finalize (CamelObject *object);
+static void camel_imap4_store_class_init (CamelIMAP4StoreClass *class);
+static void camel_imap4_store_init (CamelIMAP4Store *store, CamelIMAP4StoreClass *class);
+static void imap4_store_finalize (CamelObject *object);
 
 /* service methods */
 static void imap4_construct (CamelService *service, CamelSession *session,
@@ -77,23 +67,23 @@ static void imap4_unsubscribe_folder (CamelStore *store, const gchar *folder_nam
 static gboolean imap4_folder_subscribed (CamelStore *store, const gchar *folder_name);
 static void imap4_noop (CamelStore *store, CamelException *ex);
 
-static CamelOfflineStoreClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_store_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (camel_offline_store_get_type (),
-					    "CamelIMAP4Store",
-					    sizeof (CamelIMAP4Store),
-					    sizeof (CamelIMAP4StoreClass),
-					    (CamelObjectClassInitFunc) camel_imap4_store_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_store_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_store_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_OFFLINE_STORE,
+			"CamelIMAP4Store",
+			sizeof (CamelIMAP4Store),
+			sizeof (CamelIMAP4StoreClass),
+			(GClassInitFunc) camel_imap4_store_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_store_init,
+			(GObjectFinalizeFunc) imap4_store_finalize);
 
 	return type;
 }
@@ -121,12 +111,12 @@ imap4_compare_folder_name (gconstpointer a, gconstpointer b)
 }
 
 static void
-camel_imap4_store_class_init (CamelIMAP4StoreClass *klass)
+camel_imap4_store_class_init (CamelIMAP4StoreClass *class)
 {
-	CamelServiceClass *service_class = (CamelServiceClass *) klass;
-	CamelStoreClass *store_class = (CamelStoreClass *) klass;
+	CamelServiceClass *service_class = (CamelServiceClass *) class;
+	CamelStoreClass *store_class = (CamelStoreClass *) class;
 
-	parent_class = (CamelOfflineStoreClass *) camel_type_get_global_classfuncs (CAMEL_TYPE_OFFLINE_STORE);
+	parent_class = g_type_class_peek_parent (class);
 
 	service_class->construct = imap4_construct;
 	service_class->get_name = imap4_get_name;
@@ -150,24 +140,24 @@ camel_imap4_store_class_init (CamelIMAP4StoreClass *klass)
 }
 
 static void
-camel_imap4_store_init (CamelIMAP4Store *store, CamelIMAP4StoreClass *klass)
+camel_imap4_store_init (CamelIMAP4Store *store, CamelIMAP4StoreClass *class)
 {
 	store->engine = NULL;
 	store->summary = NULL;
 }
 
 static void
-camel_imap4_store_finalize (CamelObject *object)
+imap4_store_finalize (CamelObject *object)
 {
 	CamelIMAP4Store *store = (CamelIMAP4Store *) object;
 
 	if (store->summary) {
 		camel_store_summary_save ((CamelStoreSummary *) store->summary);
-		camel_object_unref (store->summary);
+		g_object_unref (store->summary);
 	}
 
 	if (store->engine)
-		camel_object_unref (store->engine);
+		g_object_unref (store->engine);
 
 	g_free (store->storage_path);
 }
@@ -263,7 +253,7 @@ connect_to_server (CamelIMAP4Engine *engine, struct addrinfo *ai, gint ssl_mode,
 					      service->url->host,
 					      g_strerror (errno));
 
-		camel_object_unref (tcp_stream);
+		g_object_unref (tcp_stream);
 
 		return FALSE;
 	}
@@ -492,7 +482,7 @@ imap4_try_authenticate (CamelIMAP4Engine *engine, gboolean reprompt, const gchar
 		;
 
 	if (sasl != NULL)
-		camel_object_unref (sasl);
+		g_object_unref (sasl);
 
 	if (id == -1 || ic->status == CAMEL_IMAP4_COMMAND_ERROR) {
 		/* unrecoverable error */
@@ -1382,7 +1372,7 @@ imap4_build_folder_info (CamelStore *store, const gchar *top, guint32 flags, GPt
 		fi->total = -1;
 
 		if (!g_ascii_strcasecmp (fi->full_name, "INBOX"))
-			fi->flags |= CAMEL_FOLDER_SYSTEM | CAMEL_FOLDER_TYPE_INBOX;
+			fi->flags |= CAMEL_FOLDER_SYSTEM | CAMEL_TYPE_FOLDER_INBOX;
 
 		/* SELECTED folder, just get it from the folder */
 		if (folder && !strcmp (folder->full_name, fi->full_name)) {

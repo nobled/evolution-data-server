@@ -20,39 +20,58 @@
  *
  */
 
-#ifndef __CAMEL_MIME_FILTER_WINDOWS_H__
-#define __CAMEL_MIME_FILTER_WINDOWS_H__
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
+#ifndef CAMEL_MIME_FILTER_WINDOWS_H
+#define CAMEL_MIME_FILTER_WINDOWS_H
 
 #include <camel/camel-mime-filter.h>
 
-#define CAMEL_MIME_FILTER_WINDOWS(obj)         CAMEL_CHECK_CAST (obj, camel_mime_filter_windows_get_type (), CamelMimeFilterWindows)
-#define CAMEL_MIME_FILTER_WINDOWS_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_mime_filter_windows_get_type (), CamelMimeFilterWindowsClass)
-#define CAMEL_IS_MIME_FILTER_WINDOWS(obj)      CAMEL_CHECK_TYPE (obj, camel_mime_filter_windows_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_FILTER_WINDOWS \
+	(camel_mime_filter_windows_get_type ())
+#define CAMEL_MIME_FILTER_WINDOWS(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_FILTER_WINDOWS, CamelMimeFilterWindows))
+#define CAMEL_MIME_FILTER_WINDOWS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_FILTER_WINDOWS, CamelMimeFilterWindowsClass))
+#define CAMEL_IS_MIME_FILTER_WINDOWS(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_FILTER_WINDOWS))
+#define CAMEL_IS_MIME_FILTER_WINDOWS_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_FILTER_WINDOWS))
+#define CAMEL_MIME_FILTER_WINDOWS_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_FILTER_WINDOWS, CamelMimeFilterWindowsClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelMimeFilterWindowsClass CamelMimeFilterWindowsClass;
 typedef struct _CamelMimeFilterWindows CamelMimeFilterWindows;
+typedef struct _CamelMimeFilterWindowsClass CamelMimeFilterWindowsClass;
+typedef struct _CamelMimeFilterWindowsPrivate CamelMimeFilterWindowsPrivate;
 
 struct _CamelMimeFilterWindows {
 	CamelMimeFilter parent;
-
-	gboolean is_windows;
-	gchar *claimed_charset;
+	CamelMimeFilterWindowsPrivate *priv;
 };
 
 struct _CamelMimeFilterWindowsClass {
 	CamelMimeFilterClass parent_class;
-
 };
 
-CamelType camel_mime_filter_windows_get_type (void);
-
-CamelMimeFilter *camel_mime_filter_windows_new (const gchar *claimed_charset);
-
-gboolean camel_mime_filter_windows_is_windows_charset (CamelMimeFilterWindows *filter);
-const gchar *camel_mime_filter_windows_real_charset (CamelMimeFilterWindows *filter);
+GType		camel_mime_filter_windows_get_type (void);
+CamelMimeFilter *
+		camel_mime_filter_windows_new
+					(const gchar *claimed_charset);
+gboolean	camel_mime_filter_windows_is_windows_charset
+					(CamelMimeFilterWindows *filter);
+const gchar *	camel_mime_filter_windows_real_charset
+					(CamelMimeFilterWindows *filter);
 
 G_END_DECLS
 
-#endif /* __CAMEL_MIME_FILTER_WINDOWS_H__ */
+#endif /* CAMEL_MIME_FILTER_WINDOWS_H */

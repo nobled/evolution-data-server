@@ -22,10 +22,6 @@ CamelMimeFilterProgress
 
 </para>
 
-@parent: 
-@operation: 
-@total: 
-@count: 
 
 <!-- ##### FUNCTION camel_mime_filter_progress_new ##### -->
 <para>

@@ -17,89 +17,10 @@ CamelObject
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### MACRO CAMEL_OBJECT_TRACK_INSTANCES ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### TYPEDEF CamelType ##### -->
-<para>
-
-</para>
-
-
 <!-- ##### STRUCT CamelObject ##### -->
 <para>
 
 </para>
-
-@klass: 
-@magic: 
-@hooks: 
-@ref_count: 
-@flags: 
-@next: 
-@prev: 
-
-<!-- ##### MACRO CAMEL_CHECK_CAST ##### -->
-<para>
-
-</para>
-
-@obj: 
-@ctype: 
-@ptype: 
-
-
-<!-- ##### MACRO CAMEL_CHECK_CLASS_CAST ##### -->
-<para>
-
-</para>
-
-@klass: 
-@ctype: 
-@ptype: 
-
-
-<!-- ##### MACRO CAMEL_CHECK_TYPE ##### -->
-<para>
-
-</para>
-
-@obj: 
-@ctype: 
-
-
-<!-- ##### MACRO CAMEL_CHECK_CLASS_TYPE ##### -->
-<para>
-
-</para>
-
-@klass: 
-@ctype: 
-
-
-<!-- ##### VARIABLE camel_object_type ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### MACRO CAMEL_OBJECT_TYPE ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### MACRO CAMEL_OBJECT_GET_TYPE ##### -->
-<para>
-
-</para>
-
-@o: 
 
 
 <!-- ##### TYPEDEF CamelObjectHookID ##### -->
@@ -116,59 +37,6 @@ CamelObject
 @next: 
 @value: 
 @name: 
-
-<!-- ##### VARIABLE camel_interface_type ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### MACRO CAMEL_INTERFACE_TYPE ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### STRUCT CamelInterface ##### -->
-<para>
-
-</para>
-
-@type: 
-
-<!-- ##### USER_FUNCTION CamelObjectClassInitFunc ##### -->
-<para>
-
-</para>
-
-@Param1: 
-
-
-<!-- ##### USER_FUNCTION CamelObjectClassFinalizeFunc ##### -->
-<para>
-
-</para>
-
-@Param1: 
-
-
-<!-- ##### USER_FUNCTION CamelObjectInitFunc ##### -->
-<para>
-
-</para>
-
-@Param1: 
-@Param2: 
-
-
-<!-- ##### USER_FUNCTION CamelObjectFinalizeFunc ##### -->
-<para>
-
-</para>
-
-@Param1: 
-
 
 <!-- ##### USER_FUNCTION CamelObjectEventPrepFunc ##### -->
 <para>
@@ -190,82 +58,6 @@ CamelObject
 @Param3: 
 
 
-<!-- ##### MACRO CAMEL_INVALID_TYPE ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### ENUM CamelObjectFlags ##### -->
-<para>
-
-</para>
-
-@CAMEL_OBJECT_DESTROY: 
-
-<!-- ##### FUNCTION camel_type_init ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### FUNCTION camel_type_register ##### -->
-<para>
-
-</para>
-
-@parent: 
-@name: 
-@instance_size: 
-@classfuncs_size: 
-@class_init: 
-@class_finalize: 
-@instance_init: 
-@instance_finalize: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_interface_register ##### -->
-<para>
-
-</para>
-
-@parent: 
-@name: 
-@classfuncs_size: 
-@class_init: 
-@class_finalize: 
-@Returns: 
-
-
-<!-- ##### MACRO camel_type_get_global_classfuncs ##### -->
-<para>
-
-</para>
-
-@x: 
-
-
-<!-- ##### FUNCTION camel_type_to_name ##### -->
-<para>
-
-</para>
-
-@type: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_name_to_type ##### -->
-<para>
-
-</para>
-
-@name: 
-@Returns: 
-
-
 <!-- ##### FUNCTION camel_object_class_add_event ##### -->
 <para>
 
@@ -274,108 +66,6 @@ CamelObject
 @klass: 
 @name: 
 @prep: 
-
-
-<!-- ##### FUNCTION camel_object_class_add_interface ##### -->
-<para>
-
-</para>
-
-@klass: 
-@itype: 
-
-
-<!-- ##### FUNCTION camel_object_class_dump_tree ##### -->
-<para>
-
-</para>
-
-@root: 
-
-
-<!-- ##### FUNCTION camel_object_cast ##### -->
-<para>
-
-</para>
-
-@obj: 
-@ctype: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_is ##### -->
-<para>
-
-</para>
-
-@obj: 
-@ctype: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_class_cast ##### -->
-<para>
-
-</para>
-
-@klass: 
-@ctype: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_class_is ##### -->
-<para>
-
-</para>
-
-@klass: 
-@ctype: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_interface_cast ##### -->
-<para>
-
-</para>
-
-@klass: 
-@ctype: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_interface_is ##### -->
-<para>
-
-</para>
-
-@k: 
-@ctype: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_new ##### -->
-<para>
-
-</para>
-
-@type: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_ref ##### -->
-<para>
-
-</para>
-
-@Param1: 
-
-
-<!-- ##### FUNCTION camel_object_unref ##### -->
-<para>
-
-</para>
-
-@Param1: 
 
 
 <!-- ##### FUNCTION camel_object_hook_event ##### -->
@@ -418,16 +108,6 @@ CamelObject
 @obj: 
 @name: 
 @event_data: 
-
-
-<!-- ##### FUNCTION camel_object_get_interface ##### -->
-<para>
-
-</para>
-
-@vo: 
-@itype: 
-@Returns: 
 
 
 <!-- ##### FUNCTION camel_object_set ##### -->
@@ -556,7 +236,7 @@ CamelObject
 
 </para>
 
-@vo: 
+@object: 
 @Returns: 
 
 
@@ -565,10 +245,10 @@ CamelObject
 
 </para>
 
-@hash: 
-@equal: 
-@keycopy: 
-@keyfree: 
+@key_hash_func: 
+@key_equal_func: 
+@key_copy_func: 
+@key_free_func: 
 @Returns: 
 
 
@@ -609,7 +289,7 @@ CamelObject
 
 @bag: 
 @key: 
-@vo: 
+@object: 
 
 
 <!-- ##### FUNCTION camel_object_bag_abort ##### -->
@@ -627,8 +307,8 @@ CamelObject
 </para>
 
 @bag: 
-@o: 
-@newkey: 
+@object: 
+@new_key: 
 
 
 <!-- ##### FUNCTION camel_object_bag_list ##### -->
@@ -646,7 +326,7 @@ CamelObject
 </para>
 
 @bag: 
-@o: 
+@object: 
 
 
 <!-- ##### FUNCTION camel_object_bag_destroy ##### -->
@@ -655,78 +335,5 @@ CamelObject
 </para>
 
 @bag: 
-
-
-<!-- ##### MACRO CAMEL_MAKE_CLASS ##### -->
-<para>
-
-</para>
-
-@type: 
-@tname: 
-@parent: 
-@pname: 
-
-
-<!-- ##### STRUCT CamelIteratorVTable ##### -->
-<para>
-
-</para>
-
-@free: 
-@next: 
-@reset: 
-@length: 
-
-<!-- ##### STRUCT CamelIterator ##### -->
-<para>
-
-</para>
-
-@klass: 
-
-<!-- ##### FUNCTION camel_iterator_new ##### -->
-<para>
-
-</para>
-
-@klass: 
-@size: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_iterator_free ##### -->
-<para>
-
-</para>
-
-@it: 
-
-
-<!-- ##### FUNCTION camel_iterator_next ##### -->
-<para>
-
-</para>
-
-@it: 
-@ex: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_iterator_reset ##### -->
-<para>
-
-</para>
-
-@it: 
-
-
-<!-- ##### FUNCTION camel_iterator_length ##### -->
-<para>
-
-</para>
-
-@it: 
-@Returns: 
 
 

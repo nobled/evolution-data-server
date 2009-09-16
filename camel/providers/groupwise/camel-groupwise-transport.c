@@ -28,17 +28,7 @@
 
 #include <string.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
-
-#include "camel-data-wrapper.h"
-#include "camel-medium.h"
-#include "camel-mime-message.h"
-#include "camel-mime-utils.h"
-#include "camel-multipart.h"
-#include "camel-session.h"
-#include "camel-stream-mem.h"
-#include "camel-stream.h"
 
 #include "camel-groupwise-store.h"
 #include "camel-groupwise-transport.h"
@@ -52,91 +42,52 @@ static gboolean groupwise_send_to (CamelTransport *transport,
 				  CamelAddress *recipients,
 				  CamelException *ex);
 
-static gboolean groupwise_transport_connect (CamelService *service, CamelException *ex);
-static gchar *groupwise_transport_get_name (CamelService *service, gboolean brief);
-static void groupwise_transport_construct (CamelService *service, CamelSession *session,
-					   CamelProvider *provider, CamelURL *url, CamelException *ex);
+static gpointer parent_class;
 
-static CamelTransportClass *parent_class = NULL;
-
-static void
-camel_groupwise_transport_class_init (CamelGroupwiseTransportClass *camel_groupwise_transport_class)
+static gboolean
+groupwise_transport_connect (CamelService *service,
+                             CamelException *ex)
 {
-	CamelTransportClass *camel_transport_class =
-		CAMEL_TRANSPORT_CLASS (camel_groupwise_transport_class);
+	return TRUE;
+}
 
-	CamelServiceClass *camel_service_class =
-		CAMEL_SERVICE_CLASS (camel_groupwise_transport_class);
-
-	parent_class = CAMEL_TRANSPORT_CLASS (camel_type_get_global_classfuncs (camel_transport_get_type ()));
-
-	camel_service_class->connect = groupwise_transport_connect;
-	camel_service_class->get_name = groupwise_transport_get_name;
-	camel_service_class->construct = groupwise_transport_construct;
-
-	/* virtual method overload */
-	camel_transport_class->send_to = groupwise_send_to;
+static gchar *
+groupwise_transport_get_name (CamelService *service,
+                              gboolean brief)
+{
+	if (brief)
+		return g_strdup_printf (
+			_("GroupWise server %s"),
+			service->url->host);
+	else
+		return g_strdup_printf (
+			_("GroupWise mail delivery via %s"),
+			service->url->host);
 }
 
 static void
-camel_groupwise_transport_init (CamelTransport *transport)
+groupwise_transport_construct (CamelService *service,
+                               CamelSession *session,
+                               CamelProvider *provider,
+                               CamelURL *url,
+                               CamelException *ex)
 {
-	return;
-}
+	CamelServiceClass *service_class;
 
-static void
-groupwise_transport_construct (CamelService *service, CamelSession *session,
-		CamelProvider *provider, CamelURL *url,
-		CamelException *ex)
-{
-	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
+	/* Chain up to parent's construct() method. */
+	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class->construct (service, session, provider, url, ex);
+
 	if (camel_exception_is_set (ex))
 		return;
 }
 
-CamelType
-camel_groupwise_transport_get_type (void)
-{
-	static CamelType camel_groupwise_transport_type = CAMEL_INVALID_TYPE;
-
-	if (camel_groupwise_transport_type == CAMEL_INVALID_TYPE) {
-		camel_groupwise_transport_type =
-			camel_type_register (CAMEL_TRANSPORT_TYPE,
-					     "CamelGroupwiseTransport",
-					     sizeof (CamelGroupwiseTransport),
-					     sizeof (CamelGroupwiseTransportClass),
-					     (CamelObjectClassInitFunc) camel_groupwise_transport_class_init,
-					     NULL,
-					     (CamelObjectInitFunc) camel_groupwise_transport_init,
-					     NULL);
-	}
-
-	return camel_groupwise_transport_type;
-}
-
-static gchar *groupwise_transport_get_name (CamelService *service, gboolean brief)
-{
-	if (brief)
-		return g_strdup_printf (_("GroupWise server %s"), service->url->host);
-	else {
-		return g_strdup_printf (_("GroupWise mail delivery via %s"),
-				service->url->host);
-	}
-}
-
-static gboolean
-groupwise_transport_connect (CamelService *service, CamelException *ex)
-{
-	return TRUE;
-
-}
-
 static gboolean
 groupwise_send_to (CamelTransport *transport,
-		   CamelMimeMessage *message,
-		   CamelAddress *from,
-		   CamelAddress *recipients,
-		   CamelException *ex)
+                   CamelMimeMessage *message,
+                   CamelAddress *from,
+                   CamelAddress *recipients,
+                   CamelException *ex)
 {
 	CamelService *service;
 	CamelStore *store =  NULL;
@@ -228,3 +179,37 @@ groupwise_send_to (CamelTransport *transport,
 	return TRUE;
 }
 
+static void
+groupwise_transport_class_init (CamelGroupwiseTransportClass *class)
+{
+	CamelServiceClass *service_class;
+	CamelTransportClass *transport_class;
+
+	parent_class = g_type_class_peek_parent (class);
+
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->connect = groupwise_transport_connect;
+	service_class->get_name = groupwise_transport_get_name;
+	service_class->construct = groupwise_transport_construct;
+
+	transport_class = CAMEL_TRANSPORT_CLASS (class);
+	transport_class->send_to = groupwise_send_to;
+}
+
+GType
+camel_groupwise_transport_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (type == G_TYPE_INVALID)
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_TRANSPORT,
+			"CamelGroupwiseTransport",
+			sizeof (CamelGroupwiseTransportClass),
+			(GClassInitFunc) groupwise_transport_class_init,
+			sizeof (CamelGroupwiseTransport),
+			(GInstanceInitFunc) NULL,
+			0);
+
+	return type;
+}

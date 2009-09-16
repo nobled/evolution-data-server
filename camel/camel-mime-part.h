@@ -23,46 +23,55 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_MIME_PART_H
-#define CAMEL_MIME_PART_H 1
+#define CAMEL_MIME_PART_H
 
 #include <camel/camel-medium.h>
 #include <camel/camel-mime-utils.h>
 #include <camel/camel-mime-parser.h>
 
-#define CAMEL_MIME_PART_TYPE     (camel_mime_part_get_type ())
-#define CAMEL_MIME_PART(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_MIME_PART_TYPE, CamelMimePart))
-#define CAMEL_MIME_PART_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_MIME_PART_TYPE, CamelMimePartClass))
-#define CAMEL_IS_MIME_PART(o)    (CAMEL_CHECK_TYPE((o), CAMEL_MIME_PART_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_MIME_PART \
+	(camel_mime_part_get_type ())
+#define CAMEL_MIME_PART(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MIME_PART, CamelMimePart))
+#define CAMEL_MIME_PART_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MIME_PART, CamelMimePartClass))
+#define CAMEL_IS_MIME_PART(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MIME_PART))
+#define CAMEL_IS_MIME_PART_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MIME_PART))
+#define CAMEL_MIME_PART_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MIME_PART, CamelMimePartClass))
 
 G_BEGIN_DECLS
 
-/* Do not change these values directly, you would regret it one day */
+typedef struct _CamelMimePart CamelMimePart;
+typedef struct _CamelMimePartClass CamelMimePartClass;
+typedef struct _CamelMimePartPrivate CamelMimePartPrivate;
+
 struct _CamelMimePart {
-	CamelMedium parent_object;
-
-	struct _camel_header_raw *headers; /* mime headers */
-
-	/* All fields here are -** PRIVATE **- */
-	/* TODO: these should be in a camelcontentinfo */
-	gchar *description;
-	CamelContentDisposition *disposition;
-	gchar *content_id;
-	gchar *content_MD5;
-	gchar *content_location;
-	GList *content_languages;
-	CamelTransferEncoding encoding;
+	CamelMedium parent;
+	CamelMimePartPrivate *priv;
 };
 
-typedef struct _CamelMimePartClass {
+struct _CamelMimePartClass {
 	CamelMediumClass parent_class;
 
 	/* Virtual methods */
 	gint (*construct_from_parser) (CamelMimePart *, CamelMimeParser *);
-} CamelMimePartClass;
+};
 
-/* Standard Camel function */
-CamelType camel_mime_part_get_type (void);
+GType camel_mime_part_get_type (void);
 
 /* public methods */
 CamelMimePart *  camel_mime_part_new                    (void);
@@ -79,8 +88,8 @@ const	  gchar  *camel_mime_part_get_filename		(CamelMimePart *mime_part);
 void             camel_mime_part_set_content_id		(CamelMimePart *mime_part, const gchar *contentid);
 const	  gchar  *camel_mime_part_get_content_id		(CamelMimePart *mime_part);
 
-void		 camel_mime_part_set_content_MD5	(CamelMimePart *mime_part, const gchar *md5sum);
-const	  gchar  *camel_mime_part_get_content_MD5	(CamelMimePart *mime_part);
+void		 camel_mime_part_set_content_md5	(CamelMimePart *mime_part, const gchar *md5sum);
+const	  gchar  *camel_mime_part_get_content_md5	(CamelMimePart *mime_part);
 
 void		 camel_mime_part_set_content_location	(CamelMimePart *mime_part, const gchar *location);
 const	  gchar  *camel_mime_part_get_content_location	(CamelMimePart *mime_part);
@@ -94,6 +103,9 @@ const	  GList *camel_mime_part_get_content_languages	(CamelMimePart *mime_part);
 /* FIXME: what about content-type parameters?   what about major/minor parts? */
 void               camel_mime_part_set_content_type	(CamelMimePart *mime_part, const gchar *content_type);
 CamelContentType  *camel_mime_part_get_content_type	(CamelMimePart *mime_part);
+
+struct _camel_header_raw *
+		camel_mime_part_get_raw_headers	(CamelMimePart *mime_part);
 
 /* construction */
 gint		camel_mime_part_construct_from_parser  (CamelMimePart *mime_part, CamelMimeParser *parser);

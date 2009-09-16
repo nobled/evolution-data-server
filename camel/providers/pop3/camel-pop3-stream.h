@@ -21,19 +21,34 @@
 /* This is *identical* to the camel-nntp-stream, so should probably
    work out a way to merge them */
 
-#ifndef _CAMEL_POP3_STREAM_H
-#define _CAMEL_POP3_STREAM_H
+#ifndef CAMEL_POP3_STREAM_H
+#define CAMEL_POP3_STREAM_H
 
-#include <camel/camel-stream.h>
+#include <camel/camel.h>
 
-#define CAMEL_POP3_STREAM(obj)         CAMEL_CHECK_CAST (obj, camel_pop3_stream_get_type (), CamelPOP3Stream)
-#define CAMEL_POP3_STREAM_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_pop3_stream_get_type (), CamelPOP3StreamClass)
-#define CAMEL_IS_POP3_STREAM(obj)      CAMEL_CHECK_TYPE (obj, camel_pop3_stream_get_type ())
+/* Standard GObject macros */
+#define CAMEL_TYPE_POP3_STREAM \
+	(camel_pop3_stream_get_type ())
+#define CAMEL_POP3_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_POP3_STREAM, CamelPOP3Stream))
+#define CAMEL_POP3_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_POP3_STREAM, CamelPOP3StreamClass))
+#define CAMEL_IS_POP3_STREAM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_POP3_STREAM))
+#define CAMEL_IS_POP3_STREAM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_POP3_STREAM))
+#define CAMEL_POP3_STREAM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_POP3_STREAM, CamelPOP3StreamClass))
 
 G_BEGIN_DECLS
 
-typedef struct _CamelPOP3StreamClass CamelPOP3StreamClass;
 typedef struct _CamelPOP3Stream CamelPOP3Stream;
+typedef struct _CamelPOP3StreamClass CamelPOP3StreamClass;
 
 typedef enum {
 	CAMEL_POP3_STREAM_LINE,
@@ -57,7 +72,7 @@ struct _CamelPOP3StreamClass {
 	CamelStreamClass parent_class;
 };
 
-CamelType		 camel_pop3_stream_get_type	(void);
+GType		 camel_pop3_stream_get_type	(void);
 
 CamelStream     *camel_pop3_stream_new		(CamelStream *source);
 
@@ -69,4 +84,4 @@ gint		 camel_pop3_stream_getd		(CamelPOP3Stream *is, guchar **start, guint *len)
 
 G_END_DECLS
 
-#endif /* ! _CAMEL_POP3_STREAM_H */
+#endif /* CAMEL_POP3_STREAM_H */

@@ -22,21 +22,45 @@
  * USA
  */
 
-#ifndef CAMEL_FOLDER_H
-#define CAMEL_FOLDER_H 1
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
 
-#include <glib.h>
+#ifndef CAMEL_FOLDER_H
+#define CAMEL_FOLDER_H
+
 #include <camel/camel-object.h>
 #include <camel/camel-folder-summary.h>
 
-#define CAMEL_FOLDER_TYPE     (camel_folder_get_type ())
-#define CAMEL_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_FOLDER_TYPE, CamelFolder))
-#define CAMEL_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_FOLDER_TYPE, CamelFolderClass))
-#define CAMEL_IS_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_FOLDER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_FOLDER \
+	(camel_folder_get_type ())
+#define CAMEL_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_FOLDER, CamelFolder))
+#define CAMEL_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_FOLDER, CamelFolderClass))
+#define CAMEL_IS_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_FOLDER))
+#define CAMEL_IS_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_FOLDER))
+#define CAMEL_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_FOLDER, CamelFolderClass))
 
 G_BEGIN_DECLS
 
+struct _CamelStore;
+
 typedef struct _CamelFolderChangeInfo CamelFolderChangeInfo;
+typedef struct _CamelFolderChangeInfoPrivate CamelFolderChangeInfoPrivate;
+
+typedef struct _CamelFolder CamelFolder;
+typedef struct _CamelFolderClass CamelFolderClass;
+typedef struct _CamelFolderPrivate CamelFolderPrivate;
 
 enum {
 	CAMEL_FOLDER_ARG_FIRST = CAMEL_ARG_FIRST + 0x1000,
@@ -81,7 +105,7 @@ struct _CamelFolderChangeInfo {
 	GPtrArray *uid_changed;
 	GPtrArray *uid_recent;
 
-	struct _CamelFolderChangeInfoPrivate *priv;
+	CamelFolderChangeInfoPrivate *priv;
 };
 
 typedef struct _CamelFolderQuotaInfo CamelFolderQuotaInfo;
@@ -95,16 +119,15 @@ struct _CamelFolderQuotaInfo {
 };
 
 struct _CamelFolder {
-	CamelObject parent_object;
-
-	struct _CamelFolderPrivate *priv;
+	CamelObject parent;
+	CamelFolderPrivate *priv;
 
 	/* get these via the :get() method, they might not be set otherwise */
 	gchar *name;
 	gchar *full_name;
 	gchar *description;
 
-	CamelStore *parent_store;
+	struct _CamelStore *parent_store;
 	CamelFolderSummary *summary;
 
 	guint32 folder_flags;
@@ -122,7 +145,7 @@ struct _CamelFolder {
 #define CAMEL_FOLDER_IS_JUNK                (1<<5)
 #define CAMEL_FOLDER_FILTER_JUNK	    (1<<6)
 
-typedef struct {
+struct _CamelFolderClass {
 	CamelObjectClass parent_class;
 
 	/* Virtual methods */
@@ -134,7 +157,7 @@ typedef struct {
 	const gchar *  (*get_name)  (CamelFolder *folder);
 	const gchar *  (*get_full_name)   (CamelFolder *folder);
 
-	CamelStore *  (*get_parent_store) (CamelFolder *folder);
+	struct _CamelStore *  (*get_parent_store) (CamelFolder *folder);
 
 	void (*expunge)  (CamelFolder *folder,
 			  CamelException *ex);
@@ -217,14 +240,13 @@ typedef struct {
                                CamelException *ex);
         GPtrArray * (*get_uncached_uids)(CamelFolder *, GPtrArray * uids, CamelException *);
 	gchar * (*get_filename) (CamelFolder *, const gchar *uid, CamelException *);
-} CamelFolderClass;
+};
 
-/* Standard Camel function */
-CamelType camel_folder_get_type (void);
+GType camel_folder_get_type (void);
 
 /* public methods */
 void               camel_folder_construct              (CamelFolder *folder,
-							CamelStore *parent_store,
+							struct _CamelStore *parent_store,
 							const gchar *full_name,
 							const gchar *name);
 
@@ -234,7 +256,7 @@ void               camel_folder_sync                   (CamelFolder *folder,
 							gboolean expunge,
 							CamelException *ex);
 
-CamelStore *       camel_folder_get_parent_store       (CamelFolder *folder);
+struct _CamelStore *       camel_folder_get_parent_store       (CamelFolder *folder);
 
 /* delete operations */
 void		   camel_folder_expunge                (CamelFolder *folder,

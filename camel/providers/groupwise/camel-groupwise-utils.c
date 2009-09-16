@@ -27,16 +27,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <glib.h>
 #include <glib/gstdio.h>
-
-#include "camel/camel-address.h"
-#include "camel/camel-mime-filter-charset.h"
-#include "camel/camel-mime-message.h"
-#include "camel/camel-multipart.h"
-#include "camel/camel-service.h"
-#include "camel/camel-stream-filter.h"
-#include "camel/camel-stream-mem.h"
 
 #include "camel-groupwise-utils.h"
 
@@ -285,12 +276,13 @@ add_recipients(GSList *recipient_list, CamelAddress *recipients, gint recipient_
 }
 
 static void
-send_as_attachment (EGwConnection *cnc, EGwItem *item, CamelStreamMem *content, CamelContentType *type, CamelDataWrapper *dw, const gchar *filename, const gchar *cid, GSList **attach_list)
+send_as_attachment (EGwConnection *cnc, EGwItem *item, CamelStream *content, CamelContentType *type, CamelDataWrapper *dw, const gchar *filename, const gchar *cid, GSList **attach_list)
 {
 	EGwItemLinkInfo *info = NULL;
 	EGwConnectionStatus status;
 	EGwItemAttachment *attachment;
 	EGwItem *temp_item;
+	GByteArray *buffer;
 
 	attachment = g_new0 (EGwItemAttachment, 1);
 	attachment->contentType = camel_content_type_simple (type);
@@ -298,27 +290,29 @@ send_as_attachment (EGwConnection *cnc, EGwItem *item, CamelStreamMem *content, 
 	if (cid)
 		attachment->contentid = camel_header_contentid_decode (cid);
 
-	if (filename && content->buffer->data) {
+	buffer = camel_stream_mem_get_byte_array (CAMEL_STREAM_MEM (content));
+
+	if (filename && buffer->data) {
 		if (camel_content_type_is (type, "application", "pgp-signature")) {
 			gchar *temp_str;
 			gint temp_len;
-			temp_str = g_base64_encode (content->buffer->data, content->buffer->len);
+			temp_str = g_base64_encode (buffer->data, buffer->len);
 			temp_len = strlen (temp_str);
 			attachment->data = g_strdup (temp_str);
 			attachment->size = temp_len;
 			g_free (temp_str);
 			temp_str = NULL;
 		} else {
-			attachment->data = g_base64_encode(content->buffer->data, content->buffer->len);
+			attachment->data = g_base64_encode(buffer->data, buffer->len);
 			attachment->size = strlen (attachment->data);
 		}
-	} else if (content->buffer->data) {
+	} else if (buffer->data) {
 		gchar *temp_str;
 		gint temp_len;
 		if (!strcmp (attachment->contentType, "multipart/digest")) {
 			/* FIXME? */
 		} else {
-			temp_str = g_base64_encode (content->buffer->data, content->buffer->len);
+			temp_str = g_base64_encode (buffer->data, buffer->len);
 			temp_len = strlen (temp_str);
 			attachment->data = g_strdup (temp_str);
 			attachment->size = temp_len;
@@ -406,7 +400,7 @@ camel_groupwise_util_item_from_message (EGwConnection *cnc, CamelMimeMessage *me
 	recipient_list = g_slist_reverse (recipient_list);
 
 	/** Get the mime parts from CamelMimemessge **/
-	mp = (CamelMultipart *)camel_medium_get_content_object (CAMEL_MEDIUM (message));
+	mp = (CamelMultipart *)camel_medium_get_content (CAMEL_MEDIUM (message));
 	if (!mp) {
 		g_warning ("ERROR: Could not get content object");
 		camel_operation_end (NULL);
@@ -418,11 +412,15 @@ camel_groupwise_util_item_from_message (EGwConnection *cnc, CamelMimeMessage *me
 		do_multipart (cnc, item, mp, &attach_list);
 	} else {
 		/*only message*/
-		CamelStreamMem *content = (CamelStreamMem *)camel_stream_mem_new ();
+		CamelStream *content;
 		CamelDataWrapper *dw = NULL;
 		CamelContentType *type;
+		GByteArray *buffer;
 
-		dw = camel_medium_get_content_object (CAMEL_MEDIUM (message));
+		buffer = g_byte_array_new ();
+		content = camel_stream_mem_new_with_byte_array (buffer);
+
+		dw = camel_medium_get_content (CAMEL_MEDIUM (message));
 		type = camel_mime_part_get_content_type((CamelMimePart *)message);
 
 		if (camel_content_type_is (type, "text", "plain")) {
@@ -437,28 +435,28 @@ camel_groupwise_util_item_from_message (EGwConnection *cnc, CamelMimeMessage *me
 
 			charset = camel_content_type_param (type, "charset");
 			if (charset && g_ascii_strcasecmp (charset, "US-ASCII") && g_ascii_strcasecmp (charset, "UTF-8")) {
-				filter = (CamelMimeFilter *) camel_mime_filter_charset_new_convert (charset, "UTF-8");
-				filtered_stream = (CamelStream *) camel_stream_filter_new_with_stream ((CamelStream *) content);
+				filter = camel_mime_filter_charset_new (charset, "UTF-8");
+				filtered_stream = camel_stream_filter_new (content);
 				camel_stream_filter_add ((CamelStreamFilter *) filtered_stream, filter);
-				camel_object_unref (filter);
+				g_object_unref (filter);
 			} else {
 				/* US-ASCII or UTF-8 */
-				filtered_stream = (CamelStream *) content;
-				camel_object_ref (content);
+				filtered_stream = content;
+				g_object_ref (content);
 			}
 
 			camel_data_wrapper_decode_to_stream (dw, filtered_stream);
 			camel_stream_flush (filtered_stream);
-			camel_object_unref (filtered_stream);
+			g_object_unref (filtered_stream);
 
-			camel_stream_write ((CamelStream *) content, "", 1);
-			e_gw_item_set_message (item, (const gchar *)content->buffer->data);
+			camel_stream_write (content, "", 1);
+			e_gw_item_set_message (item, (const gchar *)buffer->data);
 		} else {
 			camel_data_wrapper_decode_to_stream (dw, (CamelStream *) content);
 			send_as_attachment (cnc, item, content, type, dw, NULL, NULL, &attach_list);
 		}
 
-		camel_object_unref (content);
+		g_object_unref (content);
 	}
 	/*Populate EGwItem*/
 	/*From Address*/
@@ -608,11 +606,16 @@ do_multipart (EGwConnection *cnc, EGwItem *item, CamelMultipart *mp, GSList **at
 	for ( i=0; i<part_count; i++) {
 		CamelContentType *type;
 		CamelMimePart *part;
-		CamelStreamMem *content = (CamelStreamMem *)camel_stream_mem_new ();
+		CamelStream *content;
 		CamelDataWrapper *dw = NULL;
+		GByteArray *buffer;
 		const gchar *disposition, *filename;
 		const gchar *content_id = NULL;
 		gboolean is_alternative = FALSE;
+
+		buffer = g_byte_array_new ();
+		content = camel_stream_mem_new_with_byte_array (buffer);
+
 		/*
 		 * XXX:
 		 * Assuming the first part always is the actual message
@@ -624,10 +627,10 @@ do_multipart (EGwConnection *cnc, EGwItem *item, CamelMultipart *mp, GSList **at
 			continue;
 
 		type = camel_mime_part_get_content_type(part);
-		dw = camel_medium_get_content_object (CAMEL_MEDIUM (part));
+		dw = camel_medium_get_content (CAMEL_MEDIUM (part));
 
 		if (CAMEL_IS_MULTIPART (dw)) {
-			do_multipart (cnc, item, (CamelMultipart *) camel_medium_get_content_object ((CamelMedium *) part), attach_list);
+			do_multipart (cnc, item, (CamelMultipart *) camel_medium_get_content ((CamelMedium *) part), attach_list);
 			continue;
 		}
 
@@ -635,20 +638,24 @@ do_multipart (EGwConnection *cnc, EGwItem *item, CamelMultipart *mp, GSList **at
 			/* eh... I don't think this code will ever get hit? */
 			CamelMimePart *temp_part;
 			const gchar *cid = NULL;
-			CamelStreamMem *temp_content = (CamelStreamMem *)camel_stream_mem_new ();
+			CamelStream *temp_content;
 			CamelDataWrapper *temp_dw = NULL;
+			GByteArray *temp_buffer;
+
+			temp_buffer = g_byte_array_new ();
+			temp_content = camel_stream_mem_new_with_byte_array (temp_buffer);
 
 			temp_part = camel_multipart_get_part ((CamelMultipart *)dw, 1);
 			if (temp_part) {
 				is_alternative = TRUE;
-				temp_dw = camel_medium_get_content_object (CAMEL_MEDIUM (temp_part));
-				camel_data_wrapper_write_to_stream(temp_dw, (CamelStream *)temp_content);
+				temp_dw = camel_medium_get_content (CAMEL_MEDIUM (temp_part));
+				camel_data_wrapper_write_to_stream(temp_dw, temp_content);
 				filename = camel_mime_part_get_filename (temp_part);
 				disposition = camel_mime_part_get_disposition (temp_part);
 				cid = camel_mime_part_get_content_id (temp_part);
 				send_as_attachment (cnc, item, temp_content, type, temp_dw, filename, cid, attach_list);
 			}
-			camel_object_unref (temp_content);
+			g_object_unref (temp_content);
 			continue;
 		}
 
@@ -664,31 +671,31 @@ do_multipart (EGwConnection *cnc, EGwItem *item, CamelMultipart *mp, GSList **at
 
 			charset = camel_content_type_param (type, "charset");
 			if (charset && g_ascii_strcasecmp (charset, "US-ASCII") && g_ascii_strcasecmp (charset, "UTF-8")) {
-				filter = (CamelMimeFilter *) camel_mime_filter_charset_new_convert (charset, "UTF-8");
-				filtered_stream = (CamelStream *) camel_stream_filter_new_with_stream ((CamelStream *) content);
+				filter = camel_mime_filter_charset_new (charset, "UTF-8");
+				filtered_stream = camel_stream_filter_new (content);
 				camel_stream_filter_add ((CamelStreamFilter *) filtered_stream, filter);
-				camel_object_unref (filter);
+				g_object_unref (filter);
 			} else {
 				/* US-ASCII or UTF-8 */
-				filtered_stream = (CamelStream *) content;
-				camel_object_ref (content);
+				filtered_stream = content;
+				g_object_ref (content);
 			}
 
 			camel_data_wrapper_decode_to_stream (dw, filtered_stream);
 			camel_stream_flush (filtered_stream);
-			camel_object_unref (filtered_stream);
+			g_object_unref (filtered_stream);
 
-			camel_stream_write ((CamelStream *) content, "", 1);
-			e_gw_item_set_message (item, (const gchar *)content->buffer->data);
+			camel_stream_write (content, "", 1);
+			e_gw_item_set_message (item, (const gchar *)buffer->data);
 		} else {
 			filename = camel_mime_part_get_filename (part);
 			disposition = camel_mime_part_get_disposition (part);
 			content_id = camel_mime_part_get_content_id (part);
 
-			camel_data_wrapper_decode_to_stream (dw, (CamelStream *) content);
+			camel_data_wrapper_decode_to_stream (dw, content);
 			send_as_attachment (cnc, item, content, type, dw, filename, content_id, attach_list);
 		}
 
-		camel_object_unref (content);
+		g_object_unref (content);
 	} /*end of for*/
 }

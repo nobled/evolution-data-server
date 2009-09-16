@@ -38,10 +38,6 @@
 
 #include <libedataserver/md5-utils.h>
 
-#include <camel/camel-file-utils.h>
-#include <camel/camel-string-utils.h>
-#include <camel/camel-offline-journal.h>
-
 #include "camel-imap4-command.h"
 #include "camel-imap4-engine.h"
 #include "camel-imap4-folder.h"
@@ -57,9 +53,9 @@
 
 #define IMAP_SAVE_INCREMENT 1024
 
-static void camel_imap4_summary_class_init (CamelIMAP4SummaryClass *klass);
-static void camel_imap4_summary_init (CamelIMAP4Summary *summary, CamelIMAP4SummaryClass *klass);
-static void camel_imap4_summary_finalize (CamelObject *object);
+static void camel_imap4_summary_class_init (CamelIMAP4SummaryClass *class);
+static void camel_imap4_summary_init (CamelIMAP4Summary *summary, CamelIMAP4SummaryClass *class);
+static void imap4_summary_finalize (CamelObject *object);
 
 static gint imap4_header_load (CamelFolderSummary *summary, FILE *fin);
 static gint imap4_header_save (CamelFolderSummary *summary, FILE *fout);
@@ -70,33 +66,33 @@ static CamelMessageInfo *imap4_message_info_clone (CamelFolderSummary *summary, 
 static CamelMessageContentInfo *imap4_content_info_load (CamelFolderSummary *summary, FILE *in);
 static gint imap4_content_info_save (CamelFolderSummary *summary, FILE *out, CamelMessageContentInfo *info);
 
-static CamelFolderSummaryClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_summary_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (CAMEL_FOLDER_SUMMARY_TYPE,
-					    "CamelIMAP4Summary",
-					    sizeof (CamelIMAP4Summary),
-					    sizeof (CamelIMAP4SummaryClass),
-					    (CamelObjectClassInitFunc) camel_imap4_summary_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_summary_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_summary_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_FOLDER_SUMMARY_TYPE,
+			"CamelIMAP4Summary",
+			sizeof (CamelIMAP4Summary),
+			sizeof (CamelIMAP4SummaryClass),
+			(GClassInitFunc) camel_imap4_summary_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_summary_init,
+			(GObjectFinalizeFunc) imap4_summary_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_summary_class_init (CamelIMAP4SummaryClass *klass)
+camel_imap4_summary_class_init (CamelIMAP4SummaryClass *class)
 {
-	CamelFolderSummaryClass *summary_class = (CamelFolderSummaryClass *) klass;
+	CamelFolderSummaryClass *summary_class = (CamelFolderSummaryClass *) class;
 
-	parent_class = (CamelFolderSummaryClass *) camel_type_get_global_classfuncs (camel_folder_summary_get_type ());
+	parent_class = g_type_class_peek_parent (class);
 
 	summary_class->summary_header_load = imap4_header_load;
 	summary_class->summary_header_save = imap4_header_save;
@@ -109,7 +105,7 @@ camel_imap4_summary_class_init (CamelIMAP4SummaryClass *klass)
 }
 
 static void
-camel_imap4_summary_init (CamelIMAP4Summary *summary, CamelIMAP4SummaryClass *klass)
+camel_imap4_summary_init (CamelIMAP4Summary *summary, CamelIMAP4SummaryClass *class)
 {
 	CamelFolderSummary *folder_summary = (CamelFolderSummary *) summary;
 
@@ -124,7 +120,7 @@ camel_imap4_summary_init (CamelIMAP4Summary *summary, CamelIMAP4SummaryClass *kl
 }
 
 static void
-camel_imap4_summary_finalize (CamelObject *object)
+imap4_summary_finalize (CamelObject *object)
 {
 }
 
@@ -133,7 +129,7 @@ camel_imap4_summary_new (CamelFolder *folder)
 {
 	CamelFolderSummary *summary;
 
-	summary = (CamelFolderSummary *) camel_object_new (CAMEL_TYPE_IMAP4_SUMMARY);
+	summary = g_object_new (CAMEL_TYPE_IMAP4_SUMMARY, NULL);
 	summary->folder = folder;
 
 	return summary;
@@ -1098,7 +1094,7 @@ untagged_fetch_all (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 ind
 				goto unexpected;
 
 			parser = camel_mime_parser_new ();
-			camel_mime_parser_init_with_stream (parser, (CamelStream *) engine->istream);
+			mime_parser_init_with_stream (parser, (CamelStream *) engine->istream);
 
 			switch (camel_mime_parser_step (parser, NULL, NULL)) {
 			case CAMEL_MIME_PARSER_STATE_HEADER:
@@ -1129,7 +1125,7 @@ untagged_fetch_all (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 ind
 				break;
 			}
 
-			camel_object_unref (parser);
+			g_object_unref (parser);
 		} else {
 			/* wtf? */
 			d(fprintf (stderr, "huh? %s?...\n", token->v.atom));

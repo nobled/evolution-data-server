@@ -23,17 +23,39 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_MEDIUM_H
-#define CAMEL_MEDIUM_H 1
+#define CAMEL_MEDIUM_H
 
 #include <camel/camel-data-wrapper.h>
 
-#define CAMEL_MEDIUM_TYPE     (camel_medium_get_type ())
-#define CAMEL_MEDIUM(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_MEDIUM_TYPE, CamelMedium))
-#define CAMEL_MEDIUM_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_MEDIUM_TYPE, CamelMediumClass))
-#define CAMEL_IS_MEDIUM(o)    (CAMEL_CHECK_TYPE((o), CAMEL_MEDIUM_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_MEDIUM \
+	(camel_medium_get_type ())
+#define CAMEL_MEDIUM(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_MEDIUM, CamelMedium))
+#define CAMEL_MEDIUM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_MEDIUM, CamelMediumClass))
+#define CAMEL_IS_MEDIUM(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_MEDIUM))
+#define CAMEL_IS_MEDIUM_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_MEDIUM))
+#define CAMEL_MEDIUM_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_MEDIUM, CamelMediumClass))
 
 G_BEGIN_DECLS
+
+typedef struct _CamelMedium CamelMedium;
+typedef struct _CamelMediumClass CamelMediumClass;
+typedef struct _CamelMediumPrivate CamelMediumPrivate;
 
 typedef struct {
 	const gchar *name;
@@ -41,16 +63,11 @@ typedef struct {
 } CamelMediumHeader;
 
 struct _CamelMedium {
-	CamelDataWrapper parent_object;
-
-	/* The content of the medium, as opposed to our parent
-	 * CamelDataWrapper, which wraps both the headers and the
-	 * content.
-	 */
-	CamelDataWrapper *content;
+	CamelDataWrapper parent;
+	CamelMediumPrivate *priv;
 };
 
-typedef struct {
+struct _CamelMediumClass {
 	CamelDataWrapperClass parent_class;
 
 	/* Virtual methods */
@@ -62,12 +79,11 @@ typedef struct {
 	GArray * (*get_headers) (CamelMedium *medium);
 	void (*free_headers) (CamelMedium *medium, GArray *headers);
 
-	CamelDataWrapper * (*get_content_object) (CamelMedium *medium);
-	void (*set_content_object) (CamelMedium *medium, CamelDataWrapper *content);
-} CamelMediumClass;
+	CamelDataWrapper * (*get_content) (CamelMedium *medium);
+	void (*set_content) (CamelMedium *medium, CamelDataWrapper *content);
+};
 
-/* Standard Camel function */
-CamelType camel_medium_get_type (void);
+GType camel_medium_get_type (void);
 
 /* Header get/set interface */
 void camel_medium_add_header (CamelMedium *medium, const gchar *name, gconstpointer value);
@@ -79,9 +95,9 @@ GArray *camel_medium_get_headers (CamelMedium *medium);
 void camel_medium_free_headers (CamelMedium *medium, GArray *headers);
 
 /* accessor methods */
-CamelDataWrapper *camel_medium_get_content_object (CamelMedium *medium);
-void camel_medium_set_content_object (CamelMedium *medium,
-				      CamelDataWrapper *content);
+CamelDataWrapper *camel_medium_get_content (CamelMedium *medium);
+void camel_medium_set_content (CamelMedium *medium,
+			       CamelDataWrapper *content);
 
 G_END_DECLS
 

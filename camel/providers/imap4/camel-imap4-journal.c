@@ -34,52 +34,47 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <camel/camel-folder-summary.h>
-#include <camel/camel-data-cache.h>
-#include <camel/camel-file-utils.h>
-#include <camel/camel-folder.h>
-
 #include "camel-imap4-folder.h"
 #include "camel-imap4-journal.h"
 
 #define d(x)
 
-static void camel_imap4_journal_class_init (CamelIMAP4JournalClass *klass);
-static void camel_imap4_journal_init (CamelIMAP4Journal *journal, CamelIMAP4JournalClass *klass);
-static void camel_imap4_journal_finalize (CamelObject *object);
+static void camel_imap4_journal_class_init (CamelIMAP4JournalClass *class);
+static void camel_imap4_journal_init (CamelIMAP4Journal *journal, CamelIMAP4JournalClass *class);
+static void imap4_journal_finalize (CamelObject *object);
 
 static void imap4_entry_free (CamelOfflineJournal *journal, CamelDListNode *entry);
 static CamelDListNode *imap4_entry_load (CamelOfflineJournal *journal, FILE *in);
 static gint imap4_entry_write (CamelOfflineJournal *journal, CamelDListNode *entry, FILE *out);
 static gint imap4_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, CamelException *ex);
 
-static CamelOfflineJournalClass *parent_class = NULL;
+static gpointer parent_class;
 
-CamelType
+GType
 camel_imap4_journal_get_type (void)
 {
-	static CamelType type = 0;
+	static GType type = G_TYPE_INVALID;
 
-	if (!type) {
-		type = camel_type_register (camel_offline_journal_get_type (),
-					    "CamelIMAP4Journal",
-					    sizeof (CamelIMAP4Journal),
-					    sizeof (CamelIMAP4JournalClass),
-					    (CamelObjectClassInitFunc) camel_imap4_journal_class_init,
-					    NULL,
-					    (CamelObjectInitFunc) camel_imap4_journal_init,
-					    (CamelObjectFinalizeFunc) camel_imap4_journal_finalize);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = camel_type_register (
+			CAMEL_TYPE_OFFLINE_JOURNAL,
+			"CamelIMAP4Journal",
+			sizeof (CamelIMAP4Journal),
+			sizeof (CamelIMAP4JournalClass),
+			(GClassInitFunc) camel_imap4_journal_class_init,
+			NULL,
+			(GInstanceInitFunc) camel_imap4_journal_init,
+			(GObjectFinalizeFunc) imap4_journal_finalize);
 
 	return type;
 }
 
 static void
-camel_imap4_journal_class_init (CamelIMAP4JournalClass *klass)
+camel_imap4_journal_class_init (CamelIMAP4JournalClass *class)
 {
-	CamelOfflineJournalClass *journal_class = (CamelOfflineJournalClass *) klass;
+	CamelOfflineJournalClass *journal_class = (CamelOfflineJournalClass *) class;
 
-	parent_class = (CamelOfflineJournalClass *) camel_type_get_global_classfuncs (CAMEL_TYPE_OFFLINE_JOURNAL);
+	parent_class = g_type_class_peek_parent (class);
 
 	journal_class->entry_free = imap4_entry_free;
 	journal_class->entry_load = imap4_entry_load;
@@ -88,13 +83,13 @@ camel_imap4_journal_class_init (CamelIMAP4JournalClass *klass)
 }
 
 static void
-camel_imap4_journal_init (CamelIMAP4Journal *journal, CamelIMAP4JournalClass *klass)
+camel_imap4_journal_init (CamelIMAP4Journal *journal, CamelIMAP4JournalClass *class)
 {
 	journal->failed = g_ptr_array_new ();
 }
 
 static void
-camel_imap4_journal_finalize (CamelObject *object)
+imap4_journal_finalize (CamelObject *object)
 {
 	CamelIMAP4Journal *journal = (CamelIMAP4Journal *) object;
 	gint i;
@@ -201,12 +196,12 @@ imap4_entry_play_append (CamelOfflineJournal *journal, CamelIMAP4JournalEntry *e
 
 	message = camel_mime_message_new ();
 	if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream) == -1) {
-		camel_object_unref (message);
-		camel_object_unref (stream);
+		g_object_unref (message);
+		g_object_unref (stream);
 		goto done;
 	}
 
-	camel_object_unref (stream);
+	g_object_unref (stream);
 
 	if (!(info = camel_folder_summary_uid (folder->summary, entry->v.append_uid))) {
 		/* info not in the summary, either because the summary
@@ -217,7 +212,7 @@ imap4_entry_play_append (CamelOfflineJournal *journal, CamelIMAP4JournalEntry *e
 
 	camel_exception_init (&lex);
 	camel_folder_append_message (folder, message, info, &uid, &lex);
-	camel_object_unref (message);
+	g_object_unref (message);
 
 	if (camel_exception_is_set (&lex)) {
 		/* Remove the message-info from the summary even if we fail or the next
@@ -275,7 +270,7 @@ camel_imap4_journal_new (CamelIMAP4Folder *folder, const gchar *filename)
 
 	g_return_val_if_fail (CAMEL_IS_IMAP4_FOLDER (folder), NULL);
 
-	journal = (CamelOfflineJournal *) camel_object_new (camel_imap4_journal_get_type ());
+	journal = g_object_new (CAMEL_TYPE_IMAP4_JOURNAL, NULL);
 	camel_offline_journal_construct (journal, (CamelFolder *) folder, filename);
 
 	return journal;
@@ -328,12 +323,12 @@ camel_imap4_journal_append (CamelIMAP4Journal *imap4_journal, CamelMimeMessage *
 				      g_strerror (errno));
 		camel_data_cache_remove (imap4_folder->cache, "cache", uid, NULL);
 		folder->summary->nextuid--;
-		camel_object_unref (cache);
+		g_object_unref (cache);
 		g_free (uid);
 		return;
 	}
 
-	camel_object_unref (cache);
+	g_object_unref (cache);
 
 	entry = g_new (CamelIMAP4JournalEntry, 1);
 	entry->type = CAMEL_IMAP4_JOURNAL_ENTRY_APPEND;

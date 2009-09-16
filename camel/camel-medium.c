@@ -33,95 +33,159 @@
 
 #define d(x)
 
-static CamelDataWrapperClass *parent_class = NULL;
+#define CAMEL_MEDIUM_GET_PRIVATE(obj) \
+	(G_TYPE_INSTANCE_GET_PRIVATE \
+	((obj), CAMEL_TYPE_MEDIUM, CamelMediumPrivate))
 
-/* Returns the class for a CamelMedium */
-#define CM_CLASS(so) CAMEL_MEDIUM_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
-static gboolean is_offline (CamelDataWrapper *data_wrapper);
-static void add_header (CamelMedium *medium, const gchar *name,
-			gconstpointer value);
-static void set_header (CamelMedium *medium, const gchar *name, gconstpointer value);
-static void remove_header (CamelMedium *medium, const gchar *name);
-static gconstpointer get_header (CamelMedium *medium, const gchar *name);
+struct _CamelMediumPrivate {
+	/* The content of the medium, as opposed to our parent
+	 * CamelDataWrapper, which wraps both the headers and
+	 * the content. */
+	CamelDataWrapper *content;
+};
 
-static GArray *get_headers (CamelMedium *medium);
-static void free_headers (CamelMedium *medium, GArray *headers);
-
-static CamelDataWrapper *get_content_object (CamelMedium *medium);
-static void set_content_object (CamelMedium *medium,
-				CamelDataWrapper *content);
-
-static void
-camel_medium_class_init (CamelMediumClass *camel_medium_class)
-{
-	CamelDataWrapperClass *camel_data_wrapper_class =
-		CAMEL_DATA_WRAPPER_CLASS (camel_medium_class);
-
-	parent_class = CAMEL_DATA_WRAPPER_CLASS (camel_type_get_global_classfuncs (camel_data_wrapper_get_type ()));
-
-	/* virtual method overload */
-	camel_data_wrapper_class->is_offline = is_offline;
-
-	/* virtual method definition */
-	camel_medium_class->add_header = add_header;
-	camel_medium_class->set_header = set_header;
-	camel_medium_class->remove_header = remove_header;
-	camel_medium_class->get_header = get_header;
-
-	camel_medium_class->get_headers = get_headers;
-	camel_medium_class->free_headers = free_headers;
-
-	camel_medium_class->set_content_object = set_content_object;
-	camel_medium_class->get_content_object = get_content_object;
-}
+enum {
+	PROP_0,
+	PROP_CONTENT
+};
 
 static void
-camel_medium_init (gpointer object, gpointer klass)
+medium_set_property (GObject *object,
+                     guint property_id,
+                     const GValue *value,
+                     GParamSpec *pspec)
 {
-	CamelMedium *camel_medium = CAMEL_MEDIUM (object);
-
-	camel_medium->content = NULL;
-}
-
-static void
-camel_medium_finalize (CamelObject *object)
-{
-	CamelMedium *medium = CAMEL_MEDIUM (object);
-
-	if (medium->content)
-		camel_object_unref (medium->content);
-}
-
-CamelType
-camel_medium_get_type (void)
-{
-	static CamelType camel_medium_type = CAMEL_INVALID_TYPE;
-
-	if (camel_medium_type == CAMEL_INVALID_TYPE) {
-		camel_medium_type = camel_type_register (CAMEL_DATA_WRAPPER_TYPE, "medium",
-							 sizeof (CamelMedium),
-							 sizeof (CamelMediumClass),
-							 (CamelObjectClassInitFunc) camel_medium_class_init,
-							 NULL,
-							 (CamelObjectInitFunc) camel_medium_init,
-							 (CamelObjectFinalizeFunc) camel_medium_finalize);
+	switch (property_id) {
+		case PROP_CONTENT:
+			camel_medium_set_content (
+				CAMEL_MEDIUM (object),
+				g_value_get_object (value));
+			return;
 	}
 
-	return camel_medium_type;
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+}
+
+static void
+medium_get_property (GObject *object,
+                     guint property_id,
+                     GValue *value,
+                     GParamSpec *pspec)
+{
+	switch (property_id) {
+		case PROP_CONTENT:
+			g_value_set_object (
+				value, camel_medium_get_content (
+				CAMEL_MEDIUM (object)));
+			return;
+	}
+
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+}
+
+static void
+medium_dispose (GObject *object)
+{
+	CamelMediumPrivate *priv;
+
+	priv = CAMEL_MEDIUM_GET_PRIVATE (object);
+
+	if (priv->content != NULL) {
+		g_object_unref (priv->content);
+		priv->content = NULL;
+	}
+
+	/* Chain up to parent's dispose() method. */
+	G_OBJECT_CLASS (parent_class)->dispose (object);
 }
 
 static gboolean
-is_offline (CamelDataWrapper *data_wrapper)
+medium_is_offline (CamelDataWrapper *data_wrapper)
 {
-	return parent_class->is_offline (data_wrapper) ||
-		camel_data_wrapper_is_offline (CAMEL_MEDIUM (data_wrapper)->content);
+	CamelDataWrapper *content;
+
+	content = camel_medium_get_content (CAMEL_MEDIUM (data_wrapper));
+
+	return CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper)->is_offline (data_wrapper) ||
+		camel_data_wrapper_is_offline (content);
 }
 
 static void
-add_header (CamelMedium *medium, const gchar *name, gconstpointer value)
+medium_set_content (CamelMedium *medium,
+                    CamelDataWrapper *content)
 {
-	g_warning("No %s::add_header implemented, adding %s", camel_type_to_name(CAMEL_OBJECT_GET_TYPE(medium)), name);
+	if (content != NULL)
+		g_object_ref (content);
+
+	if (medium->priv->content != NULL)
+		g_object_unref (medium->priv->content);
+
+	medium->priv->content = content;
+
+	g_object_notify (G_OBJECT (medium), "content");
+}
+
+static CamelDataWrapper *
+medium_get_content (CamelMedium *medium)
+{
+	return medium->priv->content;
+}
+
+static void
+medium_class_init (CamelMediumClass *class)
+{
+	GObjectClass *object_class;
+	CamelDataWrapperClass *data_wrapper_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMediumPrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->set_property = medium_set_property;
+	object_class->get_property = medium_get_property;
+	object_class->dispose = medium_dispose;
+
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (class);
+	data_wrapper_class->is_offline = medium_is_offline;
+
+	class->set_content = medium_set_content;
+	class->get_content = medium_get_content;
+
+	g_object_class_install_property (
+		object_class,
+		PROP_CONTENT,
+		g_param_spec_object (
+			"content",
+			"Content",
+			NULL,
+			CAMEL_TYPE_DATA_WRAPPER,
+			G_PARAM_READWRITE));
+}
+
+static void
+medium_init (CamelMedium *medium)
+{
+	medium->priv = CAMEL_MEDIUM_GET_PRIVATE (medium);
+}
+
+GType
+camel_medium_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_DATA_WRAPPER,
+			"CamelMedium",
+			sizeof (CamelMediumClass),
+			(GClassInitFunc) medium_class_init,
+			sizeof (CamelMedium),
+			(GInstanceInitFunc) medium_init,
+			0);
+
+	return type;
 }
 
 /**
@@ -133,19 +197,20 @@ add_header (CamelMedium *medium, const gchar *name, gconstpointer value)
  * Adds a header to a #CamelMedium.
  **/
 void
-camel_medium_add_header (CamelMedium *medium, const gchar *name, gconstpointer value)
+camel_medium_add_header (CamelMedium *medium,
+                         const gchar *name,
+                         gconstpointer value)
 {
+	CamelMediumClass *class;
+
 	g_return_if_fail (CAMEL_IS_MEDIUM (medium));
 	g_return_if_fail (name != NULL);
 	g_return_if_fail (value != NULL);
 
-	CM_CLASS (medium)->add_header(medium, name, value);
-}
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_if_fail (class->add_header != NULL);
 
-static void
-set_header (CamelMedium *medium, const gchar *name, gconstpointer value)
-{
-	g_warning("No %s::set_header implemented, setting %s", camel_type_to_name(CAMEL_OBJECT_GET_TYPE(medium)), name);
+	class->add_header (medium, name, value);
 }
 
 /**
@@ -159,21 +224,24 @@ set_header (CamelMedium *medium, const gchar *name, gconstpointer value)
  * the header also.
  **/
 void
-camel_medium_set_header (CamelMedium *medium, const gchar *name, gconstpointer value)
+camel_medium_set_header (CamelMedium *medium,
+                         const gchar *name,
+                         gconstpointer value)
 {
+	CamelMediumClass *class;
+
 	g_return_if_fail (CAMEL_IS_MEDIUM (medium));
 	g_return_if_fail (name != NULL);
 
-	if (value == NULL)
-		CM_CLASS(medium)->remove_header(medium, name);
-	else
-		CM_CLASS(medium)->set_header(medium, name, value);
-}
+	if (value == NULL) {
+		camel_medium_remove_header (medium, name);
+		return;
+	}
 
-static void
-remove_header(CamelMedium *medium, const gchar *name)
-{
-	g_warning("No %s::remove_header implemented, removing %s", camel_type_to_name(CAMEL_OBJECT_GET_TYPE(medium)), name);
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_if_fail (class->set_header != NULL);
+
+	class->set_header (medium, name, value);
 }
 
 /**
@@ -185,24 +253,23 @@ remove_header(CamelMedium *medium, const gchar *name)
  * header are removed.
  **/
 void
-camel_medium_remove_header(CamelMedium *medium, const gchar *name)
+camel_medium_remove_header (CamelMedium *medium,
+                            const gchar *name)
 {
+	CamelMediumClass *class;
+
 	g_return_if_fail (CAMEL_IS_MEDIUM (medium));
 	g_return_if_fail (name != NULL);
 
-	CM_CLASS(medium)->remove_header(medium, name);
-}
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_if_fail (class->remove_header != NULL);
 
-static gconstpointer
-get_header(CamelMedium *medium, const gchar *name)
-{
-	g_warning("No %s::get_header implemented, getting %s", camel_type_to_name(CAMEL_OBJECT_GET_TYPE(medium)), name);
-	return NULL;
+	class->remove_header (medium, name);
 }
 
 /**
  * camel_medium_get_header:
- * @medium: a #CamelMedium object
+ * @medium: a #CamelMedium
  * @name: the name of the header
  *
  * Gets the value of the named header in the medium, or %NULL if
@@ -215,19 +282,18 @@ get_header(CamelMedium *medium, const gchar *name)
  * Returns: the value of the named header, or %NULL
  **/
 gconstpointer
-camel_medium_get_header(CamelMedium *medium, const gchar *name)
+camel_medium_get_header (CamelMedium *medium,
+                         const gchar *name)
 {
+	CamelMediumClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_MEDIUM (medium), NULL);
 	g_return_val_if_fail (name != NULL, NULL);
 
-	return CM_CLASS (medium)->get_header (medium, name);
-}
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_val_if_fail (class->get_header != NULL, NULL);
 
-static GArray *
-get_headers(CamelMedium *medium)
-{
-	g_warning("No %s::get_headers implemented", camel_type_to_name(CAMEL_OBJECT_GET_TYPE(medium)));
-	return NULL;
+	return class->get_header (medium, name);
 }
 
 /**
@@ -243,17 +309,16 @@ get_headers(CamelMedium *medium)
  * #camel_medium_free_headers.
  **/
 GArray *
-camel_medium_get_headers(CamelMedium *medium)
+camel_medium_get_headers (CamelMedium *medium)
 {
+	CamelMediumClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_MEDIUM (medium), NULL);
 
-	return CM_CLASS (medium)->get_headers (medium);
-}
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_val_if_fail (class->get_headers != NULL, NULL);
 
-static void
-free_headers (CamelMedium *medium, GArray *headers)
-{
-	g_warning("No %s::free_headers implemented", camel_type_to_name(CAMEL_OBJECT_GET_TYPE(medium)));
+	return class->get_headers (medium);
 }
 
 /**
@@ -264,22 +329,22 @@ free_headers (CamelMedium *medium, GArray *headers)
  * Frees @headers.
  **/
 void
-camel_medium_free_headers (CamelMedium *medium, GArray *headers)
+camel_medium_free_headers (CamelMedium *medium,
+                           GArray *headers)
 {
+	CamelMediumClass *class;
+
 	g_return_if_fail (CAMEL_IS_MEDIUM (medium));
 	g_return_if_fail (headers != NULL);
 
-	CM_CLASS (medium)->free_headers (medium, headers);
-}
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_if_fail (class->free_headers != NULL);
 
-static CamelDataWrapper *
-get_content_object(CamelMedium *medium)
-{
-	return medium->content;
+	class->free_headers (medium, headers);
 }
 
 /**
- * camel_medium_get_content_object:
+ * camel_medium_get_content:
  * @medium: a #CamelMedium object
  *
  * Gets a data wrapper that represents the content of the medium,
@@ -288,35 +353,38 @@ get_content_object(CamelMedium *medium)
  * Returns: a #CamelDataWrapper containing @medium's content. Can return NULL.
  **/
 CamelDataWrapper *
-camel_medium_get_content_object (CamelMedium *medium)
+camel_medium_get_content (CamelMedium *medium)
 {
+	CamelMediumClass *class;
+
 	g_return_val_if_fail (CAMEL_IS_MEDIUM (medium), NULL);
 
-	return CM_CLASS (medium)->get_content_object (medium);
-}
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_val_if_fail (class->get_content != NULL, NULL);
 
-static void
-set_content_object (CamelMedium *medium, CamelDataWrapper *content)
-{
-	if (medium->content)
-		camel_object_unref (medium->content);
-	camel_object_ref (content);
-	medium->content = content;
+	return class->get_content (medium);
 }
 
 /**
- * camel_medium_set_content_object:
+ * camel_medium_set_content:
  * @medium: a #CamelMedium object
  * @content: a #CamelDataWrapper object
  *
  * Sets the content of @medium to be @content.
  **/
 void
-camel_medium_set_content_object (CamelMedium *medium,
-				 CamelDataWrapper *content)
+camel_medium_set_content (CamelMedium *medium,
+                          CamelDataWrapper *content)
 {
-	g_return_if_fail (CAMEL_IS_MEDIUM (medium));
-	g_return_if_fail (CAMEL_IS_DATA_WRAPPER (content));
+	CamelMediumClass *class;
 
-	CM_CLASS (medium)->set_content_object (medium, content);
+	g_return_if_fail (CAMEL_IS_MEDIUM (medium));
+
+	if (content != NULL)
+		g_return_if_fail (CAMEL_IS_DATA_WRAPPER (content));
+
+	class = CAMEL_MEDIUM_GET_CLASS (medium);
+	g_return_if_fail (class->set_content != NULL);
+
+	class->set_content (medium, content);
 }

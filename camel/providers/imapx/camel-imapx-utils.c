@@ -1024,11 +1024,11 @@ imap_free_fetch(struct _fetch_info *finfo)
 		return;
 
 	if (finfo->body)
-		camel_object_unref((CamelObject *)finfo->body);
+		g_object_unref (finfo->body);
 	if (finfo->text)
-		camel_object_unref((CamelObject *)finfo->text);
+		g_object_unref (finfo->text);
 	if (finfo->header)
-		camel_object_unref((CamelObject *)finfo->header);
+		g_object_unref (finfo->header);
 	if (finfo->minfo)
 		camel_message_info_free(finfo->minfo);
 	if (finfo->cinfo)
@@ -1094,7 +1094,7 @@ imap_dump_fetch(struct _fetch_info *finfo)
 		camel_stream_printf(sout, "Section: '%s'\n", finfo->section);
 	if (finfo->date)
 		camel_stream_printf(sout, "UID: '%s'\n", finfo->uid);
-	camel_object_unref((CamelObject *)sout);
+	g_object_unref (sout);
 }
 
 struct _fetch_info *

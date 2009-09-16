@@ -33,21 +33,8 @@
 #include <sys/types.h>
 #include <inttypes.h>
 
-#include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
-
-#include "camel/camel-data-wrapper.h"
-#include "camel/camel-exception.h"
-#include "camel/camel-mime-filter-from.h"
-#include "camel/camel-mime-message.h"
-#include "camel/camel-mime-part-utils.h"
-#include "camel/camel-private.h"
-#include "camel/camel-stream-filter.h"
-#include "camel/camel-stream-fs.h"
-#include <camel/camel-stream-mem.h>
-#include <camel/camel-stream-buffer.h>
-#include <camel/camel-multipart.h>
 
 #include "camel-mbox-folder.h"
 #include "camel-mbox-store.h"
@@ -59,12 +46,7 @@
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
-static CamelLocalFolderClass *parent_class = NULL;
-
-/* Returns the class for a CamelMboxFolder */
-#define CMBOXF_CLASS(so) CAMEL_MBOX_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CMBOXS_CLASS(so) CAMEL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
+static gpointer parent_class;
 
 static gint mbox_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
 static void mbox_unlock(CamelLocalFolder *lf);
@@ -76,62 +58,49 @@ static gchar * mbox_get_filename (CamelFolder *folder, const gchar *uid, CamelEx
 static gint mbox_cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2);
 static void mbox_sort_uids (CamelFolder *folder, GPtrArray *uids);
 
-static void mbox_finalise(CamelObject * object);
-
 static void
-camel_mbox_folder_class_init(CamelMboxFolderClass * camel_mbox_folder_class)
+mbox_folder_class_init (CamelMboxFolderClass *class)
 {
-	CamelFolderClass *camel_folder_class = CAMEL_FOLDER_CLASS(camel_mbox_folder_class);
-	CamelLocalFolderClass *lclass = (CamelLocalFolderClass *)camel_mbox_folder_class;
+	CamelFolderClass *folder_class;
+	CamelLocalFolderClass *local_folder_class;
 
-	parent_class = (CamelLocalFolderClass *)camel_type_get_global_classfuncs(camel_local_folder_get_type());
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method definition */
+	folder_class = CAMEL_FOLDER_CLASS (class);
+	folder_class->append_message = mbox_append_message;
+	folder_class->get_message = mbox_get_message;
+	folder_class->get_filename = mbox_get_filename;
+	folder_class->cmp_uids = mbox_cmp_uids;
+	folder_class->sort_uids = mbox_sort_uids;
 
-	/* virtual method overload */
-	camel_folder_class->append_message = mbox_append_message;
-	camel_folder_class->get_message = mbox_get_message;
-	camel_folder_class->get_filename = mbox_get_filename;
-	camel_folder_class->cmp_uids = mbox_cmp_uids;
-	camel_folder_class->sort_uids = mbox_sort_uids;
-
-	lclass->create_summary = mbox_create_summary;
-	lclass->lock = mbox_lock;
-	lclass->unlock = mbox_unlock;
+	local_folder_class = CAMEL_LOCAL_FOLDER_CLASS (class);
+	local_folder_class->create_summary = mbox_create_summary;
+	local_folder_class->lock = mbox_lock;
+	local_folder_class->unlock = mbox_unlock;
 }
 
 static void
-mbox_init(gpointer object, gpointer klass)
+mbox_folder_init (CamelMboxFolder *mbox_folder)
 {
-	/*CamelFolder *folder = object;*/
-	CamelMboxFolder *mbox_folder = object;
-
 	mbox_folder->lockfd = -1;
 }
 
-static void
-mbox_finalise(CamelObject * object)
+GType
+camel_mbox_folder_get_type (void)
 {
-	CamelMboxFolder *mbox_folder = (CamelMboxFolder *)object;
+	static GType type = G_TYPE_INVALID;
 
-	g_assert(mbox_folder->lockfd == -1);
-}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_LOCAL_FOLDER,
+			"CamelMboxFolder",
+			sizeof (CamelMboxFolderClass),
+			(GClassInitFunc) mbox_folder_class_init,
+			sizeof (CamelMboxFolder),
+			(GInstanceInitFunc) mbox_folder_init,
+			0);
 
-CamelType camel_mbox_folder_get_type(void)
-{
-	static CamelType camel_mbox_folder_type = CAMEL_INVALID_TYPE;
-
-	if (camel_mbox_folder_type == CAMEL_INVALID_TYPE) {
-		camel_mbox_folder_type = camel_type_register(CAMEL_LOCAL_FOLDER_TYPE, "CamelMboxFolder",
-							     sizeof(CamelMboxFolder),
-							     sizeof(CamelMboxFolderClass),
-							     (CamelObjectClassInitFunc) camel_mbox_folder_class_init,
-							     NULL,
-							     (CamelObjectInitFunc) mbox_init,
-							     (CamelObjectFinalizeFunc) mbox_finalise);
-	}
-
-	return camel_mbox_folder_type;
+	return type;
 }
 
 CamelFolder *
@@ -141,7 +110,7 @@ camel_mbox_folder_new(CamelStore *parent_store, const gchar *full_name, guint32 
 
 	d(printf("Creating mbox folder: %s in %s\n", full_name, camel_local_store_get_toplevel_dir((CamelLocalStore *)parent_store)));
 
-	folder = (CamelFolder *)camel_object_new(CAMEL_MBOX_FOLDER_TYPE);
+	folder = g_object_new (CAMEL_TYPE_MBOX_FOLDER, NULL);
 	folder = (CamelFolder *)camel_local_folder_construct((CamelLocalFolder *)folder,
 							     parent_store, full_name, flags, ex);
 
@@ -251,10 +220,10 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 		goto fail_write;
 
 	/* and write the content to the filtering stream, that translates '\nFrom' into '\n>From' */
-	filter_stream = (CamelStream *) camel_stream_filter_new_with_stream(output_stream);
-	filter_from = (CamelMimeFilter *) camel_mime_filter_from_new();
+	filter_stream = camel_stream_filter_new (output_stream);
+	filter_from = camel_mime_filter_from_new();
 	camel_stream_filter_add((CamelStreamFilter *) filter_stream, filter_from);
-	camel_object_unref (filter_from);
+	g_object_unref (filter_from);
 
 	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) message, filter_stream) == -1 ||
 	    camel_stream_write (filter_stream, "\n", 1) == -1 ||
@@ -262,8 +231,8 @@ mbox_append_message(CamelFolder *folder, CamelMimeMessage * message, const Camel
 		goto fail_write;
 
 	/* filter stream ref's the output stream itself, so we need to unref it too */
-	camel_object_unref (filter_stream);
-	camel_object_unref (output_stream);
+	g_object_unref (filter_stream);
+	g_object_unref (output_stream);
 	g_free(fromline);
 
 	if (!((CamelMessageInfoBase *)mi)->preview && camel_folder_summary_get_need_preview(folder->summary)) {
@@ -301,16 +270,20 @@ fail_write:
 				      lf->folder_path, g_strerror (errno));
 
 	if (output_stream) {
+		gint fd;
+
+		fd = camel_stream_fs_get_fd (CAMEL_STREAM_FS (output_stream));
+
 		/* reset the file to original size */
 		do {
-			retval = ftruncate (((CamelStreamFs *) output_stream)->fd, mbs->folder_size);
+			retval = ftruncate (fd, mbs->folder_size);
 		} while (retval == -1 && errno == EINTR);
 
-		camel_object_unref (output_stream);
+		g_object_unref (output_stream);
 	}
 
 	if (filter_stream)
-		camel_object_unref (filter_stream);
+		g_object_unref (filter_stream);
 
 	g_free(fromline);
 
@@ -450,7 +423,7 @@ retry:
 			  (glong)camel_mime_parser_tell_start_from(parser),
 			  camel_mime_parser_state(parser));
 
-		camel_object_unref((CamelObject *)parser);
+		g_object_unref (parser);
 		parser = NULL;
 
 		if (!retried) {
@@ -472,7 +445,7 @@ retry:
 		camel_exception_setv(ex, errno==EINTR?CAMEL_EXCEPTION_USER_CANCEL:CAMEL_EXCEPTION_SYSTEM,
 				     _("Cannot get message: %s from folder %s\n  %s"), uid, lf->folder_path,
 				     _("Message construction failed."));
-		camel_object_unref((CamelObject *)message);
+		g_object_unref (message);
 		message = NULL;
 		goto fail;
 	}
@@ -484,7 +457,7 @@ fail:
 	camel_local_folder_unlock(lf);
 
 	if (parser)
-		camel_object_unref((CamelObject *)parser);
+		g_object_unref (parser);
 
 	/* use the opportunity to notify of changes (particularly if we had a rebuild) */
 	if (camel_folder_change_info_changed(lf->changes)) {

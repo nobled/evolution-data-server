@@ -23,15 +23,28 @@
  */
 
 #ifndef CAMEL_SMTP_TRANSPORT_H
-#define CAMEL_SMTP_TRANSPORT_H 1
+#define CAMEL_SMTP_TRANSPORT_H
 
-#include "camel-transport.h"
-#include "camel-tcp-stream.h"
+#include <camel/camel.h>
 
-#define CAMEL_SMTP_TRANSPORT_TYPE     (camel_smtp_transport_get_type ())
-#define CAMEL_SMTP_TRANSPORT(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_SMTP_TRANSPORT_TYPE, CamelSmtpTransport))
-#define CAMEL_SMTP_TRANSPORT_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_SMTP_TRANSPORT_TYPE, CamelSmtpTransportClass))
-#define CAMEL_IS_SMTP_TRANSPORT(o)    (CAMEL_CHECK_TYPE((o), CAMEL_SMTP_TRANSPORT_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_SMTP_TRANSPORT \
+	(camel_smtp_transport_get_type ())
+#define CAMEL_SMTP_TRANSPORT(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_SMTP_TRANSPORT, CamelSmtpTransport))
+#define CAMEL_SMTP_TRANSPORT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_SMTP_TRANSPORT, CamelSmtpTransportClass))
+#define CAMEL_IS_SMTP_TRANSPORT(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_SMTP_TRANSPORT))
+#define CAMEL_IS_SMTP_TRANSPORT_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_SMTP_TRANSPORT))
+#define CAMEL_SMTP_TRANSPORT_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_SMTP_TRANSPORT, CamelSmtpTransportClass))
 
 #define CAMEL_SMTP_TRANSPORT_IS_ESMTP               (1 << 0)
 #define CAMEL_SMTP_TRANSPORT_8BITMIME               (1 << 1)
@@ -42,8 +55,11 @@
 
 G_BEGIN_DECLS
 
-typedef struct {
-	CamelTransport parent_object;
+typedef struct _CamelSmtpTransport CamelSmtpTransport;
+typedef struct _CamelSmtpTransportClass CamelSmtpTransportClass;
+
+struct _CamelSmtpTransport {
+	CamelTransport parent;
 
 	CamelStream *istream, *ostream;
 
@@ -54,15 +70,13 @@ typedef struct {
 	socklen_t localaddrlen;
 
 	GHashTable *authtypes;
-} CamelSmtpTransport;
+};
 
-typedef struct {
+struct _CamelSmtpTransportClass {
 	CamelTransportClass parent_class;
+};
 
-} CamelSmtpTransportClass;
-
-/* Standard Camel function */
-CamelType camel_smtp_transport_get_type (void);
+GType camel_smtp_transport_get_type (void);
 
 G_END_DECLS
 

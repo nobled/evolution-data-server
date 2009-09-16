@@ -40,20 +40,10 @@
 
 #include <libedataserver/e-data-server-util.h>
 
-#include "camel-exception.h"
-#include "camel-file-utils.h"
-#include "camel-private.h"
-#include "camel-session.h"
-#include "camel-url.h"
-
 #include "camel-spool-folder.h"
 #include "camel-spool-store.h"
 
 #define d(x)
-
-/* Returns the class for a CamelSpoolStore */
-#define CSPOOLS_CLASS(so) CAMEL_SPOOL_STORE_CLASS (CAMEL_OBJECT_GET_CLASS(so))
-#define CF_CLASS(so) CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(so))
 
 static void construct (CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex);
 static CamelFolder *get_folder(CamelStore * store, const gchar *folder_name, guint32 flags, CamelException * ex);
@@ -68,47 +58,50 @@ static void delete_folder(CamelStore *store, const gchar *folder_name, CamelExce
 static gchar *spool_get_meta_path(CamelLocalStore *ls, const gchar *full_name, const gchar *ext);
 static gchar *spool_get_full_path(CamelLocalStore *ls, const gchar *full_name);
 
-static CamelStoreClass *parent_class = NULL;
+static gpointer parent_class;
 
 static void
-camel_spool_store_class_init (CamelSpoolStoreClass *camel_spool_store_class)
+spool_store_class_init (CamelSpoolStoreClass *class)
 {
-	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS (camel_spool_store_class);
-	CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS (camel_spool_store_class);
+	CamelServiceClass *service_class;
+	CamelStoreClass *store_class;
+	CamelLocalStoreClass *local_store_class;
 
-	parent_class = CAMEL_STORE_CLASS(camel_mbox_store_get_type());
+	parent_class = g_type_class_peek_parent (class);
 
-	/* virtual method overload */
-	camel_service_class->construct = construct;
-	camel_service_class->get_name = get_name;
-	camel_store_class->get_folder = get_folder;
-	camel_store_class->get_inbox = get_inbox;
-	camel_store_class->get_folder_info = get_folder_info;
-	camel_store_class->free_folder_info = free_folder_info;
+	service_class = CAMEL_SERVICE_CLASS (class);
+	service_class->construct = construct;
+	service_class->get_name = get_name;
 
-	camel_store_class->delete_folder = delete_folder;
-	camel_store_class->rename_folder = rename_folder;
+	store_class = CAMEL_STORE_CLASS (class);
+	store_class->get_folder = get_folder;
+	store_class->get_inbox = get_inbox;
+	store_class->get_folder_info = get_folder_info;
+	store_class->free_folder_info = free_folder_info;
+	store_class->delete_folder = delete_folder;
+	store_class->rename_folder = rename_folder;
 
-	((CamelLocalStoreClass *)camel_store_class)->get_full_path = spool_get_full_path;
-	((CamelLocalStoreClass *)camel_store_class)->get_meta_path = spool_get_meta_path;
+	local_store_class = CAMEL_LOCAL_STORE_CLASS (class);
+	local_store_class->get_full_path = spool_get_full_path;
+	local_store_class->get_meta_path = spool_get_meta_path;
 }
 
-CamelType
+GType
 camel_spool_store_get_type (void)
 {
-	static CamelType camel_spool_store_type = CAMEL_INVALID_TYPE;
+	static GType type = G_TYPE_INVALID;
 
-	if (camel_spool_store_type == CAMEL_INVALID_TYPE)	{
-		camel_spool_store_type = camel_type_register (camel_mbox_store_get_type(), "CamelSpoolStore",
-							     sizeof (CamelSpoolStore),
-							     sizeof (CamelSpoolStoreClass),
-							     (CamelObjectClassInitFunc) camel_spool_store_class_init,
-							     NULL,
-							     NULL,
-							     NULL);
-	}
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_MBOX_STORE,
+			"CamelSpoolStore",
+			sizeof (CamelSpoolStoreClass),
+			(GClassInitFunc) spool_store_class_init,
+			sizeof (CamelSpoolStore),
+			(GInstanceInitFunc) NULL,
+			0);
 
-	return camel_spool_store_type;
+	return type;
 }
 
 static void
@@ -117,7 +110,7 @@ construct (CamelService *service, CamelSession *session, CamelProvider *provider
 	struct stat st;
 
 	d(printf("constructing store of type %s '%s:%s'\n",
-		 camel_type_to_name(((CamelObject *)service)->s.type), url->protocol, url->path));
+		 G_OBJECT_CLASS_NAME(((CamelObject *)service)->s.type), url->protocol, url->path));
 
 	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
 	if (camel_exception_is_set (ex))
@@ -261,7 +254,7 @@ spool_fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 			camel_folder_refresh_info(folder, NULL);
 		fi->unread = camel_folder_get_unread_message_count(folder);
 		fi->total = camel_folder_get_message_count(folder);
-		camel_object_unref(folder);
+		g_object_unref (folder);
 	}
 }
 
@@ -384,7 +377,7 @@ static gint scan_dir(CamelStore *store, GHashTable *visited, gchar *root, const 
 					spool_fill_fi(store, fi, flags);
 				}
 				if (folder)
-					camel_object_unref(folder);
+					g_object_unref (folder);
 
 			} else if (S_ISDIR(st.st_mode)) {
 				struct _inode in = { st.st_dev, st.st_ino };

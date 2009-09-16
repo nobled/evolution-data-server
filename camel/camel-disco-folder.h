@@ -21,19 +21,40 @@
  * USA
  */
 
+#if !defined (__CAMEL_H_INSIDE__) && !defined (CAMEL_COMPILATION)
+#error "Only <camel/camel.h> can be included directly."
+#endif
+
 #ifndef CAMEL_DISABLE_DEPRECATED
 
 #ifndef CAMEL_DISCO_FOLDER_H
-#define CAMEL_DISCO_FOLDER_H 1
+#define CAMEL_DISCO_FOLDER_H
 
 #include "camel-folder.h"
 
-#define CAMEL_DISCO_FOLDER_TYPE     (camel_disco_folder_get_type ())
-#define CAMEL_DISCO_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_DISCO_FOLDER_TYPE, CamelDiscoFolder))
-#define CAMEL_DISCO_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_DISCO_FOLDER_TYPE, CamelDiscoFolderClass))
-#define CAMEL_IS_DISCO_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_DISCO_FOLDER_TYPE))
+/* Standard GObject macros */
+#define CAMEL_TYPE_DISCO_FOLDER \
+	(camel_disco_folder_get_type ())
+#define CAMEL_DISCO_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST \
+	((obj), CAMEL_TYPE_DISCO_FOLDER, CamelDiscoFolder))
+#define CAMEL_DISCO_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_CAST \
+	((cls), CAMEL_TYPE_DISCO_FOLDER, CamelDiscoFolderClass))
+#define CAMEL_IS_DISCO_FOLDER(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE \
+	((obj), CAMEL_TYPE_DISCO_FOLDER))
+#define CAMEL_IS_DISCO_FOLDER_CLASS(cls) \
+	(G_TYPE_CHECK_CLASS_TYPE \
+	((cls), CAMEL_TYPE_DISCO_FOLDER))
+#define CAMEL_DISCO_FOLDER_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS \
+	((obj), CAMEL_TYPE_DISCO_FOLDER, CamelDiscoFolderClass))
 
 G_BEGIN_DECLS
+
+typedef struct _CamelDiscoFolder CamelDiscoFolder;
+typedef struct _CamelDiscoFolderClass CamelDiscoFolderClass;
 
 enum {
 	CAMEL_DISCO_FOLDER_ARG_OFFLINE_SYNC = CAMEL_FOLDER_ARG_LAST,
@@ -45,12 +66,12 @@ enum {
 };
 
 struct _CamelDiscoFolder {
-	CamelFolder parent_object;
+	CamelFolder parent;
 
 	guint offline_sync:1;
 };
 
-typedef struct {
+struct _CamelDiscoFolderClass {
 	CamelFolderClass parent_class;
 
 	void (*refresh_info_online) (CamelFolder *folder, CamelException *ex);
@@ -106,7 +127,7 @@ typedef struct {
 
 	void (*update_uid) (CamelFolder *folder, const gchar *old_uid,
 			    const gchar *new_uid);
-} CamelDiscoFolderClass;
+};
 
 /* public methods */
 void camel_disco_folder_expunge_uids (CamelFolder *folder, GPtrArray *uids,
@@ -119,8 +140,7 @@ void camel_disco_folder_prepare_for_offline (CamelDiscoFolder *disco_folder,
 					     const gchar *expression,
 					     CamelException *ex);
 
-/* Standard Camel function */
-CamelType camel_disco_folder_get_type (void);
+GType camel_disco_folder_get_type (void);
 
 G_END_DECLS
 
