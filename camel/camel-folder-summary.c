@@ -115,7 +115,7 @@ static gint summary_meta_header_load(CamelFolderSummary *, FILE *);
 static gint summary_meta_header_save(CamelFolderSummary *, FILE *);
 #endif
 
-static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
+static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, GQueue *header_queue);
 static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *, CamelMimeParser *);
 static CamelMessageInfo * message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg, const gchar *bodystructure);
 static CamelMessageInfo * message_info_load(CamelFolderSummary *, FILE *);
@@ -123,7 +123,7 @@ static gint		  message_info_save(CamelFolderSummary *, FILE *, CamelMessageInfo 
 static gint		  meta_message_info_save(CamelFolderSummary *s, FILE *out_meta, FILE *out, CamelMessageInfo *info);
 static void		  message_info_free(CamelFolderSummary *, CamelMessageInfo *);
 
-static CamelMessageContentInfo * content_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
+static CamelMessageContentInfo * content_info_new_from_header(CamelFolderSummary *, GQueue *raw_headers);
 static CamelMessageContentInfo * content_info_new_from_parser(CamelFolderSummary *, CamelMimeParser *);
 static CamelMessageContentInfo * content_info_new_from_message(CamelFolderSummary *s, CamelMimePart *mp);
 static CamelMessageContentInfo * content_info_load(CamelFolderSummary *, FILE *);
@@ -2748,12 +2748,20 @@ update_summary (CamelFolderSummary *summary, CamelMessageInfoBase *info)
  * Returns: the newly added record
  **/
 CamelMessageInfo *
-camel_folder_summary_add_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+camel_folder_summary_add_from_header (CamelFolderSummary *summary,
+                                      GQueue *header_queue)
 {
-	CamelMessageInfo *info = camel_folder_summary_info_new_from_header(s, h);
+	CamelMessageInfo *info;
 
-	camel_folder_summary_add (s, info);
-	update_summary (s, (CamelMessageInfoBase *) info);
+	g_return_val_if_fail (CAMEL_IS_FOLDER_SUMMARY (summary), NULL);
+	g_return_val_if_fail (header_queue != NULL, NULL);
+
+	info = camel_folder_summary_info_new_from_header (
+		summary, header_queue);
+
+	camel_folder_summary_add (summary, info);
+	update_summary (summary, (CamelMessageInfoBase *) info);
+
 	return info;
 }
 
@@ -2815,9 +2823,18 @@ camel_folder_summary_add_from_message (CamelFolderSummary *s, CamelMimeMessage *
  * #camel_message_info_free
  **/
 CamelMessageInfo *
-camel_folder_summary_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+camel_folder_summary_info_new_from_header (CamelFolderSummary *summary,
+                                           GQueue *header_queue)
 {
-	return CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->message_info_new_from_header (s, h);
+	CamelFolderSummaryClass *class;
+
+	g_return_val_if_fail (CAMEL_IS_FOLDER_SUMMARY (summary), NULL);
+	g_return_val_if_fail (header_queue != NULL, NULL);
+
+	class = CAMEL_FOLDER_SUMMARY_GET_CLASS (summary);
+	g_return_val_if_fail (class->message_info_new_from_header != NULL, NULL);
+
+	return class->message_info_new_from_header (summary, header_queue);
 }
 
 /**
@@ -3594,35 +3611,39 @@ content_info_new_from_parser(CamelFolderSummary *s, CamelMimeParser *mp)
 static CamelMessageInfo *
 message_info_new_from_message(CamelFolderSummary *s, CamelMimeMessage *msg, const gchar *bodystructure)
 {
+	CamelMimePart *mime_part;
 	CamelMessageInfo *mi;
-	struct _camel_header_raw *headers;
+	GQueue *header_queue;
 
-	headers = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (msg));
-	mi = CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->message_info_new_from_header (s, headers);
+	mime_part = CAMEL_MIME_PART (msg);
+	header_queue = camel_mime_part_get_raw_headers (mime_part);
+	mi = CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->message_info_new_from_header (s, header_queue);
 	((CamelMessageInfoBase *)mi)->bodystructure = g_strdup (bodystructure);
 
 	return mi;
 }
 
 static CamelMessageContentInfo *
-content_info_new_from_message(CamelFolderSummary *s, CamelMimePart *mp)
+content_info_new_from_message(CamelFolderSummary *s, CamelMimePart *mime_part)
 {
 	CamelMessageContentInfo *ci;
-	struct _camel_header_raw *headers;
+	GQueue *header_queue;
 
-	headers = camel_mime_part_get_raw_headers (mp);
-	ci = CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->content_info_new_from_header (s, headers);
+	header_queue = camel_mime_part_get_raw_headers (mime_part);
+	ci = CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->content_info_new_from_header (s, header_queue);
 
 	return ci;
 }
 
 static gchar *
-summary_format_address(struct _camel_header_raw *h, const gchar *name, const gchar *charset)
+summary_format_address (GQueue *header_queue,
+                        const gchar *header_name,
+                        const gchar *charset)
 {
 	struct _camel_header_address *addr;
 	gchar *text, *str;
 
-	if (!(text = (gchar *) camel_header_raw_find (&h, name, NULL)))
+	if (!(text = (gchar *) camel_header_raw_find (header_queue, header_name, NULL)))
 		return NULL;
 
 	while (isspace ((unsigned) *text))
@@ -3642,11 +3663,13 @@ summary_format_address(struct _camel_header_raw *h, const gchar *name, const gch
 }
 
 static gchar *
-summary_format_string (struct _camel_header_raw *h, const gchar *name, const gchar *charset)
+summary_format_string (GQueue *header_queue,
+                       const gchar *header_name,
+                       const gchar *charset)
 {
 	gchar *text, *str;
 
-	if (!(text = (gchar *) camel_header_raw_find (&h, name, NULL)))
+	if (!(text = (gchar *) camel_header_raw_find (header_queue, header_name, NULL)))
 		return NULL;
 
 	while (isspace ((unsigned) *text))
@@ -3692,7 +3715,8 @@ camel_folder_summary_content_info_new(CamelFolderSummary *s)
 }
 
 static CamelMessageInfo *
-message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+message_info_new_from_header (CamelFolderSummary *s,
+                              GQueue *header_queue)
 {
 	const gchar *received, *date, *content, *charset = NULL;
 	struct _camel_header_references *refs, *irt, *scan;
@@ -3709,7 +3733,7 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 
 	mi = (CamelMessageInfoBase *)camel_message_info_new(s);
 
-	if ((content = camel_header_raw_find(&h, "Content-Type", NULL))
+	if ((content = camel_header_raw_find(header_queue, "Content-Type", NULL))
 	     && (ct = camel_content_type_decode(content))
 	     && (charset = camel_content_type_param(ct, "charset"))
 	     && (g_ascii_strcasecmp(charset, "us-ascii") == 0))
@@ -3717,11 +3741,11 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 
 	charset = charset ? camel_iconv_charset_name (charset) : NULL;
 
-	subject = summary_format_string(h, "subject", charset);
-	from = summary_format_address(h, "from", charset);
-	to = summary_format_address(h, "to", charset);
-	cc = summary_format_address(h, "cc", charset);
-	mlist = camel_header_raw_check_mailing_list(&h);
+	subject = summary_format_string(header_queue, "subject", charset);
+	from = summary_format_address(header_queue, "from", charset);
+	to = summary_format_address(header_queue, "to", charset);
+	cc = summary_format_address(header_queue, "cc", charset);
+	mlist = camel_header_raw_check_mailing_list(header_queue);
 
 	if (ct)
 		camel_content_type_unref(ct);
@@ -3735,12 +3759,12 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	mi->user_flags = NULL;
 	mi->user_tags = NULL;
 
-	if ((date = camel_header_raw_find (&h, "date", NULL)))
+	if ((date = camel_header_raw_find (header_queue, "date", NULL)))
 		mi->date_sent = camel_header_decode_date (date, NULL);
 	else
 		mi->date_sent = 0;
 
-	received = camel_header_raw_find(&h, "received", NULL);
+	received = camel_header_raw_find(header_queue, "received", NULL);
 	if (received)
 		received = strrchr(received, ';');
 	if (received)
@@ -3748,7 +3772,7 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	else
 		mi->date_received = 0;
 
-	msgid = camel_header_msgid_decode(camel_header_raw_find(&h, "message-id", NULL));
+	msgid = camel_header_msgid_decode(camel_header_raw_find(header_queue, "message-id", NULL));
 	if (msgid) {
 		GChecksum *checksum;
 
@@ -3762,8 +3786,8 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 	}
 
 	/* decode our references and in-reply-to headers */
-	refs = camel_header_references_decode (camel_header_raw_find (&h, "references", NULL));
-	irt = camel_header_references_inreplyto_decode (camel_header_raw_find (&h, "in-reply-to", NULL));
+	refs = camel_header_references_decode (camel_header_raw_find (header_queue, "references", NULL));
+	irt = camel_header_references_inreplyto_decode (camel_header_raw_find (header_queue, "in-reply-to", NULL));
 	if (refs || irt) {
 		if (irt) {
 			/* The References field is populated from the "References" and/or "In-Reply-To"
@@ -3996,18 +4020,33 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 }
 
 static CamelMessageContentInfo *
-content_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+content_info_new_from_header (CamelFolderSummary *s,
+                              GQueue *header_queue)
 {
 	CamelMessageContentInfo *ci;
 	const gchar *charset;
+	const gchar *header_name;
+	const gchar *header_value;
 
 	ci = camel_folder_summary_content_info_new (s);
 
 	charset = camel_iconv_locale_charset ();
-	ci->id = camel_header_msgid_decode (camel_header_raw_find (&h, "content-id", NULL));
-	ci->description = camel_header_decode_string (camel_header_raw_find (&h, "content-description", NULL), charset);
-	ci->encoding = camel_content_transfer_encoding_decode (camel_header_raw_find (&h, "content-transfer-encoding", NULL));
-	ci->type = camel_content_type_decode(camel_header_raw_find(&h, "content-type", NULL));
+
+	header_name = "content-id";
+	header_value = camel_header_raw_find (header_queue, header_name, NULL);
+	ci->id = camel_header_msgid_decode (header_value);
+
+	header_name = "content-description";
+	header_value = camel_header_raw_find (header_queue, header_name, NULL);
+	ci->description = camel_header_decode_string (header_value, charset);
+
+	header_name = "content-transfer-encoding";
+	header_value = camel_header_raw_find (header_queue, header_name, NULL);
+	ci->encoding = camel_content_transfer_encoding_decode (header_value);
+
+	header_name = "content-type";
+	header_value = camel_header_raw_find (header_queue, header_name, NULL);
+	ci->type = camel_content_type_decode (header_value);
 
 	return ci;
 }
@@ -4299,7 +4338,8 @@ summary_build_content_info_message(CamelFolderSummary *s, CamelMessageInfo *msgi
 	struct _CamelFolderSummaryPrivate *p = CAMEL_FOLDER_SUMMARY_GET_PRIVATE(s);
 	CamelMessageContentInfo *info = NULL, *child;
 	CamelContentType *ct;
-	const struct _camel_header_raw *header;
+	GQueue *header_queue;
+	GList *link;
 
 	if (s->build_content)
 		info = CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->content_info_new_from_message (s, object);
@@ -4329,21 +4369,29 @@ summary_build_content_info_message(CamelFolderSummary *s, CamelMessageInfo *msgi
 		camel_message_info_set_flags(msginfo, CAMEL_MESSAGE_SECURE, CAMEL_MESSAGE_SECURE);
 	}
 
-	header = camel_mime_part_get_raw_headers (object);
-	for (; header; header = header->next) {
-		const gchar *value = header->value;
+	header_queue = camel_mime_part_get_raw_headers (object);
+	link = g_queue_peek_head_link (header_queue);
+
+	while (link != NULL) {
+		CamelHeaderRaw *raw_header = link->data;
+		const gchar *name, *value;
+
+		name = camel_header_raw_get_name (raw_header);
+		value = camel_header_raw_get_value (raw_header);
 
 		/* skip preceding spaces in the value */
 		while (value && *value && isspace (*value))
 			value++;
 
-		if (header->name && value && (
-		    (g_ascii_strcasecmp (header->name, "Content-class") == 0 && g_ascii_strcasecmp (value, "urn:content-classes:calendarmessage") == 0) ||
-		    (g_ascii_strcasecmp (header->name, "X-Calendar-Attachment") == 0)))
+		if (name && value && (
+		    (g_ascii_strcasecmp (name, "Content-class") == 0 && g_ascii_strcasecmp (value, "urn:content-classes:calendarmessage") == 0) ||
+		    (g_ascii_strcasecmp (name, "X-Calendar-Attachment") == 0)))
 			break;
+
+		link = g_list_next (link);
 	}
 
-	if (header || camel_content_type_is (ct, "text", "calendar"))
+	if (link != NULL || camel_content_type_is (ct, "text", "calendar"))
 		camel_message_info_set_user_flag (msginfo, "$has_cal", TRUE);
 
 	/* using the object types is more accurate than using the mime/types */
@@ -4834,12 +4882,14 @@ camel_message_info_ref(gpointer o)
  * Returns: a new #CamelMessageInfo
  **/
 CamelMessageInfo *
-camel_message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *header)
+camel_message_info_new_from_header (CamelFolderSummary *summary,
+                                    GQueue *header_queue)
 {
-	if (s)
-		return CAMEL_FOLDER_SUMMARY_GET_CLASS (s)->message_info_new_from_header(s, header);
+	if (summary != NULL)
+		return CAMEL_FOLDER_SUMMARY_GET_CLASS (summary)->
+			message_info_new_from_header (summary, header_queue);
 	else
-		return message_info_new_from_header(NULL, header);
+		return message_info_new_from_header (NULL, header_queue);
 }
 
 /**

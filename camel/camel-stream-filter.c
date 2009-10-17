@@ -368,7 +368,7 @@ camel_stream_filter_new (CamelStream *source)
 
 	priv->source = g_object_ref (source);
 
-	return source;
+	return stream;
 }
 
 CamelStream *

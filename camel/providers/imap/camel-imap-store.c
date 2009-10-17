@@ -136,8 +136,8 @@ imap_store_finalize (GObject *object)
 
 	g_free (imap_store->base_url);
 	g_free (imap_store->storage_path);
+	g_free (imap_store->users_namespace);
 	g_free (imap_store->custom_headers);
-        g_free (imap_store->users_namespace);
 
 	/* Chain up to parent's finalize() method. */
 	G_OBJECT_CLASS (parent_class)->finalize (object);

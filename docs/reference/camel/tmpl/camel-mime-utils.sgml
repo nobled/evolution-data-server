@@ -101,16 +101,6 @@ camel-mime-utils
 @params: 
 @refcount: 
 
-<!-- ##### STRUCT camel_header_raw ##### -->
-<para>
-
-</para>
-
-@next: 
-@name: 
-@value: 
-@offset: 
-
 <!-- ##### STRUCT CamelContentDisposition ##### -->
 <para>
 
@@ -481,15 +471,57 @@ camel-mime-utils
 @Returns: 
 
 
+<!-- ##### STRUCT CamelHeaderRaw ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION camel_header_raw_get_name ##### -->
+<para>
+
+</para>
+
+@raw_header: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_header_raw_get_value ##### -->
+<para>
+
+</para>
+
+@raw_header: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_header_raw_get_offset ##### -->
+<para>
+
+</para>
+
+@raw_header: 
+@Returns: 
+
+
 <!-- ##### FUNCTION camel_header_raw_append ##### -->
 <para>
 
 </para>
 
-@list: 
-@name: 
-@value: 
+@header_queue: 
+@header_name: 
+@header_value: 
 @offset: 
+
+
+<!-- ##### FUNCTION camel_header_raw_append_queue ##### -->
+<para>
+
+</para>
+
+@header_queue: 
+@source_queue: 
 
 
 <!-- ##### FUNCTION camel_header_raw_append_parse ##### -->
@@ -497,9 +529,31 @@ camel-mime-utils
 
 </para>
 
-@list: 
-@header: 
+@header_queue: 
+@string: 
 @offset: 
+
+
+<!-- ##### FUNCTION camel_header_raw_extract ##### -->
+<para>
+
+</para>
+
+@header_queue: 
+@destination_queue: 
+@header_name: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_header_raw_extract_prefix ##### -->
+<para>
+
+</para>
+
+@header_queue: 
+@destination_queue: 
+@header_prefix: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_header_raw_find ##### -->
@@ -507,33 +561,10 @@ camel-mime-utils
 
 </para>
 
-@list: 
-@name: 
+@header_queue: 
+@header_name: 
 @offset: 
 @Returns: 
-
-
-<!-- ##### FUNCTION camel_header_raw_find_next ##### -->
-<para>
-
-</para>
-
-@list: 
-@name: 
-@offset: 
-@last: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_header_raw_replace ##### -->
-<para>
-
-</para>
-
-@list: 
-@name: 
-@value: 
-@offset: 
 
 
 <!-- ##### FUNCTION camel_header_raw_remove ##### -->
@@ -541,16 +572,8 @@ camel-mime-utils
 
 </para>
 
-@list: 
-@name: 
-
-
-<!-- ##### FUNCTION camel_header_raw_fold ##### -->
-<para>
-
-</para>
-
-@list: 
+@header_queue: 
+@header_name: 
 
 
 <!-- ##### FUNCTION camel_header_raw_clear ##### -->
@@ -558,7 +581,7 @@ camel-mime-utils
 
 </para>
 
-@list: 
+@header_queue: 
 
 
 <!-- ##### FUNCTION camel_header_raw_check_mailing_list ##### -->
@@ -566,7 +589,7 @@ camel-mime-utils
 
 </para>
 
-@list: 
+@header_queue: 
 @Returns: 
 
 

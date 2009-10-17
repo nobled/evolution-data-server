@@ -49,7 +49,7 @@
 	((obj), CAMEL_TYPE_MAILDIR_SUMMARY, CamelMaildirSummaryPrivate))
 
 static CamelMessageInfo *message_info_load(CamelFolderSummary *s, FILE *in);
-static CamelMessageInfo *message_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
+static CamelMessageInfo *message_info_new_from_header(CamelFolderSummary *, GQueue *header_queue);
 static void message_info_free(CamelFolderSummary *, CamelMessageInfo *mi);
 
 static gint maildir_summary_load(CamelLocalSummary *cls, gint forceindex, CamelException *ex);
@@ -280,14 +280,15 @@ maildir_summary_add (CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelM
 	return (CamelMessageInfo *)mi;
 }
 
-static CamelMessageInfo *message_info_new_from_header(CamelFolderSummary * s, struct _camel_header_raw *h)
+static CamelMessageInfo *
+message_info_new_from_header(CamelFolderSummary * s, GQueue *header_queue)
 {
 	CamelMessageInfo *mi, *info;
 	CamelMaildirSummary *mds = (CamelMaildirSummary *)s;
 	CamelMaildirMessageInfo *mdi;
 	const gchar *uid;
 
-	mi = ((CamelFolderSummaryClass *) parent_class)->message_info_new_from_header(s, h);
+	mi = ((CamelFolderSummaryClass *) parent_class)->message_info_new_from_header(s, header_queue);
 	/* assign the uid and new filename */
 	if (mi) {
 		mdi = (CamelMaildirMessageInfo *)mi;

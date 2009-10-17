@@ -42,6 +42,11 @@
 
 G_BEGIN_DECLS
 
+/* Opaque RFC 822 Header
+ * The value must be in US-ASCII.  These are kept
+ * in GQueues for fast appending and removal. */
+typedef struct _CamelHeaderRaw CamelHeaderRaw;
+
 /* note, if you change this, make sure you change the 'encodings' array in camel-mime-part.c */
 typedef enum _CamelTransferEncoding {
 	CAMEL_TRANSFER_ENCODING_DEFAULT,
@@ -73,15 +78,6 @@ typedef struct {
 	struct _camel_header_param *params;
 	guint refcount;
 } CamelContentType;
-
-/* a raw rfc822 header */
-/* the value MUST be US-ASCII */
-struct _camel_header_raw {
-	struct _camel_header_raw *next;
-	gchar *name;
-	gchar *value;
-	gint offset;		/* in file, if known */
-};
 
 typedef struct _CamelContentDisposition {
 	gchar *disposition;
@@ -165,16 +161,33 @@ gchar *camel_content_disposition_format (CamelContentDisposition *disposition);
 gchar *camel_content_transfer_encoding_decode (const gchar *in);
 
 /* raw headers */
-void camel_header_raw_append (struct _camel_header_raw **list, const gchar *name, const gchar *value, gint offset);
-void camel_header_raw_append_parse (struct _camel_header_raw **list, const gchar *header, gint offset);
-const gchar *camel_header_raw_find (struct _camel_header_raw **list, const gchar *name, gint *offset);
-const gchar *camel_header_raw_find_next (struct _camel_header_raw **list, const gchar *name, gint *offset, const gchar *last);
-void camel_header_raw_replace (struct _camel_header_raw **list, const gchar *name, const gchar *value, gint offset);
-void camel_header_raw_remove (struct _camel_header_raw **list, const gchar *name);
-void camel_header_raw_fold (struct _camel_header_raw **list);
-void camel_header_raw_clear (struct _camel_header_raw **list);
+const gchar *	camel_header_raw_get_name	(CamelHeaderRaw *raw_header);
+const gchar *	camel_header_raw_get_value	(CamelHeaderRaw *raw_header);
+gint		camel_header_raw_get_offset	(CamelHeaderRaw *raw_header);
+void		camel_header_raw_append		(GQueue *header_queue,
+						 const gchar *header_name,
+						 const gchar *header_value,
+						 gint offset);
+void		camel_header_raw_append_queue	(GQueue *header_queue,
+						 GQueue *source_queue);
+void		camel_header_raw_append_parse	(GQueue *header_queue,
+						 const gchar *string,
+						 gint offset);
+guint		camel_header_raw_extract	(GQueue *header_queue,
+						 GQueue *destination_queue,
+						 const gchar *header_name);
+guint		camel_header_raw_extract_prefix	(GQueue *header_queue,
+						 GQueue *destination_queue,
+						 const gchar *header_prefix);
+const gchar *	camel_header_raw_find		(GQueue *header_queue,
+						 const gchar *header_name,
+						 gint *offset);
+void		camel_header_raw_remove		(GQueue *header_queue,
+						 const gchar *header_name);
+void		camel_header_raw_clear		(GQueue *header_queue);
 
-gchar *camel_header_raw_check_mailing_list (struct _camel_header_raw **list);
+gchar *		camel_header_raw_check_mailing_list
+						(GQueue *header_queue);
 
 /* fold a header */
 gchar *camel_header_address_fold (const gchar *in, gsize headerlen);

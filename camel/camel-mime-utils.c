@@ -4245,174 +4245,283 @@ camel_header_location_decode(const gchar *in)
 	return res;
 }
 
+struct _CamelHeaderRaw {
+	const gchar *name;	/* interned header name */
+	gchar *value;		/* allocated header value */
+	gint offset;		/* in file, if known */
+};
+
 /* extra rfc checks */
 #define CHECKS
 
 #ifdef CHECKS
 static void
-check_header(struct _camel_header_raw *h)
+check_header (CamelHeaderRaw *header)
 {
-	guchar *p;
+	guchar *cp;
 
-	p = (guchar *) h->value;
-	while (p && *p) {
-		if (!isascii(*p)) {
-			w(g_warning("Appending header violates rfc: %s: %s", h->name, h->value));
+	cp = (guchar *) header->value;
+	while (cp && *cp) {
+		if (!isascii(*cp)) {
+			w(g_warning("Appending header violates rfc: %s: %s", header->name, header->value));
 			return;
 		}
-		p++;
+		cp++;
 	}
 }
 #endif
 
+static CamelHeaderRaw *
+header_raw_new (const gchar *header_name,
+                const gchar *header_value,
+                gint offset)
+{
+	CamelHeaderRaw *header;
+
+	header = g_slice_new (CamelHeaderRaw);
+	header->name = g_intern_string (header_name);
+	header->value = g_strdup (header_value);
+	header->offset = offset;
+
+#ifdef CHECKS
+	check_header (header);
+#endif
+	return header;
+}
+
+static void
+header_raw_free (CamelHeaderRaw *header)
+{
+	g_free (header->value);
+
+	g_slice_free (CamelHeaderRaw, header);
+}
+
+static gint
+header_raw_compare (const CamelHeaderRaw *header,
+                    const gchar *header_name)
+{
+	return g_ascii_strcasecmp (header->name, header_name);
+}
+
+const gchar *
+camel_header_raw_get_name (CamelHeaderRaw *raw_header)
+{
+	g_return_val_if_fail (raw_header != NULL, NULL);
+
+	return raw_header->name;
+}
+
+const gchar *
+camel_header_raw_get_value (CamelHeaderRaw *raw_header)
+{
+	g_return_val_if_fail (raw_header != NULL, NULL);
+
+	return raw_header->value;
+}
+
+gint
+camel_header_raw_get_offset (CamelHeaderRaw *raw_header)
+{
+	g_return_val_if_fail (raw_header != NULL, -1);
+
+	return raw_header->offset;
+}
+
 void
-camel_header_raw_append_parse(struct _camel_header_raw **list, const gchar *header, gint offset)
+camel_header_raw_append (GQueue *header_queue,
+                         const gchar *header_name,
+                         const gchar *header_value,
+                         gint offset)
+{
+	CamelHeaderRaw *header;
+
+	g_return_if_fail (header_queue != NULL);
+	g_return_if_fail (header_name != NULL);
+
+	header = header_raw_new (header_name, header_value, offset);
+	g_queue_push_tail (header_queue, header);
+}
+
+void
+camel_header_raw_append_queue (GQueue *header_queue,
+                               GQueue *source_queue)
+{
+	GList *link;
+
+	/* XXX There's nothing header-specific about this.
+	 *     Could be a general-purpose GQueue utility. */
+
+	g_return_if_fail (header_queue != NULL);
+	g_return_if_fail (source_queue != NULL);
+
+	while (!g_queue_is_empty (source_queue)) {
+		link = g_queue_pop_head_link (source_queue);
+		g_queue_push_tail_link (header_queue, link);
+	}
+}
+
+void
+camel_header_raw_append_parse (GQueue *header_queue,
+                               const gchar *string,
+                               gint offset)
 {
 	register const gchar *in;
 	gsize fieldlen;
 	gchar *name;
 
-	in = header;
-	while (camel_mime_is_fieldname(*in) || *in==':')
+	g_return_if_fail (header_queue != NULL);
+	g_return_if_fail (string != NULL);
+
+	in = string;
+	while (camel_mime_is_fieldname (*in) || *in==':')
 		in++;
-	fieldlen = in-header-1;
-	while (camel_mime_is_lwsp(*in))
+	fieldlen = in-string-1;
+	while (camel_mime_is_lwsp (*in))
 		in++;
-	if (fieldlen == 0 || header[fieldlen] != ':') {
-		printf("Invalid header line: '%s'\n", header);
+	if (fieldlen == 0 || string[fieldlen] != ':') {
+		printf ("Invalid header line: '%s'\n", string);
 		return;
 	}
 	name = g_alloca (fieldlen + 1);
-	memcpy(name, header, fieldlen);
+	memcpy (name, string, fieldlen);
 	name[fieldlen] = 0;
 
-	camel_header_raw_append(list, name, in, offset);
+	camel_header_raw_append (header_queue, name, in, offset);
 }
 
-void
-camel_header_raw_append(struct _camel_header_raw **list, const gchar *name, const gchar *value, gint offset)
+guint
+camel_header_raw_extract (GQueue *header_queue,
+                          GQueue *destination_queue,
+                          const gchar *header_name)
 {
-	struct _camel_header_raw *l, *n;
+	GList *list = NULL;
+	GList *link;
+	guint n_extracted = 0;
 
-	d(printf("Header: %s: %s\n", name, value));
+	g_return_val_if_fail (header_queue != NULL, 0);
+	g_return_val_if_fail (destination_queue != NULL, 0);
+	g_return_val_if_fail (header_name != NULL, 0);
 
-	n = g_malloc(sizeof(*n));
-	n->next = NULL;
-	n->name = g_strdup(name);
-	n->value = g_strdup(value);
-	n->offset = offset;
-#ifdef CHECKS
-	check_header(n);
-#endif
-	l = (struct _camel_header_raw *)list;
-	while (l->next) {
-		l = l->next;
+	link = g_queue_peek_head_link (header_queue);
+
+	/* Tag links to extract from the source queue. */
+	while (link != NULL) {
+		CamelHeaderRaw *header = link->data;
+
+		if (header_raw_compare (header, header_name) == 0)
+			list = g_list_prepend (list, link);
+
+		link = g_list_next (link);
 	}
-	l->next = n;
 
-	/* debug */
-#if 0
-	if (!g_ascii_strcasecmp(name, "To")) {
-		printf("- Decoding To\n");
-		camel_header_to_decode(value);
-	} else if (!g_ascii_strcasecmp(name, "Content-type")) {
-		printf("- Decoding content-type\n");
-		camel_content_type_dump(camel_content_type_decode(value));
-	} else if (!g_ascii_strcasecmp(name, "MIME-Version")) {
-		printf("- Decoding mime version\n");
-		camel_header_mime_decode(value);
+	list = g_list_reverse (list);
+
+	/* Extract the tagged links and put them in the target queue. */
+	for (link = list; link != NULL; link = g_list_next (link)) {
+		GList *tagged_link = link->data;
+
+		g_queue_unlink (header_queue, tagged_link);
+		g_queue_push_tail_link (destination_queue, tagged_link);
+		n_extracted++;
 	}
-#endif
+
+	g_list_free (list);
+
+	return n_extracted;
 }
 
-static struct _camel_header_raw *
-header_raw_find_node(struct _camel_header_raw **list, const gchar *name)
+guint
+camel_header_raw_extract_prefix (GQueue *header_queue,
+                                 GQueue *destination_queue,
+                                 const gchar *header_prefix)
 {
-	struct _camel_header_raw *l;
+	GList *list = NULL;
+	GList *link;
+	guint n_extracted = 0;
+	gsize length;
 
-	l = *list;
-	while (l) {
-		if (!g_ascii_strcasecmp(l->name, name))
-			break;
-		l = l->next;
+	g_return_val_if_fail (header_queue != NULL, 0);
+	g_return_val_if_fail (destination_queue != NULL, 0);
+	g_return_val_if_fail (header_prefix != NULL, 0);
+
+	length = strlen (header_prefix);
+
+	link = g_queue_peek_head_link (header_queue);
+
+	/* Tag links to extract from the source queue. */
+	while (link != NULL) {
+		CamelHeaderRaw *header = link->data;
+		const gchar *name;
+
+		name = camel_header_raw_get_name (header);
+		if (g_ascii_strncasecmp (name, header_prefix, length) == 0)
+			list = g_list_prepend (list, link);
+
+		link = g_list_next (link);
 	}
-	return l;
+
+	list = g_list_reverse (list);
+
+	/* Extract the tagged links and put them in the target queue. */
+	for (link = list; link != NULL; link = g_list_next (link)) {
+		GList *tagged_link = link->data;
+
+		g_queue_unlink (header_queue, tagged_link);
+		g_queue_push_tail_link (destination_queue, tagged_link);
+		n_extracted++;
+	}
+
+	g_list_free (list);
+
+	return n_extracted;
 }
 
 const gchar *
-camel_header_raw_find(struct _camel_header_raw **list, const gchar *name, gint *offset)
+camel_header_raw_find (GQueue *header_queue,
+                       const gchar *header_name,
+                       gint *offset)
 {
-	struct _camel_header_raw *l;
+	CamelHeaderRaw *header;
+	GList *link;
 
-	l = header_raw_find_node(list, name);
-	if (l) {
-		if (offset)
-			*offset = l->offset;
-		return l->value;
-	} else
-		return NULL;
-}
+	g_return_val_if_fail (header_queue != NULL, NULL);
+	g_return_val_if_fail (header_name != NULL, NULL);
 
-const gchar *
-camel_header_raw_find_next(struct _camel_header_raw **list, const gchar *name, gint *offset, const gchar *last)
-{
-	struct _camel_header_raw *l;
+	link = g_queue_find_custom (
+		header_queue, header_name, (GCompareFunc) header_raw_compare);
 
-	if (last == NULL || name == NULL)
+	if (link == NULL)
 		return NULL;
 
-	l = *list;
-	while (l && l->value != last)
-		l = l->next;
-	return camel_header_raw_find(&l, name, offset);
-}
+	header = link->data;
 
-static void
-header_raw_free(struct _camel_header_raw *l)
-{
-	g_free(l->name);
-	g_free(l->value);
-	g_free(l);
+	if (offset != NULL)
+		*offset = header->offset;
+
+	return header->value;
 }
 
 void
-camel_header_raw_remove(struct _camel_header_raw **list, const gchar *name)
+camel_header_raw_remove (GQueue *header_queue,
+                         const gchar *header_name)
 {
-	struct _camel_header_raw *l, *p;
+	GQueue trash_queue = G_QUEUE_INIT;
 
-	/* the next pointer is at the head of the structure, so this is safe */
-	p = (struct _camel_header_raw *)list;
-	l = *list;
-	while (l) {
-		if (!g_ascii_strcasecmp(l->name, name)) {
-			p->next = l->next;
-			header_raw_free(l);
-			l = p->next;
-		} else {
-			p = l;
-			l = l->next;
-		}
-	}
+	g_return_if_fail (header_queue != NULL);
+	g_return_if_fail (header_name != NULL);
+
+	camel_header_raw_extract (header_queue, &trash_queue, header_name);
+	camel_header_raw_clear (&trash_queue);
 }
 
 void
-camel_header_raw_replace(struct _camel_header_raw **list, const gchar *name, const gchar *value, gint offset)
+camel_header_raw_clear (GQueue *header_queue)
 {
-	camel_header_raw_remove(list, name);
-	camel_header_raw_append(list, name, value, offset);
-}
+	g_return_if_fail (header_queue != NULL);
 
-void
-camel_header_raw_clear(struct _camel_header_raw **list)
-{
-	struct _camel_header_raw *l, *n;
-	l = *list;
-	while (l) {
-		n = l->next;
-		header_raw_free(l);
-		l = n;
-	}
-	*list = NULL;
+	g_queue_foreach (header_queue, (GFunc) header_raw_free, NULL);
+	g_queue_clear (header_queue);
 }
 
 gchar *
@@ -4530,16 +4639,18 @@ mailing_list_init(void)
 }
 
 gchar *
-camel_header_raw_check_mailing_list(struct _camel_header_raw **list)
+camel_header_raw_check_mailing_list (GQueue *queue)
 {
 	const gchar *v;
 	regmatch_t match[3];
 	gint i, j;
 
+	g_return_val_if_fail (queue != NULL, NULL);
+
 	pthread_once(&mailing_list_init_once, mailing_list_init);
 
 	for (i = 0; i < G_N_ELEMENTS (mail_list_magic); i++) {
-		v = camel_header_raw_find (list, mail_list_magic[i].name, NULL);
+		v = camel_header_raw_find (queue, mail_list_magic[i].name, NULL);
 		for (j=0;j<3;j++) {
 			match[j].rm_so = -1;
 			match[j].rm_eo = -1;

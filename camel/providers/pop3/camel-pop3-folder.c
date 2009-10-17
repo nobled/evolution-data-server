@@ -142,8 +142,9 @@ cmd_builduid(CamelPOP3Engine *pe, CamelPOP3Stream *stream, gpointer data)
 {
 	GChecksum *checksum;
 	CamelPOP3FolderInfo *fi = data;
-	struct _camel_header_raw *h;
 	CamelMimeParser *mp;
+	GQueue *header_queue;
+	GList *link;
 	guint8 *digest;
 	gsize length;
 
@@ -161,14 +162,22 @@ cmd_builduid(CamelPOP3Engine *pe, CamelPOP3Stream *stream, gpointer data)
 	case CAMEL_MIME_PARSER_STATE_HEADER:
 	case CAMEL_MIME_PARSER_STATE_MESSAGE:
 	case CAMEL_MIME_PARSER_STATE_MULTIPART:
-		h = camel_mime_parser_headers_raw(mp);
-		while (h) {
-			if (g_ascii_strcasecmp(h->name, "status") != 0
-			    && g_ascii_strcasecmp(h->name, "x-status") != 0) {
-				g_checksum_update (checksum, (guchar *) h->name, -1);
-				g_checksum_update (checksum, (guchar *) h->value, -1);
+		header_queue = camel_mime_parser_headers_raw (mp);
+		link = g_queue_peek_head_link (header_queue);
+		while (link != NULL) {
+			CamelHeaderRaw *raw_header = link->data;
+			const gchar *name, *value;
+
+			name = camel_header_raw_get_name (raw_header);
+			value = camel_header_raw_get_value (raw_header);
+
+			if (g_ascii_strcasecmp(name, "status") != 0
+			    && g_ascii_strcasecmp(name, "x-status") != 0) {
+				g_checksum_update (checksum, (guchar *) name, -1);
+				g_checksum_update (checksum, (guchar *) value, -1);
 			}
-			h = h->next;
+
+			link = g_list_next (link);
 		}
 	default:
 		break;

@@ -80,11 +80,13 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		  CamelAddress *from, CamelAddress *recipients,
 		  CamelException *ex)
 {
-	struct _camel_header_raw *header, *savedbcc, *n, *tail;
 	const gchar *from_addr, *addr, **argv;
 	gint i, len, fd[2], nullfd, wstat;
 	CamelStream *filter;
 	CamelMimeFilter *crlf;
+	CamelMimePart *mime_part;
+	GQueue *header_queue;
+	GQueue bcc_queue = G_QUEUE_INIT;
 	sigset_t mask, omask;
 	CamelStream *out;
 	pid_t pid;
@@ -114,23 +116,9 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	argv[i + 5] = NULL;
 
 	/* unlink the bcc headers */
-	savedbcc = NULL;
-	tail = (struct _camel_header_raw *) &savedbcc;
-
-	header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message));
-	n = header->next;
-	while (n != NULL) {
-		if (!g_ascii_strcasecmp (n->name, "Bcc")) {
-			header->next = n->next;
-			tail->next = n;
-			n->next = NULL;
-			tail = n;
-		} else {
-			header = n;
-		}
-
-		n = header->next;
-	}
+	mime_part = CAMEL_MIME_PART (message);
+	header_queue = camel_mime_part_get_raw_headers (mime_part);
+	camel_header_raw_extract (header_queue, &bcc_queue, "Bcc");
 
 	if (pipe (fd) == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
@@ -139,7 +127,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 				      g_strerror (errno));
 
 		/* restore the bcc headers */
-		header->next = savedbcc;
+		camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 		return FALSE;
 	}
@@ -164,7 +152,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		g_free (argv);
 
 		/* restore the bcc headers */
-		header->next = savedbcc;
+		camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 		return FALSE;
 	case 0:
@@ -207,7 +195,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 		sigprocmask (SIG_SETMASK, &omask, NULL);
 
 		/* restore the bcc headers */
-		header->next = savedbcc;
+		camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 		return FALSE;
 	}
@@ -221,7 +209,7 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	sigprocmask (SIG_SETMASK, &omask, NULL);
 
 	/* restore the bcc headers */
-	header->next = savedbcc;
+	camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 	if (!WIFEXITED (wstat)) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,

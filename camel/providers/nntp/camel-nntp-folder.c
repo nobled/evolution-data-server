@@ -348,9 +348,11 @@ nntp_folder_append_message_online (CamelFolder *folder, CamelMimeMessage *mime_m
 	CamelStream *stream = (CamelStream*)nntp_store->stream;
 	CamelStream *filtered_stream;
 	CamelMimeFilter *crlffilter;
+	CamelMimePart *mime_part;
+	GQueue *header_queue;
+	GQueue save_queue = G_QUEUE_INIT;
 	gint ret;
 	guint u;
-	struct _camel_header_raw *header, *savedhdrs, *n, *tail;
 	gchar *group, *line;
 
 	CAMEL_SERVICE_REC_LOCK(nntp_store, connect_lock);
@@ -379,23 +381,11 @@ nntp_folder_append_message_online (CamelFolder *folder, CamelMimeMessage *mime_m
 	g_object_unref (crlffilter);
 
 	/* remove mail 'To', 'CC', and 'BCC' headers */
-	savedhdrs = NULL;
-	tail = (struct _camel_header_raw *) &savedhdrs;
-
-	header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (mime_message));
-	n = header->next;
-	while (n != NULL) {
-		if (!g_ascii_strcasecmp (n->name, "To") || !g_ascii_strcasecmp (n->name, "Cc") || !g_ascii_strcasecmp (n->name, "Bcc")) {
-			header->next = n->next;
-			tail->next = n;
-			n->next = NULL;
-			tail = n;
-		} else {
-			header = n;
-		}
-
-		n = header->next;
-	}
+	mime_part = CAMEL_MIME_PART (mime_message);
+	header_queue = camel_mime_part_get_raw_headers (mime_part);
+	camel_header_raw_extract (header_queue, &save_queue, "To");
+	camel_header_raw_extract (header_queue, &save_queue, "Cc");
+	camel_header_raw_extract (header_queue, &save_queue, "Bcc");
 
 	/* write the message */
 	if (camel_stream_write(stream, group, strlen(group)) == -1
@@ -413,11 +403,10 @@ nntp_folder_append_message_online (CamelFolder *folder, CamelMimeMessage *mime_m
 
 	g_object_unref (filtered_stream);
 	g_free(group);
-	header->next = savedhdrs;
+
+	camel_header_raw_append_queue (header_queue, &save_queue);
 
 	CAMEL_SERVICE_REC_UNLOCK(nntp_store, connect_lock);
-
-	return;
 }
 
 static void

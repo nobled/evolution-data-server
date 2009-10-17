@@ -1265,12 +1265,14 @@ smtp_rcpt (CamelSmtpTransport *transport, const gchar *recipient, CamelException
 static gboolean
 smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelException *ex)
 {
-	struct _camel_header_raw *header, *savedbcc, *n, *tail;
 	CamelBestencEncoding enctype = CAMEL_BESTENC_8BIT;
 	CamelStream *filtered_stream;
 	gchar *cmdbuf, *respbuf = NULL;
 	CamelMimeFilter *filter;
+	CamelMimePart *mime_part;
 	CamelStreamNull *null;
+	GQueue *header_queue;
+	GQueue bcc_queue = G_QUEUE_INIT;
 	gint ret;
 
 	/* If the server doesn't support 8BITMIME, set our required encoding to be 7bit */
@@ -1316,23 +1318,9 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelExcept
 	respbuf = NULL;
 
 	/* unlink the bcc headers */
-	savedbcc = NULL;
-	tail = (struct _camel_header_raw *) &savedbcc;
-
-	header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message));
-	n = header->next;
-	while (n != NULL) {
-		if (!g_ascii_strcasecmp (n->name, "Bcc")) {
-			header->next = n->next;
-			tail->next = n;
-			n->next = NULL;
-			tail = n;
-		} else {
-			header = n;
-		}
-
-		n = header->next;
-	}
+	mime_part = CAMEL_MIME_PART (message);
+	header_queue = camel_mime_part_get_raw_headers (mime_part);
+	camel_header_raw_extract (header_queue, &bcc_queue, "Bcc");
 
 	/* find out how large the message is... */
 	null = CAMEL_STREAM_NULL (camel_stream_null_new ());
@@ -1361,7 +1349,7 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, CamelExcept
 		CAMEL_DATA_WRAPPER (message), filtered_stream);
 
 	/* restore the bcc headers */
-	header->next = savedbcc;
+	camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 	if (ret == -1) {
 		camel_exception_setv (ex, errno == EINTR ? CAMEL_EXCEPTION_USER_CANCEL : CAMEL_EXCEPTION_SYSTEM,

@@ -55,7 +55,7 @@
 
 struct _CamelMimePartPrivate {
 
-	struct _camel_header_raw *headers;  /* mime headers */
+	GQueue *raw_headers;  /* mime headers */
 
 	/* TODO: these should be in a camelcontentinfo */
 	gchar *description;
@@ -115,9 +115,8 @@ static gint             construct_from_parser           (CamelMimePart *mime_par
 static void set_disposition (CamelMimePart *mime_part, const gchar *disposition);
 
 /* format output of headers */
-static gssize write_references(CamelStream *stream, struct _camel_header_raw *h);
-/*static gint write_fold(CamelStream *stream, struct _camel_header_raw *h);*/
-static gssize write_raw(CamelStream *stream, struct _camel_header_raw *h);
+static gssize write_references(CamelStream *stream, CamelHeaderRaw *raw_header);
+static gssize write_raw(CamelStream *stream, CamelHeaderRaw *raw_header);
 
 /* loads in a hash table the set of header names we */
 /* recognize and associate them with a unique enum  */
@@ -266,16 +265,20 @@ mime_part_get_property (GObject *object,
 static void
 mime_part_finalize (GObject *object)
 {
-	CamelMimePart *mime_part = CAMEL_MIME_PART (object);
+	CamelMimePartPrivate *priv;
 
-	g_free (mime_part->priv->description);
-	g_free (mime_part->priv->content_id);
-	g_free (mime_part->priv->content_md5);
-	g_free (mime_part->priv->content_location);
-	camel_string_list_free (mime_part->priv->content_languages);
-	camel_content_disposition_unref (mime_part->priv->disposition);
+	priv = CAMEL_MIME_PART_GET_PRIVATE (object);
 
-	camel_header_raw_clear (&mime_part->priv->headers);
+	g_free (priv->description);
+	g_free (priv->content_id);
+	g_free (priv->content_md5);
+	g_free (priv->content_location);
+
+	camel_string_list_free (priv->content_languages);
+	camel_content_disposition_unref (priv->disposition);
+
+	camel_header_raw_clear (priv->raw_headers);
+	g_queue_free (priv->raw_headers);
 
 	/* Chain up to parent's finalize() method. */
 	G_OBJECT_CLASS (parent_class)->finalize (object);
@@ -360,6 +363,7 @@ mime_part_init (CamelMimePart *mime_part)
 	CamelDataWrapper *data_wrapper;
 
 	mime_part->priv = CAMEL_MIME_PART_GET_PRIVATE (mime_part);
+	mime_part->priv->raw_headers = g_queue_new ();
 	mime_part->priv->encoding = CAMEL_TRANSFER_ENCODING_DEFAULT;
 
 	data_wrapper = CAMEL_DATA_WRAPPER (mime_part);
@@ -448,15 +452,22 @@ static void
 set_header (CamelMedium *medium, const gchar *name, gconstpointer value)
 {
 	CamelMimePart *part = CAMEL_MIME_PART (medium);
+	GQueue *header_queue;
 
-	process_header(medium, name, value);
-	camel_header_raw_replace(&part->priv->headers, name, value, -1);
+	header_queue = camel_mime_part_get_raw_headers (part);
+
+	process_header (medium, name, value);
+	camel_header_raw_remove (header_queue, name);
+	camel_header_raw_append (header_queue, name, value, -1);
 }
 
 static void
 add_header (CamelMedium *medium, const gchar *name, gconstpointer value)
 {
 	CamelMimePart *part = CAMEL_MIME_PART (medium);
+	GQueue *header_queue;
+
+	header_queue = camel_mime_part_get_raw_headers (part);
 
 	/* Try to parse the header pair. If it corresponds to something   */
 	/* known, the job is done in the parsing routine. If not,         */
@@ -464,26 +475,31 @@ add_header (CamelMedium *medium, const gchar *name, gconstpointer value)
 
 	/* If it was one of the headers we handled, it must be unique, set it instead of add */
 	if (process_header(medium, name, value))
-		camel_header_raw_replace(&part->priv->headers, name, value, -1);
-	else
-		camel_header_raw_append(&part->priv->headers, name, value, -1);
+		camel_header_raw_remove (header_queue, name);
+	camel_header_raw_append (header_queue, name, value, -1);
 }
 
 static void
 remove_header (CamelMedium *medium, const gchar *name)
 {
 	CamelMimePart *part = (CamelMimePart *)medium;
+	GQueue *header_queue;
 
-	process_header(medium, name, NULL);
-	camel_header_raw_remove(&part->priv->headers, name);
+	header_queue = camel_mime_part_get_raw_headers (part);
+
+	process_header (medium, name, NULL);
+	camel_header_raw_remove (header_queue, name);
 }
 
 static gconstpointer
 get_header (CamelMedium *medium, const gchar *name)
 {
 	CamelMimePart *part = (CamelMimePart *)medium;
+	GQueue *header_queue;
 
-	return camel_header_raw_find(&part->priv->headers, name, NULL);
+	header_queue = camel_mime_part_get_raw_headers (part);
+
+	return camel_header_raw_find (header_queue, name, NULL);
 }
 
 static GArray *
@@ -492,13 +508,22 @@ get_headers (CamelMedium *medium)
 	CamelMimePart *part = (CamelMimePart *)medium;
 	GArray *headers;
 	CamelMediumHeader header;
-	struct _camel_header_raw *h;
+	GQueue *header_queue;
+	GList *link;
+
+	header_queue = camel_mime_part_get_raw_headers (part);
+	link = g_queue_peek_head_link (header_queue);
 
 	headers = g_array_new (FALSE, FALSE, sizeof (CamelMediumHeader));
-	for (h = part->priv->headers; h; h = h->next) {
-		header.name = h->name;
-		header.value = h->value;
+
+	while (link != NULL) {
+		CamelHeaderRaw *raw_header = link->data;
+
+		header.name = camel_header_raw_get_name (raw_header);
+		header.value = camel_header_raw_get_value (raw_header);
 		g_array_append_val (headers, header);
+
+		link = g_list_next (link);
 	}
 
 	return headers;
@@ -929,12 +954,12 @@ camel_mime_part_get_content_type (CamelMimePart *mime_part)
 	return ((CamelDataWrapper *) mime_part)->mime_type;
 }
 
-struct _camel_header_raw *
+GQueue *
 camel_mime_part_get_raw_headers (CamelMimePart *mime_part)
 {
 	g_return_val_if_fail (CAMEL_IS_MIME_PART (mime_part), NULL);
 
-	return mime_part->priv->headers;
+	return mime_part->priv->raw_headers;
 }
 
 static void
@@ -962,28 +987,33 @@ set_content (CamelMedium *medium,
 /**********************************************************************/
 
 static gssize
-write_references(CamelStream *stream, struct _camel_header_raw *h)
+write_references (CamelStream *stream,
+                  CamelHeaderRaw *raw_header)
 {
 	gssize len, out, total;
-	gchar *v, *ids, *ide;
+	const gchar *ids, *ide;
+	const gchar *name;
+	const gchar *value;
 
 	/* this is only approximate, based on the next >, this way it retains any content
 	   from the original which may not be properly formatted, etc.  It also doesn't handle
 	   the case where an individual messageid is too long, however thats a bad mail to
 	   start with ... */
 
-	v = h->value;
-	len = strlen(h->name)+1;
-	total = camel_stream_printf(stream, "%s%s", h->name, isspace(v[0])?":":": ");
+	name = camel_header_raw_get_name (raw_header);
+	value = camel_header_raw_get_value (raw_header);
+
+	len = strlen(name)+1;
+	total = camel_stream_printf(stream, "%s%s", name, isspace(value[0])?":":": ");
 	if (total == -1)
 		return -1;
-	while (*v) {
-		ids = v;
+	while (*value) {
+		ids = value;
 		ide = strchr(ids+1, '>');
 		if (ide)
-			v = ++ide;
+			value = ++ide;
 		else
-			ide = v = strlen(ids)+ids;
+			ide = value = strlen(ids)+ids;
 
 		if (len>0 && len + (ide - ids) >= CAMEL_FOLD_SIZE) {
 			out = camel_stream_printf(stream, "\n\t");
@@ -1020,11 +1050,18 @@ write_fold(CamelStream *stream, struct _camel_header_raw *h)
 #endif
 
 static gssize
-write_raw(CamelStream *stream, struct _camel_header_raw *h)
+write_raw (CamelStream *stream,
+           CamelHeaderRaw *header_raw)
 {
-	gchar *val = h->value;
+	const gchar *name;
+	const gchar *value;
 
-	return camel_stream_printf(stream, "%s%s%s\n", h->name, isspace(val[0]) ? ":" : ": ", val);
+	name = camel_header_raw_get_name (header_raw);
+	value = camel_header_raw_get_value (header_raw);
+
+	return camel_stream_printf (
+		stream, "%s%s%s\n", name,
+		isspace(value[0]) ? ":" : ": ", value);
 }
 
 static gssize
@@ -1034,6 +1071,7 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 	CamelMedium *medium = CAMEL_MEDIUM (dw);
 	CamelStream *ostream = stream;
 	CamelDataWrapper *content;
+	GQueue *header_queue;
 	gssize total = 0;
 	gssize count;
 	gint errnosav;
@@ -1043,29 +1081,40 @@ write_to_stream (CamelDataWrapper *dw, CamelStream *stream)
 	/* FIXME: something needs to be done about this ... */
 	/* TODO: content-languages header? */
 
-	if (mp->priv->headers) {
-		struct _camel_header_raw *h = mp->priv->headers;
-		gchar *val;
-		gssize (*writefn)(CamelStream *stream, struct _camel_header_raw *);
+	header_queue = camel_mime_part_get_raw_headers (mp);
+
+	if (!g_queue_is_empty (header_queue)) {
+		GList *link;
+		gssize (*writefn)(CamelStream *stream, CamelHeaderRaw *);
+
+		link = g_queue_peek_head_link (header_queue);
 
 		/* fold/write the headers.   But dont fold headers that are already formatted
 		   (e.g. ones with parameter-lists, that we know about, and have created) */
-		while (h) {
-			val = h->value;
-			if (val == NULL) {
-				g_warning("h->value is NULL here for %s", h->name);
+		while (link != NULL) {
+			CamelHeaderRaw *raw_header = link->data;
+			const gchar *name, *value;
+
+			name = camel_header_raw_get_name (raw_header);
+			value = camel_header_raw_get_value (raw_header);
+
+			if (value == NULL) {
+				g_warning("value is NULL here for %s", name);
 				count = 0;
-			} else if ((writefn = g_hash_table_lookup(header_formatted_table, h->name)) == NULL) {
-				val = camel_header_fold(val, strlen(h->name));
-				count = camel_stream_printf(stream, "%s%s%s\n", h->name, isspace(val[0]) ? ":" : ": ", val);
-				g_free(val);
+			} else if ((writefn = g_hash_table_lookup(header_formatted_table, name)) == NULL) {
+				gchar *folded;
+
+				folded = camel_header_fold(value, strlen(name));
+				count = camel_stream_printf(stream, "%s%s%s\n", name, isspace(folded[0]) ? ":" : ": ", folded);
+				g_free(folded);
 			} else {
-				count = writefn(stream, h);
+				count = writefn(stream, raw_header);
 			}
 			if (count == -1)
 				return -1;
 			total += count;
-			h = h->next;
+
+			link = g_list_next (link);
 		}
 	}
 
@@ -1189,7 +1238,8 @@ static gint
 construct_from_parser (CamelMimePart *mime_part, CamelMimeParser *mp)
 {
 	CamelDataWrapper *dw = (CamelDataWrapper *) mime_part;
-	struct _camel_header_raw *headers;
+	GQueue *header_queue;
+	GList *link;
 	const gchar *content;
 	gchar *buf;
 	gsize len;
@@ -1206,20 +1256,30 @@ construct_from_parser (CamelMimePart *mime_part, CamelMimeParser *mp)
 	case CAMEL_MIME_PARSER_STATE_HEADER:
 	case CAMEL_MIME_PARSER_STATE_MULTIPART:
 		/* we have the headers, build them into 'us' */
-		headers = camel_mime_parser_headers_raw(mp);
+		header_queue = camel_mime_parser_headers_raw(mp);
 
 		/* if content-type exists, process it first, set for fallback charset in headers */
-		content = camel_header_raw_find(&headers, "content-type", NULL);
+		content = camel_header_raw_find(header_queue, "content-type", NULL);
 		if (content)
 			process_header((CamelMedium *)dw, "content-type", content);
 
-		while (headers) {
-			if (g_ascii_strcasecmp(headers->name, "content-type") == 0
-			    && headers->value != content)
-				camel_medium_add_header((CamelMedium *)dw, "X-Invalid-Content-Type", headers->value);
+		link = g_queue_peek_head_link (header_queue);
+
+		while (link != NULL) {
+			CamelHeaderRaw *raw_header = link->data;
+			const gchar *name;
+			const gchar *value;
+
+			name = camel_header_raw_get_name (raw_header);
+			value = camel_header_raw_get_value (raw_header);
+
+			if (g_ascii_strcasecmp(name, "content-type") == 0
+			    && value != content)
+				camel_medium_add_header((CamelMedium *)dw, "X-Invalid-Content-Type", value);
 			else
-				camel_medium_add_header((CamelMedium *)dw, headers->name, headers->value);
-			headers = headers->next;
+				camel_medium_add_header((CamelMedium *)dw, name, value);
+
+			link = g_list_next (link);
 		}
 
 		camel_mime_part_construct_content_from_parser (mime_part, mp);

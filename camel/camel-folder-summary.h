@@ -296,7 +296,7 @@ struct _CamelFolderSummaryClass {
 	gint (*content_info_to_db) (CamelFolderSummary *, CamelMessageContentInfo *, struct _CamelMIRecord *);
 
 	/* create/save/load an individual message info */
-	CamelMessageInfo * (*message_info_new_from_header)(CamelFolderSummary *, struct _camel_header_raw *);
+	CamelMessageInfo * (*message_info_new_from_header)(CamelFolderSummary *, GQueue *);
 	CamelMessageInfo * (*message_info_new_from_parser)(CamelFolderSummary *, CamelMimeParser *);
 	CamelMessageInfo * (*message_info_new_from_message)(CamelFolderSummary *, CamelMimeMessage *, const gchar *);
 	CamelMessageInfo * (*message_info_load)(CamelFolderSummary *, FILE *);
@@ -307,7 +307,7 @@ struct _CamelFolderSummaryClass {
 	CamelMessageInfo * (*message_info_clone)(CamelFolderSummary *, const CamelMessageInfo *);
 
 	/* save/load individual content info's */
-	CamelMessageContentInfo * (*content_info_new_from_header)(CamelFolderSummary *, struct _camel_header_raw *);
+	CamelMessageContentInfo * (*content_info_new_from_header)(CamelFolderSummary *, GQueue *);
 	CamelMessageContentInfo * (*content_info_new_from_parser)(CamelFolderSummary *, CamelMimeParser *);
 	CamelMessageContentInfo * (*content_info_new_from_message)(CamelFolderSummary *, CamelMimePart *);
 	CamelMessageContentInfo * (*content_info_load)(CamelFolderSummary *, FILE *);
@@ -396,12 +396,12 @@ void camel_folder_summary_remove_index_fast (CamelFolderSummary *s, gint index);
 void camel_folder_summary_remove_uid_fast (CamelFolderSummary *s, const gchar *uid);
 
 /* build/add raw summary items */
-CamelMessageInfo *camel_folder_summary_add_from_header(CamelFolderSummary *summary, struct _camel_header_raw *headers);
+CamelMessageInfo *camel_folder_summary_add_from_header(CamelFolderSummary *summary, GQueue *header_queue);
 CamelMessageInfo *camel_folder_summary_add_from_parser(CamelFolderSummary *summary, CamelMimeParser *parser);
 CamelMessageInfo *camel_folder_summary_add_from_message(CamelFolderSummary *summary, CamelMimeMessage *message);
 
 /* Just build raw summary items */
-CamelMessageInfo *camel_folder_summary_info_new_from_header(CamelFolderSummary *summary, struct _camel_header_raw *headers);
+CamelMessageInfo *camel_folder_summary_info_new_from_header(CamelFolderSummary *summary, GQueue *header_queue);
 CamelMessageInfo *camel_folder_summary_info_new_from_parser(CamelFolderSummary *summary, CamelMimeParser *parser);
 CamelMessageInfo *camel_folder_summary_info_new_from_message(CamelFolderSummary *summary, CamelMimeMessage *message, const gchar *bodystructure);
 
@@ -456,7 +456,7 @@ void		camel_tag_list_free(CamelTag **list);
 /* Use anonymous pointers to avoid tons of cast crap */
 gpointer camel_message_info_new(CamelFolderSummary *summary);
 void camel_message_info_ref(gpointer info);
-CamelMessageInfo *camel_message_info_new_from_header(CamelFolderSummary *summary, struct _camel_header_raw *header);
+CamelMessageInfo *camel_message_info_new_from_header(CamelFolderSummary *summary, GQueue *header_queue);
 void camel_message_info_free(gpointer info);
 gpointer camel_message_info_clone(gconstpointer info);
 

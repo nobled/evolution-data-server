@@ -383,7 +383,7 @@ CamelFolderSummary
 </para>
 
 @summary: 
-@headers: 
+@header_queue: 
 @Returns: 
 
 
@@ -413,7 +413,7 @@ CamelFolderSummary
 </para>
 
 @summary: 
-@headers: 
+@header_queue: 
 @Returns: 
 
 
@@ -761,7 +761,7 @@ CamelFolderSummary
 </para>
 
 @summary: 
-@header: 
+@header_queue: 
 @Returns: 
 
 

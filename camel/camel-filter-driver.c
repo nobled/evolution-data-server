@@ -1258,9 +1258,10 @@ camel_filter_driver_filter_mbox (CamelFilterDriver *driver, const gchar *mbox, c
 	source_url = g_filename_to_uri (mbox, NULL, NULL);
 
 	while (camel_mime_parser_step (mp, 0, 0) == CAMEL_MIME_PARSER_STATE_FROM) {
-		struct _camel_header_raw *headers;
 		CamelMessageInfo *info;
-		CamelMimeMessage *msg;
+		CamelMimeMessage *message;
+		CamelMimePart *mime_part;
+		GQueue *header_queue;
 		gint pc = 0;
 		const gchar *xev;
 
@@ -1269,27 +1270,29 @@ camel_filter_driver_filter_mbox (CamelFilterDriver *driver, const gchar *mbox, c
 
 		report_status (driver, CAMEL_FILTER_STATUS_START, pc, _("Getting message %d (%d%%)"), i, pc);
 
-		msg = camel_mime_message_new ();
-		if (camel_mime_part_construct_from_parser (CAMEL_MIME_PART (msg), mp) == -1) {
+		message = camel_mime_message_new ();
+		mime_part = CAMEL_MIME_PART (message);
+
+		if (camel_mime_part_construct_from_parser (mime_part, mp) == -1) {
 			camel_exception_set (ex, (errno==EINTR)?CAMEL_EXCEPTION_USER_CANCEL:CAMEL_EXCEPTION_SYSTEM, _("Cannot open message"));
 			report_status (driver, CAMEL_FILTER_STATUS_END, 100, _("Failed on message %d"), i);
-			g_object_unref (msg);
+			g_object_unref (message);
 			goto fail;
 		}
 
-		headers = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (msg));
-		info = camel_message_info_new_from_header(NULL, headers);
+		header_queue = camel_mime_part_get_raw_headers (mime_part);
+		info = camel_message_info_new_from_header(NULL, header_queue);
 		/* Try and see if it has X-Evolution headers */
-		xev = camel_header_raw_find(&headers, "X-Evolution", NULL);
+		xev = camel_header_raw_find(header_queue, "X-Evolution", NULL);
 		if (xev)
 			decode_flags_from_xev (xev, (CamelMessageInfoBase *)info);
 
 		((CamelMessageInfoBase *)info)->size = camel_mime_parser_tell(mp) - last;
 
 		last = camel_mime_parser_tell(mp);
-		status = camel_filter_driver_filter_message (driver, msg, info, NULL, NULL, source_url,
+		status = camel_filter_driver_filter_message (driver, message, info, NULL, NULL, source_url,
 							     original_source_url ? original_source_url : source_url, ex);
-		g_object_unref (msg);
+		g_object_unref (message);
 		if (camel_exception_is_set (ex) || status == -1) {
 			report_status (driver, CAMEL_FILTER_STATUS_END, 100, _("Failed on message %d"), i);
 			camel_message_info_free (info);
@@ -1472,6 +1475,7 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 				    CamelException *ex)
 {
 	struct _CamelFilterDriverPrivate *p = CAMEL_FILTER_DRIVER_GET_PRIVATE (driver);
+	CamelMimePart *mime_part;
 	struct _filter_rule *node;
 	gboolean freeinfo = FALSE;
 	gboolean filtered = FALSE;
@@ -1485,7 +1489,7 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 	}
 
 	if (info == NULL) {
-		struct _camel_header_raw *h;
+		GQueue *header_queue;
 
 		if (message) {
 			g_object_ref (message);
@@ -1495,8 +1499,9 @@ camel_filter_driver_filter_message (CamelFilterDriver *driver, CamelMimeMessage 
 				return -1;
 		}
 
-		h = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message));
-		info = camel_message_info_new_from_header (NULL, h);
+		mime_part = CAMEL_MIME_PART (message);
+		header_queue = camel_mime_part_get_raw_headers (mime_part);
+		info = camel_message_info_new_from_header (NULL, header_queue);
 		freeinfo = TRUE;
 	} else {
 		if (camel_message_info_flags(info) & CAMEL_MESSAGE_DELETED)

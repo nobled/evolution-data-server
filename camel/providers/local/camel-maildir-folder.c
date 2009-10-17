@@ -50,6 +50,7 @@ static CamelMimeMessage *maildir_get_message(CamelFolder * folder, const gchar *
 static gchar * maildir_get_filename (CamelFolder *folder, const gchar *uid, CamelException *ex);
 static gint maildir_cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2);
 static void maildir_sort_uids (CamelFolder *folder, GPtrArray *uids);
+static void maildir_transfer_messages_to (CamelFolder *source, GPtrArray *uids, CamelFolder *dest, GPtrArray **transferred_uids, gboolean delete_originals, CamelException *ex);
 
 static gint
 maildir_folder_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
@@ -98,6 +99,7 @@ maildir_folder_class_init (CamelObjectClass *class)
 	folder_class->get_filename = maildir_get_filename;
 	folder_class->cmp_uids = maildir_cmp_uids;
 	folder_class->sort_uids = maildir_sort_uids;
+	folder_class->transfer_messages_to = maildir_transfer_messages_to;
 
 	local_folder_class = CAMEL_LOCAL_FOLDER_CLASS (class);
 	local_folder_class->create_summary = maildir_create_summary;

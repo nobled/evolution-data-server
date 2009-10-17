@@ -58,7 +58,7 @@ struct _CamelNNTPSummaryPrivate {
 	gint xover_setup;
 };
 
-static CamelMessageInfo * message_info_new_from_header (CamelFolderSummary *, struct _camel_header_raw *);
+static CamelMessageInfo * message_info_new_from_header (CamelFolderSummary *, GQueue *);
 static gint summary_header_load (CamelFolderSummary *, FILE *);
 static gint summary_header_save (CamelFolderSummary *, FILE *);
 static gint summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
@@ -130,7 +130,8 @@ camel_nntp_summary_new (struct _CamelFolder *folder, const gchar *path)
 }
 
 static CamelMessageInfo *
-message_info_new_from_header (CamelFolderSummary *s, struct _camel_header_raw *h)
+message_info_new_from_header (CamelFolderSummary *s,
+                              GQueue *header_queue)
 {
 	CamelMessageInfoBase *mi;
 	CamelNNTPSummary *cns = (CamelNNTPSummary *)s;
@@ -139,7 +140,7 @@ message_info_new_from_header (CamelFolderSummary *s, struct _camel_header_raw *h
 	if (cns->priv->uid == NULL)
 		return NULL;
 
-	mi = (CamelMessageInfoBase *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header (s, h);
+	mi = (CamelMessageInfoBase *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header (s, header_queue);
 	if (mi) {
 		camel_pstring_free (mi->uid);
 		mi->uid = camel_pstring_strdup (cns->priv->uid);
@@ -242,7 +243,7 @@ add_range_xover (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint
 {
 	CamelFolderSummary *s;
 	CamelMessageInfoBase *mi;
-	struct _camel_header_raw *headers = NULL;
+	GQueue *header_queue;
 	gchar *line, *tab;
 	guint len;
 	gint ret;
@@ -263,6 +264,8 @@ add_range_xover (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint
 					     _("Unexpected server response from xover: %s"), line);
 		return -1;
 	}
+
+	header_queue = g_queue_new ();
 
 	count = 0;
 	total = high-low+1;
@@ -287,7 +290,7 @@ add_range_xover (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint
 			if (xover->name) {
 				line += xover->skip;
 				if (line < tab) {
-					camel_header_raw_append (&headers, xover->name, line, -1);
+					camel_header_raw_append (header_queue, xover->name, line, -1);
 					switch (xover->type) {
 					case XOVER_STRING:
 						break;
@@ -309,7 +312,7 @@ add_range_xover (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint
 		/* truncated line? ignore? */
 		if (xover == NULL) {
 			if (!GPOINTER_TO_INT (g_hash_table_lookup (summary_table, cns->priv->uid))) {
-				mi = (CamelMessageInfoBase *)camel_folder_summary_add_from_header (s, headers);
+				mi = (CamelMessageInfoBase *)camel_folder_summary_add_from_header (s, header_queue);
 				if (mi) {
 					mi->size = size;
 					cns->high = n;
@@ -323,8 +326,10 @@ add_range_xover (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint
 			cns->priv->uid = NULL;
 		}
 
-		camel_header_raw_clear (&headers);
+		camel_header_raw_clear (header_queue);
 	}
+
+	g_queue_free (header_queue);
 
 	camel_operation_end (NULL);
 

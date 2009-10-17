@@ -33,8 +33,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <libedataserver/e-memory.h>
-
 #include "camel-mime-filter.h"
 #include "camel-mime-parser.h"
 #include "camel-mime-utils.h"
@@ -50,8 +48,6 @@
 /*#define PRESERVE_HEADERS*/
 
 /*#define PURIFY*/
-
-#define MEMPOOL
 
 #ifdef PURIFY
 gint inend_id = -1,
@@ -117,10 +113,7 @@ struct _header_scan_stack {
 
 	camel_mime_parser_state_t savestate; /* state at invocation of this part */
 
-#ifdef MEMPOOL
-	EMemPool *pool;		/* memory pool to keep track of headers/etc at this level */
-#endif
-	struct _camel_header_raw *headers;	/* headers for this part */
+	GQueue *raw_headers;	/* headers for this part */
 
 	CamelContentType *content_type;
 
@@ -156,10 +149,6 @@ static off_t folder_seek(struct _header_scan_state *s, off_t offset, gint whence
 static off_t folder_tell(struct _header_scan_state *s);
 static gint folder_read(struct _header_scan_state *s);
 static void folder_push_part(struct _header_scan_state *s, struct _header_scan_stack *h);
-
-#ifdef MEMPOOL
-static void header_append_mempool(struct _header_scan_state *s, struct _header_scan_stack *h, gchar *header, gint offset);
-#endif
 
 static void mime_parser_class_init (CamelMimeParserClass *class);
 static void mime_parser_init       (CamelMimeParser *obj);
@@ -334,11 +323,10 @@ camel_mime_parser_header(CamelMimeParser *m, const gchar *name, gint *offset)
 {
 	struct _header_scan_state *s = _PRIVATE(m);
 
-	if (s->parts &&
-	    s->parts->headers) {
-		return camel_header_raw_find(&s->parts->headers, name, offset);
-	}
-	return NULL;
+	if (s->parts == NULL)
+		return NULL;
+
+	return camel_header_raw_find (s->parts->raw_headers, name, offset);
 }
 
 /**
@@ -352,13 +340,14 @@ camel_mime_parser_header(CamelMimeParser *m, const gchar *name, gint *offset)
  * Return value: The raw headers, or NULL if there are no headers
  * defined for the current part or state.  These are READ ONLY.
  **/
-struct _camel_header_raw *
+GQueue *
 camel_mime_parser_headers_raw(CamelMimeParser *m)
 {
 	struct _header_scan_state *s = _PRIVATE(m);
 
 	if (s->parts)
-		return s->parts->headers;
+		return s->parts->raw_headers;
+
 	return NULL;
 }
 
@@ -1001,11 +990,10 @@ folder_pull_part(struct _header_scan_state *s)
 	if (h) {
 		s->parts = h->parent;
 		g_free(h->boundary);
-#ifdef MEMPOOL
-		e_mempool_destroy(h->pool);
-#else
-		camel_header_raw_clear(&h->headers);
-#endif
+
+		camel_header_raw_clear(h->raw_headers);
+		g_queue_free (h->raw_headers);
+
 		camel_content_type_unref(h->content_type);
 		if (h->pretext)
 			g_byte_array_free(h->pretext, TRUE);
@@ -1100,45 +1088,23 @@ folder_boundary_check(struct _header_scan_state *s, const gchar *boundary, gint 
 	return NULL;
 }
 
-#ifdef MEMPOOL
 static void
-header_append_mempool(struct _header_scan_state *s, struct _header_scan_stack *h, gchar *header, gint offset)
+header_raw_append_parse (GQueue *header_queue,
+                         gchar *header,
+                         gint offset)
 {
-	struct _camel_header_raw *l, *n;
-	gchar *content;
+	gchar *colon;
 
-	content = strchr(header, ':');
-	if (content) {
-		register gint len;
-		n = e_mempool_alloc(h->pool, sizeof(*n));
-		n->next = NULL;
+	colon = strchr (header, ':');
+	if (colon != NULL) {
+		const gchar *name = header;
+		const gchar *value = colon + 1;
 
-		len = content-header;
-		n->name = e_mempool_alloc(h->pool, len+1);
-		memcpy(n->name, header, len);
-		n->name[len] = 0;
-
-		content++;
-
-		len = s->outptr - content;
-		n->value = e_mempool_alloc(h->pool, len+1);
-		memcpy(n->value, content, len);
-		n->value[len] = 0;
-
-		n->offset = offset;
-
-		l = (struct _camel_header_raw *)&h->headers;
-		while (l->next) {
-			l = l->next;
-		}
-		l->next = n;
+		*colon = '\0';
+		camel_header_raw_append (header_queue, name, value, offset);
+		*colon = ':';
 	}
-
 }
-
-#define header_raw_append_parse(a, b, c) (header_append_mempool(s, h, b, c))
-
-#endif
 
 /* Copy the string start->inptr into the header buffer (s->outbuf),
    grow if necessary
@@ -1180,9 +1146,7 @@ folder_scan_header(struct _header_scan_state *s, gint *lastone)
 	h(printf("scanning first bit\n"));
 
 	h = g_malloc0(sizeof(*h));
-#ifdef MEMPOOL
-	h->pool = e_mempool_new(8192, 4096, E_MEMPOOL_ALIGN_STRUCT);
-#endif
+	h->raw_headers = g_queue_new ();
 
 	if (s->parts)
 		newatleast = s->parts->atleast;
@@ -1258,7 +1222,7 @@ folder_scan_header(struct _header_scan_state *s, gint *lastone)
 
 						h(printf("header '%s' at %d\n", s->outbuf, (gint)s->header_start));
 
-						header_raw_append_parse(&h->headers, s->outbuf, s->header_start);
+						header_raw_append_parse(h->raw_headers, s->outbuf, s->header_start);
 						s->outptr = s->outbuf;
 						s->header_start = -1;
 					}
@@ -1291,7 +1255,7 @@ header_truncated:
 	if (s->outbuf == s->outptr)
 		goto header_done;
 
-	header_raw_append_parse(&h->headers, s->outbuf, s->header_start);
+	header_raw_append_parse(h->raw_headers, s->outbuf, s->header_start);
 
 	s->outptr = s->outbuf;
 header_done:
@@ -1605,7 +1569,7 @@ tail_recurse:
 		/* FIXME: should this check for MIME-Version: 1.0 as well? */
 
 		type = CAMEL_MIME_PARSER_STATE_HEADER;
-		if ( (content = camel_header_raw_find(&h->headers, "Content-Type", NULL))
+		if ((content = camel_header_raw_find(h->raw_headers, "Content-Type", NULL))
 		     && (ct = camel_content_type_decode(content))) {
 			if (!g_ascii_strcasecmp(ct->type, "multipart")) {
 				if (!camel_content_type_is(ct, "multipart", "signed")
@@ -1620,7 +1584,8 @@ tail_recurse:
 					/*camel_content_type_unref(ct);
 					  ct = camel_content_type_decode("text/plain");*/
 /* We can't quite do this, as it will mess up all the offsets ... */
-/*					camel_header_raw_replace(&h->headers, "Content-Type", "text/plain", offset);*/
+/*					camel_header_raw_remove (&h->headers, "Content-Type");
+ *					camel_header_raw_append (&h->headers, "Content-Type", "text/plain", offset); */
 					/*g_warning("Multipart with no boundary, treating as text/plain");*/
 				}
 			} else if (!g_ascii_strcasecmp(ct->type, "message")) {

@@ -68,11 +68,6 @@ http_stream_dispose (GObject *object)
 		http->content_type = NULL;
 	}
 
-	if (http->headers != NULL) {
-		camel_header_raw_clear (&http->headers);
-		http->headers = NULL;
-	}
-
 	if (http->session != NULL) {
 		g_object_unref (http->session);
 		http->session = NULL;
@@ -96,6 +91,9 @@ static void
 http_stream_finalize (GObject *object)
 {
 	CamelHttpStream *http = CAMEL_HTTP_STREAM (object);
+
+	camel_header_raw_clear (http->raw_headers);
+	g_queue_free (http->raw_headers);
 
 	if (http->url != NULL)
 		camel_url_free (http->url);
@@ -133,16 +131,7 @@ http_stream_class_init (CamelHttpStreamClass *class)
 static void
 http_stream_init (CamelHttpStream *http)
 {
-	http->parser = NULL;
-	http->content_type = NULL;
-	http->headers = NULL;
-	http->session = NULL;
-	http->url = NULL;
-	http->proxy = NULL;
-	http->authrealm = NULL;
-	http->authpass = NULL;
-	http->statuscode = 0;
-	http->raw = NULL;
+	http->raw_headers = g_queue_new ();
 }
 
 GType
@@ -307,7 +296,8 @@ http_get_statuscode (CamelHttpStream *http)
 static gint
 http_get_headers (CamelHttpStream *http)
 {
-	struct _camel_header_raw *headers, *node, *tail;
+	GQueue *header_queue;
+	GList *link;
 	const gchar *type;
 	gchar *buf;
 	gsize len;
@@ -322,32 +312,31 @@ http_get_headers (CamelHttpStream *http)
 	switch (camel_mime_parser_step (http->parser, &buf, &len)) {
 	case CAMEL_MIME_PARSER_STATE_MESSAGE:
 	case CAMEL_MIME_PARSER_STATE_HEADER:
-		headers = camel_mime_parser_headers_raw (http->parser);
+		header_queue = camel_mime_parser_headers_raw (http->parser);
 		if (http->content_type)
 			camel_content_type_unref (http->content_type);
-		type = camel_header_raw_find (&headers, "Content-Type", NULL);
+		type = camel_header_raw_find (header_queue, "Content-Type", NULL);
 		if (type)
 			http->content_type = camel_content_type_decode (type);
 		else
 			http->content_type = NULL;
 
-		if (http->headers)
-			camel_header_raw_clear (&http->headers);
+		camel_header_raw_clear (http->raw_headers);
 
-		http->headers = NULL;
-		tail = (struct _camel_header_raw *) &http->headers;
+		link = g_queue_peek_head_link (header_queue);
 
 		d(printf("HTTP Headers:\n"));
-		while (headers) {
-			d(printf(" %s:%s\n", headers->name, headers->value));
-			node = g_new (struct _camel_header_raw, 1);
-			node->next = NULL;
-			node->name = g_strdup (headers->name);
-			node->value = g_strdup (headers->value);
-			node->offset = headers->offset;
-			tail->next = node;
-			tail = node;
-			headers = headers->next;
+		while (link != NULL) {
+			CamelHeaderRaw *raw_header = link->data;
+
+			d(printf(" %s:%s\n", name, value));
+			camel_header_raw_append (
+				http->raw_headers,
+				camel_header_raw_get_name (raw_header),
+				camel_header_raw_get_value (raw_header),
+				camel_header_raw_get_offset (raw_header));
+
+			link = g_list_next (link);
 		}
 
 		break;
@@ -491,9 +480,9 @@ stream_read (CamelStream *stream, gchar *buffer, gsize n)
 			http->content_type = NULL;
 			http_disconnect(http);
 
-			loc = g_strdup(camel_header_raw_find(&http->headers, "Location", NULL));
+			loc = g_strdup(camel_header_raw_find(http->raw_headers, "Location", NULL));
 			if (loc == NULL) {
-				camel_header_raw_clear(&http->headers);
+				camel_header_raw_clear(http->raw_headers);
 				return -1;
 			}
 
@@ -507,11 +496,11 @@ stream_read (CamelStream *stream, gchar *buffer, gsize n)
 				http->url = camel_url_new(loc, NULL);
 			g_free(loc);
 			if (http->url == NULL) {
-				camel_header_raw_clear (&http->headers);
+				camel_header_raw_clear (http->raw_headers);
 				return -1;
 			}
 			d(printf(" redirect url = %p\n", http->url));
-			camel_header_raw_clear (&http->headers);
+			camel_header_raw_clear (http->raw_headers);
 
 			goto redirect;
 			break; }

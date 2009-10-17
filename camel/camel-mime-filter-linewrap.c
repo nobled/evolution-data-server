@@ -217,7 +217,9 @@ camel_mime_filter_linewrap_new (guint preferred_len,
 	priv->wrap_len = preferred_len;
 	priv->max_len = max_len;
 	priv->nchars = 0;
-	priv->flags = flags | (indent_char == 0 ? CAMEL_MIME_FILTER_LINEWRAP_NOINDENT : 0);
+
+	if (indent_char == 0)
+		priv->flags |= CAMEL_MIME_FILTER_LINEWRAP_NOINDENT;
 
 	return filter;
 }

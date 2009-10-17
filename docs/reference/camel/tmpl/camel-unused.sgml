@@ -741,6 +741,44 @@ camel-types
 @summary: 
 @array: 
 
+<!-- ##### STRUCT camel_header_raw ##### -->
+<para>
+
+</para>
+
+@next: 
+@name: 
+@value: 
+@offset: 
+
+<!-- ##### FUNCTION camel_header_raw_find_next ##### -->
+<para>
+
+</para>
+
+@header_queue: 
+@header_name: 
+@offset: 
+@last_value: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_header_raw_fold ##### -->
+<para>
+
+</para>
+
+@list: 
+
+<!-- ##### FUNCTION camel_header_raw_replace ##### -->
+<para>
+
+</para>
+
+@header_queue: 
+@header_name: 
+@header_value: 
+@offset: 
+
 <!-- ##### FUNCTION camel_imap_store_summary_namespace_new ##### -->
 <para>
 

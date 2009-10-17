@@ -134,7 +134,7 @@ CamelContentType *camel_mime_parser_content_type (CamelMimeParser *parser);
 const gchar *camel_mime_parser_header (CamelMimeParser *m, const gchar *name, gint *offset);
 
 /* get all raw headers. READ ONLY! */
-struct _camel_header_raw *camel_mime_parser_headers_raw (CamelMimeParser *m);
+GQueue *camel_mime_parser_headers_raw (CamelMimeParser *m);
 
 /* get multipart pre/postface */
 const gchar *camel_mime_parser_preface (CamelMimeParser *m);

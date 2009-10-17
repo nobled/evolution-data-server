@@ -1051,7 +1051,6 @@ check_header (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFold
 		camel_search_t type = CAMEL_SEARCH_TYPE_ASIS;
 		struct _camel_search_words *words;
 		CamelMimeMessage *message = NULL;
-		struct _camel_header_raw *raw_header;
 
 		/* only a subset of headers are supported .. */
 		headername = argv[0]->value.string;
@@ -1099,24 +1098,56 @@ check_header (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFold
 					truth = TRUE;
 					for (j=0;j<words->len && truth;j++) {
 						if (message) {
-							for (raw_header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message)); raw_header; raw_header = raw_header->next) {
-								if (!g_ascii_strcasecmp (raw_header->name, headername)) {
-									if (camel_search_header_match (raw_header->value, words->words[j]->word, how, type, charset))
+							CamelMimePart *mime_part;
+							GQueue *header_queue;
+							GList *link;
+
+							mime_part = CAMEL_MIME_PART (message);
+							header_queue = camel_mime_part_get_raw_headers (mime_part);
+							link = g_queue_peek_head_link (header_queue);
+
+							while (link != NULL) {
+								CamelHeaderRaw *raw_header = link->data;
+								const gchar *name, *value;
+
+								name = camel_header_raw_get_name (raw_header);
+								value = camel_header_raw_get_value (raw_header);
+
+								if (!g_ascii_strcasecmp (name, headername)) {
+									if (camel_search_header_match (value, words->words[j]->word, how, type, charset))
 										break;;
 								}
+
+								link = g_list_next (link);
 							}
 
-							truth = raw_header != NULL;
+							truth = (link != NULL);
 						} else
 							truth = camel_search_header_match(header, words->words[j]->word, how, type, charset);
 					}
 					camel_search_words_free(words);
 				} else {
 					if (message) {
-						for (raw_header = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (message)); raw_header && !truth; raw_header = raw_header->next) {
-							if (!g_ascii_strcasecmp (raw_header->name, headername)) {
-								truth = camel_search_header_match(raw_header->value, argv[i]->value.string, how, type, charset);
+						CamelMimePart *mime_part;
+						GQueue *header_queue;
+						GList *link;
+
+						mime_part = CAMEL_MIME_PART (message);
+						header_queue = camel_mime_part_get_raw_headers (mime_part);
+						link = g_queue_peek_head_link (header_queue);
+
+						while (link != NULL) {
+							CamelHeaderRaw *raw_header = link->data;
+							const gchar *name, *value;
+
+							name = camel_header_raw_get_name (raw_header);
+							value = camel_header_raw_get_value (raw_header);
+
+							if (!g_ascii_strcasecmp (name, headername)) {
+								truth = camel_search_header_match(value, argv[i]->value.string, how, type, charset);
 							}
+
+							link = g_list_next (link);
 						}
 					} else
 						truth = camel_search_header_match(header, argv[i]->value.string, how, type, charset);
@@ -1227,20 +1258,33 @@ search_header_regex (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Ca
 static gchar *
 get_full_header (CamelMimeMessage *message)
 {
-	CamelMimePart *mp = CAMEL_MIME_PART (message);
+	CamelMimePart *mime_part;
 	GString *str = g_string_new ("");
-	struct _camel_header_raw *h;
+	GQueue *header_queue;
+	GList *link;
 
-	for (h = camel_mime_part_get_raw_headers (mp); h; h = h->next) {
-		if (h->value != NULL) {
-			g_string_append (str, h->name);
-			if (isspace (h->value[0]))
+	mime_part = CAMEL_MIME_PART (message);
+	header_queue = camel_mime_part_get_raw_headers (mime_part);
+	link = g_queue_peek_head_link (header_queue);
+
+	while (link != NULL) {
+		CamelHeaderRaw *raw_header = link->data;
+		const gchar *name, *value;
+
+		name = camel_header_raw_get_name (raw_header);
+		value = camel_header_raw_get_value (raw_header);
+
+		if (value != NULL) {
+			g_string_append (str, name);
+			if (isspace (value[0]))
 				g_string_append (str, ":");
 			else
 				g_string_append (str, ": ");
-			g_string_append (str, h->value);
+			g_string_append (str, value);
 			g_string_append_c (str, '\n');
 		}
+
+		link = g_list_next (link);
 	}
 
 	return g_string_free (str, FALSE);

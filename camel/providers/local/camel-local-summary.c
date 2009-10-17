@@ -49,7 +49,7 @@ static gint summary_header_from_db (CamelFolderSummary *, CamelFIRecord *);
 static gint summary_header_load (CamelFolderSummary *, FILE *);
 static gint summary_header_save (CamelFolderSummary *, FILE *);
 
-static CamelMessageInfo * message_info_new_from_header (CamelFolderSummary *, struct _camel_header_raw *);
+static CamelMessageInfo * message_info_new_from_header (CamelFolderSummary *, GQueue *header_queue);
 
 static gint local_summary_decode_x_evolution(CamelLocalSummary *cls, const gchar *xev, CamelLocalMessageInfo *mi);
 static gchar *local_summary_encode_x_evolution(CamelLocalSummary *cls, const CamelLocalMessageInfo *mi);
@@ -346,8 +346,9 @@ camel_local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const Cam
  * Return value: -1 on error, otherwise the number of bytes written.
  **/
 gint
-camel_local_summary_write_headers(gint fd, struct _camel_header_raw *header, const gchar *xevline, const gchar *status, const gchar *xstatus)
+camel_local_summary_write_headers(gint fd, GQueue *header_queue, const gchar *xevline, const gchar *status, const gchar *xstatus)
 {
+	GList *link;
 	gint outlen = 0, len;
 	gint newfd;
 	FILE *out;
@@ -364,18 +365,27 @@ camel_local_summary_write_headers(gint fd, struct _camel_header_raw *header, con
 		return -1;
 	}
 
-	while (header) {
-		if (strcmp(header->name, "X-Evolution") != 0
-		    && (status == NULL || strcmp(header->name, "Status") != 0)
-		    && (xstatus == NULL || strcmp(header->name, "X-Status") != 0)) {
-			len = fprintf(out, "%s:%s\n", header->name, header->value);
+	link = g_queue_peek_head_link (header_queue);
+
+	while (link != NULL) {
+		CamelHeaderRaw *raw_header = link->data;
+		const gchar *name, *value;
+
+		name = camel_header_raw_get_name (raw_header);
+		value = camel_header_raw_get_value (raw_header);
+
+		if (strcmp(name, "X-Evolution") != 0
+		    && (status == NULL || strcmp(name, "Status") != 0)
+		    && (xstatus == NULL || strcmp(name, "X-Status") != 0)) {
+			len = fprintf(out, "%s:%s\n", name, value);
 			if (len == -1) {
 				fclose(out);
 				return -1;
 			}
 			outlen += len;
 		}
-		header = header->next;
+
+		link = g_list_next (link);
 	}
 
 	if (status) {
@@ -721,17 +731,17 @@ summary_header_save(CamelFolderSummary *s, FILE *out)
 }
 
 static CamelMessageInfo *
-message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+message_info_new_from_header(CamelFolderSummary *s, GQueue *header_queue)
 {
 	CamelLocalMessageInfo *mi;
 	CamelLocalSummary *cls = (CamelLocalSummary *)s;
 
-	mi = (CamelLocalMessageInfo *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header(s, h);
+	mi = (CamelLocalMessageInfo *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header(s, header_queue);
 	if (mi) {
 		const gchar *xev;
 		gint doindex = FALSE;
 
-		xev = camel_header_raw_find(&h, "X-Evolution", NULL);
+		xev = camel_header_raw_find(header_queue, "X-Evolution", NULL);
 		if (xev==NULL || camel_local_summary_decode_x_evolution(cls, xev, mi) == -1) {
 			/* to indicate it has no xev header */
 			mi->info.flags |= CAMEL_MESSAGE_FOLDER_FLAGGED | CAMEL_MESSAGE_FOLDER_NOXEV;

@@ -3054,11 +3054,11 @@ done:
 
 		if (!mi->info.mlist || !*mi->info.mlist) {
 			/* update mailing list information, if necessary */
-			struct _camel_header_raw *headers;
+			GQueue *header_queue;
 			gchar *mlist;
 
-			headers = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (msg));
-			mlist = camel_header_raw_check_mailing_list (&headers);
+			header_queue = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (msg));
+			mlist = camel_header_raw_check_mailing_list (header_queue);
 
 			if (mlist) {
 				if (mi->info.mlist)

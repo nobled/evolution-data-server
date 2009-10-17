@@ -1736,10 +1736,12 @@ transfer_message_to (CamelFolder *source, const gchar *uid, CamelFolder *dest,
 		info = camel_message_info_clone (minfo);
 		camel_folder_free_message_info (source, minfo);
 	} else {
-		struct _camel_header_raw *headers;
+		CamelMimePart *mime_part;
+		GQueue *header_queue;
 
-		headers = camel_mime_part_get_raw_headers (CAMEL_MIME_PART (msg));
-		info = camel_message_info_new_from_header (NULL, headers);
+		mime_part = CAMEL_MIME_PART (msg);
+		header_queue = camel_mime_part_get_raw_headers (mime_part);
+		info = camel_message_info_new_from_header (NULL, header_queue);
 	}
 
 	/* we don't want to retain the deleted flag */

@@ -78,7 +78,7 @@ gchar *camel_spool_summary_encode_x_evolution(CamelSpoolSummary *cls, const Came
 gint camel_spool_summary_decode_x_evolution(CamelSpoolSummary *cls, const gchar *xev, CamelMessageInfo *info);
 
 /* utility functions - write headers to a file with optional X-Evolution header */
-gint camel_spool_summary_write_headers(gint fd, struct _camel_header_raw *header, gchar *xevline);
+gint camel_spool_summary_write_headers(gint fd, GQueue *header_queue, gchar *xevline);
 
 G_END_DECLS
 

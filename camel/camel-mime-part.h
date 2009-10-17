@@ -104,8 +104,7 @@ const	  GList *camel_mime_part_get_content_languages	(CamelMimePart *mime_part);
 void               camel_mime_part_set_content_type	(CamelMimePart *mime_part, const gchar *content_type);
 CamelContentType  *camel_mime_part_get_content_type	(CamelMimePart *mime_part);
 
-struct _camel_header_raw *
-		camel_mime_part_get_raw_headers	(CamelMimePart *mime_part);
+GQueue *	camel_mime_part_get_raw_headers	(CamelMimePart *mime_part);
 
 /* construction */
 gint		camel_mime_part_construct_from_parser  (CamelMimePart *mime_part, CamelMimeParser *parser);

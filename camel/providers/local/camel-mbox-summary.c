@@ -54,7 +54,7 @@ static CamelMIRecord * message_info_to_db(CamelFolderSummary *s, CamelMessageInf
 static gint summary_header_load (CamelFolderSummary *, FILE *);
 static gint summary_header_save (CamelFolderSummary *, FILE *);
 
-static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, struct _camel_header_raw *);
+static CamelMessageInfo * message_info_new_from_header(CamelFolderSummary *, GQueue *header_queue);
 static CamelMessageInfo * message_info_new_from_parser(CamelFolderSummary *, CamelMimeParser *);
 static CamelMessageInfo * message_info_load (CamelFolderSummary *, FILE *);
 static gint		  message_info_save (CamelFolderSummary *, FILE *, CamelMessageInfo *);
@@ -312,12 +312,12 @@ summary_header_save(CamelFolderSummary *s, FILE *out)
 }
 
 static CamelMessageInfo *
-message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
+message_info_new_from_header(CamelFolderSummary *s, GQueue *header_queue)
 {
 	CamelMboxMessageInfo *mi;
 	CamelMboxSummary *mbs = (CamelMboxSummary *)s;
 
-	mi = (CamelMboxMessageInfo *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header(s, h);
+	mi = (CamelMboxMessageInfo *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header(s, header_queue);
 	if (mi) {
 		const gchar *xev, *uid;
 		CamelMboxMessageInfo *info = NULL;
@@ -328,16 +328,16 @@ message_info_new_from_header(CamelFolderSummary *s, struct _camel_header_raw *h)
 
 		if (mbs->xstatus) {
 			/* check for existance of status & x-status headers */
-			status = camel_header_raw_find(&h, "Status", NULL);
+			status = camel_header_raw_find(header_queue, "Status", NULL);
 			if (status)
 				flags = decode_status(status);
-			xstatus = camel_header_raw_find(&h, "X-Status", NULL);
+			xstatus = camel_header_raw_find(header_queue, "X-Status", NULL);
 			if (xstatus)
 				flags |= decode_status(xstatus);
 		}
 #endif
 		/* if we have an xev header, use it, else assign a new one */
-		xev = camel_header_raw_find(&h, "X-Evolution", NULL);
+		xev = camel_header_raw_find(header_queue, "X-Evolution", NULL);
 		if (xev != NULL
 		    && camel_local_summary_decode_x_evolution((CamelLocalSummary *)s, xev, &mi->info) == 0) {
 			uid = camel_message_info_uid(mi);
