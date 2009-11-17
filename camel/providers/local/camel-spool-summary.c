@@ -63,6 +63,7 @@ spool_summary_class_init (CamelSpoolSummaryClass *class)
 	local_summary_class->check = spool_summary_check;
 	local_summary_class->need_index = spool_summary_need_index;
 
+	mbox_summary_class = CAMEL_MBOX_SUMMARY_CLASS (class);
 	mbox_summary_class->sync_full = spool_summary_sync_full;
 }
 
