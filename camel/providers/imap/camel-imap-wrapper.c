@@ -130,7 +130,7 @@ imap_wrapper_hydrate (CamelImapWrapper *imap_wrapper, CamelStream *stream)
 	g_free (imap_wrapper->uid);
 	imap_wrapper->uid = NULL;
 	g_free (imap_wrapper->part_spec);
-	imap_wrapper->part = NULL;
+	imap_wrapper->part_spec = NULL;
 }
 
 static gssize
