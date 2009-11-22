@@ -30,7 +30,7 @@ CamelOfflineStore
 
 @store: 
 @state: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_offline_store_get_network_state ##### -->
@@ -39,7 +39,7 @@ CamelOfflineStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -49,6 +49,6 @@ CamelOfflineStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 
 

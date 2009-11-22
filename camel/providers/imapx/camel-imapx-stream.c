@@ -254,7 +254,7 @@ skip_ws(CamelIMAPXStream *is, guchar *pp, guchar *pe)
 /* FIXME: these should probably handle it themselves,
    and get rid of the token interface? */
 gint
-camel_imapx_stream_atom(CamelIMAPXStream *is, guchar **data, guint *lenp, CamelException *ex)
+camel_imapx_stream_atom(CamelIMAPXStream *is, guchar **data, guint *lenp, GError **error)
 {
 	guchar *p, c;
 
@@ -277,7 +277,7 @@ camel_imapx_stream_atom(CamelIMAPXStream *is, guchar **data, guint *lenp, CamelE
 
 /* gets an atom, a quoted_string, or a literal */
 gint
-camel_imapx_stream_astring(CamelIMAPXStream *is, guchar **data, CamelException *ex)
+camel_imapx_stream_astring(CamelIMAPXStream *is, guchar **data, GError **error)
 {
 	guchar *p, *start;
 	guint len, inlen;
@@ -318,7 +318,7 @@ camel_imapx_stream_astring(CamelIMAPXStream *is, guchar **data, CamelException *
 
 /* check for NIL or (small) quoted_string or literal */
 gint
-camel_imapx_stream_nstring(CamelIMAPXStream *is, guchar **data, CamelException *ex)
+camel_imapx_stream_nstring(CamelIMAPXStream *is, guchar **data, GError **error)
 {
 	guchar *p, *start;
 	guint len, inlen;
@@ -362,7 +362,7 @@ camel_imapx_stream_nstring(CamelIMAPXStream *is, guchar **data, CamelException *
 
 /* parse an nstring as a stream */
 gint
-camel_imapx_stream_nstring_stream(CamelIMAPXStream *is, CamelStream **stream, CamelException *ex)
+camel_imapx_stream_nstring_stream(CamelIMAPXStream *is, CamelStream **stream, GError **error)
 /* throws IO,PARSE exception */
 {
 	guchar *token;
@@ -404,7 +404,7 @@ camel_imapx_stream_nstring_stream(CamelIMAPXStream *is, CamelStream **stream, Ca
 }
 
 guint32
-camel_imapx_stream_number(CamelIMAPXStream *is, CamelException *ex)
+camel_imapx_stream_number(CamelIMAPXStream *is, GError **error)
 {
 	guchar *token;
 	guint len;
@@ -418,7 +418,7 @@ camel_imapx_stream_number(CamelIMAPXStream *is, CamelException *ex)
 }
 
 gint
-camel_imapx_stream_text(CamelIMAPXStream *is, guchar **text, CamelException *ex)
+camel_imapx_stream_text(CamelIMAPXStream *is, guchar **text, GError **error)
 {
 	GByteArray *build = g_byte_array_new();
 	guchar *token;
@@ -460,7 +460,7 @@ camel_imapx_stream_text(CamelIMAPXStream *is, guchar **text, CamelException *ex)
 /* Get one token from the imap stream */
 camel_imapx_token_t
 /* throws IO,PARSE exception */
-camel_imapx_stream_token(CamelIMAPXStream *is, guchar **data, guint *len, CamelException *ex)
+camel_imapx_stream_token(CamelIMAPXStream *is, guchar **data, guint *len, GError **error)
 {
 	register guchar c, *p, *o, *oe;
 	guchar *e;
@@ -703,7 +703,7 @@ gint camel_imapx_stream_getl(CamelIMAPXStream *is, guchar **start, guint *len)
 
 /* skip the rest of the line of tokens */
 gint
-camel_imapx_stream_skip(CamelIMAPXStream *is, CamelException *ex)
+camel_imapx_stream_skip(CamelIMAPXStream *is, GError **error)
 {
 	gint tok;
 	guchar *token;

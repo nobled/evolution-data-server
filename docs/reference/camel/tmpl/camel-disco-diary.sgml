@@ -50,7 +50,7 @@ CamelDiscoDiary
 
 @store: 
 @filename: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -79,7 +79,7 @@ CamelDiscoDiary
 </para>
 
 @diary: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_disco_diary_uidmap_add ##### -->

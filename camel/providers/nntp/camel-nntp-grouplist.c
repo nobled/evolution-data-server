@@ -34,7 +34,7 @@
 #include "camel-nntp-resp-codes.h"
 
 static CamelNNTPGroupList *
-camel_nntp_get_grouplist_from_server (CamelNNTPStore *store, CamelException *ex)
+camel_nntp_get_grouplist_from_server (CamelNNTPStore *store, GError **error)
 {
 	gint status;
 	gboolean done = FALSE;
@@ -83,7 +83,7 @@ camel_nntp_get_grouplist_from_server (CamelNNTPStore *store, CamelException *ex)
 }
 
 static CamelNNTPGroupList*
-camel_nntp_get_grouplist_from_file (CamelNNTPStore *store, CamelException *ex)
+camel_nntp_get_grouplist_from_file (CamelNNTPStore *store, GError **error)
 {
 	gchar *root_dir = camel_nntp_store_get_toplevel_dir(CAMEL_NNTP_STORE(store));
 	gchar *grouplist_file = g_strdup_printf ("%s/grouplist", root_dir);
@@ -145,7 +145,7 @@ save_entry (CamelNNTPGroupListEntry *entry, FILE *fp)
 }
 
 void
-camel_nntp_grouplist_save (CamelNNTPGroupList *group_list, CamelException *ex)
+camel_nntp_grouplist_save (CamelNNTPGroupList *group_list, GError **error)
 {
 	FILE *fp;
 	gchar *root_dir = camel_nntp_store_get_toplevel_dir(CAMEL_NNTP_STORE(group_list->store));
@@ -188,7 +188,7 @@ camel_nntp_grouplist_free (CamelNNTPGroupList *group_list)
 }
 
 CamelNNTPGroupList*
-camel_nntp_grouplist_fetch (CamelNNTPStore *store, CamelException *ex)
+camel_nntp_grouplist_fetch (CamelNNTPStore *store, GError **error)
 {
 	CamelNNTPGroupList *list;
 
@@ -215,7 +215,7 @@ camel_nntp_grouplist_fetch (CamelNNTPStore *store, CamelException *ex)
 }
 
 gint
-camel_nntp_grouplist_update (CamelNNTPGroupList *group_list, CamelException *ex)
+camel_nntp_grouplist_update (CamelNNTPGroupList *group_list, GError **error)
 {
 	return 0;
 }

@@ -35,7 +35,6 @@
 #include "camel-disco-diary.h"
 #include "camel-disco-folder.h"
 #include "camel-disco-store.h"
-#include "camel-exception.h"
 #include "camel-file-utils.h"
 #include "camel-folder.h"
 #include "camel-operation.h"
@@ -259,21 +258,24 @@ diary_decode_folder (CamelDiscoDiary *diary)
 		return NULL;
 	folder = g_hash_table_lookup (diary->folders, name);
 	if (!folder) {
-		CamelException ex;
+		GError *error = NULL;
 		gchar *msg;
 
-		camel_exception_init (&ex);
-		folder = camel_store_get_folder (CAMEL_STORE (diary->store),
-						 name, 0, &ex);
+		folder = camel_store_get_folder (
+			CAMEL_STORE (diary->store), name, 0, &error);
 		if (folder)
 			g_hash_table_insert (diary->folders, name, folder);
 		else {
-			msg = g_strdup_printf (_("Could not open '%s':\n%s\nChanges made to this folder will not be resynchronized."),
-					       name, camel_exception_get_description (&ex));
-			camel_exception_clear (&ex);
-			camel_session_alert_user (camel_service_get_session (CAMEL_SERVICE (diary->store)),
-						  CAMEL_SESSION_ALERT_WARNING,
-						  msg, FALSE);
+			msg = g_strdup_printf (
+				_("Could not open '%s':\n%s\n"
+				  "Changes made to this folder "
+				  "will not be resynchronized."),
+				name, error->message);
+			g_error_free (error);
+			camel_session_alert_user (
+				camel_service_get_session (CAMEL_SERVICE (diary->store)),
+				CAMEL_SESSION_ALERT_WARNING,
+				msg, FALSE);
 			g_free (msg);
 			g_free (name);
 		}
@@ -291,11 +293,13 @@ close_folder (gpointer name, gpointer folder, gpointer data)
 }
 
 void
-camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
+camel_disco_diary_replay (CamelDiscoDiary *diary,
+                          GError **error)
 {
 	guint32 action;
 	off_t size;
 	gdouble pc;
+	GError *local_error = NULL;
 
 	d(printf("disco diary replay\n"));
 
@@ -305,7 +309,7 @@ camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
 	rewind (diary->file);
 
 	camel_operation_start (NULL, _("Resynchronizing with server"));
-	while (!camel_exception_is_set (ex)) {
+	while (local_error == NULL) {
 		pc = ftell (diary->file) / size;
 		camel_operation_progress (NULL, pc * 100);
 
@@ -326,7 +330,8 @@ camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
 				goto lose;
 
 			if (folder)
-				camel_disco_folder_expunge_uids (folder, uids, ex);
+				camel_disco_folder_expunge_uids (
+					folder, uids, &local_error);
 			free_uids (uids);
 			break;
 		}
@@ -355,7 +360,8 @@ camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
 			}
 			info = camel_folder_get_message_info (folder, uid);
 
-			camel_folder_append_message (folder, message, info, &ret_uid, ex);
+			camel_folder_append_message (
+				folder, message, info, &ret_uid, &local_error);
 			camel_folder_free_message_info (folder, info);
 
 			if (ret_uid) {
@@ -387,7 +393,9 @@ camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
 				continue;
 			}
 
-			camel_folder_transfer_messages_to (source, uids, destination, &ret_uids, delete_originals, ex);
+			camel_folder_transfer_messages_to (
+				source, uids, destination, &ret_uids,
+				delete_originals, &local_error);
 
 			if (ret_uids) {
 				for (i = 0; i < uids->len; i++) {
@@ -415,10 +423,14 @@ camel_disco_diary_replay (CamelDiscoDiary *diary, CamelException *ex)
 
 	/* Truncate the log */
 	ftruncate (fileno (diary->file), 0);
+
+	g_propagate_error (error, local_error);
 }
 
 CamelDiscoDiary *
-camel_disco_diary_new (CamelDiscoStore *store, const gchar *filename, CamelException *ex)
+camel_disco_diary_new (CamelDiscoStore *store,
+                       const gchar *filename,
+                       GError **error)
 {
 	CamelDiscoDiary *diary;
 
@@ -445,9 +457,11 @@ camel_disco_diary_new (CamelDiscoStore *store, const gchar *filename, CamelExcep
 	diary->file = g_fopen (filename, "a+b");
 	if (!diary->file) {
 		g_object_unref (diary);
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      "Could not open journal file: %s",
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			"Could not open journal file: %s",
+			g_strerror (errno));
 		return NULL;
 	}
 

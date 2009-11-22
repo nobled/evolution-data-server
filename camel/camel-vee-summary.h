@@ -28,7 +28,6 @@
 #define CAMEL_VEE_SUMMARY_H
 
 #include <camel/camel-folder-summary.h>
-#include <camel/camel-exception.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_VEE_SUMMARY \

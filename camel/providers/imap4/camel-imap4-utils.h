@@ -55,9 +55,9 @@ gchar camel_imap4_get_path_delim (struct _CamelIMAP4StoreSummary *s, const gchar
 
 gint camel_imap4_get_uid_set (struct _CamelIMAP4Engine *engine, struct _CamelFolderSummary *summary, GPtrArray *infos, gint cur, gsize linelen, gchar **set);
 
-void camel_imap4_utils_set_unexpected_token_error (CamelException *ex, struct _CamelIMAP4Engine *engine, struct _camel_imap4_token_t *token);
+void camel_imap4_utils_set_unexpected_token_error (GError **error, struct _CamelIMAP4Engine *engine, struct _camel_imap4_token_t *token);
 
-gint camel_imap4_parse_flags_list (struct _CamelIMAP4Engine *engine, guint32 *flags, CamelException *ex);
+gint camel_imap4_parse_flags_list (struct _CamelIMAP4Engine *engine, guint32 *flags, GError **error);
 
 /* Note: make sure these don't clash with any bit flags in camel-store.h */
 #define CAMEL_IMAP4_FOLDER_MARKED   (1 << 17)
@@ -70,7 +70,7 @@ typedef struct {
 } camel_imap4_list_t;
 
 gint camel_imap4_untagged_list (struct _CamelIMAP4Engine *engine, struct _CamelIMAP4Command *ic,
-			       guint32 index, struct _camel_imap4_token_t *token, CamelException *ex);
+			       guint32 index, struct _camel_imap4_token_t *token, GError **error);
 
 enum {
 	CAMEL_IMAP4_STATUS_UNKNOWN,
@@ -95,7 +95,7 @@ typedef struct {
 void camel_imap4_status_free (camel_imap4_status_t *status);
 
 gint camel_imap4_untagged_status (struct _CamelIMAP4Engine *engine, struct _CamelIMAP4Command *ic,
-				 guint32 index, struct _camel_imap4_token_t *token, CamelException *ex);
+				 guint32 index, struct _camel_imap4_token_t *token, GError **error);
 
 G_END_DECLS
 

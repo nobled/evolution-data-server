@@ -314,7 +314,7 @@ CamelImapStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -325,7 +325,7 @@ CamelImapStore
 
 @store: 
 @dest: 
-@ex: 
+@error: 
 @Returns: 
 
 

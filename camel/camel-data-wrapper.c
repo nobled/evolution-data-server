@@ -27,7 +27,6 @@
 #include <errno.h>
 
 #include "camel-data-wrapper.h"
-#include "camel-exception.h"
 #include "camel-mime-filter-basic.h"
 #include "camel-mime-filter-crlf.h"
 #include "camel-private.h"

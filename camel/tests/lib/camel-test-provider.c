@@ -1,7 +1,6 @@
 
 #include "camel-test-provider.h"
 #include "camel-test.h"
-#include "camel-exception.h"
 
 #include "camel-provider.h"
 

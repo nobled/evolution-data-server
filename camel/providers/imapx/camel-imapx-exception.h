@@ -11,7 +11,7 @@
 
 struct _CamelExceptionEnv {
 	struct _CamelExceptionEnv *parent;
-	CamelException *ex;
+	GError **error;
 	jmp_buf env;
 };
 
@@ -29,7 +29,7 @@ void camel_exception_done(struct _CamelExceptionEnv *env);
 void camel_exception_drop(struct _CamelExceptionEnv *env);
 
 /* user functions */
-void camel_exception_throw_ex(CamelException *ex) __attribute__ ((noreturn));
+void camel_exception_throw_ex(GError **error) __attribute__ ((noreturn));
 void camel_exception_throw(gint id, gchar *fmt, ...) __attribute__ ((noreturn));
 
 #endif

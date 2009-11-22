@@ -115,7 +115,7 @@ CamelGroupwiseStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -127,7 +127,7 @@ CamelGroupwiseStore
 @store: 
 @folder: 
 @flags: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION groupwise_store_set_current_folder ##### -->

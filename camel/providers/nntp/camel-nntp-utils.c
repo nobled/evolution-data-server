@@ -31,7 +31,7 @@
 
 static void
 get_XOVER_headers(CamelNNTPStore *nntp_store, CamelFolder *folder,
-		  gint first_message, gint last_message, CamelException *ex)
+		  gint first_message, gint last_message, GError **error)
 {
 	gint status;
 	CamelNNTPFolder *nntp_folder = CAMEL_NNTP_FOLDER (folder);
@@ -127,7 +127,7 @@ get_XOVER_headers(CamelNNTPStore *nntp_store, CamelFolder *folder,
 #if 0
 static GArray*
 get_HEAD_headers(CamelNNTPStore *nntp_store, CamelFolder *folder,
-		 gint first_message, gint last_message, CamelException *ex)
+		 gint first_message, gint last_message, GError **error)
 {
 	gint i;
 	gint status;
@@ -246,7 +246,7 @@ uid_num (CamelFolderSummary *summary, gint index)
 void
 camel_nntp_get_headers (CamelStore *store,
 			CamelNNTPFolder *nntp_folder,
-			CamelException *ex)
+			GError **error)
 {
 	CamelNNTPStore *nntp_store = CAMEL_NNTP_STORE (store);
 	CamelFolder *folder = CAMEL_FOLDER (nntp_folder);

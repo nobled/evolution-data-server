@@ -28,7 +28,6 @@
 #include <glib/gstdio.h>
 
 #include "camel-db.h"
-#include "camel-exception.h"
 #include "camel-private.h"
 #include "camel-session.h"
 #include "camel-vee-folder.h"
@@ -106,12 +105,12 @@ vee_store_finalize (GObject *object)
 	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
-static void
+static gboolean
 vee_store_construct (CamelService *service,
                      CamelSession *session,
                      CamelProvider *provider,
                      CamelURL *url,
-                     CamelException *ex)
+                     GError **error)
 {
 	CamelServiceClass *service_class;
 	CamelStore *store;
@@ -122,7 +121,8 @@ vee_store_construct (CamelService *service,
 
 	/* Chain up to parent's construct() method. */
 	service_class = CAMEL_SERVICE_CLASS (parent_class);
-	service_class->construct (service, session, provider, url, ex);
+	if (!service_class->construct (service, session, provider, url, error))
+		return FALSE;
 
 	/* Set up unmatched folder */
 #ifndef VEE_UNMATCHED_ENABLE
@@ -131,13 +131,15 @@ vee_store_construct (CamelService *service,
 	camel_vee_folder_construct (vee_store->folder_unmatched, store, CAMEL_UNMATCHED_NAME, _("Unmatched"), CAMEL_STORE_FOLDER_PRIVATE);
 	camel_db_create_vfolder (store->cdb_r, _("Unmatched"), NULL);
 #endif
+
+	return TRUE;
 }
 
 static CamelFolder *
 vee_store_get_folder (CamelStore *store,
                       const gchar *folder_name,
                       guint32 flags,
-                      CamelException *ex)
+                      GError **error)
 {
 	CamelVeeFolder *vf;
 	CamelFolder *folder;
@@ -171,11 +173,11 @@ vee_store_get_folder (CamelStore *store,
 	return (CamelFolder *)vf;
 }
 
-static void
+static gboolean
 vee_store_rename_folder (CamelStore *store,
                          const gchar *old,
                          const gchar *new,
-                         CamelException *ex)
+                         GError **error)
 {
 	CamelFolder *folder, *oldfolder;
 	gchar *p, *name;
@@ -183,17 +185,21 @@ vee_store_rename_folder (CamelStore *store,
 	d (printf ("vee rename folder '%s' '%s'\n", old, new));
 
 	if (strcmp (old, CAMEL_UNMATCHED_NAME) == 0) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
-				     _("Cannot rename folder: %s: Invalid operation"), old);
-		return;
+		g_set_error (
+			error, CAMEL_STORE_ERROR,
+			CAMEL_STORE_ERROR_NO_FOLDER,
+			_("Cannot rename folder: %s: Invalid operation"), old);
+		return FALSE;
 	}
 
 	/* See if it exists, for vfolders, all folders are in the folders hash */
 	oldfolder = camel_object_bag_get (store->folders, old);
 	if (oldfolder == NULL) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
-				     _("Cannot rename folder: %s: No such folder"), old);
-		return;
+		g_set_error (
+			error, CAMEL_STORE_ERROR,
+			CAMEL_STORE_ERROR_NO_FOLDER,
+			_("Cannot rename folder: %s: No such folder"), old);
+		return FALSE;
 	}
 
 	/* Check that new parents exist, if not, create dummy ones */
@@ -217,19 +223,24 @@ vee_store_rename_folder (CamelStore *store,
 	}
 
 	g_object_unref (oldfolder);
+
+	return TRUE;
 }
 
-static void
+static gboolean
 vee_store_delete_folder (CamelStore *store,
                          const gchar *folder_name,
-                         CamelException *ex)
+                         GError **error)
 {
 	CamelFolder *folder;
 
 	if (strcmp (folder_name, CAMEL_UNMATCHED_NAME) == 0) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
-				     _("Cannot delete folder: %s: Invalid operation"), folder_name);
-		return;
+		g_set_error (
+			error, CAMEL_STORE_ERROR,
+			CAMEL_STORE_ERROR_NO_FOLDER,
+			_("Cannot delete folder: %s: Invalid operation"),
+			folder_name);
+		return FALSE;
 	}
 
 	folder = camel_object_bag_get (store->folders, folder_name);
@@ -250,16 +261,22 @@ vee_store_delete_folder (CamelStore *store,
 
 		g_object_unref (folder);
 	} else {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_STORE_NO_FOLDER,
-				     _("Cannot delete folder: %s: No such folder"), folder_name);
+		g_set_error (
+			error, CAMEL_STORE_ERROR,
+			CAMEL_STORE_ERROR_NO_FOLDER,
+			_("Cannot delete folder: %s: No such folder"),
+			folder_name);
+		return FALSE;
 	}
+
+	return TRUE;
 }
 
 static CamelFolderInfo *
 vee_store_get_folder_info (CamelStore *store,
                            const gchar *top,
                            guint32 flags,
-                           CamelException *ex)
+                           GError **error)
 {
 	CamelFolderInfo *info, *res = NULL, *tail;
 	GPtrArray *folders;
@@ -390,14 +407,14 @@ vee_store_get_folder_info (CamelStore *store,
 
 static CamelFolder *
 vee_store_get_trash (CamelStore *store,
-                     CamelException *ex)
+                     GError **error)
 {
 	return NULL;
 }
 
 static CamelFolder *
 vee_store_get_junk (CamelStore *store,
-                    CamelException *ex)
+                    GError **error)
 {
 	return NULL;
 }

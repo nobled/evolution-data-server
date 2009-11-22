@@ -98,18 +98,6 @@ static gint write_n(gint fd, gpointer buffer, gint inlen)
 	return inlen;
 }
 
-void
-camel_exception_setv (CamelException *ex, ExceptionId id, const gchar *format, ...)
-{
-	;
-}
-
-void
-camel_exception_clear (CamelException *exception)
-{
-	;
-}
-
 gchar *gettext (const gchar *msgid);
 
 gchar *

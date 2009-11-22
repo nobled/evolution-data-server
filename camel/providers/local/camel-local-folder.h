@@ -89,7 +89,7 @@ struct _CamelLocalFolderClass {
 	CamelLocalSummary *(*create_summary)(CamelLocalFolder *lf, const gchar *path, const gchar *folder, CamelIndex *index);
 
 	/* Lock the folder for my operations */
-	gint (*lock)(CamelLocalFolder *, CamelLockType type, CamelException *ex);
+	gint (*lock)(CamelLocalFolder *, CamelLockType type, GError **error);
 
 	/* Unlock the folder for my operations */
 	void (*unlock)(CamelLocalFolder *);
@@ -98,13 +98,13 @@ struct _CamelLocalFolderClass {
 /* public methods */
 /* flags are taken from CAMEL_STORE_FOLDER_* flags */
 CamelLocalFolder *camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store,
-					       const gchar *full_name, guint32 flags, CamelException *ex);
+					       const gchar *full_name, guint32 flags, GError **error);
 
 GType camel_local_folder_get_type(void);
 
 /* Lock the folder for internal use.  May be called repeatedly */
 /* UNIMPLEMENTED */
-gint camel_local_folder_lock(CamelLocalFolder *lf, CamelLockType type, CamelException *ex);
+gint camel_local_folder_lock(CamelLocalFolder *lf, CamelLockType type, GError **error);
 gint camel_local_folder_unlock(CamelLocalFolder *lf);
 
 G_END_DECLS

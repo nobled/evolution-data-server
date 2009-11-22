@@ -8,7 +8,7 @@ gint
 main (gint argc, gchar *argv [])
 {
 	CamelSession *session;
-	CamelException *ex;
+	GError **error;
 	gchar *uri = NULL;
 	CamelService *service;
 

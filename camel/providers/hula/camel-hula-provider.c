@@ -95,7 +95,7 @@ CamelServiceAuthType camel_hula_password_authtype = {
 
 static gint
 hula_auto_detect_cb (CamelURL *url, GHashTable **auto_detected,
-			 CamelException *ex)
+			 GError **error)
 {
 	*auto_detected = g_hash_table_new (g_str_hash, g_str_equal);
 

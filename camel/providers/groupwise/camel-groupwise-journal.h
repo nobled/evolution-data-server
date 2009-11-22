@@ -84,9 +84,9 @@ CamelOfflineJournal *camel_groupwise_journal_new (struct _CamelGroupwiseFolder *
 
 /* interfaces for adding a journal entry */
 void camel_groupwise_journal_append (CamelGroupwiseJournal *journal, CamelMimeMessage *message, const CamelMessageInfo *mi,
-				     gchar **appended_uid, CamelException *ex);
+				     gchar **appended_uid, GError **error);
 void camel_groupwise_journal_transfer (CamelGroupwiseJournal *journal, CamelGroupwiseFolder *source_folder, CamelMimeMessage *message,
-				       const CamelMessageInfo *mi, const gchar *orginal_uid, gchar **transferred_uid, CamelException *ex);
+				       const CamelMessageInfo *mi, const gchar *orginal_uid, gchar **transferred_uid, GError **error);
 
 G_END_DECLS
 

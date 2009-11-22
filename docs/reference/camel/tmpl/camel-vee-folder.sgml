@@ -98,7 +98,7 @@ CamelVeeFolder
 
 @vf: 
 @sub: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -144,6 +144,6 @@ CamelVeeFolder
 </para>
 
 @vf: 
-@ex: 
+@error: 
 
 

@@ -37,13 +37,13 @@ typedef struct _CamelIMAP4Literal CamelIMAP4Literal;
 typedef gint (* CamelIMAP4PlusCallback) (struct _CamelIMAP4Engine *engine,
 					CamelIMAP4Command *ic,
 					const guchar *linebuf,
-					gsize linelen, CamelException *ex);
+					gsize linelen, GError **error);
 
 typedef gint (* CamelIMAP4UntaggedCallback) (struct _CamelIMAP4Engine *engine,
 					    CamelIMAP4Command *ic,
 					    guint32 index,
 					    struct _camel_imap4_token_t *token,
-					    CamelException *ex);
+					    GError **error);
 
 typedef void (* CamelIMAP4CommandReset) (CamelIMAP4Command *ic, gpointer user_data);
 

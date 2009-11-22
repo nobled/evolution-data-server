@@ -56,7 +56,7 @@ static struct {
    shoudl this be part of imapx-driver? */
 /* mabye this should be a stream op? */
 void
-imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_flagsp, CamelException *ex)
+imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_flagsp, GError **error)
 /* throws IO,PARSE exception */
 {
 	gint tok, i;
@@ -152,7 +152,7 @@ struct {
 };
 
 struct _capability_info *
-imap_parse_capability(CamelIMAPXStream *stream, CamelException *ex)
+imap_parse_capability(CamelIMAPXStream *stream, GError **error)
 {
 	gint tok, len, i;
 	guchar *token, *p, c, *temp;
@@ -203,7 +203,7 @@ void imap_free_capability(struct _capability_info *cinfo)
 }
 
 struct _CamelIMAPXNamespaceList *
-imap_parse_namespace_list (CamelIMAPXStream *stream, CamelException *ex)
+imap_parse_namespace_list (CamelIMAPXStream *stream, GError **error)
 {
 	CamelIMAPXStoreNamespace *namespaces[3], *node, *tail;
 	CamelIMAPXNamespaceList *nsl = NULL;
@@ -443,7 +443,7 @@ imap_free_body(struct _CamelMessageContentInfo *cinfo)
 }
 
 void
-imap_parse_param_list(CamelIMAPXStream *is, struct _camel_header_param **plist, CamelException *ex)
+imap_parse_param_list(CamelIMAPXStream *is, struct _camel_header_param **plist, GError **error)
 {
 	gint tok, len;
 	guchar *token, *param;
@@ -469,7 +469,7 @@ imap_parse_param_list(CamelIMAPXStream *is, struct _camel_header_param **plist, 
 }
 
 struct _CamelContentDisposition *
-imap_parse_ext_optional(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_ext_optional(CamelIMAPXStream *is, GError **error)
 {
 	gint tok, len;
 	guchar *token;
@@ -555,7 +555,7 @@ imap_parse_ext_optional(CamelIMAPXStream *is, CamelException *ex)
 }
 
 struct _CamelMessageContentInfo *
-imap_parse_body_fields(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_body_fields(CamelIMAPXStream *is, GError **error)
 {
 	guchar *token, *type;
 	struct _CamelMessageContentInfo *cinfo;
@@ -613,7 +613,7 @@ error:
 }
 
 struct _camel_header_address *
-imap_parse_address_list(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_address_list(CamelIMAPXStream *is, GError **error)
 /* throws PARSE,IO exception */
 {
 	gint tok, len;
@@ -690,7 +690,7 @@ imap_parse_address_list(CamelIMAPXStream *is, CamelException *ex)
 }
 
 struct _CamelMessageInfo *
-imap_parse_envelope(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_envelope(CamelIMAPXStream *is, GError **error)
 {
 	gint tok, len;
 	guchar *token;
@@ -800,7 +800,7 @@ imap_parse_envelope(CamelIMAPXStream *is, CamelException *ex)
 }
 
 struct _CamelMessageContentInfo *
-imap_parse_body(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_body(CamelIMAPXStream *is, GError **error)
 {
 	gint tok, len;
 	guchar *token;
@@ -955,7 +955,7 @@ imap_parse_body(CamelIMAPXStream *is, CamelException *ex)
 }
 
 gchar *
-imap_parse_section(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_section(CamelIMAPXStream *is, GError **error)
 {
 	gint tok, len;
 	guchar *token;
@@ -1098,7 +1098,7 @@ imap_dump_fetch(struct _fetch_info *finfo)
 }
 
 struct _fetch_info *
-imap_parse_fetch(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 {
 	gint tok, len;
 	guchar *token, *p, c;
@@ -1201,7 +1201,7 @@ imap_parse_fetch(CamelIMAPXStream *is, CamelException *ex)
 /* rfc 2060 section 7.1 Status Responses */
 /* shoudl this start after [ or before the [? token_unget anyone? */
 struct _status_info *
-imap_parse_status(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_status(CamelIMAPXStream *is, GError **error)
 {
 	gint tok, len;
 	guchar *token;
@@ -1340,7 +1340,7 @@ static struct {
 };
 
 struct _list_info *
-imap_parse_list(CamelIMAPXStream *is, CamelException *ex)
+imap_parse_list(CamelIMAPXStream *is, GError **error)
 /* throws io, parse */
 {
 	gint tok, len, i;

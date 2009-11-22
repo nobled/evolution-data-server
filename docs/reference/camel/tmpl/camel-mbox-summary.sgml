@@ -81,7 +81,7 @@ CamelMboxSummary
 @changeinfo: 
 @fd: 
 @fdout: 
-@ex: 
+@error: 
 @Returns: 
 
 

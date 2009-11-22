@@ -143,7 +143,9 @@ hooks_free(CamelHookList *hooks)
 /* CamelObject base methods */
 
 static gint
-cobject_getv(CamelObject *o, CamelException *ex, CamelArgGetV *args)
+cobject_getv (CamelObject *o,
+              GError **error,
+              CamelArgGetV *args)
 {
 	CamelObjectClass *class;
 	gint i;
@@ -179,7 +181,9 @@ cobject_getv(CamelObject *o, CamelException *ex, CamelArgGetV *args)
 }
 
 static gint
-cobject_setv(CamelObject *o, CamelException *ex, CamelArgV *args)
+cobject_setv (CamelObject *o,
+              GError **error,
+              CamelArgV *args)
 {
 	gint i;
 	guint32 tag;
@@ -557,6 +561,19 @@ camel_object_get_type(void)
 	return type;
 }
 
+GQuark
+camel_error_quark (void)
+{
+	static GQuark quark = 0;
+
+	if (G_UNLIKELY (quark == 0)) {
+		const gchar *string = "camel-error-quark";
+		quark = g_quark_from_static_string (string);
+	}
+
+	return quark;
+}
+
 static CamelHookPair *
 co_find_pair (CamelObjectClass *class,
               const gchar *name)
@@ -888,7 +905,7 @@ trigger:
 /* get/set arg methods */
 gint
 camel_object_set (gpointer vo,
-                  CamelException *ex, ...)
+                  GError **error, ...)
 {
 	CamelObjectClass *class;
 	CamelArgV args;
@@ -897,15 +914,15 @@ camel_object_set (gpointer vo,
 
 	g_return_val_if_fail(CAMEL_IS_OBJECT(o), -1);
 
-	camel_argv_start(&args, ex);
+	camel_argv_start(&args, error);
 
 	class = CAMEL_OBJECT_GET_CLASS (o);
 	g_return_val_if_fail (class->setv != NULL, -1);
 
 	while (camel_argv_build(&args) && ret == 0)
-		ret = class->setv(o, ex, &args);
+		ret = class->setv(o, error, &args);
 	if (ret == 0)
-		ret = class->setv(o, ex, &args);
+		ret = class->setv(o, error, &args);
 
 	camel_argv_end(&args);
 
@@ -914,7 +931,7 @@ camel_object_set (gpointer vo,
 
 gint
 camel_object_setv (gpointer vo,
-                   CamelException *ex,
+                   GError **error,
                    CamelArgV *args)
 {
 	CamelObjectClass *class;
@@ -924,12 +941,12 @@ camel_object_setv (gpointer vo,
 	class = CAMEL_OBJECT_GET_CLASS (vo);
 	g_return_val_if_fail (class->setv != NULL, -1);
 
-	return class->setv (vo, ex, args);
+	return class->setv (vo, error, args);
 }
 
 gint
 camel_object_get (gpointer vo,
-                  CamelException *ex,
+                  GError **error,
                   ...)
 {
 	CamelObjectClass *class;
@@ -939,15 +956,15 @@ camel_object_get (gpointer vo,
 
 	g_return_val_if_fail(CAMEL_IS_OBJECT(o), -1);
 
-	camel_argv_start(&args, ex);
+	camel_argv_start(&args, error);
 
 	class = CAMEL_OBJECT_GET_CLASS (o);
 	g_return_val_if_fail (class->getv != NULL, -1);
 
 	while (camel_arggetv_build(&args) && ret == 0)
-		ret = class->getv(o, ex, &args);
+		ret = class->getv(o, error, &args);
 	if (ret == 0)
-		ret = class->getv(o, ex, &args);
+		ret = class->getv(o, error, &args);
 
 	camel_argv_end(&args);
 
@@ -956,7 +973,7 @@ camel_object_get (gpointer vo,
 
 gpointer
 camel_object_get_ptr (gpointer vo,
-                      CamelException *ex,
+                      GError **error,
                       gint tag)
 {
 	CamelObjectClass *class;
@@ -978,7 +995,7 @@ camel_object_get_ptr (gpointer vo,
 	class = CAMEL_OBJECT_GET_CLASS (o);
 	g_return_val_if_fail (class->getv != NULL, NULL);
 
-	ret = class->getv(o, ex, &args);
+	ret = class->getv(o, error, &args);
 	if (ret != 0)
 		return NULL;
 	else
@@ -987,7 +1004,8 @@ camel_object_get_ptr (gpointer vo,
 
 gint
 camel_object_get_int (gpointer vo,
-                      CamelException *ex, gint tag)
+                      GError **error,
+                      gint tag)
 {
 	CamelObjectClass *class;
 	CamelObject *o = vo;
@@ -1007,7 +1025,7 @@ camel_object_get_int (gpointer vo,
 	class = CAMEL_OBJECT_GET_CLASS (o);
 	g_return_val_if_fail (class->getv != NULL, 0);
 
-	ret = class->getv(o, ex, &args);
+	ret = class->getv(o, error, &args);
 	if (ret != 0)
 		return 0;
 	else
@@ -1016,7 +1034,7 @@ camel_object_get_int (gpointer vo,
 
 gint
 camel_object_getv (gpointer vo,
-                   CamelException *ex,
+                   GError **error,
                    CamelArgGetV *args)
 {
 	CamelObjectClass *class;
@@ -1026,7 +1044,7 @@ camel_object_getv (gpointer vo,
 	class = CAMEL_OBJECT_GET_CLASS (vo);
 	g_return_val_if_fail (class->getv != NULL, -1);
 
-	return class->getv (vo, ex, args);
+	return class->getv (vo, error, args);
 }
 
 /* NB: If this doesn't return NULL, then you must unget_hooks when done */

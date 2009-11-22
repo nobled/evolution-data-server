@@ -36,7 +36,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-exception.h"
 #include "camel-mime-filter-canon.h"
 #include "camel-mime-filter-crlf.h"
 #include "camel-mime-message.h"
@@ -586,7 +585,7 @@ write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 /**
  * camel_multipart_signed_get_content_stream:
  * @mps: a #CamlMultipartSigned object
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Get the raw signed content stream of the multipart/signed MIME part
  * suitable for use with verification of the signature.
@@ -594,7 +593,8 @@ write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
  * Returns: the signed content stream
  **/
 CamelStream *
-camel_multipart_signed_get_content_stream(CamelMultipartSigned *mps, CamelException *ex)
+camel_multipart_signed_get_content_stream (CamelMultipartSigned *mps,
+                                           GError **error)
 {
 	CamelStream *constream;
 
@@ -608,7 +608,10 @@ camel_multipart_signed_get_content_stream(CamelMultipartSigned *mps, CamelExcept
 		CamelMimeFilter *canon_filter;
 
 		if (mps->start1 == -1 && parse_content(mps) == -1) {
-			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, _("parse error"));
+			g_set_error (
+				error, CAMEL_ERROR,
+				CAMEL_ERROR_SYSTEM,
+				_("parse error"));
 			return NULL;
 		}
 

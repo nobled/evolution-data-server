@@ -77,7 +77,7 @@ camel-url
 </para>
 
 @url_string: 
-@ex: 
+@error: 
 @Returns: 
 
 

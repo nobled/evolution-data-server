@@ -23,7 +23,7 @@ camel-nntp-auth
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 

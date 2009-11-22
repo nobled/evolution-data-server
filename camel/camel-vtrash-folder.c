@@ -30,7 +30,6 @@
 #include <glib/gi18n-lib.h>
 
 #include "camel-db.h"
-#include "camel-exception.h"
 #include "camel-mime-message.h"
 #include "camel-private.h"
 #include "camel-store.h"
@@ -66,12 +65,14 @@ struct _transfer_data {
 static gpointer parent_class;
 
 static void
-transfer_messages(CamelFolder *folder, struct _transfer_data *md, CamelException *ex)
+transfer_messages (CamelFolder *folder,
+                   struct _transfer_data *md,
+                   GError **error)
 {
 	gint i;
 
-	if (!camel_exception_is_set (ex))
-		camel_folder_transfer_messages_to(md->folder, md->uids, md->dest, NULL, md->delete, ex);
+	camel_folder_transfer_messages_to (
+		md->folder, md->uids, md->dest, NULL, md->delete, error);
 
 	for (i=0;i<md->uids->len;i++)
 		g_free(md->uids->pdata[i]);
@@ -83,7 +84,7 @@ transfer_messages(CamelFolder *folder, struct _transfer_data *md, CamelException
 /* This entire code will be useless, since we sync the counts always. */
 static gint
 vtrash_folder_getv (CamelObject *object,
-                    CamelException *ex,
+                    GError **error,
                     CamelArgGetV *args)
 {
 	CamelFolder *folder = (CamelFolder *)object;
@@ -167,28 +168,30 @@ vtrash_folder_getv (CamelObject *object,
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, ex, args);
+	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, error, args);
 }
 
-static void
+static gboolean
 vtrash_folder_append_message (CamelFolder *folder,
                               CamelMimeMessage *message,
                               const CamelMessageInfo *info,
                               gchar **appended_uid,
-                              CamelException *ex)
+                              GError **error)
 {
-	camel_exception_setv (
-		ex, CAMEL_EXCEPTION_SYSTEM, "%s",
+	g_set_error (
+		error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM, "%s",
 		_(vdata[((CamelVTrashFolder *)folder)->type].error_copy));
+
+	return FALSE;
 }
 
-static void
+static gboolean
 vtrash_folder_transfer_messages_to (CamelFolder *source,
                                     GPtrArray *uids,
                                     CamelFolder *dest,
                                     GPtrArray **transferred_uids,
                                     gboolean delete_originals,
-                                    CamelException *ex)
+                                    GError **error)
 {
 	CamelVeeMessageInfo *mi;
 	gint i;
@@ -208,15 +211,16 @@ vtrash_folder_transfer_messages_to (CamelFolder *source,
 	if (CAMEL_IS_VTRASH_FOLDER (dest)) {
 		/* Copy to trash is meaningless. */
 		if (!delete_originals) {
-			camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, "%s",
-					     _(vdata[((CamelVTrashFolder *)dest)->type].error_copy));
-			return;
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM, "%s",
+				_(vdata[((CamelVTrashFolder *)dest)->type].error_copy));
+			return FALSE;
 		}
 
 		/* Move to trash is the same as setting the message flag */
 		for (i = 0; i < uids->len; i++)
 			camel_folder_set_message_flags(source, uids->pdata[i], ((CamelVTrashFolder *)dest)->bit, ~0);
-		return;
+		return TRUE;
 	}
 
 	/* Moving/Copying from the trash to the original folder = undelete.
@@ -257,9 +261,11 @@ vtrash_folder_transfer_messages_to (CamelFolder *source,
 	}
 
 	if (batch) {
-		g_hash_table_foreach(batch, (GHFunc)transfer_messages, ex);
+		g_hash_table_foreach(batch, (GHFunc)transfer_messages, error);
 		g_hash_table_destroy(batch);
 	}
+
+	return TRUE;
 }
 
 static void

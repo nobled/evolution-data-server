@@ -28,35 +28,27 @@
 
 #include "camel-digest-folder.h"
 #include "camel-digest-store.h"
-#include "camel-exception.h"
 #include "camel-private.h"
 
 #define d(x)
 
-static CamelFolder *digest_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, CamelException *ex);
-static void digest_delete_folder (CamelStore *store, const gchar *folder_name, CamelException *ex);
-static void digest_rename_folder (CamelStore *store, const gchar *old, const gchar *new, CamelException *ex);
-static CamelFolder *digest_get_trash  (CamelStore *store, CamelException *ex);
-static CamelFolder *digest_get_junk  (CamelStore *store, CamelException *ex);
+static CamelFolder *digest_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, GError **error);
+static gboolean digest_delete_folder (CamelStore *store, const gchar *folder_name, GError **error);
+static gboolean digest_rename_folder (CamelStore *store, const gchar *old, const gchar *new, GError **error);
+static CamelFolder *digest_get_trash  (CamelStore *store, GError **error);
+static CamelFolder *digest_get_junk  (CamelStore *store, GError **error);
 
-static CamelFolderInfo *digest_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, CamelException *ex);
+static CamelFolderInfo *digest_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, GError **error);
 
-static gint digest_setv (CamelObject *object, CamelException *ex, CamelArgV *args);
-static gint digest_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args);
 
 static gpointer parent_class;
 
 static void
 digest_store_class_init (CamelDigestStoreClass *class)
 {
-	CamelObjectClass *camel_object_class;
 	CamelStoreClass *store_class;
 
 	parent_class = g_type_class_peek_parent (class);
-
-	camel_object_class = CAMEL_OBJECT_CLASS (class);
-	camel_object_class->setv = digest_setv;
-	camel_object_class->getv = digest_getv;
 
 	store_class = CAMEL_STORE_CLASS (class);
 	store_class->get_folder = digest_get_folder;
@@ -96,20 +88,6 @@ camel_digest_store_get_type (void)
 	return type;
 }
 
-static gint
-digest_setv (CamelObject *object, CamelException *ex, CamelArgV *args)
-{
-	/* CamelDigestStore doesn't currently have anything to set */
-	return CAMEL_OBJECT_CLASS (parent_class)->setv (object, ex, args);
-}
-
-static gint
-digest_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args)
-{
-	/* CamelDigestStore doesn't currently have anything to get */
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, ex, args);
-}
-
 /**
  * camel_digest_store_new:
  * @url:
@@ -135,37 +113,50 @@ camel_digest_store_new (const gchar *url)
 }
 
 static CamelFolder *
-digest_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, CamelException *ex)
+digest_get_folder (CamelStore *store,
+                   const gchar *folder_name,
+                   guint32 flags,
+                   GError **error)
 {
 	return NULL;
 }
 
 static CamelFolder *
-digest_get_trash (CamelStore *store, CamelException *ex)
+digest_get_trash (CamelStore *store,
+                  GError **error)
 {
 	return NULL;
 }
 
 static CamelFolder *
-digest_get_junk (CamelStore *store, CamelException *ex)
+digest_get_junk (CamelStore *store,
+                 GError **error)
 {
 	return NULL;
 }
 
 static CamelFolderInfo *
-digest_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, CamelException *ex)
+digest_get_folder_info (CamelStore *store,
+                        const gchar *top,
+                        guint32 flags,
+                        GError **error)
 {
 	return NULL;
 }
 
-static void
-digest_delete_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
+static gboolean
+digest_delete_folder (CamelStore *store,
+                      const gchar *folder_name,
+                      GError **error)
 {
-
+	return TRUE;
 }
 
-static void
-digest_rename_folder (CamelStore *store, const gchar *old, const gchar *new, CamelException *ex)
+static gboolean
+digest_rename_folder (CamelStore *store,
+                      const gchar *old,
+                      const gchar *new,
+                      GError **error)
 {
-
+	return TRUE;
 }

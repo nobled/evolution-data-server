@@ -25,7 +25,6 @@
 
 //#include "camel-imap-types.h"
 #include <camel/camel-folder-summary.h>
-#include <camel/camel-exception.h>
 
 #define CAMEL_IMAPX_SUMMARY(obj)         CAMEL_CHECK_CAST (obj, camel_imapx_summary_get_type (), CamelIMAPXSummary)
 #define CAMEL_IMAPX_SUMMARY_CLASS(klass) CAMEL_CHECK_CLASS_CAST (klass, camel_imapx_summary_get_type (), CamelIMAPXSummaryClass)

@@ -31,7 +31,7 @@
 #include "camel-nntp-resp-codes.h"
 
 gint
-camel_nntp_auth_authenticate (CamelNNTPStore *store, CamelException *ex)
+camel_nntp_auth_authenticate (CamelNNTPStore *store, GError **error)
 {
 	CamelService *service = CAMEL_SERVICE (store);
 	CamelSession *session = camel_service_get_session (service);

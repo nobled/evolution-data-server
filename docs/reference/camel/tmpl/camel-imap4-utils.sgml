@@ -120,7 +120,7 @@ camel-imap4-utils
 
 </para>
 
-@ex: 
+@error: 
 @engine: 
 @token: 
 
@@ -132,7 +132,7 @@ camel-imap4-utils
 
 @engine: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -168,7 +168,7 @@ camel-imap4-utils
 @ic: 
 @index: 
 @token: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -206,7 +206,7 @@ camel-imap4-utils
 @ic: 
 @index: 
 @token: 
-@ex: 
+@error: 
 @Returns: 
 
 

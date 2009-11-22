@@ -415,7 +415,7 @@ camel_imap4_get_uid_set (CamelIMAP4Engine *engine, CamelFolderSummary *summary, 
 }
 
 void
-camel_imap4_utils_set_unexpected_token_error (CamelException *ex, CamelIMAP4Engine *engine, camel_imap4_token_t *token)
+camel_imap4_utils_set_unexpected_token_error (GError **error, CamelIMAP4Engine *engine, camel_imap4_token_t *token)
 {
 	GString *errmsg;
 
@@ -476,7 +476,7 @@ static struct {
 };
 
 gint
-camel_imap4_parse_flags_list (CamelIMAP4Engine *engine, guint32 *flags, CamelException *ex)
+camel_imap4_parse_flags_list (CamelIMAP4Engine *engine, guint32 *flags, GError **error)
 {
 	camel_imap4_token_t token;
 	guint32 new = 0;
@@ -534,7 +534,7 @@ static struct {
 };
 
 gint
-camel_imap4_untagged_list (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, CamelException *ex)
+camel_imap4_untagged_list (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, GError **error)
 {
 	GPtrArray *array = ic->user_data;
 	camel_imap4_list_t *list;
@@ -661,7 +661,7 @@ camel_imap4_status_free (camel_imap4_status_t *status)
 }
 
 gint
-camel_imap4_untagged_status (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, CamelException *ex)
+camel_imap4_untagged_status (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, GError **error)
 {
 	camel_imap4_status_attr_t *attr, *tail, *list = NULL;
 	GPtrArray *array = ic->user_data;

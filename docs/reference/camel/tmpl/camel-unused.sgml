@@ -264,6 +264,12 @@ camel-types
 @instance: 
 @g_type: 
 
+<!-- ##### MACRO CAMEL_EXCEPTION_INITIALISER ##### -->
+<para>
+
+</para>
+
+
 <!-- ##### MACRO CAMEL_GROUPWISE_FOLDER_LOCK ##### -->
 <para>
 
@@ -402,6 +408,12 @@ camel-types
 
 
 <!-- ##### MACRO CAMEL_OBJECT_TYPE ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### STRUCT CamelException ##### -->
 <para>
 
 </para>
@@ -664,6 +676,12 @@ camel-types
 </para>
 
 
+<!-- ##### ENUM ExceptionId ##### -->
+<para>
+
+</para>
+
+
 <!-- ##### MACRO NI_MAXHOST ##### -->
 <para>
 
@@ -714,6 +732,84 @@ camel-types
 
 @context: 
 @session: 
+
+<!-- ##### FUNCTION camel_exception_clear ##### -->
+<para>
+
+</para>
+
+@ex: 
+
+<!-- ##### FUNCTION camel_exception_free ##### -->
+<para>
+
+</para>
+
+@ex: 
+
+<!-- ##### FUNCTION camel_exception_get_description ##### -->
+<para>
+
+</para>
+
+@ex: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_exception_get_id ##### -->
+<para>
+
+</para>
+
+@ex: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_exception_init ##### -->
+<para>
+
+</para>
+
+@ex: 
+
+<!-- ##### MACRO camel_exception_is_set ##### -->
+<para>
+
+</para>
+
+@ex: 
+
+<!-- ##### FUNCTION camel_exception_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+<!-- ##### FUNCTION camel_exception_set ##### -->
+<para>
+
+</para>
+
+@ex: 
+@id: 
+@desc: 
+
+<!-- ##### FUNCTION camel_exception_setv ##### -->
+<para>
+
+</para>
+
+@ex: 
+@id: 
+@format: 
+@Varargs: 
+
+<!-- ##### FUNCTION camel_exception_xfer ##### -->
+<para>
+
+</para>
+
+@ex_dst: 
+@ex_src: 
 
 <!-- ##### FUNCTION camel_file_util_decode_size_t ##### -->
 <para>

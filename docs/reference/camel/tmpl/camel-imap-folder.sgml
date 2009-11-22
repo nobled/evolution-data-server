@@ -40,7 +40,7 @@ CamelImapFolder
 @parent: 
 @folder_name: 
 @folder_dir: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -51,7 +51,8 @@ CamelImapFolder
 
 @folder: 
 @response: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_imap_folder_changed ##### -->
@@ -62,7 +63,8 @@ CamelImapFolder
 @folder: 
 @exists: 
 @expunged: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_imap_folder_fetch_data ##### -->
@@ -74,7 +76,7 @@ CamelImapFolder
 @uid: 
 @section_text: 
 @cache_only: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -87,7 +89,8 @@ CamelImapFolder
 @message: 
 @info: 
 @appended_uid: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION imap_transfer_resyncing ##### -->
@@ -100,7 +103,8 @@ CamelImapFolder
 @dest: 
 @transferred_uids: 
 @delete_originals: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION imap_expunge_uids_resyncing ##### -->
@@ -110,6 +114,7 @@ CamelImapFolder
 
 @folder: 
 @uids: 
-@ex: 
+@error: 
+@Returns: 
 
 

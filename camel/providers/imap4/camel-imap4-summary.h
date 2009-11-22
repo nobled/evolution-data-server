@@ -102,7 +102,7 @@ void camel_imap4_summary_set_uidvalidity (CamelFolderSummary *summary, guint32 u
 
 void camel_imap4_summary_expunge (CamelFolderSummary *summary, gint seqid);
 
-gint camel_imap4_summary_flush_updates (CamelFolderSummary *summary, CamelException *ex);
+gint camel_imap4_summary_flush_updates (CamelFolderSummary *summary, GError **error);
 
 G_END_DECLS
 

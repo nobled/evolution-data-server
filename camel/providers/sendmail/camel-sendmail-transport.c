@@ -42,7 +42,7 @@ static gchar *get_name (CamelService *service, gboolean brief);
 static gboolean sendmail_send_to (CamelTransport *transport,
 				  CamelMimeMessage *message,
 				  CamelAddress *from, CamelAddress *recipients,
-				  CamelException *ex);
+				  GError **error);
 
 static void
 sendmail_transport_class_init (CamelSendmailTransportClass *class)
@@ -76,9 +76,11 @@ camel_sendmail_transport_get_type (void)
 }
 
 static gboolean
-sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
-		  CamelAddress *from, CamelAddress *recipients,
-		  CamelException *ex)
+sendmail_send_to (CamelTransport *transport,
+                  CamelMimeMessage *message,
+                  CamelAddress *from,
+                  CamelAddress *recipients,
+                  GError **error)
 {
 	const gchar *from_addr, *addr, **argv;
 	gint i, len, fd[2], nullfd, wstat;
@@ -104,8 +106,9 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 
 	for (i = 0; i < len; i++) {
 		if (!camel_internet_address_get (CAMEL_INTERNET_ADDRESS (recipients), i, NULL, &addr)) {
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Could not parse recipient list"));
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Could not parse recipient list"));
 			g_free (argv);
 			return FALSE;
 		}
@@ -121,10 +124,11 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	camel_header_raw_extract (header_queue, &bcc_queue, "Bcc");
 
 	if (pipe (fd) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not create pipe to sendmail: "
-					"%s: mail not sent"),
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not create pipe to sendmail: %s: "
+			  "mail not sent"), g_strerror (errno));
 
 		/* restore the bcc headers */
 		camel_header_raw_append_queue (header_queue, &bcc_queue);
@@ -142,10 +146,11 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	pid = fork ();
 	switch (pid) {
 	case -1:
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not fork sendmail: "
-					"%s: mail not sent"),
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not fork sendmail: %s: "
+			  "mail not sent"), g_strerror (errno));
 		close (fd[0]);
 		close (fd[1]);
 		sigprocmask (SIG_SETMASK, &omask, NULL);
@@ -184,9 +189,11 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	if (camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (message), out) == -1
 	    || camel_stream_close (out) == -1) {
 		g_object_unref (CAMEL_OBJECT (out));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not send message: %s"),
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not send message: %s"),
+			g_strerror (errno));
 
 		/* Wait for sendmail to exit. */
 		while (waitpid (pid, &wstat, 0) == -1 && errno == EINTR)
@@ -212,22 +219,23 @@ sendmail_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 	if (!WIFEXITED (wstat)) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("sendmail exited with signal %s: "
-					"mail not sent."),
-				      g_strsignal (WTERMSIG (wstat)));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("sendmail exited with signal %s: mail not sent."),
+			g_strsignal (WTERMSIG (wstat)));
 		return FALSE;
 	} else if (WEXITSTATUS (wstat) != 0) {
 		if (WEXITSTATUS (wstat) == 255) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Could not execute %s: "
-						"mail not sent."),
-					      SENDMAIL_PATH);
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Could not execute %s: mail not sent."),
+				SENDMAIL_PATH);
 		} else {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("sendmail exited with status "
-						"%d: mail not sent."),
-					      WEXITSTATUS (wstat));
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("sendmail exited with status %d: "
+				  "mail not sent."),
+				WEXITSTATUS (wstat));
 		}
 		return FALSE;
 	}

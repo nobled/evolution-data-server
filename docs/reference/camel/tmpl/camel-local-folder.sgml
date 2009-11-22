@@ -44,7 +44,7 @@ CamelLocalFolder
 @parent_store: 
 @full_name: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -55,7 +55,7 @@ CamelLocalFolder
 
 @lf: 
 @type: 
-@ex: 
+@error: 
 @Returns: 
 
 

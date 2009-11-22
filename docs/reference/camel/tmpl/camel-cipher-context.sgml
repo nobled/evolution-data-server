@@ -140,7 +140,7 @@ CamelCipherContext
 @hash: 
 @ipart: 
 @opart: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -151,7 +151,7 @@ CamelCipherContext
 
 @context: 
 @ipart: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -165,7 +165,7 @@ CamelCipherContext
 @recipients: 
 @ipart: 
 @opart: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -177,7 +177,7 @@ CamelCipherContext
 @context: 
 @ipart: 
 @opart: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -188,7 +188,7 @@ CamelCipherContext
 
 @context: 
 @istream: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -200,7 +200,7 @@ CamelCipherContext
 @context: 
 @keys: 
 @ostream: 
-@ex: 
+@error: 
 @Returns: 
 
 

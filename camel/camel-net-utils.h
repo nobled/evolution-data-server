@@ -41,8 +41,6 @@
 
 G_BEGIN_DECLS
 
-struct _CamelException;
-
 #ifndef _WIN32
 #ifdef NEED_ADDRINFO
 /* Some of this is copied from GNU's netdb.h
@@ -92,10 +90,10 @@ struct addrinfo {
 #endif
 
 struct addrinfo *camel_getaddrinfo(const gchar *name, const gchar *service,
-				   const struct addrinfo *hints, struct _CamelException *ex);
+				   const struct addrinfo *hints, struct _GError **error);
 void camel_freeaddrinfo(struct addrinfo *host);
 gint camel_getnameinfo(const struct sockaddr *sa, socklen_t salen, gchar **host, gchar **serv,
-		      gint flags, struct _CamelException *ex);
+		      gint flags, struct _GError **error);
 
 G_END_DECLS
 

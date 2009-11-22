@@ -43,7 +43,7 @@ camel-imap-command
 
 @store: 
 @folder: 
-@ex: 
+@error: 
 @fmt: 
 @Varargs: 
 @Returns: 
@@ -57,7 +57,7 @@ camel-imap-command
 @store: 
 @cmd: 
 @cmdlen: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -87,7 +87,7 @@ camel-imap-command
 @store: 
 @response: 
 @type: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -98,7 +98,7 @@ camel-imap-command
 
 @store: 
 @response: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -109,7 +109,7 @@ camel-imap-command
 
 @store: 
 @folder: 
-@ex: 
+@error: 
 @fmt: 
 @Varargs: 
 @Returns: 
@@ -122,7 +122,7 @@ camel-imap-command
 
 @store: 
 @response: 
-@ex: 
+@error: 
 @Returns: 
 
 

@@ -110,7 +110,8 @@ CamelFolder
 </para>
 
 @folder: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_folder_sync ##### -->
@@ -120,7 +121,8 @@ CamelFolder
 
 @folder: 
 @expunge: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_folder_get_parent_store ##### -->
@@ -138,7 +140,8 @@ CamelFolder
 </para>
 
 @folder: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_folder_get_name ##### -->
@@ -243,7 +246,8 @@ CamelFolder
 @message: 
 @info: 
 @appended_uid: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_folder_has_summary_capability ##### -->
@@ -307,7 +311,7 @@ CamelFolder
 
 @folder: 
 @uid: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -318,7 +322,8 @@ CamelFolder
 
 @folder: 
 @uid: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### MACRO camel_folder_delete_message ##### -->
@@ -355,7 +360,7 @@ CamelFolder
 
 @Param1: 
 @uids: 
-@Param3: 
+@error: 
 @Returns: 
 
 
@@ -395,7 +400,7 @@ CamelFolder
 
 @folder: 
 @expr: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -407,7 +412,7 @@ CamelFolder
 @folder: 
 @expr: 
 @uids: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -427,7 +432,7 @@ CamelFolder
 
 @folder: 
 @expression: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -469,7 +474,8 @@ CamelFolder
 @dest: 
 @transferred_uids: 
 @delete_originals: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_folder_delete ##### -->
@@ -585,7 +591,7 @@ CamelFolder
 
 @folder: 
 @uid: 
-@ex: 
+@error: 
 @Returns: 
 
 

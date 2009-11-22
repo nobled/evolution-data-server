@@ -189,7 +189,7 @@ imap4_header_save (CamelFolderSummary *summary, FILE *fout)
 }
 
 static gint
-envelope_decode_address (CamelIMAP4Engine *engine, GString *addrs, CamelException *ex)
+envelope_decode_address (CamelIMAP4Engine *engine, GString *addrs, GError **error)
 {
 	gchar *addr, *name = NULL, *user = NULL;
 	struct _camel_header_address *cia;
@@ -292,7 +292,7 @@ envelope_decode_address (CamelIMAP4Engine *engine, GString *addrs, CamelExceptio
 }
 
 static gint
-envelope_decode_addresses (CamelIMAP4Engine *engine, gchar **addrlist, CamelException *ex)
+envelope_decode_addresses (CamelIMAP4Engine *engine, gchar **addrlist, GError **error)
 {
 	camel_imap4_token_t token;
 	GString *addrs;
@@ -338,7 +338,7 @@ envelope_decode_addresses (CamelIMAP4Engine *engine, gchar **addrlist, CamelExce
 }
 
 static gint
-envelope_decode_date (CamelIMAP4Engine *engine, time_t *date, CamelException *ex)
+envelope_decode_date (CamelIMAP4Engine *engine, time_t *date, GError **error)
 {
 	guchar *literal = NULL;
 	camel_imap4_token_t token;
@@ -377,7 +377,7 @@ envelope_decode_date (CamelIMAP4Engine *engine, time_t *date, CamelException *ex
 }
 
 static gint
-envelope_decode_nstring (CamelIMAP4Engine *engine, gchar **nstring, gboolean rfc2047, CamelException *ex)
+envelope_decode_nstring (CamelIMAP4Engine *engine, gchar **nstring, gboolean rfc2047, GError **error)
 {
 	camel_imap4_token_t token;
 	guchar *literal;
@@ -469,7 +469,7 @@ decode_references (const gchar *refstr, const gchar *irtstr)
 }
 
 static gint
-decode_envelope (CamelIMAP4Engine *engine, CamelMessageInfo *info, camel_imap4_token_t *token, CamelException *ex)
+decode_envelope (CamelIMAP4Engine *engine, CamelMessageInfo *info, camel_imap4_token_t *token, GError **error)
 {
 	CamelIMAP4MessageInfo *iinfo = (CamelIMAP4MessageInfo *) info;
 	gchar *nstring, *msgid;
@@ -893,7 +893,7 @@ imap4_fetch_all_update (struct imap4_fetch_all_t *fetch)
 }
 
 static gint
-untagged_fetch_all (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, CamelException *ex)
+untagged_fetch_all (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, GError **error)
 {
 	struct imap4_fetch_all_t *fetch = ic->user_data;
 	CamelFolderSummary *summary = fetch->summary;
@@ -1541,7 +1541,7 @@ info_uid_sort (const CamelMessageInfo **info0, const CamelMessageInfo **info1)
 #endif
 
 gint
-camel_imap4_summary_flush_updates (CamelFolderSummary *summary, CamelException *ex)
+camel_imap4_summary_flush_updates (CamelFolderSummary *summary, GError **error)
 {
 	CamelIMAP4Folder *imap4_folder = (CamelIMAP4Folder *) summary->folder;
 	CamelIMAP4Summary *imap4_summary = (CamelIMAP4Summary *) summary;

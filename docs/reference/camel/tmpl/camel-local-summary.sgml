@@ -54,7 +54,7 @@ CamelLocalSummary
 
 @cls: 
 @forceindex: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -65,7 +65,7 @@ CamelLocalSummary
 
 @cls: 
 @Param2: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -77,7 +77,7 @@ CamelLocalSummary
 @cls: 
 @expunge: 
 @Param3: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -90,7 +90,7 @@ CamelLocalSummary
 @msg: 
 @info: 
 @Param4: 
-@ex: 
+@error: 
 @Returns: 
 
 

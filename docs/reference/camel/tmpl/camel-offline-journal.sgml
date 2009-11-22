@@ -54,7 +54,7 @@ CamelOfflineJournal
 </para>
 
 @journal: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -64,7 +64,7 @@ CamelOfflineJournal
 </para>
 
 @journal: 
-@ex: 
+@error: 
 @Returns: 
 
 

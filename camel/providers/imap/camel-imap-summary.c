@@ -51,7 +51,7 @@ static gint content_info_save (CamelFolderSummary *s, FILE *out,
 			      CamelMessageContentInfo *info);
 
 static gint summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
-static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, CamelException *ex);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, GError **error);
 static CamelMIRecord * message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info);
 static CamelMessageInfo * message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir);
 static gint content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir);
@@ -180,8 +180,7 @@ CamelFolderSummary *
 camel_imap_summary_new (struct _CamelFolder *folder, const gchar *filename)
 {
 	CamelFolderSummary *summary;
-	CamelException ex;
-	camel_exception_init (&ex);
+	GError *local_error = NULL;
 
 	summary = g_object_new (CAMEL_TYPE_IMAP_SUMMARY, NULL);
 	summary->folder = folder;
@@ -195,13 +194,13 @@ camel_imap_summary_new (struct _CamelFolder *folder, const gchar *filename)
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);
 
-	if (camel_folder_summary_load_from_db (summary, &ex) == -1) {
+	if (camel_folder_summary_load_from_db (summary, &local_error) == -1) {
 		/* FIXME: Isn't this dangerous ? We clear the summary
 		if it cannot be loaded, for some random reason.
 		We need to pass the ex and find out why it is not loaded etc. ? */
 		camel_folder_summary_clear_db (summary);
-		g_message ("Unable to load summary: %s\n", camel_exception_get_description (&ex));
-		camel_exception_clear (&ex);
+		g_message ("Unable to load summary: %s\n", local_error->message);
+		g_clear_error (&local_error);
 	}
 
 	g_ptr_array_sort (summary->uids, (GCompareFunc) uid_compare);
@@ -274,12 +273,12 @@ summary_header_load (CamelFolderSummary *s, FILE *in)
 }
 
 static CamelFIRecord *
-summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
+summary_header_to_db (CamelFolderSummary *s, GError **error)
 {
 	CamelImapSummary *ims = CAMEL_IMAP_SUMMARY(s);
 	struct _CamelFIRecord *fir;
 
-	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, ex);
+	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, error);
 	if (!fir)
 		return NULL;
 	fir->bdata = g_strdup_printf ("%d %u", CAMEL_IMAP_SUMMARY_VERSION, ims->validity);

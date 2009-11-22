@@ -30,7 +30,7 @@ camel_exception_try(struct _CamelExceptionEnv *env)
 }
 
 void
-camel_exception_throw_ex(CamelException *ex)
+camel_exception_throw_ex(GError **error)
 {
 	struct _CamelExceptionEnv *env;
 
@@ -52,7 +52,7 @@ camel_exception_throw_ex(CamelException *ex)
 void
 camel_exception_throw(gint id, gchar *fmt, ...)
 {
-	CamelException *ex;
+	GError **error;
 	va_list ap;
 
 	ex = camel_exception_new();

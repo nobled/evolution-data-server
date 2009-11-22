@@ -35,7 +35,7 @@ CamelNNTPFolder
 
 @parent: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -46,6 +46,7 @@ CamelNNTPFolder
 
 @folder: 
 @line: 
-@ex: 
+@error: 
+@Returns: 
 
 

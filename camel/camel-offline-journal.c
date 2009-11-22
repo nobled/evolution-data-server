@@ -143,23 +143,26 @@ camel_offline_journal_set_filename (CamelOfflineJournal *journal, const gchar *f
 /**
  * camel_offline_journal_write:
  * @journal: a #CamelOfflineJournal object
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Save the journal to disk.
  *
  * Returns: %0 on success or %-1 on fail
  **/
 gint
-camel_offline_journal_write (CamelOfflineJournal *journal, CamelException *ex)
+camel_offline_journal_write (CamelOfflineJournal *journal,
+                             GError **error)
 {
 	CamelDListNode *entry;
 	FILE *fp;
 	gint fd;
 
 	if ((fd = g_open (journal->filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666)) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Cannot write offline journal for folder '%s': %s"),
-				      journal->folder->full_name, g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Cannot write offline journal for folder '%s': %s"),
+			journal->folder->full_name, g_strerror (errno));
 		return -1;
 	}
 
@@ -180,9 +183,11 @@ camel_offline_journal_write (CamelOfflineJournal *journal, CamelException *ex)
 
  exception:
 
-	camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-			      _("Cannot write offline journal for folder '%s': %s"),
-			      journal->folder->full_name, g_strerror (errno));
+	g_set_error (
+		error, G_FILE_ERROR,
+		g_file_error_from_errno (errno),
+		_("Cannot write offline journal for folder '%s': %s"),
+		journal->folder->full_name, g_strerror (errno));
 
 	fclose (fp);
 
@@ -192,28 +197,29 @@ camel_offline_journal_write (CamelOfflineJournal *journal, CamelException *ex)
 /**
  * camel_offline_journal_replay:
  * @journal: a #CamelOfflineJournal object
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Replay all entries in the journal.
  *
  * Returns: %0 on success (no entry failed to replay) or %-1 on fail
  **/
 gint
-camel_offline_journal_replay (CamelOfflineJournal *journal, CamelException *ex)
+camel_offline_journal_replay (CamelOfflineJournal *journal,
+                              GError **error)
 {
 	CamelDListNode *entry, *next;
-	CamelException lex;
+	GError *local_error = NULL;
 	gint failed = 0;
-
-	camel_exception_init (&lex);
 
 	entry = journal->queue.head;
 	while (entry->next) {
 		next = entry->next;
-		if (CAMEL_OFFLINE_JOURNAL_GET_CLASS (journal)->entry_play (journal, entry, &lex) == -1) {
-			if (failed == 0)
-				camel_exception_xfer (ex, &lex);
-			camel_exception_clear (&lex);
+		if (CAMEL_OFFLINE_JOURNAL_GET_CLASS (journal)->entry_play (journal, entry, &local_error) == -1) {
+			if (failed == 0) {
+				g_propagate_error (error, local_error);
+				local_error = NULL;
+			}
+			g_clear_error (&local_error);
 			failed++;
 		} else {
 			camel_dlist_remove (entry);

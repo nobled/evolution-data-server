@@ -31,13 +31,14 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-exception.h"
 #include "camel-msgport.h"
 #include "camel-net-utils.h"
 #ifdef G_OS_WIN32
 #include "camel-net-utils-win32.h"
 #endif
 #include "camel-operation.h"
+
+#include "camel-object.h"
 
 #define d(x)
 
@@ -443,7 +444,10 @@ cs_freeinfo(struct _addrinfo_msg *msg)
 
 /* returns -1 if we didn't wait for reply from thread */
 static gint
-cs_waitinfo(gpointer (worker)(gpointer), struct _addrinfo_msg *msg, const gchar *error, CamelException *ex)
+cs_waitinfo (gpointer (worker)(gpointer),
+             struct _addrinfo_msg *msg,
+             const gchar *errmsg,
+             GError **error)
 {
 	CamelMsgPort *reply_port;
 	pthread_t id;
@@ -491,15 +495,21 @@ cs_waitinfo(gpointer (worker)(gpointer), struct _addrinfo_msg *msg, const gchar 
 #endif
 						   ) {
 			if (status == -1)
-				camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, "%s: %s", error,
+				g_set_error (
+					error, G_FILE_ERROR,
+					g_file_error_from_errno (errno),
+					"%s: %s", errmsg,
 #ifndef G_OS_WIN32
-						     g_strerror(errno)
+					g_strerror (errno)
 #else
-						     g_win32_error_message (WSAGetLastError ())
+					g_win32_error_message (WSAGetLastError ())
 #endif
-						     );
+					);
 			else
-				camel_exception_setv(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Canceled"));
+				g_set_error (
+					error, CAMEL_ERROR,
+					CAMEL_ERROR_USER_CANCEL,
+					_("Canceled"));
 
 			/* We cancel so if the thread impl is decent it causes immediate exit.
 			   We detach so we dont need to wait for it to exit if it isn't.
@@ -518,7 +528,10 @@ cs_waitinfo(gpointer (worker)(gpointer), struct _addrinfo_msg *msg, const gchar 
 			d(printf("child done\n"));
 		}
 	} else {
-		camel_exception_setv(ex, CAMEL_EXCEPTION_SYSTEM, "%s: %s: %s", error, _("cannot create thread"), g_strerror(err));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			"%s: %s: %s", errmsg, _("cannot create thread"),
+			g_strerror (err));
 	}
 	camel_msgport_destroy(reply_port);
 
@@ -660,7 +673,10 @@ cs_getaddrinfo(gpointer data)
 #endif /* NEED_ADDRINFO */
 
 struct addrinfo *
-camel_getaddrinfo(const gchar *name, const gchar *service, const struct addrinfo *hints, CamelException *ex)
+camel_getaddrinfo (const gchar *name,
+                   const gchar *service,
+                   const struct addrinfo *hints,
+                   GError **error)
 {
 	struct _addrinfo_msg *msg;
 	struct addrinfo *res = NULL;
@@ -670,7 +686,10 @@ camel_getaddrinfo(const gchar *name, const gchar *service, const struct addrinfo
 	g_return_val_if_fail(name != NULL, NULL);
 
 	if (camel_operation_cancel_check(NULL)) {
-		camel_exception_set(ex, CAMEL_EXCEPTION_USER_CANCEL, _("Canceled"));
+		g_set_error (
+			error, CAMEL_ERROR,
+			CAMEL_ERROR_USER_CANCEL,
+			_("Canceled"));
 		return NULL;
 	}
 
@@ -696,10 +715,12 @@ camel_getaddrinfo(const gchar *name, const gchar *service, const struct addrinfo
 	msg->hostbuflen = 1024;
 	msg->hostbufmem = g_malloc(msg->hostbuflen);
 #endif
-	if (cs_waitinfo(cs_getaddrinfo, msg, _("Host lookup failed"), ex) == 0) {
+	if (cs_waitinfo(cs_getaddrinfo, msg, _("Host lookup failed"), error) == 0) {
 		if (msg->result != 0) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Host lookup failed: %s: %s"),
-					      name, gai_strerror (msg->result));
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Host lookup failed: %s: %s"),
+				name, gai_strerror (msg->result));
 		}
 
 		cs_freeinfo(msg);
@@ -796,13 +817,21 @@ cs_getnameinfo(gpointer data)
 #endif
 
 gint
-camel_getnameinfo(const struct sockaddr *sa, socklen_t salen, gchar **host, gchar **serv, gint flags, CamelException *ex)
+camel_getnameinfo (const struct sockaddr *sa,
+                   socklen_t salen,
+                   gchar **host,
+                   gchar **serv,
+                   gint flags,
+                   GError **error)
 {
 	struct _addrinfo_msg *msg;
 	gint result;
 
 	if (camel_operation_cancel_check(NULL)) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_USER_CANCEL, _("Canceled"));
+		g_set_error (
+			error, CAMEL_ERROR,
+			CAMEL_ERROR_USER_CANCEL,
+			_("Canceled"));
 		return -1;
 	}
 
@@ -826,11 +855,12 @@ camel_getnameinfo(const struct sockaddr *sa, socklen_t salen, gchar **host, gcha
 	msg->hostbuflen = 1024;
 	msg->hostbufmem = g_malloc(msg->hostbuflen);
 #endif
-	cs_waitinfo(cs_getnameinfo, msg, _("Name lookup failed"), ex);
+	cs_waitinfo(cs_getnameinfo, msg, _("Name lookup failed"), error);
 
 	if ((result = msg->result) != 0)
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Name lookup failed: %s"),
-				      gai_strerror (result));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Name lookup failed: %s"), gai_strerror (result));
 	else {
 		if (host)
 			*host = g_strdup(msg->host);

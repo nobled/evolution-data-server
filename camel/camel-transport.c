@@ -95,7 +95,7 @@ camel_transport_get_type (void)
  * @message: a #CamelMimeMessage to send
  * @from: a #CamelAddress to send from
  * @recipients: a #CamelAddress containing all recipients
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Sends the message to the given recipients, regardless of the contents
  * of @message. If the message contains a "Bcc" header, the transport
@@ -108,7 +108,7 @@ camel_transport_send_to (CamelTransport *transport,
                          CamelMimeMessage *message,
                          CamelAddress *from,
                          CamelAddress *recipients,
-                         CamelException *ex)
+                         GError **error)
 {
 	CamelTransportClass *class;
 	gboolean sent;
@@ -122,7 +122,7 @@ camel_transport_send_to (CamelTransport *transport,
 	g_return_val_if_fail (class->send_to != NULL, FALSE);
 
 	CAMEL_TRANSPORT_LOCK (transport, send_lock);
-	sent = class->send_to (transport, message, from, recipients, ex);
+	sent = class->send_to (transport, message, from, recipients, error);
 	CAMEL_TRANSPORT_UNLOCK (transport, send_lock);
 
 	return sent;

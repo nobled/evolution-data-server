@@ -118,7 +118,7 @@ CamelNNTPStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @line: 
 @fmt: 
 @ap: 
@@ -131,7 +131,7 @@ CamelNNTPStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @line: 
 @fmt: 
 @Varargs: 
@@ -144,7 +144,7 @@ CamelNNTPStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @line: 
 @fmt: 
 @Varargs: 
@@ -157,7 +157,7 @@ CamelNNTPStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @folder: 
 @line: 
 @fmt: 

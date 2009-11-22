@@ -54,7 +54,7 @@ static gpointer parent_class;
 static GByteArray *
 sasl_plain_challenge (CamelSasl *sasl,
                       GByteArray *token,
-                      CamelException *ex)
+                      GError **error)
 {
 	GByteArray *buf = NULL;
 	CamelService *service;

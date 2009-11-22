@@ -56,7 +56,7 @@ CamelSession
 
 @msg: 
 @id: 
-@ex: 
+@error: 
 @ops: 
 @op: 
 @session: 
@@ -79,7 +79,7 @@ CamelSession
 @session: 
 @url_string: 
 @type: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -91,7 +91,7 @@ CamelSession
 @session: 
 @url_string: 
 @type: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -122,7 +122,7 @@ CamelSession
 
 @session: 
 @service: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -137,7 +137,7 @@ CamelSession
 @prompt: 
 @item: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -150,7 +150,7 @@ CamelSession
 @service: 
 @domain: 
 @item: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_session_alert_user ##### -->
@@ -201,7 +201,7 @@ CamelSession
 
 @session: 
 @type: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -320,6 +320,6 @@ CamelSession
 @folder: 
 @message: 
 @address: 
-@ex: 
+@error: 
 
 

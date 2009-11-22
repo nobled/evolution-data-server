@@ -47,9 +47,9 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_MH_SUMMARY, CamelMhSummaryPrivate))
 
-static gint mh_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-static gint mh_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
-/*static gint mh_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, CamelMessageInfo *info, CamelFolderChangeInfo *, CamelException *ex);*/
+static gint mh_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, GError **error);
+static gint mh_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, GError **error);
+/*static gint mh_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, CamelMessageInfo *info, CamelFolderChangeInfo *, GError **error);*/
 
 static gchar *mh_summary_next_uid_string(CamelFolderSummary *s);
 
@@ -66,6 +66,7 @@ mh_summary_class_init (CamelMhSummaryClass *class)
 	CamelLocalSummaryClass *local_summary_class;
 
 	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelMhSummaryPrivate));
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
 	folder_summary_class->next_uid_string = mh_summary_next_uid_string;
@@ -114,7 +115,11 @@ camel_mh_summary_get_type (void)
  *
  * Return value: A new #CamelMhSummary object.
  **/
-CamelMhSummary	*camel_mh_summary_new(struct _CamelFolder *folder, const gchar *filename, const gchar *mhdir, CamelIndex *index)
+CamelMhSummary *
+camel_mh_summary_new (CamelFolder *folder,
+                      const gchar *filename,
+                      const gchar *mhdir,
+                      CamelIndex *index)
 {
 	CamelMhSummary *o;
 
@@ -130,7 +135,8 @@ CamelMhSummary	*camel_mh_summary_new(struct _CamelFolder *folder, const gchar *f
 	return o;
 }
 
-static gchar *mh_summary_next_uid_string(CamelFolderSummary *s)
+static gchar *
+mh_summary_next_uid_string (CamelFolderSummary *s)
 {
 	CamelMhSummary *mhs = (CamelMhSummary *)s;
 	CamelLocalSummary *cls = (CamelLocalSummary *)s;
@@ -165,7 +171,10 @@ static gchar *mh_summary_next_uid_string(CamelFolderSummary *s)
 	return uidstr;
 }
 
-static gint camel_mh_summary_add(CamelLocalSummary *cls, const gchar *name, gint forceindex)
+static gint
+camel_mh_summary_add (CamelLocalSummary *cls,
+                      const gchar *name,
+                      gint forceindex)
 {
 	CamelMhSummary *mhs = (CamelMhSummary *)cls;
 	gchar *filename = g_strdup_printf("%s/%s", cls->folder_path, name);
@@ -199,7 +208,9 @@ static gint camel_mh_summary_add(CamelLocalSummary *cls, const gchar *name, gint
 }
 
 static void
-remove_summary(gchar *key, CamelMessageInfo *info, CamelLocalSummary *cls)
+remove_summary (gchar *key,
+                CamelMessageInfo *info,
+                CamelLocalSummary *cls)
 {
 	d(printf("removing message %s from summary\n", key));
 	if (cls->index)
@@ -209,7 +220,9 @@ remove_summary(gchar *key, CamelMessageInfo *info, CamelLocalSummary *cls)
 }
 
 static gint
-mh_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+mh_summary_check (CamelLocalSummary *cls,
+                  CamelFolderChangeInfo *changeinfo,
+                  GError **error)
 {
 	DIR *dir;
 	struct dirent *d;
@@ -228,9 +241,11 @@ mh_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, Came
 	   no longer exist */
 	dir = opendir(cls->folder_path);
 	if (dir == NULL) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Cannot open MH directory path: %s: %s"),
-				      cls->folder_path, g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Cannot open MH directory path: %s: %s"),
+			cls->folder_path, g_strerror (errno));
 		return -1;
 	}
 
@@ -287,8 +302,12 @@ mh_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, Came
 
 /* sync the summary file with the ondisk files */
 static gint
-mh_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo *changes, CamelException *ex)
+mh_summary_sync (CamelLocalSummary *cls,
+                 gboolean expunge,
+                 CamelFolderChangeInfo *changes,
+                 GError **error)
 {
+	CamelLocalSummaryClass *local_summary_class;
 	gint count, i;
 	CamelLocalMessageInfo *info;
 	gchar *name;
@@ -298,7 +317,7 @@ mh_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo 
 
 	/* we could probably get away without this ... but why not use it, esp if we're going to
 	   be doing any significant io already */
-	if (camel_local_summary_check(cls, changes, ex) == -1)
+	if (camel_local_summary_check(cls, changes, error) == -1)
 		return -1;
 
 	/* FIXME: need to update/honour .mh_sequences or whatever it is */
@@ -327,5 +346,7 @@ mh_summary_sync(CamelLocalSummary *cls, gboolean expunge, CamelFolderChangeInfo 
 		camel_message_info_free(info);
 	}
 
-	return ((CamelLocalSummaryClass *)parent_class)->sync(cls, expunge, changes, ex);
+	/* Chain up to parent's sync() method. */
+	local_summary_class = CAMEL_LOCAL_SUMMARY_CLASS (parent_class);
+	return local_summary_class->sync (cls, expunge, changes, error);
 }

@@ -55,7 +55,7 @@ camel-imap4-command
 @ic: 
 @linebuf: 
 @linelen: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -68,7 +68,7 @@ camel-imap4-command
 @ic: 
 @index: 
 @token: 
-@ex: 
+@error: 
 @Returns: 
 
 

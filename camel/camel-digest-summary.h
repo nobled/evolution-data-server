@@ -31,7 +31,6 @@
 
 #include <camel/camel-folder-summary.h>
 #include <camel/camel-folder.h>
-#include <camel/camel-exception.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_DIGEST_SUMMARY \

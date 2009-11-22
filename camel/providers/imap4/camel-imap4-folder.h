@@ -85,7 +85,7 @@ struct _CamelIMAP4FolderClass {
 
 GType camel_imap4_folder_get_type (void);
 
-CamelFolder *camel_imap4_folder_new (CamelStore *store, const gchar *full_name, CamelException *ex);
+CamelFolder *camel_imap4_folder_new (CamelStore *store, const gchar *full_name, GError **error);
 
 const gchar *camel_imap4_folder_utf7_name (CamelIMAP4Folder *folder);
 

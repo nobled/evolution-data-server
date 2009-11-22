@@ -85,7 +85,7 @@ void camel_imap4_journal_readd_failed (CamelIMAP4Journal *journal);
 
 /* interfaces for adding a journal entry */
 void camel_imap4_journal_append (CamelIMAP4Journal *journal, CamelMimeMessage *message, const CamelMessageInfo *mi,
-				 gchar **appended_uid, CamelException *ex);
+				 gchar **appended_uid, GError **error);
 
 G_END_DECLS
 

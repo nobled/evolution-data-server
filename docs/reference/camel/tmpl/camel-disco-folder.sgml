@@ -30,7 +30,8 @@ CamelDiscoFolder
 
 @folder: 
 @uids: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_disco_folder_cache_message ##### -->
@@ -40,7 +41,8 @@ CamelDiscoFolder
 
 @disco_folder: 
 @uid: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_disco_folder_prepare_for_offline ##### -->
@@ -50,6 +52,7 @@ CamelDiscoFolder
 
 @disco_folder: 
 @expression: 
-@ex: 
+@error: 
+@Returns: 
 
 

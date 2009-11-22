@@ -71,15 +71,15 @@ struct _CamelOfflineStore {
 struct _CamelOfflineStoreClass {
 	CamelStoreClass parent_class;
 
-	void (* set_network_state) (CamelOfflineStore *store, gint state, CamelException *ex);
+	void (* set_network_state) (CamelOfflineStore *store, gint state, GError **error);
 };
 
 GType camel_offline_store_get_type (void);
 
-void camel_offline_store_set_network_state (CamelOfflineStore *store, gint state, CamelException *ex);
-gint camel_offline_store_get_network_state (CamelOfflineStore *store, CamelException *ex);
+void camel_offline_store_set_network_state (CamelOfflineStore *store, gint state, GError **error);
+gint camel_offline_store_get_network_state (CamelOfflineStore *store, GError **error);
 
-void camel_offline_store_prepare_for_offline (CamelOfflineStore *store, CamelException *ex);
+void camel_offline_store_prepare_for_offline (CamelOfflineStore *store, GError **error);
 
 G_END_DECLS
 

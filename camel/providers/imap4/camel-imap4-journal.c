@@ -46,7 +46,7 @@ static void imap4_journal_finalize (CamelObject *object);
 static void imap4_entry_free (CamelOfflineJournal *journal, CamelDListNode *entry);
 static CamelDListNode *imap4_entry_load (CamelOfflineJournal *journal, FILE *in);
 static gint imap4_entry_write (CamelOfflineJournal *journal, CamelDListNode *entry, FILE *out);
-static gint imap4_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, CamelException *ex);
+static gint imap4_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, GError **error);
 
 static gpointer parent_class;
 
@@ -180,7 +180,7 @@ imap4_message_info_dup_to (CamelMessageInfoBase *dest, CamelMessageInfoBase *src
 }
 
 static gint
-imap4_entry_play_append (CamelOfflineJournal *journal, CamelIMAP4JournalEntry *entry, CamelException *ex)
+imap4_entry_play_append (CamelOfflineJournal *journal, CamelIMAP4JournalEntry *entry, GError **error)
 {
 	CamelIMAP4Folder *imap4_folder = (CamelIMAP4Folder *) journal->folder;
 	CamelFolder *folder = journal->folder;
@@ -250,7 +250,7 @@ imap4_entry_play_append (CamelOfflineJournal *journal, CamelIMAP4JournalEntry *e
 }
 
 static gint
-imap4_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, CamelException *ex)
+imap4_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, GError **error)
 {
 	CamelIMAP4JournalEntry *imap4_entry = (CamelIMAP4JournalEntry *) entry;
 
@@ -290,7 +290,7 @@ camel_imap4_journal_readd_failed (CamelIMAP4Journal *journal)
 
 void
 camel_imap4_journal_append (CamelIMAP4Journal *imap4_journal, CamelMimeMessage *message,
-			    const CamelMessageInfo *mi, gchar **appended_uid, CamelException *ex)
+			    const CamelMessageInfo *mi, gchar **appended_uid, GError **error)
 {
 	CamelOfflineJournal *journal = (CamelOfflineJournal *) imap4_journal;
 	CamelIMAP4Folder *imap4_folder = (CamelIMAP4Folder *) journal->folder;

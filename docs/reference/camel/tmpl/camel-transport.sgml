@@ -32,7 +32,7 @@ CamelTransport
 @message: 
 @from: 
 @recipients: 
-@ex: 
+@error: 
 @Returns: 
 
 

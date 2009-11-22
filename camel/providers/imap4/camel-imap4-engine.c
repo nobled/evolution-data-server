@@ -43,7 +43,7 @@ static void camel_imap4_engine_init (CamelIMAP4Engine *engine, CamelIMAP4EngineC
 static void imap4_engine_finalize (CamelObject *object);
 
 static gint parse_xgwextensions (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index,
-				camel_imap4_token_t *token, CamelException *ex);
+				camel_imap4_token_t *token, GError **error);
 
 static gpointer parent_class;
 
@@ -179,7 +179,7 @@ camel_imap4_engine_new (CamelService *service, CamelIMAP4ReconnectFunc reconnect
  * Note: on error, @stream will be unref'd.
  **/
 gint
-camel_imap4_engine_take_stream (CamelIMAP4Engine *engine, CamelStream *stream, CamelException *ex)
+camel_imap4_engine_take_stream (CamelIMAP4Engine *engine, CamelStream *stream, GError **error)
 {
 	camel_imap4_token_t token;
 	gint code;
@@ -256,7 +256,7 @@ camel_imap4_engine_disconnect (CamelIMAP4Engine *engine)
  * Returns: %0 on success or %-1 on fail.
  **/
 gint
-camel_imap4_engine_capability (CamelIMAP4Engine *engine, CamelException *ex)
+camel_imap4_engine_capability (CamelIMAP4Engine *engine, GError **error)
 {
 	CamelIMAP4Command *ic;
 	gint id, retval = 0;
@@ -302,7 +302,7 @@ camel_imap4_engine_capability (CamelIMAP4Engine *engine, CamelException *ex)
  * Returns: 0 on success or -1 on fail.
  **/
 gint
-camel_imap4_engine_namespace (CamelIMAP4Engine *engine, CamelException *ex)
+camel_imap4_engine_namespace (CamelIMAP4Engine *engine, GError **error)
 {
 	camel_imap4_list_t *list;
 	GPtrArray *array = NULL;
@@ -372,7 +372,7 @@ camel_imap4_engine_namespace (CamelIMAP4Engine *engine, CamelException *ex)
  * Returns: 0 on success or -1 on fail.
  **/
 gint
-camel_imap4_engine_select_folder (CamelIMAP4Engine *engine, CamelFolder *folder, CamelException *ex)
+camel_imap4_engine_select_folder (CamelIMAP4Engine *engine, CamelFolder *folder, GError **error)
 {
 	CamelIMAP4RespCode *resp;
 	CamelIMAP4Command *ic;
@@ -484,7 +484,7 @@ static struct {
 };
 
 static gint
-parse_xgwextensions (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, CamelException *ex)
+parse_xgwextensions (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, GError **error)
 {
 	gint i;
 
@@ -523,7 +523,7 @@ auth_free (gpointer key, gpointer value, gpointer user_data)
 }
 
 static gint
-engine_parse_capability (CamelIMAP4Engine *engine, gint sentinel, CamelException *ex)
+engine_parse_capability (CamelIMAP4Engine *engine, gint sentinel, GError **error)
 {
 	camel_imap4_token_t token;
 	gint i;
@@ -576,7 +576,7 @@ engine_parse_capability (CamelIMAP4Engine *engine, gint sentinel, CamelException
 }
 
 static gint
-engine_parse_flags_list (CamelIMAP4Engine *engine, CamelIMAP4RespCode *resp, gint perm, CamelException *ex)
+engine_parse_flags_list (CamelIMAP4Engine *engine, CamelIMAP4RespCode *resp, gint perm, GError **error)
 {
 	guint32 flags = 0;
 
@@ -606,7 +606,7 @@ engine_parse_flags_list (CamelIMAP4Engine *engine, CamelIMAP4RespCode *resp, gin
 }
 
 static gint
-engine_parse_flags (CamelIMAP4Engine *engine, CamelException *ex)
+engine_parse_flags (CamelIMAP4Engine *engine, GError **error)
 {
 	camel_imap4_token_t token;
 
@@ -626,7 +626,7 @@ engine_parse_flags (CamelIMAP4Engine *engine, CamelException *ex)
 }
 
 static gint
-engine_parse_namespace (CamelIMAP4Engine *engine, CamelException *ex)
+engine_parse_namespace (CamelIMAP4Engine *engine, GError **error)
 {
 	CamelIMAP4Namespace *namespaces[3], *node, *tail;
 	camel_imap4_token_t token;
@@ -804,7 +804,7 @@ static struct {
  * Returns: 0 on success or -1 on fail.
  **/
 gint
-camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex)
+camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, GError **error)
 {
 	CamelIMAP4RespCode *resp = NULL;
 	camel_imap4_resp_code_t code;
@@ -1071,7 +1071,7 @@ camel_imap4_engine_parse_resp_code (CamelIMAP4Engine *engine, CamelException *ex
  * CAMEL_IMAP4_UNTAGGED_[OK,NO,BAD,PREAUTH,HANDLED] on success
  **/
 gint
-camel_imap4_engine_handle_untagged_1 (CamelIMAP4Engine *engine, camel_imap4_token_t *token, CamelException *ex)
+camel_imap4_engine_handle_untagged_1 (CamelIMAP4Engine *engine, camel_imap4_token_t *token, GError **error)
 {
 	gint code = CAMEL_IMAP4_UNTAGGED_HANDLED;
 	CamelIMAP4Command *ic = engine->current;
@@ -1229,7 +1229,7 @@ camel_imap4_engine_handle_untagged_1 (CamelIMAP4Engine *engine, camel_imap4_toke
  * Handle a stream of untagged responses.
  **/
 void
-camel_imap4_engine_handle_untagged (CamelIMAP4Engine *engine, CamelException *ex)
+camel_imap4_engine_handle_untagged (CamelIMAP4Engine *engine, GError **error)
 {
 	camel_imap4_token_t token;
 
@@ -1536,7 +1536,7 @@ camel_imap4_engine_dequeue (CamelIMAP4Engine *engine, CamelIMAP4Command *ic)
  * Returns: %0 on success or %-1 on fail.
  **/
 gint
-camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *token, CamelException *ex)
+camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *token, GError **error)
 {
 	if (camel_imap4_stream_next_token (engine->istream, token) == -1) {
 		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
@@ -1561,7 +1561,7 @@ camel_imap4_engine_next_token (CamelIMAP4Engine *engine, camel_imap4_token_t *to
  * Returns: 0 on success or -1 on fail
  **/
 gint
-camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
+camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, GError **error)
 {
 	camel_imap4_token_t token;
 	guchar *literal;
@@ -1605,7 +1605,7 @@ camel_imap4_engine_eat_line (CamelIMAP4Engine *engine, CamelException *ex)
  * Returns: 0 on success or -1 on fail
  **/
 gint
-camel_imap4_engine_line (CamelIMAP4Engine *engine, guchar **line, gsize *len, CamelException *ex)
+camel_imap4_engine_line (CamelIMAP4Engine *engine, guchar **line, gsize *len, GError **error)
 {
 	GByteArray *linebuf = NULL;
 	guchar *buf;
@@ -1660,7 +1660,7 @@ camel_imap4_engine_line (CamelIMAP4Engine *engine, guchar **line, gsize *len, Ca
  * Returns: 0 on success or -1 on fail.
  **/
 gint
-camel_imap4_engine_literal (CamelIMAP4Engine *engine, guchar **literal, gsize *len, CamelException *ex)
+camel_imap4_engine_literal (CamelIMAP4Engine *engine, guchar **literal, gsize *len, GError **error)
 {
 	GByteArray *literalbuf = NULL;
 	guchar *buf;
@@ -1713,7 +1713,7 @@ camel_imap4_engine_literal (CamelIMAP4Engine *engine, guchar **literal, gsize *l
  * Returns: 0 on success or -1 on fail.
  **/
 gint
-camel_imap4_engine_nstring (CamelIMAP4Engine *engine, guchar **nstring, CamelException *ex)
+camel_imap4_engine_nstring (CamelIMAP4Engine *engine, guchar **nstring, GError **error)
 {
 	camel_imap4_token_t token;
 	gsize n;

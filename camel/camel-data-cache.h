@@ -28,7 +28,6 @@
 #define CAMEL_DATA_CACHE_H
 
 #include <camel/camel-stream.h>
-#include <camel/camel-exception.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_DATA_CACHE \
@@ -66,7 +65,7 @@ struct _CamelDataCacheClass {
 
 GType		camel_data_cache_get_type	(void);
 CamelDataCache *camel_data_cache_new		(const gchar *path,
-						 CamelException *ex);
+						 GError **error);
 const gchar *	camel_data_cache_get_path	(CamelDataCache *cdc);
 void		camel_data_cache_set_path	(CamelDataCache *cdc,
 						 const gchar *path);
@@ -75,29 +74,32 @@ void		camel_data_cache_set_expire_age	(CamelDataCache *cdc,
 void		camel_data_cache_set_expire_access
 						(CamelDataCache *cdc,
 						 time_t when);
-gint		camel_data_cache_rename		(CamelDataCache *cache,
-						 const gchar *old,
-						 const gchar *new,
-						 CamelException *ex);
 CamelStream *	camel_data_cache_add		(CamelDataCache *cdc,
 						 const gchar *path,
 						 const gchar *key,
-						 CamelException *ex);
+						 GError **error);
 CamelStream *	camel_data_cache_get		(CamelDataCache *cdc,
 						 const gchar *path,
 						 const gchar *key,
-						 CamelException *ex);
+						 GError **error);
 gint		camel_data_cache_remove		(CamelDataCache *cdc,
 						 const gchar *path,
 						 const gchar *key,
-						 CamelException *ex);
-gint		camel_data_cache_clear		(CamelDataCache *cache,
-						 const gchar *path,
-						 CamelException *ex);
+						 GError **error);
 gchar *		camel_data_cache_get_filename	(CamelDataCache *cdc,
 						 const gchar *path,
 						 const gchar *key,
-						 CamelException *ex);
+						 GError **error);
+
+#ifndef CAMEL_DISABLE_DEPRECATED
+gint		camel_data_cache_rename		(CamelDataCache *cache,
+						 const gchar *old,
+						 const gchar *new,
+						 GError **error);
+gint		camel_data_cache_clear		(CamelDataCache *cache,
+						 const gchar *path,
+						 GError **error);
+#endif
 
 G_END_DECLS
 

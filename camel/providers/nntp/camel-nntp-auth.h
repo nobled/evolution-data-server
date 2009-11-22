@@ -29,7 +29,7 @@
 
 G_BEGIN_DECLS
 
-gint camel_nntp_auth_authenticate (CamelNNTPStore *store, CamelException *ex);
+gint camel_nntp_auth_authenticate (CamelNNTPStore *store, GError **error);
 
 G_END_DECLS
 

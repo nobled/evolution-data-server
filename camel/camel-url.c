@@ -34,9 +34,9 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-exception.h"
 #include "camel-mime-utils.h"
 #include "camel-object.h"
+#include "camel-service.h"
 #include "camel-string-utils.h"
 #include "camel-url.h"
 
@@ -290,14 +290,15 @@ copy_param (GQuark key_id, gpointer data, gpointer user_data)
 /**
  * camel_url_new:
  * @url_string: a URL string
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Parses an absolute URL.
  *
  * Returns: a #CamelURL if it can be parsed, or %NULL otherwise
  **/
 CamelURL *
-camel_url_new (const gchar *url_string, CamelException *ex)
+camel_url_new (const gchar *url_string,
+               GError **error)
 {
 	CamelURL *url;
 
@@ -308,9 +309,9 @@ camel_url_new (const gchar *url_string, CamelException *ex)
 
 	if (!url->protocol) {
 		camel_url_free (url);
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_URL_INVALID,
-				      _("Could not parse URL '%s'"),
-				      url_string);
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Could not parse URL '%s'"), url_string);
 		return NULL;
 	}
 	return url;

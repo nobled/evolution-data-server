@@ -34,7 +34,7 @@ CamelSpoolFolder
 @parent_store: 
 @full_name: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 

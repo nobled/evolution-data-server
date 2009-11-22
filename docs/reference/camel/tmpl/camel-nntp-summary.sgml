@@ -47,7 +47,7 @@ CamelNNTPSummary
 @store: 
 @line: 
 @changes: 
-@ex: 
+@error: 
 @Returns: 
 
 

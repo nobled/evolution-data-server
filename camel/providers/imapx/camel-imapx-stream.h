@@ -66,7 +66,7 @@ CamelStream     *camel_imapx_stream_new		(CamelStream *source);
 
 gint		 camel_imapx_stream_buffered	(CamelIMAPXStream *is);
 
-camel_imapx_token_t camel_imapx_stream_token	(CamelIMAPXStream *is, guchar **start, guint *len, CamelException *ex); /* throws IO,PARSE exception */
+camel_imapx_token_t camel_imapx_stream_token	(CamelIMAPXStream *is, guchar **start, guint *len, GError **error); /* throws IO,PARSE exception */
 void		 camel_imapx_stream_ungettoken	(CamelIMAPXStream *is, camel_imapx_token_t tok, guchar *token, guint len);
 
 void		 camel_imapx_stream_set_literal	(CamelIMAPXStream *is, guint literal);
@@ -76,20 +76,20 @@ gint		 camel_imapx_stream_getl		(CamelIMAPXStream *is, guchar **start, guint *le
 /* all throw IO,PARSE exceptions */
 
 /* gets an atom, upper-cases */
-gint		 camel_imapx_stream_atom		(CamelIMAPXStream *is, guchar **start, guint *len, CamelException *ex);
+gint		 camel_imapx_stream_atom		(CamelIMAPXStream *is, guchar **start, guint *len, GError **error);
 /* gets an atom or string */
-gint		 camel_imapx_stream_astring	(CamelIMAPXStream *is, guchar **start, CamelException *ex);
+gint		 camel_imapx_stream_astring	(CamelIMAPXStream *is, guchar **start, GError **error);
 /* gets a NIL or a string, start==NULL if NIL */
-gint		 camel_imapx_stream_nstring	(CamelIMAPXStream *is, guchar **start, CamelException *ex);
+gint		 camel_imapx_stream_nstring	(CamelIMAPXStream *is, guchar **start, GError **error);
 /* gets a NIL or string into a stream, stream==NULL if NIL */
-gint		 camel_imapx_stream_nstring_stream(CamelIMAPXStream *is, CamelStream **stream, CamelException *ex);
+gint		 camel_imapx_stream_nstring_stream(CamelIMAPXStream *is, CamelStream **stream, GError **error);
 /* gets 'text' */
-gint		 camel_imapx_stream_text		(CamelIMAPXStream *is, guchar **text, CamelException *ex);
+gint		 camel_imapx_stream_text		(CamelIMAPXStream *is, guchar **text, GError **error);
 
 /* gets a 'number' */
-guint32		 camel_imapx_stream_number(CamelIMAPXStream *is, CamelException *ex);
+guint32		 camel_imapx_stream_number(CamelIMAPXStream *is, GError **error);
 
 /* skips the rest of a line, including literals, etc */
-gint camel_imapx_stream_skip(CamelIMAPXStream *is, CamelException *ex);
+gint camel_imapx_stream_skip(CamelIMAPXStream *is, GError **error);
 
 #endif /* ! _CAMEL_IMAPX_STREAM_H */

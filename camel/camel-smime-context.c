@@ -48,7 +48,6 @@
 #include <glib/gi18n-lib.h>
 
 #include "camel-data-wrapper.h"
-#include "camel-exception.h"
 #include "camel-mime-filter-basic.h"
 #include "camel-mime-filter-canon.h"
 #include "camel-mime-part.h"
@@ -279,7 +278,8 @@ nss_error_to_string (glong errorcode)
 }
 
 static void
-set_nss_error (CamelException *ex, const gchar *def_error)
+set_nss_error (GError **error,
+               const gchar *def_error)
 {
 	glong err_code;
 
@@ -288,7 +288,10 @@ set_nss_error (CamelException *ex, const gchar *def_error)
 	err_code = PORT_GetError ();
 
 	if (!err_code) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, def_error);
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+			"%s", def_error);
 	} else {
 		const gchar *err_str;
 
@@ -296,12 +299,19 @@ set_nss_error (CamelException *ex, const gchar *def_error)
 		if (!err_str)
 			err_str = "Uknown error.";
 
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, "%s (%d) - %s", err_str, (gint) err_code, def_error);
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+			"%s (%d) - %s", err_str, (gint) err_code, def_error);
 	}
 }
 
 static NSSCMSMessage *
-sm_signing_cmsmessage (CamelSMIMEContext *context, const gchar *nick, SECOidTag hash, gint detached, CamelException *ex)
+sm_signing_cmsmessage (CamelSMIMEContext *context,
+                       const gchar *nick,
+                       SECOidTag hash,
+                       gint detached,
+                       GError **error)
 {
 	CamelSMIMEContextPrivate *p = context->priv;
 	NSSCMSMessage *cmsg = NULL;
@@ -315,49 +325,51 @@ sm_signing_cmsmessage (CamelSMIMEContext *context, const gchar *nick, SECOidTag 
 					     certUsageEmailSigner,
 					     PR_FALSE,
 					     NULL)) == NULL) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find certificate for '%s'"), nick);
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Cannot find certificate for '%s'"), nick);
 		return NULL;
 	}
 
 	cmsg = NSS_CMSMessage_Create (NULL); /* create a message on its own pool */
 	if (cmsg == NULL) {
-		set_nss_error (ex, _("Cannot create CMS message"));
+		set_nss_error (error, _("Cannot create CMS message"));
 		goto fail;
 	}
 
 	if ((sigd = NSS_CMSSignedData_Create (cmsg)) == NULL) {
-		set_nss_error (ex, _("Cannot create CMS signed data"));
+		set_nss_error (error, _("Cannot create CMS signed data"));
 		goto fail;
 	}
 
 	cinfo = NSS_CMSMessage_GetContentInfo (cmsg);
 	if (NSS_CMSContentInfo_SetContent_SignedData (cmsg, cinfo, sigd) != SECSuccess) {
-		set_nss_error (ex, _("Cannot attach CMS signed data"));
+		set_nss_error (error, _("Cannot attach CMS signed data"));
 		goto fail;
 	}
 
 	/* if !detatched, the contentinfo will alloc a data item for us */
 	cinfo = NSS_CMSSignedData_GetContentInfo (sigd);
 	if (NSS_CMSContentInfo_SetContent_Data (cmsg, cinfo, NULL, detached) != SECSuccess) {
-		set_nss_error (ex, _("Cannot attach CMS data"));
+		set_nss_error (error, _("Cannot attach CMS data"));
 		goto fail;
 	}
 
 	signerinfo = NSS_CMSSignerInfo_Create (cmsg, cert, hash);
 	if (signerinfo == NULL) {
-		set_nss_error (ex, _("Cannot create CMS Signer information"));
+		set_nss_error (error, _("Cannot create CMS Signer information"));
 		goto fail;
 	}
 
 	/* we want the cert chain included for this one */
 	if (NSS_CMSSignerInfo_IncludeCerts (signerinfo, NSSCMSCM_CertChain, certUsageEmailSigner) != SECSuccess) {
-		set_nss_error (ex, _("Cannot find certificate chain"));
+		set_nss_error (error, _("Cannot find certificate chain"));
 		goto fail;
 	}
 
 	/* SMIME RFC says signing time should always be added */
 	if (NSS_CMSSignerInfo_AddSigningTime (signerinfo, PR_Now ()) != SECSuccess) {
-		set_nss_error (ex, _("Cannot add CMS Signing time"));
+		set_nss_error (error, _("Cannot add CMS Signing time"));
 		goto fail;
 	}
 
@@ -379,7 +391,10 @@ sm_signing_cmsmessage (CamelSMIMEContext *context, const gchar *nick, SECOidTag 
 				     p->certdb,
 				     p->encrypt_key,
 				     certUsageEmailRecipient, PR_FALSE, NULL)) == NULL) {
-				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Encryption certificate for '%s' does not exist"), p->encrypt_key);
+				g_set_error (
+					error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+					_("Encryption certificate for '%s' does not exist"),
+					p->encrypt_key);
 				goto fail;
 			}
 			enccert = ekpcert;
@@ -391,30 +406,32 @@ sm_signing_cmsmessage (CamelSMIMEContext *context, const gchar *nick, SECOidTag 
 			if ((ekpcert = CERT_FindUserCertByUsage (
 				     p->certdb, (gchar *)nick,
 				     certUsageEmailRecipient, PR_FALSE, NULL)) == NULL) {
-				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Encryption certificate for '%s' does not exist"), nick);
+				g_set_error (
+					error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+					_("Encryption certificate for '%s' does not exist"), nick);
 				goto fail;
 			}
 			enccert = ekpcert;
 		}
 
 		if (NSS_CMSSignerInfo_AddSMIMEEncKeyPrefs (signerinfo, enccert, p->certdb) != SECSuccess) {
-			set_nss_error (ex, _("Cannot add SMIMEEncKeyPrefs attribute"));
+			set_nss_error (error, _("Cannot add SMIMEEncKeyPrefs attribute"));
 			goto fail;
 		}
 
 		if (NSS_CMSSignerInfo_AddMSSMIMEEncKeyPrefs (signerinfo, enccert, p->certdb) != SECSuccess) {
-			set_nss_error (ex, _("Cannot add MS SMIMEEncKeyPrefs attribute"));
+			set_nss_error (error, _("Cannot add MS SMIMEEncKeyPrefs attribute"));
 			goto fail;
 		}
 
 		if (ekpcert != NULL && NSS_CMSSignedData_AddCertificate (sigd, ekpcert) != SECSuccess) {
-			set_nss_error (ex, _("Cannot add encryption certificate"));
+			set_nss_error (error, _("Cannot add encryption certificate"));
 			goto fail;
 		}
 	}
 
 	if (NSS_CMSSignedData_AddSignerInfo (sigd, signerinfo) != SECSuccess) {
-		set_nss_error (ex, _("Cannot add CMS Signer information"));
+		set_nss_error (error, _("Cannot add CMS Signer information"));
 		goto fail;
 	}
 
@@ -469,7 +486,10 @@ sm_status_description (NSSCMSVerificationStatus status)
 }
 
 static CamelCipherValidity *
-sm_verify_cmsg (CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *extstream, CamelException *ex)
+sm_verify_cmsg (CamelCipherContext *context,
+                NSSCMSMessage *cmsg,
+                CamelStream *extstream,
+                GError **error)
 {
 	CamelSMIMEContextPrivate *p = ((CamelSMIMEContext *)context)->priv;
 	NSSCMSSignedData *sigd = NULL;
@@ -503,17 +523,17 @@ sm_verify_cmsg (CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *e
 		case SEC_OID_PKCS7_SIGNED_DATA:
 			sigd = (NSSCMSSignedData *)NSS_CMSContentInfo_GetContent (cinfo);
 			if (sigd == NULL) {
-				set_nss_error (ex, _("No signed data in signature"));
+				set_nss_error (error, _("No signed data in signature"));
 				goto fail;
 			}
 
 			if (extstream == NULL) {
-				set_nss_error (ex, _("Digests missing from enveloped data"));
+				set_nss_error (error, _("Digests missing from enveloped data"));
 				goto fail;
 			}
 
 			if ((poolp = PORT_NewArena (1024)) == NULL) {
-				set_nss_error (ex, g_strerror (ENOMEM));
+				set_nss_error (error, g_strerror (ENOMEM));
 				goto fail;
 			}
 
@@ -521,7 +541,7 @@ sm_verify_cmsg (CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *e
 
 			digcx = NSS_CMSDigestContext_StartMultiple (digestalgs);
 			if (digcx == NULL) {
-				set_nss_error (ex, _("Cannot calculate digests"));
+				set_nss_error (error, _("Cannot calculate digests"));
 				goto fail;
 			}
 
@@ -532,18 +552,18 @@ sm_verify_cmsg (CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *e
 			g_object_unref (mem);
 
 			if (NSS_CMSDigestContext_FinishMultiple (digcx, poolp, &digests) != SECSuccess) {
-				set_nss_error (ex, _("Cannot calculate digests"));
+				set_nss_error (error, _("Cannot calculate digests"));
 				goto fail;
 			}
 
 			for (which_digest = 0; digests[which_digest] != NULL; which_digest++) {
 				SECOidData *digest_alg = SECOID_FindOID (&digestalgs[which_digest]->algorithm);
 				if (digest_alg == NULL) {
-					set_nss_error (ex, _("Cannot set message digests"));
+					set_nss_error (error, _("Cannot set message digests"));
 					goto fail;
 				}
 				if (NSS_CMSSignedData_SetDigestValue (sigd, digest_alg->offset, digests[which_digest]) != SECSuccess) {
-					set_nss_error (ex, _("Cannot set message digests"));
+					set_nss_error (error, _("Cannot set message digests"));
 					goto fail;
 				}
 			}
@@ -553,12 +573,12 @@ sm_verify_cmsg (CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *e
 
 			/* import all certificates present */
 			if (NSS_CMSSignedData_ImportCerts (sigd, p->certdb, certUsageEmailSigner, PR_TRUE) != SECSuccess) {
-				set_nss_error (ex, _("Certificate import failed"));
+				set_nss_error (error, _("Certificate import failed"));
 				goto fail;
 			}
 
 			if (NSS_CMSSignedData_ImportCerts (sigd, p->certdb, certUsageEmailRecipient, PR_TRUE) != SECSuccess) {
-				set_nss_error (ex, _("Certificate import failed"));
+				set_nss_error (error, _("Certificate import failed"));
 				goto fail;
 			}
 
@@ -575,7 +595,7 @@ sm_verify_cmsg (CamelCipherContext *context, NSSCMSMessage *cmsg, CamelStream *e
 				}
 			} else {
 				if (!NSS_CMSSignedData_HasDigests (sigd)) {
-					set_nss_error (ex, _("Cannot find signature digests"));
+					set_nss_error (error, _("Cannot find signature digests"));
 					goto fail;
 				}
 
@@ -668,7 +688,7 @@ smime_context_sign (CamelCipherContext *context,
                     CamelCipherHash hash,
                     CamelMimePart *ipart,
                     CamelMimePart *opart,
-                    CamelException *ex)
+                    GError **error)
 {
 	CamelCipherContextClass *class;
 	gint res = -1;
@@ -693,8 +713,9 @@ smime_context_sign (CamelCipherContext *context,
 		break;
 	}
 
-	cmsg = sm_signing_cmsmessage ((CamelSMIMEContext *)context, userid, sechash,
-				     ((CamelSMIMEContext *)context)->priv->sign_mode == CAMEL_SMIME_SIGN_CLEARSIGN, ex);
+	cmsg = sm_signing_cmsmessage (
+		(CamelSMIMEContext *)context, userid, sechash,
+		((CamelSMIMEContext *)context)->priv->sign_mode == CAMEL_SMIME_SIGN_CLEARSIGN, error);
 	if (cmsg == NULL)
 		return -1;
 
@@ -708,8 +729,11 @@ smime_context_sign (CamelCipherContext *context,
 					     CAMEL_MIME_FILTER_CANON_STRIP
 					     |CAMEL_MIME_FILTER_CANON_CRLF
 					     |CAMEL_MIME_FILTER_CANON_FROM, istream) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				     _("Could not generate signing data: %s"), g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not generate signing data: %s"),
+			g_strerror (errno));
 		goto fail;
 	}
 
@@ -720,18 +744,18 @@ smime_context_sign (CamelCipherContext *context,
 				   NULL, NULL,     /* decrypt key callback */
 				   NULL, NULL );   /* detached digests    */
 	if (!enc) {
-		set_nss_error (ex, _("Cannot create encoder context"));
+		set_nss_error (error, _("Cannot create encoder context"));
 		goto fail;
 	}
 
 	if (NSS_CMSEncoder_Update (enc, (gchar *) buffer->data, buffer->len) != SECSuccess) {
 		NSS_CMSEncoder_Cancel (enc);
-		set_nss_error (ex, _("Failed to add data to CMS encoder"));
+		set_nss_error (error, _("Failed to add data to CMS encoder"));
 		goto fail;
 	}
 
 	if (NSS_CMSEncoder_Finish (enc) != SECSuccess) {
-		set_nss_error (ex, _("Failed to encode data"));
+		set_nss_error (error, _("Failed to encode data"));
 		goto fail;
 	}
 
@@ -798,7 +822,7 @@ fail:
 static CamelCipherValidity *
 smime_context_verify (CamelCipherContext *context,
                       CamelMimePart *ipart,
-                      CamelException *ex)
+                      GError **error)
 {
 	CamelCipherContextClass *class;
 	NSSCMSDecoderContext *dec;
@@ -829,26 +853,33 @@ smime_context_verify (CamelCipherContext *context,
 		    || tmp == NULL
 		    || (g_ascii_strcasecmp (tmp, class->sign_protocol) != 0
 			&& g_ascii_strcasecmp (tmp, "application/pkcs7-signature") != 0)) {
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Cannot verify message signature: Incorrect message format"));
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Cannot verify message signature: "
+				  "Incorrect message format"));
 			goto fail;
 		}
 
-		constream = camel_multipart_signed_get_content_stream ((CamelMultipartSigned *)mps, ex);
+		constream = camel_multipart_signed_get_content_stream (
+			(CamelMultipartSigned *)mps, error);
 		if (constream == NULL)
 			goto fail;
 
 		sigpart = camel_multipart_get_part (mps, CAMEL_MULTIPART_SIGNED_SIGNATURE);
 		if (sigpart == NULL) {
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM,
-					     _("Cannot verify message signature: Incorrect message format"));
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Cannot verify message signature: "
+				  "Incorrect message format"));
 			goto fail;
 		}
 	} else if (camel_content_type_is (ct, "application", "x-pkcs7-mime")) {
 		sigpart = ipart;
 	} else {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM,
-				     _("Cannot verify message signature: Incorrect message format"));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Cannot verify message signature: "
+			  "Incorrect message format"));
 		goto fail;
 	}
 
@@ -861,11 +892,11 @@ smime_context_verify (CamelCipherContext *context,
 	(void)NSS_CMSDecoder_Update (dec, (gchar *) buffer->data, buffer->len);
 	cmsg = NSS_CMSDecoder_Finish (dec);
 	if (cmsg == NULL) {
-		set_nss_error (ex, _("Decoder failed"));
+		set_nss_error (error, _("Decoder failed"));
 		goto fail;
 	}
 
-	valid = sm_verify_cmsg (context, cmsg, constream, ex);
+	valid = sm_verify_cmsg (context, cmsg, constream, error);
 
 	NSS_CMSMessage_Destroy (cmsg);
 fail:
@@ -882,7 +913,7 @@ smime_context_encrypt (CamelCipherContext *context,
                        GPtrArray *recipients,
                        CamelMimePart *ipart,
                        CamelMimePart *opart,
-                       CamelException *ex)
+                       GError **error)
 {
 	CamelSMIMEContextPrivate *p = ((CamelSMIMEContext *)context)->priv;
 	/*NSSCMSRecipientInfo **recipient_infos;*/
@@ -905,28 +936,31 @@ smime_context_encrypt (CamelCipherContext *context,
 
 	poolp = PORT_NewArena (1024);
 	if (poolp == NULL) {
-		set_nss_error (ex, g_strerror (ENOMEM));
+		set_nss_error (error, g_strerror (ENOMEM));
 		return -1;
 	}
 
 	/* Lookup all recipients certs, for later working */
 	recipient_certs = (CERTCertificate **)PORT_ArenaZAlloc (poolp, sizeof (*recipient_certs[0])*(recipients->len + 1));
 	if (recipient_certs == NULL) {
-		set_nss_error (ex, g_strerror (ENOMEM));
+		set_nss_error (error, g_strerror (ENOMEM));
 		goto fail;
 	}
 
 	for (i=0;i<recipients->len;i++) {
 		recipient_certs[i] = CERT_FindCertByNicknameOrEmailAddr (p->certdb, recipients->pdata[i]);
 		if (recipient_certs[i] == NULL) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Cannot find certificate for '%s'"), recipients->pdata[i]);
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Cannot find certificate for '%s'"),
+				(gchar *) recipients->pdata[i]);
 			goto fail;
 		}
 	}
 
 	/* Find a common algorithm, probably 3DES anyway ... */
 	if (NSS_SMIMEUtil_FindBulkAlgForRecipients (recipient_certs, &bulkalgtag, &bulkkeysize) != SECSuccess) {
-		set_nss_error (ex, _("Cannot find common bulk encryption algorithm"));
+		set_nss_error (error, _("Cannot find common bulk encryption algorithm"));
 		goto fail;
 	}
 
@@ -934,7 +968,7 @@ smime_context_encrypt (CamelCipherContext *context,
 	type = PK11_AlgtagToMechanism (bulkalgtag);
 	slot = PK11_GetBestSlot (type, context);
 	if (slot == NULL) {
-		set_nss_error (ex, _("Cannot allocate slot for encryption bulk key"));
+		set_nss_error (error, _("Cannot allocate slot for encryption bulk key"));
 		goto fail;
 	}
 
@@ -945,25 +979,25 @@ smime_context_encrypt (CamelCipherContext *context,
 	/* msg->envelopedData->data */
 	cmsg = NSS_CMSMessage_Create (NULL);
 	if (cmsg == NULL) {
-		set_nss_error (ex, _("Cannot create CMS Message"));
+		set_nss_error (error, _("Cannot create CMS Message"));
 		goto fail;
 	}
 
 	envd = NSS_CMSEnvelopedData_Create (cmsg, bulkalgtag, bulkkeysize);
 	if (envd == NULL) {
-		set_nss_error (ex, _("Cannot create CMS Enveloped data"));
+		set_nss_error (error, _("Cannot create CMS Enveloped data"));
 		goto fail;
 	}
 
 	cinfo = NSS_CMSMessage_GetContentInfo (cmsg);
 	if (NSS_CMSContentInfo_SetContent_EnvelopedData (cmsg, cinfo, envd) != SECSuccess) {
-		set_nss_error (ex, _("Cannot attach CMS Enveloped data"));
+		set_nss_error (error, _("Cannot attach CMS Enveloped data"));
 		goto fail;
 	}
 
 	cinfo = NSS_CMSEnvelopedData_GetContentInfo (envd);
 	if (NSS_CMSContentInfo_SetContent_Data (cmsg, cinfo, NULL, PR_FALSE) != SECSuccess) {
-		set_nss_error (ex, _("Cannot attach CMS data object"));
+		set_nss_error (error, _("Cannot attach CMS data object"));
 		goto fail;
 	}
 
@@ -972,12 +1006,12 @@ smime_context_encrypt (CamelCipherContext *context,
 		NSSCMSRecipientInfo *ri = NSS_CMSRecipientInfo_Create (cmsg, recipient_certs[i]);
 
 		if (ri == NULL) {
-			set_nss_error (ex, _("Cannot create CMS Recipient information"));
+			set_nss_error (error, _("Cannot create CMS Recipient information"));
 			goto fail;
 		}
 
 		if (NSS_CMSEnvelopedData_AddRecipient (envd, ri) != SECSuccess) {
-			set_nss_error (ex, _("Cannot add CMS Recipient information"));
+			set_nss_error (error, _("Cannot add CMS Recipient information"));
 			goto fail;
 		}
 	}
@@ -991,7 +1025,7 @@ smime_context_encrypt (CamelCipherContext *context,
 				   sm_decrypt_key, bulkkey,
 				   NULL, NULL);
 	if (enc == NULL) {
-		set_nss_error (ex, _("Cannot create encoder context"));
+		set_nss_error (error, _("Cannot create encoder context"));
 		goto fail;
 	}
 
@@ -1003,13 +1037,13 @@ smime_context_encrypt (CamelCipherContext *context,
 	if (NSS_CMSEncoder_Update (enc, (gchar *) buffer->data, buffer->len) != SECSuccess) {
 		NSS_CMSEncoder_Cancel (enc);
 		g_object_unref (mem);
-		set_nss_error (ex, _("Failed to add data to encoder"));
+		set_nss_error (error, _("Failed to add data to encoder"));
 		goto fail;
 	}
 	g_object_unref (mem);
 
 	if (NSS_CMSEncoder_Finish (enc) != SECSuccess) {
-		set_nss_error (ex, _("Failed to encode data"));
+		set_nss_error (error, _("Failed to encode data"));
 		goto fail;
 	}
 
@@ -1062,7 +1096,7 @@ static CamelCipherValidity *
 smime_context_decrypt (CamelCipherContext *context,
                        CamelMimePart *ipart,
                        CamelMimePart *opart,
-                       CamelException *ex)
+                       GError **error)
 {
 	NSSCMSDecoderContext *dec;
 	NSSCMSMessage *cmsg;
@@ -1097,7 +1131,7 @@ smime_context_decrypt (CamelCipherContext *context,
 	g_object_unref (istream);
 
 	if (cmsg == NULL) {
-		set_nss_error (ex, _("Decoder failed"));
+		set_nss_error (error, _("Decoder failed"));
 		goto fail;
 	}
 
@@ -1115,7 +1149,7 @@ smime_context_decrypt (CamelCipherContext *context,
 
 	if (NSS_CMSMessage_IsSigned (cmsg)) {
 		camel_stream_reset (ostream);
-		valid = sm_verify_cmsg (context, cmsg, ostream, ex);
+		valid = sm_verify_cmsg (context, cmsg, ostream, error);
 	} else {
 		valid = camel_cipher_validity_new ();
 		valid->encrypt.description = g_strdup (_("Encrypted content"));

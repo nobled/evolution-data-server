@@ -31,7 +31,6 @@
 #include <time.h>   /* for time */
 #include <unistd.h> /* for getpid */
 
-#include "camel-exception.h"
 #include "camel-mime-part.h"
 #include "camel-multipart.h"
 #include "camel-stream-mem.h"

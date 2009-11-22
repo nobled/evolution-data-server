@@ -26,7 +26,6 @@
 
 #include "camel-digest-folder.h"
 #include "camel-digest-summary.h"
-#include "camel-exception.h"
 #include "camel-folder-search.h"
 #include "camel-mime-message.h"
 #include "camel-multipart.h"
@@ -49,25 +48,25 @@ struct _CamelDigestFolderPrivate {
 
 static gpointer parent_class;
 
-static void digest_refresh_info (CamelFolder *folder, CamelException *ex);
-static void digest_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
+static gboolean digest_refresh_info (CamelFolder *folder, GError **error);
+static gboolean digest_sync (CamelFolder *folder, gboolean expunge, GError **error);
 static const gchar *digest_get_full_name (CamelFolder *folder);
-static void digest_expunge (CamelFolder *folder, CamelException *ex);
+static gboolean digest_expunge (CamelFolder *folder, GError **error);
 
 /* message manipulation */
 static CamelMimeMessage *digest_get_message (CamelFolder *folder, const gchar *uid,
-					     CamelException *ex);
-static void digest_append_message (CamelFolder *folder, CamelMimeMessage *message,
-				   const CamelMessageInfo *info, gchar **appended_uid, CamelException *ex);
-static void digest_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
+					     GError **error);
+static gboolean digest_append_message (CamelFolder *folder, CamelMimeMessage *message,
+				   const CamelMessageInfo *info, gchar **appended_uid, GError **error);
+static gboolean digest_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 					 CamelFolder *dest, GPtrArray **transferred_uids,
-					 gboolean delete_originals, CamelException *ex);
+					 gboolean delete_originals, GError **error);
 
 static GPtrArray *digest_search_by_expression (CamelFolder *folder, const gchar *expression,
-					       CamelException *ex);
+					       GError **error);
 
 static GPtrArray *digest_search_by_uids (CamelFolder *folder, const gchar *expression,
-					 GPtrArray *uids, CamelException *ex);
+					 GPtrArray *uids, GError **error);
 
 static void digest_search_free (CamelFolder *folder, GPtrArray *result);
 
@@ -263,22 +262,26 @@ camel_digest_folder_new (CamelStore *parent_store, CamelMimeMessage *message)
 	return folder;
 }
 
-static void
-digest_refresh_info (CamelFolder *folder, CamelException *ex)
+static gboolean
+digest_refresh_info (CamelFolder *folder,
+                     GError **error)
 {
-
+	return TRUE;
 }
 
-static void
-digest_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+static gboolean
+digest_sync (CamelFolder *folder,
+             gboolean expunge,
+             GError **error)
 {
-	/* no-op */
+	return TRUE;
 }
 
-static void
-digest_expunge (CamelFolder *folder, CamelException *ex)
+static gboolean
+digest_expunge (CamelFolder *folder,
+                GError **error)
 {
-	/* no-op */
+	return TRUE;
 }
 
 static const gchar *
@@ -287,28 +290,37 @@ digest_get_full_name (CamelFolder *folder)
 	return folder->full_name;
 }
 
-static void
-digest_append_message (CamelFolder *folder, CamelMimeMessage *message,
-		       const CamelMessageInfo *info, gchar **appended_uid,
-		       CamelException *ex)
+static gboolean
+digest_append_message (CamelFolder *folder,
+                       CamelMimeMessage *message,
+                       const CamelMessageInfo *info,
+                       gchar **appended_uid,
+                       GError **error)
 {
-	/* no-op */
 	if (appended_uid)
 		*appended_uid = NULL;
+
+	return TRUE;
 }
 
-static void
-digest_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
-			     CamelFolder *dest, GPtrArray **transferred_uids,
-			     gboolean delete_originals, CamelException *ex)
+static gboolean
+digest_transfer_messages_to (CamelFolder *source,
+                             GPtrArray *uids,
+                             CamelFolder *dest,
+                             GPtrArray **transferred_uids,
+                             gboolean delete_originals,
+                             GError **error)
 {
-	/* no-op */
 	if (transferred_uids)
 		*transferred_uids = NULL;
+
+	return TRUE;
 }
 
 static CamelMimeMessage *
-digest_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
+digest_get_message (CamelFolder *folder,
+                    const gchar *uid,
+                    GError **error)
 {
 	CamelDigestFolder *digest = CAMEL_DIGEST_FOLDER (folder);
 	CamelDataWrapper *wrapper;
@@ -340,7 +352,9 @@ digest_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 }
 
 static GPtrArray *
-digest_search_by_expression (CamelFolder *folder, const gchar *expression, CamelException *ex)
+digest_search_by_expression (CamelFolder *folder,
+                             const gchar *expression,
+                             GError **error)
 {
 	CamelDigestFolder *df = (CamelDigestFolder *) folder;
 	GPtrArray *matches;
@@ -351,7 +365,7 @@ digest_search_by_expression (CamelFolder *folder, const gchar *expression, Camel
 		df->priv->search = camel_folder_search_new ();
 
 	camel_folder_search_set_folder (df->priv->search, folder);
-	matches = camel_folder_search_search(df->priv->search, expression, NULL, ex);
+	matches = camel_folder_search_search(df->priv->search, expression, NULL, error);
 
 	CAMEL_DIGEST_FOLDER_UNLOCK (folder, search_lock);
 
@@ -359,7 +373,10 @@ digest_search_by_expression (CamelFolder *folder, const gchar *expression, Camel
 }
 
 static GPtrArray *
-digest_search_by_uids (CamelFolder *folder, const gchar *expression, GPtrArray *uids, CamelException *ex)
+digest_search_by_uids (CamelFolder *folder,
+                       const gchar *expression,
+                       GPtrArray *uids,
+                       GError **error)
 {
 	CamelDigestFolder *df = (CamelDigestFolder *) folder;
 	GPtrArray *matches;
@@ -373,7 +390,7 @@ digest_search_by_uids (CamelFolder *folder, const gchar *expression, GPtrArray *
 		df->priv->search = camel_folder_search_new ();
 
 	camel_folder_search_set_folder (df->priv->search, folder);
-	matches = camel_folder_search_search(df->priv->search, expression, uids, ex);
+	matches = camel_folder_search_search(df->priv->search, expression, uids, error);
 
 	CAMEL_DIGEST_FOLDER_UNLOCK (folder, search_lock);
 

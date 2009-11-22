@@ -35,7 +35,7 @@ camel-nntp-grouplist
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -45,7 +45,7 @@ camel-nntp-grouplist
 </para>
 
 @group_list: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -55,7 +55,7 @@ camel-nntp-grouplist
 </para>
 
 @group_list: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_nntp_grouplist_free ##### -->

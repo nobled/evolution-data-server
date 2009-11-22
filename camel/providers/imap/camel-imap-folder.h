@@ -90,30 +90,30 @@ struct _CamelImapFolderClass {
 CamelFolder *camel_imap_folder_new (CamelStore *parent,
 				    const gchar *folder_name,
 				    const gchar *folder_dir,
-				    CamelException *ex);
+				    GError **error);
 
-void camel_imap_folder_selected (CamelFolder *folder,
+gboolean camel_imap_folder_selected (CamelFolder *folder,
 				 CamelImapResponse *response,
-				 CamelException *ex);
+				 GError **error);
 
-void camel_imap_folder_changed (CamelFolder *folder, gint exists,
-				GArray *expunged, CamelException *ex);
+gboolean camel_imap_folder_changed (CamelFolder *folder, gint exists,
+				GArray *expunged, GError **error);
 
 CamelStream *camel_imap_folder_fetch_data (CamelImapFolder *imap_folder,
 					   const gchar *uid,
 					   const gchar *section_text,
 					   gboolean cache_only,
-					   CamelException *ex);
-void
+					   GError **error);
+gboolean
 imap_append_resyncing (CamelFolder *folder, CamelMimeMessage *message,
 		       const CamelMessageInfo *info, gchar **appended_uid,
-		       CamelException *ex);
-void
+		       GError **error);
+gboolean
 imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
 			 CamelFolder *dest, GPtrArray **transferred_uids,
-			 gboolean delete_originals, CamelException *ex);
-void
-imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelException *ex);
+			 gboolean delete_originals, GError **error);
+gboolean
+imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, GError **error);
 
 GType camel_imap_folder_get_type (void);
 

@@ -33,7 +33,6 @@
 #include <string.h>
 
 #include "camel-charset-map.h"
-#include "camel-exception.h"
 #include "camel-iconv.h"
 #include "camel-mime-filter-basic.h"
 #include "camel-mime-filter-charset.h"

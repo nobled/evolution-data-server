@@ -38,7 +38,7 @@ CamelIMAP4Folder
 
 @store: 
 @full_name: 
-@ex: 
+@error: 
 @Returns: 
 
 

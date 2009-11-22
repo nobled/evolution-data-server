@@ -35,7 +35,7 @@ CamelImapMessageCache
 
 @path: 
 @summary: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -67,7 +67,7 @@ CamelImapMessageCache
 @part_spec: 
 @data: 
 @len: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -80,7 +80,7 @@ CamelImapMessageCache
 @uid: 
 @part_spec: 
 @data_stream: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_imap_message_cache_insert_wrapper ##### -->
@@ -92,7 +92,7 @@ CamelImapMessageCache
 @uid: 
 @part_spec: 
 @wrapper: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_imap_message_cache_get ##### -->
@@ -103,7 +103,7 @@ CamelImapMessageCache
 @cache: 
 @uid: 
 @part_spec: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -115,7 +115,7 @@ CamelImapMessageCache
 @cache: 
 @uid: 
 @part_spec: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -145,7 +145,7 @@ CamelImapMessageCache
 @source_uid: 
 @dest: 
 @dest_uid: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_imap_message_cache_delete ##### -->
@@ -154,7 +154,7 @@ CamelImapMessageCache
 </para>
 
 @path: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -165,7 +165,7 @@ CamelImapMessageCache
 
 @Param1: 
 @uids: 
-@ex: 
+@error: 
 @Returns: 
 
 

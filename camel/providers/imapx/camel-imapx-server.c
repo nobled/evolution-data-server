@@ -166,7 +166,7 @@ typedef struct _CamelIMAPXJob CamelIMAPXJob;
 struct _CamelIMAPXJob {
 	CamelMsg msg;
 
-	CamelException *ex;
+	GError **error;
 
 	void (*start)(CamelIMAPXServer *is, struct _CamelIMAPXJob *job);
 
@@ -229,7 +229,7 @@ enum {
 #define SSL_PORT_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_SSL2 | CAMEL_TCP_STREAM_SSL_ENABLE_SSL3)
 #define STARTTLS_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_TLS)
 
-static void imapx_select(CamelIMAPXServer *is, CamelFolder *folder, CamelException *ex);
+static void imapx_select(CamelIMAPXServer *is, CamelFolder *folder, GError **error);
 
 /*
   this creates a uid (or sequence number) set directly into a command,
@@ -711,7 +711,7 @@ imapx_command_start(CamelIMAPXServer *imap, CamelIMAPXCommand *ic)
 
 /* must have QUEUE lock */
 static void
-imapx_command_start_next(CamelIMAPXServer *imap, CamelException *ex)
+imapx_command_start_next(CamelIMAPXServer *imap, GError **error)
 {
 	CamelIMAPXCommand *ic, *nc;
 	gint count = 0;
@@ -937,7 +937,7 @@ imapx_expunged(CamelIMAPXServer *imap)
 
 /* handle any untagged responses */
 static gint
-imapx_untagged(CamelIMAPXServer *imap, CamelException *ex)
+imapx_untagged(CamelIMAPXServer *imap, GError **error)
 {
 	guint id, len;
 	guchar *token, *p, c;
@@ -1156,7 +1156,7 @@ imapx_untagged(CamelIMAPXServer *imap, CamelException *ex)
 /* handle any continuation requests
    either data continuations, or auth continuation */
 static gint
-imapx_continuation(CamelIMAPXServer *imap, CamelException *ex)
+imapx_continuation(CamelIMAPXServer *imap, GError **error)
 {
 	CamelIMAPXCommand *ic, *newliteral = NULL;
 	CamelIMAPXCommandPart *cp;
@@ -1256,7 +1256,7 @@ imapx_continuation(CamelIMAPXServer *imap, CamelException *ex)
 
 /* handle a completion line */
 static gint
-imapx_completion(CamelIMAPXServer *imap, guchar *token, gint len, CamelException *ex)
+imapx_completion(CamelIMAPXServer *imap, guchar *token, gint len, GError **error)
 {
 	CamelIMAPXCommand * volatile ic;
 	guint tag;
@@ -1311,7 +1311,7 @@ imapx_completion(CamelIMAPXServer *imap, guchar *token, gint len, CamelException
 }
 
 static void
-imapx_step(CamelIMAPXServer *is, CamelException *ex)
+imapx_step(CamelIMAPXServer *is, GError **error)
 /* throws IO,PARSE exception */
 {
 	guint len;
@@ -1333,7 +1333,7 @@ imapx_step(CamelIMAPXServer *is, CamelException *ex)
 /* Used to run 1 command synchronously,
    use for capa, login, and selecting only. */
 static void
-imapx_command_run(CamelIMAPXServer *is, CamelIMAPXCommand *ic, CamelException *ex)
+imapx_command_run(CamelIMAPXServer *is, CamelIMAPXCommand *ic, GError **error)
 /* throws IO,PARSE exception */
 {
 	camel_imapx_command_close(ic);
@@ -1409,7 +1409,7 @@ imapx_select_done(CamelIMAPXServer *is, CamelIMAPXCommand *ic)
 }
 
 static void
-imapx_select(CamelIMAPXServer *is, CamelFolder *folder, CamelException *ex)
+imapx_select(CamelIMAPXServer *is, CamelFolder *folder, GError **error)
 {
 	CamelIMAPXCommand *ic;
 
@@ -1461,7 +1461,7 @@ imapx_select(CamelIMAPXServer *is, CamelFolder *folder, CamelException *ex)
 }
 
 static void
-imapx_connect(CamelIMAPXServer *is, gint ssl_mode, gint try_starttls, CamelException *ex)
+imapx_connect(CamelIMAPXServer *is, gint ssl_mode, gint try_starttls, GError **error)
 /* throws IO exception */
 {
 	CamelStream * tcp_stream = NULL;
@@ -1542,7 +1542,7 @@ imapx_connect(CamelIMAPXServer *is, gint ssl_mode, gint try_starttls, CamelExcep
 }
 
 static void
-imapx_reconnect(CamelIMAPXServer *is, CamelException *ex)
+imapx_reconnect(CamelIMAPXServer *is, GError **error)
 {
 		CamelSasl *sasl;
 		CamelIMAPXCommand *ic;
@@ -1808,7 +1808,7 @@ imapx_refresh_info_cmp(gconstpointer ap, gconstpointer bp)
 
 /* skips over non-server uids (pending appends) */
 static const CamelMessageInfo *
-imapx_iterator_next(CamelIterator *iter, CamelException *ex)
+imapx_iterator_next(CamelIterator *iter, GError **error)
 {
 	const CamelMessageInfo *iterinfo;
 
@@ -2410,7 +2410,7 @@ imapx_run_job(CamelIMAPXServer *is, CamelIMAPXJob *job)
 }
 
 static CamelStream *
-imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, gint pri, CamelException *ex)
+imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, gint pri, GError **error)
 {
 	CamelStream *stream;
 	CamelIMAPXJob *job;
@@ -2482,13 +2482,13 @@ imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar 
 }
 
 CamelStream *
-camel_imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, CamelException *ex)
+camel_imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, GError **error)
 {
 	return imapx_server_get_message(is, folder, uid, 100, ex);
 }
 
 void
-camel_imapx_server_append_message(CamelIMAPXServer *is, CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *mi, CamelException *ex)
+camel_imapx_server_append_message(CamelIMAPXServer *is, CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *mi, GError **error)
 {
 	gchar *uid = NULL, *tmp = NULL, *new = NULL;
 	CamelStream *stream, *filter;
@@ -2615,7 +2615,7 @@ getmsgs(gpointer d)
 }
 
 void
-camel_imapx_server_refresh_info(CamelIMAPXServer *is, CamelFolder *folder, CamelException *ex)
+camel_imapx_server_refresh_info(CamelIMAPXServer *is, CamelFolder *folder, GError **error)
 {
 	CamelIMAPXJob *job;
 
@@ -2664,7 +2664,7 @@ imapx_sync_free_user(GArray *user_set)
 }
 
 void
-camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrArray *infos, CamelException *ex)
+camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrArray *infos, GError **error)
 {
 	guint i, on_orset, off_orset;
 	GArray *on_user = NULL, *off_user = NULL;
@@ -2772,7 +2772,7 @@ camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrA
 
 /* expunge-uids? */
 void
-camel_imapx_server_expunge(CamelIMAPXServer *is, CamelFolder *folder, CamelException *ex)
+camel_imapx_server_expunge(CamelIMAPXServer *is, CamelFolder *folder, GError **error)
 {
 	CamelIMAPXJob *job;
 
@@ -2829,7 +2829,7 @@ imapx_list_cmp(gconstpointer ap, gconstpointer bp)
 }
 
 GPtrArray *
-camel_imapx_server_list(CamelIMAPXServer *is, const gchar *top, guint32 flags, CamelException *ex)
+camel_imapx_server_list(CamelIMAPXServer *is, const gchar *top, guint32 flags, GError **error)
 {
 	CamelIMAPXJob *job;
 	GPtrArray *folders;

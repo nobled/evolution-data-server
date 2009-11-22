@@ -31,7 +31,12 @@
 #include "camel-process.h"
 
 pid_t
-camel_process_fork (const gchar *path, gchar **argv, gint *infd, gint *outfd, gint *errfd, CamelException *ex)
+camel_process_fork (const gchar *path,
+                    gchar **argv,
+                    gint *infd,
+                    gint *outfd,
+                    gint *errfd,
+                    GError **error)
 {
 	gint errnosav, fd[6], i;
 	pid_t pid;
@@ -42,9 +47,11 @@ camel_process_fork (const gchar *path, gchar **argv, gint *infd, gint *outfd, gi
 	for (i = 0; i < 6; i += 2) {
 		if (pipe (fd + i) == -1) {
 			errnosav = errno;
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Failed to create pipe to '%s': %s"),
-					      argv[0], g_strerror (errno));
+			g_set_error (
+				error, G_FILE_ERROR,
+				g_file_error_from_errno (errno),
+				_("Failed to create pipe to '%s': %s"),
+				argv[0], g_strerror (errno));
 
 			for (i = 0; i < 6; i++) {
 				if (fd[i] == -1)
@@ -84,9 +91,11 @@ camel_process_fork (const gchar *path, gchar **argv, gint *infd, gint *outfd, gi
 		execv (path, argv);
 		_exit (255);
 	} else if (pid == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Failed to create child process '%s': %s"),
-				      argv[0], g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Failed to create child process '%s': %s"),
+			argv[0], g_strerror (errno));
 		for (i = 0; i < 6; i++)
 			close (fd[i]);
 		return -1;

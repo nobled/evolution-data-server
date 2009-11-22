@@ -60,7 +60,7 @@ static gpointer parent_class;
 static GByteArray *
 sasl_cram_md5_challenge (CamelSasl *sasl,
                          GByteArray *token,
-                         CamelException *ex)
+                         GError **error)
 {
 	CamelService *service;
 	GChecksum *checksum;

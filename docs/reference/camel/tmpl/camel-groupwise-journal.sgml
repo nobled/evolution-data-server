@@ -54,7 +54,7 @@ CamelGroupwiseJournal
 @message: 
 @mi: 
 @appended_uid: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_groupwise_journal_transfer ##### -->
@@ -68,6 +68,6 @@ CamelGroupwiseJournal
 @mi: 
 @orginal_uid: 
 @transferred_uid: 
-@ex: 
+@error: 
 
 

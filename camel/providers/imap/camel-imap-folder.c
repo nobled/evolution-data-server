@@ -71,46 +71,46 @@ static CamelProperty imap_property_list[] = {
 	{ CAMEL_IMAP_FOLDER_CHECK_FOLDER, "check_folder", N_("Always check for new mail in this folder") },
 };
 
-static gint imap_getv (CamelObject *object, CamelException *ex, CamelArgGetV *args);
-static gint imap_setv (CamelObject *object, CamelException *ex, CamelArgV *args);
+static gint imap_getv (CamelObject *object, GError **error, CamelArgGetV *args);
+static gint imap_setv (CamelObject *object, GError **error, CamelArgV *args);
 
-static void imap_rescan (CamelFolder *folder, gint exists, CamelException *ex);
-static void imap_refresh_info (CamelFolder *folder, CamelException *ex);
-static void imap_sync_offline (CamelFolder *folder, CamelException *ex);
-static void imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex);
-static void imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *ex);
-static void imap_expunge_uids_offline (CamelFolder *folder, GPtrArray *uids, CamelException *ex);
-static void imap_expunge (CamelFolder *folder, CamelException *ex);
-/*static void imap_cache_message (CamelDiscoFolder *disco_folder, const gchar *uid, CamelException *ex);*/
+static gboolean imap_rescan (CamelFolder *folder, gint exists, GError **error);
+static gboolean imap_refresh_info (CamelFolder *folder, GError **error);
+static gboolean imap_sync_offline (CamelFolder *folder, GError **error);
+static gboolean imap_sync (CamelFolder *folder, gboolean expunge, GError **error);
+static gboolean imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, GError **error);
+static gboolean imap_expunge_uids_offline (CamelFolder *folder, GPtrArray *uids, GError **error);
+static gboolean imap_expunge (CamelFolder *folder, GError **error);
+/*static void imap_cache_message (CamelDiscoFolder *disco_folder, const gchar *uid, GError **error);*/
 static void imap_rename (CamelFolder *folder, const gchar *new);
-static GPtrArray * imap_get_uncached_uids (CamelFolder *folder, GPtrArray * uids, CamelException *ex);
-static gchar * imap_get_filename (CamelFolder *folder, const gchar *uid, CamelException *ex);
+static GPtrArray * imap_get_uncached_uids (CamelFolder *folder, GPtrArray * uids, GError **error);
+static gchar * imap_get_filename (CamelFolder *folder, const gchar *uid, GError **error);
 
 /* message manipulation */
 static CamelMimeMessage *imap_get_message (CamelFolder *folder, const gchar *uid,
-					   CamelException *ex);
-static void imap_sync_message (CamelFolder *folder, const gchar *uid,
-			       CamelException *ex);
-static void imap_append_online (CamelFolder *folder, CamelMimeMessage *message,
+					   GError **error);
+static gboolean imap_sync_message (CamelFolder *folder, const gchar *uid,
+			       GError **error);
+static gboolean imap_append_online (CamelFolder *folder, CamelMimeMessage *message,
 				const CamelMessageInfo *info, gchar **appended_uid,
-				CamelException *ex);
-static void imap_append_offline (CamelFolder *folder, CamelMimeMessage *message,
+				GError **error);
+static gboolean imap_append_offline (CamelFolder *folder, CamelMimeMessage *message,
 				 const CamelMessageInfo *info, gchar **appended_uid,
-				 CamelException *ex);
+				 GError **error);
 
-static void imap_transfer_online (CamelFolder *source, GPtrArray *uids,
+static gboolean imap_transfer_online (CamelFolder *source, GPtrArray *uids,
 				  CamelFolder *dest, GPtrArray **transferred_uids,
 				  gboolean delete_originals,
-				  CamelException *ex);
-static void imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
+				  GError **error);
+static gboolean imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
 				   CamelFolder *dest, GPtrArray **transferred_uids,
 				   gboolean delete_originals,
-				   CamelException *ex);
+				   GError **error);
 
 /* searching */
-static GPtrArray *imap_search_by_expression (CamelFolder *folder, const gchar *expression, CamelException *ex);
-static guint32 imap_count_by_expression (CamelFolder *folder, const gchar *expression, CamelException *ex);
-static GPtrArray *imap_search_by_uids	    (CamelFolder *folder, const gchar *expression, GPtrArray *uids, CamelException *ex);
+static GPtrArray *imap_search_by_expression (CamelFolder *folder, const gchar *expression, GError **error);
+static guint32 imap_count_by_expression (CamelFolder *folder, const gchar *expression, GError **error);
+static GPtrArray *imap_search_by_uids	    (CamelFolder *folder, const gchar *expression, GPtrArray *uids, GError **error);
 static void       imap_search_free          (CamelFolder *folder, GPtrArray *uids);
 
 static void imap_thaw (CamelFolder *folder);
@@ -124,7 +124,7 @@ static GData *parse_fetch_response (CamelImapFolder *imap_folder, gchar *msg_att
 static CamelImapMessageInfo * imap_folder_summary_uid_or_error(
 	CamelFolderSummary *summary,
 	const gchar * uid,
-	CamelException *ex);
+	GError **error);
 
 #ifdef G_OS_WIN32
 /* The strtok() in Microsoft's C library is MT-safe (but still uses
@@ -266,7 +266,7 @@ camel_imap_folder_get_type (void)
 }
 
 static void
-replay_offline_journal (CamelImapStore *imap_store, CamelImapFolder *imap_folder, CamelException *ex)
+replay_offline_journal (CamelImapStore *imap_store, CamelImapFolder *imap_folder, GError **error)
 {
 	CamelIMAPJournal *imap_journal;
 
@@ -278,16 +278,16 @@ replay_offline_journal (CamelImapStore *imap_store, CamelImapFolder *imap_folder
 	g_return_if_fail (imap_journal != NULL);
 
 	/* do not replay when still in offline */
-	if (CAMEL_OFFLINE_STORE (imap_store)->state != CAMEL_OFFLINE_STORE_NETWORK_AVAIL || !camel_imap_store_connected (imap_store, ex))
+	if (CAMEL_OFFLINE_STORE (imap_store)->state != CAMEL_OFFLINE_STORE_NETWORK_AVAIL || !camel_imap_store_connected (imap_store, error))
 		return;
 
 	/* Check if the replay is already in progress as imap_sync would be called while expunge resync */
 	if (!imap_journal->rp_in_progress) {
 		imap_journal->rp_in_progress++;
 
-		camel_offline_journal_replay (imap_folder->journal, ex);
+		camel_offline_journal_replay (imap_folder->journal, error);
 		camel_imap_journal_close_folders (imap_journal);
-		camel_offline_journal_write (imap_folder->journal, ex);
+		camel_offline_journal_write (imap_folder->journal, error);
 
 		imap_journal->rp_in_progress--;
 		g_return_if_fail (imap_journal->rp_in_progress >= 0);
@@ -296,7 +296,7 @@ replay_offline_journal (CamelImapStore *imap_store, CamelImapFolder *imap_folder
 
 CamelFolder *
 camel_imap_folder_new (CamelStore *parent, const gchar *folder_name,
-		       const gchar *folder_dir, CamelException *ex)
+		       const gchar *folder_dir, GError **error)
 {
 	CamelImapStore *imap_store = CAMEL_IMAP_STORE (parent);
 	CamelFolder *folder;
@@ -305,9 +305,11 @@ camel_imap_folder_new (CamelStore *parent, const gchar *folder_name,
 	gchar *summary_file, *state_file, *path;
 
 	if (g_mkdir_with_parents (folder_dir, S_IRWXU) != 0) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not create directory %s: %s"),
-				      folder_dir, g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not create directory %s: %s"),
+			folder_dir, g_strerror (errno));
 		return NULL;
 	}
 
@@ -324,9 +326,9 @@ camel_imap_folder_new (CamelStore *parent, const gchar *folder_name,
 	g_free (summary_file);
 	if (!folder->summary) {
 		g_object_unref (CAMEL_OBJECT (folder));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not load summary for %s"),
-				      folder_name);
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Could not load summary for %s"), folder_name);
 		return NULL;
 	}
 
@@ -341,7 +343,7 @@ camel_imap_folder_new (CamelStore *parent, const gchar *folder_name,
 	g_free(state_file);
 	camel_object_state_read(folder);
 
-	imap_folder->cache = camel_imap_message_cache_new (folder_dir, folder->summary, ex);
+	imap_folder->cache = camel_imap_message_cache_new (folder_dir, folder->summary, error);
 	if (!imap_folder->cache) {
 		g_object_unref (CAMEL_OBJECT (folder));
 		return NULL;
@@ -366,9 +368,10 @@ camel_imap_folder_new (CamelStore *parent, const gchar *folder_name,
 }
 
 /* Called with the store's connect_lock locked */
-void
-camel_imap_folder_selected (CamelFolder *folder, CamelImapResponse *response,
-			    CamelException *ex)
+gboolean
+camel_imap_folder_selected (CamelFolder *folder,
+                            CamelImapResponse *response,
+                            GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelImapSummary *imap_summary = CAMEL_IMAP_SUMMARY (folder->summary);
@@ -435,8 +438,7 @@ camel_imap_folder_selected (CamelFolder *folder, CamelImapResponse *response,
 		camel_imap_message_cache_clear (imap_folder->cache);
 		CAMEL_IMAP_FOLDER_REC_UNLOCK (imap_folder, cache_lock);
 		imap_folder->need_rescan = FALSE;
-		camel_imap_folder_changed (folder, exists, NULL, ex);
-		return;
+		return camel_imap_folder_changed (folder, exists, NULL, error);
 	}
 
 	/* If we've lost messages, we have to rescan everything */
@@ -453,9 +455,9 @@ camel_imap_folder_selected (CamelFolder *folder, CamelImapResponse *response,
 		 * is selected, and we don't want camel_imap_command
 		 * to worry about it.)
 		 */
-		response = camel_imap_command (store, NULL, ex, "FETCH %d UID", count);
+		response = camel_imap_command (store, NULL, error, "FETCH %d UID", count);
 		if (!response)
-			return;
+			return FALSE;
 		uid = 0;
 		for (i = 0; i < response->untagged->len; i++) {
 			resp = response->untagged->pdata[i];
@@ -486,30 +488,32 @@ camel_imap_folder_selected (CamelFolder *folder, CamelImapResponse *response,
 	}
 
 	/* Now rescan if we need to */
-	if (imap_folder->need_rescan) {
-		imap_rescan (folder, exists, ex);
-		return;
-	}
+	if (imap_folder->need_rescan)
+		return imap_rescan (folder, exists, error);
 
 	/* If we don't need to rescan completely, but new messages
 	 * have been added, find out about them.
 	 */
 	if (exists > count)
-		camel_imap_folder_changed (folder, exists, NULL, ex);
+		camel_imap_folder_changed (folder, exists, NULL, error);
 
 	/* And we're done. */
+
+	return TRUE;
 }
 
 static gchar *
-imap_get_filename (CamelFolder *folder, const gchar *uid, CamelException *ex)
+imap_get_filename (CamelFolder *folder,
+                   const gchar *uid,
+                   GError **error)
 {
 	CamelImapFolder *imap_folder = (CamelImapFolder*) folder;
 
-	return camel_imap_message_cache_get_filename (imap_folder->cache, uid, "", ex);
+	return camel_imap_message_cache_get_filename (imap_folder->cache, uid, "", error);
 }
 
 static gint
-imap_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
+imap_getv(CamelObject *object, GError **error, CamelArgGetV *args)
 {
 	CamelFolder *folder = (CamelFolder *)object;
 	gint i, count=0;
@@ -528,7 +532,7 @@ imap_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 
 			props.argc = 1;
 			props.argv[0] = *arg;
-			((CamelObjectClass *)parent_class)->getv(object, ex, &props);
+			((CamelObjectClass *)parent_class)->getv(object, error, &props);
 
 			for (i = 0; i < G_N_ELEMENTS (imap_property_list); i++)
 				*arg->ca_ptr = g_slist_append (*arg->ca_ptr, &imap_property_list[i]);
@@ -557,13 +561,13 @@ imap_getv(CamelObject *object, CamelException *ex, CamelArgGetV *args)
 	}
 
 	if (count)
-		return ((CamelObjectClass *)parent_class)->getv(object, ex, args);
+		return ((CamelObjectClass *)parent_class)->getv(object, error, args);
 
 	return 0;
 }
 
 static gint
-imap_setv (CamelObject *object, CamelException *ex, CamelArgV *args)
+imap_setv (CamelObject *object, GError **error, CamelArgV *args)
 {
 	gint save = 0;
 	gint i;
@@ -610,7 +614,7 @@ imap_setv (CamelObject *object, CamelException *ex, CamelArgV *args)
 	if (save)
 		camel_object_state_write (object);
 
-	return ((CamelObjectClass *)parent_class)->setv (object, ex, args);
+	return ((CamelObjectClass *)parent_class)->setv (object, error, args);
 }
 
 static void
@@ -644,7 +648,7 @@ imap_rename (CamelFolder *folder, const gchar *new)
 
 /* called with connect_lock locked */
 static gboolean
-get_folder_status (CamelFolder *folder, guint32 *total, guint32 *unread, CamelException *ex)
+get_folder_status (CamelFolder *folder, guint32 *total, guint32 *unread, GError **error)
 {
 	CamelImapStore *imap_store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapResponse *response;
@@ -652,7 +656,7 @@ get_folder_status (CamelFolder *folder, guint32 *total, guint32 *unread, CamelEx
 
 	g_return_val_if_fail (folder != NULL, FALSE);
 
-	response = camel_imap_command (imap_store, folder, ex, "STATUS %F (MESSAGES UNSEEN)", folder->full_name);
+	response = camel_imap_command (imap_store, folder, error, "STATUS %F (MESSAGES UNSEEN)", folder->full_name);
 
 	if (response) {
 		gint i;
@@ -714,21 +718,23 @@ get_folder_status (CamelFolder *folder, guint32 *total, guint32 *unread, CamelEx
 	return res;
 }
 
-static void
-imap_refresh_info (CamelFolder *folder, CamelException *ex)
+static gboolean
+imap_refresh_info (CamelFolder *folder,
+                   GError **error)
 {
 	CamelImapStore *imap_store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelImapResponse *response;
 	CamelStoreInfo *si;
 	gint check_rescan = -1;
+	GError *local_error = NULL;
 
 	if (CAMEL_OFFLINE_STORE (imap_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
-		return;
+		return TRUE;
 
 	if (camel_folder_is_frozen (folder)) {
 		imap_folder->need_refresh = TRUE;
-		return;
+		return TRUE;
 	}
 
 	/* If the folder isn't selected, select it (which will force
@@ -738,17 +744,17 @@ imap_refresh_info (CamelFolder *folder, CamelException *ex)
 	 * should do it.  */
 	CAMEL_SERVICE_REC_LOCK (imap_store, connect_lock);
 
-	if (camel_application_is_exiting  || !camel_imap_store_connected(imap_store, ex))
+	if (camel_application_is_exiting  || !camel_imap_store_connected(imap_store, error))
 		goto done;
 
 	/* try to store local changes first, as the summary contains new local messages */
-	replay_offline_journal (imap_store, imap_folder, ex);
+	replay_offline_journal (imap_store, imap_folder, &local_error);
 
 	if (imap_store->current_folder != folder
 	    || g_ascii_strcasecmp(folder->full_name, "INBOX") == 0) {
-		response = camel_imap_command (imap_store, folder, ex, NULL);
+		response = camel_imap_command (imap_store, folder, &local_error, NULL);
 		if (response) {
-			camel_imap_folder_selected (folder, response, ex);
+			camel_imap_folder_selected (folder, response, &local_error);
 			camel_imap_response_free (imap_store, response);
 		}
 	} else if (imap_folder->need_rescan) {
@@ -756,18 +762,18 @@ imap_refresh_info (CamelFolder *folder, CamelException *ex)
 		 * a NOOP to give the server a chance to tell us about new
 		 * messages.
 		 */
-		imap_rescan (folder, camel_folder_summary_count (folder->summary), ex);
+		imap_rescan (folder, camel_folder_summary_count (folder->summary), &local_error);
 		check_rescan = 0;
 	} else {
 #if 0
 		/* on some servers need to CHECKpoint INBOX to recieve new messages?? */
 		/* rfc2060 suggests this, but havent seen a server that requires it */
 		if (g_ascii_strcasecmp(folder->full_name, "INBOX") == 0) {
-			response = camel_imap_command (imap_store, folder, ex, "CHECK");
+			response = camel_imap_command (imap_store, folder, &local_error, "CHECK");
 			camel_imap_response_free (imap_store, response);
 		}
 #endif
-		response = camel_imap_command (imap_store, folder, ex, "NOOP");
+		response = camel_imap_command (imap_store, folder, &local_error, "NOOP");
 		camel_imap_response_free (imap_store, response);
 	}
 
@@ -786,7 +792,7 @@ imap_refresh_info (CamelFolder *folder, CamelException *ex)
 		camel_store_summary_info_free((CamelStoreSummary *)((CamelImapStore *)folder->parent_store)->summary, si);
 	}
 
-	if (check_rescan && !camel_application_is_exiting && !camel_exception_is_set (ex)) {
+	if (check_rescan && !camel_application_is_exiting && local_error == NULL) {
 		if (check_rescan == -1) {
 			guint32 total, unread = 0, server_total = 0, server_unread = 0;
 
@@ -794,7 +800,7 @@ imap_refresh_info (CamelFolder *folder, CamelException *ex)
 
 			/* Check whether there are changes in total/unread messages in the folders
 			   and if so, then rescan whole summary */
-			if (get_folder_status (folder, &server_total, &server_unread, ex)) {
+			if (get_folder_status (folder, &server_total, &server_unread, &local_error)) {
 				camel_object_get (folder, NULL, CAMEL_FOLDER_TOTAL, &total, CAMEL_FOLDER_UNREAD, &unread, NULL);
 
 				if (total != server_total || unread != server_unread)
@@ -803,13 +809,20 @@ imap_refresh_info (CamelFolder *folder, CamelException *ex)
 		}
 
 		if (check_rescan)
-			imap_rescan (folder, camel_folder_summary_count (folder->summary), ex);
+			imap_rescan (folder, camel_folder_summary_count (folder->summary), &local_error);
 	}
 done:
 	CAMEL_SERVICE_REC_UNLOCK (imap_store, connect_lock);
 
-	camel_folder_summary_save_to_db (folder->summary, ex);
+	camel_folder_summary_save_to_db (folder->summary, NULL);
 	camel_store_summary_save ((CamelStoreSummary *)((CamelImapStore *)folder->parent_store)->summary);
+
+	if (local_error != NULL) {
+		g_propagate_error (error, local_error);
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static void
@@ -890,8 +903,8 @@ merge_custom_flags (CamelMessageInfo *mi, const gchar *custom_flags)
 }
 
 /* Called with the store's connect_lock locked */
-static void
-imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
+static gboolean
+imap_rescan (CamelFolder *folder, gint exists, GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
@@ -909,17 +922,18 @@ imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
 	GArray *removed;
 	gboolean ok;
 	CamelFolderChangeInfo *changes = NULL;
+	gboolean success;
 
 	if (camel_application_is_exiting)
-		return;
+		return TRUE;
 
 	imap_folder->need_rescan = FALSE;
 
 	summary_len = camel_folder_summary_count (folder->summary);
 	if (summary_len == 0) {
 		if (exists)
-			camel_imap_folder_changed (folder, exists, NULL, ex);
-		return;
+			return camel_imap_folder_changed (folder, exists, NULL, error);
+		return TRUE;
 	}
 
 	/* Check UIDs and flags of all messages we already know of. */
@@ -928,21 +942,21 @@ imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
 
 	if (!uid) {
 		camel_operation_end (NULL);
-		return;
+		return TRUE;
 	}
 
-	ok = camel_imap_command_start (store, folder, ex,
-				       "UID FETCH 1:%s (FLAGS)",
-				       uid);
+	ok = camel_imap_command_start (
+		store, folder, error,
+		"UID FETCH 1:%s (FLAGS)", uid);
 	g_free (uid);
 	if (!ok) {
 		camel_operation_end (NULL);
-		return;
+		return FALSE;
 	}
 
 	new = g_malloc0 (summary_len * sizeof (*new));
 	summary_got = 0;
-	while ((type = camel_imap_command_response (store, &resp, ex)) == CAMEL_IMAP_RESPONSE_UNTAGGED && !camel_application_is_exiting) {
+	while ((type = camel_imap_command_response (store, &resp, error)) == CAMEL_IMAP_RESPONSE_UNTAGGED && !camel_application_is_exiting) {
 		GData *data;
 		gchar *uid;
 		guint32 flags;
@@ -972,7 +986,7 @@ imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
 		camel_operation_end (NULL);
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 		g_free(new);
-		return;
+		return TRUE;
 	}
 	camel_operation_end (NULL);
 	if (type == CAMEL_IMAP_RESPONSE_ERROR || camel_application_is_exiting) {
@@ -985,7 +999,7 @@ imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
 		if (type != CAMEL_IMAP_RESPONSE_ERROR && type != CAMEL_IMAP_RESPONSE_TAGGED)
 			CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 
-		return;
+		return TRUE;
 	}
 
 	/* Free the final tagged response */
@@ -1001,7 +1015,7 @@ imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
 	removed = g_array_new (FALSE, FALSE, sizeof (gint));
 
 	if (summary_len - camel_folder_summary_cache_size (folder->summary) > 50)
-		camel_folder_summary_reload_from_db (folder->summary, ex);
+		camel_folder_summary_reload_from_db (folder->summary, error);
 
 	for (i = 0, j = 0; i < summary_len && new[j].uid; i++) {
 		gboolean changed = FALSE;
@@ -1194,9 +1208,12 @@ imap_rescan (CamelFolder *folder, gint exists, CamelException *ex)
 		j = seq - del;
 		g_array_append_val (removed, j);
 	}
+
 	/* And finally update the summary. */
-	camel_imap_folder_changed (folder, exists, removed, ex);
+	success = camel_imap_folder_changed (folder, exists, removed, error);
 	g_array_free (removed, TRUE);
+
+	return success;
 }
 
 static const gchar *
@@ -1365,8 +1382,9 @@ get_matching (CamelFolder *folder, guint32 flags, guint32 mask, CamelMessageInfo
 	#undef close_range
 }
 
-static void
-imap_sync_offline (CamelFolder *folder, CamelException *ex)
+static gboolean
+imap_sync_offline (CamelFolder *folder,
+                   GError **error)
 {
 	if (folder->summary && (folder->summary->flags & CAMEL_SUMMARY_DIRTY) != 0) {
 		CamelStoreInfo *si;
@@ -1384,17 +1402,22 @@ imap_sync_offline (CamelFolder *folder, CamelException *ex)
 		}
 	}
 
-	camel_folder_summary_save_to_db (folder->summary, ex);
+	camel_folder_summary_save_to_db (folder->summary, error);
 	camel_store_summary_save((CamelStoreSummary *)((CamelImapStore *)folder->parent_store)->summary);
+
+	return TRUE;
 }
 
-static void
-imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+static gboolean
+imap_sync (CamelFolder *folder,
+           gboolean expunge,
+           GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapMessageInfo *info;
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
-	CamelException local_ex;
+	gboolean success;
+	GError *local_error = NULL;
 
 	GPtrArray *matches, *summary;
 	gchar *set, *flaglist, *uid;
@@ -1402,19 +1425,16 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 
 	if (folder->permanent_flags == 0 || CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
 		if (expunge) {
-			imap_expunge (folder, ex);
-			if (camel_exception_is_set (ex))
-				return;
+			if (!imap_expunge (folder, error))
+				return FALSE;
 		}
-		imap_sync_offline (folder, ex);
-		return;
+		return imap_sync_offline (folder, error);
 	}
 
-	camel_exception_init (&local_ex);
 	CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 
 	/* write local changes first */
-	replay_offline_journal (store, imap_folder, ex);
+	replay_offline_journal (store, imap_folder, NULL);
 
 	/* Find a message with changed flags, find all of the other
 	 * messages like it, sync them as a group, mark them as
@@ -1455,7 +1475,7 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		}
 
 		/* Make sure we're connected before issuing commands */
-		if (!camel_imap_store_connected(store, ex)) {
+		if (!camel_imap_store_connected(store, NULL)) {
 			g_free(set);
 			break;
 		}
@@ -1478,7 +1498,7 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 				g_free (flaglist);
 				flaglist = strdup ("(\\Seen)");
 
-				response = camel_imap_command (store, folder, &local_ex,
+				response = camel_imap_command (store, folder, &local_error,
 						"UID STORE %s +FLAGS.SILENT %s",
 						set, flaglist);
 				if (response)
@@ -1492,8 +1512,8 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		camel_message_info_free (info);
 
 		/* Note: to 'unset' flags, use -FLAGS.SILENT (<flag list>) */
-		if (!camel_exception_is_set (&local_ex)) {
-			response = camel_imap_command (store, folder, &local_ex,
+		if (local_error == NULL) {
+			response = camel_imap_command (store, folder, &local_error,
 					       "UID STORE %s %sFLAGS.SILENT %s",
 					       set, unset ? "-" : "", flaglist);
 		}
@@ -1504,7 +1524,7 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		if (response)
 			camel_imap_response_free (store, response);
 
-		if (!camel_exception_is_set (&local_ex)) {
+		if (local_error == NULL) {
 			for (j = 0; j < matches->len; j++) {
 				info = matches->pdata[j];
 				info->info.flags &= ~CAMEL_MESSAGE_FOLDER_FLAGGED;
@@ -1526,9 +1546,9 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 
 		/* check for an exception */
-		if (camel_exception_is_set (&local_ex)) {
-			camel_exception_xfer (ex, &local_ex);
-			return;
+		if (local_error != NULL) {
+			g_propagate_error (error, local_error);
+			return FALSE;
 		}
 
 		/* Re-lock the connect_lock */
@@ -1536,15 +1556,17 @@ imap_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 	}
 
 	if (expunge)
-		imap_expunge (folder, ex);
+		imap_expunge (folder, NULL);
 
 	g_ptr_array_foreach (summary, (GFunc) camel_pstring_free, NULL);
 	g_ptr_array_free (summary, TRUE);
 
 	/* Save the summary */
-	imap_sync_offline (folder, ex);
+	success = imap_sync_offline (folder, error);
 
 	CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
+
+	return success;
 }
 
 static gint
@@ -1563,8 +1585,10 @@ uid_compar (gconstpointer va, gconstpointer vb)
 		return 1;
 }
 
-static void
-imap_expunge_uids_offline (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
+static gboolean
+imap_expunge_uids_offline (CamelFolder *folder,
+                           GPtrArray *uids,
+                           GError **error)
 {
 	CamelFolderChangeInfo *changes;
 	GSList *list = NULL;
@@ -1582,19 +1606,23 @@ imap_expunge_uids_offline (CamelFolder *folder, GPtrArray *uids, CamelException 
 		 * the cached data may be useful in replaying a COPY later.
 		 */
 	}
-	camel_db_delete_uids (folder->parent_store->cdb_w, folder->full_name, list, ex);
+	camel_db_delete_uids (folder->parent_store->cdb_w, folder->full_name, list, NULL);
 	g_slist_free(list);
-	camel_folder_summary_save_to_db (folder->summary, ex);
+	camel_folder_summary_save_to_db (folder->summary, NULL);
 
 	camel_imap_journal_log (CAMEL_IMAP_FOLDER (folder)->journal,
 			       CAMEL_IMAP_JOURNAL_ENTRY_EXPUNGE, uids);
 
 	camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", changes);
 	camel_folder_change_info_free (changes);
+
+	return TRUE;
 }
 
-static void
-imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
+static gboolean
+imap_expunge_uids_online (CamelFolder *folder,
+                          GPtrArray *uids,
+                          GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapResponse *response;
@@ -1608,10 +1636,9 @@ imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *
 	CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 
 	if ((store->capabilities & IMAP_CAPABILITY_UIDPLUS) == 0) {
-		CAMEL_FOLDER_GET_CLASS (folder)->sync (folder, 0, ex);
-		if (camel_exception_is_set(ex)) {
+		if (!CAMEL_FOLDER_GET_CLASS (folder)->sync (folder, 0, error)) {
 			CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
-			return;
+			return FALSE;
 		}
 	}
 
@@ -1619,24 +1646,26 @@ imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *
 
 	while (uid < uids->len) {
 		set = imap_uid_array_to_set (folder->summary, uids, uid, UID_SET_LIMIT, &uid);
-		response = camel_imap_command (store, folder, ex,
+		response = camel_imap_command (store, folder, error,
 					       "UID STORE %s +FLAGS.SILENT (\\Deleted)",
 					       set);
 		if (response)
 			camel_imap_response_free (store, response);
-		if (camel_exception_is_set (ex)) {
+		else {
 			CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 			g_free (set);
-			return;
+			return FALSE;
 		}
 
 		if (!full_expunge) {
-			response = camel_imap_command (store, folder, ex,
+			GError *local_error = NULL;
+
+			response = camel_imap_command (store, folder, &local_error,
 						       "UID EXPUNGE %s", set);
 
-			if (camel_exception_is_set (ex)) {
-				g_debug (G_STRLOC ": 'UID EXPUNGE %s' failed: %s (0x%x)", set, camel_exception_get_description (ex), camel_exception_get_id (ex));
-				camel_exception_clear (ex);
+			if (local_error != NULL) {
+				g_debug (G_STRLOC ": 'UID EXPUNGE %s' failed: %s (0x%x)", set, local_error->message, local_error->code);
+				g_clear_error (&local_error);
 
 				/* UID EXPUNGE failed, something is broken on the server probably,
 				   thus fall back to the full expunge. It's not so good, especially
@@ -1648,7 +1677,7 @@ imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *
 		}
 
 		if (full_expunge)
-			response = camel_imap_command (store, folder, ex, "EXPUNGE");
+			response = camel_imap_command (store, folder, NULL, "EXPUNGE");
 
 		if (response)
 			camel_imap_response_free (store, response);
@@ -1667,35 +1696,43 @@ imap_expunge_uids_online (CamelFolder *folder, GPtrArray *uids, CamelException *
 		 * the cached data may be useful in replaying a COPY later.
 		 */
 	}
-	camel_db_delete_uids (folder->parent_store->cdb_w, folder->full_name, list, ex);
+	camel_db_delete_uids (folder->parent_store->cdb_w, folder->full_name, list, NULL);
 	g_slist_free (list);
-	camel_folder_summary_save_to_db (folder->summary, ex);
+	camel_folder_summary_save_to_db (folder->summary, NULL);
 	camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", changes);
 	camel_folder_change_info_free (changes);
+
+	return TRUE;
 }
 
-static void
-imap_expunge (CamelFolder *folder, CamelException *ex)
+static gboolean
+imap_expunge (CamelFolder *folder,
+              GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	GPtrArray *uids;
+	gboolean success;
 
-	camel_folder_summary_save_to_db (folder->summary, ex);
-	uids = camel_db_get_folder_deleted_uids (folder->parent_store->cdb_r, folder->full_name, ex);
+	camel_folder_summary_save_to_db (folder->summary, error);
+	uids = camel_db_get_folder_deleted_uids (folder->parent_store->cdb_r, folder->full_name, error);
 	if (!uids)
-		return;
+		return TRUE;
 
 	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL)
-		imap_expunge_uids_online (folder, uids, ex);
+		success = imap_expunge_uids_online (folder, uids, error);
 	else
-		imap_expunge_uids_offline (folder, uids, ex);
+		success = imap_expunge_uids_offline (folder, uids, error);
 
 	g_ptr_array_foreach (uids, (GFunc) camel_pstring_free, NULL);
 	g_ptr_array_free (uids, TRUE);
+
+	return success;
 }
 
-void
-imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelException *ex)
+gboolean
+imap_expunge_uids_resyncing (CamelFolder *folder,
+                             GPtrArray *uids,
+                             GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
@@ -1704,12 +1741,10 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 	gchar *result;
 
 	if (imap_folder->read_only)
-		return;
+		return TRUE;
 
-	if (store->capabilities & IMAP_CAPABILITY_UIDPLUS) {
-		imap_expunge_uids_online (folder, uids, ex);
-		return;
-	}
+	if (store->capabilities & IMAP_CAPABILITY_UIDPLUS)
+		return imap_expunge_uids_online (folder, uids, error);
 
 	/* If we don't have UID EXPUNGE we need to avoid expunging any
 	 * of the wrong messages. So we search for deleted messages,
@@ -1719,21 +1754,20 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 
 	CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 
-	CAMEL_FOLDER_GET_CLASS (folder)->sync (folder, 0, ex);
-	if (camel_exception_is_set(ex)) {
+	if (!CAMEL_FOLDER_GET_CLASS (folder)->sync (folder, 0, error)) {
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
-		return;
+		return FALSE;
 	}
 
-	response = camel_imap_command (store, folder, ex, "UID SEARCH DELETED");
+	response = camel_imap_command (store, folder, error, "UID SEARCH DELETED");
 	if (!response) {
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
-		return;
+		return FALSE;
 	}
-	result = camel_imap_response_extract (store, response, "SEARCH", ex);
+	result = camel_imap_response_extract (store, response, "SEARCH", error);
 	if (!result) {
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
-		return;
+		return FALSE;
 	}
 
 	if (result[8] == ' ') {
@@ -1784,7 +1818,7 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 		while (uid < keep_uids->len) {
 			uidset = imap_uid_array_to_set (folder->summary, keep_uids, uid, UID_SET_LIMIT, &uid);
 
-			response = camel_imap_command (store, folder, ex,
+			response = camel_imap_command (store, folder, error,
 						       "UID STORE %s -FLAGS.SILENT (\\Deleted)",
 						       uidset);
 
@@ -1794,7 +1828,7 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 				g_ptr_array_free (keep_uids, TRUE);
 				g_ptr_array_free (mark_uids, TRUE);
 				CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
-				return;
+				return FALSE;
 			}
 			camel_imap_response_free (store, response);
 		}
@@ -1808,7 +1842,7 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 		while (uid < mark_uids->len) {
 			uidset = imap_uid_array_to_set (folder->summary, mark_uids, uid, UID_SET_LIMIT, &uid);
 
-			response = camel_imap_command (store, folder, ex,
+			response = camel_imap_command (store, folder, error,
 						       "UID STORE %s +FLAGS.SILENT (\\Deleted)",
 						       uidset);
 
@@ -1818,7 +1852,7 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 				g_ptr_array_free (keep_uids, TRUE);
 				g_ptr_array_free (mark_uids, TRUE);
 				CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
-				return;
+				return FALSE;
 			}
 			camel_imap_response_free (store, response);
 		}
@@ -1828,7 +1862,7 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 	}
 
 	/* Do the actual expunging */
-	response = camel_imap_command (store, folder, ex, "EXPUNGE");
+	response = camel_imap_command (store, folder, error, "EXPUNGE");
 	if (response)
 		camel_imap_response_free (store, response);
 
@@ -1840,9 +1874,7 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 		while (uid < keep_uids->len) {
 			uidset = imap_uid_array_to_set (folder->summary, keep_uids, uid, UID_SET_LIMIT, &uid);
 
-			/* Don't pass ex if it's already been set */
-			response = camel_imap_command (store, folder,
-						       camel_exception_is_set (ex) ? NULL : ex,
+			response = camel_imap_command (store, folder, NULL,
 						       "UID STORE %s +FLAGS.SILENT (\\Deleted)",
 						       uidset);
 
@@ -1858,6 +1890,8 @@ imap_expunge_uids_resyncing (CamelFolder *folder, GPtrArray *uids, CamelExceptio
 	g_free (result);
 
 	CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
+
+	return TRUE;
 }
 
 static gchar *
@@ -1877,10 +1911,12 @@ get_temp_uid (void)
 	return res;
 }
 
-static void
-imap_append_offline (CamelFolder *folder, CamelMimeMessage *message,
-		     const CamelMessageInfo *info, gchar **appended_uid,
-		     CamelException *ex)
+static gboolean
+imap_append_offline (CamelFolder *folder,
+                     CamelMimeMessage *message,
+                     const CamelMessageInfo *info,
+                     gchar **appended_uid,
+                     GError **error)
 {
 	CamelImapMessageCache *cache = CAMEL_IMAP_FOLDER (folder)->cache;
 	CamelFolderChangeInfo *changes;
@@ -1891,7 +1927,7 @@ imap_append_offline (CamelFolder *folder, CamelMimeMessage *message,
 	camel_imap_summary_add_offline (folder->summary, uid, message, info);
 	CAMEL_IMAP_FOLDER_REC_LOCK (folder, cache_lock);
 	camel_imap_message_cache_insert_wrapper (cache, uid, "",
-						 CAMEL_DATA_WRAPPER (message), ex);
+						 CAMEL_DATA_WRAPPER (message), error);
 	CAMEL_IMAP_FOLDER_REC_UNLOCK (folder, cache_lock);
 
 	changes = camel_folder_change_info_new ();
@@ -1906,6 +1942,8 @@ imap_append_offline (CamelFolder *folder, CamelMimeMessage *message,
 		*appended_uid = uid;
 	else
 		g_free (uid);
+
+	return TRUE;
 }
 
 static void
@@ -1930,9 +1968,11 @@ imap_folder_uid_in_ignore_recent (CamelImapFolder *imap_folder, const gchar *uid
 }
 
 static CamelImapResponse *
-do_append (CamelFolder *folder, CamelMimeMessage *message,
-	   const CamelMessageInfo *info, gchar **uid,
-	   CamelException *ex)
+do_append (CamelFolder *folder,
+           CamelMimeMessage *message,
+           const CamelMessageInfo *info,
+           gchar **uid,
+           GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapResponse *response, *response2;
@@ -1942,6 +1982,7 @@ do_append (CamelFolder *folder, CamelMimeMessage *message,
 	GByteArray *ba;
 	gchar *flagstr, *end;
 	guint32 flags = 0;
+	GError *local_error = NULL;
 
 	/* encode any 8bit parts so we avoid sending embedded nul-chars and such  */
 	camel_mime_message_encode_8bit_parts (message);
@@ -1975,14 +2016,15 @@ retry:
 	else
 		flagstr = NULL;
 
-	response = camel_imap_command (store, NULL, ex, "APPEND %F%s%s {%d}",
+	response = camel_imap_command (store, NULL, &local_error,
+				       "APPEND %F%s%s {%d}",
 				       folder->full_name, flagstr ? " " : "",
 				       flagstr ? flagstr : "", ba->len);
 	g_free (flagstr);
 
 	if (!response) {
-		if (camel_exception_get_id(ex) == CAMEL_EXCEPTION_SERVICE_INVALID && !store->nocustomappend) {
-			camel_exception_clear(ex);
+		if (g_error_matches (local_error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_INVALID) && !store->nocustomappend) {
+			g_clear_error (&local_error);
 			store->nocustomappend = 1;
 			goto retry;
 		}
@@ -1991,8 +2033,11 @@ retry:
 	}
 
 	if (*response->status != '+') {
-		if (!camel_exception_is_set (ex))
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM, _("Unexpected response status '%s' after APPEND command"), response->status);
+		if (local_error == NULL)
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Unexpected response status '%s' after APPEND command"),
+				response->status);
 
 		camel_imap_response_free (store, response);
 		g_byte_array_free (ba, TRUE);
@@ -2000,14 +2045,16 @@ retry:
 	}
 
 	/* send the rest of our data - the mime message */
-	response2 = camel_imap_command_continuation (store, (const gchar *) ba->data, ba->len, ex);
+	response2 = camel_imap_command_continuation (store, (const gchar *) ba->data, ba->len, &local_error);
 	g_byte_array_free (ba, TRUE);
 
 	/* free it only after message is sent. This may cause more FETCHes. */
 	camel_imap_response_free (store, response);
 	if (!response2) {
-		if (!camel_exception_is_set (ex))
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("No response on continuation after APPEND command"));
+		if (local_error == NULL)
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("No response on continuation after APPEND command"));
 
 		return response2;
 	}
@@ -2033,28 +2080,27 @@ retry:
 	return response2;
 }
 
-static void
-imap_append_online (CamelFolder *folder, CamelMimeMessage *message,
-		    const CamelMessageInfo *info, gchar **appended_uid,
-		    CamelException *ex)
+static gboolean
+imap_append_online (CamelFolder *folder,
+                    CamelMimeMessage *message,
+                    const CamelMessageInfo *info,
+                    gchar **appended_uid,
+                    GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapResponse *response;
+	gboolean success = TRUE;
 	gchar *uid;
 	gint count;
 
 	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
-		imap_append_offline (folder, message, info, appended_uid, ex);
-		return;
+		return imap_append_offline (folder, message, info, appended_uid, error);
 	}
 
 	count = camel_folder_summary_count (folder->summary);
-	response = do_append (folder, message, info, &uid, ex);
-	if (!response) {
-		if (!camel_exception_is_set (ex))
-			camel_exception_set (ex, CAMEL_EXCEPTION_SYSTEM, _("Unknown error occurred during APPEND command!"));
-		return;
-	}
+	response = do_append (folder, message, info, &uid, error);
+	if (!response)
+		return FALSE;
 
 	if (uid) {
 		/* Cache first, since freeing response may trigger a
@@ -2063,7 +2109,7 @@ imap_append_online (CamelFolder *folder, CamelMimeMessage *message,
 		CAMEL_IMAP_FOLDER_REC_LOCK (folder, cache_lock);
 		camel_imap_message_cache_insert_wrapper (
 			CAMEL_IMAP_FOLDER (folder)->cache, uid,
-			"", CAMEL_DATA_WRAPPER (message), ex);
+			"", CAMEL_DATA_WRAPPER (message), NULL);
 		CAMEL_IMAP_FOLDER_REC_UNLOCK (folder, cache_lock);
 		if (appended_uid)
 			*appended_uid = uid;
@@ -2078,22 +2124,26 @@ imap_append_online (CamelFolder *folder, CamelMimeMessage *message,
 	CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 	if (store->current_folder != folder ||
 	    camel_folder_summary_count (folder->summary) == count)
-		imap_refresh_info (folder, ex);
+		success = imap_refresh_info (folder, error);
 	CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
+
+	return success;
 }
 
-void
-imap_append_resyncing (CamelFolder *folder, CamelMimeMessage *message,
-		       const CamelMessageInfo *info, gchar **appended_uid,
-		       CamelException *ex)
+gboolean
+imap_append_resyncing (CamelFolder *folder,
+                       CamelMimeMessage *message,
+                       const CamelMessageInfo *info,
+                       gchar **appended_uid,
+                       GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapResponse *response;
 	gchar *uid;
 
-	response = do_append (folder, message, info, &uid, ex);
+	response = do_append (folder, message, info, &uid, error);
 	if (!response)
-		return;
+		return FALSE;
 
 	if (uid) {
 		CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
@@ -2101,7 +2151,7 @@ imap_append_resyncing (CamelFolder *folder, CamelMimeMessage *message,
 
 		CAMEL_IMAP_FOLDER_REC_LOCK (imap_folder, cache_lock);
 		camel_imap_message_cache_copy (imap_folder->cache, olduid,
-					       imap_folder->cache, uid, ex);
+					       imap_folder->cache, uid, NULL);
 		CAMEL_IMAP_FOLDER_REC_UNLOCK (imap_folder, cache_lock);
 
 		if (appended_uid)
@@ -2112,12 +2162,17 @@ imap_append_resyncing (CamelFolder *folder, CamelMimeMessage *message,
 		*appended_uid = NULL;
 
 	camel_imap_response_free (store, response);
+
+	return TRUE;
 }
 
-static void
-imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
-		       CamelFolder *dest, GPtrArray **transferred_uids,
-		       gboolean delete_originals, CamelException *ex)
+static gboolean
+imap_transfer_offline (CamelFolder *source,
+                       GPtrArray *uids,
+                       CamelFolder *dest,
+                       GPtrArray **transferred_uids,
+                       gboolean delete_originals,
+                       GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (source->parent_store);
 	CamelImapMessageCache *sc = CAMEL_IMAP_FOLDER (source)->cache;
@@ -2127,6 +2182,7 @@ imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
 	CamelMessageInfo *mi;
 	gchar *uid, *destuid;
 	gint i;
+	GError *local_error = NULL;
 
 	/* We grab the store's command lock first, and then grab the
 	 * source and destination cache_locks. This way we can't
@@ -2145,13 +2201,13 @@ imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
 
 	changes = camel_folder_change_info_new ();
 
-	for (i = 0; i < uids->len && !camel_exception_is_set (ex); i++) {
+	for (i = 0; i < uids->len && local_error == NULL; i++) {
 		uid = uids->pdata[i];
 
 		destuid = get_temp_uid ();
 
 		mi = camel_folder_summary_uid (source->summary, uid);
-		g_return_if_fail (mi != NULL);
+		g_return_val_if_fail (mi != NULL, FALSE);
 
 		message = camel_folder_get_message (source, uid, NULL);
 
@@ -2161,7 +2217,7 @@ imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
 		} else
 			camel_imap_summary_add_offline_uncached (dest->summary, destuid, mi);
 
-		camel_imap_message_cache_copy (sc, uid, dc, destuid, ex);
+		camel_imap_message_cache_copy (sc, uid, dc, destuid, &local_error);
 		camel_message_info_free(mi);
 
 		camel_folder_change_info_add_uid (changes, destuid);
@@ -2170,9 +2226,11 @@ imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
 		else
 			g_free (destuid);
 
-		if (delete_originals && !camel_exception_is_set (ex))
+		if (delete_originals && local_error == NULL)
 			camel_folder_delete_message (source, uid);
 	}
+
+	g_clear_error (&local_error);
 
 	CAMEL_IMAP_FOLDER_REC_UNLOCK (dest, cache_lock);
 	CAMEL_IMAP_FOLDER_REC_UNLOCK (source, cache_lock);
@@ -2180,8 +2238,12 @@ imap_transfer_offline (CamelFolder *source, GPtrArray *uids,
 	camel_object_trigger_event (CAMEL_OBJECT (dest), "folder_changed", changes);
 	camel_folder_change_info_free (changes);
 
-	camel_imap_journal_log (CAMEL_IMAP_FOLDER (source)->journal, CAMEL_IMAP_JOURNAL_ENTRY_TRANSFER, dest,
-						uids, delete_originals, ex);
+	camel_imap_journal_log (
+		CAMEL_IMAP_FOLDER (source)->journal,
+		CAMEL_IMAP_JOURNAL_ENTRY_TRANSFER,
+		dest, uids, delete_originals, error);
+
+	return TRUE;
 }
 
 static void
@@ -2243,12 +2305,14 @@ handle_copyuid (CamelImapResponse *response, CamelFolder *source,
 }
 
 static void
-handle_copyuid_copy_user_tags (CamelImapResponse *response, CamelFolder *source, CamelFolder *destination)
+handle_copyuid_copy_user_tags (CamelImapResponse *response,
+                               CamelFolder *source,
+                               CamelFolder *destination)
 {
 	gchar *validity, *srcset, *destset;
 	GPtrArray *src, *dest;
 	gint i;
-	CamelException ex;
+	GError *local_error = NULL;
 
 	validity = camel_strstrcase (response->status, "[COPYUID ");
 	if (!validity)
@@ -2269,16 +2333,14 @@ handle_copyuid_copy_user_tags (CamelImapResponse *response, CamelFolder *source,
 	camel_imap_response_free (CAMEL_IMAP_STORE (destination->parent_store),
 				  camel_imap_command (CAMEL_IMAP_STORE (destination->parent_store), destination, NULL, "NOOP"));
 
-	camel_exception_init (&ex);
 	/* refresh folder's summary first, we copied messages there on the server,
 	   but do not know about it in a local summary */
-	imap_refresh_info (destination, &ex);
-	if (camel_exception_is_set (&ex)) {
-		g_warning ("destination folder refresh failed, error: %s", ex.desc);
-		camel_exception_clear (&ex);
+	imap_refresh_info (destination, &local_error);
+	if (local_error != NULL) {
+		g_warning ("destination folder refresh failed, error: %s", local_error->message);
+		g_clear_error (&local_error);
 		goto lose;
 	}
-	camel_exception_clear (&ex);
 
 	src = imap_uid_set_to_array (source->summary, srcset);
 	dest = imap_uid_set_to_array (destination->summary, destset);
@@ -2353,25 +2415,35 @@ any_has_user_tag (CamelFolder *source, gchar *uidset)
 	return FALSE;
 }
 
-static void
-do_copy (CamelFolder *source, GPtrArray *uids,
-	 CamelFolder *destination, gint delete_originals, CamelException *ex)
+static gboolean
+do_copy (CamelFolder *source,
+         GPtrArray *uids,
+         CamelFolder *destination,
+         gint delete_originals,
+         GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (source->parent_store);
 	CamelImapResponse *response;
 	gchar *uidset;
 	gint uid = 0, last=0, i;
+	GError *local_error = NULL;
 
-	while (uid < uids->len && !camel_exception_is_set (ex)) {
+	while (uid < uids->len && local_error == NULL) {
 		uidset = imap_uid_array_to_set (source->summary, uids, uid, UID_SET_LIMIT, &uid);
 
 		/* use XGWMOVE only when none of the moving messages has set any user tag */
 		if ((store->capabilities & IMAP_CAPABILITY_XGWMOVE) != 0 && delete_originals && !any_has_user_tag (source, uidset)) {
-			response = camel_imap_command (store, source, ex, "UID XGWMOVE %s %F", uidset, destination->full_name);
+			response = camel_imap_command (
+				store, source, &local_error,
+				"UID XGWMOVE %s %F", uidset,
+				destination->full_name);
 			/* returns only 'A00012 OK UID XGWMOVE completed' '* 2 XGWMOVE' so nothing useful */
 			camel_imap_response_free (store, response);
 		} else {
-			response = camel_imap_command (store, source, ex, "UID COPY %s %F", uidset, destination->full_name);
+			response = camel_imap_command (
+				store, source, &local_error,
+				"UID COPY %s %F", uidset,
+				destination->full_name);
 			if (response && (store->capabilities & IMAP_CAPABILITY_UIDPLUS))
 				handle_copyuid (response, source, destination);
 			if (response)
@@ -2379,62 +2451,77 @@ do_copy (CamelFolder *source, GPtrArray *uids,
 			camel_imap_response_free (store, response);
 		}
 
-		if (!camel_exception_is_set(ex) && delete_originals) {
+		if (local_error == NULL && delete_originals) {
 			for (i=last;i<uid;i++)
 				camel_folder_delete_message(source, uids->pdata[i]);
 			last = uid;
 		}
 		g_free (uidset);
 	}
-}
 
-static void
-imap_transfer_online (CamelFolder *source, GPtrArray *uids,
-		      CamelFolder *dest, GPtrArray **transferred_uids,
-		      gboolean delete_originals, CamelException *ex)
-{
-	CamelImapStore *store = CAMEL_IMAP_STORE (source->parent_store);
-	gint count;
-
-	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
-		imap_transfer_offline (source, uids, dest, transferred_uids, delete_originals, ex);
-		return;
+	if (local_error != NULL) {
+		g_propagate_error (error, local_error);
+		return FALSE;
 	}
 
+	return TRUE;
+}
+
+static gboolean
+imap_transfer_online (CamelFolder *source,
+                      GPtrArray *uids,
+                      CamelFolder *dest,
+                      GPtrArray **transferred_uids,
+                      gboolean delete_originals,
+                      GError **error)
+{
+	CamelImapStore *store = CAMEL_IMAP_STORE (source->parent_store);
+	gboolean success = TRUE;
+	gint count;
+
+	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
+		return imap_transfer_offline (
+			source, uids, dest, transferred_uids,
+			delete_originals, error);
+
 	/* Sync message flags if needed. */
-	imap_sync (source, FALSE, ex);
-	if (camel_exception_is_set (ex))
-		return;
+	if (!imap_sync (source, FALSE, error))
+		return FALSE;
 
 	count = camel_folder_summary_count (dest->summary);
 
 	qsort (uids->pdata, uids->len, sizeof (gpointer), uid_compar);
 
 	/* Now copy the messages */
-	do_copy(source, uids, dest, delete_originals, ex);
-	if (camel_exception_is_set (ex))
-		return;
+	if (!do_copy(source, uids, dest, delete_originals, error))
+		return FALSE;
 
 	/* Make the destination notice its new messages */
 	if (store->current_folder != dest ||
 	    camel_folder_summary_count (dest->summary) == count)
-		imap_refresh_info (dest, ex);
+		success = imap_refresh_info (dest, error);
 
 	/* FIXME */
 	if (transferred_uids)
 		*transferred_uids = NULL;
+
+	return success;
 }
 
-void
-imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
-			 CamelFolder *dest, GPtrArray **transferred_uids,
-			 gboolean delete_originals, CamelException *ex)
+gboolean
+imap_transfer_resyncing (CamelFolder *source,
+                         GPtrArray *uids,
+                         CamelFolder *dest,
+                         GPtrArray **transferred_uids,
+                         gboolean delete_originals,
+                         GError **error)
 {
 	GPtrArray *realuids;
 	gint first, i;
 	const gchar *uid;
 	CamelMimeMessage *message;
 	CamelMessageInfo *info;
+	GError *local_error = NULL;
 
 	qsort (uids->pdata, uids->len, sizeof (gpointer), uid_compar);
 
@@ -2447,7 +2534,7 @@ imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
 	realuids = g_ptr_array_new ();
 
 	i = 0;
-	while (i < uids->len && !camel_exception_is_set (ex)) {
+	while (i < uids->len && local_error == NULL) {
 		 /* Skip past real UIDs  */
 		for (first = i; i < uids->len; i++) {
 			uid = uids->pdata[i];
@@ -2462,16 +2549,16 @@ imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
 
 		/* If we saw any real UIDs, do a COPY */
 		if (i != first) {
-			do_copy (source, realuids, dest, delete_originals, ex);
+			do_copy (source, realuids, dest, delete_originals, &local_error);
 			g_ptr_array_set_size (realuids, 0);
-			if (i == uids->len || camel_exception_is_set (ex))
+			if (i == uids->len || local_error != NULL)
 				break;
 		}
 
 		/* Deal with fake UIDs */
 		while (i < uids->len &&
 		       !isdigit (*(guchar *)(uids->pdata[i])) &&
-		       !camel_exception_is_set (ex)) {
+		       local_error == NULL) {
 			uid = uids->pdata[i];
 			message = camel_folder_get_message (source, uid, NULL);
 			if (!message) {
@@ -2480,12 +2567,12 @@ imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
 				continue;
 			}
 			info = camel_folder_get_message_info (source, uid);
-			g_return_if_fail (info != NULL);
+			g_return_val_if_fail (info != NULL, FALSE);
 
-			imap_append_online (dest, message, info, NULL, ex);
+			imap_append_online (dest, message, info, NULL, &local_error);
 			camel_folder_free_message_info (source, info);
 			g_object_unref (CAMEL_OBJECT (message));
-			if (delete_originals && !camel_exception_is_set (ex))
+			if (delete_originals && local_error == NULL)
 				camel_folder_delete_message (source, uid);
 			i++;
 		}
@@ -2496,10 +2583,19 @@ imap_transfer_resyncing (CamelFolder *source, GPtrArray *uids,
 	/* FIXME */
 	if (transferred_uids)
 		*transferred_uids = NULL;
+
+	if (local_error != NULL) {
+		g_propagate_error (error, local_error);
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static GPtrArray *
-imap_search_by_expression (CamelFolder *folder, const gchar *expression, CamelException *ex)
+imap_search_by_expression (CamelFolder *folder,
+                           const gchar *expression,
+                           GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	GPtrArray *matches;
@@ -2510,7 +2606,7 @@ imap_search_by_expression (CamelFolder *folder, const gchar *expression, CamelEx
 	CAMEL_IMAP_FOLDER_LOCK(folder, search_lock);
 
 	camel_folder_search_set_folder (imap_folder->search, folder);
-	matches = camel_folder_search_search(imap_folder->search, expression, NULL, ex);
+	matches = camel_folder_search_search(imap_folder->search, expression, NULL, error);
 
 	CAMEL_IMAP_FOLDER_UNLOCK(folder, search_lock);
 
@@ -2518,7 +2614,9 @@ imap_search_by_expression (CamelFolder *folder, const gchar *expression, CamelEx
 }
 
 static guint32
-imap_count_by_expression (CamelFolder *folder, const gchar *expression, CamelException *ex)
+imap_count_by_expression (CamelFolder *folder,
+                          const gchar *expression,
+                          GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	guint32 matches;
@@ -2529,14 +2627,18 @@ imap_count_by_expression (CamelFolder *folder, const gchar *expression, CamelExc
 	CAMEL_IMAP_FOLDER_LOCK(folder, search_lock);
 
 	camel_folder_search_set_folder (imap_folder->search, folder);
-	matches = camel_folder_search_count(imap_folder->search, expression, ex);
+	matches = camel_folder_search_count(imap_folder->search, expression, error);
 
 	CAMEL_IMAP_FOLDER_UNLOCK(folder, search_lock);
 
 	return matches;
 }
+
 static GPtrArray *
-imap_search_by_uids(CamelFolder *folder, const gchar *expression, GPtrArray *uids, CamelException *ex)
+imap_search_by_uids (CamelFolder *folder,
+                     const gchar *expression,
+                     GPtrArray *uids,
+                     GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER(folder);
 	GPtrArray *matches;
@@ -2547,7 +2649,7 @@ imap_search_by_uids(CamelFolder *folder, const gchar *expression, GPtrArray *uid
 	CAMEL_IMAP_FOLDER_LOCK(folder, search_lock);
 
 	camel_folder_search_set_folder(imap_folder->search, folder);
-	matches = camel_folder_search_search(imap_folder->search, expression, uids, ex);
+	matches = camel_folder_search_search(imap_folder->search, expression, uids, error);
 
 	CAMEL_IMAP_FOLDER_UNLOCK(folder, search_lock);
 
@@ -2571,7 +2673,7 @@ imap_search_free (CamelFolder *folder, GPtrArray *uids)
 static CamelMimeMessage *get_message (CamelImapFolder *imap_folder,
 				      const gchar *uid,
 				      CamelMessageContentInfo *ci,
-				      CamelException *ex);
+				      GError **error);
 
 struct _part_spec_stack {
 	struct _part_spec_stack *parent;
@@ -2663,7 +2765,7 @@ static CamelDataWrapper *
 get_content (CamelImapFolder *imap_folder, const gchar *uid,
 	     CamelMimePart *part, CamelMessageContentInfo *ci,
 	     gint frommsg,
-	     CamelException *ex)
+	     GError **error)
 {
 	CamelDataWrapper *content = NULL;
 	CamelStream *stream;
@@ -2694,7 +2796,7 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 			strcpy(spec, part_spec);
 		g_free(part_spec);
 
-		stream = camel_imap_folder_fetch_data (imap_folder, uid, spec, FALSE, ex);
+		stream = camel_imap_folder_fetch_data (imap_folder, uid, spec, FALSE, error);
 		if (stream) {
 			ret = camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (body_mp), stream);
 			g_object_unref (CAMEL_OBJECT (stream));
@@ -2731,7 +2833,8 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 		num = 1;
 		while (ci) {
 			sprintf (child_spec + speclen, "%d.MIME", num++);
-			stream = camel_imap_folder_fetch_data (imap_folder, uid, child_spec, FALSE, ex);
+			stream = camel_imap_folder_fetch_data (
+				imap_folder, uid, child_spec, FALSE, error);
 			if (stream) {
 				gint ret;
 
@@ -2745,7 +2848,7 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 					return NULL;
 				}
 
-				content = get_content (imap_folder, uid, part, ci, FALSE, ex);
+				content = get_content (imap_folder, uid, part, ci, FALSE, error);
 			}
 
 			if (!stream || !content) {
@@ -2787,7 +2890,7 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 
 		return (CamelDataWrapper *) body_mp;
 	} else if (camel_content_type_is (ci->type, "message", "rfc822")) {
-		content = (CamelDataWrapper *) get_message (imap_folder, uid, ci->childs, ex);
+		content = (CamelDataWrapper *) get_message (imap_folder, uid, ci->childs, error);
 		g_free (part_spec);
 		return content;
 	} else {
@@ -2811,7 +2914,7 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 static CamelMimeMessage *
 get_message (CamelImapFolder *imap_folder, const gchar *uid,
 	     CamelMessageContentInfo *ci,
-	     CamelException *ex)
+	     GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (CAMEL_FOLDER (imap_folder)->parent_store);
 	CamelDataWrapper *content;
@@ -2825,7 +2928,7 @@ get_message (CamelImapFolder *imap_folder, const gchar *uid,
 	section_text = g_strdup_printf ("%s%s%s", part_spec, *part_spec ? "." : "",
 					store->server_level >= IMAP_LEVEL_IMAP4REV1 ? "HEADER" : "0");
 
-	stream = camel_imap_folder_fetch_data (imap_folder, uid, section_text, FALSE, ex);
+	stream = camel_imap_folder_fetch_data (imap_folder, uid, section_text, FALSE, error);
 	g_free (section_text);
 	g_free(part_spec);
 	if (!stream)
@@ -2839,7 +2942,7 @@ get_message (CamelImapFolder *imap_folder, const gchar *uid,
 		return NULL;
 	}
 
-	content = get_content (imap_folder, uid, CAMEL_MIME_PART (msg), ci, TRUE, ex);
+	content = get_content (imap_folder, uid, CAMEL_MIME_PART (msg), ci, TRUE, error);
 	if (!content) {
 		g_object_unref (CAMEL_OBJECT (msg));
 		return NULL;
@@ -2865,14 +2968,14 @@ get_message (CamelImapFolder *imap_folder, const gchar *uid,
 
 static CamelMimeMessage *
 get_message_simple (CamelImapFolder *imap_folder, const gchar *uid,
-		    CamelStream *stream, CamelException *ex)
+		    CamelStream *stream, GError **error)
 {
 	CamelMimeMessage *msg;
 	gint ret;
 
 	if (!stream) {
 		stream = camel_imap_folder_fetch_data (imap_folder, uid, "",
-						       FALSE, ex);
+						       FALSE, error);
 		if (!stream)
 			return NULL;
 	}
@@ -2882,9 +2985,11 @@ get_message_simple (CamelImapFolder *imap_folder, const gchar *uid,
 							stream);
 	g_object_unref (CAMEL_OBJECT (stream));
 	if (ret == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-				      _("Unable to retrieve message: %s"),
-				      g_strerror (errno));
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_UNAVAILABLE,
+			_("Unable to retrieve message: %s"),
+			g_strerror (errno));
 		g_object_unref (CAMEL_OBJECT (msg));
 		return NULL;
 	}
@@ -2911,13 +3016,14 @@ content_info_incomplete (CamelMessageContentInfo *ci)
 }
 
 static CamelImapMessageInfo *
-imap_folder_summary_uid_or_error(CamelFolderSummary *summary, const gchar * uid, CamelException *ex)
+imap_folder_summary_uid_or_error(CamelFolderSummary *summary, const gchar * uid, GError **error)
 {
 	CamelImapMessageInfo *mi;
 	mi = (CamelImapMessageInfo *)camel_folder_summary_uid (summary, uid);
 	if (mi == NULL) {
-		camel_exception_setv (
-			ex, CAMEL_EXCEPTION_FOLDER_INVALID_UID,
+		g_set_error (
+			error, CAMEL_FOLDER_ERROR,
+			CAMEL_FOLDER_ERROR_INVALID_UID,
 			_("Cannot get message with message ID %s: %s"),
 			uid, _("No such message available."));
 	}
@@ -2925,7 +3031,9 @@ imap_folder_summary_uid_or_error(CamelFolderSummary *summary, const gchar * uid,
 }
 
 static CamelMimeMessage *
-imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
+imap_get_message (CamelFolder *folder,
+                  const gchar *uid,
+                  GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
@@ -2933,15 +3041,16 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	CamelMimeMessage *msg = NULL;
 	CamelStream *stream = NULL;
 	gint retry;
+	GError *local_error = NULL;
 
-	mi = imap_folder_summary_uid_or_error(folder->summary, uid, ex);
+	mi = imap_folder_summary_uid_or_error(folder->summary, uid, error);
 	if (!mi)
 	  return NULL;
 
 	/* If its cached in full, just get it as is, this is only a shortcut,
 	   since we get stuff from the cache anyway.  It affects a busted connection though. */
 	if ( (stream = camel_imap_folder_fetch_data(imap_folder, uid, "", TRUE, NULL))
-	     && (msg = get_message_simple(imap_folder, uid, stream, ex)))
+	     && (msg = get_message_simple(imap_folder, uid, stream, error)))
 		goto done;
 
 	/* All this mess is so we silently retry a fetch if we fail with
@@ -2949,7 +3058,7 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	retry = 0;
 	do {
 		retry++;
-		camel_exception_clear(ex);
+		g_clear_error (&local_error);
 
 		/* If the message is small or only 1 part, or server doesn't do 4v1 (properly) fetch it in one piece. */
 		if (store->server_level < IMAP_LEVEL_IMAP4REV1
@@ -2957,7 +3066,7 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 		    || mi->info.size < IMAP_SMALL_BODY_SIZE
 		    || (!content_info_incomplete(mi->info.content) && !mi->info.content->childs)) {
 			CamelMessageInfoBase *info = (CamelMessageInfoBase *) camel_folder_summary_uid (folder->summary, uid);
-			msg = get_message_simple (imap_folder, uid, NULL, ex);
+			msg = get_message_simple (imap_folder, uid, NULL, &local_error);
 			if (info && !info->preview && msg && camel_folder_summary_get_need_preview(folder->summary)) {
 				if (camel_mime_message_build_preview ((CamelMimePart *)msg, (CamelMessageInfo *)info) && info->preview)
 					camel_folder_summary_add_preview (folder->summary, (CamelMessageInfo *)info);
@@ -2977,14 +3086,16 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 				gint i;
 
 				CAMEL_SERVICE_REC_LOCK(store, connect_lock);
-				if (!camel_imap_store_connected(store, ex)) {
+				if (!camel_imap_store_connected(store, NULL)) {
 					CAMEL_SERVICE_REC_UNLOCK(store, connect_lock);
-					camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-							     _("This message is not currently available"));
+					g_set_error (
+						&local_error, CAMEL_SERVICE_ERROR,
+						CAMEL_SERVICE_ERROR_UNAVAILABLE,
+						_("This message is not currently available"));
 					goto fail;
 				}
 
-				response = camel_imap_command (store, folder, ex, "UID FETCH %s BODY", uid);
+				response = camel_imap_command (store, folder, &local_error, "UID FETCH %s BODY", uid);
 				CAMEL_SERVICE_REC_UNLOCK(store, connect_lock);
 
 				if (response) {
@@ -3013,7 +3124,7 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 
 					camel_imap_response_free (store, response);
 				} else {
-					camel_exception_clear(ex);
+					g_clear_error (&local_error);
 				}
 			}
 
@@ -3030,9 +3141,9 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 			 * let the mailer's "bad MIME" code handle it.
 			 */
 			if (content_info_incomplete (mi->info.content))
-				msg = get_message_simple (imap_folder, uid, NULL, ex);
+				msg = get_message_simple (imap_folder, uid, NULL, &local_error);
 			else
-				msg = get_message (imap_folder, uid, mi->info.content, ex);
+				msg = get_message (imap_folder, uid, mi->info.content, &local_error);
 			if (msg && camel_folder_summary_get_need_preview(folder->summary)) {
 				CamelMessageInfoBase *info = (CamelMessageInfoBase *) camel_folder_summary_uid (folder->summary, uid);
 				if (info && !info->preview) {
@@ -3045,7 +3156,10 @@ imap_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 		}
 	} while (msg == NULL
 		 && retry < 2
-		 && camel_exception_get_id(ex) == CAMEL_EXCEPTION_SERVICE_UNAVAILABLE);
+		 && g_error_matches (local_error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_UNAVAILABLE));
+
+	if (local_error != NULL)
+		g_propagate_error (error, local_error);
 
 done:
 	if (msg) {
@@ -3091,20 +3205,23 @@ fail:
  * Ensure that a message is cached locally, but don't retrieve the content if
  * it is already local.
  */
-static void
-imap_sync_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
+static gboolean
+imap_sync_message (CamelFolder *folder,
+                   const gchar *uid,
+                   GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelImapMessageInfo *mi;
 	CamelMimeMessage *msg = NULL;
 	CamelStream *stream = NULL;
+	gboolean success = FALSE;
 
-	mi = imap_folder_summary_uid_or_error(folder->summary, uid, ex);
+	mi = imap_folder_summary_uid_or_error(folder->summary, uid, error);
 	if (!mi)
 	  /* No such UID - is this duplicate work? The sync process selects
 	   * UIDs to start with.
 	   */
-	  return;
+	  return FALSE;
 	camel_message_info_free(&mi->info);
 
 	/* If we can get a stream, assume its fully cached. This may be false
@@ -3116,17 +3233,21 @@ imap_sync_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 	   since we get stuff from the cache anyway.  It affects a busted connection though. */
 	if ((stream = camel_imap_folder_fetch_data(imap_folder, uid, "", TRUE, NULL))) {
 		g_object_unref (stream);
-		return;
+		return TRUE;
 	}
-	msg = imap_get_message(folder, uid, ex);
-	if (msg)
+	msg = imap_get_message(folder, uid, error);
+	if (msg != NULL) {
 		g_object_unref (msg);
+		success = TRUE;
+	}
+
+	return success;
 }
 
 /* FIXME Remove it after confirming
 static void
 imap_cache_message (CamelDiscoFolder *disco_folder, const gchar *uid,
-		    CamelException *ex)
+		    GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (disco_folder);
 	CamelStream *stream;
@@ -3366,10 +3487,11 @@ update_summary (CamelFolderSummary *summary, CamelMessageInfoBase *info)
    auto-generated? */
 #define MAILING_LIST_HEADERS "X-MAILING-LIST X-LOOP LIST-ID LIST-POST MAILING-LIST ORIGINATOR X-LIST SENDER RETURN-PATH X-BEENTHERE "
 
-static void
-imap_update_summary (CamelFolder *folder, gint exists,
-		     CamelFolderChangeInfo *changes,
-		     CamelException *ex)
+static gboolean
+imap_update_summary (CamelFolder *folder,
+                     gint exists,
+                     CamelFolderChangeInfo *changes,
+                     GError **error)
 {
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
@@ -3426,11 +3548,11 @@ imap_update_summary (CamelFolder *folder, gint exists,
 		uidval = 0;
 
 	got = 0;
-	if (!camel_imap_command_start (store, folder, ex,
+	if (!camel_imap_command_start (store, folder, error,
 				       "UID FETCH %d:* (FLAGS RFC822.SIZE INTERNALDATE BODYSTRUCTURE BODY.PEEK[%s])",
 				       uidval + 1, header_spec->str)) {
 		g_string_free (header_spec, TRUE);
-		return;
+		return FALSE;
 	}
 	camel_operation_start (NULL, _("Fetching summary information for new messages in %s"), folder->name);
 
@@ -3441,7 +3563,7 @@ imap_update_summary (CamelFolder *folder, gint exists,
 	fetch_data = g_ptr_array_new ();
 	messages = g_ptr_array_new ();
 	ct = exists - seq;
-	while ((type = camel_imap_command_response (store, &resp, ex)) ==
+	while ((type = camel_imap_command_response (store, &resp, error)) ==
 	       CAMEL_IMAP_RESPONSE_UNTAGGED && !camel_application_is_exiting) {
 		data = parse_fetch_response (imap_folder, resp);
 		g_free (resp);
@@ -3512,7 +3634,7 @@ imap_update_summary (CamelFolder *folder, gint exists,
 
 		while (uid < needheaders->len && !camel_application_is_exiting) {
 			uidset = imap_uid_array_to_set (folder->summary, needheaders, uid, UID_SET_LIMIT, &uid);
-			if (!camel_imap_command_start (store, folder, ex,
+			if (!camel_imap_command_start (store, folder, error,
 						       "UID FETCH %s BODYSTRUCTURE BODY.PEEK[%s]",
 						       uidset, header_spec->str)) {
 				g_ptr_array_free (needheaders, TRUE);
@@ -3523,7 +3645,7 @@ imap_update_summary (CamelFolder *folder, gint exists,
 			}
 			g_free (uidset);
 
-			while ((type = camel_imap_command_response (store, &resp, ex))
+			while ((type = camel_imap_command_response (store, &resp, error))
 			       == CAMEL_IMAP_RESPONSE_UNTAGGED && !camel_application_is_exiting) {
 				data = parse_fetch_response (imap_folder, resp);
 				g_free (resp);
@@ -3634,17 +3756,21 @@ imap_update_summary (CamelFolder *folder, gint exists,
 		mi = messages->pdata[i];
 		if (!mi) {
 			g_warning ("No information for message %d", i + first);
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Incomplete server response: no information provided for message %d"),
-					      i + first);
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Incomplete server response: "
+				  "no information provided for message %d"),
+				i + first);
 			break;
 		}
 		uid = (gchar *)camel_message_info_uid(mi);
 		if (uid[0] == 0) {
 			g_warning("Server provided no uid: message %d", i + first);
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Incomplete server response: no UID provided for message %d"),
-					      i + first);
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Incomplete server response: "
+				  "no UID provided for message %d"),
+				i + first);
 			break;
 		}
 
@@ -3689,7 +3815,7 @@ imap_update_summary (CamelFolder *folder, gint exists,
 		imap_folder->priv->ignore_recent = NULL;
 	}
 
-	return;
+	return TRUE;
 
  lose:
 	if (fetch_data) {
@@ -3711,17 +3837,20 @@ imap_update_summary (CamelFolder *folder, gint exists,
 		g_hash_table_unref (imap_folder->priv->ignore_recent);
 		imap_folder->priv->ignore_recent = NULL;
 	}
+
+	return FALSE;
 }
 
 /* Called with the store's connect_lock locked */
-void
+gboolean
 camel_imap_folder_changed (CamelFolder *folder, gint exists,
-			   GArray *expunged, CamelException *ex)
+			   GArray *expunged, GError **error)
 {
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 	CamelFolderChangeInfo *changes;
 	gint len;
 	gchar *uid;
+	gboolean success = TRUE;
 
 	changes = camel_folder_change_info_new ();
 	if (expunged) {
@@ -3746,20 +3875,22 @@ camel_imap_folder_changed (CamelFolder *folder, gint exists,
 		}
 
 		/* Delete all in one transaction */
-		camel_db_delete_uids (folder->parent_store->cdb_w, folder->full_name, deleted, ex);
+		camel_db_delete_uids (folder->parent_store->cdb_w, folder->full_name, deleted, NULL);
 		g_slist_foreach (deleted, (GFunc) g_free, NULL);
 		g_slist_free (deleted);
 	}
 
 	len = camel_folder_summary_count (folder->summary);
 	if (exists > len && !camel_application_is_exiting)
-		imap_update_summary (folder, exists, changes, ex);
+		success = imap_update_summary (folder, exists, changes, error);
 
-	camel_folder_summary_save_to_db (folder->summary, ex);
+	camel_folder_summary_save_to_db (folder->summary, NULL);
 	if (camel_folder_change_info_changed (changes))
 		camel_object_trigger_event (CAMEL_OBJECT (folder), "folder_changed", changes);
 
 	camel_folder_change_info_free (changes);
+
+	return success;
 }
 
 static void
@@ -3781,7 +3912,7 @@ imap_thaw (CamelFolder *folder)
 CamelStream *
 camel_imap_folder_fetch_data (CamelImapFolder *imap_folder, const gchar *uid,
 			      const gchar *section_text, gboolean cache_only,
-			      CamelException *ex)
+			      GError **error)
 {
 	CamelFolder *folder = CAMEL_FOLDER (imap_folder);
 	CamelImapStore *store = CAMEL_IMAP_STORE (folder->parent_store);
@@ -3802,38 +3933,41 @@ camel_imap_folder_fetch_data (CamelImapFolder *imap_folder, const gchar *uid,
 	 * an inefficiency, and bad luck.
 	 */
 	CAMEL_IMAP_FOLDER_REC_LOCK (imap_folder, cache_lock);
-	stream = camel_imap_message_cache_get (imap_folder->cache, uid, section_text, ex);
+	stream = camel_imap_message_cache_get (imap_folder->cache, uid, section_text, error);
 	if (!stream && (!strcmp (section_text, "HEADER") || !strcmp (section_text, "0"))) {
-		camel_exception_clear (ex);
-		stream = camel_imap_message_cache_get (imap_folder->cache, uid, "", ex);
+		g_clear_error (error);
+		stream = camel_imap_message_cache_get (imap_folder->cache, uid, "", error);
 	}
 	CAMEL_IMAP_FOLDER_REC_UNLOCK (imap_folder, cache_lock);
 
 	if (stream || cache_only)
 		return stream;
 
-	camel_exception_clear(ex);
+	g_clear_error (error);
 
 	CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 	CAMEL_IMAP_FOLDER_REC_LOCK (imap_folder, cache_lock);
 
-	if (!camel_imap_store_connected(store, ex)) {
-		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-				     _("This message is not currently available"));
+	if (!camel_imap_store_connected(store, error)) {
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_UNAVAILABLE,
+			_("This message is not currently available"));
 		CAMEL_IMAP_FOLDER_REC_UNLOCK (imap_folder, cache_lock);
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 		return NULL;
 	}
 
-	camel_exception_clear (ex);
+	g_clear_error (error);
 	if (store->server_level < IMAP_LEVEL_IMAP4REV1 && !*section_text) {
-		response = camel_imap_command (store, folder, ex,
-					       "UID FETCH %s RFC822.PEEK",
-					       uid);
+		response = camel_imap_command (
+			store, folder, error,
+			"UID FETCH %s RFC822.PEEK", uid);
 	} else {
-		response = camel_imap_command (store, folder, ex,
-					       "UID FETCH %s BODY.PEEK[%s]",
-					       uid, section_text);
+		response = camel_imap_command (
+			store, folder, error,
+			"UID FETCH %s BODY.PEEK[%s]", uid,
+			section_text);
 	}
 	/* We won't need the connect_lock again after this. */
 	CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
@@ -3856,8 +3990,10 @@ camel_imap_folder_fetch_data (CamelImapFolder *imap_folder, const gchar *uid,
 	camel_imap_response_free (store, response);
 	CAMEL_IMAP_FOLDER_REC_UNLOCK (imap_folder, cache_lock);
 	if (!stream) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
-				      _("Could not find message body in FETCH response."));
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_UNAVAILABLE,
+			_("Could not find message body in FETCH response."));
 	} else {
 		g_object_ref (CAMEL_OBJECT (stream));
 		g_datalist_clear (&fetch_data);
@@ -4112,14 +4248,20 @@ done:
  * Scan for messages that are local and return the rest.
  */
 static GPtrArray *
-imap_get_uncached_uids (CamelFolder *folder, GPtrArray * uids, CamelException *ex)
+imap_get_uncached_uids (CamelFolder *folder,
+                        GPtrArray * uids,
+                        GError **error)
 {
 	GPtrArray *result;
 	CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
 
 	CAMEL_IMAP_FOLDER_REC_LOCK (imap_folder, cache_lock);
-	result = camel_imap_message_cache_filter_cached (imap_folder->cache, uids, ex);
+
+	result = camel_imap_message_cache_filter_cached (
+		imap_folder->cache, uids, error);
+
 	CAMEL_IMAP_FOLDER_REC_UNLOCK (imap_folder, cache_lock);
+
 	return result;
 }
 

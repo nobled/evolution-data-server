@@ -39,7 +39,7 @@ CamelGroupwiseFolder
 @store: 
 @folder_dir: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -50,6 +50,6 @@ CamelGroupwiseFolder
 
 @folder: 
 @item_list: 
-@ex: 
+@error: 
 
 

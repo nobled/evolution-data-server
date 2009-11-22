@@ -42,10 +42,10 @@
 
 #define CAMEL_SPOOL_SUMMARY_VERSION (0x400)
 
-static gint spool_summary_load(CamelLocalSummary *cls, gint forceindex, CamelException *ex);
-static gint spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex);
+static gint spool_summary_load(CamelLocalSummary *cls, gint forceindex, GError **error);
+static gint spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, GError **error);
 
-static gint spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex);
+static gint spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, GError **error);
 static gint spool_summary_need_index(void);
 
 static gpointer parent_class;
@@ -99,7 +99,8 @@ camel_spool_summary_get_type(void)
 }
 
 CamelSpoolSummary *
-camel_spool_summary_new(struct _CamelFolder *folder, const gchar *mbox_name)
+camel_spool_summary_new (CamelFolder *folder,
+                         const gchar *mbox_name)
 {
 	CamelSpoolSummary *new;
 
@@ -116,7 +117,9 @@ camel_spool_summary_new(struct _CamelFolder *folder, const gchar *mbox_name)
 }
 
 static gint
-spool_summary_load(CamelLocalSummary *cls, gint forceindex, CamelException *ex)
+spool_summary_load (CamelLocalSummary *cls,
+                    gint forceindex,
+                    GError **error)
 {
 	g_warning("spool summary - not loading anything\n");
 	return 0;
@@ -124,7 +127,10 @@ spool_summary_load(CamelLocalSummary *cls, gint forceindex, CamelException *ex)
 
 /* perform a full sync */
 static gint
-spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+spool_summary_sync_full (CamelMboxSummary *cls,
+                         gboolean expunge,
+                         CamelFolderChangeInfo *changeinfo,
+                         GError **error)
 {
 	gint fd = -1, fdout = -1;
 	gchar tmpname[64] = { '\0' };
@@ -140,10 +146,12 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 
 	fd = open(((CamelLocalSummary *)cls)->folder_path, O_RDWR|O_LARGEFILE);
 	if (fd == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not open file: %s: %s"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not open file: %s: %s"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno));
 		camel_operation_end(NULL);
 		return -1;
 	}
@@ -153,42 +161,50 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 
 	d(printf("Writing tmp file to %s\n", tmpname));
 	if (fdout == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Cannot open temporary mailbox: %s"),
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Cannot open temporary mailbox: %s"),
+			g_strerror (errno));
 		goto error;
 	}
 
-	if (camel_mbox_summary_sync_mbox((CamelMboxSummary *)cls, flags, changeinfo, fd, fdout, ex) == -1)
+	if (camel_mbox_summary_sync_mbox((CamelMboxSummary *)cls, flags, changeinfo, fd, fdout, error) == -1)
 		goto error;
 
 	/* sync out content */
 	if (fsync(fdout) == -1) {
 		g_warning("Cannot sync temporary folder: %s", g_strerror (errno));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not sync temporary folder %s: %s"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not sync temporary folder %s: %s"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno));
 		goto error;
 	}
 
 	/* see if we can write this much to the spool file */
 	if (fstat(fd, &st) == -1) {
 		g_warning("Cannot sync temporary folder: %s", g_strerror (errno));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not sync temporary folder %s: %s"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not sync temporary folder %s: %s"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno));
 		goto error;
 	}
 	spoollen = st.st_size;
 
 	if (fstat(fdout, &st) == -1) {
 		g_warning("Cannot sync temporary folder: %s", g_strerror (errno));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not sync temporary folder %s: %s"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not sync temporary folder %s: %s"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno));
 		goto error;
 	}
 	outlen = st.st_size;
@@ -201,10 +217,12 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 		|| lseek(fd, 0, SEEK_SET) == -1
 		|| lseek(fdout, 0, SEEK_SET) == -1)) {
 		g_warning("Cannot sync spool folder: %s", g_strerror (errno));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not sync spool folder %s: %s"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not sync spool folder %s: %s"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno));
 		/* incase we ran out of room, remove any trailing space first */
 		ftruncate(fd, spoollen);
 		goto error;
@@ -231,11 +249,13 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 		}
 
 		if (size == -1) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Could not sync spool folder %s: %s\n"
-						"Folder may be corrupt, copy saved in '%s'"),
-					      ((CamelLocalSummary *)cls)->folder_path,
-					      g_strerror (errno), tmpname);
+			g_set_error (
+				error, G_FILE_ERROR,
+				g_file_error_from_errno (errno),
+				_("Could not sync spool folder %s: %s\n"
+				"Folder may be corrupt, copy saved in '%s'"),
+				((CamelLocalSummary *)cls)->folder_path,
+				g_strerror (errno), tmpname);
 			/* so we dont delete it */
 			tmpname[0] = '\0';
 			g_free(buffer);
@@ -248,22 +268,26 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 	d(printf("Closing folders\n"));
 
 	if (ftruncate(fd, outlen) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not sync spool folder %s: %s\n"
-					"Folder may be corrupt, copy saved in '%s'"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno), tmpname);
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not sync spool folder %s: %s\n"
+			  "Folder may be corrupt, copy saved in '%s'"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno), tmpname);
 		tmpname[0] = '\0';
 		goto error;
 	}
 
 	if (close(fd) == -1) {
 		g_warning("Cannot close source folder: %s", g_strerror (errno));
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not sync spool folder %s: %s\n"
-					"Folder may be corrupt, copy saved in '%s'"),
-				      ((CamelLocalSummary *)cls)->folder_path,
-				      g_strerror (errno), tmpname);
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not sync spool folder %s: %s\n"
+			  "Folder may be corrupt, copy saved in '%s'"),
+			((CamelLocalSummary *)cls)->folder_path,
+			g_strerror (errno), tmpname);
 		tmpname[0] = '\0';
 		fd = -1;
 		goto error;
@@ -293,13 +317,15 @@ spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChan
 }
 
 static gint
-spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, CamelException *ex)
+spool_summary_check (CamelLocalSummary *cls,
+                     CamelFolderChangeInfo *changeinfo,
+                     GError **error)
 {
 	gint i, work, count;
 	struct stat st;
 	CamelFolderSummary *s = (CamelFolderSummary *)cls;
 
-	if (CAMEL_LOCAL_SUMMARY_CLASS (parent_class)->check(cls, changeinfo, ex) == -1)
+	if (CAMEL_LOCAL_SUMMARY_CLASS (parent_class)->check(cls, changeinfo, error) == -1)
 		return -1;
 
 	/* check to see if we need to copy/update the file; missing xev headers prompt this */
@@ -315,13 +341,15 @@ spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *changeinfo, C
 	/* if we do, then write out the headers using sync_full, etc */
 	if (work) {
 		d(printf("Have to add new headers, re-syncing from the start to accomplish this\n"));
-		if (CAMEL_MBOX_SUMMARY_GET_CLASS (cls)->sync_full (CAMEL_MBOX_SUMMARY (cls), FALSE, changeinfo, ex) == -1)
+		if (CAMEL_MBOX_SUMMARY_GET_CLASS (cls)->sync_full (CAMEL_MBOX_SUMMARY (cls), FALSE, changeinfo, error) == -1)
 			return -1;
 
 		if (stat(cls->folder_path, &st) == -1) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Unknown error: %s"),
-					      g_strerror (errno));
+			g_set_error (
+				error, G_FILE_ERROR,
+				g_file_error_from_errno (errno),
+				_("Unknown error: %s"),
+				g_strerror (errno));
 			return -1;
 		}
 

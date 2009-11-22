@@ -71,12 +71,12 @@ struct _CamelOfflineFolder {
 struct _CamelOfflineFolderClass {
 	CamelFolderClass parent_class;
 
-	void (* downsync) (CamelOfflineFolder *folder, const gchar *expression, CamelException *ex);
+	void (* downsync) (CamelOfflineFolder *folder, const gchar *expression, GError **error);
 };
 
 GType camel_offline_folder_get_type (void);
 
-void camel_offline_folder_downsync (CamelOfflineFolder *offline, const gchar *expression, CamelException *ex);
+void camel_offline_folder_downsync (CamelOfflineFolder *offline, const gchar *expression, GError **error);
 
 G_END_DECLS
 

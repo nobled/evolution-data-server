@@ -37,7 +37,6 @@
 
 #include <libedataserver/e-sexp.h>
 
-#include "camel-exception.h"
 #include "camel-mime-message.h"
 #include "camel-multipart.h"
 #include "camel-search-private.h"
@@ -54,8 +53,11 @@
 
    A small issue is that case-insenstivity wont work entirely correct for utf8 strings. */
 gint
-camel_search_build_match_regex (regex_t *pattern, camel_search_flags_t type, gint argc,
-				struct _ESExpResult **argv, CamelException *ex)
+camel_search_build_match_regex (regex_t *pattern,
+                                camel_search_flags_t type,
+                                gint argc,
+                                struct _ESExpResult **argv,
+                                GError **error)
 {
 	GString *match = g_string_new("");
 	gint c, i, count=0, err;
@@ -107,9 +109,10 @@ camel_search_build_match_regex (regex_t *pattern, camel_search_flags_t type, gin
 		gchar *buffer = g_malloc0 (len + 1);
 
 		regerror (err, pattern, buffer, len);
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Regular expression compilation failed: %s: %s"),
-				      match->str, buffer);
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Regular expression compilation failed: %s: %s"),
+			match->str, buffer);
 
 		regfree (pattern);
 	}

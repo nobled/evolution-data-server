@@ -34,7 +34,7 @@ CamelDataCache
 </para>
 
 @path: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -82,7 +82,7 @@ CamelDataCache
 @cache: 
 @old: 
 @new: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -94,7 +94,7 @@ CamelDataCache
 @cdc: 
 @path: 
 @key: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -106,7 +106,7 @@ CamelDataCache
 @cdc: 
 @path: 
 @key: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -118,7 +118,7 @@ CamelDataCache
 @cdc: 
 @path: 
 @key: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -129,7 +129,7 @@ CamelDataCache
 
 @cache: 
 @path: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -141,7 +141,7 @@ CamelDataCache
 @cdc: 
 @path: 
 @key: 
-@ex: 
+@error: 
 @Returns: 
 
 

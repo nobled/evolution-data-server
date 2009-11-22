@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <camel/camel-url.h>
-#include <camel/camel-exception.h>
 
 #include "camel-test.h"
 

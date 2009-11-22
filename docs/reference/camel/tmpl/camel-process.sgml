@@ -27,7 +27,7 @@ camel-process
 @infd: 
 @outfd: 
 @errfd: 
-@ex: 
+@error: 
 @Returns: 
 
 

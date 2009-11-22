@@ -52,7 +52,7 @@ CamelSpoolSummary
 
 @cls: 
 @forceindex: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -63,7 +63,7 @@ CamelSpoolSummary
 
 @cls: 
 @Param2: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -75,7 +75,7 @@ CamelSpoolSummary
 @cls: 
 @expunge: 
 @Param3: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -88,7 +88,7 @@ CamelSpoolSummary
 @msg: 
 @info: 
 @Param4: 
-@ex: 
+@error: 
 @Returns: 
 
 

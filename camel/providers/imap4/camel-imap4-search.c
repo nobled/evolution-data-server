@@ -95,7 +95,7 @@ camel_imap4_search_new (CamelIMAP4Engine *engine, const gchar *cachedir)
 }
 
 static gint
-untagged_search (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, CamelException *ex)
+untagged_search (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index, camel_imap4_token_t *token, GError **error)
 {
 	CamelFolderSummary *summary = ((CamelFolder *) engine->folder)->summary;
 	GPtrArray *matches = ic->user_data;

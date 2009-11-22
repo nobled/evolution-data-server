@@ -60,11 +60,11 @@ offline_downsync_sync (CamelSession *session, CamelSessionThreadMsg *mm)
 			gint pc = i * 100 / m->changes->uid_added->len;
 
 			camel_operation_progress (NULL, pc);
-			if ((message = camel_folder_get_message (m->folder, m->changes->uid_added->pdata[i], &mm->ex)))
+			if ((message = camel_folder_get_message (m->folder, m->changes->uid_added->pdata[i], &mm->error)))
 				g_object_unref (message);
 		}
 	} else {
-		camel_offline_folder_downsync ((CamelOfflineFolder *) m->folder, "(match-all)", &mm->ex);
+		camel_offline_folder_downsync ((CamelOfflineFolder *) m->folder, "(match-all)", &mm->error);
 	}
 
 	camel_operation_end (NULL);
@@ -108,7 +108,7 @@ offline_folder_changed (CamelFolder *folder, CamelFolderChangeInfo *changes, gpo
 
 static gint
 offline_folder_getv (CamelObject *object,
-                     CamelException *ex,
+                     GError **error,
                      CamelArgGetV *args)
 {
 	CamelArgGetV props;
@@ -125,7 +125,7 @@ offline_folder_getv (CamelObject *object,
 		case CAMEL_FOLDER_ARG_PROPERTIES:
 			props.argc = 1;
 			props.argv[0] = *arg;
-			((CamelObjectClass *) parent_class)->getv (object, ex, &props);
+			((CamelObjectClass *) parent_class)->getv (object, error, &props);
 			*arg->ca_ptr = g_slist_concat (*arg->ca_ptr, g_slist_copy (offline_folder_props));
 			break;
 		case CAMEL_OFFLINE_FOLDER_ARG_SYNC_OFFLINE:
@@ -140,14 +140,14 @@ offline_folder_getv (CamelObject *object,
 	}
 
 	if (count)
-		return ((CamelObjectClass *) parent_class)->getv (object, ex, args);
+		return ((CamelObjectClass *) parent_class)->getv (object, error, args);
 
 	return 0;
 }
 
 static gint
 offline_folder_setv (CamelObject *object,
-                     CamelException *ex,
+                     GError **error,
                      CamelArgV *args)
 {
 	CamelOfflineFolder *folder = (CamelOfflineFolder *) object;
@@ -177,13 +177,13 @@ offline_folder_setv (CamelObject *object,
 	if (save)
 		camel_object_state_write (object);
 
-	return ((CamelObjectClass *) parent_class)->setv (object, ex, args);
+	return ((CamelObjectClass *) parent_class)->setv (object, error, args);
 }
 
 static void
 offline_folder_downsync (CamelOfflineFolder *offline,
                          const gchar *expression,
-                         CamelException *ex)
+                         GError **error)
 {
 	CamelFolder *folder = (CamelFolder *) offline;
 	GPtrArray *uids, *uncached_uids = NULL;
@@ -192,13 +192,13 @@ offline_folder_downsync (CamelOfflineFolder *offline,
 	camel_operation_start (NULL, _("Syncing messages in folder '%s' to disk"), folder->full_name);
 
 	if (expression)
-		uids = camel_folder_search_by_expression (folder, expression, ex);
+		uids = camel_folder_search_by_expression (folder, expression, error);
 	else
 		uids = camel_folder_get_uids (folder);
 
 	if (!uids)
 		goto done;
-	uncached_uids = camel_folder_get_uncached_uids(folder, uids, ex);
+	uncached_uids = camel_folder_get_uncached_uids(folder, uids, error);
 	if (uids) {
 		if (expression)
 			camel_folder_search_free (folder, uids);
@@ -211,7 +211,7 @@ offline_folder_downsync (CamelOfflineFolder *offline,
 
 	for (i = 0; i < uncached_uids->len; i++) {
 		gint pc = i * 100 / uncached_uids->len;
-		camel_folder_sync_message (folder, uncached_uids->pdata[i], ex);
+		camel_folder_sync_message (folder, uncached_uids->pdata[i], error);
 		camel_operation_progress (NULL, pc);
 	}
 
@@ -275,7 +275,7 @@ camel_offline_folder_get_type (void)
  * camel_offline_folder_downsync:
  * @offline: a #CamelOfflineFolder object
  * @expression: search expression describing which set of messages to downsync (%NULL for all)
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Syncs messages in @offline described by the search @expression to
  * the local machine for offline availability.
@@ -283,7 +283,7 @@ camel_offline_folder_get_type (void)
 void
 camel_offline_folder_downsync (CamelOfflineFolder *offline,
                                const gchar *expression,
-                               CamelException *ex)
+                               GError **error)
 {
 	CamelOfflineFolderClass *class;
 
@@ -292,5 +292,5 @@ camel_offline_folder_downsync (CamelOfflineFolder *offline,
 	class = CAMEL_OFFLINE_FOLDER_GET_CLASS (offline);
 	g_return_if_fail (class->downsync != NULL);
 
-	class->downsync (offline, expression, ex);
+	class->downsync (offline, expression, error);
 }

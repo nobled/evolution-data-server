@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libedataserver/e-sexp.h>
-#include <camel/camel-exception.h>
 #include <camel/camel-search-private.h>
 
 #include "camel-test.h"

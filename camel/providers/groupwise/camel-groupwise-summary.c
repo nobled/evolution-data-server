@@ -55,7 +55,7 @@ static gint gw_content_info_save (CamelFolderSummary *s, FILE *out, CamelMessage
 static gboolean gw_info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set);
 
 static gint summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
-static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, CamelException *ex);
+static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, GError **error);
 static CamelMIRecord * message_info_to_db (CamelFolderSummary *s, CamelMessageInfo *info);
 static CamelMessageInfo * message_info_from_db (CamelFolderSummary *s, CamelMIRecord *mir);
 static gint content_info_to_db (CamelFolderSummary *s, CamelMessageContentInfo *info, CamelMIRecord *mir);
@@ -147,7 +147,6 @@ camel_groupwise_summary_get_type (void)
 CamelFolderSummary *
 camel_groupwise_summary_new (struct _CamelFolder *folder, const gchar *filename)
 {
-	CamelException ex;
 	CamelFolderSummary *summary;
 
 	summary = g_object_new (CAMEL_TYPE_GROUPWISE_SUMMARY, NULL);
@@ -155,8 +154,7 @@ camel_groupwise_summary_new (struct _CamelFolder *folder, const gchar *filename)
 	camel_folder_summary_set_build_content (summary, TRUE);
 	camel_folder_summary_set_filename (summary, filename);
 
-	camel_exception_init (&ex);
-	if (camel_folder_summary_load_from_db (summary, &ex) == -1) {
+	if (camel_folder_summary_load_from_db (summary, NULL) == -1) {
 		camel_folder_summary_clear_db (summary);
 	}
 
@@ -205,12 +203,12 @@ gw_summary_header_load (CamelFolderSummary *s, FILE *in)
 }
 
 static CamelFIRecord *
-summary_header_to_db (CamelFolderSummary *s, CamelException *ex)
+summary_header_to_db (CamelFolderSummary *s, GError **error)
 {
 	CamelGroupwiseSummary *ims = CAMEL_GROUPWISE_SUMMARY(s);
 	struct _CamelFIRecord *fir;
 
-	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, ex);
+	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, error);
 	if (!fir)
 		return NULL;
 

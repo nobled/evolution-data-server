@@ -39,7 +39,6 @@
 
 #include "camel/camel-stream-buffer.h"
 #include "camel/camel-session.h"
-#include "camel/camel-exception.h"
 #include "camel/camel-url.h"
 #include "camel/camel-sasl.h"
 #include "camel/camel-data-cache.h"
@@ -84,7 +83,7 @@ imapx_name_equal(gconstpointer a, gconstpointer b)
 	return g_str_equal(aname, bname);
 }
 
-static void imap_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
+static void imap_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, GError **error)
 {
 	gchar *base, *summary;
 	CamelIMAPXStore *store = (CamelIMAPXStore *)service;
@@ -108,7 +107,7 @@ extern CamelServiceAuthType camel_imapx_password_authtype;
 extern CamelServiceAuthType camel_imapx_apop_authtype;
 
 static GList *
-imap_query_auth_types (CamelService *service, CamelException *ex)
+imap_query_auth_types (CamelService *service, GError **error)
 {
 	/*CamelIMAPXStore *store = CAMEL_IMAPX_STORE (service);*/
 	GList *types = NULL;
@@ -175,7 +174,7 @@ store_get_login(struct _CamelIMAPXDriver *driver, gchar **login, gchar **pass, C
 #endif
 
 static gboolean
-imap_connect (CamelService *service, CamelException *ex)
+imap_connect (CamelService *service, GError **error)
 {
 	CamelIMAPXStore *store = (CamelIMAPXStore *)service;
 
@@ -189,7 +188,7 @@ imap_connect (CamelService *service, CamelException *ex)
 }
 
 static gboolean
-imap_disconnect (CamelService *service, gboolean clean, CamelException *ex)
+imap_disconnect (CamelService *service, gboolean clean, GError **error)
 {
 	CamelIMAPXStore *store = CAMEL_IMAPX_STORE (service);
 
@@ -202,7 +201,7 @@ imap_disconnect (CamelService *service, gboolean clean, CamelException *ex)
 }
 
 static CamelFolder *
-imap_get_trash (CamelStore *store, CamelException *ex)
+imap_get_trash (CamelStore *store, GError **error)
 {
 	/* no-op */
 	return NULL;
@@ -210,7 +209,7 @@ imap_get_trash (CamelStore *store, CamelException *ex)
 
 static CamelFolder *
 get_folder_offline (CamelStore *store, const gchar *folder_name,
-		    guint32 flags, CamelException *ex)
+		    guint32 flags, GError **error)
 {
 	CamelIMAPXStore *imapx_store = CAMEL_IMAPX_STORE (store);
 	CamelFolder *new_folder = NULL;
@@ -247,7 +246,7 @@ get_folder_offline (CamelStore *store, const gchar *folder_name,
 }
 
 static CamelFolder *
-imap_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, CamelException *ex)
+imap_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, GError **error)
 {
 	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
 	CamelFolder *folder;
@@ -262,7 +261,7 @@ imap_get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, Cam
 }
 
 static CamelFolder *
-imap_get_inbox(CamelStore *store, CamelException *ex)
+imap_get_inbox(CamelStore *store, GError **error)
 {
 	camel_exception_setv(ex, 1, "get_inbox::unimplemented");
 
@@ -508,7 +507,7 @@ imap_match_pattern(gchar dir_sep, const gchar *pattern, const gchar *name)
 
 static CamelFolderInfo *
 get_folder_info_offline (CamelStore *store, const gchar *top,
-			 guint32 flags, CamelException *ex)
+			 guint32 flags, GError **error)
 {
 	CamelIMAPXStore *imapx_store = CAMEL_IMAPX_STORE (store);
 	gboolean include_inbox = FALSE;
@@ -609,7 +608,7 @@ get_folder_info_offline (CamelStore *store, const gchar *top,
 }
 
 static CamelFolderInfo *
-imap_get_folder_info(CamelStore *store, const gchar *top, guint32 flags, CamelException *ex)
+imap_get_folder_info(CamelStore *store, const gchar *top, guint32 flags, GError **error)
 {
 	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
 	CamelFolderInfo * fi= NULL;
@@ -652,19 +651,19 @@ imap_get_folder_info(CamelStore *store, const gchar *top, guint32 flags, CamelEx
 }
 
 static void
-imap_delete_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
+imap_delete_folder(CamelStore *store, const gchar *folder_name, GError **error)
 {
 	camel_exception_setv(ex, 1, "delete_folder::unimplemented");
 }
 
 static void
-imap_rename_folder(CamelStore *store, const gchar *old, const gchar *new, CamelException *ex)
+imap_rename_folder(CamelStore *store, const gchar *old, const gchar *new, GError **error)
 {
 	camel_exception_setv(ex, 1, "rename_folder::unimplemented");
 }
 
 static CamelFolderInfo *
-imap_create_folder(CamelStore *store, const gchar *parent_name, const gchar *folder_name, CamelException *ex)
+imap_create_folder(CamelStore *store, const gchar *parent_name, const gchar *folder_name, GError **error)
 {
 	camel_exception_setv(ex, 1, "create_folder::unimplemented");
 	return NULL;

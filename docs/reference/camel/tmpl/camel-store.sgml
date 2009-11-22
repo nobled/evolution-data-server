@@ -306,7 +306,7 @@ CamelStore
 @store: 
 @folder_name: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -316,7 +316,7 @@ CamelStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -326,7 +326,7 @@ CamelStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -336,7 +336,7 @@ CamelStore
 </para>
 
 @store: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -348,7 +348,7 @@ CamelStore
 @store: 
 @parent_name: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -359,7 +359,8 @@ CamelStore
 
 @store: 
 @folder_name: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_store_rename_folder ##### -->
@@ -370,7 +371,8 @@ CamelStore
 @store: 
 @old_namein: 
 @new_name: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_store_sync ##### -->
@@ -380,7 +382,8 @@ CamelStore
 
 @store: 
 @expunge: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_store_get_folder_info ##### -->
@@ -391,7 +394,7 @@ CamelStore
 @store: 
 @top: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -485,7 +488,8 @@ CamelStore
 
 @store: 
 @folder_name: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_store_unsubscribe_folder ##### -->
@@ -495,7 +499,8 @@ CamelStore
 
 @store: 
 @folder_name: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_store_noop ##### -->
@@ -504,7 +509,8 @@ CamelStore
 </para>
 
 @store: 
-@ex: 
+@error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_store_folder_uri_equal ##### -->
@@ -525,7 +531,7 @@ CamelStore
 
 @store: 
 @info: 
-@ex: 
+@error: 
 @Returns: 
 
 

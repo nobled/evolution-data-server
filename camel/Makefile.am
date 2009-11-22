@@ -174,7 +174,6 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-data-wrapper.c			\
 	camel-db.c				\
 	camel-debug.c				\
-	camel-exception.c			\
 	camel-file-utils.c			\
 	camel-html-parser.c			\
 	camel-iconv.c				\
@@ -246,8 +245,6 @@ libcamelinclude_HEADERS =			\
 	camel-data-wrapper.h			\
 	camel-db.h				\
 	camel-debug.h				\
-	camel-exception-list.def		\
-	camel-exception.h			\
 	camel-file-utils.h			\
 	camel-i18n.h				\
 	camel-iconv.h				\

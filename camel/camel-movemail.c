@@ -43,7 +43,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-exception.h"
 #include "camel-lock-client.h"
 #include "camel-mime-filter-from.h"
 #include "camel-mime-filter.h"
@@ -56,15 +55,15 @@
 #include <sys/wait.h>
 
 static void movemail_external (const gchar *source, const gchar *dest,
-			       CamelException *ex);
+			       GError **error);
 #endif
 
 #ifdef HAVE_BROKEN_SPOOL
 static gint camel_movemail_copy_filter(gint fromfd, gint tofd, off_t start, gsize bytes, CamelMimeFilter *filter);
-static gint camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex);
+static gint camel_movemail_solaris (gint oldsfd, gint dfd, GError **error);
 #else
 /* these could probably be exposed as a utility? (but only mbox needs it) */
-static gint camel_movemail_copy_file(gint sfd, gint dfd, CamelException *ex);
+static gint camel_movemail_copy_file(gint sfd, gint dfd, GError **error);
 #endif
 
 #if 0
@@ -75,7 +74,7 @@ static gint camel_movemail_copy(gint fromfd, gint tofd, off_t start, gsize bytes
  * camel_movemail:
  * @source: source file
  * @dest: destination file
- * @ex: a CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This copies an mbox file from a shared directory with multiple
  * readers and writers into a private (presumably Camel-controlled)
@@ -85,7 +84,9 @@ static gint camel_movemail_copy(gint fromfd, gint tofd, off_t start, gsize bytes
  * Return Value: Returns -1 on error.
  **/
 gint
-camel_movemail(const gchar *source, const gchar *dest, CamelException *ex)
+camel_movemail (const gchar *source,
+                const gchar *dest,
+                GError **error)
 {
 	gint lockid = -1;
 	gint res = -1;
@@ -100,11 +101,11 @@ camel_movemail(const gchar *source, const gchar *dest, CamelException *ex)
 	 * called a fraction earlier.)
 	 */
 	if (stat (source, &st) == -1) {
-		if (errno != ENOENT) {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Could not check mail file %s: %s"),
-					      source, g_strerror (errno));
-		}
+		if (errno != ENOENT)
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Could not check mail file %s: %s"),
+				source, g_strerror (errno));
 		return -1;
 	}
 
@@ -114,24 +115,25 @@ camel_movemail(const gchar *source, const gchar *dest, CamelException *ex)
 	/* open files */
 	sfd = open (source, O_RDWR);
 	if (sfd == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not open mail file %s: %s"),
-				      source, g_strerror (errno));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Could not open mail file %s: %s"),
+			source, g_strerror (errno));
 		return -1;
 	}
 
 	dfd = open (dest, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
 	if (dfd == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not open temporary mail "
-					"file %s: %s"), dest,
-				      g_strerror (errno));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Could not open temporary mail "
+			"file %s: %s"), dest, g_strerror (errno));
 		close (sfd);
 		return -1;
 	}
 
 	/* lock our source mailbox */
-	lockid = camel_lock_helper_lock(source, ex);
+	lockid = camel_lock_helper_lock(source, error);
 	if (lockid == -1) {
 		close(sfd);
 		close(dfd);
@@ -141,7 +143,7 @@ camel_movemail(const gchar *source, const gchar *dest, CamelException *ex)
 #ifdef HAVE_BROKEN_SPOOL
 	res = camel_movemail_solaris(sfd, dfd, ex);
 #else
-	res = camel_movemail_copy_file(sfd, dfd, ex);
+	res = camel_movemail_copy_file(sfd, dfd, error);
 #endif
 
 	/* If no errors occurred copying the data, and we successfully
@@ -151,9 +153,10 @@ camel_movemail(const gchar *source, const gchar *dest, CamelException *ex)
 		if (close (dfd) == 0) {
 			ftruncate (sfd, 0);
 		} else {
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Failed to store mail in temp file %s: %s"),
-					      dest, g_strerror (errno));
+			g_set_error (
+				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+				_("Failed to store mail in temp file %s: %s"),
+				dest, g_strerror (errno));
 			res = -1;
 		}
 	} else
@@ -167,7 +170,9 @@ camel_movemail(const gchar *source, const gchar *dest, CamelException *ex)
 
 #ifdef MOVEMAIL_PATH
 static void
-movemail_external (const gchar *source, const gchar *dest, CamelException *ex)
+movemail_external (const gchar *source,
+                   const gchar *dest,
+                   GError **error)
 {
 	sigset_t mask, omask;
 	pid_t pid;
@@ -181,9 +186,10 @@ movemail_external (const gchar *source, const gchar *dest, CamelException *ex)
 
 	if (pipe (fd) == -1) {
 		sigprocmask (SIG_SETMASK, &omask, NULL);
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not create pipe: %s"),
-				      g_strerror (errno));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Could not create pipe: %s"),
+			g_strerror (errno));
 		return;
 	}
 
@@ -193,9 +199,9 @@ movemail_external (const gchar *source, const gchar *dest, CamelException *ex)
 		close (fd[0]);
 		close (fd[1]);
 		sigprocmask (SIG_SETMASK, &omask, NULL);
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not fork: %s"),
-				      g_strerror (errno));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Could not fork: %s"), g_strerror (errno));
 		return;
 
 	case 0:
@@ -231,9 +237,10 @@ movemail_external (const gchar *source, const gchar *dest, CamelException *ex)
 	sigprocmask (SIG_SETMASK, &omask, NULL);
 
 	if (!WIFEXITED (status) || WEXITSTATUS (status) != 0) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Movemail program failed: %s"),
-				      output ? output : _("(Unknown error)"));
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Movemail program failed: %s"),
+			output ? output : _("(Unknown error)"));
 	}
 	g_free (output);
 }
@@ -241,7 +248,9 @@ movemail_external (const gchar *source, const gchar *dest, CamelException *ex)
 
 #ifndef HAVE_BROKEN_SPOOL
 static gint
-camel_movemail_copy_file(gint sfd, gint dfd, CamelException *ex)
+camel_movemail_copy_file (gint sfd,
+                          gint dfd,
+                          GError **error)
 {
 	gint nread, nwrote;
 	gchar buf[4096];
@@ -255,9 +264,11 @@ camel_movemail_copy_file(gint sfd, gint dfd, CamelException *ex)
 		else if (nread == -1) {
 			if (errno == EINTR)
 				continue;
-			camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-					      _("Error reading mail file: %s"),
-					      g_strerror (errno));
+			g_set_error (
+				error, G_FILE_ERROR,
+				g_file_error_from_errno (errno),
+				_("Error reading mail file: %s"),
+				g_strerror (errno));
 			return -1;
 		}
 
@@ -266,9 +277,11 @@ camel_movemail_copy_file(gint sfd, gint dfd, CamelException *ex)
 			if (nwrote == -1) {
 				if (errno == EINTR)
 					continue; /* continues inner loop */
-				camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-						      _("Error writing mail temp file: %s"),
-						      g_strerror (errno));
+				g_set_error (
+					error, G_FILE_ERROR,
+					g_file_error_from_errno (errno),
+					_("Error writing mail temp file: %s"),
+					g_strerror (errno));
 				return -1;
 			}
 			written += nwrote;
@@ -446,7 +459,9 @@ solaris_header_write(gint fd, struct _camel_header_raw *header)
    we must convert it to a real mbox format.  Thankfully this is
    mostly pretty easy */
 static gint
-camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex)
+camel_movemail_solaris (gint oldsfd,
+                        gint dfd,
+                        GError **error)
 {
 	CamelMimeParser *mp;
 	gchar *buffer;
@@ -459,9 +474,11 @@ camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex)
 	/* need to dup as the mime parser will close on finish */
 	sfd = dup(oldsfd);
 	if (sfd == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Error copying mail temp file: %s"),
-				      g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Error copying mail temp file: %s"),
+			g_strerror (errno));
 		return -1;
 	}
 
@@ -526,9 +543,11 @@ camel_movemail_solaris (gint oldsfd, gint dfd, CamelException *ex)
 fail:
 	g_free(from);
 
-	camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-			      _("Error copying mail temp file: %s"),
-			      g_strerror (errno));
+	g_set_error (
+		error, G_FILE_ERROR,
+		g_file_error_from_errno (errno),
+		_("Error copying mail temp file: %s"),
+		g_strerror (errno));
 
 	g_object_unref (mp);
 	g_object_unref (ffrom);

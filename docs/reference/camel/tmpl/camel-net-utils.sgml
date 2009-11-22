@@ -158,7 +158,7 @@ camel-net-utils
 @name: 
 @service: 
 @hints: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -180,7 +180,7 @@ camel-net-utils
 @host: 
 @serv: 
 @flags: 
-@ex: 
+@error: 
 @Returns: 
 
 

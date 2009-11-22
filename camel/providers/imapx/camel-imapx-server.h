@@ -96,13 +96,13 @@ CamelIMAPXServer *camel_imapx_server_new(struct _CamelStore *store, struct _Came
 
 void camel_imapx_server_connect(CamelIMAPXServer *is, gint state);
 
-GPtrArray *camel_imapx_server_list(CamelIMAPXServer *is, const gchar *top, guint32 flags, CamelException *ex);
+GPtrArray *camel_imapx_server_list(CamelIMAPXServer *is, const gchar *top, guint32 flags, GError **error);
 
-void camel_imapx_server_refresh_info(CamelIMAPXServer *is, CamelFolder *folder, struct _CamelException *ex);
-void camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrArray *infos, CamelException *ex);
-void camel_imapx_server_expunge(CamelIMAPXServer *is, CamelFolder *folder, CamelException *ex);
+void camel_imapx_server_refresh_info(CamelIMAPXServer *is, CamelFolder *folder, struct _GError **error);
+void camel_imapx_server_sync_changes(CamelIMAPXServer *is, CamelFolder *folder, GPtrArray *infos, GError **error);
+void camel_imapx_server_expunge(CamelIMAPXServer *is, CamelFolder *folder, GError **error);
 
-CamelStream *camel_imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, struct _CamelException *ex);
-void camel_imapx_server_append_message(CamelIMAPXServer *is, CamelFolder *folder, struct _CamelMimeMessage *message, const struct _CamelMessageInfo *mi, CamelException *ex);
+CamelStream *camel_imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, struct _GError **error);
+void camel_imapx_server_append_message(CamelIMAPXServer *is, CamelFolder *folder, struct _CamelMimeMessage *message, const struct _CamelMessageInfo *mi, GError **error);
 
 #endif /* ! _CAMEL_IMAPX_SERVER_H */

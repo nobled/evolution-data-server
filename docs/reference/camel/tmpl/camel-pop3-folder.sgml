@@ -47,7 +47,7 @@ CamelPOP3Folder
 </para>
 
 @parent: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -58,7 +58,7 @@ CamelPOP3Folder
 
 @folder: 
 @days_to_delete: 
-@ex: 
+@error: 
 @Returns: 
 
 

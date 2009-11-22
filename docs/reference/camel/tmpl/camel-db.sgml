@@ -164,7 +164,7 @@ CamelDB
 </para>
 
 @path: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -174,7 +174,7 @@ CamelDB
 </para>
 
 @cdb: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -193,7 +193,7 @@ CamelDB
 
 @cdb: 
 @stmt: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -204,7 +204,7 @@ CamelDB
 
 @cdb: 
 @qry_list: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -214,7 +214,7 @@ CamelDB
 </para>
 
 @cdb: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -225,7 +225,7 @@ CamelDB
 
 @cdb: 
 @query: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -235,7 +235,7 @@ CamelDB
 </para>
 
 @cdb: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -245,7 +245,7 @@ CamelDB
 </para>
 
 @cdb: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -256,7 +256,7 @@ CamelDB
 
 @cdb: 
 @folder: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -268,7 +268,7 @@ CamelDB
 @cdb: 
 @old_folder: 
 @new_folder: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -279,7 +279,7 @@ CamelDB
 
 @cdb: 
 @folder: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -291,7 +291,7 @@ CamelDB
 @cdb: 
 @folder: 
 @uid: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -303,7 +303,7 @@ CamelDB
 @cdb: 
 @folder_name: 
 @uids: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -316,7 +316,7 @@ CamelDB
 @folder_name: 
 @shash: 
 @uids: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -326,7 +326,7 @@ CamelDB
 </para>
 
 @cdb: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -339,7 +339,7 @@ CamelDB
 @stmt: 
 @callback: 
 @data: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -350,7 +350,7 @@ CamelDB
 
 @cdb: 
 @record: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -362,7 +362,7 @@ CamelDB
 @cdb: 
 @folder_name: 
 @record: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -373,7 +373,7 @@ CamelDB
 
 @cdb: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -385,7 +385,7 @@ CamelDB
 @cdb: 
 @folder_name: 
 @record: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -397,7 +397,7 @@ CamelDB
 @cdb: 
 @folder_name: 
 @record: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -410,7 +410,7 @@ CamelDB
 @folder_name: 
 @p: 
 @read_mir_callback: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -424,7 +424,7 @@ CamelDB
 @uid: 
 @p: 
 @read_mir_callback: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -436,7 +436,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -448,7 +448,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -460,7 +460,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -472,7 +472,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -484,7 +484,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -496,7 +496,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -508,7 +508,7 @@ CamelDB
 @cdb: 
 @table_name: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -520,7 +520,7 @@ CamelDB
 @cdb: 
 @query: 
 @count: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -539,7 +539,7 @@ CamelDB
 
 @db: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -550,7 +550,7 @@ CamelDB
 
 @db: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -562,7 +562,7 @@ CamelDB
 @db: 
 @folder_name: 
 @vuid: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -574,7 +574,7 @@ CamelDB
 @db: 
 @folder_name: 
 @vuid: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -586,7 +586,7 @@ CamelDB
 @db: 
 @folder_name: 
 @filter: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -598,7 +598,7 @@ CamelDB
 @db: 
 @folder_name: 
 @vuid: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -610,7 +610,7 @@ CamelDB
 @db: 
 @folder_name: 
 @vuid: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -624,7 +624,7 @@ CamelDB
 @sort_by: 
 @collate: 
 @array: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -639,7 +639,7 @@ CamelDB
 @collate: 
 @summary: 
 @table: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -650,7 +650,7 @@ CamelDB
 
 @db: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -661,7 +661,7 @@ CamelDB
 
 @db: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -710,7 +710,7 @@ CamelDB
 
 @cdb: 
 @folder: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -720,7 +720,7 @@ CamelDB
 </para>
 
 @cdb: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -731,7 +731,7 @@ CamelDB
 
 @cdb: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -742,7 +742,7 @@ CamelDB
 
 @db: 
 @folder_name: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -755,7 +755,7 @@ CamelDB
 @folder_name: 
 @uid: 
 @msg: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -767,7 +767,7 @@ CamelDB
 @cdb: 
 @folder_name: 
 @reset_version: 
-@ex: 
+@error: 
 @Returns: 
 
 

@@ -27,7 +27,6 @@
 
 #include <errno.h>
 
-#include "camel/camel-exception.h"
 #include "camel/camel-stream-mem.h"
 #include "camel/camel-stream-filter.h"
 #include "camel/camel-mime-message.h"
@@ -72,29 +71,29 @@ camel_imapx_folder_new(CamelStore *store, const gchar *path, const gchar *raw)
 #if 0
 /* experimental interfaces */
 void
-camel_imapx_folder_open(CamelIMAPXFolder *folder, CamelException *ex)
+camel_imapx_folder_open(CamelIMAPXFolder *folder, GError **error)
 {
 	/* */
 }
 
 void
-camel_imapx_folder_delete(CamelIMAPXFolder *folder, CamelException *ex)
+camel_imapx_folder_delete(CamelIMAPXFolder *folder, GError **error)
 {
 }
 
 void
-camel_imapx_folder_rename(CamelIMAPXFolder *folder, const gchar *new, CamelException *ex)
+camel_imapx_folder_rename(CamelIMAPXFolder *folder, const gchar *new, GError **error)
 {
 }
 
 void
-camel_imapx_folder_close(CamelIMAPXFolder *folder, CamelException *ex)
+camel_imapx_folder_close(CamelIMAPXFolder *folder, GError **error)
 {
 }
 #endif
 
 static void
-imapx_refresh_info (CamelFolder *folder, CamelException *ex)
+imapx_refresh_info (CamelFolder *folder, GError **error)
 {
 	CamelIMAPXStore *is = (CamelIMAPXStore *)folder->parent_store;
 
@@ -104,7 +103,7 @@ imapx_refresh_info (CamelFolder *folder, CamelException *ex)
 }
 
 static void
-imapx_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
+imapx_sync (CamelFolder *folder, gboolean expunge, GError **error)
 {
 	CamelIMAPXStore *is = (CamelIMAPXStore *)folder->parent_store;
 
@@ -120,7 +119,7 @@ imapx_sync (CamelFolder *folder, gboolean expunge, CamelException *ex)
 }
 
 static CamelMimeMessage *
-imapx_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
+imapx_get_message (CamelFolder *folder, const gchar *uid, GError **error)
 {
 	CamelMimeMessage *msg = NULL;
 	CamelStream *stream;
@@ -145,7 +144,7 @@ imapx_get_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
 }
 
 static void
-imapx_append_message(CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *info, gchar **appended_uid, CamelException *ex)
+imapx_append_message(CamelFolder *folder, CamelMimeMessage *message, const CamelMessageInfo *info, gchar **appended_uid, GError **error)
 {
 	CamelIMAPXStore *is = (CamelIMAPXStore *)folder->parent_store;
 

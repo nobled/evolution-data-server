@@ -39,7 +39,6 @@
 
 #include <libedataserver/e-data-server-util.h>
 
-#include "camel-exception.h"
 #include "camel-file-utils.h"
 #include "camel-private.h"
 #include "camel-session.h"
@@ -105,24 +104,25 @@ static CamelService *
 session_get_service (CamelSession *session,
                      const gchar *url_string,
                      CamelProviderType type,
-                     CamelException *ex)
+                     GError **error)
 {
 	CamelURL *url;
 	CamelProvider *provider;
 	CamelService *service;
-	CamelException internal_ex;
 
-	url = camel_url_new (url_string, ex);
+	url = camel_url_new (url_string, error);
 	if (!url)
 		return NULL;
 
 	/* We need to look up the provider so we can then lookup
 	   the service in the provider's cache */
-	provider = camel_provider_get(url->protocol, ex);
+	provider = camel_provider_get(url->protocol, error);
 	if (provider && !provider->object_types[type]) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_URL_INVALID,
-				      _("No provider available for protocol '%s'"),
-				      url->protocol);
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_URL_INVALID,
+			_("No provider available for protocol '%s'"),
+			url->protocol);
 		provider = NULL;
 	}
 
@@ -141,10 +141,7 @@ session_get_service (CamelSession *session,
 	service = camel_object_bag_reserve(provider->service_cache[type], url);
 	if (service == NULL) {
 		service = g_object_new (provider->object_types[type], NULL);
-		camel_exception_init (&internal_ex);
-		camel_service_construct (service, session, provider, url, &internal_ex);
-		if (camel_exception_is_set (&internal_ex)) {
-			camel_exception_xfer (ex, &internal_ex);
+		if (!camel_service_construct (service, session, provider, url, error)) {
 			g_object_unref (service);
 			service = NULL;
 			camel_object_bag_abort(provider->service_cache[type], url);
@@ -161,7 +158,7 @@ session_get_service (CamelSession *session,
 static gchar *
 session_get_storage_path (CamelSession *session,
                           CamelService *service,
-                          CamelException *ex)
+                          GError **error)
 {
 	gchar *path, *p;
 
@@ -177,9 +174,11 @@ session_get_storage_path (CamelSession *session,
 		return path;
 
 	if (g_mkdir_with_parents (path, S_IRWXU) == -1) {
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SYSTEM,
-				      _("Could not create directory %s:\n%s"),
-				      path, g_strerror (errno));
+		g_set_error (
+			error, G_FILE_ERROR,
+			g_file_error_from_errno (errno),
+			_("Could not create directory %s:\n%s"),
+			path, g_strerror (errno));
 		g_free (path);
 		return NULL;
 	}
@@ -199,7 +198,6 @@ session_thread_msg_new (CamelSession *session,
 	m->session = session;
 	g_object_ref (session);
 	m->op = camel_operation_new(cs_thread_status, m);
-	camel_exception_init(&m->ex);
 	CAMEL_SESSION_LOCK(session, thread_lock);
 	m->id = session->priv->thread_id++;
 	g_hash_table_insert(session->priv->thread_active, GINT_TO_POINTER(m->id), m);
@@ -227,7 +225,7 @@ session_thread_msg_free (CamelSession *session,
 		msg->ops->free(session, msg);
 	if (msg->op)
 		camel_operation_unref(msg->op);
-	camel_exception_clear(&msg->ex);
+	g_clear_error (&msg->error);
 	g_object_unref (msg->session);
 	g_free(msg);
 }
@@ -297,20 +295,6 @@ session_thread_status (CamelSession *session,
 }
 
 static void
-session_forward_to (CamelSession *session,
-                    CamelFolder *folder,
-                    CamelMimeMessage *message,
-                    const gchar *address,
-                    CamelException *ex)
-{
-	if (ex)
-		camel_exception_set (
-			ex, CAMEL_EXCEPTION_SYSTEM,
-			_("Camel session doesn't support "
-			  "forwarding of a message."));
-}
-
-static void
 session_class_init (CamelSessionClass *class)
 {
 	GObjectClass *object_class;
@@ -329,7 +313,6 @@ session_class_init (CamelSessionClass *class)
 	class->thread_queue = session_thread_queue;
 	class->thread_wait = session_thread_wait;
 	class->thread_status = session_thread_status;
-	class->forward_to = session_forward_to;
 
 	camel_object_class = CAMEL_OBJECT_CLASS (class);
 	camel_object_class_add_event (camel_object_class, "online", NULL);
@@ -390,7 +373,7 @@ camel_session_construct (CamelSession *session, const gchar *storage_path)
  * @type: the provider type (#CAMEL_PROVIDER_STORE or
  * #CAMEL_PROVIDER_TRANSPORT) to get, since some URLs may be able
  * to specify either type.
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This resolves a #CamelURL into a #CamelService, including loading the
  * provider library for that service if it has not already been loaded.
@@ -406,7 +389,7 @@ CamelService *
 camel_session_get_service (CamelSession *session,
                            const gchar *url_string,
                            CamelProviderType type,
-                           CamelException *ex)
+                           GError **error)
 {
 	CamelSessionClass *class;
 	CamelService *service;
@@ -418,7 +401,7 @@ camel_session_get_service (CamelSession *session,
 	g_return_val_if_fail (class->get_service != NULL, NULL);
 
 	CAMEL_SESSION_LOCK (session, lock);
-	service = class->get_service (session, url_string, type, ex);
+	service = class->get_service (session, url_string, type, error);
 	CAMEL_SESSION_UNLOCK (session, lock);
 
 	return service;
@@ -429,7 +412,7 @@ camel_session_get_service (CamelSession *session,
  * @session: a #CamelSession object
  * @url_string: a #CamelURL describing the service to get
  * @type: the provider type
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This works like #camel_session_get_service, but also ensures that
  * the returned service will have been successfully connected (via
@@ -441,16 +424,16 @@ CamelService *
 camel_session_get_service_connected (CamelSession *session,
                                      const gchar *url_string,
                                      CamelProviderType type,
-                                     CamelException *ex)
+                                     GError **error)
 {
 	CamelService *svc;
 
-	svc = camel_session_get_service (session, url_string, type, ex);
+	svc = camel_session_get_service (session, url_string, type, error);
 	if (svc == NULL)
 		return NULL;
 
 	if (svc->status != CAMEL_SERVICE_CONNECTED) {
-		if (camel_service_connect (svc, ex) == FALSE) {
+		if (!camel_service_connect (svc, error)) {
 			g_object_unref (svc);
 			return NULL;
 		}
@@ -463,7 +446,7 @@ camel_session_get_service_connected (CamelSession *session,
  * camel_session_get_storage_path:
  * @session: a #CamelSession object
  * @service: a #CamelService
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This returns the path to a directory which the service can use for
  * its own purposes. Data stored there will remain between Evolution
@@ -477,7 +460,7 @@ camel_session_get_service_connected (CamelSession *session,
 gchar *
 camel_session_get_storage_path (CamelSession *session,
                                 CamelService *service,
-                                CamelException *ex)
+                                GError **error)
 {
 	CamelSessionClass *class;
 
@@ -487,7 +470,7 @@ camel_session_get_storage_path (CamelSession *session,
 	class = CAMEL_SESSION_GET_CLASS (session);
 	g_return_val_if_fail (class->get_storage_path != NULL, NULL);
 
-	return class->get_storage_path (session, service, ex);
+	return class->get_storage_path (session, service, error);
 }
 
 /**
@@ -500,7 +483,7 @@ camel_session_get_storage_path (CamelSession *session,
  * @flags: #CAMEL_SESSION_PASSWORD_REPROMPT, the prompt should force a reprompt
  * #CAMEL_SESSION_PASSWORD_SECRET, whether the password is secret
  * #CAMEL_SESSION_PASSWORD_STATIC, the password is remembered externally
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This function is used by a #CamelService to ask the application and
  * the user for a password or other authentication data.
@@ -529,7 +512,7 @@ camel_session_get_password (CamelSession *session,
                             const gchar *prompt,
                             const gchar *item,
                             guint32 flags,
-                            CamelException *ex)
+                            GError **error)
 {
 	CamelSessionClass *class;
 
@@ -541,7 +524,7 @@ camel_session_get_password (CamelSession *session,
 	g_return_val_if_fail (class->get_password != NULL, NULL);
 
 	return class->get_password (
-		session, service, domain, prompt, item, flags, ex);
+		session, service, domain, prompt, item, flags, error);
 }
 
 /**
@@ -549,7 +532,7 @@ camel_session_get_password (CamelSession *session,
  * @session: a #CamelSession object
  * @service: the #CamelService rejecting the password
  * @item: an identifier, unique within this service, for the information
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This function is used by a #CamelService to tell the application
  * that the authentication information it provided via
@@ -565,7 +548,7 @@ camel_session_forget_password (CamelSession *session,
                                CamelService *service,
                                const gchar *domain,
                                const gchar *item,
-                               CamelException *ex)
+                               GError **error)
 {
 	CamelSessionClass *class;
 
@@ -575,7 +558,7 @@ camel_session_forget_password (CamelSession *session,
 	class = CAMEL_SESSION_GET_CLASS (session);
 	g_return_if_fail (class->forget_password);
 
-	class->forget_password (session, service, domain, item, ex);
+	class->forget_password (session, service, domain, item, error);
 }
 
 /**
@@ -698,14 +681,14 @@ camel_session_set_online (CamelSession *session, gboolean online)
  * camel_session_get_filter_driver:
  * @session: a #CamelSession object
  * @type: the type of filter (eg, "incoming")
- * @ex: a #CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * Returns: a filter driver, loaded with applicable rules
  **/
 CamelFilterDriver *
 camel_session_get_filter_driver (CamelSession *session,
                                  const gchar *type,
-                                 CamelException *ex)
+                                 GError **error)
 {
 	CamelSessionClass *class;
 
@@ -715,7 +698,7 @@ camel_session_get_filter_driver (CamelSession *session,
 	class = CAMEL_SESSION_GET_CLASS (session);
 	g_return_val_if_fail (class->get_filter_driver != NULL, NULL);
 
-	return class->get_filter_driver (session, type, ex);
+	return class->get_filter_driver (session, type, error);
 }
 
 /**
@@ -917,7 +900,7 @@ camel_session_forward_to (CamelSession *session,
                           CamelFolder *folder,
                           CamelMimeMessage *message,
                           const gchar *address,
-                          CamelException *ex)
+                          GError **error)
 {
 	CamelSessionClass *class;
 
@@ -929,5 +912,5 @@ camel_session_forward_to (CamelSession *session,
 	class = CAMEL_SESSION_GET_CLASS (session);
 	g_return_if_fail (class->forward_to != NULL);
 
-	class->forward_to (session, folder, message, address, ex);
+	class->forward_to (session, folder, message, address, error);
 }

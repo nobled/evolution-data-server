@@ -60,6 +60,6 @@ CamelIMAP4Journal
 @message: 
 @mi: 
 @appended_uid: 
-@ex: 
+@error: 
 
 

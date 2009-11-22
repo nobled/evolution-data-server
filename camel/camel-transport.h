@@ -74,7 +74,7 @@ struct _CamelTransportClass {
 	gboolean (*send_to) (CamelTransport *transport,
 			     CamelMimeMessage *message,
 			     CamelAddress *from, CamelAddress *recipients,
-			     CamelException *ex);
+			     GError **error);
 };
 
 /* public methods */
@@ -82,7 +82,7 @@ gboolean camel_transport_send_to (CamelTransport *transport,
 				  CamelMimeMessage *message,
 				  CamelAddress *from,
 				  CamelAddress *recipients,
-				  CamelException *ex);
+				  GError **error);
 
 GType camel_transport_get_type (void);
 

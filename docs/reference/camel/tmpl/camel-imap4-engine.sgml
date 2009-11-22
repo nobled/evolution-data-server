@@ -116,7 +116,7 @@ CamelIMAP4Engine
 </para>
 
 @engine: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -137,7 +137,7 @@ CamelIMAP4Engine
 
 @engine: 
 @stream: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -155,7 +155,7 @@ CamelIMAP4Engine
 </para>
 
 @engine: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -165,7 +165,7 @@ CamelIMAP4Engine
 </para>
 
 @engine: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -176,7 +176,7 @@ CamelIMAP4Engine
 
 @engine: 
 @folder: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -229,7 +229,7 @@ CamelIMAP4Engine
 
 @engine: 
 @token: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -239,7 +239,7 @@ CamelIMAP4Engine
 </para>
 
 @engine: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_imap4_engine_next_token ##### -->
@@ -249,7 +249,7 @@ CamelIMAP4Engine
 
 @engine: 
 @token: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -261,7 +261,7 @@ CamelIMAP4Engine
 @engine: 
 @line: 
 @len: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -273,7 +273,7 @@ CamelIMAP4Engine
 @engine: 
 @literal: 
 @len: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -284,7 +284,7 @@ CamelIMAP4Engine
 
 @engine: 
 @nstring: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -294,7 +294,7 @@ CamelIMAP4Engine
 </para>
 
 @engine: 
-@ex: 
+@error: 
 @Returns: 
 
 
@@ -304,7 +304,7 @@ CamelIMAP4Engine
 </para>
 
 @engine: 
-@ex: 
+@error: 
 @Returns: 
 
 

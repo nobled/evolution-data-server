@@ -33,7 +33,7 @@ CamelPOP3Store
 </para>
 
 @store: 
-@ex: 
+@error: 
 
 
 <!-- ##### FUNCTION camel_pop3_command ##### -->
@@ -43,7 +43,7 @@ CamelPOP3Store
 
 @store: 
 @ret: 
-@ex: 
+@error: 
 @fmt: 
 @Varargs: 
 @Returns: 
@@ -56,7 +56,7 @@ CamelPOP3Store
 
 @store: 
 @total: 
-@ex: 
+@error: 
 @Returns: 
 
 

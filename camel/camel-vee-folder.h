@@ -83,7 +83,7 @@ struct _CamelVeeFolderClass {
 
 	void (*add_folder)(CamelVeeFolder *, CamelFolder *);
 	void (*remove_folder)(CamelVeeFolder *, CamelFolder *);
-	gint (*rebuild_folder)(CamelVeeFolder *, CamelFolder *, CamelException *);
+	gint (*rebuild_folder)(CamelVeeFolder *, CamelFolder *, GError **error);
 
 	void (*set_expression)(CamelVeeFolder *, const gchar *);
 
@@ -104,14 +104,14 @@ CamelFolder *camel_vee_folder_get_location(CamelVeeFolder *vf, const struct _Cam
 void         camel_vee_folder_add_folder        (CamelVeeFolder *vf, CamelFolder *sub);
 void         camel_vee_folder_remove_folder     (CamelVeeFolder *vf, CamelFolder *sub);
 void	     camel_vee_folder_set_folders	(CamelVeeFolder *vf, GList *folders);
-gint          camel_vee_folder_rebuild_folder(CamelVeeFolder *vf, CamelFolder *sub, CamelException *ex);
+gint          camel_vee_folder_rebuild_folder(CamelVeeFolder *vf, CamelFolder *sub, GError **error);
 void	     camel_vee_folder_set_expression	(CamelVeeFolder *vf, const gchar *expr);
 
 void	     camel_vee_folder_mask_event_folder_changed (CamelVeeFolder *vf, CamelFolder *sub);
 void	     camel_vee_folder_unmask_event_folder_changed (CamelVeeFolder *vf, CamelFolder *sub);
 
 void	     camel_vee_folder_hash_folder	(CamelFolder *folder, gchar buffer[8]);
-void	     camel_vee_folder_sync_headers (CamelFolder *vf, CamelException *ex);
+void	     camel_vee_folder_sync_headers (CamelFolder *vf, GError **error);
 
 G_END_DECLS
 

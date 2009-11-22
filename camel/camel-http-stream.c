@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "camel-exception.h"
 #include "camel-http-stream.h"
 #include "camel-mime-utils.h"
 #include "camel-net-utils.h"

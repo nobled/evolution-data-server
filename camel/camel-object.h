@@ -37,7 +37,6 @@
 #include <pthread.h>
 
 #include <camel/camel-arg.h>
-#include <camel/camel-exception.h>
 
 /* The CamelObjectBag API was originally defined in this header,
  * so include it here for backward-compatibility. */
@@ -62,6 +61,9 @@
 	(G_TYPE_INSTANCE_GET_CLASS \
 	((obj), CAMEL_TYPE_OBJECT, CamelObjectClass))
 
+#define CAMEL_ERROR \
+	(camel_error_quark ())
+
 G_BEGIN_DECLS
 
 typedef struct _CamelObjectClass CamelObjectClass;
@@ -71,6 +73,11 @@ typedef struct _CamelObjectMeta CamelObjectMeta;
 
 typedef gboolean (*CamelObjectEventPrepFunc) (CamelObject *, gpointer);
 typedef void (*CamelObjectEventHookFunc) (CamelObject *, gpointer, gpointer);
+
+typedef enum {
+	CAMEL_ERROR_SYSTEM,
+	CAMEL_ERROR_USER_CANCEL
+} CamelError;
 
 /* camel object args. */
 enum {
@@ -94,7 +101,7 @@ enum {
 
 /* returned by get::CAMEL_OBJECT_METADATA */
 struct _CamelObjectMeta {
-	struct _CamelObjectMeta *next;
+	CamelObjectMeta *next;
 
 	gchar *value;
 	gchar name[1];		/* allocated as part of structure */
@@ -116,24 +123,25 @@ struct _CamelObjectClass {
 	/* root-class fields follow, type system above */
 
 	/* get/set interface */
-	gint (*setv)(struct _CamelObject *, struct _CamelException *ex, CamelArgV *args);
-	gint (*getv)(struct _CamelObject *, struct _CamelException *ex, CamelArgGetV *args);
+	gint (*setv)(CamelObject *, GError **error, CamelArgV *args);
+	gint (*getv)(CamelObject *, GError **error, CamelArgGetV *args);
 	/* we only free 1 at a time, and only pointer types, obviously */
-	void (*free)(struct _CamelObject *, guint32 tag, gpointer ptr);
+	void (*free)(CamelObject *, guint32 tag, gpointer ptr);
 
 	/* get/set meta-data interface */
-	gchar *(*meta_get)(struct _CamelObject *, const gchar * name);
-	gboolean (*meta_set)(struct _CamelObject *, const gchar * name, const gchar *value);
+	gchar *(*meta_get)(CamelObject *, const gchar * name);
+	gboolean (*meta_set)(CamelObject *, const gchar * name, const gchar *value);
 
 	/* persistence stuff */
-	gint (*state_read)(struct _CamelObject *, FILE *fp);
-	gint (*state_write)(struct _CamelObject *, FILE *fp);
+	gint (*state_read)(CamelObject *, FILE *fp);
+	gint (*state_write)(CamelObject *, FILE *fp);
 };
 
 /* object class methods (types == classes now) */
 void camel_object_class_add_event (CamelObjectClass *klass, const gchar *name, CamelObjectEventPrepFunc prep);
 
 GType camel_object_get_type (void);
+GQuark camel_error_quark (void) G_GNUC_CONST;
 
 /* hooks */
 CamelObjectHookID camel_object_hook_event(gpointer obj, const gchar *name, CamelObjectEventHookFunc hook, gpointer data);
@@ -142,14 +150,14 @@ void camel_object_unhook_event(gpointer obj, const gchar *name, CamelObjectEvent
 void camel_object_trigger_event(gpointer obj, const gchar *name, gpointer event_data);
 
 /* get/set methods */
-gint camel_object_set(gpointer obj, struct _CamelException *ex, ...);
-gint camel_object_setv(gpointer obj, struct _CamelException *ex, CamelArgV *);
-gint camel_object_get(gpointer obj, struct _CamelException *ex, ...);
-gint camel_object_getv(gpointer obj, struct _CamelException *ex, CamelArgGetV *);
+gint camel_object_set(gpointer obj, GError **error, ...);
+gint camel_object_setv(gpointer obj, GError **error, CamelArgV *);
+gint camel_object_get(gpointer obj, GError **error, ...);
+gint camel_object_getv(gpointer obj, GError **error, CamelArgGetV *);
 
 /* not very efficient one-time calls */
-gpointer camel_object_get_ptr(gpointer vo, CamelException *ex, gint tag);
-gint camel_object_get_int(gpointer vo, CamelException *ex, gint tag);
+gpointer camel_object_get_ptr(gpointer vo, GError **error, gint tag);
+gint camel_object_get_int(gpointer vo, GError **error, gint tag);
 
 /* meta-data for user-specific data */
 gchar *camel_object_meta_get(gpointer vo, const gchar * name);
