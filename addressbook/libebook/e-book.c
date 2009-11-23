@@ -32,6 +32,7 @@
 #include "e-contact.h"
 #include "e-book-view-private.h"
 #include "e-data-book-factory-bindings.h"
+#include "e-data-book-factory-gdbus-bindings.h"
 #include "e-data-book-bindings.h"
 #include "libedata-book/e-data-book-types.h"
 #include "e-book-marshal.h"
@@ -69,6 +70,8 @@ struct _EBookPrivate {
 
 static DBusGConnection *connection = NULL;
 static DBusGProxy *factory_proxy = NULL;
+static GDBusConnection *connection_gdbus = NULL;
+static GDBusProxy *factory_proxy_gdbus = NULL;
 
 /* guards both connection and factory_proxy */
 static GStaticRecMutex connection_lock = G_STATIC_REC_MUTEX_INIT;
@@ -223,7 +226,7 @@ e_book_activate(GError **error)
 
 	LOCK_CONN ();
 
-	if (G_LIKELY (factory_proxy)) {
+	if (G_LIKELY (factory_proxy && factory_proxy_gdbus)) {
 		UNLOCK_CONN ();
 		return TRUE;
 	}
@@ -243,20 +246,73 @@ e_book_activate(GError **error)
 		dbus_set_g_error (error, &derror);
 		dbus_error_free (&derror);
 		UNLOCK_CONN ();
+
+		/* FIXME: cut this */
+		g_debug (G_STRLOC ": FAILED to start " E_DATA_BOOK_FACTORY_SERVICE_NAME);
+
 		return FALSE;
 	}
 
 	if (!factory_proxy) {
 		factory_proxy = dbus_g_proxy_new_for_name_owner (connection,
-								 E_DATA_BOOK_FACTORY_SERVICE_NAME,
-								 "/org/gnome/evolution/dataserver/addressbook/BookFactory",
-								 "org.gnome.evolution.dataserver.addressbook.BookFactory",
-								 error);
+									E_DATA_BOOK_FACTORY_SERVICE_NAME,
+									"/org/gnome/evolution/dataserver/addressbook/BookFactory",
+									"org.gnome.evolution.dataserver.addressbook.BookFactory",
+									error);
 		if (!factory_proxy) {
 			UNLOCK_CONN ();
 			return FALSE;
 		}
 		g_object_add_weak_pointer (G_OBJECT (factory_proxy), (gpointer)&factory_proxy);
+	}
+
+	/* FIXME: better to just watch for the proxy instead of using the
+	 * connection directly? */
+	if (!connection_gdbus) {
+		connection_gdbus = g_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
+		if (!connection_gdbus) {
+			UNLOCK_CONN ();
+
+			/* FIXME: cut this */
+			g_debug (G_STRLOC ": *** FAILED to create the factory connection gdbus");
+
+			return FALSE;
+		}
+	} else {
+		/* FIXME: cut this */
+		g_debug (G_STRLOC ": *** already have a factory connection gdbus");
+	}
+
+	/* FIXME: it may be insufficient to create this; we probably have to
+	 * watch it to see if it dies. There's gdbusproxywatch for that */
+
+	/* FIXME: we don't need properties from this object, but what if we do
+	 * from others? -- maybe it's handled automatically if any properties
+	 * actually are defined? */
+	/* FIXME: same for signals - this doesn't have any, but what about the
+	 * other objects (which do have signals)? */
+	if (!factory_proxy_gdbus) {
+		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
+								G_TYPE_DBUS_PROXY,
+								G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+								E_DATA_BOOK_FACTORY_SERVICE_NAME,
+								"/org/gnome/evolution/dataserver/addressbook/BookFactory",
+								"org.gnome.evolution.dataserver.addressbook.BookFactory",
+								NULL,
+								error);
+		if (!factory_proxy_gdbus) {
+			UNLOCK_CONN ();
+
+			/* FIXME: cut this */
+			g_debug (G_STRLOC ": *** FAILED TO create the factory proxy gdbus, %s", (*error)->message);
+
+			return FALSE;
+		}
+
+		g_object_add_weak_pointer (G_OBJECT (factory_proxy_gdbus), (gpointer)&factory_proxy_gdbus);
+	} else {
+		/* FIXME: cut this */
+		g_debug (G_STRLOC ": *** already have a factory proxy gdbus");
 	}
 
 	UNLOCK_CONN ();
@@ -2161,7 +2217,7 @@ e_book_new (ESource *source, GError **error)
 	xml = e_source_to_standalone_xml (source);
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_addressbook_BookFactory_get_book (factory_proxy, xml, &path, &err)) {
+	if (!e_data_book_factory_gdbus_get_book (factory_proxy_gdbus, xml, &path, &err)) {
 		UNLOCK_CONN ();
 		g_free (xml);
 		g_warning (G_STRLOC ": cannot get book from factory: %s", err ? err->message : "[no error]");
@@ -2171,6 +2227,7 @@ e_book_new (ESource *source, GError **error)
 	}
 	g_free (xml);
 
+	/* FIXME: switch this over to g_dbus */
 	book->priv->proxy = dbus_g_proxy_new_for_name_owner (connection,
 							     E_DATA_BOOK_FACTORY_SERVICE_NAME, path,
 							     "org.gnome.evolution.dataserver.addressbook.Book",
