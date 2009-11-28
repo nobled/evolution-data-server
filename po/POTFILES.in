@@ -45,7 +45,6 @@ camel/camel-digest-summary.c
 camel/camel-disco-diary.c
 camel/camel-disco-folder.c
 camel/camel-disco-store.c
-camel/camel-exception.c
 camel/camel-file-utils.c
 camel/camel-filter-driver.c
 camel/camel-filter-search.c

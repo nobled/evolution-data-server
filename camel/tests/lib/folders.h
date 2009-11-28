@@ -1,10 +1,5 @@
 
-#include "camel/camel-session.h"
-#include "camel/camel-store.h"
-
-#include <camel/camel-folder.h>
-#include <camel/camel-folder-summary.h>
-#include <camel/camel-mime-message.h>
+#include <camel/camel.h>
 
 /* check the total/unread is what we think it should be, everywhere it can be determined */
 void test_folder_counts(CamelFolder *folder, gint total, gint unread);

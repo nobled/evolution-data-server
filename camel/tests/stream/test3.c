@@ -8,9 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "camel/camel-stream-mem.h"
-#include "camel/camel-stream-fs.h"
-#include "camel/camel-seekable-substream.h"
+#include <camel/camel.h>
 
 struct {
 	off_t lower, upper;
@@ -33,7 +31,8 @@ struct {
 	{ 10245, CAMEL_STREAM_UNBOUND },
 };
 
-gint main(gint argc, gchar **argv)
+gint
+main(gint argc, gchar **argv)
 {
 	CamelSeekableStream *ss = NULL;
 	gint i, j;

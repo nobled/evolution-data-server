@@ -30,10 +30,7 @@
 #include "camel-test.h"
 #include "messages.h"
 
-#include <camel/camel-multipart.h>
-#include <camel/camel-mime-message.h>
-#include <camel/camel-stream-fs.h>
-#include <camel/camel-stream-mem.h>
+#include <camel/camel.h>
 
 #if 0
 static void

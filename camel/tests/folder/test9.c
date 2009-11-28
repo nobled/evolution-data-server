@@ -8,19 +8,12 @@
 #include "folders.h"
 #include "session.h"
 
-#include "camel/camel-service.h"
-#include "camel/camel-store.h"
-
-#include "camel/camel-folder.h"
-#include "camel/camel-folder-summary.h"
-#include "camel/camel-mime-message.h"
-#include "camel/camel-filter-driver.h"
-#include "camel/camel-stream-fs.h"
+#include <camel/camel.h>
 
 static const gchar *local_drivers[] = { "local" };
 
 struct {
-	gchar *name;
+	const gchar *name;
 	CamelFolder *folder;
 } mailboxes[] = {
 	{ "INBOX", NULL },
@@ -31,7 +24,7 @@ struct {
 };
 
 struct {
-	gchar *name, *match, *action;
+	const gchar *name, *match, *action;
 } rules[] = {
 	{ "empty1", "(match-all (header-contains \"Frobnitz\"))", "(copy-to \"folder1\")" },
 	{ "empty2", "(header-contains \"Frobnitz\")", "(copy-to \"folder2\")" },
@@ -46,7 +39,7 @@ struct {
 
 /* broken match rules */
 struct {
-	gchar *name, *match, *action;
+	const gchar *name, *match, *action;
 } brokens[] = {
 	{ "count1", "(body-contains data50)", "(copy-to \"folder1\")" }, /* non string argument */
 	{ "count1", "(body-contains-stuff \"data3\")", "(move-to-folder \"folder2\")" }, /* invalid function */
@@ -62,7 +55,7 @@ struct {
 
 /* broken action rules */
 struct {
-	gchar *name, *match, *action;
+	const gchar *name, *match, *action;
 } brokena[] = {
 	{ "a", "(body-contains \"data2\")", "(body-contains \"help\")" }, /* rule in action */
 	{ "a", "(body-contains \"data2\")", "(move-to-folder-name \"folder2\")" }, /* unknown function */
@@ -74,7 +67,11 @@ struct {
 	{ "a", "(body-contains \"data2\")", "" }, /* empty */
 };
 
-static CamelFolder *get_folder(CamelFilterDriver *d, const gchar *uri, gpointer data, CamelException *ex)
+static CamelFolder *
+get_folder (CamelFilterDriver *d,
+            const gchar *uri,
+            gpointer data,
+            GError **error)
 {
 	gint i;
 
@@ -90,17 +87,15 @@ gint main(gint argc, gchar **argv)
 {
 	CamelSession *session;
 	CamelStore *store;
-	CamelException *ex;
 	CamelFolder *folder;
 	CamelMimeMessage *msg;
 	gint i, j;
 	CamelStream *mbox;
 	CamelFilterDriver *driver;
+	GError *error = NULL;
 
 	camel_test_init(argc, argv);
 	camel_test_provider_init(1, local_drivers);
-
-	ex = camel_exception_new();
 
 	/* clear out any camel-test data */
 	system("/bin/rm -rf /tmp/camel-test");
@@ -113,20 +108,22 @@ gint main(gint argc, gchar **argv)
 	/* todo: work out how to do imap/pop/nntp tests */
 
 	push("getting store");
-	store = camel_session_get_store(session, "mbox:///tmp/camel-test/mbox", ex);
-	check_msg(!camel_exception_is_set(ex), "getting store: %s", camel_exception_get_description(ex));
+	store = camel_session_get_store(session, "mbox:///tmp/camel-test/mbox", &error);
+	check_msg(error == NULL, "getting store: %s", error->message);
 	check(store != NULL);
+	g_clear_error (&error);
 	pull();
 
 	push("Creating output folders");
 	for (i = 0; i < G_N_ELEMENTS (mailboxes); i++) {
 		push("creating %s", mailboxes[i].name);
-		mailboxes[i].folder = folder = camel_store_get_folder(store, mailboxes[i].name, CAMEL_STORE_FOLDER_CREATE, ex);
-		check_msg(!camel_exception_is_set(ex), "%s", camel_exception_get_description(ex));
+		mailboxes[i].folder = folder = camel_store_get_folder(store, mailboxes[i].name, CAMEL_STORE_FOLDER_CREATE, &error);
+		check_msg(error == NULL, "%s", error->message);
 		check(folder != NULL);
 
 		/* we need an empty folder for this to work */
 		test_folder_counts(folder, 0, 0);
+		g_clear_error (&error);
 		pull();
 	}
 	pull();
@@ -154,7 +151,8 @@ gint main(gint argc, gchar **argv)
 #if 0
 		push("appending simple message %d", j);
 		camel_folder_append_message(folder, msg, NULL, ex);
-		check_msg(!camel_exception_is_set(ex), "%s", camel_exception_get_description(ex));
+		check_msg(error == NULL, "%s", error->message);
+		g_clear_error (&error);
 		pull();
 #endif
 		test_free(subject);
@@ -175,12 +173,13 @@ gint main(gint argc, gchar **argv)
 
 	push("Executing filters");
 	camel_filter_driver_set_default_folder(driver, mailboxes[0].folder);
-	camel_filter_driver_filter_mbox(driver, "/tmp/camel-test/inbox", NULL, ex);
-	check_msg(!camel_exception_is_set(ex), "%s", camel_exception_get_description(ex));
+	camel_filter_driver_filter_mbox(driver, "/tmp/camel-test/inbox", NULL, &error);
+	check_msg(error == NULL, "%s", error->message);
 
 	/* now need to check the folder counts/etc */
 
 	check_unref(driver, 1);
+	g_clear_error (&error);
 	pull();
 
 	/* this tests that invalid rules are caught */
@@ -190,10 +189,10 @@ gint main(gint argc, gchar **argv)
 		driver = camel_filter_driver_new(session);
 		camel_filter_driver_set_folder_func(driver, get_folder, NULL);
 		camel_filter_driver_add_rule(driver, brokens[i].name, brokens[i].match, brokens[i].action);
-		camel_filter_driver_filter_mbox(driver, "/tmp/camel-test/inbox", NULL, ex);
-		check(camel_exception_is_set(ex));
-		camel_exception_clear(ex);
+		camel_filter_driver_filter_mbox(driver, "/tmp/camel-test/inbox", NULL, &error);
+		check(error != NULL);
 		check_unref(driver, 1);
+		g_clear_error (&error);
 		pull();
 	}
 	pull();
@@ -204,10 +203,10 @@ gint main(gint argc, gchar **argv)
 		driver = camel_filter_driver_new(session);
 		camel_filter_driver_set_folder_func(driver, get_folder, NULL);
 		camel_filter_driver_add_rule(driver, brokena[i].name, brokena[i].match, brokena[i].action);
-		camel_filter_driver_filter_mbox(driver, "/tmp/camel-test/inbox", NULL, ex);
-		check(camel_exception_is_set(ex));
-		camel_exception_clear(ex);
+		camel_filter_driver_filter_mbox(driver, "/tmp/camel-test/inbox", NULL, &error);
+		check(error != NULL);
 		check_unref(driver, 1);
+		g_clear_error (&error);
 		pull();
 	}
 	pull();
@@ -219,7 +218,6 @@ gint main(gint argc, gchar **argv)
 	check_unref(store, 1);
 
 	check_unref(session, 1);
-	camel_exception_free(ex);
 
 	camel_test_end();
 

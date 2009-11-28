@@ -96,7 +96,8 @@ current_state(void)
 	return info;
 }
 
-void test_init(gint argc, gchar **argv)
+void
+camel_test_init(gint argc, gchar **argv)
 {
 	struct stat st;
 	gchar *path;
@@ -119,8 +120,6 @@ void test_init(gint argc, gchar **argv)
 
 	camel_init (path, FALSE);
 	g_free (path);
-
-	type_init ();
 
 	info_table = g_hash_table_new(0, 0);
 
@@ -153,7 +152,7 @@ void camel_test_start(const gchar *what)
 	s = current_state();
 
 	if (!setup)
-		test_init(0, 0);
+		camel_test_init(0, 0);
 
 	ok = 1;
 
@@ -340,7 +339,7 @@ gint string_equal(const gchar *a, const gchar *b)
 
 		if (ap - a != bp - a
 		    && ap - 1 > 0
-		    && memcmp(a, b, ap-a) != 0) {
+		    && memcmp(a, b, ap-a) != NULL) {
 			return 0;
 		}
 	}

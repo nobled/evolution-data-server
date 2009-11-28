@@ -27,8 +27,8 @@ static void check_msg(gint truth, gchar *fmt, ...)
 #endif
 
 #define check_count(object, expected) do { \
-	if (CAMEL_OBJECT(object)->ref_count != expected) { \
-		camel_test_fail("%s->ref_count != %s\n\tref_count = %d", #object, #expected, CAMEL_OBJECT(object)->ref_count); \
+	if (G_OBJECT (object)->ref_count != expected) { \
+		camel_test_fail("%s->ref_count != %s\n\tref_count = %d", #object, #expected, G_OBJECT (object)->ref_count); \
 	} \
 } while (0)
 

@@ -9,10 +9,7 @@
 
 #include "camel-test.h"
 
-#include <camel/camel-stream-fs.h>
-#include <camel/camel-stream-mem.h>
-#include <camel/camel-stream-filter.h>
-#include <camel/camel-mime-filter-crlf.h>
+#include <camel/camel.h>
 
 #define d(x)
 

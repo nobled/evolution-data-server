@@ -9,10 +9,7 @@
 
 #include "camel-test.h"
 
-#include <camel/camel-stream-fs.h>
-#include <camel/camel-stream-mem.h>
-#include <camel/camel-stream-filter.h>
-#include <camel/camel-mime-filter-canon.h>
+#include <camel/camel.h>
 
 #define d(x)
 
@@ -21,8 +18,8 @@
 
 struct {
 	gint flags;
-	gchar *in;
-	gchar *out;
+	const gchar *in;
+	const gchar *out;
 } tests[] = {
 	{ CAMEL_MIME_FILTER_CANON_FROM|CAMEL_MIME_FILTER_CANON_CRLF,
 	  "From \nRussia - with love.\n\n",
@@ -56,7 +53,7 @@ struct {
 gint
 main (gint argc, gchar **argv)
 {
-	CamelStreamFilter *filter;
+	CamelStream *filter;
 	CamelMimeFilter *sh;
 	gint i;
 
@@ -71,12 +68,14 @@ main (gint argc, gchar **argv)
 
 		/* try all write sizes */
 		for (step=1;step<20;step++) {
-			CamelStreamMem *out;
-			gchar *p;
+			CamelStream *out;
+			GByteArray *buffer;
+			const gchar *p;
 
 			camel_test_push("Chunk size %d\n", step);
 
-			out = (CamelStreamMem *)camel_stream_mem_new();
+			buffer = g_byte_array_new ();
+			out = camel_stream_mem_new_with_byte_array (buffer);
 			filter = camel_stream_filter_new ((CamelStream *)out);
 			sh = camel_mime_filter_canon_new(tests[i].flags);
 			check(camel_stream_filter_add(filter, sh) != -1);
@@ -91,8 +90,8 @@ main (gint argc, gchar **argv)
 			}
 			camel_stream_flush((CamelStream *)filter);
 
-			check_msg(out->buffer->len == strlen(tests[i].out), "Buffer length mismatch: expected %d got %d\n or '%s' got '%.*s'", strlen(tests[i].out), out->buffer->len, tests[i].out, out->buffer->len, out->buffer->data);
-			check_msg(0 == memcmp(out->buffer->data, tests[i].out, out->buffer->len), "Buffer mismatch: expected '%s' got '%.*s'", tests[i].out, out->buffer->len, out->buffer->data);
+			check_msg(buffer->len == strlen(tests[i].out), "Buffer length mismatch: expected %d got %d\n or '%s' got '%.*s'", strlen(tests[i].out), buffer->len, tests[i].out, buffer->len, buffer->data);
+			check_msg(0 == memcmp(buffer->data, tests[i].out, buffer->len), "Buffer mismatch: expected '%s' got '%.*s'", tests[i].out, buffer->len, buffer->data);
 			check_unref(filter, 1);
 			check_unref(out, 1);
 

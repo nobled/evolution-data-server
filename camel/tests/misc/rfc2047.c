@@ -28,8 +28,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <camel/camel-object.h>
-#include <camel/camel-mime-utils.h>
+
+#include <camel/camel.h>
 
 #include "camel-test.h"
 

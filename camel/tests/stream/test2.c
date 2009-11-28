@@ -8,17 +8,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "camel/camel-stream-mem.h"
+#include <camel/camel.h>
 
-gint main(gint argc, gchar **argv)
+gint
+main(gint argc, gchar **argv)
 {
 	CamelSeekableStream *ss = NULL;
-	gint i;
-	gint fd = -1;
-	struct stat st;
-	gint size;
-	gchar buffer[1024];
 	GByteArray *ba;
+	gint i;
 
 	camel_test_init(argc, argv);
 

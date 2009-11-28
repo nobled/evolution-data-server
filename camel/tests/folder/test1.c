@@ -5,14 +5,13 @@
 #include "folders.h"
 #include "session.h"
 
-#include <camel/camel-service.h>
-#include <camel/camel-store.h>
+#include <camel/camel.h>
 
 static const gchar *local_drivers[] = {
 	"local"
 };
 
-static gchar *local_providers[] = {
+static const gchar *local_providers[] = {
 	"mbox",
 	"mh",
 	"maildir"
@@ -21,14 +20,11 @@ static gchar *local_providers[] = {
 gint main(gint argc, gchar **argv)
 {
 	CamelSession *session;
-	CamelException *ex;
 	gint i;
 	gchar *path;
 
 	camel_test_init(argc, argv);
 	camel_test_provider_init(1, local_drivers);
-
-	ex = camel_exception_new();
 
 	/* clear out any camel-test data */
 	system("/bin/rm -rf /tmp/camel-test");
@@ -47,7 +43,6 @@ gint main(gint argc, gchar **argv)
 	}
 
 	g_object_unref (session);
-	camel_exception_free(ex);
 
 	return 0;
 }

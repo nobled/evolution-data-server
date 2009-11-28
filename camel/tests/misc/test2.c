@@ -5,17 +5,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <camel/camel-object.h>
-#include <camel/camel-mime-utils.h>
+
+#include <camel/camel.h>
 
 #include "camel-test.h"
 
 /* NB: We know which order the params will be decoded in, plain in the order they come,
    and rfc2184 encoded following those, sorted lexigraphically */
 struct {
-	gchar *list;
+	const gchar *list;
 	gint count;
-	gchar *params[8];
+	const gchar *params[8];
 } test1[] = {
 	{ "; charset=\"iso-8859-1\"",
 	  1,
@@ -46,8 +46,8 @@ struct {
 
 struct {
 	gint count;
-	gchar *params[8];
-	gchar *list;
+	const gchar *params[8];
+	const gchar *list;
 } test2[] = {
 	{ 1,
 	  { "name", "Doul\xC3\xADk01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123457890123456789123456789" },

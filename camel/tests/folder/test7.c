@@ -6,22 +6,16 @@
 #include "messages.h"
 #include "session.h"
 
-#include <camel/camel-service.h>
-#include <camel/camel-store.h>
-
-#include <camel/camel-folder.h>
-#include <camel/camel-folder-summary.h>
-#include <camel/camel-mime-message.h>
+#include <camel/camel.h>
 
 static const gchar *nntp_drivers[] = { "nntp" };
-static gchar *remote_providers[] = {
+static const gchar *remote_providers[] = {
 	"NNTP_TEST_URL",
 };
 
 gint main(gint argc, gchar **argv)
 {
 	CamelSession *session;
-	CamelException *ex;
 	gint i;
 	gchar *path;
 
@@ -30,8 +24,6 @@ gint main(gint argc, gchar **argv)
 
 	/* clear out any camel-test data */
 	system("/bin/rm -rf /tmp/camel-test");
-
-	ex = camel_exception_new();
 
 	session = camel_test_session_new ("/tmp/camel-test");
 
@@ -50,7 +42,6 @@ gint main(gint argc, gchar **argv)
 	}
 
 	check_unref(session, 1);
-	camel_exception_free(ex);
 
 	return 0;
 }

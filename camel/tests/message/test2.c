@@ -9,8 +9,7 @@
 #include <stdio.h>
 #include <iconv.h>
 
-#include <camel/camel-internet-address.h>
-#include <camel/camel-address.h>
+#include <camel/camel.h>
 
 #include "address-data.h"
 

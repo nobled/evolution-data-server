@@ -4,28 +4,20 @@
 
 #include "session.h"
 
-static void
-class_init (CamelTestSessionClass *camel_test_session_class)
-{
-	CamelSessionClass *camel_session_class =
-		CAMEL_SESSION_CLASS (camel_test_session_class);
-}
-
 GType
 camel_test_session_get_type (void)
 {
 	static GType type = G_TYPE_INVALID;
 
 	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = camel_type_register (
+		type = g_type_register_static_simple (
 			CAMEL_TYPE_SESSION,
 			"CamelTestSession",
-			sizeof (CamelTestSession),
 			sizeof (CamelTestSessionClass),
-			(GClassInitFunc) class_init,
-			NULL,
-			NULL,
-			NULL);
+			(GClassInitFunc) NULL,
+			sizeof (CamelTestSession),
+			(GInstanceInitFunc) NULL,
+			0);
 
 	return type;
 }

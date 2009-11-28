@@ -10,10 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include <camel/camel-mime-message.h>
-#include <camel/camel-stream-fs.h>
-#include <camel/camel-stream-mem.h>
-#include "camel/camel-multipart.h"
+#include <camel/camel.h>
 
 gint main(gint argc, gchar **argv)
 {
@@ -42,37 +39,37 @@ gint main(gint argc, gchar **argv)
 	part = camel_mime_part_new();
 	test_message_set_content_simple(part, 0, "text/plain", "content part 1", strlen("content part 1"));
 	camel_multipart_add_part(mp, part);
-	check(CAMEL_OBJECT(part)->ref_count == 2);
+	check(G_OBJECT(part)->ref_count == 2);
 	check(camel_multipart_get_number(mp) == 1);
 	check(camel_multipart_get_part(mp, 0) == part);
 	check(camel_multipart_get_part(mp, 1) == NULL);
 
 	camel_multipart_remove_part(mp, part);
-	check(CAMEL_OBJECT(part)->ref_count == 1);
+	check(G_OBJECT(part)->ref_count == 1);
 	check(camel_multipart_get_number(mp) == 0);
 	check(camel_multipart_get_part(mp, 0) == NULL);
 	check(camel_multipart_get_part(mp, 1) == NULL);
 
 	camel_multipart_add_part_at(mp, part, 0);
-	check(CAMEL_OBJECT(part)->ref_count == 2);
+	check(G_OBJECT(part)->ref_count == 2);
 	check(camel_multipart_get_number(mp) == 1);
 	check(camel_multipart_get_part(mp, 0) == part);
 	check(camel_multipart_get_part(mp, 1) == NULL);
 
 	check(camel_multipart_remove_part_at(mp, 1) == NULL);
-	check(CAMEL_OBJECT(part)->ref_count == 2);
+	check(G_OBJECT(part)->ref_count == 2);
 	check(camel_multipart_get_number(mp) == 1);
 	check(camel_multipart_get_part(mp, 0) == part);
 	check(camel_multipart_get_part(mp, 1) == NULL);
 
 	check(camel_multipart_remove_part_at(mp, 0) == part);
-	check(CAMEL_OBJECT(part)->ref_count == 1);
+	check(G_OBJECT(part)->ref_count == 1);
 	check(camel_multipart_get_number(mp) == 0);
 	check(camel_multipart_get_part(mp, 0) == NULL);
 	check(camel_multipart_get_part(mp, 1) == NULL);
 
 	camel_multipart_add_part(mp, part);
-	check(CAMEL_OBJECT(part)->ref_count == 2);
+	check(G_OBJECT(part)->ref_count == 2);
 	check(camel_multipart_get_number(mp) == 1);
 	check(camel_multipart_get_part(mp, 0) == part);
 	check(camel_multipart_get_part(mp, 1) == NULL);
@@ -80,7 +77,7 @@ gint main(gint argc, gchar **argv)
 	part2 = camel_mime_part_new();
 	test_message_set_content_simple(part2, 0, "text/plain", "content part 2", strlen("content part 2"));
 	camel_multipart_add_part(mp, part2);
-	check(CAMEL_OBJECT(part2)->ref_count == 2);
+	check(G_OBJECT(part2)->ref_count == 2);
 	check(camel_multipart_get_number(mp) == 2);
 	check(camel_multipart_get_part(mp, 0) == part);
 	check(camel_multipart_get_part(mp, 1) == part2);
@@ -88,7 +85,7 @@ gint main(gint argc, gchar **argv)
 	part3 = camel_mime_part_new();
 	test_message_set_content_simple(part3, 0, "text/plain", "content part 3", strlen("content part 3"));
 	camel_multipart_add_part_at(mp, part3, 1);
-	check(CAMEL_OBJECT(part3)->ref_count == 2);
+	check(G_OBJECT(part3)->ref_count == 2);
 	check(camel_multipart_get_number(mp) == 3);
 	check(camel_multipart_get_part(mp, 0) == part);
 	check(camel_multipart_get_part(mp, 1) == part3);

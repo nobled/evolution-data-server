@@ -4,14 +4,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <camel/camel-url.h>
+
+#include <camel/camel.h>
 
 #include "camel-test.h"
 
-gchar *base = "http://a/b/c/d;p?q#f";
+const gchar *base = "http://a/b/c/d;p?q#f";
 
 struct {
-	gchar *url_string, *result;
+	const gchar *url_string, *result;
 } tests[] = {
 	{ "g:h", "g:h" },
 	{ "g", "http://a/b/c/g" },
@@ -73,20 +74,20 @@ gint
 main (gint argc, gchar **argv)
 {
 	CamelURL *base_url, *url;
-	CamelException ex;
 	gchar *url_string;
 	gint i;
+	GError *error = NULL;
 
 	camel_test_init (argc, argv);
 
 	camel_test_start ("URL parsing");
 
 	camel_test_push ("base URL parsing");
-	camel_exception_init (&ex);
-	base_url = camel_url_new (base, &ex);
+	base_url = camel_url_new (base, &error);
 	if (!base_url) {
-		camel_test_fail ("Could not parse %s: %s\n", base,
-				 camel_exception_get_description (&ex));
+		camel_test_fail (
+			"Could not parse %s: %s\n",
+			base, error->message);
 	}
 	camel_test_pull ();
 

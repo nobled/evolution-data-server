@@ -1,4 +1,4 @@
-#include <camel/camel-session.h>
+#include <camel/camel.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_TEST_SESSION \
