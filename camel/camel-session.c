@@ -542,8 +542,10 @@ camel_session_get_password (CamelSession *session,
  *
  * @service and @item identify the rejected authentication information,
  * as with #camel_session_get_password.
+ *
+ * Returns: %TRUE on success, %FALSE on failure
  **/
-void
+gboolean
 camel_session_forget_password (CamelSession *session,
                                CamelService *service,
                                const gchar *domain,
@@ -558,7 +560,7 @@ camel_session_forget_password (CamelSession *session,
 	class = CAMEL_SESSION_GET_CLASS (session);
 	g_return_if_fail (class->forget_password);
 
-	class->forget_password (session, service, domain, item, error);
+	return class->forget_password (session, service, domain, item, error);
 }
 
 /**

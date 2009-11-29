@@ -109,7 +109,7 @@ struct _CamelSessionClass {
 					      const gchar *item,
 					      guint32 flags,
 					      GError **error);
-	void            (*forget_password)   (CamelSession *session,
+	gboolean        (*forget_password)   (CamelSession *session,
 					      CamelService *service,
 					      const gchar *domain,
 					      const gchar *item,
@@ -179,7 +179,7 @@ gchar *             camel_session_get_password       (CamelSession *session,
 						     const gchar *item,
 						     guint32 flags,
 						     GError **error);
-void               camel_session_forget_password    (CamelSession *session,
+gboolean            camel_session_forget_password    (CamelSession *session,
 						     CamelService *service,
 						     const gchar *domain,
 						     const gchar *item,

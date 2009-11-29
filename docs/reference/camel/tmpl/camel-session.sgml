@@ -151,6 +151,7 @@ CamelSession
 @domain: 
 @item: 
 @error: 
+@Returns: 
 
 
 <!-- ##### FUNCTION camel_session_alert_user ##### -->
