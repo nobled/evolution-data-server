@@ -104,6 +104,8 @@ local_summary_class_init (CamelLocalSummaryClass *class)
 	object_class->finalize = local_summary_finalize;
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelLocalMessageInfo);
+	folder_summary_class->content_info_size = sizeof (CamelMessageContentInfo);
 	folder_summary_class->summary_header_load = summary_header_load;
 	folder_summary_class->summary_header_save = summary_header_save;
 	folder_summary_class->summary_header_from_db = summary_header_from_db;
@@ -125,10 +127,6 @@ local_summary_init (CamelLocalSummary *local_summary)
 	CamelFolderSummary *folder_summary;
 
 	folder_summary = CAMEL_FOLDER_SUMMARY (local_summary);
-
-	/* subclasses need to set the right instance data sizes */
-	folder_summary->message_info_size = sizeof (CamelLocalMessageInfo);
-	folder_summary->content_info_size = sizeof (CamelMessageContentInfo);
 
 	/* and a unique file version */
 	folder_summary->version += CAMEL_LOCAL_SUMMARY_VERSION;

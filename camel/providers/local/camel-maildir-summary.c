@@ -99,6 +99,8 @@ maildir_summary_class_init (CamelMaildirSummaryClass *class)
 	object_class->finalize = maildir_summary_finalize;
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelMaildirMessageInfo);
+	folder_summary_class->content_info_size = sizeof (CamelMaildirMessageContentInfo);
 	folder_summary_class->message_info_load = message_info_load;
 	folder_summary_class->message_info_new_from_header = message_info_new_from_header;
 	folder_summary_class->message_info_free = message_info_free;
@@ -126,9 +128,6 @@ maildir_summary_init (CamelMaildirSummary *maildir_summary)
 
 	/* set unique file version */
 	folder_summary->version += CAMEL_MAILDIR_SUMMARY_VERSION;
-
-	folder_summary->message_info_size = sizeof (CamelMaildirMessageInfo);
-	folder_summary->content_info_size = sizeof (CamelMaildirMessageContentInfo);
 
 	if (gethostname(hostname, 256) == 0) {
 		maildir_summary->priv->hostname = g_strdup(hostname);

@@ -390,6 +390,8 @@ vee_summary_class_init (CamelVeeSummaryClass *class)
 	parent_class = g_type_class_peek_parent (class);
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelVeeMessageInfo);
+	folder_summary_class->content_info_size = 0;
 	folder_summary_class->message_info_clone = vee_message_info_clone;
 	folder_summary_class->message_info_free = vee_message_info_free;
 	folder_summary_class->info_ptr = vee_info_ptr;
@@ -401,15 +403,6 @@ vee_summary_class_init (CamelVeeSummaryClass *class)
 	folder_summary_class->info_set_user_tag = vee_info_set_user_tag;
 	folder_summary_class->info_set_flags = vee_info_set_flags;
 	folder_summary_class->message_info_from_uid = message_info_from_uid;
-}
-
-static void
-vee_summary_init (CamelVeeSummary *vee_summary)
-{
-	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (vee_summary);
-
-	summary->message_info_size = sizeof (CamelVeeMessageInfo);
-	summary->content_info_size = 0;
 }
 
 GType
@@ -424,7 +417,7 @@ camel_vee_summary_get_type (void)
 			sizeof (CamelVeeSummaryClass),
 			(GClassInitFunc) vee_summary_class_init,
 			sizeof (CamelVeeSummary),
-			(GInstanceInitFunc) vee_summary_init,
+			(GInstanceInitFunc) NULL,
 			0);
 
 	return type;

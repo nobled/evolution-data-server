@@ -245,21 +245,12 @@ struct _CamelFolderSummary {
 	guint32 junk_not_deleted_count;
 	guint32 visible_count;
 
-	/* sizes of memory objects */
-	guint32 message_info_size;
-	guint32 content_info_size;
-
 	/* memory allocators (setup automatically) */
 	struct _EMemChunk *message_info_chunks;
 	struct _EMemChunk *content_info_chunks;
 
 	gchar *summary_path;
 	gboolean build_content;	/* do we try and parse/index the content, or not? */
-
-#if 0  /* Deprecated */
-	GPtrArray *messages;	/* CamelMessageInfo's */
-	GHashTable *messages_uid; /* CamelMessageInfo's by uid */
-#endif
 
 	/* New members to replace the above depreacted members */
 	GPtrArray *uids;
@@ -282,6 +273,10 @@ struct _CamelFIRecord;
 
 struct _CamelFolderSummaryClass {
 	CamelObjectClass parent_class;
+
+	/* sizes of memory objects */
+	gsize message_info_size;
+	gsize content_info_size;
 
 	/* load/save the global info */
 	gint (*summary_header_load)(CamelFolderSummary *, FILE *);

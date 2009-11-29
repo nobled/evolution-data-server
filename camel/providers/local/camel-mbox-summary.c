@@ -131,6 +131,8 @@ mbox_summary_class_init (CamelMboxSummaryClass *class)
 	parent_class = g_type_class_peek_parent (class);
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelMboxMessageInfo);
+	folder_summary_class->content_info_size = sizeof (CamelMboxMessageContentInfo);
 	folder_summary_class->summary_header_load = summary_header_load;
 	folder_summary_class->summary_header_save = summary_header_save;
 	folder_summary_class->summary_header_from_db = summary_header_from_db;
@@ -167,10 +169,6 @@ mbox_summary_init (CamelMboxSummary *mbox_summary)
 	CamelFolderSummary *folder_summary;
 
 	folder_summary = CAMEL_FOLDER_SUMMARY (mbox_summary);
-
-	/* subclasses need to set the right instance data sizes */
-	folder_summary->message_info_size = sizeof (CamelMboxMessageInfo);
-	folder_summary->content_info_size = sizeof (CamelMboxMessageContentInfo);
 
 	/* and a unique file version */
 	folder_summary->version += CAMEL_MBOX_SUMMARY_VERSION;

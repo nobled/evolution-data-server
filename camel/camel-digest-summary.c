@@ -33,7 +33,13 @@ static gpointer parent_class;
 static void
 digest_summary_class_init (CamelDigestSummaryClass *class)
 {
+	CamelFolderSummaryClass *folder_summary_class;
+
 	parent_class = g_type_class_peek_parent (class);
+
+	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelMessageInfo);
+	folder_summary_class->content_info_size = sizeof (CamelMessageContentInfo);
 }
 
 static void
@@ -42,10 +48,6 @@ digest_summary_init (CamelDigestSummary *digest_summary)
 	CamelFolderSummary *summary;
 
 	summary = CAMEL_FOLDER_SUMMARY (digest_summary);
-
-	/* subclasses need to set the right instance data sizes */
-	summary->message_info_size = sizeof (CamelMessageInfo);
-	summary->content_info_size = sizeof (CamelMessageContentInfo);
 
 	/* and a unique file version */
 	summary->version += CAMEL_DIGEST_SUMMARY_VERSION;

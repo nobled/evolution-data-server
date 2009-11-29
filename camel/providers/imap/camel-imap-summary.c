@@ -82,6 +82,8 @@ imap_summary_class_init (CamelImapSummaryClass *class)
 	parent_class = g_type_class_peek_parent (class);
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelImapMessageInfo);
+	folder_summary_class->content_info_size = sizeof (CamelImapMessageContentInfo);
 	folder_summary_class->message_info_clone = imap_message_info_clone;
 	folder_summary_class->summary_header_load = summary_header_load;
 	folder_summary_class->summary_header_save = summary_header_save;
@@ -98,16 +100,6 @@ imap_summary_class_init (CamelImapSummaryClass *class)
 	folder_summary_class->info_set_user_flag = info_set_user_flag;
 }
 
-static void
-imap_summary_init (CamelImapSummary *imap_summary)
-{
-	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (imap_summary);
-
-	/* subclasses need to set the right instance data sizes */
-	summary->message_info_size = sizeof (CamelImapMessageInfo);
-	summary->content_info_size = sizeof (CamelImapMessageContentInfo);
-}
-
 GType
 camel_imap_summary_get_type (void)
 {
@@ -120,7 +112,7 @@ camel_imap_summary_get_type (void)
 			sizeof (CamelImapSummaryClass),
 			(GClassInitFunc) imap_summary_class_init,
 			sizeof (CamelImapSummary),
-			(GInstanceInitFunc) imap_summary_init,
+			(GInstanceInitFunc) NULL,
 			0);
 
 	return type;

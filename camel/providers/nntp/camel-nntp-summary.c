@@ -75,6 +75,8 @@ nntp_summary_class_init (CamelNNTPSummaryClass *class)
 	g_type_class_add_private (class, sizeof (CamelNNTPSummaryPrivate));
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
+	folder_summary_class->message_info_size = sizeof (CamelMessageInfoBase);
+	folder_summary_class->content_info_size = sizeof (CamelMessageContentInfo);
 	folder_summary_class->message_info_new_from_header = message_info_new_from_header;
 	folder_summary_class->summary_header_load = summary_header_load;
 	folder_summary_class->summary_header_save = summary_header_save;
@@ -88,10 +90,6 @@ nntp_summary_init (CamelNNTPSummary *nntp_summary)
 	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (nntp_summary);
 
 	nntp_summary->priv = CAMEL_NNTP_SUMMARY_GET_PRIVATE (nntp_summary);
-
-	/* subclasses need to set the right instance data sizes */
-	summary->message_info_size = sizeof (CamelMessageInfoBase);
-	summary->content_info_size = sizeof (CamelMessageContentInfo);
 
 	/* and a unique file version */
 	summary->version += CAMEL_NNTP_SUMMARY_VERSION;

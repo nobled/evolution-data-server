@@ -37,8 +37,6 @@
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
-#include <libedataserver/e-memory.h>
-
 #include "camel-db.h"
 #include "camel-debug.h"
 #include "camel-file-utils.h"
@@ -65,10 +63,6 @@
 #define CAMEL_FOLDER_SUMMARY_GET_PRIVATE(obj) \
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_FOLDER_SUMMARY, CamelFolderSummaryPrivate))
-
-/* To switch between e-memchunk and g-alloc */
-#define ALWAYS_ALLOC 1
-#define USE_GSLICE 1
 
 /* Make 5 minutes as default cache drop */
 #define SUMMARY_CACHE_DROP 300
@@ -217,13 +211,6 @@ folder_summary_finalize (GObject *object)
 	g_hash_table_destroy(summary->priv->filter_charset);
 
 	g_free(summary->summary_path);
-
-#ifndef ALWAYS_ALLOC
-	if (summary->message_info_chunks)
-		e_memchunk_destroy(summary->message_info_chunks);
-	if (summary->content_info_chunks)
-		e_memchunk_destroy(summary->content_info_chunks);
-#endif
 
 	/* Freeing memory occupied by meta-summary-header */
 	g_free(summary->meta_summary->path);
@@ -872,6 +859,9 @@ folder_summary_class_init (CamelFolderSummaryClass *class)
 	object_class->dispose = folder_summary_dispose;
 	object_class->finalize = folder_summary_finalize;
 
+	class->message_info_size = sizeof (CamelMessageInfoBase);
+	class->content_info_size = sizeof (CamelMessageContentInfo);
+
 	class->summary_header_load = summary_header_load;
 	class->summary_header_save = summary_header_save;
 
@@ -928,8 +918,6 @@ folder_summary_init (CamelFolderSummary *summary)
 	summary->priv->filter_charset = g_hash_table_new (
 		camel_strcase_hash, camel_strcase_equal);
 
-	summary->message_info_size = sizeof(CamelMessageInfoBase);
-	summary->content_info_size = sizeof(CamelMessageContentInfo);
 	summary->priv->flag_cache = g_hash_table_new (g_str_hash, g_str_equal);
 
 	summary->message_info_chunks = NULL;
@@ -3680,23 +3668,15 @@ summary_format_string (GQueue *header_queue,
 CamelMessageContentInfo *
 camel_folder_summary_content_info_new(CamelFolderSummary *s)
 {
+	CamelFolderSummaryClass *class;
 	CamelMessageContentInfo *ci;
 
+	class = CAMEL_FOLDER_SUMMARY_GET_CLASS (s);
+
 	CAMEL_SUMMARY_LOCK(s, alloc_lock);
-#ifndef ALWAYS_ALLOC
-	if (s->content_info_chunks == NULL)
-		s->content_info_chunks = e_memchunk_new(32, s->content_info_size);
-	ci = e_memchunk_alloc(s->content_info_chunks);
-#else
-#ifndef USE_GSLICE
-	ci = g_malloc (s->content_info_size);
-#else
-	ci = g_slice_alloc (s->content_info_size);
-#endif
-#endif
+	ci = g_slice_alloc0 (class->content_info_size);
 	CAMEL_SUMMARY_UNLOCK(s, alloc_lock);
 
-	memset(ci, 0, s->content_info_size);
 	return ci;
 }
 
@@ -3966,6 +3946,7 @@ message_info_save(CamelFolderSummary *s, FILE *out, CamelMessageInfo *info)
 static void
 message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 {
+	CamelFolderSummaryClass *class;
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
 
 	if (mi->uid) {
@@ -3987,22 +3968,11 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 	if (mi->headers)
 		camel_header_param_list_free (mi->headers);
 
-	if (s)
-#ifndef ALWAYS_ALLOC
-		e_memchunk_free(s->message_info_chunks, mi);
-#else
-#ifndef USE_GSLICE
-		g_free(mi);
-#else
-		g_slice_free1 (s->message_info_size, mi);
-#endif
-#endif
-	else
-#ifndef USE_GSLICE
-		g_free(mi);
-#else
+	if (s) {
+		class = CAMEL_FOLDER_SUMMARY_GET_CLASS (s);
+		g_slice_free1 (class->message_info_size, mi);
+	} else
 		g_slice_free (CamelMessageInfoBase, mi);
-#endif
 }
 
 static CamelMessageContentInfo *
@@ -4122,19 +4092,15 @@ content_info_save(CamelFolderSummary *s, FILE *out, CamelMessageContentInfo *ci)
 static void
 content_info_free(CamelFolderSummary *s, CamelMessageContentInfo *ci)
 {
+	CamelFolderSummaryClass *class;
+
+	class = CAMEL_FOLDER_SUMMARY_GET_CLASS (s);
+
 	camel_content_type_unref(ci->type);
 	g_free(ci->id);
 	g_free(ci->description);
 	g_free(ci->encoding);
-#ifndef ALWAYS_ALLOC
-	e_memchunk_free(s->content_info_chunks, ci);
-#else
-#ifndef USE_GSLICE
-	g_free(ci);
-#else
-	g_slice_free1 (s->content_info_size, ci);
-#endif
-#endif
+	g_slice_free1 (class->content_info_size, ci);
 }
 
 static gchar *
@@ -4799,29 +4765,16 @@ camel_system_flag_get (guint32 flags, const gchar *name)
 gpointer
 camel_message_info_new (CamelFolderSummary *s)
 {
+	CamelFolderSummaryClass *class;
 	CamelMessageInfo *info;
 
 	if (s) {
 		CAMEL_SUMMARY_LOCK(s, alloc_lock);
-#ifndef ALWAYS_ALLOC
-		if (s->message_info_chunks == NULL)
-			s->message_info_chunks = e_memchunk_new(32, s->message_info_size);
-		info = e_memchunk_alloc0(s->message_info_chunks);
-#else
-#ifndef USE_GSLICE
-		info = g_malloc0(s->message_info_size);
-#else
-		info = g_slice_alloc0 (s->message_info_size);
-#endif
-#endif
+		class = CAMEL_FOLDER_SUMMARY_GET_CLASS (s);
+		info = g_slice_alloc0 (class->message_info_size);
 		CAMEL_SUMMARY_UNLOCK(s, alloc_lock);
 	} else {
-#ifndef USE_GSLICE
-		info = g_malloc0(sizeof(CamelMessageInfoBase));
-#else
 		info = g_slice_alloc0 (sizeof(CamelMessageInfoBase));
-#endif
-
 	}
 
 	info->refcount = 1;
