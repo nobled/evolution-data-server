@@ -116,24 +116,38 @@ struct _CamelTcpStream {
 struct _CamelTcpStreamClass {
 	CamelStreamClass parent_class;
 
-	/* Virtual methods */
-	gint (*connect)    (CamelTcpStream *stream, struct addrinfo *host);
-	gint (*getsockopt) (CamelTcpStream *stream, CamelSockOptData *data);
-	gint (*setsockopt) (CamelTcpStream *stream, const CamelSockOptData *data);
+	gint		(*connect)		(CamelTcpStream *stream,
+						 struct addrinfo *host,
+						 GError **error);
+	gint		(*getsockopt)		(CamelTcpStream *stream,
+						 CamelSockOptData *data);
+	gint		(*setsockopt)		(CamelTcpStream *stream,
+						 const CamelSockOptData *data);
 
-	struct sockaddr * (*get_local_address)  (CamelTcpStream *stream, socklen_t *len);
-	struct sockaddr * (*get_remote_address) (CamelTcpStream *stream, socklen_t *len);
+	struct sockaddr *
+			(*get_local_address)	(CamelTcpStream *stream,
+						 socklen_t *len);
+	struct sockaddr *
+			(*get_remote_address)	(CamelTcpStream *stream,
+						 socklen_t *len);
 };
 
-GType camel_tcp_stream_get_type (void);
-
-/* public methods */
-gint         camel_tcp_stream_connect    (CamelTcpStream *stream, struct addrinfo *host);
-gint         camel_tcp_stream_getsockopt (CamelTcpStream *stream, CamelSockOptData *data);
-gint         camel_tcp_stream_setsockopt (CamelTcpStream *stream, const CamelSockOptData *data);
-
-struct sockaddr *camel_tcp_stream_get_local_address  (CamelTcpStream *stream, socklen_t *len);
-struct sockaddr *camel_tcp_stream_get_remote_address (CamelTcpStream *stream, socklen_t *len);
+GType		camel_tcp_stream_get_type	(void);
+gint		camel_tcp_stream_connect	(CamelTcpStream *stream,
+						 struct addrinfo *host,
+						 GError **error);
+gint		camel_tcp_stream_getsockopt	(CamelTcpStream *stream,
+						 CamelSockOptData *data);
+gint		camel_tcp_stream_setsockopt	(CamelTcpStream *stream,
+						 const CamelSockOptData *data);
+struct sockaddr *
+		camel_tcp_stream_get_local_address
+						(CamelTcpStream *stream,
+						 socklen_t *len);
+struct sockaddr *
+		camel_tcp_stream_get_remote_address
+						(CamelTcpStream *stream,
+						 socklen_t *len);
 
 G_END_DECLS
 

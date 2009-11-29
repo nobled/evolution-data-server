@@ -103,7 +103,7 @@ gint		camel_mime_parser_errno (CamelMimeParser *parser);
 
 /* using an fd will be a little faster, but not much (over a simple stream) */
 gint		camel_mime_parser_init_with_fd (CamelMimeParser *m, gint fd);
-gint		camel_mime_parser_init_with_stream (CamelMimeParser *m, CamelStream *stream);
+gint		camel_mime_parser_init_with_stream (CamelMimeParser *m, CamelStream *stream, GError **error);
 
 /* get the stream or fd back of the parser */
 CamelStream    *camel_mime_parser_stream (CamelMimeParser *parser);

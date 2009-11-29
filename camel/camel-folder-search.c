@@ -1484,8 +1484,8 @@ match_words_1message (CamelDataWrapper *object, struct _camel_search_words *word
 		stream = camel_stream_mem_new_with_byte_array (byte_array);
 
 		/* FIXME: The match should be part of a stream op */
-		camel_data_wrapper_decode_to_stream (containee, stream);
-		camel_stream_write (stream, "", 1);
+		camel_data_wrapper_decode_to_stream (containee, stream, NULL);
+		camel_stream_write (stream, "", 1, NULL);
 		for (i=0;i<words->len;i++) {
 			/* FIXME: This is horridly slow, and should use a real search algorithm */
 			if (camel_ustrstrcase((const gchar *) byte_array->data, words->words[i]->word) != NULL) {

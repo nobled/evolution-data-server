@@ -69,15 +69,24 @@ struct _CamelNNTPStreamClass {
 	CamelStreamClass parent_class;
 };
 
-GType		 camel_nntp_stream_get_type	(void);
+GType		camel_nntp_stream_get_type	(void);
 
-CamelStream     *camel_nntp_stream_new		(CamelStream *source);
+CamelStream *	camel_nntp_stream_new		(CamelStream *source);
 
-void		 camel_nntp_stream_set_mode     (CamelNNTPStream *is, camel_nntp_stream_mode_t mode);
-
-gint              camel_nntp_stream_line		(CamelNNTPStream *is, guchar **data, guint *len);
-gint		 camel_nntp_stream_gets		(CamelNNTPStream *is, guchar **start, guint *len);
-gint		 camel_nntp_stream_getd		(CamelNNTPStream *is, guchar **start, guint *len);
+void		camel_nntp_stream_set_mode	(CamelNNTPStream *is,
+						 camel_nntp_stream_mode_t mode);
+gint		camel_nntp_stream_line		(CamelNNTPStream *is,
+						 guchar **data,
+						 guint *len,
+						 GError **error);
+gint		camel_nntp_stream_gets		(CamelNNTPStream *is,
+						 guchar **start,
+						 guint *len,
+						 GError **error);
+gint		camel_nntp_stream_getd		(CamelNNTPStream *is,
+						 guchar **start,
+						 guint *len,
+						 GError **error);
 
 G_END_DECLS
 

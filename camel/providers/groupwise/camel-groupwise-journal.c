@@ -185,7 +185,7 @@ groupwise_entry_play_append (CamelOfflineJournal *journal, CamelGroupwiseJournal
 		goto done;
 
 	message = camel_mime_message_new ();
-	if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream) == -1) {
+	if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream, error) == -1) {
 		g_object_unref (message);
 		g_object_unref (stream);
 		goto done;
@@ -327,13 +327,10 @@ update_cache (CamelGroupwiseJournal *groupwise_journal, CamelMimeMessage *messag
 		return FALSE;
 	}
 
-	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) message, cache) == -1
-	    || camel_stream_flush (cache) == -1) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Cannot append message in offline mode: %s"),
-			g_strerror (errno));
+	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) message, cache, error) == -1
+	    || camel_stream_flush (cache, error) == -1) {
+		g_prefix_error (
+			error, _("Cannot append message in offline mode: "));
 		camel_data_cache_remove (groupwise_folder->cache, "cache", uid, NULL);
 		folder->summary->nextuid--;
 		g_object_unref (cache);

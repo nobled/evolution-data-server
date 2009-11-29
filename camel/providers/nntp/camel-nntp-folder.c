@@ -164,9 +164,9 @@ nntp_folder_download_message (CamelNNTPFolder *nntp_folder, const gchar *id, con
 	if (ret == 220) {
 		stream = camel_data_cache_add (nntp_store->cache, "cache", msgid, NULL);
 		if (stream) {
-			if (camel_stream_write_to_stream ((CamelStream *) nntp_store->stream, stream) == -1)
+			if (camel_stream_write_to_stream ((CamelStream *) nntp_store->stream, stream, error) == -1)
 				goto fail;
-			if (camel_stream_reset (stream) == -1)
+			if (camel_stream_reset (stream, error) == -1)
 				goto fail;
 		} else {
 			stream = (CamelStream *) nntp_store->stream;
@@ -185,18 +185,8 @@ nntp_folder_download_message (CamelNNTPFolder *nntp_folder, const gchar *id, con
 
 	return stream;
 
- fail:
-	if (errno == EINTR)
-		g_set_error (
-			error, CAMEL_ERROR,
-			CAMEL_ERROR_USER_CANCEL,
-			_("User canceled"));
-	else
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Cannot get message %s: %s"),
-			msgid, g_strerror (errno));
+fail:
+	g_prefix_error (error, _("Cannot get message %s: "), msgid);
 
 	return NULL;
 }
@@ -279,18 +269,8 @@ nntp_folder_get_message (CamelFolder *folder, const gchar *uid, GError **error)
 	}
 
 	message = camel_mime_message_new ();
-	if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("User canceled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Cannot get message %s: %s"),
-				uid, g_strerror (errno));
+	if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) message, stream, error) == -1) {
+		g_prefix_error (error, _("Cannot get message %s: "), uid);
 		g_object_unref (message);
 		message = NULL;
 	}
@@ -442,25 +422,13 @@ nntp_folder_append_message_online (CamelFolder *folder,
 	camel_header_raw_extract (header_queue, &save_queue, "Bcc");
 
 	/* write the message */
-	if (camel_stream_write(stream, group, strlen(group)) == -1
-	    || camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (mime_message), filtered_stream) == -1
-	    || camel_stream_flush (filtered_stream) == -1
-	    || camel_stream_write (stream, "\r\n.\r\n", 5) == -1
-	    || (ret = camel_nntp_stream_line (nntp_store->stream, (guchar **)&line, &u)) == -1) {
-		if (errno == EINTR) {
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("User canceled"));
-			success = FALSE;
-		} else {
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Posting failed: %s"),
-				g_strerror (errno));
-			success = FALSE;
-		}
+	if (camel_stream_write(stream, group, strlen(group), error) == -1
+	    || camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (mime_message), filtered_stream, error) == -1
+	    || camel_stream_flush (filtered_stream, error) == -1
+	    || camel_stream_write (stream, "\r\n.\r\n", 5, error) == -1
+	    || (ret = camel_nntp_stream_line (nntp_store->stream, (guchar **)&line, &u, error)) == -1) {
+		g_prefix_error (error, "Posting failed: ");
+		success = FALSE;
 	} else if (atoi(line) != 240) {
 		g_set_error (
 			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,

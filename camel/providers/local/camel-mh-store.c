@@ -125,24 +125,25 @@ folders_update (const gchar *root,
 	tmpnew = g_alloca (strlen (root) + 16);
 	sprintf (tmpnew, "%s.folders~", root);
 
-	out = camel_stream_fs_new_with_name(tmpnew, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	out = camel_stream_fs_new_with_name (
+		tmpnew, O_WRONLY|O_CREAT|O_TRUNC, 0666, NULL);
 	if (out == NULL)
 		goto fail;
 
 	tmp = g_alloca (strlen (root) + 16);
 	sprintf (tmp, "%s.folders", root);
-	stream = camel_stream_fs_new_with_name(tmp, O_RDONLY, 0);
+	stream = camel_stream_fs_new_with_name (tmp, O_RDONLY, 0, NULL);
 	if (stream) {
 		in = camel_stream_buffer_new(stream, CAMEL_STREAM_BUFFER_READ);
 		g_object_unref (stream);
 	}
 	if (in == NULL || stream == NULL) {
-		if (mode == UPDATE_ADD && camel_stream_printf(out, "%s\n", folder) == -1)
+		if (mode == UPDATE_ADD && camel_stream_printf (out, NULL, "%s\n", folder) == -1)
 			goto fail;
 		goto done;
 	}
 
-	while ((line = camel_stream_buffer_read_line((CamelStreamBuffer *)in))) {
+	while ((line = camel_stream_buffer_read_line((CamelStreamBuffer *)in, NULL))) {
 		gint copy = TRUE;
 
 		switch (mode) {
@@ -153,9 +154,9 @@ folders_update (const gchar *root,
 		case UPDATE_RENAME:
 			if (strncmp(line, folder, flen) == 0
 			    && (line[flen] == 0 || line[flen] == '/')) {
-				if (camel_stream_write(out, new, strlen(new)) == -1
-				    || camel_stream_write(out, line+flen, strlen(line)-flen) == -1
-				    || camel_stream_write(out, "\n", 1) == -1)
+				if (camel_stream_write(out, new, strlen(new), NULL) == -1
+				    || camel_stream_write(out, line+flen, strlen(line)-flen, NULL) == -1
+				    || camel_stream_write(out, "\n", 1, NULL) == -1)
 					goto fail;
 				copy = FALSE;
 			}
@@ -165,7 +166,7 @@ folders_update (const gchar *root,
 
 			if (cmp > 0) {
 				/* found insertion point */
-				if (camel_stream_printf(out, "%s\n", folder) == -1)
+				if (camel_stream_printf(out, NULL, "%s\n", folder) == -1)
 					goto fail;
 				mode = UPDATE_NONE;
 			} else if (tmp == NULL) {
@@ -177,7 +178,7 @@ folders_update (const gchar *root,
 			break;
 		}
 
-		if (copy && camel_stream_printf(out, "%s\n", line) == -1)
+		if (copy && camel_stream_printf(out, NULL, "%s\n", line) == -1)
 			goto fail;
 
 		g_free(line);
@@ -185,10 +186,10 @@ folders_update (const gchar *root,
 	}
 
 	/* add to end? */
-	if (mode == UPDATE_ADD && camel_stream_printf(out, "%s\n", folder) == -1)
+	if (mode == UPDATE_ADD && camel_stream_printf(out, NULL, "%s\n", folder) == -1)
 		goto fail;
 
-	if (camel_stream_close(out) == -1)
+	if (camel_stream_close(out, NULL) == -1)
 		goto fail;
 
 done:
@@ -509,7 +510,7 @@ folders_scan (CamelStore *store,
 
 	tmp = g_alloca (strlen (root) + 16);
 	sprintf (tmp, "%s/.folders", root);
-	stream = camel_stream_fs_new_with_name(tmp, 0, O_RDONLY);
+	stream = camel_stream_fs_new_with_name(tmp, 0, O_RDONLY, NULL);
 	if (stream == NULL)
 		return;
 
@@ -521,7 +522,7 @@ folders_scan (CamelStore *store,
 	visited = g_hash_table_new(g_str_hash, g_str_equal);
 	folders = g_ptr_array_new();
 
-	while ( (len = camel_stream_buffer_gets((CamelStreamBuffer *)in, line, sizeof(line))) > 0) {
+	while ( (len = camel_stream_buffer_gets((CamelStreamBuffer *)in, line, sizeof(line), NULL)) > 0) {
 		/* ignore blank lines */
 		if (len <= 1)
 			continue;

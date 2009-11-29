@@ -32,7 +32,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <gio/gio.h>
 #include <glib/gstdio.h>
+#include <glib/gi18n-lib.h>
 
 #include "camel-block-file.h"
 #include "camel-file-utils.h"
@@ -363,6 +365,7 @@ camel_cache_remove(c, key);
  * @path:
  * @:
  * @block_size:
+ * @error: return location for a #GError, or %NULL
  *
  * Allocate a new block file, stored at @path.  @version contains an 8 character
  * version string which must match the head of the file, or the file will be
@@ -372,7 +375,12 @@ camel_cache_remove(c, key);
  *
  * Return value: The new block file, or NULL if it could not be created.
  **/
-CamelBlockFile *camel_block_file_new(const gchar *path, gint flags, const gchar version[8], gsize block_size)
+CamelBlockFile *
+camel_block_file_new (const gchar *path,
+                      gint flags,
+                      const gchar version[8],
+                      gsize block_size,
+                      GError **error)
 {
 	CamelBlockFileClass *class;
 	CamelBlockFile *bs;
@@ -382,7 +390,7 @@ CamelBlockFile *camel_block_file_new(const gchar *path, gint flags, const gchar 
 	bs->path = g_strdup(path);
 	bs->flags = flags;
 
-	bs->root_block = camel_block_file_get_block(bs, 0);
+	bs->root_block = camel_block_file_get_block (bs, 0, error);
 	if (bs->root_block == NULL) {
 		g_object_unref (bs);
 		return NULL;
@@ -475,25 +483,28 @@ camel_block_file_delete(CamelBlockFile *bs)
 /**
  * camel_block_file_new_block:
  * @bs:
+ * @error: return location for a #GError, or %NULL
  *
  * Allocate a new block, return a pointer to it.  Old blocks
  * may be flushed to disk during this call.
  *
  * Return value: The block, or NULL if an error occured.
  **/
-CamelBlock *camel_block_file_new_block(CamelBlockFile *bs)
+CamelBlock *
+camel_block_file_new_block (CamelBlockFile *bs,
+                            GError **error)
 {
 	CamelBlock *bl;
 
 	CAMEL_BLOCK_FILE_LOCK(bs, root_lock);
 
 	if (bs->root->free) {
-		bl = camel_block_file_get_block(bs, bs->root->free);
+		bl = camel_block_file_get_block (bs, bs->root->free, error);
 		if (bl == NULL)
 			goto fail;
 		bs->root->free = ((camel_block_t *)bl->data)[0];
 	} else {
-		bl = camel_block_file_get_block(bs, bs->root->last);
+		bl = camel_block_file_get_block(bs, bs->root->last, error);
 		if (bl == NULL)
 			goto fail;
 		bs->root->last += CAMEL_BLOCK_SIZE;
@@ -513,14 +524,18 @@ fail:
  * camel_block_file_free_block:
  * @bs:
  * @id:
+ * @error: return location for a #GError, or %NULL
  *
  *
  **/
-gint camel_block_file_free_block(CamelBlockFile *bs, camel_block_t id)
+gint
+camel_block_file_free_block (CamelBlockFile *bs,
+                             camel_block_t id,
+                             GError **error)
 {
 	CamelBlock *bl;
 
-	bl = camel_block_file_get_block(bs, id);
+	bl = camel_block_file_get_block (bs, id, error);
 	if (bl == NULL)
 		return -1;
 
@@ -541,13 +556,17 @@ gint camel_block_file_free_block(CamelBlockFile *bs, camel_block_t id)
  * camel_block_file_get_block:
  * @bs:
  * @id:
+ * @error: return location for a #GError, or %NULL
  *
  * Retreive a block @id.
  *
  * Return value: The block, or NULL if blockid is invalid or a file error
  * occured.
  **/
-CamelBlock *camel_block_file_get_block(CamelBlockFile *bs, camel_block_t id)
+CamelBlock *
+camel_block_file_get_block (CamelBlockFile *bs,
+                            camel_block_t id,
+                            GError **error)
 {
 	CamelBlock *bl, *flush, *prev;
 
@@ -556,7 +575,10 @@ CamelBlock *camel_block_file_get_block(CamelBlockFile *bs, camel_block_t id)
 	if ((bs->root == NULL && id != 0)
 	    || (bs->root != NULL && (id > bs->root->last || id == 0))
 	    || (id % bs->block_size) != 0) {
-		errno = EINVAL;
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_INVALID_ARGUMENT,
+			_("Invalid block file"));
 		return NULL;
 	}
 
@@ -576,7 +598,7 @@ CamelBlock *camel_block_file_get_block(CamelBlockFile *bs, camel_block_t id)
 		bl = g_malloc0(sizeof(*bl));
 		bl->id = id;
 		if (lseek(bs->fd, id, SEEK_SET) == -1 ||
-		    camel_read (bs->fd, (gchar *) bl->data, CAMEL_BLOCK_SIZE) == -1) {
+		    camel_read (bs->fd, (gchar *) bl->data, CAMEL_BLOCK_SIZE, error) == -1) {
 			block_file_unuse(bs);
 			CAMEL_BLOCK_FILE_UNLOCK(bs, cache_lock);
 			g_free(bl);

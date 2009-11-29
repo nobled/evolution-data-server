@@ -90,7 +90,8 @@ stream_filter_finalize (GObject *object)
 static gssize
 stream_filter_read (CamelStream *stream,
                     gchar *buffer,
-                    gsize n)
+                    gsize n,
+                    GError **error)
 {
 	CamelStreamFilterPrivate *priv;
 	gssize size;
@@ -105,7 +106,8 @@ stream_filter_read (CamelStream *stream,
 	if (priv->filteredlen<=0) {
 		gsize presize = READ_PAD;
 
-		size = camel_stream_read(priv->source, priv->buffer, READ_SIZE);
+		size = camel_stream_read (
+			priv->source, priv->buffer, READ_SIZE, error);
 		if (size <= 0) {
 			/* this is somewhat untested */
 			if (camel_stream_eos(priv->source)) {
@@ -162,7 +164,8 @@ stream_filter_read (CamelStream *stream,
 static gssize
 stream_filter_write (CamelStream *stream,
                      const gchar *buf,
-                     gsize n)
+                     gsize n,
+                     GError **error)
 {
 	CamelStreamFilterPrivate *priv;
 	struct _filter *f;
@@ -201,7 +204,7 @@ stream_filter_write (CamelStream *stream,
 			f = f->next;
 		}
 
-		if (camel_stream_write(priv->source, buffer, len) != len)
+		if (camel_stream_write (priv->source, buffer, len, error) != len)
 			return -1;
 	}
 
@@ -211,7 +214,8 @@ stream_filter_write (CamelStream *stream,
 }
 
 static gint
-stream_filter_flush (CamelStream *stream)
+stream_filter_flush (CamelStream *stream,
+                     GError **error)
 {
 	CamelStreamFilterPrivate *priv;
 	struct _filter *f;
@@ -242,22 +246,25 @@ stream_filter_flush (CamelStream *stream)
 
 		f = f->next;
 	}
-	if (len > 0 && camel_stream_write(priv->source, buffer, len) == -1)
+
+	if (len > 0 && camel_stream_write (priv->source, buffer, len, error) == -1)
 		return -1;
-	return camel_stream_flush(priv->source);
+
+	return camel_stream_flush (priv->source, error);
 }
 
 static gint
-stream_filter_close (CamelStream *stream)
+stream_filter_close (CamelStream *stream,
+                     GError **error)
 {
 	CamelStreamFilterPrivate *priv;
 
 	priv = CAMEL_STREAM_FILTER_GET_PRIVATE (stream);
 
 	if (!priv->last_was_read)
-		stream_filter_flush(stream);
+		stream_filter_flush (stream, NULL);
 
-	return camel_stream_close(priv->source);
+	return camel_stream_close (priv->source, error);
 }
 
 static gboolean
@@ -277,7 +284,8 @@ stream_filter_eos (CamelStream *stream)
 }
 
 static gint
-stream_filter_reset (CamelStream *stream)
+stream_filter_reset (CamelStream *stream,
+                     GError **error)
 {
 	CamelStreamFilterPrivate *priv;
 	struct _filter *f;
@@ -290,11 +298,11 @@ stream_filter_reset (CamelStream *stream)
 	/* and reset filters */
 	f = priv->filters;
 	while (f) {
-		camel_mime_filter_reset(f->filter);
+		camel_mime_filter_reset (f->filter);
 		f = f->next;
 	}
 
-	return camel_stream_reset(priv->source);
+	return camel_stream_reset (priv->source, error);
 }
 
 static void

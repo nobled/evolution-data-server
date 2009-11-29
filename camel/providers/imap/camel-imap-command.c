@@ -229,21 +229,11 @@ imap_command_start (CamelImapStore *store,
 		fprintf (stderr, "sending : %c%.5u %s\r\n", store->tag_prefix, store->command, mask);
 	}
 
-	nwritten = camel_stream_printf (store->ostream, "%c%.5u %s\r\n",
-					store->tag_prefix, store->command++, cmd);
+	nwritten = camel_stream_printf (
+		store->ostream, error, "%c%.5u %s\r\n",
+		store->tag_prefix, store->command++, cmd);
 
 	if (nwritten == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Operation cancelled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				"%s", g_strerror (errno));
-
 		camel_service_disconnect (CAMEL_SERVICE (store), FALSE, NULL);
 		return FALSE;
 	}
@@ -256,7 +246,7 @@ imap_command_start (CamelImapStore *store,
  * @store: the IMAP store
  * @cmd: buffer containing the response/request data
  * @cmdlen: command length
- * @ex: a CamelException
+ * @error: return location for a #GError, or %NULL
  *
  * This method is for sending continuing responses to the IMAP server
  * after camel_imap_command() or camel_imap_command_response() returns
@@ -292,18 +282,13 @@ camel_imap_command_continuation (CamelImapStore *store,
 		return NULL;
 	}
 
-	if (camel_stream_write (store->ostream, cmd, cmdlen) == -1 ||
-	    camel_stream_write (store->ostream, "\r\n", 2) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Operation cancelled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				"%s", g_strerror (errno));
+	if (camel_stream_write (store->ostream, cmd, cmdlen, error) == -1) {
+		camel_service_disconnect (CAMEL_SERVICE (store), FALSE, NULL);
+		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
+		return NULL;
+	}
+
+	if (camel_stream_write (store->ostream, "\r\n", 2, error) == -1) {
 		camel_service_disconnect (CAMEL_SERVICE (store), FALSE, NULL);
 		CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 		return NULL;
@@ -516,17 +501,11 @@ imap_read_untagged (CamelImapStore *store, gchar *line, GError **error)
 		nread = 0;
 
 		do {
-			if ((n = camel_stream_read (store->istream, str->str + nread + 1, length - nread)) == -1) {
-				if (errno == EINTR)
-					g_set_error (
-						error, CAMEL_ERROR,
-						CAMEL_ERROR_USER_CANCEL,
-						_("Operation cancelled"));
-				else
-					g_set_error (
-						error, CAMEL_SERVICE_ERROR,
-						CAMEL_SERVICE_ERROR_UNAVAILABLE,
-						"%s", g_strerror (errno));
+			n = camel_stream_read (
+				store->istream,
+				str->str + nread + 1,
+				length - nread, error);
+			if (n == -1) {
 				camel_service_disconnect (CAMEL_SERVICE (store), FALSE, NULL);
 				g_string_free (str, TRUE);
 				goto lose;

@@ -834,13 +834,13 @@ pipe_to_system (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFi
 	g_ptr_array_free (args, TRUE);
 
 	stream = camel_stream_fs_new_with_fd (pipe_to_child);
-	if (camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (p->message), stream) == -1) {
+	if (camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (p->message), stream, NULL) == -1) {
 		g_object_unref (stream);
 		close (pipe_from_child);
 		goto wait;
 	}
 
-	if (camel_stream_flush (stream) == -1) {
+	if (camel_stream_flush (stream, NULL) == -1) {
 		g_object_unref (stream);
 		close (pipe_from_child);
 		goto wait;
@@ -850,22 +850,22 @@ pipe_to_system (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFi
 
 	stream = camel_stream_fs_new_with_fd (pipe_from_child);
 	mem = camel_stream_mem_new ();
-	if (camel_stream_write_to_stream (stream, mem) == -1) {
+	if (camel_stream_write_to_stream (stream, mem, NULL) == -1) {
 		g_object_unref (stream);
 		g_object_unref (mem);
 		goto wait;
 	}
 
 	g_object_unref (stream);
-	camel_stream_reset (mem);
+	camel_stream_reset (mem, NULL);
 
 	parser = camel_mime_parser_new ();
-	camel_mime_parser_init_with_stream (parser, mem);
+	camel_mime_parser_init_with_stream (parser, mem, NULL);
 	camel_mime_parser_scan_from (parser, FALSE);
 	g_object_unref (mem);
 
 	message = camel_mime_message_new ();
-	if (camel_mime_part_construct_from_parser ((CamelMimePart *) message, parser) == -1) {
+	if (camel_mime_part_construct_from_parser ((CamelMimePart *) message, parser, NULL) == -1) {
 		g_set_error (
 			&p->error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
 			_("Invalid message stream received from %s: %s"),
@@ -1290,13 +1290,7 @@ camel_filter_driver_filter_mbox (CamelFilterDriver *driver,
 		message = camel_mime_message_new ();
 		mime_part = CAMEL_MIME_PART (message);
 
-		if (camel_mime_part_construct_from_parser (mime_part, mp) == -1) {
-			g_set_error (
-				error, CAMEL_ERROR,
-				(errno == EINTR) ?
-				CAMEL_ERROR_USER_CANCEL :
-				CAMEL_ERROR_SYSTEM,
-				_("Cannot open message"));
+		if (camel_mime_part_construct_from_parser (mime_part, mp, error) == -1) {
 			report_status (driver, CAMEL_FILTER_STATUS_END, 100, _("Failed on message %d"), i);
 			g_object_unref (message);
 			goto fail;

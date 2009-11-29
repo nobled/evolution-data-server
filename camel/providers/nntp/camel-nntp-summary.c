@@ -268,7 +268,7 @@ add_range_xover (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint
 
 	count = 0;
 	total = high-low+1;
-	while ((ret = camel_nntp_stream_line (store->stream, (guchar **)&line, &len)) > 0) {
+	while ((ret = camel_nntp_stream_line (store->stream, (guchar **)&line, &len, error)) > 0) {
 		camel_operation_progress (NULL, (count * 100) / total);
 		count++;
 		n = strtoul (line, &tab, 10);
@@ -385,7 +385,7 @@ add_range_head (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint 
 			line[1] = 0;
 			cns->priv->uid = g_strdup_printf ("%u,%s\n", n, msgid);
 			if (!GPOINTER_TO_INT (g_hash_table_lookup (summary_table, cns->priv->uid))) {
-				if (camel_mime_parser_init_with_stream (mp, (CamelStream *)store->stream) == -1)
+				if (camel_mime_parser_init_with_stream (mp, (CamelStream *)store->stream, error) == -1)
 					goto error;
 				mi = camel_folder_summary_add_from_parser (s, mp);
 				while (camel_mime_parser_step (mp, NULL, NULL) != CAMEL_MIME_PARSER_STATE_EOF)
@@ -404,23 +404,11 @@ add_range_head (CamelNNTPSummary *cns, CamelNNTPStore *store, guint high, guint 
 	}
 
 	ret = 0;
+
 error:
+	g_prefix_error (error, _("Operation failed: "));
 
-	if (ret == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("User cancel"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Operation failed: %s"),
-				g_strerror (errno));
-	}
 ioerror:
-
 	if (cns->priv->uid) {
 		g_free (cns->priv->uid);
 		cns->priv->uid = NULL;

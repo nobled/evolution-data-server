@@ -37,19 +37,21 @@ do_compress(gint argc, gchar **argv)
 {
 	gint i;
 	CamelIndex *idx;
+	GError *error = NULL;
 
 	for (i=2;i<argc;i++) {
 		printf("Opening index file: %s\n", argv[i]);
-		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDWR);
+		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDWR, &error);
 		if (idx) {
 			printf(" Compressing ...\n");
-			if (camel_index_compress(idx) == -1) {
+			if (camel_index_compress (idx, &error) == -1) {
 				g_object_unref (idx);
 				return 1;
 			}
 			g_object_unref (idx);
 		} else {
-			printf(" Failed: %s\n", g_strerror (errno));
+			printf(" Failed: %s\n", error->message);
+			g_error_free (error);
 			return 1;
 		}
 	}
@@ -61,16 +63,18 @@ do_dump(gint argc, gchar **argv)
 {
 	gint i;
 	CamelIndex *idx;
+	GError *error = NULL;
 
 	for (i=2;i<argc;i++) {
 		printf("Opening index file: %s\n", argv[i]);
-		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDONLY);
+		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDONLY, &error);
 		if (idx) {
 			printf(" Dumping ...\n");
 			camel_text_index_dump((CamelTextIndex *)idx);
 			g_object_unref (idx);
 		} else {
-			printf(" Failed: %s\n", g_strerror (errno));
+			printf(" Failed: %s\n", error->message);
+			g_error_free (error);
 			return 1;
 		}
 	}
@@ -82,15 +86,17 @@ do_info(gint argc, gchar **argv)
 {
 	gint i;
 	CamelIndex *idx;
+	GError *error = NULL;
 
 	for (i=2;i<argc;i++) {
 		printf("Opening index file: %s\n", argv[i]);
-		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDONLY);
+		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDONLY, &error);
 		if (idx) {
 			camel_text_index_info((CamelTextIndex *)idx);
 			g_object_unref (idx);
 		} else {
-			printf(" Failed: %s\n", g_strerror (errno));
+			printf(" Failed: %s\n", error->message);
+			g_error_free (error);
 			return 0;
 		}
 	}
@@ -102,15 +108,17 @@ do_check(gint argc, gchar **argv)
 {
 	gint i;
 	CamelIndex *idx;
+	GError *error = NULL;
 
 	for (i=2;i<argc;i++) {
 		printf("Opening index file: %s\n", argv[i]);
-		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDONLY);
+		idx = (CamelIndex *)camel_text_index_new(argv[i], O_RDONLY, &error);
 		if (idx) {
 			camel_text_index_validate((CamelTextIndex *)idx);
 			g_object_unref (idx);
 		} else {
-			printf(" Failed: %s\n", g_strerror (errno));
+			printf(" Failed: %s\n", error->message);
+			g_error_free (error);
 			return 0;
 		}
 	}
@@ -167,7 +175,8 @@ do_perf(gint argc, gchar **argv)
 		return 1;
 	}
 
-	idx = (CamelIndex *)camel_text_index_new("/tmp/index", O_TRUNC|O_CREAT|O_RDWR);
+	idx = (CamelIndex *) camel_text_index_new (
+		"/tmp/index", O_TRUNC|O_CREAT|O_RDWR, NULL);
 	if (idx == NULL) {
 		perror("open index");
 		closedir(dir);
@@ -187,8 +196,8 @@ do_perf(gint argc, gchar **argv)
 		camel_mime_filter_index_set_name(
 			CAMEL_MIME_FILTER_INDEX (filter_index), idn);
 		name = g_strdup_printf("%s/%s", path, d->d_name);
-		stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0);
-		camel_stream_write_to_stream(stream, filter);
+		stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0, NULL);
+		camel_stream_write_to_stream(stream, filter, NULL);
 		g_object_unref (stream);
 		g_free(name);
 
@@ -200,7 +209,7 @@ do_perf(gint argc, gchar **argv)
 
 	closedir(dir);
 
-	camel_index_sync(idx);
+	camel_index_sync(idx, NULL);
 	g_object_unref (idx);
 
 	g_object_unref (filter);

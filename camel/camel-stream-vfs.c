@@ -54,23 +54,20 @@ stream_vfs_dispose (GObject *object)
 static gssize
 stream_vfs_read (CamelStream *stream,
                  gchar *buffer,
-                 gsize n)
+                 gsize n,
+                 GError **error)
 {
 	gssize nread;
-	GError *error = NULL;
 	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
 
 	g_return_val_if_fail (G_IS_INPUT_STREAM (stream_vfs->stream), 0);
 
-	nread = g_input_stream_read (G_INPUT_STREAM (stream_vfs->stream), buffer, n, NULL, &error);
+	nread = g_input_stream_read (
+		G_INPUT_STREAM (stream_vfs->stream),
+		buffer, n, NULL, error);
 
-	if (nread == 0 || error)
+	if (nread <= 0)
 		stream->eos = TRUE;
-
-	if (error) {
-		g_warning ("%s", error->message);
-		g_error_free (error);
-	}
 
 	return nread;
 }

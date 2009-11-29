@@ -458,18 +458,24 @@ local_summary_sync (CamelLocalSummary *cls,
                     CamelFolderChangeInfo *changeinfo,
                     GError **error)
 {
-	gint ret = 0;
+	CamelFolderSummary *folder_summary;
 
-	ret = camel_folder_summary_save_to_db ((CamelFolderSummary *)cls, error);
-	if (ret == -1) {
-		g_warning ("Could not save summary for local providers");
-		return -1;
-	}
+	folder_summary = CAMEL_FOLDER_SUMMARY (cls);
 
-	if (cls->index && camel_index_sync(cls->index) == -1)
-		g_warning ("Could not sync index for %s: %s", cls->folder_path, g_strerror (errno));
+	if (camel_folder_summary_save_to_db (folder_summary, error) == -1)
+		goto error;
 
-	return ret;
+	if (cls->index && camel_index_sync(cls->index, error) == -1)
+		goto error;
+
+	return 0;
+
+error:
+	g_prefix_error (
+		error, _("Could not sync index for %s: "),
+		cls->folder_path);
+
+	return -1;
 }
 
 static gint
@@ -547,7 +553,7 @@ local_summary_add(CamelLocalSummary *cls, CamelMimeMessage *msg, const CamelMess
 		if (mi->info.size == 0) {
 			CamelStreamNull *sn = (CamelStreamNull *)camel_stream_null_new();
 
-			camel_data_wrapper_write_to_stream((CamelDataWrapper *)msg, (CamelStream *)sn);
+			camel_data_wrapper_write_to_stream((CamelDataWrapper *)msg, (CamelStream *)sn, NULL);
 			mi->info.size = sn->written;
 			g_object_unref (sn);
 		}

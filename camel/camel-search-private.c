@@ -481,8 +481,8 @@ camel_search_message_body_contains (CamelDataWrapper *object, regex_t *pattern)
 
 		byte_array = g_byte_array_new ();
 		stream = camel_stream_mem_new_with_byte_array (byte_array);
-		camel_data_wrapper_write_to_stream (containee, stream);
-		camel_stream_write (stream, "", 1);
+		camel_data_wrapper_write_to_stream (containee, stream, NULL);
+		camel_stream_write (stream, "", 1, NULL);
 		truth = regexec (pattern, (gchar *) byte_array->data, 0, NULL, 0) == 0;
 		g_object_unref (stream);
 	}

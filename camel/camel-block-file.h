@@ -138,21 +138,34 @@ struct _CamelBlockFileClass {
 	gint (*init_root)(CamelBlockFile *);
 };
 
-GType camel_block_file_get_type(void);
-
-CamelBlockFile *camel_block_file_new(const gchar *path, gint flags, const gchar version[8], gsize block_size);
-gint camel_block_file_rename(CamelBlockFile *bs, const gchar *path);
-gint camel_block_file_delete(CamelBlockFile *kf);
-
-CamelBlock *camel_block_file_new_block(CamelBlockFile *bs);
-gint camel_block_file_free_block(CamelBlockFile *bs, camel_block_t id);
-CamelBlock *camel_block_file_get_block(CamelBlockFile *bs, camel_block_t id);
-void camel_block_file_detach_block(CamelBlockFile *bs, CamelBlock *bl);
-void camel_block_file_attach_block(CamelBlockFile *bs, CamelBlock *bl);
-void camel_block_file_touch_block(CamelBlockFile *bs, CamelBlock *bl);
-void camel_block_file_unref_block(CamelBlockFile *bs, CamelBlock *bl);
-gint camel_block_file_sync_block(CamelBlockFile *bs, CamelBlock *bl);
-gint camel_block_file_sync(CamelBlockFile *bs);
+GType		camel_block_file_get_type	(void);
+CamelBlockFile *camel_block_file_new		(const gchar *path,
+						 gint flags,
+						 const gchar version[8],
+						 gsize block_size,
+						 GError **error);
+gint		camel_block_file_rename		(CamelBlockFile *bs,
+						 const gchar *path);
+gint		camel_block_file_delete		(CamelBlockFile *kf);
+CamelBlock *	camel_block_file_new_block	(CamelBlockFile *bs,
+						 GError **error);
+gint		camel_block_file_free_block	(CamelBlockFile *bs,
+						 camel_block_t id,
+						 GError **error);
+CamelBlock *	camel_block_file_get_block	(CamelBlockFile *bs,
+						 camel_block_t id,
+						 GError **error);
+void		camel_block_file_detach_block	(CamelBlockFile *bs,
+						 CamelBlock *bl);
+void		camel_block_file_attach_block	(CamelBlockFile *bs,
+						 CamelBlock *bl);
+void		camel_block_file_touch_block	(CamelBlockFile *bs,
+						 CamelBlock *bl);
+void		camel_block_file_unref_block	(CamelBlockFile *bs,
+						 CamelBlock *bl);
+gint		camel_block_file_sync_block	(CamelBlockFile *bs,
+						 CamelBlock *bl);
+gint		camel_block_file_sync		(CamelBlockFile *bs);
 
 /* ********************************************************************** */
 

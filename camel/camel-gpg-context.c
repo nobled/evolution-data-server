@@ -368,7 +368,7 @@ gpg_ctx_get_diagnostics (struct _GpgCtx *gpg)
 {
 	if (!gpg->diagflushed) {
 		gpg->diagflushed = TRUE;
-		camel_stream_flush (gpg->diagnostics);
+		camel_stream_flush (gpg->diagnostics, NULL);
 		if (gpg->diagbuf->len == 0)
 			return NULL;
 
@@ -1115,7 +1115,8 @@ gpg_ctx_op_step (struct _GpgCtx *gpg,
 			goto exception;
 
 		if (nread > 0) {
-			gsize written = camel_stream_write (gpg->ostream, buffer, (gsize) nread);
+			gsize written = camel_stream_write (
+				gpg->ostream, buffer, (gsize) nread, NULL);
 			if (written != nread)
 				goto exception;
 		} else {
@@ -1136,7 +1137,7 @@ gpg_ctx_op_step (struct _GpgCtx *gpg,
 			goto exception;
 
 		if (nread > 0) {
-			camel_stream_write (gpg->diagnostics, buffer, nread);
+			camel_stream_write (gpg->diagnostics, buffer, nread, NULL);
 		} else {
 			gpg->seen_eof2 = TRUE;
 		}
@@ -1177,7 +1178,8 @@ gpg_ctx_op_step (struct _GpgCtx *gpg,
 		d(printf ("writing to gpg's stdin...\n"));
 
 		/* write our stream to gpg's stdin */
-		nread = camel_stream_read (gpg->istream, buffer, sizeof (buffer));
+		nread = camel_stream_read (
+			gpg->istream, buffer, sizeof (buffer), error);
 		if (nread > 0) {
 			gssize w, nwritten = 0;
 
@@ -1315,13 +1317,13 @@ gpg_sign (CamelCipherContext *context,
 
 	/* FIXME: stream this, we stream output at least */
 	istream = camel_stream_mem_new();
-	if (camel_cipher_canonical_to_stream(ipart, CAMEL_MIME_FILTER_CANON_STRIP|CAMEL_MIME_FILTER_CANON_CRLF|CAMEL_MIME_FILTER_CANON_FROM,
-					     istream) == -1) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Could not generate signing data: %s"),
-			g_strerror (errno));
+	if (camel_cipher_canonical_to_stream(
+		ipart, CAMEL_MIME_FILTER_CANON_STRIP |
+		CAMEL_MIME_FILTER_CANON_CRLF |
+		CAMEL_MIME_FILTER_CANON_FROM,
+		istream, error) == -1) {
+		g_prefix_error (
+			error, _("Could not generate signing data: "));
 		goto fail;
 	}
 
@@ -1380,8 +1382,8 @@ gpg_sign (CamelCipherContext *context,
 	res = 0;
 
 	dw = camel_data_wrapper_new();
-	camel_stream_reset(ostream);
-	camel_data_wrapper_construct_from_stream(dw, ostream);
+	camel_stream_reset(ostream, NULL);
+	camel_data_wrapper_construct_from_stream(dw, ostream, NULL);
 
 	sigpart = camel_mime_part_new();
 	ct = camel_content_type_new("application", "pgp-signature");
@@ -1404,7 +1406,7 @@ gpg_sign (CamelCipherContext *context,
 
 	mps->signature = sigpart;
 	mps->contentraw = istream;
-	camel_stream_reset(istream);
+	camel_stream_reset(istream, NULL);
 	g_object_ref (istream);
 
 	camel_medium_set_content ((CamelMedium *)opart, (CamelDataWrapper *)mps);
@@ -1418,7 +1420,8 @@ fail:
 }
 
 static gchar *
-swrite (CamelMimePart *sigpart)
+swrite (CamelMimePart *sigpart,
+        GError **error)
 {
 	CamelStream *ostream;
 	gchar *template;
@@ -1433,11 +1436,12 @@ swrite (CamelMimePart *sigpart)
 	/* TODO: This should probably just write the decoded message content out, not the part + headers */
 
 	ostream = camel_stream_fs_new_with_fd (fd);
-	ret = camel_data_wrapper_write_to_stream((CamelDataWrapper *)sigpart, ostream);
+	ret = camel_data_wrapper_write_to_stream (
+		CAMEL_DATA_WRAPPER (sigpart), ostream, error);
 	if (ret != -1) {
-		ret = camel_stream_flush (ostream);
+		ret = camel_stream_flush (ostream, error);
 		if (ret != -1)
-			ret = camel_stream_close (ostream);
+			ret = camel_stream_close (ostream, error);
 	}
 
 	g_object_unref (ostream);
@@ -1510,8 +1514,8 @@ gpg_verify (CamelCipherContext *context,
 		CamelDataWrapper *content;
 		content = camel_medium_get_content ((CamelMedium *) ipart);
 		istream = camel_stream_mem_new();
-		camel_data_wrapper_decode_to_stream (content, istream);
-		camel_stream_reset(istream);
+		camel_data_wrapper_decode_to_stream (content, istream, NULL);
+		camel_stream_reset(istream, NULL);
 		sigpart = NULL;
 	} else {
 		/* Invalid Mimetype */
@@ -1554,18 +1558,15 @@ gpg_verify (CamelCipherContext *context,
 #endif
 
 	if (sigpart) {
-		sigfile = swrite (sigpart);
+		sigfile = swrite (sigpart, error);
 		if (sigfile == NULL) {
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
-				_("Cannot verify message signature: "
-				  "could not create temp file: %s"),
-				g_strerror (errno));
+			g_prefix_error (
+				error, _("Cannot verify message signature: "));
 			goto exception;
 		}
 	}
 
-	camel_stream_reset(istream);
+	camel_stream_reset (istream, NULL);
 	canon_stream = camel_stream_mem_new ();
 
 	/* strip trailing white-spaces */
@@ -1574,12 +1575,12 @@ gpg_verify (CamelCipherContext *context,
 	camel_stream_filter_add (CAMEL_STREAM_FILTER (filter), canon);
 	g_object_unref (canon);
 
-	camel_stream_write_to_stream (istream, filter);
+	camel_stream_write_to_stream (istream, filter, NULL);
 
 	g_object_unref (filter);
-	camel_stream_reset (istream);
+	camel_stream_reset (istream, NULL);
 
-	camel_stream_reset (canon_stream);
+	camel_stream_reset (canon_stream, NULL);
 
 	gpg = gpg_ctx_new (context);
 	gpg_ctx_set_mode (gpg, GPG_CTX_MODE_VERIFY);
@@ -1675,11 +1676,10 @@ gpg_encrypt (CamelCipherContext *context,
 
 	ostream = camel_stream_mem_new();
 	istream = camel_stream_mem_new();
-	if (camel_cipher_canonical_to_stream(ipart, CAMEL_MIME_FILTER_CANON_CRLF, istream) == -1) {
-		g_set_error (
-			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
-			_("Could not generate encrypting data: %s"),
-			g_strerror (errno));
+	if (camel_cipher_canonical_to_stream (
+		ipart, CAMEL_MIME_FILTER_CANON_CRLF, istream, error) == -1) {
+		g_prefix_error (
+			error, _("Could not generate encrypting data: "));
 		goto fail1;
 	}
 
@@ -1722,7 +1722,7 @@ gpg_encrypt (CamelCipherContext *context,
 	res = 0;
 
 	dw = camel_data_wrapper_new();
-	camel_data_wrapper_construct_from_stream(dw, ostream);
+	camel_data_wrapper_construct_from_stream (dw, ostream, NULL);
 
 	encpart = camel_mime_part_new();
 	ct = camel_content_type_new("application", "octet-stream");
@@ -1736,13 +1736,13 @@ gpg_encrypt (CamelCipherContext *context,
 	camel_mime_part_set_description(encpart, _("This is a digitally encrypted message part"));
 
 	vstream = camel_stream_mem_new();
-	camel_stream_write(vstream, "Version: 1\n", strlen("Version: 1\n"));
-	camel_stream_reset(vstream);
+	camel_stream_write (vstream, "Version: 1\n", strlen("Version: 1\n"), NULL);
+	camel_stream_reset (vstream, NULL);
 
 	verpart = camel_mime_part_new();
 	dw = camel_data_wrapper_new();
 	camel_data_wrapper_set_mime_type(dw, class->encrypt_protocol);
-	camel_data_wrapper_construct_from_stream(dw, vstream);
+	camel_data_wrapper_construct_from_stream (dw, vstream, NULL);
 	g_object_unref (vstream);
 	camel_medium_set_content ((CamelMedium *)verpart, dw);
 	g_object_unref (dw);
@@ -1827,8 +1827,8 @@ gpg_decrypt (CamelCipherContext *context,
 	}
 
 	istream = camel_stream_mem_new();
-	camel_data_wrapper_decode_to_stream (content, istream);
-	camel_stream_reset(istream);
+	camel_data_wrapper_decode_to_stream (content, istream, NULL);
+	camel_stream_reset (istream, NULL);
 
 	ostream = camel_stream_mem_new();
 	camel_stream_mem_set_secure((CamelStreamMem *)ostream);
@@ -1861,20 +1861,21 @@ gpg_decrypt (CamelCipherContext *context,
 		goto fail;
 	}
 
-	camel_stream_reset(ostream);
+	camel_stream_reset (ostream, NULL);
 	if (camel_content_type_is(ct, "multipart", "encrypted")) {
 		CamelDataWrapper *dw;
 		CamelStream *null = camel_stream_null_new ();
 
 		/* Multipart encrypted - parse a full mime part */
-		rv = camel_data_wrapper_construct_from_stream ((CamelDataWrapper *)opart, ostream);
+		rv = camel_data_wrapper_construct_from_stream (
+			CAMEL_DATA_WRAPPER (opart), ostream, error);
 
 		dw = camel_medium_get_content ((CamelMedium *)opart);
-		if (!camel_data_wrapper_decode_to_stream (dw, null)) {
+		if (!camel_data_wrapper_decode_to_stream (dw, null, NULL)) {
 			/* nothing had been decoded from the stream, it doesn't
 			   contain any header, like Content-Type or such, thus
 			   write it as a message body */
-			rv = camel_data_wrapper_construct_from_stream (dw, ostream);
+			rv = camel_data_wrapper_construct_from_stream (dw, ostream, error);
 		}
 
 		g_object_unref (null);
@@ -1882,7 +1883,7 @@ gpg_decrypt (CamelCipherContext *context,
 		/* Inline signed - raw data (may not be a mime part) */
 		CamelDataWrapper *dw;
 		dw = camel_data_wrapper_new ();
-		rv = camel_data_wrapper_construct_from_stream(dw, ostream);
+		rv = camel_data_wrapper_construct_from_stream (dw, ostream, error);
 		camel_data_wrapper_set_mime_type(dw, "application/octet-stream");
 		camel_medium_set_content ((CamelMedium *)opart, dw);
 		g_object_unref (dw);
@@ -1909,10 +1910,6 @@ gpg_decrypt (CamelCipherContext *context,
 				valid->sign.status = CAMEL_CIPHER_VALIDITY_SIGN_BAD;
 			}
 		}
-	} else {
-		g_set_error (
-			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
-			_("Unable to parse message content"));
 	}
 
  fail:

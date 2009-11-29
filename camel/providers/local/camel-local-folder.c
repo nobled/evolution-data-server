@@ -282,14 +282,14 @@ camel_local_folder_construct(CamelLocalFolder *lf, CamelStore *parent_store, con
 	/* FIXME: Need to run indexing off of the setv method */
 
 	/* if we have no/invalid index file, force it */
-	forceindex = camel_text_index_check(lf->index_path) == -1;
+	forceindex = camel_text_index_check(lf->index_path, NULL) == -1;
 	if (lf->flags & CAMEL_STORE_FOLDER_BODY_INDEX) {
 		gint flag = O_RDWR|O_CREAT;
 
 		if (forceindex)
 			flag |= O_TRUNC;
 
-		lf->index = (CamelIndex *)camel_text_index_new(lf->index_path, flag);
+		lf->index = (CamelIndex *)camel_text_index_new(lf->index_path, flag, NULL);
 		if (lf->index == NULL) {
 			/* yes, this isn't fatal at all */
 			g_warning("Could not open/create index file: %s: indexing not performed", g_strerror (errno));

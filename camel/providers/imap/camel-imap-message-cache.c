@@ -356,11 +356,14 @@ insert_abort (gchar *path, CamelStream *stream)
 }
 
 static CamelStream *
-insert_finish (CamelImapMessageCache *cache, const gchar *uid, gchar *path,
-	       gchar *key, CamelStream *stream)
+insert_finish (CamelImapMessageCache *cache,
+               const gchar *uid,
+               gchar *path,
+               gchar *key,
+               CamelStream *stream)
 {
-	camel_stream_flush (stream);
-	camel_stream_reset (stream);
+	camel_stream_flush (stream, NULL);
+	camel_stream_reset (stream, NULL);
 	cache_put (cache, uid, key, stream);
 	g_free (path);
 
@@ -395,12 +398,9 @@ camel_imap_message_cache_insert (CamelImapMessageCache *cache,
 	if (!stream)
 		return NULL;
 
-	if (camel_stream_write (stream, data, len) == -1) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Failed to cache message %s: %s"),
-			uid, g_strerror (errno));
+	if (camel_stream_write (stream, data, len, error) == -1) {
+		g_prefix_error (
+			error, _("Failed to cache message %s: "), uid);
 		return insert_abort (path, stream);
 	}
 
@@ -430,12 +430,9 @@ camel_imap_message_cache_insert_stream (CamelImapMessageCache *cache,
 	if (!stream)
 		return;
 
-	if (camel_stream_write_to_stream (data_stream, stream) == -1) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Failed to cache message %s: %s"),
-			uid, g_strerror (errno));
+	if (camel_stream_write_to_stream (data_stream, stream, error) == -1) {
+		g_prefix_error (
+			error, _("Failed to cache message %s: "), uid);
 		insert_abort (path, stream);
 	} else {
 		insert_finish (cache, uid, path, key, stream);
@@ -466,12 +463,9 @@ camel_imap_message_cache_insert_wrapper (CamelImapMessageCache *cache,
 	if (!stream)
 		return;
 
-	if (camel_data_wrapper_write_to_stream (wrapper, stream) == -1) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Failed to cache message %s: %s"),
-			uid, g_strerror (errno));
+	if (camel_data_wrapper_write_to_stream (wrapper, stream, error) == -1) {
+		g_prefix_error (
+			error, _("Failed to cache message %s: "), uid);
 		insert_abort (path, stream);
 	} else {
 		insert_finish (cache, uid, path, key, stream);
@@ -539,22 +533,17 @@ camel_imap_message_cache_get (CamelImapMessageCache *cache, const gchar *uid,
 
 	stream = g_hash_table_lookup (cache->parts, key);
 	if (stream) {
-		camel_stream_reset (CAMEL_STREAM (stream));
-		g_object_ref (CAMEL_OBJECT (stream));
+		camel_stream_reset (CAMEL_STREAM (stream), NULL);
+		g_object_ref (stream);
 		g_free (path);
 		return stream;
 	}
 
-	stream = camel_stream_fs_new_with_name (path, O_RDONLY, 0);
-	if (stream) {
+	stream = camel_stream_fs_new_with_name (path, O_RDONLY, 0, error);
+	if (stream)
 		cache_put (cache, uid, key, stream);
-	} else {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Failed to cache %s: %s"),
-			part_spec, g_strerror (errno));
-	}
+	else
+		g_prefix_error (error, _("Failed to cache %s: "), part_spec);
 
 	g_free (path);
 

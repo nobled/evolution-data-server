@@ -200,13 +200,13 @@ mbox_append_message (CamelFolder *folder,
 	if ((camel_message_info_flags (mi) & CAMEL_MESSAGE_ATTACHMENTS) && !camel_mime_message_has_attachment (message))
 		camel_message_info_set_flags (mi, CAMEL_MESSAGE_ATTACHMENTS, 0);
 
-	output_stream = camel_stream_fs_new_with_name(lf->folder_path, O_WRONLY | O_APPEND | O_LARGEFILE, 0666);
+	output_stream = camel_stream_fs_new_with_name (
+		lf->folder_path, O_WRONLY | O_APPEND |
+		O_LARGEFILE, 0666, error);
 	if (output_stream == NULL) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Cannot open mailbox: %s: %s\n"),
-			lf->folder_path, g_strerror (errno));
+		g_prefix_error (
+			error, _("Cannot open mailbox: %s"),
+			lf->folder_path);
 		goto fail;
 	}
 
@@ -224,7 +224,7 @@ mbox_append_message (CamelFolder *folder,
 
 	/* we must write this to the non-filtered stream ... */
 	fromline = camel_mime_message_build_mbox_from(message);
-	if (camel_stream_write(output_stream, fromline, strlen(fromline)) == -1)
+	if (camel_stream_write(output_stream, fromline, strlen(fromline), error) == -1)
 		goto fail_write;
 
 	/* and write the content to the filtering stream, that translates '\nFrom' into '\n>From' */
@@ -233,9 +233,9 @@ mbox_append_message (CamelFolder *folder,
 	camel_stream_filter_add((CamelStreamFilter *) filter_stream, filter_from);
 	g_object_unref (filter_from);
 
-	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) message, filter_stream) == -1 ||
-	    camel_stream_write (filter_stream, "\n", 1) == -1 ||
-	    camel_stream_flush (filter_stream) == -1)
+	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) message, filter_stream, error) == -1 ||
+	    camel_stream_write (filter_stream, "\n", 1, error) == -1 ||
+	    camel_stream_flush (filter_stream, error) == -1)
 		goto fail_write;
 
 	/* filter stream ref's the output stream itself, so we need to unref it too */
@@ -269,17 +269,9 @@ mbox_append_message (CamelFolder *folder,
 	return TRUE;
 
 fail_write:
-	if (errno == EINTR)
-		g_set_error (
-			error, CAMEL_ERROR,
-			CAMEL_ERROR_USER_CANCEL,
-			_("Mail append canceled"));
-	else
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Cannot append message to mbox file: %s: %s"),
-			lf->folder_path, g_strerror (errno));
+	g_prefix_error (
+		error, _("Cannot append message to mbox file: %s"),
+		lf->folder_path);
 
 	if (output_stream) {
 		gint fd;
@@ -464,21 +456,12 @@ retry:
 	}
 
 	message = camel_mime_message_new();
-	if (camel_mime_part_construct_from_parser((CamelMimePart *)message, parser) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Cannot get message: %s from folder %s\n  %s"),
-				uid, lf->folder_path,
-				_("Message construction failed."));
-		else
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_SYSTEM,
-				_("Cannot get message: %s from folder %s\n  %s"),
-				uid, lf->folder_path,
-				_("Message construction failed."));
+	if (camel_mime_part_construct_from_parser((CamelMimePart *)message, parser, error) == -1) {
+		g_set_error (
+			error, CAMEL_ERROR,
+			CAMEL_ERROR_USER_CANCEL,
+			_("Cannot get message: %s from folder %s\n  "),
+			uid, lf->folder_path);
 		g_object_unref (message);
 		message = NULL;
 		goto fail;

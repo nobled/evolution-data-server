@@ -61,6 +61,7 @@ camel_tcp_stream_get_type (void)
  * @stream: a #CamelTcpStream object
  * @host: a linked list of addrinfo structures to try to connect, in
  * the order of most likely to least likely to work.
+ * @error: return location for a #GError, or %NULL
  *
  * Create a socket and connect based upon the data provided.
  *
@@ -68,7 +69,8 @@ camel_tcp_stream_get_type (void)
  **/
 gint
 camel_tcp_stream_connect (CamelTcpStream *stream,
-                          struct addrinfo *host)
+                          struct addrinfo *host,
+                          GError **error)
 {
 	CamelTcpStreamClass *class;
 
@@ -77,7 +79,7 @@ camel_tcp_stream_connect (CamelTcpStream *stream,
 	class = CAMEL_TCP_STREAM_GET_CLASS (stream);
 	g_return_val_if_fail (class->connect != NULL, -1);
 
-	return class->connect (stream, host);
+	return class->connect (stream, host, error);
 }
 
 /**

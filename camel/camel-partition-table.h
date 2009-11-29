@@ -123,13 +123,22 @@ struct _CamelPartitionTableClass {
 	CamelObjectClass parent;
 };
 
-GType camel_partition_table_get_type(void);
-
-CamelPartitionTable *camel_partition_table_new(struct _CamelBlockFile *bs, camel_block_t root);
-gint camel_partition_table_sync(CamelPartitionTable *cpi);
-gint camel_partition_table_add(CamelPartitionTable *cpi, const gchar *key, camel_key_t keyid);
-camel_key_t camel_partition_table_lookup(CamelPartitionTable *cpi, const gchar *key);
-void camel_partition_table_remove(CamelPartitionTable *cpi, const gchar *key);
+GType		camel_partition_table_get_type	(void);
+CamelPartitionTable *
+		camel_partition_table_new	(struct _CamelBlockFile *bs,
+						 camel_block_t root,
+						 GError **error);
+gint		camel_partition_table_sync	(CamelPartitionTable *cpi);
+gint		camel_partition_table_add	(CamelPartitionTable *cpi,
+						 const gchar *key,
+						 camel_key_t keyid,
+						 GError **error);
+camel_key_t	camel_partition_table_lookup	(CamelPartitionTable *cpi,
+						 const gchar *key,
+						 GError **error);
+gboolean	camel_partition_table_remove	(CamelPartitionTable *cpi,
+						 const gchar *key,
+						 GError **error);
 
 /* ********************************************************************** */
 
@@ -181,15 +190,36 @@ struct _CamelKeyTableClass {
 	CamelObjectClass parent;
 };
 
-GType camel_key_table_get_type(void);
-
-CamelKeyTable * camel_key_table_new(CamelBlockFile *bs, camel_block_t root);
-gint camel_key_table_sync(CamelKeyTable *ki);
-camel_key_t camel_key_table_add(CamelKeyTable *ki, const gchar *key, camel_block_t data, guint flags);
-void camel_key_table_set_data(CamelKeyTable *ki, camel_key_t keyid, camel_block_t data);
-void camel_key_table_set_flags(CamelKeyTable *ki, camel_key_t keyid, guint flags, guint set);
-camel_block_t camel_key_table_lookup(CamelKeyTable *ki, camel_key_t keyid, gchar **key, guint *flags);
-camel_key_t camel_key_table_next(CamelKeyTable *ki, camel_key_t next, gchar **keyp, guint *flagsp, camel_block_t *datap);
+GType		camel_key_table_get_type	(void);
+CamelKeyTable *	camel_key_table_new		(CamelBlockFile *bs,
+						 camel_block_t root,
+						 GError **error);
+gint		camel_key_table_sync		(CamelKeyTable *ki);
+camel_key_t	camel_key_table_add		(CamelKeyTable *ki,
+						 const gchar *key,
+						 camel_block_t data,
+						 guint flags,
+						 GError **error);
+gboolean	camel_key_table_set_data	(CamelKeyTable *ki,
+						 camel_key_t keyid,
+						 camel_block_t data,
+						 GError **error);
+gboolean	camel_key_table_set_flags	(CamelKeyTable *ki,
+						 camel_key_t keyid,
+						 guint flags,
+						 guint set,
+						 GError **error);
+camel_block_t	camel_key_table_lookup		(CamelKeyTable *ki,
+						 camel_key_t keyid,
+						 gchar **key,
+						 guint *flags,
+						 GError **error);
+camel_key_t	camel_key_table_next		(CamelKeyTable *ki,
+						 camel_key_t next,
+						 gchar **keyp,
+						 guint *flagsp,
+						 camel_block_t *datap,
+						 GError **error);
 
 G_END_DECLS
 

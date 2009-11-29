@@ -186,14 +186,12 @@ sendmail_send_to (CamelTransport *transport,
 	g_object_unref (out);
 
 	out = filter;
-	if (camel_data_wrapper_write_to_stream (CAMEL_DATA_WRAPPER (message), out) == -1
-	    || camel_stream_close (out) == -1) {
+	if (camel_data_wrapper_write_to_stream (
+		CAMEL_DATA_WRAPPER (message), out, error) == -1 ||
+		camel_stream_close (out, error) == -1) {
+
 		g_object_unref (CAMEL_OBJECT (out));
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Could not send message: %s"),
-			g_strerror (errno));
+		g_prefix_error (error, _("Could not send message: "));
 
 		/* Wait for sendmail to exit. */
 		while (waitpid (pid, &wstat, 0) == -1 && errno == EINTR)

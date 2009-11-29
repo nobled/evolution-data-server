@@ -1993,12 +1993,13 @@ do_append (CamelFolder *folder,
 	camel_stream_mem_set_byte_array (CAMEL_STREAM_MEM (memstream), ba);
 
 	streamfilter = camel_stream_filter_new (memstream);
-	crlf_filter = camel_mime_filter_crlf_new (CAMEL_MIME_FILTER_CRLF_ENCODE,
-						  CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
+	crlf_filter = camel_mime_filter_crlf_new (
+		CAMEL_MIME_FILTER_CRLF_ENCODE,
+		CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
 	camel_stream_filter_add (
 		CAMEL_STREAM_FILTER (streamfilter), crlf_filter);
 	camel_data_wrapper_write_to_stream (
-		CAMEL_DATA_WRAPPER (message), streamfilter);
+		CAMEL_DATA_WRAPPER (message), streamfilter, NULL);
 	g_object_unref (streamfilter);
 	g_object_unref (crlf_filter);
 	g_object_unref (memstream);
@@ -2798,7 +2799,8 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 
 		stream = camel_imap_folder_fetch_data (imap_folder, uid, spec, FALSE, error);
 		if (stream) {
-			ret = camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (body_mp), stream);
+			ret = camel_data_wrapper_construct_from_stream (
+				CAMEL_DATA_WRAPPER (body_mp), stream, error);
 			g_object_unref (CAMEL_OBJECT (stream));
 			if (ret == -1) {
 				g_object_unref ( body_mp);
@@ -2839,7 +2841,8 @@ get_content (CamelImapFolder *imap_folder, const gchar *uid,
 				gint ret;
 
 				part = camel_mime_part_new ();
-				ret = camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (part), stream);
+				ret = camel_data_wrapper_construct_from_stream (
+					CAMEL_DATA_WRAPPER (part), stream, error);
 				g_object_unref (CAMEL_OBJECT (stream));
 				if (ret == -1) {
 					g_object_unref (CAMEL_OBJECT (part));
@@ -2935,7 +2938,8 @@ get_message (CamelImapFolder *imap_folder, const gchar *uid,
 		return NULL;
 
 	msg = camel_mime_message_new ();
-	ret = camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg), stream);
+	ret = camel_data_wrapper_construct_from_stream (
+		CAMEL_DATA_WRAPPER (msg), stream, error);
 	g_object_unref (CAMEL_OBJECT (stream));
 	if (ret == -1) {
 		g_object_unref (CAMEL_OBJECT (msg));
@@ -2981,15 +2985,11 @@ get_message_simple (CamelImapFolder *imap_folder, const gchar *uid,
 	}
 
 	msg = camel_mime_message_new ();
-	ret = camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg),
-							stream);
+	ret = camel_data_wrapper_construct_from_stream (
+		CAMEL_DATA_WRAPPER (msg), stream, error);
 	g_object_unref (CAMEL_OBJECT (stream));
 	if (ret == -1) {
-		g_set_error (
-			error, CAMEL_SERVICE_ERROR,
-			CAMEL_SERVICE_ERROR_UNAVAILABLE,
-			_("Unable to retrieve message: %s"),
-			g_strerror (errno));
+		g_prefix_error (error, _("Unable to retrieve message: "));
 		g_object_unref (CAMEL_OBJECT (msg));
 		return NULL;
 	}
@@ -3386,7 +3386,8 @@ add_message_from_data (CamelFolder *folder, GPtrArray *messages,
 		g_ptr_array_set_size (messages, seq - first + 1);
 
 	msg = camel_mime_message_new ();
-	if (camel_data_wrapper_construct_from_stream (CAMEL_DATA_WRAPPER (msg), stream) == -1) {
+	if (camel_data_wrapper_construct_from_stream (
+		CAMEL_DATA_WRAPPER (msg), stream, NULL) == -1) {
 		g_object_unref (CAMEL_OBJECT (msg));
 		return;
 	}

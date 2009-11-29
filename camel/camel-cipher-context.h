@@ -218,7 +218,7 @@ void		     camel_cipher_validity_envelope(CamelCipherValidity *parent, CamelCiph
 void                 camel_cipher_validity_free (CamelCipherValidity *validity);
 
 /* utility functions */
-gint		     camel_cipher_canonical_to_stream(CamelMimePart *part, guint32 flags, CamelStream *ostream);
+gint		     camel_cipher_canonical_to_stream(CamelMimePart *part, guint32 flags, CamelStream *ostream, GError **error);
 
 G_END_DECLS
 

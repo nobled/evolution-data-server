@@ -32,6 +32,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <gio/gio.h>
+
 #include "camel-file-utils.h"
 #include "camel-operation.h"
 #include "camel-tcp-stream-raw.h"
@@ -334,34 +336,43 @@ tcp_stream_raw_finalize (GObject *object)
 static gssize
 tcp_stream_raw_read (CamelStream *stream,
                      gchar *buffer,
-                     gsize n)
+                     gsize n,
+                     GError **error)
 {
 	CamelTcpStreamRaw *raw = CAMEL_TCP_STREAM_RAW (stream);
 
-	return camel_read_socket (raw->sockfd, buffer, n);
+	return camel_read_socket (raw->sockfd, buffer, n, error);
 }
 
 static gssize
 tcp_stream_raw_write (CamelStream *stream,
                       const gchar *buffer,
-                      gsize n)
+                      gsize n,
+                      GError **error)
 {
 	CamelTcpStreamRaw *raw = CAMEL_TCP_STREAM_RAW (stream);
 
-	return camel_write_socket (raw->sockfd, buffer, n);
+	return camel_write_socket (raw->sockfd, buffer, n, error);
 }
 
 static gint
-tcp_stream_raw_flush (CamelStream *stream)
+tcp_stream_raw_flush (CamelStream *stream,
+                      GError **error)
 {
 	return 0;
 }
 
 static gint
-tcp_stream_raw_close (CamelStream *stream)
+tcp_stream_raw_close (CamelStream *stream,
+                      GError **error)
 {
-	if (SOCKET_CLOSE (((CamelTcpStreamRaw *)stream)->sockfd) == -1)
+	if (SOCKET_CLOSE (((CamelTcpStreamRaw *)stream)->sockfd) == -1) {
+		g_set_error (
+			error, G_IO_ERROR,
+			g_io_error_from_errno (errno),
+			"%s", g_strerror (errno));
 		return -1;
+	}
 
 	((CamelTcpStreamRaw *)stream)->sockfd = -1;
 	return 0;
@@ -369,7 +380,8 @@ tcp_stream_raw_close (CamelStream *stream)
 
 static gint
 tcp_stream_raw_connect (CamelTcpStream *stream,
-                        struct addrinfo *host)
+                        struct addrinfo *host,
+                        GError **error)
 {
 	CamelTcpStreamRaw *raw = CAMEL_TCP_STREAM_RAW (stream);
 

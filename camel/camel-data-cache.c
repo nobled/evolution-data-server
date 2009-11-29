@@ -390,7 +390,8 @@ camel_data_cache_add (CamelDataCache *cdc,
 		}
 	} while (stream != NULL);
 
-	stream = camel_stream_fs_new_with_name(real, O_RDWR|O_CREAT|O_TRUNC, 0600);
+	stream = camel_stream_fs_new_with_name (
+		real, O_RDWR|O_CREAT|O_TRUNC, 0600, error);
 	if (stream)
 		camel_object_bag_add(cdc->priv->busy_bag, real, stream);
 	else
@@ -427,7 +428,8 @@ camel_data_cache_get (CamelDataCache *cdc,
 	real = data_cache_path(cdc, FALSE, path, key);
 	stream = camel_object_bag_reserve(cdc->priv->busy_bag, real);
 	if (!stream) {
-		stream = camel_stream_fs_new_with_name(real, O_RDWR, 0600);
+		stream = camel_stream_fs_new_with_name (
+			real, O_RDWR, 0600, error);
 		if (stream)
 			camel_object_bag_add(cdc->priv->busy_bag, real, stream);
 		else

@@ -44,7 +44,23 @@ struct _CamelImapWrapperPrivate {
 
 static gpointer parent_class;
 
-static gssize write_to_stream (CamelDataWrapper *imap_wrapper, CamelStream *stream);
+static void
+imap_wrapper_hydrate (CamelImapWrapper *imap_wrapper,
+                      CamelStream *stream)
+{
+	CamelDataWrapper *data_wrapper = (CamelDataWrapper *) imap_wrapper;
+
+	g_object_ref (stream);
+	data_wrapper->stream = stream;
+	data_wrapper->offline = FALSE;
+
+	g_object_unref (imap_wrapper->folder);
+	imap_wrapper->folder = NULL;
+	g_free (imap_wrapper->uid);
+	imap_wrapper->uid = NULL;
+	g_free (imap_wrapper->part_spec);
+	imap_wrapper->part_spec = NULL;
+}
 
 static void
 imap_wrapper_dispose (GObject *object)
@@ -74,67 +90,10 @@ imap_wrapper_finalize (GObject *object)
 	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
-static void
-imap_wrapper_class_init (CamelImapWrapperClass *class)
-{
-	GObjectClass *object_class;
-	CamelDataWrapperClass *data_wrapper_class;
-
-	parent_class = g_type_class_peek_parent (class);
-	g_type_class_add_private (class, sizeof (CamelImapWrapperPrivate));
-
-	object_class = G_OBJECT_CLASS (class);
-	object_class->dispose = imap_wrapper_dispose;
-	object_class->finalize = imap_wrapper_finalize;
-
-	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (class);
-	data_wrapper_class->write_to_stream = write_to_stream;
-}
-
-static void
-imap_wrapper_init (CamelImapWrapper *imap_wrapper)
-{
-	imap_wrapper->priv = CAMEL_IMAP_WRAPPER_GET_PRIVATE (imap_wrapper);
-	imap_wrapper->priv->lock = g_mutex_new ();
-}
-
-GType
-camel_imap_wrapper_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_DATA_WRAPPER,
-			"CamelImapWrapper",
-			sizeof (CamelImapWrapperClass),
-			(GClassInitFunc) imap_wrapper_class_init,
-			sizeof (CamelImapWrapper),
-			(GInstanceInitFunc) imap_wrapper_init,
-			0);
-
-	return type;
-}
-
-static void
-imap_wrapper_hydrate (CamelImapWrapper *imap_wrapper, CamelStream *stream)
-{
-	CamelDataWrapper *data_wrapper = (CamelDataWrapper *) imap_wrapper;
-
-	g_object_ref (stream);
-	data_wrapper->stream = stream;
-	data_wrapper->offline = FALSE;
-
-	g_object_unref (imap_wrapper->folder);
-	imap_wrapper->folder = NULL;
-	g_free (imap_wrapper->uid);
-	imap_wrapper->uid = NULL;
-	g_free (imap_wrapper->part_spec);
-	imap_wrapper->part_spec = NULL;
-}
-
 static gssize
-write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
+imap_wrapper_write_to_stream (CamelDataWrapper *data_wrapper,
+                              CamelStream *stream,
+                              GError **error)
 {
 	CamelImapWrapper *imap_wrapper = CAMEL_IMAP_WRAPPER (data_wrapper);
 
@@ -162,7 +121,49 @@ write_to_stream (CamelDataWrapper *data_wrapper, CamelStream *stream)
 	CAMEL_IMAP_WRAPPER_UNLOCK (imap_wrapper, lock);
 
 	return CAMEL_DATA_WRAPPER_CLASS (parent_class)->
-		write_to_stream (data_wrapper, stream);
+		write_to_stream (data_wrapper, stream, error);
+}
+
+static void
+imap_wrapper_class_init (CamelImapWrapperClass *class)
+{
+	GObjectClass *object_class;
+	CamelDataWrapperClass *data_wrapper_class;
+
+	parent_class = g_type_class_peek_parent (class);
+	g_type_class_add_private (class, sizeof (CamelImapWrapperPrivate));
+
+	object_class = G_OBJECT_CLASS (class);
+	object_class->dispose = imap_wrapper_dispose;
+	object_class->finalize = imap_wrapper_finalize;
+
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (class);
+	data_wrapper_class->write_to_stream = imap_wrapper_write_to_stream;
+}
+
+static void
+imap_wrapper_init (CamelImapWrapper *imap_wrapper)
+{
+	imap_wrapper->priv = CAMEL_IMAP_WRAPPER_GET_PRIVATE (imap_wrapper);
+	imap_wrapper->priv->lock = g_mutex_new ();
+}
+
+GType
+camel_imap_wrapper_get_type (void)
+{
+	static GType type = G_TYPE_INVALID;
+
+	if (G_UNLIKELY (type == G_TYPE_INVALID))
+		type = g_type_register_static_simple (
+			CAMEL_TYPE_DATA_WRAPPER,
+			"CamelImapWrapper",
+			sizeof (CamelImapWrapperClass),
+			(GClassInitFunc) imap_wrapper_class_init,
+			sizeof (CamelImapWrapper),
+			(GInstanceInitFunc) imap_wrapper_init,
+			0);
+
+	return type;
 }
 
 CamelDataWrapper *

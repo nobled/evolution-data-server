@@ -827,6 +827,7 @@ cc_prepare_sign (CamelMimePart *part)
  * @part: Part to write.
  * @flags: flags for the canonicalisation filter (CamelMimeFilterCanon)
  * @ostream: stream to write canonicalised output to.
+ * @error: return location for a #GError, or %NULL
  *
  * Writes a part to a stream in a canonicalised format, suitable for signing/encrypting.
  *
@@ -835,7 +836,10 @@ cc_prepare_sign (CamelMimePart *part)
  * Return value: -1 on error;
  **/
 gint
-camel_cipher_canonical_to_stream (CamelMimePart *part, guint32 flags, CamelStream *ostream)
+camel_cipher_canonical_to_stream (CamelMimePart *part,
+                                  guint32 flags,
+                                  CamelStream *ostream,
+                                  GError **error)
 {
 	CamelStream *filter;
 	CamelMimeFilter *canon;
@@ -849,12 +853,12 @@ camel_cipher_canonical_to_stream (CamelMimePart *part, guint32 flags, CamelStrea
 	camel_stream_filter_add (CAMEL_STREAM_FILTER (filter), canon);
 	g_object_unref (canon);
 
-	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *)part, filter) != -1
-	    && camel_stream_flush (filter) != -1)
+	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *)part, filter, error) != -1
+	    && camel_stream_flush (filter, error) != -1)
 		res = 0;
 
 	g_object_unref (filter);
-	camel_stream_reset (ostream);
+	camel_stream_reset (ostream, NULL);
 
 	return res;
 }

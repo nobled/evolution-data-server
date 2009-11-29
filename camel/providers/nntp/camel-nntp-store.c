@@ -161,7 +161,7 @@ xover_setup(CamelNNTPStore *store, GError **error)
 	last = (struct _xover_header *)&store->xover;
 
 	/* supported command */
-	while ((ret = camel_nntp_stream_line(store->stream, (guchar **)&line, &len)) > 0) {
+	while ((ret = camel_nntp_stream_line(store->stream, (guchar **)&line, &len, error)) > 0) {
 		p = (guchar *) line;
 		xover = g_malloc0(sizeof(*xover));
 		last->next = xover;
@@ -227,28 +227,17 @@ connect_to_server (CamelService *service, struct addrinfo *ai, gint ssl_mode, GE
 			CAMEL_SERVICE_ERROR_UNAVAILABLE,
 			_("Could not connect to %s: %s"),
 			service->url->host, _("SSL unavailable"));
-
 		goto fail;
 #endif /* HAVE_SSL */
 	} else {
 		tcp_stream = camel_tcp_stream_raw_new ();
 	}
 
-	if (camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Connection canceled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Could not connect to %s: %s"),
-				service->url->host, g_strerror (errno));
-
+	if (camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai, error) == -1) {
+		g_prefix_error (
+			error, _("Could not connect to %s: "),
+			service->url->host);
 		g_object_unref (tcp_stream);
-
 		goto fail;
 	}
 
@@ -256,19 +245,10 @@ connect_to_server (CamelService *service, struct addrinfo *ai, gint ssl_mode, GE
 	g_object_unref (tcp_stream);
 
 	/* Read the greeting, if any. */
-	if (camel_nntp_stream_line (store->stream, &buf, &len) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Connection canceled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Could not read greeting from %s: %s"),
-				service->url->host, g_strerror (errno));
-
+	if (camel_nntp_stream_line (store->stream, &buf, &len, error) == -1) {
+		g_prefix_error (
+			error, _("Could not read greeting from %s: "),
+			service->url->host);
 		g_object_unref (store->stream);
 		store->stream = NULL;
 
@@ -864,7 +844,7 @@ nntp_store_get_folder_info_all(CamelNNTPStore *nntp_store, const gchar *top, gui
 				goto do_complete_list;
 			}
 
-			while ((ret = camel_nntp_stream_line (nntp_store->stream, &line, &len)) > 0)
+			while ((ret = camel_nntp_stream_line (nntp_store->stream, &line, &len, error)) > 0)
 				nntp_store_info_update(nntp_store, (gchar *) line);
 		} else {
 			GHashTable *all;
@@ -890,7 +870,7 @@ nntp_store_get_folder_info_all(CamelNNTPStore *nntp_store, const gchar *top, gui
 			for (i = 0; (si = (CamelNNTPStoreInfo *)camel_store_summary_index ((CamelStoreSummary *)nntp_store->summary, i)); i++)
 				g_hash_table_insert(all, si->info.path, si);
 
-			while ((ret = camel_nntp_stream_line(nntp_store->stream, &line, &len)) > 0) {
+			while ((ret = camel_nntp_stream_line(nntp_store->stream, &line, &len, error)) > 0) {
 				si = nntp_store_info_update(nntp_store, (gchar *) line);
 				g_hash_table_remove(all, si->info.path);
 			}
@@ -1307,32 +1287,32 @@ camel_nntp_raw_commandv (CamelNNTPStore *store, GError **error, gchar **line, co
 		switch (c) {
 		case '%':
 			c = *p++;
-			camel_stream_write ((CamelStream *) store->mem, (const gchar *) ps, p - ps - (c == '%' ? 1 : 2));
+			camel_stream_write ((CamelStream *) store->mem, (const gchar *) ps, p - ps - (c == '%' ? 1 : 2), NULL);
 			ps = p;
 			switch (c) {
 			case 's':
 				s = va_arg(ap, gchar *);
-				camel_stream_write((CamelStream *)store->mem, s, strlen(s));
+				camel_stream_write((CamelStream *)store->mem, s, strlen(s), NULL);
 				break;
 			case 'd':
 				d = va_arg(ap, gint);
-				camel_stream_printf((CamelStream *)store->mem, "%d", d);
+				camel_stream_printf((CamelStream *)store->mem, NULL, "%d", d);
 				break;
 			case 'u':
 				u = va_arg(ap, guint);
-				camel_stream_printf((CamelStream *)store->mem, "%u", u);
+				camel_stream_printf((CamelStream *)store->mem, NULL, "%u", u);
 				break;
 			case 'm':
 				s = va_arg(ap, gchar *);
-				camel_stream_printf((CamelStream *)store->mem, "<%s>", s);
+				camel_stream_printf((CamelStream *)store->mem, NULL, "<%s>", s);
 				break;
 			case 'r':
 				u = va_arg(ap, guint);
 				u2 = va_arg(ap, guint);
 				if (u == u2)
-					camel_stream_printf((CamelStream *)store->mem, "%u", u);
+					camel_stream_printf((CamelStream *)store->mem, NULL, "%u", u);
 				else
-					camel_stream_printf((CamelStream *)store->mem, "%u-%u", u, u2);
+					camel_stream_printf((CamelStream *)store->mem, NULL, "%u-%u", u, u2);
 				break;
 			default:
 				g_warning("Passing unknown format to nntp_command: %c\n", c);
@@ -1341,19 +1321,19 @@ camel_nntp_raw_commandv (CamelNNTPStore *store, GError **error, gchar **line, co
 		}
 	}
 
-	camel_stream_write ((CamelStream *) store->mem, (const gchar *) ps, p-ps-1);
-	camel_stream_write ((CamelStream *) store->mem, "\r\n", 2);
+	camel_stream_write ((CamelStream *) store->mem, (const gchar *) ps, p-ps-1, NULL);
+	camel_stream_write ((CamelStream *) store->mem, "\r\n", 2, NULL);
 
 	buffer = camel_stream_mem_get_byte_array (store->mem);
 
-	if (camel_stream_write((CamelStream *) store->stream, (const gchar *) buffer->data, buffer->len) == -1)
+	if (camel_stream_write((CamelStream *) store->stream, (const gchar *) buffer->data, buffer->len, error) == -1)
 		goto ioerror;
 
 	/* FIXME: hack */
-	camel_stream_reset ((CamelStream *) store->mem);
+	camel_stream_reset ((CamelStream *) store->mem, NULL);
 	g_byte_array_set_size (buffer, 0);
 
-	if (camel_nntp_stream_line (store->stream, (guchar **) line, &u) == -1)
+	if (camel_nntp_stream_line (store->stream, (guchar **) line, &u, error) == -1)
 		goto ioerror;
 
 	u = strtoul (*line, NULL, 10);
@@ -1365,17 +1345,7 @@ camel_nntp_raw_commandv (CamelNNTPStore *store, GError **error, gchar **line, co
 	return u;
 
 ioerror:
-	if (errno == EINTR)
-		g_set_error (
-			error, CAMEL_ERROR,
-			CAMEL_ERROR_USER_CANCEL,
-			_("Canceled."));
-	else
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("NNTP Command failed: %s"),
-			g_strerror(errno));
+	g_prefix_error (error, _("NNTP Command failed: "));
 	return -1;
 }
 
@@ -1448,7 +1418,7 @@ camel_nntp_command (CamelNNTPStore *store, GError **error, CamelNNTPFolder *fold
 		/* Check for unprocessed data, ! */
 		if (store->stream->mode == CAMEL_NNTP_STREAM_DATA) {
 			g_warning("Unprocessed data left in stream, flushing");
-			while (camel_nntp_stream_getd(store->stream, (guchar **)&p, &u) > 0)
+			while (camel_nntp_stream_getd(store->stream, (guchar **)&p, &u, NULL) > 0)
 				;
 		}
 		camel_nntp_stream_set_mode(store->stream, CAMEL_NNTP_STREAM_LINE);

@@ -38,6 +38,9 @@
 #define EWOULDBLOCK EAGAIN
 #endif
 
+#include <gio/gio.h>
+#include <glib/gi18n-lib.h>
+
 #include <libedataserver/e-data-server-util.h>
 
 #include "camel-file-utils.h"
@@ -402,6 +405,7 @@ camel_file_util_safe_filename (const gchar *name)
  * @fd: file descriptor
  * @buf: buffer to fill
  * @n: number of bytes to read into @buf
+ * @error: return location for a #GError, or %NULL
  *
  * Cancellable libc read() replacement.
  *
@@ -412,12 +416,19 @@ camel_file_util_safe_filename (const gchar *name)
  * be set appropriately.
  **/
 gssize
-camel_read (gint fd, gchar *buf, gsize n)
+camel_read (gint fd,
+            gchar *buf,
+            gsize n,
+            GError **error)
 {
 	gssize nread;
 	gint cancel_fd;
 
 	if (camel_operation_cancel_check (NULL)) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_CANCELLED,
+			_("Cancelled read"));
 		errno = EINTR;
 		return -1;
 	}
@@ -471,6 +482,14 @@ camel_read (gint fd, gchar *buf, gsize n)
 #endif
 	}
 
+	if (errno != 0) {
+		g_set_error (
+			error, G_IO_ERROR,
+			g_io_error_from_errno (errno),
+			"%s", g_strerror (errno));
+		return -1;
+	}
+
 	return nread;
 }
 
@@ -479,6 +498,7 @@ camel_read (gint fd, gchar *buf, gsize n)
  * @fd: file descriptor
  * @buf: buffer to write
  * @n: number of bytes of @buf to write
+ * @error: return location for a #GError, or %NULL
  *
  * Cancellable libc write() replacement.
  *
@@ -489,12 +509,19 @@ camel_read (gint fd, gchar *buf, gsize n)
  * be set appropriately.
  **/
 gssize
-camel_write (gint fd, const gchar *buf, gsize n)
+camel_write (gint fd,
+             const gchar *buf,
+             gsize n,
+             GError **error)
 {
 	gssize w, written = 0;
 	gint cancel_fd;
 
 	if (camel_operation_cancel_check (NULL)) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_CANCELLED,
+			_("Cancelled write"));
 		errno = EINTR;
 		return -1;
 	}
@@ -559,8 +586,13 @@ camel_write (gint fd, const gchar *buf, gsize n)
 #endif
 	}
 
-	if (w == -1)
+	if (errno != 0) {
+		g_set_error (
+			error, G_IO_ERROR,
+			g_io_error_from_errno (errno),
+			"%s", g_strerror (errno));
 		return -1;
+	}
 
 	return written;
 }
@@ -570,6 +602,7 @@ camel_write (gint fd, const gchar *buf, gsize n)
  * @fd: a socket
  * @buf: buffer to fill
  * @n: number of bytes to read into @buf
+ * @error: return location for a #GError, or %NULL
  *
  * Cancellable read() replacement for sockets. Code that intends to be
  * portable to Win32 should call this function only on sockets
@@ -580,15 +613,22 @@ camel_write (gint fd, const gchar *buf, gsize n)
  * camel_read_socket() will retry the read until it gets something.
  **/
 gssize
-camel_read_socket (gint fd, gchar *buf, gsize n)
+camel_read_socket (gint fd,
+                   gchar *buf,
+                   gsize n,
+                   GError **error)
 {
 #ifndef G_OS_WIN32
-	return camel_read (fd, buf, n);
+	return camel_read (fd, buf, n, error);
 #else
 	gssize nread;
 	gint cancel_fd;
 
 	if (camel_operation_cancel_check (NULL)) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_CANCELLED,
+			_("Cancelled read"));
 		errno = EINTR;
 		return -1;
 	}
@@ -632,6 +672,14 @@ camel_read_socket (gint fd, gchar *buf, gsize n)
 		;
 	}
 
+	if (errno != 0) {
+		g_set_error (
+			error, G_IO_ERROR,
+			g_io_error_from_errno (errno),
+			"%s", g_strerror (errno));
+		return -1;
+	}
+
 	return nread;
 #endif
 }
@@ -641,6 +689,7 @@ camel_read_socket (gint fd, gchar *buf, gsize n)
  * @fd: file descriptor
  * @buf: buffer to write
  * @n: number of bytes of @buf to write
+ * @error: return location for a #GError, or %NULL
  *
  * Cancellable write() replacement for sockets. Code that intends to
  * be portable to Win32 should call this function only on sockets
@@ -650,15 +699,22 @@ camel_read_socket (gint fd, gchar *buf, gsize n)
  * be set appropriately.
  **/
 gssize
-camel_write_socket (gint fd, const gchar *buf, gsize n)
+camel_write_socket (gint fd,
+                    const gchar *buf,
+                    gsize n,
+                    GError **error)
 {
 #ifndef G_OS_WIN32
-	return camel_write (fd, buf, n);
+	return camel_write (fd, buf, n, error);
 #else
 	gssize w, written = 0;
 	gint cancel_fd;
 
 	if (camel_operation_cancel_check (NULL)) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_CANCELLED,
+			_("Cancelled read"));
 		errno = EINTR;
 		return -1;
 	}
@@ -711,8 +767,13 @@ camel_write_socket (gint fd, const gchar *buf, gsize n)
 		ioctlsocket (fd, FIONBIO, &arg);
 	}
 
-	if (w == -1)
+	if (errno != 0) {
+		g_set_error (
+			error, G_IO_ERROR,
+			g_io_error_from_errno (errno),
+			"%s", g_strerror (errno));
 		return -1;
+	}
 
 	return written;
 #endif

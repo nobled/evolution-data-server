@@ -231,18 +231,10 @@ connect_to_server (CamelService *service,
 		tcp_stream = camel_tcp_stream_raw_new ();
 	}
 
-	if ((ret = camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai)) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Connection canceled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Could not connect to %s: %s"),
-				service->url->host, g_strerror (errno));
+	if ((ret = camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai, error)) == -1) {
+		g_prefix_error (
+			error, _("Could not connect to %s: "),
+			service->url->host);
 
 		g_object_unref (tcp_stream);
 
@@ -261,9 +253,14 @@ connect_to_server (CamelService *service,
 	do {
 		/* Check for "220" */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-		if (!respbuf || strncmp (respbuf, "220", 3)) {
-			smtp_set_exception (transport, FALSE, respbuf, _("Welcome response error"), error);
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			return FALSE;
+		if (strncmp (respbuf, "220", 3) != 0) {
+			smtp_set_exception (
+				transport, FALSE, respbuf,
+				_("Welcome response error"), error);
 			g_free (respbuf);
 			return FALSE;
 		}
@@ -306,19 +303,8 @@ connect_to_server (CamelService *service,
 	}
 
 	d(fprintf (stderr, "sending : STARTTLS\r\n"));
-	if (camel_stream_write (tcp_stream, "STARTTLS\r\n", 10) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("STARTTLS command failed: %s"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("STARTTLS command failed: %s"),
-				g_strerror (errno));
+	if (camel_stream_write (tcp_stream, "STARTTLS\r\n", 10, error) == -1) {
+		g_prefix_error (error, _("STARTTLS command failed: "));
 		goto exception_cleanup;
 	}
 
@@ -327,12 +313,14 @@ connect_to_server (CamelService *service,
 	do {
 		/* Check for "220 Ready for TLS" */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "220", 3)) {
-			smtp_set_exception (transport, FALSE, respbuf, _("STARTTLS command failed"), error);
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			goto exception_cleanup;
+		if (strncmp (respbuf, "220", 3) != 0) {
+			smtp_set_exception (
+				transport, FALSE, respbuf,
+				_("STARTTLS command failed"), error);
 			g_free (respbuf);
 			goto exception_cleanup;
 		}
@@ -932,7 +920,8 @@ smtp_set_exception (CamelSmtpTransport *transport,
 			g_string_append (string, token);
 			if (*(rbuf + 3) == '-') {
 				g_free (buffer);
-				buffer = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
+				buffer = camel_stream_buffer_read_line (
+					CAMEL_STREAM_BUFFER (transport->istream), NULL);
 				g_string_append_c (string, '\n');
 			} else {
 				g_free (buffer);
@@ -1022,20 +1011,9 @@ smtp_helo (CamelSmtpTransport *transport, GError **error)
 	g_free (name);
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("HELO command failed: %s"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("HELO command failed: %s"),
-				g_strerror (errno));
+		g_prefix_error (error, _("HELO command failed: "));
 		camel_operation_end (NULL);
 
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
@@ -1047,15 +1025,18 @@ smtp_helo (CamelSmtpTransport *transport, GError **error)
 	do {
 		/* Check for "250" */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "250", 3)) {
-			smtp_set_exception (transport, FALSE, respbuf, _("HELO command failed"), error);
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL) {
+			camel_operation_end (NULL);
+			return FALSE;
+		}
+		if (strncmp (respbuf, "250", 3) != 0) {
+			smtp_set_exception (
+				transport, FALSE, respbuf,
+				_("HELO command failed"), error);
 			camel_operation_end (NULL);
 			g_free (respbuf);
-
 			return FALSE;
 		}
 
@@ -1141,46 +1122,28 @@ smtp_auth (CamelSmtpTransport *transport,
 	}
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("AUTH command failed: %s"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("AUTH command failed: %s"),
-				g_strerror (errno));
+		g_prefix_error (error, _("AUTH command failed: "));
 		goto lose;
 	}
 	g_free (cmdbuf);
 
-	respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-	d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
+	respbuf = camel_stream_buffer_read_line (
+		CAMEL_STREAM_BUFFER (transport->istream), error);
 
 	while (!camel_sasl_get_authenticated (sasl)) {
-		if (!respbuf) {
-			if (errno == EINTR)
-				g_set_error (
-					error, CAMEL_ERROR,
-					CAMEL_ERROR_USER_CANCEL,
-					_("AUTH command failed: %s"),
-					g_strerror (errno));
-			else
-				g_set_error (
-					error, G_FILE_ERROR,
-					g_file_error_from_errno (errno),
-					_("AUTH command failed: %s"),
-					g_strerror (errno));
+
+		if (respbuf == NULL) {
+			g_prefix_error (error, _("AUTH command failed: "));
 			goto lose;
 		}
 
 		/* the server challenge/response should follow a 334 code */
 		if (strncmp (respbuf, "334", 3) != 0) {
-			smtp_set_exception (transport, FALSE, respbuf, _("AUTH command failed"), error);
+			smtp_set_exception (
+				transport, FALSE, respbuf,
+				_("AUTH command failed"), error);
 			goto lose;
 		}
 
@@ -1206,19 +1169,15 @@ smtp_auth (CamelSmtpTransport *transport,
 		cmdbuf = g_strdup_printf ("%s\r\n", challenge);
 		g_free (challenge);
 		d(fprintf (stderr, "sending : %s", cmdbuf));
-		if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
-			g_set_error (
-				error, CAMEL_SERVICE_ERROR,
-				CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
-				_("Bad authentication response from server."));
+		if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 			g_free (cmdbuf);
 			goto lose;
 		}
 		g_free (cmdbuf);
 
 		/* get the server's response */
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
 	}
 
 	if (respbuf == NULL) {
@@ -1257,8 +1216,9 @@ smtp_auth (CamelSmtpTransport *transport,
  break_and_lose:
 	/* Get the server out of "waiting for continuation data" mode. */
 	d(fprintf (stderr, "sending : *\n"));
-	camel_stream_write (transport->ostream, "*\r\n", 3);
-	respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
+	camel_stream_write (transport->ostream, "*\r\n", 3, NULL);
+	respbuf = camel_stream_buffer_read_line (
+		CAMEL_STREAM_BUFFER (transport->istream), NULL);
 	d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
 
  lose:
@@ -1283,22 +1243,10 @@ smtp_mail (CamelSmtpTransport *transport, const gchar *sender, gboolean has_8bit
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
 
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("MAIL FROM command failed: %s: mail not sent"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("MAIL FROM command failed: %s: mail not sent"),
-				g_strerror (errno));
-
+		g_prefix_error (error, _("MAIL FROM command failed: "));
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
-
 		return FALSE;
 	}
 	g_free (cmdbuf);
@@ -1306,12 +1254,14 @@ smtp_mail (CamelSmtpTransport *transport, const gchar *sender, gboolean has_8bit
 	do {
 		/* Check for "250 Sender OK..." */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "250", 3)) {
-			smtp_set_exception (transport, TRUE, respbuf, _("MAIL FROM command failed"), error);
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			return FALSE;
+		if (strncmp (respbuf, "250", 3) != 0) {
+			smtp_set_exception (
+				transport, TRUE, respbuf,
+				_("MAIL FROM command failed"), error);
 			g_free (respbuf);
 			return FALSE;
 		}
@@ -1332,20 +1282,9 @@ smtp_rcpt (CamelSmtpTransport *transport, const gchar *recipient, GError **error
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
 
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("RCPT TO command failed: %s: mail not sent"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("RCPT TO command failed: %s: mail not sent"),
-				g_strerror (errno));
-
+		g_prefix_error (error, _("RCPT TO command failed: "));
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
 
 		return FALSE;
@@ -1355,17 +1294,20 @@ smtp_rcpt (CamelSmtpTransport *transport, const gchar *recipient, GError **error
 	do {
 		/* Check for "250 Recipient OK..." */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "250", 3)) {
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			return FALSE;
+		if (strncmp (respbuf, "250", 3) != 0) {
 			gchar *message;
 
-			message = g_strdup_printf (_("RCPT TO <%s> failed"), recipient);
-			smtp_set_exception (transport, TRUE, respbuf, message, error);
+			message = g_strdup_printf (
+				_("RCPT TO <%s> failed"), recipient);
+			smtp_set_exception (
+				transport, TRUE, respbuf, message, error);
 			g_free (message);
 			g_free (respbuf);
+
 			return FALSE;
 		}
 	} while (*(respbuf+3) == '-'); /* if we got "250-" then loop again */
@@ -1401,35 +1343,25 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, GError **er
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
 
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("DATA command failed: %s: mail not sent"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("DATA command failed: %s: mail not sent"),
-				g_strerror (errno));
-
+		g_prefix_error (error, _("DATA command failed: "));
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
-
 		return FALSE;
 	}
 	g_free (cmdbuf);
 
-	respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-	d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-	if (!respbuf || strncmp (respbuf, "354", 3)) {
+	respbuf = camel_stream_buffer_read_line (
+		CAMEL_STREAM_BUFFER (transport->istream), error);
+	if (respbuf == NULL)
+		return FALSE;
+	if (strncmp (respbuf, "354", 3) != 0) {
 		/* we should have gotten instructions on how to use the DATA command:
 		 * 354 Enter mail, end with "." on a line by itself
 		 */
-		smtp_set_exception (transport, TRUE, respbuf, _("DATA command failed"), error);
+		smtp_set_exception (
+			transport, TRUE, respbuf,
+			_("DATA command failed"), error);
 		g_free (respbuf);
 		return FALSE;
 	}
@@ -1445,7 +1377,7 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, GError **er
 	/* find out how large the message is... */
 	null = CAMEL_STREAM_NULL (camel_stream_null_new ());
 	camel_data_wrapper_write_to_stream (
-		CAMEL_DATA_WRAPPER (message), CAMEL_STREAM (null));
+		CAMEL_DATA_WRAPPER (message), CAMEL_STREAM (null), NULL);
 
 	filtered_stream = camel_stream_filter_new (transport->ostream);
 
@@ -1466,65 +1398,42 @@ smtp_data (CamelSmtpTransport *transport, CamelMimeMessage *message, GError **er
 
 	/* write the message */
 	ret = camel_data_wrapper_write_to_stream (
-		CAMEL_DATA_WRAPPER (message), filtered_stream);
+		CAMEL_DATA_WRAPPER (message), filtered_stream, error);
 
 	/* restore the bcc headers */
 	camel_header_raw_append_queue (header_queue, &bcc_queue);
 
 	if (ret == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("DATA command failed: %s: mail not sent"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				 _("DATA command failed: %s: mail not sent"),
-				 g_strerror (errno));
-
+		g_prefix_error (error, _("DATA command failed: "));
 		g_object_unref (filtered_stream);
-
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
-
 		return FALSE;
 	}
 
-	camel_stream_flush (filtered_stream);
+	camel_stream_flush (filtered_stream, NULL);
 	g_object_unref (filtered_stream);
 
 	/* terminate the message body */
 
 	d(fprintf (stderr, "sending : \\r\\n.\\r\\n\n"));
 
-	if (camel_stream_write (transport->ostream, "\r\n.\r\n", 5) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("DATA command failed: %s: mail not sent"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("DATA command failed: %s: mail not sent"),
-				g_strerror (errno));
-
+	if (camel_stream_write (transport->ostream, "\r\n.\r\n", 5, error) == -1) {
+		g_prefix_error (error, _("DATA command failed: "));
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
-
 		return FALSE;
 	}
 
 	do {
 		/* Check for "250 Sender OK..." */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "250", 3)) {
-			smtp_set_exception (transport, TRUE, respbuf, _("DATA command failed"), error);
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			return FALSE;
+		if (strncmp (respbuf, "250", 3) != 0) {
+			smtp_set_exception (
+				transport, TRUE, respbuf,
+				_("DATA command failed"), error);
 			g_free (respbuf);
 			return FALSE;
 		}
@@ -1544,23 +1453,10 @@ smtp_rset (CamelSmtpTransport *transport, GError **error)
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
 
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("RSET command failed: %s"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("RSET command failed: %s"),
-				g_strerror (errno));
-
+		g_prefix_error (error, _("RSET command failed: "));
 		camel_service_disconnect ((CamelService *) transport, FALSE, NULL);
-
 		return FALSE;
 	}
 	g_free (cmdbuf);
@@ -1568,11 +1464,11 @@ smtp_rset (CamelSmtpTransport *transport, GError **error)
 	do {
 		/* Check for "250" */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "250", 3)) {
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			return FALSE;
+		if (strncmp (respbuf, "250", 3) != 0) {
 			smtp_set_exception (
 				transport, TRUE, respbuf,
 				_("RSET command failed"), error);
@@ -1595,21 +1491,9 @@ smtp_quit (CamelSmtpTransport *transport, GError **error)
 
 	d(fprintf (stderr, "sending : %s", cmdbuf));
 
-	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf)) == -1) {
+	if (camel_stream_write (transport->ostream, cmdbuf, strlen (cmdbuf), error) == -1) {
 		g_free (cmdbuf);
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("QUIT command failed: %s"),
-				g_strerror (errno));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("QUIT command failed: %s"),
-				g_strerror (errno));
-
+		g_prefix_error (error, _("QUIT command failed: "));
 		return FALSE;
 	}
 	g_free (cmdbuf);
@@ -1617,11 +1501,11 @@ smtp_quit (CamelSmtpTransport *transport, GError **error)
 	do {
 		/* Check for "221" */
 		g_free (respbuf);
-		respbuf = camel_stream_buffer_read_line (CAMEL_STREAM_BUFFER (transport->istream));
-
-		d(fprintf (stderr, "received: %s\n", respbuf ? respbuf : "(null)"));
-
-		if (!respbuf || strncmp (respbuf, "221", 3)) {
+		respbuf = camel_stream_buffer_read_line (
+			CAMEL_STREAM_BUFFER (transport->istream), error);
+		if (respbuf == NULL)
+			return FALSE;
+		if (strncmp (respbuf, "221", 3) != 0) {
 			smtp_set_exception (
 				transport, FALSE, respbuf,
 				_("QUIT command failed"), error);

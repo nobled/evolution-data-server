@@ -30,6 +30,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#include <glib/gi18n-lib.h>
+
 #include "camel-index.h"
 #include "camel-object.h"
 
@@ -148,7 +150,8 @@ camel_index_set_normalise (CamelIndex *idx, CamelIndexNorm func, gpointer data)
 }
 
 gint
-camel_index_sync (CamelIndex *idx)
+camel_index_sync (CamelIndex *idx,
+                  GError **error)
 {
 	CamelIndexClass *class;
 
@@ -158,15 +161,18 @@ camel_index_sync (CamelIndex *idx)
 	g_return_val_if_fail (class->sync != NULL, -1);
 
 	if ((idx->state & CAMEL_INDEX_DELETED) == 0)
-		return class->sync (idx);
+		return class->sync (idx, error);
 	else {
-		errno = ENOENT;
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Index has been deleted"));
 		return -1;
 	}
 }
 
 gint
-camel_index_compress (CamelIndex *idx)
+camel_index_compress (CamelIndex *idx,
+                      GError **error)
 {
 	CamelIndexClass *class;
 
@@ -176,9 +182,11 @@ camel_index_compress (CamelIndex *idx)
 	g_return_val_if_fail (class->compress != NULL, -1);
 
 	if ((idx->state & CAMEL_INDEX_DELETED) == 0)
-		return class->compress (idx);
+		return class->compress (idx, error);
 	else {
-		errno = ENOENT;
+		g_set_error (
+			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
+			_("Index has been deleted"));
 		return -1;
 	}
 }

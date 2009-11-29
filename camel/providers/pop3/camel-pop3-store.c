@@ -161,20 +161,10 @@ connect_to_server (CamelService *service,
 	} else
 		tcp_stream = camel_tcp_stream_raw_new ();
 
-	if ((ret = camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai)) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Connection canceled"));
-		else
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_SERVICE_ERROR_UNAVAILABLE,
-				_("Could not connect to %s: %s"),
-				service->url->host,
-				g_strerror (errno));
-
+	if ((ret = camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai, error)) == -1) {
+		g_prefix_error (
+			error, _("Could not connect to %s: "),
+			service->url->host);
 		g_object_unref (tcp_stream);
 
 		return FALSE;
@@ -418,7 +408,7 @@ try_sasl (CamelPOP3Store *store,
 		return -1;
 	}
 
-	if (camel_stream_printf((CamelStream *)stream, "AUTH %s\r\n", mech) == -1)
+	if (camel_stream_printf((CamelStream *)stream, error, "AUTH %s\r\n", mech) == -1)
 		goto ioerror;
 
 	while (1) {
@@ -439,7 +429,7 @@ try_sasl (CamelPOP3Store *store,
 		if (strncmp((gchar *) line, "+ ", 2) != 0
 		    || camel_sasl_get_authenticated(sasl)
 		    || (resp = (guchar *) camel_sasl_challenge_base64(sasl, (const gchar *) line+2, error)) == NULL) {
-			camel_stream_printf((CamelStream *)stream, "*\r\n");
+			camel_stream_printf((CamelStream *)stream, NULL, "*\r\n");
 			camel_pop3_stream_line(stream, &line, &len);
 			g_set_error (
 				error, CAMEL_SERVICE_ERROR,
@@ -450,7 +440,7 @@ try_sasl (CamelPOP3Store *store,
 			goto done;
 		}
 
-		ret = camel_stream_printf((CamelStream *)stream, "%s\r\n", resp);
+		ret = camel_stream_printf((CamelStream *)stream, error, "%s\r\n", resp);
 		g_free(resp);
 		if (ret == -1)
 			goto ioerror;
@@ -460,16 +450,10 @@ try_sasl (CamelPOP3Store *store,
 	return 0;
 
  ioerror:
-	if (errno == EINTR) {
-		g_set_error (
-			error, CAMEL_ERROR,
-			CAMEL_ERROR_USER_CANCEL, _("Canceled"));
-	} else {
-		g_set_error (
-			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
-			_("Failed to authenticate on POP server %s: %s"),
-			CAMEL_SERVICE (store)->url->host, g_strerror (errno));
-	}
+	g_prefix_error (
+		error, _("Failed to authenticate on POP server %s: "),
+		CAMEL_SERVICE (store)->url->host);
+
  done:
 	g_object_unref (sasl);
 	return -1;

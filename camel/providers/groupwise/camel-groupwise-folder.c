@@ -140,10 +140,10 @@ groupwise_folder_get_message( CamelFolder *folder, const gchar *uid, GError **er
 	stream = camel_stream_mem_new ();
 	if (cache_stream) {
 		msg = camel_mime_message_new ();
-		camel_stream_reset (stream);
-		camel_stream_write_to_stream (cache_stream, stream);
-		camel_stream_reset (stream);
-		if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) msg, stream) == -1) {
+		camel_stream_reset (stream, NULL);
+		camel_stream_write_to_stream (cache_stream, stream, NULL);
+		camel_stream_reset (stream, NULL);
+		if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) msg, stream, NULL) == -1) {
 			if (errno == EINTR) {
 				g_set_error (
 					error, CAMEL_ERROR,
@@ -230,8 +230,8 @@ groupwise_folder_get_message( CamelFolder *folder, const gchar *uid, GError **er
 	/* add to cache */
 	CAMEL_GROUPWISE_FOLDER_REC_LOCK (folder, cache_lock);
 	if ((cache_stream = camel_data_cache_add (gw_folder->cache, "cache", uid, NULL))) {
-		if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) msg, cache_stream) == -1
-				|| camel_stream_flush (cache_stream) == -1)
+		if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) msg, cache_stream, error) == -1
+				|| camel_stream_flush (cache_stream, error) == -1)
 			camel_data_cache_remove (gw_folder->cache, "cache", uid, NULL);
 		g_object_unref (cache_stream);
 	}
@@ -1721,7 +1721,7 @@ gw_update_cache (CamelFolder *folder, GList *list, GError **error, gboolean uid_
 
 						CAMEL_GROUPWISE_FOLDER_REC_LOCK (folder, cache_lock);
 						if ((cache_stream = camel_data_cache_add (gw_folder->cache, "cache", id, NULL))) {
-								if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) mail_msg,	cache_stream) == -1 || camel_stream_flush (cache_stream) == -1)
+								if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *) mail_msg,	cache_stream, error) == -1 || camel_stream_flush (cache_stream, error) == -1)
 										camel_data_cache_remove (gw_folder->cache, "cache", id, NULL);
 								g_object_unref (cache_stream);
 						}
@@ -2063,7 +2063,7 @@ groupwise_folder_item_to_msg( CamelFolder *folder,
 	msg = camel_mime_message_new ();
 	if (has_mime_822 && body) {
 		temp_stream = camel_stream_mem_new_with_buffer (body, body_len);
-		if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) msg, temp_stream) == -1) {
+		if (camel_data_wrapper_construct_from_stream ((CamelDataWrapper *) msg, temp_stream, error) == -1) {
 			g_object_unref (msg);
 			g_object_unref (temp_stream);
 			msg = NULL;

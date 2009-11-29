@@ -67,8 +67,9 @@ struct _CamelMimePart {
 struct _CamelMimePartClass {
 	CamelMediumClass parent_class;
 
-	/* Virtual methods */
-	gint (*construct_from_parser) (CamelMimePart *, CamelMimeParser *);
+	gint		(*construct_from_parser)(CamelMimePart *mime_part,
+						 CamelMimeParser *parser,
+						 GError **error);
 };
 
 GType camel_mime_part_get_type (void);
@@ -107,7 +108,7 @@ CamelContentType  *camel_mime_part_get_content_type	(CamelMimePart *mime_part);
 GQueue *	camel_mime_part_get_raw_headers	(CamelMimePart *mime_part);
 
 /* construction */
-gint		camel_mime_part_construct_from_parser  (CamelMimePart *mime_part, CamelMimeParser *parser);
+gint		camel_mime_part_construct_from_parser  (CamelMimePart *mime_part, CamelMimeParser *parser, GError **error);
 
 /* utility functions */
 void	camel_mime_part_set_content	       (CamelMimePart *mime_part,

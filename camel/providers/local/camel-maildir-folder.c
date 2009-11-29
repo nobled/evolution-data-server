@@ -194,12 +194,13 @@ maildir_append_message (CamelFolder *folder,
 
 	/* write it out to tmp, use the uid we got from the summary */
 	name = g_strdup_printf ("%s/tmp/%s", lf->folder_path, camel_message_info_uid(mi));
-	output_stream = camel_stream_fs_new_with_name (name, O_WRONLY|O_CREAT, 0600);
+	output_stream = camel_stream_fs_new_with_name (
+		name, O_WRONLY|O_CREAT, 0600, error);
 	if (output_stream == NULL)
 		goto fail_write;
 
-	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *)message, output_stream) == -1
-	    || camel_stream_close (output_stream) == -1)
+	if (camel_data_wrapper_write_to_stream ((CamelDataWrapper *)message, output_stream, error) == -1
+	    || camel_stream_close (output_stream, error) == -1)
 		goto fail_write;
 
 	/* now move from tmp to cur (bypass new, does it matter?) */
@@ -316,29 +317,18 @@ maildir_get_message (CamelFolder *folder,
 
 	camel_message_info_free(info);
 
-	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0)) == NULL) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Cannot get message: %s from folder %s\n  %s"),
-			uid, lf->folder_path, g_strerror(errno));
+	if ((message_stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0, error)) == NULL) {
+		g_prefix_error (
+			error, _("Cannot get message: %s from "
+			"folder %s\n  "), uid, lf->folder_path);
 		goto fail;
 	}
 
 	message = camel_mime_message_new();
-	if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)message, message_stream) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_USER_CANCEL,
-				_("Cannot get message: %s from folder %s\n  %s"),
-				uid, lf->folder_path, _("Invalid message contents"));
-		else
-			g_set_error (
-				error, CAMEL_ERROR,
-				CAMEL_ERROR_SYSTEM,
-				_("Cannot get message: %s from folder %s\n  %s"),
-				uid, lf->folder_path, _("Invalid message contents"));
+	if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)message, message_stream, error) == -1) {
+		g_prefix_error (
+			error, _("Cannot get message: %s from "
+			"folder %s\n  "), uid, lf->folder_path);
 		g_object_unref (message);
 		message = NULL;
 

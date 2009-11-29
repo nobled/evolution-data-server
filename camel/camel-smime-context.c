@@ -81,7 +81,7 @@ static gpointer parent_class;
 static void
 sm_write_stream (gpointer arg, const gchar *buf, gulong len)
 {
-	camel_stream_write ((CamelStream *)arg, buf, len);
+	camel_stream_write ((CamelStream *)arg, buf, len, NULL);
 }
 
 static PK11SymKey *
@@ -547,7 +547,7 @@ sm_verify_cmsg (CamelCipherContext *context,
 
 			buffer = g_byte_array_new ();
 			mem = camel_stream_mem_new_with_byte_array (buffer);
-			camel_stream_write_to_stream (extstream, mem);
+			camel_stream_write_to_stream (extstream, mem, NULL);
 			NSS_CMSDigestContext_Update (digcx, buffer->data, buffer->len);
 			g_object_unref (mem);
 
@@ -725,15 +725,13 @@ smime_context_sign (CamelCipherContext *context,
 	buffer = g_byte_array_new ();
 	istream = camel_stream_mem_new_with_byte_array (buffer);
 
-	if (camel_cipher_canonical_to_stream (ipart,
-					     CAMEL_MIME_FILTER_CANON_STRIP
-					     |CAMEL_MIME_FILTER_CANON_CRLF
-					     |CAMEL_MIME_FILTER_CANON_FROM, istream) == -1) {
-		g_set_error (
-			error, G_FILE_ERROR,
-			g_file_error_from_errno (errno),
-			_("Could not generate signing data: %s"),
-			g_strerror (errno));
+	if (camel_cipher_canonical_to_stream (
+		ipart, CAMEL_MIME_FILTER_CANON_STRIP |
+		CAMEL_MIME_FILTER_CANON_CRLF |
+		CAMEL_MIME_FILTER_CANON_FROM,
+		istream, error) == -1) {
+		g_prefix_error (
+			error, _("Could not generate signing data: "));
 		goto fail;
 	}
 
@@ -762,8 +760,8 @@ smime_context_sign (CamelCipherContext *context,
 	res = 0;
 
 	dw = camel_data_wrapper_new ();
-	camel_stream_reset (ostream);
-	camel_data_wrapper_construct_from_stream (dw, ostream);
+	camel_stream_reset (ostream, NULL);
+	camel_data_wrapper_construct_from_stream (dw, ostream, NULL);
 	dw->encoding = CAMEL_TRANSFER_ENCODING_BINARY;
 
 	if (((CamelSMIMEContext *)context)->priv->sign_mode == CAMEL_SMIME_SIGN_CLEARSIGN) {
@@ -792,7 +790,7 @@ smime_context_sign (CamelCipherContext *context,
 
 		mps->signature = sigpart;
 		mps->contentraw = istream;
-		camel_stream_reset (istream);
+		camel_stream_reset (istream, NULL);
 		g_object_ref (istream);
 
 		camel_medium_set_content ((CamelMedium *)opart, (CamelDataWrapper *)mps);
@@ -888,7 +886,9 @@ smime_context_verify (CamelCipherContext *context,
 				   NULL, NULL,	/* password callback    */
 				   NULL, NULL); /* decrypt key callback */
 
-	camel_data_wrapper_decode_to_stream (camel_medium_get_content ((CamelMedium *)sigpart), mem);
+	camel_data_wrapper_decode_to_stream (
+		camel_medium_get_content (CAMEL_MEDIUM (sigpart)),
+		mem, NULL);
 	(void)NSS_CMSDecoder_Update (dec, (gchar *) buffer->data, buffer->len);
 	cmsg = NSS_CMSDecoder_Finish (dec);
 	if (cmsg == NULL) {
@@ -1033,7 +1033,7 @@ smime_context_encrypt (CamelCipherContext *context,
 	/* FIXME: Canonicalise the input? */
 	buffer = g_byte_array_new ();
 	mem = camel_stream_mem_new_with_byte_array (buffer);
-	camel_data_wrapper_write_to_stream ((CamelDataWrapper *)ipart, mem);
+	camel_data_wrapper_write_to_stream ((CamelDataWrapper *)ipart, mem, NULL);
 	if (NSS_CMSEncoder_Update (enc, (gchar *) buffer->data, buffer->len) != SECSuccess) {
 		NSS_CMSEncoder_Cancel (enc);
 		g_object_unref (mem);
@@ -1054,7 +1054,7 @@ smime_context_encrypt (CamelCipherContext *context,
 	PORT_FreeArena (poolp, PR_FALSE);
 
 	dw = camel_data_wrapper_new ();
-	camel_data_wrapper_construct_from_stream (dw, ostream);
+	camel_data_wrapper_construct_from_stream (dw, ostream, NULL);
 	g_object_unref (ostream);
 	dw->encoding = CAMEL_TRANSFER_ENCODING_BINARY;
 
@@ -1114,8 +1114,8 @@ smime_context_decrypt (CamelCipherContext *context,
 	/* FIXME: stream this to the decoder incrementally */
 	buffer = g_byte_array_new ();
 	istream = camel_stream_mem_new_with_byte_array (buffer);
-	camel_data_wrapper_decode_to_stream (camel_medium_get_content ((CamelMedium *)ipart), istream);
-	camel_stream_reset (istream);
+	camel_data_wrapper_decode_to_stream (camel_medium_get_content ((CamelMedium *)ipart), istream, NULL);
+	camel_stream_reset (istream, NULL);
 
 	dec = NSS_CMSDecoder_Start (NULL,
 				   sm_write_stream, ostream, /* content callback     */
@@ -1144,11 +1144,11 @@ smime_context_decrypt (CamelCipherContext *context,
 	}
 #endif
 
-	camel_stream_reset (ostream);
-	camel_data_wrapper_construct_from_stream ((CamelDataWrapper *)opart, ostream);
+	camel_stream_reset (ostream, NULL);
+	camel_data_wrapper_construct_from_stream ((CamelDataWrapper *)opart, ostream, NULL);
 
 	if (NSS_CMSMessage_IsSigned (cmsg)) {
-		camel_stream_reset (ostream);
+		camel_stream_reset (ostream, NULL);
 		valid = sm_verify_cmsg (context, cmsg, ostream, error);
 	} else {
 		valid = camel_cipher_validity_new ();
@@ -1275,8 +1275,8 @@ camel_smime_context_describe_part (CamelSMIMEContext *context, CamelMimePart *pa
 		/* FIXME: stream this to the decoder incrementally */
 		buffer = g_byte_array_new ();
 		istream = camel_stream_mem_new_with_byte_array (buffer);
-		camel_data_wrapper_decode_to_stream (camel_medium_get_content ((CamelMedium *)part), istream);
-		camel_stream_reset (istream);
+		camel_data_wrapper_decode_to_stream (camel_medium_get_content ((CamelMedium *)part), istream, NULL);
+		camel_stream_reset (istream, NULL);
 
 		dec = NSS_CMSDecoder_Start (NULL,
 					   NULL, NULL,

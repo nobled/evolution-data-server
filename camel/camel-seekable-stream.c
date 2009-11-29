@@ -30,7 +30,8 @@
 static gpointer parent_class;
 
 static gint
-seekable_stream_reset (CamelStream *stream)
+seekable_stream_reset (CamelStream *stream,
+                       GError **error)
 {
 	CamelSeekableStream *seekable_stream;
 
@@ -38,7 +39,7 @@ seekable_stream_reset (CamelStream *stream)
 
 	return camel_seekable_stream_seek (
 		seekable_stream, seekable_stream->bound_start,
-		CAMEL_STREAM_SET);
+		CAMEL_STREAM_SET, error);
 }
 
 static off_t
@@ -50,7 +51,8 @@ seekable_stream_tell (CamelSeekableStream *stream)
 static gint
 seekable_stream_set_bounds (CamelSeekableStream *stream,
                             off_t start,
-                            off_t end)
+                            off_t end,
+                            GError **error)
 {
 	/* store the bounds */
 	stream->bound_start = start;
@@ -58,7 +60,7 @@ seekable_stream_set_bounds (CamelSeekableStream *stream,
 
 	if (start > stream->position)
 		return camel_seekable_stream_seek (
-			stream, start, CAMEL_STREAM_SET);
+			stream, start, CAMEL_STREAM_SET, error);
 
 	return 0;
 }
@@ -107,6 +109,7 @@ camel_seekable_stream_get_type (void)
  * @stream: a #CamelStream object
  * @offset: offset value
  * @policy: what to do with the offset
+ * @error: return location for a #GError, or %NULL
  *
  * Seek to the specified position in @stream.
  *
@@ -127,7 +130,8 @@ camel_seekable_stream_get_type (void)
 off_t
 camel_seekable_stream_seek (CamelSeekableStream *stream,
                             off_t offset,
-                            CamelStreamSeekPolicy policy)
+                            CamelStreamSeekPolicy policy,
+                            GError **error)
 {
 	CamelSeekableStreamClass *class;
 
@@ -136,7 +140,7 @@ camel_seekable_stream_seek (CamelSeekableStream *stream,
 	class = CAMEL_SEEKABLE_STREAM_GET_CLASS (stream);
 	g_return_val_if_fail (class->seek != NULL, -1);
 
-	return class->seek (stream, offset, policy);
+	return class->seek (stream, offset, policy, error);
 }
 
 /**
@@ -165,6 +169,7 @@ camel_seekable_stream_tell (CamelSeekableStream *stream)
  * @stream: a #CamelSeekableStream object
  * @start: the first valid position
  * @end: the first invalid position, or #CAMEL_STREAM_UNBOUND
+ * @error: return location for a #GError, or %NULL
  *
  * Set the range of valid data this stream is allowed to cover.  If
  * there is to be no @end value, then @end should be set to
@@ -175,7 +180,8 @@ camel_seekable_stream_tell (CamelSeekableStream *stream)
 gint
 camel_seekable_stream_set_bounds (CamelSeekableStream *stream,
                                   off_t start,
-                                  off_t end)
+                                  off_t end,
+                                  GError **error)
 {
 	CamelSeekableStreamClass *class;
 
@@ -185,5 +191,5 @@ camel_seekable_stream_set_bounds (CamelSeekableStream *stream,
 	class = CAMEL_SEEKABLE_STREAM_GET_CLASS (stream);
 	g_return_val_if_fail (class->set_bounds != NULL, -1);
 
-	return class->set_bounds (stream, start, end);
+	return class->set_bounds (stream, start, end, error);
 }

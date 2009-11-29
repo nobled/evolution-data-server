@@ -4384,8 +4384,9 @@ summary_build_content_info_message(CamelFolderSummary *s, CamelMessageInfo *msgi
 			CAMEL_STREAM_FILTER (p->filter_stream),
 			p->filter_index);
 
-		camel_data_wrapper_decode_to_stream(containee, p->filter_stream);
-		camel_stream_flush(p->filter_stream);
+		camel_data_wrapper_decode_to_stream (
+			containee, p->filter_stream, NULL);
+		camel_stream_flush(p->filter_stream, NULL);
 
 		camel_stream_filter_remove (
 			CAMEL_STREAM_FILTER (p->filter_stream), idx_id);

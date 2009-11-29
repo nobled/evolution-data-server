@@ -139,7 +139,7 @@ struct _header_scan_filter {
 static void folder_scan_step(struct _header_scan_state *s, gchar **databuffer, gsize *datalength);
 static void folder_scan_drop_step(struct _header_scan_state *s);
 static gint folder_scan_init_with_fd(struct _header_scan_state *s, gint fd);
-static gint folder_scan_init_with_stream(struct _header_scan_state *s, CamelStream *stream);
+static gint folder_scan_init_with_stream(struct _header_scan_state *s, CamelStream *stream, GError **error);
 static struct _header_scan_state *folder_scan_init(void);
 static void folder_scan_close(struct _header_scan_state *s);
 static struct _header_scan_stack *folder_scan_content(struct _header_scan_state *s, gint *lastone, gchar **data, gsize *length);
@@ -452,6 +452,7 @@ camel_mime_parser_init_with_fd(CamelMimeParser *m, gint fd)
  * camel_mime_parser_init_with_stream:
  * @m:
  * @stream:
+ * @error: return location for a #GError, or %NULL
  *
  * Initialise the scanner with a source stream.  The scanner's
  * offsets will be relative to the current file position of
@@ -461,11 +462,13 @@ camel_mime_parser_init_with_fd(CamelMimeParser *m, gint fd)
  * Return value: -1 on error.
  **/
 gint
-camel_mime_parser_init_with_stream(CamelMimeParser *m, CamelStream *stream)
+camel_mime_parser_init_with_stream (CamelMimeParser *parser,
+                                    CamelStream *stream,
+                                    GError **error)
 {
-	struct _header_scan_state *s = _PRIVATE(m);
+	struct _header_scan_state *s = _PRIVATE (parser);
 
-	return folder_scan_init_with_stream(s, stream);
+	return folder_scan_init_with_stream (s, stream, error);
 }
 
 /**
@@ -895,7 +898,7 @@ folder_read(struct _header_scan_state *s)
 		memmove(s->inbuf, s->inptr, inoffset);
 	}
 	if (s->stream) {
-		len = camel_stream_read(s->stream, s->inbuf+inoffset, SCAN_BUF-inoffset);
+		len = camel_stream_read(s->stream, s->inbuf+inoffset, SCAN_BUF-inoffset, NULL);
 	} else {
 		len = read(s->fd, s->inbuf+inoffset, SCAN_BUF-inoffset);
 	}
@@ -942,7 +945,9 @@ folder_seek(struct _header_scan_state *s, off_t offset, gint whence)
 		if (CAMEL_IS_SEEKABLE_STREAM(s->stream)) {
 			/* NOTE: assumes whence seekable stream == whence libc, which is probably
 			   the case (or bloody well should've been) */
-			newoffset = camel_seekable_stream_seek((CamelSeekableStream *)s->stream, offset, whence);
+			newoffset = camel_seekable_stream_seek (
+				CAMEL_SEEKABLE_STREAM (s->stream),
+				offset, whence, NULL);
 		} else {
 			newoffset = -1;
 			errno = EINVAL;
@@ -1469,7 +1474,9 @@ folder_scan_init_with_fd(struct _header_scan_state *s, gint fd)
 }
 
 static gint
-folder_scan_init_with_stream(struct _header_scan_state *s, CamelStream *stream)
+folder_scan_init_with_stream (struct _header_scan_state *s,
+                              CamelStream *stream,
+                              GError **error)
 {
 	folder_scan_reset(s);
 	s->stream = stream;

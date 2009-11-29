@@ -49,6 +49,7 @@
 #include <certdb.h>
 #include <pk11func.h>
 
+#include <gio/gio.h>
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
@@ -69,14 +70,14 @@
 
 static gpointer parent_class;
 
-static gssize stream_read (CamelStream *stream, gchar *buffer, gsize n);
-static gssize stream_write (CamelStream *stream, const gchar *buffer, gsize n);
-static gint stream_flush  (CamelStream *stream);
-static gint stream_close  (CamelStream *stream);
+static gssize stream_read (CamelStream *stream, gchar *buffer, gsize n, GError **error);
+static gssize stream_write (CamelStream *stream, const gchar *buffer, gsize n, GError **error);
+static gint stream_flush  (CamelStream *stream, GError **error);
+static gint stream_close  (CamelStream *stream, GError **error);
 
 static PRFileDesc *enable_ssl (CamelTcpStreamSSL *ssl, PRFileDesc *fd);
 
-static gint stream_connect    (CamelTcpStream *stream, struct addrinfo *host);
+static gint stream_connect    (CamelTcpStream *stream, struct addrinfo *host, GError **error);
 static gint stream_getsockopt (CamelTcpStream *stream, CamelSockOptData *data);
 static gint stream_setsockopt (CamelTcpStream *stream, const CamelSockOptData *data);
 static struct sockaddr *stream_get_local_address (CamelTcpStream *stream, socklen_t *len);
@@ -343,13 +344,17 @@ camel_tcp_stream_ssl_enable_ssl (CamelTcpStreamSSL *ssl)
 }
 
 static gssize
-stream_read (CamelStream *stream, gchar *buffer, gsize n)
+stream_read (CamelStream *stream, gchar *buffer, gsize n, GError **error)
 {
 	CamelTcpStreamSSL *tcp_stream_ssl = CAMEL_TCP_STREAM_SSL (stream);
 	PRFileDesc *cancel_fd;
 	gssize nread;
 
 	if (camel_operation_cancel_check (NULL)) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_CANCELLED,
+			_("Cancelled read"));
 		errno = EINTR;
 		return -1;
 	}
@@ -426,13 +431,20 @@ stream_read (CamelStream *stream, gchar *buffer, gsize n)
 }
 
 static gssize
-stream_write (CamelStream *stream, const gchar *buffer, gsize n)
+stream_write (CamelStream *stream,
+              const gchar *buffer,
+              gsize n,
+              GError **error)
 {
 	CamelTcpStreamSSL *tcp_stream_ssl = CAMEL_TCP_STREAM_SSL (stream);
 	gssize w, written = 0;
 	PRFileDesc *cancel_fd;
 
 	if (camel_operation_cancel_check (NULL)) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_CANCELLED,
+			_("Cancelled write"));
 		errno = EINTR;
 		return -1;
 	}
@@ -514,23 +526,34 @@ stream_write (CamelStream *stream, const gchar *buffer, gsize n)
 		errno = error;
 	}
 
-	if (w == -1)
+	if (errno != 0) {
+		g_set_error (
+			error, G_IO_ERROR,
+			g_io_error_from_errno (errno),
+			"%s", g_strerror (errno));
 		return -1;
+	}
 
 	return written;
 }
 
 static gint
-stream_flush (CamelStream *stream)
+stream_flush (CamelStream *stream,
+              GError **error)
 {
 	/*return PR_Sync (((CamelTcpStreamSSL *)stream)->priv->sockfd);*/
 	return 0;
 }
 
 static gint
-stream_close (CamelStream *stream)
+stream_close (CamelStream *stream,
+              GError **error)
 {
 	if (((CamelTcpStreamSSL *)stream)->priv->sockfd == NULL) {
+		g_set_error (
+			error, G_IO_ERROR,
+			G_IO_ERROR_INVALID_ARGUMENT,
+			_("Cannot close SSL stream"));
 		errno = EINVAL;
 		return -1;
 	}
@@ -811,13 +834,16 @@ camel_certdb_nss_cert_set(CamelCertDB *certdb, CamelCert *ccert, CERTCertificate
 	path = g_strdup_printf ("%s/%s", dir, fingerprint);
 	g_free (dir);
 
-	stream = camel_stream_fs_new_with_name (path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	stream = camel_stream_fs_new_with_name (
+		path, O_WRONLY | O_CREAT | O_TRUNC, 0600, NULL);
 	if (stream != NULL) {
-		if (camel_stream_write (stream, (const gchar *) ccert->rawcert->data, ccert->rawcert->len) == -1) {
+		if (camel_stream_write (
+			stream, (const gchar *) ccert->rawcert->data,
+			ccert->rawcert->len, NULL) == -1) {
 			g_warning ("Could not save cert: %s: %s", path, g_strerror (errno));
 			g_unlink (path);
 		}
-		camel_stream_close (stream);
+		camel_stream_close (stream, NULL);
 		g_object_unref (stream);
 	} else {
 		g_warning ("Could not save cert: %s: %s", path, g_strerror (errno));
@@ -1230,7 +1256,9 @@ socket_connect(CamelTcpStream *stream, struct addrinfo *host)
 }
 
 static gint
-stream_connect(CamelTcpStream *stream, struct addrinfo *host)
+stream_connect (CamelTcpStream *stream,
+                struct addrinfo *host,
+                GError **error)
 {
 	while (host) {
 		if (socket_connect(stream, host) == 0)

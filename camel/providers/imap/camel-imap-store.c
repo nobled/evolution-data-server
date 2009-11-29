@@ -557,7 +557,9 @@ connect_to_server (CamelService *service, struct addrinfo *ai, gint ssl_mode, GE
 		else
 			tcp_stream = camel_tcp_stream_ssl_new (service->session, service->url->host, SSL_PORT_FLAGS);
 #else
-		camel_exception_setv (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
+		g_set_error (
+			error, CAMEL_SERVICE_ERROR,
+			CAMEL_SERVICE_ERROR_UNAVAILABLE,
 			_("Could not connect to %s: %s"),
 			service->url->host, _("SSL unavailable"));
 
@@ -567,20 +569,11 @@ connect_to_server (CamelService *service, struct addrinfo *ai, gint ssl_mode, GE
 	} else
 		tcp_stream = camel_tcp_stream_raw_new ();
 
-	if (camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai) == -1) {
-		if (errno == EINTR)
-			g_set_error (
-				error, CAMEL_ERROR, CAMEL_ERROR_USER_CANCEL,
-				_("Connection cancelled"));
-		else
-			g_set_error (
-				error, G_FILE_ERROR,
-				g_file_error_from_errno (errno),
-				_("Could not connect to %s: %s"),
-				service->url->host, g_strerror (errno));
-
+	if (camel_tcp_stream_connect ((CamelTcpStream *) tcp_stream, ai, error) == -1) {
+		g_prefix_error (
+			error, _("Could not connect to %s: "),
+			service->url->host);
 		g_object_unref (tcp_stream);
-
 		return FALSE;
 	}
 
@@ -1605,13 +1598,13 @@ imap_disconnect (CamelService *service, gboolean clean, GError **error)
 	}
 
 	if (store->istream) {
-		camel_stream_close(store->istream);
+		camel_stream_close(store->istream, NULL);
 		g_object_unref (store->istream);
 		store->istream = NULL;
 	}
 
 	if (store->ostream) {
-		camel_stream_close(store->ostream);
+		camel_stream_close(store->ostream, NULL);
 		g_object_unref (store->ostream);
 		store->ostream = NULL;
 	}
@@ -3156,7 +3149,7 @@ camel_imap_store_readline (CamelImapStore *store, gchar **dest, GError **error)
 	stream = CAMEL_STREAM_BUFFER (store->istream);
 
 	ba = g_byte_array_new ();
-	while ((nread = camel_stream_buffer_gets (stream, linebuf, sizeof (linebuf))) > 0) {
+	while ((nread = camel_stream_buffer_gets (stream, linebuf, sizeof (linebuf), NULL)) > 0) {
 		g_byte_array_append (ba, (const guint8 *) linebuf, nread);
 		if (linebuf[nread - 1] == '\n')
 			break;
