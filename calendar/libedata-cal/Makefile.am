@@ -110,6 +110,7 @@ e_calendar_factory_CPPFLAGS = \
 	$(LIBICAL_CFLAGS)				\
 	$(EVOLUTION_CALENDAR_CFLAGS)
 e_calendar_factory_LDADD =				\
+	$(EVOLUTION_CALENDAR_LIBS)                      \
 	$(builddir)/libedata-cal-1.2.la			\
 	$(top_builddir)/libebackend/libebackend-1.2.la
 
