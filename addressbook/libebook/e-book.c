@@ -31,7 +31,6 @@
 #include "e-error.h"
 #include "e-contact.h"
 #include "e-book-view-private.h"
-#include "e-data-book-factory-bindings.h"
 #include "e-data-book-factory-gdbus-bindings.h"
 #include "e-data-book-bindings.h"
 #include "libedata-book/e-data-book-types.h"
