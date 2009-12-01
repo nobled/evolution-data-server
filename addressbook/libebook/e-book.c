@@ -2217,7 +2217,7 @@ e_book_new (ESource *source, GError **error)
 	xml = e_source_to_standalone_xml (source);
 
 	LOCK_CONN ();
-	if (!e_data_book_factory_gdbus_get_book (factory_proxy_gdbus, xml, &path, &err)) {
+	if (!e_data_book_factory_gdbus_get_book_sync (factory_proxy_gdbus, xml, &path, &err)) {
 		UNLOCK_CONN ();
 		g_free (xml);
 		g_warning (G_STRLOC ": cannot get book from factory: %s", err ? err->message : "[no error]");

@@ -7,8 +7,7 @@ G_BEGIN_DECLS
  * when possible */
 
 static gboolean
-e_data_book_factory_gdbus_get_book (GDBusProxy *proxy, const char * IN_source, char** OUT_path, GError **error)
-
+e_data_book_factory_gdbus_get_book_sync (GDBusProxy *proxy, const char * IN_source, char** OUT_path, GError **error)
 {
 	GVariant *parameters;
 	GVariant *retvals;
