@@ -246,8 +246,7 @@ e_book_activate(GError **error)
 		dbus_error_free (&derror);
 		UNLOCK_CONN ();
 
-		/* FIXME: cut this */
-		g_debug (G_STRLOC ": FAILED to start " E_DATA_BOOK_FACTORY_SERVICE_NAME);
+		g_warning (G_STRLOC ": FAILED to start " E_DATA_BOOK_FACTORY_SERVICE_NAME);
 
 		return FALSE;
 	}
@@ -272,24 +271,16 @@ e_book_activate(GError **error)
 		if (!connection_gdbus) {
 			UNLOCK_CONN ();
 
-			/* FIXME: cut this */
-			g_debug (G_STRLOC ": *** FAILED to create the factory connection gdbus");
+			g_warning (G_STRLOC ": failed to create the factory gdbus connection");
 
 			return FALSE;
 		}
-	} else {
-		/* FIXME: cut this */
-		g_debug (G_STRLOC ": *** already have a factory connection gdbus");
 	}
 
-	/* FIXME: it may be insufficient to create this; we probably have to
-	 * watch it to see if it dies. There's gdbusproxywatch for that */
-
-	/* FIXME: we don't need properties from this object, but what if we do
-	 * from others? -- maybe it's handled automatically if any properties
-	 * actually are defined? */
-	/* FIXME: same for signals - this doesn't have any, but what about the
-	 * other objects (which do have signals)? */
+	/* XXX: it's a bug in gdbus that we need to specify not to track
+	 * properties and signals (otherwise we can't create the proxy -- we'll
+	 * see if it works properly for D-Bus objects that do have properties or
+	 * signals) */
 	if (!factory_proxy_gdbus) {
 		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
 								G_TYPE_DBUS_PROXY,
@@ -302,16 +293,12 @@ e_book_activate(GError **error)
 		if (!factory_proxy_gdbus) {
 			UNLOCK_CONN ();
 
-			/* FIXME: cut this */
-			g_debug (G_STRLOC ": *** FAILED TO create the factory proxy gdbus, %s", (*error)->message);
+			g_warning (G_STRLOC ": failed to create the factory gdbus proxy, %s", (*error)->message);
 
 			return FALSE;
 		}
 
 		g_object_add_weak_pointer (G_OBJECT (factory_proxy_gdbus), (gpointer)&factory_proxy_gdbus);
-	} else {
-		/* FIXME: cut this */
-		g_debug (G_STRLOC ": *** already have a factory proxy gdbus");
 	}
 
 	UNLOCK_CONN ();
