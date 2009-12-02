@@ -32,7 +32,9 @@
 #include "e-contact.h"
 #include "e-book-view-private.h"
 #include "e-data-book-factory-gdbus-bindings.h"
+/* FIXME: cut this out */
 #include "e-data-book-bindings.h"
+#include "e-data-book-gdbus-bindings.h"
 #include "libedata-book/e-data-book-types.h"
 #include "e-book-marshal.h"
 
@@ -60,6 +62,7 @@ struct _EBookPrivate {
 	ESource *source;
 	gchar *uri;
 	DBusGProxy *proxy;
+	GDBusProxy *gdbus_proxy;
 	gboolean loaded;
 	gboolean writable;
 	gboolean connected;
@@ -110,6 +113,7 @@ proxy_destroyed (gpointer data, GObject *object)
 	LOCK_CONN ();
 	factory_proxy = NULL;
 	book->priv->proxy = NULL;
+	book->priv->gdbus_proxy = NULL;
 	UNLOCK_CONN ();
 
 	g_signal_emit (G_OBJECT (book), e_book_signals [BACKEND_DIED], 0);
@@ -123,11 +127,21 @@ e_book_dispose (GObject *object)
 	book->priv->loaded = FALSE;
 
 	if (book->priv->proxy) {
-		g_object_weak_unref (G_OBJECT (book->priv->proxy), proxy_destroyed, book);
 		LOCK_CONN ();
 		org_gnome_evolution_dataserver_addressbook_Book_close (book->priv->proxy, NULL);
 		g_object_unref (book->priv->proxy);
 		book->priv->proxy = NULL;
+		UNLOCK_CONN ();
+	}
+	if (book->priv->gdbus_proxy) {
+		g_object_weak_unref (G_OBJECT (book->priv->gdbus_proxy), proxy_destroyed, book);
+
+		LOCK_CONN ();
+		/* FIXME: do this with the new bindings
+		e_data_book_gdbus_close_sync (book->priv->gdbus_proxy, NULL);
+		*/
+		g_object_unref (book->priv->gdbus_proxy);
+		book->priv->gdbus_proxy = NULL;
 		UNLOCK_CONN ();
 	}
 	if (book->priv->source) {
@@ -210,6 +224,7 @@ e_book_init (EBook *book)
 	priv->source = NULL;
 	priv->uri = NULL;
 	priv->proxy = NULL;
+	priv->gdbus_proxy = NULL;
 	priv->loaded = FALSE;
 	priv->writable = FALSE;
 	priv->connected = FALSE;
@@ -277,6 +292,7 @@ e_book_activate(GError **error)
 		}
 	}
 
+	/* FIXME: watch for changes to this proxy */
 	/* XXX: it's a bug in gdbus that we need to specify not to track
 	 * properties and signals (otherwise we can't create the proxy -- we'll
 	 * see if it works properly for D-Bus objects that do have properties or
@@ -1654,7 +1670,7 @@ e_book_open (EBook     *book,
 	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_addressbook_Book_open (book->priv->proxy, only_if_exists, &err)) {
+	if (!e_data_book_gdbus_open_sync (book->priv->gdbus_proxy, only_if_exists, &err)) {
 		UNLOCK_CONN ();
 		g_propagate_error (error, err);
 		return FALSE;
@@ -1673,7 +1689,9 @@ e_book_open (EBook     *book,
 }
 
 static void
-open_reply(DBusGProxy *proxy, GError *error, gpointer user_data)
+open_reply (GDBusProxy *proxy,
+	    GError     *error,
+	    gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -1719,7 +1737,7 @@ e_book_async_open (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_open_async (book->priv->proxy, only_if_exists, open_reply, data);
+	e_data_book_gdbus_open (book->priv->gdbus_proxy, only_if_exists, open_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
@@ -2213,11 +2231,19 @@ e_book_new (ESource *source, GError **error)
 	}
 	g_free (xml);
 
-	/* FIXME: switch this over to g_dbus */
 	book->priv->proxy = dbus_g_proxy_new_for_name_owner (connection,
 							     E_DATA_BOOK_FACTORY_SERVICE_NAME, path,
 							     "org.gnome.evolution.dataserver.addressbook.Book",
 							     &err);
+
+	/* FIXME: cut out the ignoring of signals and properties */
+	book->priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
+							G_TYPE_DBUS_PROXY,
+							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+							E_DATA_BOOK_FACTORY_SERVICE_NAME, path,
+							"org.gnome.evolution.dataserver.addressbook.Book",
+							NULL,
+							&err);
 	UNLOCK_CONN ();
 
 	if (!book->priv->proxy) {
@@ -2227,10 +2253,20 @@ e_book_new (ESource *source, GError **error)
 		g_object_unref (book);
 		return NULL;
 	}
+	if (!book->priv->gdbus_proxy) {
+		g_warning (G_STRLOC ": cannot get gdbus proxy for book %s: %s", path, err->message);
+		g_propagate_error (error, err);
+		g_free (path);
+		g_object_unref (book);
+		return NULL;
+	}
 	g_free (path);
 
-	g_object_weak_ref (G_OBJECT (book->priv->proxy), proxy_destroyed, book);
+	g_object_weak_ref (G_OBJECT (book->priv->gdbus_proxy), proxy_destroyed, book);
 
+	/* FIXME: add the equivalent of these for the gdbus_proxy, which mostly
+	 * involves listening to its g-dbus-signals property and reacting
+	 * accordingly (with the contents of these callbacks, multiplexed) */
 	dbus_g_proxy_add_signal (book->priv->proxy, "writable", G_TYPE_BOOLEAN, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal (book->priv->proxy, "writable", G_CALLBACK (writable_cb), book, NULL);
 	dbus_g_proxy_add_signal (book->priv->proxy, "connection", G_TYPE_BOOLEAN, G_TYPE_INVALID);

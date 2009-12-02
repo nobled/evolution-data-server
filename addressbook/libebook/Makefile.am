@@ -26,6 +26,7 @@ libebook_1_2_la_SOURCES =				\
 	e-book.c					\
 	e-contact.c					\
 	e-data-book-factory-gdbus-bindings.h            \
+	e-data-book-gdbus-bindings.h                    \
 	e-destination.c					\
 	e-name-western.c				\
 	e-name-western-tables.h                         \
@@ -62,6 +63,7 @@ e-name-western-tables.h: e-name-western-tables.h.in
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libebook-$(API_VERSION).pc
 
+# FIXME: cut out e-data-book-bindings.h
 DBUS_GENERATED_H = e-data-book-bindings.h e-data-book-view-bindings.h
 %-bindings.h: $(top_srcdir)/addressbook/libedata-book/%.xml
 	dbus-binding-tool --mode=glib-client --output=$@ --prefix=$(subst -,_,$*) $^
