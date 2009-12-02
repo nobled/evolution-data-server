@@ -1763,14 +1763,16 @@ e_book_remove (EBook   *book,
 	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove (book->priv->proxy, &err);
+	e_data_book_gdbus_remove_sync (book->priv->gdbus_proxy, &err);
 	UNLOCK_CONN ();
 
 	return unwrap_gerror (err, error);
 }
 
 static void
-remove_reply(DBusGProxy *proxy, GError *error, gpointer user_data)
+remove_reply (GDBusProxy *proxy,
+	      GError *error,
+	      gpointer user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -1808,7 +1810,7 @@ e_book_async_remove (EBook   *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove_async (book->priv->proxy, remove_reply, data);
+	e_data_book_gdbus_remove (book->priv->gdbus_proxy, remove_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
