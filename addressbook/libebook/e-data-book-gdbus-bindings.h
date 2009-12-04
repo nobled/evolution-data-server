@@ -242,5 +242,88 @@ e_data_book_gdbus_get_contact (GDBusProxy                          *proxy,
         g_dbus_proxy_invoke_method (proxy, "getContact", parameters, -1, NULL, (GAsyncReadyCallback) get_contact_cb, closure);
 }
 
+static gboolean
+add_contact_demarshal_retvals (GVariant *retvals, char **OUT_uid)
+{
+        gboolean success = TRUE;
+
+        if (retvals) {
+                const char *uid = NULL;
+
+                g_variant_get (retvals, "(s)", &uid);
+                if (uid) {
+                        *OUT_uid = g_strdup (uid);
+                } else {
+                        success = FALSE;
+                }
+
+                g_variant_unref (retvals);
+        } else {
+                success = FALSE;
+        }
+
+        return success;
+}
+
+static gboolean
+e_data_book_gdbus_add_contact_sync (GDBusProxy  *proxy,
+				    const char  *IN_vcard,
+				    char       **OUT_uid,
+			            GError     **error)
+
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(s)", IN_vcard);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "addContact", parameters, -1, NULL, error);
+
+	return add_contact_demarshal_retvals (retvals, OUT_uid);
+}
+
+typedef void (*e_data_book_gdbus_add_contact_reply) (GDBusProxy *proxy,
+						     char       *OUT_uid,
+						     GError     *error,
+						     gpointer    user_data);
+
+static void
+add_contact_cb (GDBusProxy   *proxy,
+		GAsyncResult *result,
+		gpointer      user_data)
+{
+        Closure *closure = user_data;
+        GVariant *retvals;
+        GError *error = NULL;
+        char *OUT_uid = NULL;
+
+        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        if (retvals) {
+                if (!add_contact_demarshal_retvals (retvals, &OUT_uid)) {
+                        error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'addContact'");
+                }
+        }
+
+        (*(e_data_book_gdbus_add_contact_reply) closure->cb) (proxy, OUT_uid, error, closure->user_data);
+        closure_free (closure);
+}
+
+static void
+e_data_book_gdbus_add_contact (GDBusProxy                          *proxy,
+			       const char                          *IN_vcard,
+			       e_data_book_gdbus_add_contact_reply  callback,
+			       gpointer                             user_data)
+{
+        GVariant *parameters;
+        Closure *closure;
+
+        parameters = g_variant_new ("(s)", IN_vcard);
+
+        closure = g_slice_new (Closure);
+        closure->cb = G_CALLBACK (callback);
+        closure->user_data = user_data;
+
+        g_dbus_proxy_invoke_method (proxy, "addContact", parameters, -1, NULL, (GAsyncReadyCallback) add_contact_cb, closure);
+}
+
 
 G_END_DECLS

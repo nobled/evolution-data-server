@@ -373,7 +373,7 @@ e_book_add_contact (EBook           *book,
 
 	vcard = e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30);
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_add_contact (book->priv->proxy, vcard, &uid, &err);
+	e_data_book_gdbus_add_contact_sync (book->priv->gdbus_proxy, vcard, &uid, &err);
 	UNLOCK_CONN ();
 	g_free (vcard);
 	if (uid) {
@@ -384,15 +384,13 @@ e_book_add_contact (EBook           *book,
 }
 
 static void
-add_contact_reply (DBusGProxy *proxy, gchar *uid, GError *error, gpointer user_data)
+add_contact_reply (GDBusProxy *proxy,
+		   gchar      *uid,
+		   GError     *error,
+		   gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookIdCallback cb = data->callback;
-
-	/* If there is an error returned the GLib bindings currently return garbage
-	   for the OUT values. This is bad. */
-	if (error)
-		uid = NULL;
 
 	if (cb)
 		cb (data->book, get_status_from_error (error), uid, data->closure);
@@ -436,7 +434,7 @@ e_book_async_add_contact (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_add_contact_async (book->priv->proxy, vcard, add_contact_reply, data);
+	e_data_book_gdbus_add_contact (book->priv->gdbus_proxy, vcard, add_contact_reply, data);
 	UNLOCK_CONN ();
 	g_free (vcard);
 	return 0;
