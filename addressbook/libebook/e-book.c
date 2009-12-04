@@ -912,7 +912,7 @@ e_book_get_contact (EBook       *book,
 	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_contact (book->priv->proxy, id, &vcard, &err);
+	e_data_book_gdbus_get_contact_sync (book->priv->gdbus_proxy, id, &vcard, &err);
 	UNLOCK_CONN ();
 
 	if (vcard) {
@@ -923,7 +923,10 @@ e_book_get_contact (EBook       *book,
 }
 
 static void
-get_contact_reply(DBusGProxy *proxy, gchar *vcard, GError *error, gpointer user_data)
+get_contact_reply (GDBusProxy *proxy,
+		   gchar      *vcard,
+		   GError     *error,
+		   gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookContactCallback cb = data->callback;
@@ -979,7 +982,7 @@ e_book_async_get_contact (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_contact_async (book->priv->proxy, id, get_contact_reply, data);
+	e_data_book_gdbus_get_contact (book->priv->gdbus_proxy, id, get_contact_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;

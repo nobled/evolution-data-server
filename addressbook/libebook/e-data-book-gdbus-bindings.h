@@ -184,7 +184,7 @@ get_contact_demarshal_retvals (GVariant *retvals, char **OUT_vcard)
 
 static gboolean
 e_data_book_gdbus_get_contact_sync (GDBusProxy  *proxy,
-				    char       **IN_uid,
+				    const char  *IN_uid,
 				    char       **OUT_vcard,
 			            GError     **error)
 
@@ -225,10 +225,10 @@ get_contact_cb (GDBusProxy *proxy,
 }
 
 static void
-e_data_book_factory_gdbus_get_contact (GDBusProxy *proxy,
-				       const char *IN_uid,
-				       e_data_book_gdbus_get_contact_reply callback,
-				       gpointer    user_data)
+e_data_book_gdbus_get_contact (GDBusProxy                          *proxy,
+			       const char                          *IN_uid,
+			       e_data_book_gdbus_get_contact_reply  callback,
+			       gpointer                             user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -239,7 +239,7 @@ e_data_book_factory_gdbus_get_contact (GDBusProxy *proxy,
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getContact", parameters, -1, NULL, (GAsyncReadyCallback*) get_contact_cb, closure);
+        g_dbus_proxy_invoke_method (proxy, "getContact", parameters, -1, NULL, (GAsyncReadyCallback) get_contact_cb, closure);
 }
 
 
