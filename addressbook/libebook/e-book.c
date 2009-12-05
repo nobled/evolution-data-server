@@ -1383,7 +1383,7 @@ e_book_get_contacts (EBook       *book,
 
 	sexp = e_book_query_to_string (query);
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_contact_list (book->priv->proxy, sexp, &list, &err);
+	e_data_book_gdbus_get_contact_list_sync (book->priv->gdbus_proxy, sexp, &list, &err);
 	UNLOCK_CONN ();
 	g_free (sexp);
 	if (!err) {
@@ -1401,7 +1401,10 @@ e_book_get_contacts (EBook       *book,
 }
 
 static void
-get_contacts_reply(DBusGProxy *proxy, gchar **vcards, GError *error, gpointer user_data)
+get_contacts_reply (GDBusProxy  *proxy,
+		    gchar      **vcards,
+		    GError      *error,
+		    gpointer     user_data)
 {
 	AsyncData *data = user_data;
 	GList *list = NULL;
@@ -1454,7 +1457,7 @@ e_book_async_get_contacts (EBook             *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_contact_list_async (book->priv->proxy, sexp, get_contacts_reply, data);
+	e_data_book_gdbus_get_contact_list (book->priv->gdbus_proxy, sexp, get_contacts_reply, data);
 	UNLOCK_CONN ();
 	g_free (sexp);
 	return 0;
