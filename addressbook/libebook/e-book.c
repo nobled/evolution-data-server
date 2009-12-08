@@ -1012,14 +1012,16 @@ e_book_remove_contact (EBook       *book,
 	l[1] = NULL;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove_contacts (book->priv->proxy, l, &err);
+	e_data_book_gdbus_remove_contacts_sync (book->priv->gdbus_proxy, l, &err);
 	UNLOCK_CONN ();
 
 	return unwrap_gerror (err, error);
 }
 
 static void
-remove_contact_reply (DBusGProxy *proxy, GError *error, gpointer user_data)
+remove_contact_reply (GDBusProxy *proxy,
+		      GError     *error,
+		      gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -1059,7 +1061,7 @@ e_book_remove_contacts (EBook    *book,
 	l = flatten_stringlist (ids);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove_contacts (book->priv->proxy, (const gchar **) l, &err);
+	e_data_book_gdbus_remove_contacts_sync (book->priv->gdbus_proxy, (const gchar **) l, &err);
 	UNLOCK_CONN ();
 
 	g_free (l);
@@ -1100,14 +1102,16 @@ e_book_async_remove_contact (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove_contacts_async (book->priv->proxy, l, remove_contact_reply, data);
+	e_data_book_gdbus_remove_contacts (book->priv->gdbus_proxy, l, remove_contact_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
  }
 
 static void
-remove_contact_by_id_reply (DBusGProxy *proxy, GError *error, gpointer user_data)
+remove_contact_by_id_reply (GDBusProxy *proxy,
+		            GError     *error,
+			    gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -1152,14 +1156,16 @@ e_book_async_remove_contact_by_id (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove_contacts_async (book->priv->proxy, l, remove_contact_by_id_reply, data);
+	e_data_book_gdbus_remove_contacts (book->priv->gdbus_proxy, l, remove_contact_by_id_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
 }
 
 static void
-remove_contacts_reply (DBusGProxy *proxy, GError *error, gpointer user_data)
+remove_contacts_reply (GDBusProxy *proxy,
+		       GError     *error,
+		       gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -1195,7 +1201,7 @@ e_book_async_remove_contacts (EBook                 *book,
 	gchar **l;
 
 	e_return_async_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_async_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_async_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	if (ids == NULL) {
 		if (cb)
@@ -1211,7 +1217,7 @@ e_book_async_remove_contacts (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_remove_contacts_async (book->priv->proxy, (const gchar **) l, remove_contacts_reply, data);
+	e_data_book_gdbus_remove_contacts (book->priv->gdbus_proxy, (const gchar **) l, remove_contacts_reply, data);
 	UNLOCK_CONN ();
 
 	g_free (l);
