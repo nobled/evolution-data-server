@@ -243,6 +243,44 @@ e_data_book_gdbus_get_contact (GDBusProxy                          *proxy,
 }
 
 static gboolean
+get_static_capabilities_demarshal_retvals (GVariant *retvals, char **OUT_caps)
+{
+        gboolean success = TRUE;
+
+        if (retvals) {
+                const char *caps = NULL;
+
+                g_variant_get (retvals, "(s)", &caps);
+                if (caps) {
+                        *OUT_caps = g_strdup (caps);
+                } else {
+                        success = FALSE;
+                }
+
+                g_variant_unref (retvals);
+        } else {
+                success = FALSE;
+        }
+
+        return success;
+}
+
+static gboolean
+e_data_book_gdbus_get_static_capabilities_sync (GDBusProxy  *proxy,
+						char       **OUT_caps,
+						GError     **error)
+
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getStaticCapabilities", parameters, -1, NULL, error);
+
+	return get_static_capabilities_demarshal_retvals (retvals, OUT_caps);
+}
+
+static gboolean
 get_contact_list_demarshal_retvals (GVariant *retvals, char ***OUT_vcards)
 {
         gboolean success = TRUE;

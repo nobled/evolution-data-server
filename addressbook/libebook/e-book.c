@@ -1882,7 +1882,7 @@ e_book_get_static_capabilities (EBook   *book,
 		gchar *cap = NULL;
 
 		LOCK_CONN ();
-		if (!org_gnome_evolution_dataserver_addressbook_Book_get_static_capabilities (book->priv->proxy, &cap, error)) {
+		if (!e_data_book_gdbus_get_static_capabilities_sync (book->priv->gdbus_proxy, &cap, error)) {
 			UNLOCK_CONN ();
 			return NULL;
 		}
