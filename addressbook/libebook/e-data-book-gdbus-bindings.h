@@ -415,6 +415,76 @@ e_data_book_gdbus_add_contact (GDBusProxy                          *proxy,
 }
 
 static gboolean
+modify_contact_demarshal_retvals (GVariant *retvals)
+{
+	gboolean success = TRUE;
+
+	if (retvals)
+		g_variant_unref (retvals);
+	else
+		success = FALSE;
+
+	return success;
+}
+
+static gboolean
+e_data_book_gdbus_modify_contact_sync (GDBusProxy  *proxy,
+				       const char  *IN_vcard,
+				       GError     **error)
+
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(s)", IN_vcard);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "modifyContact", parameters, -1, NULL, error);
+
+	return modify_contact_demarshal_retvals (retvals);
+}
+
+typedef void (*e_data_book_gdbus_modify_contact_reply) (GDBusProxy *proxy,
+							GError     *error,
+							gpointer    user_data);
+
+static void
+modify_contact_cb (GDBusProxy   *proxy,
+		   GAsyncResult *result,
+		   gpointer      user_data)
+{
+        Closure *closure = user_data;
+        GVariant *retvals;
+        GError *error = NULL;
+
+        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        if (retvals) {
+                if (!modify_contact_demarshal_retvals (retvals)) {
+                        error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'modifyContact'");
+                }
+        }
+
+        (*(e_data_book_gdbus_modify_contact_reply) closure->cb) (proxy, error, closure->user_data);
+        closure_free (closure);
+}
+
+static void
+e_data_book_gdbus_modify_contact (GDBusProxy				 *proxy,
+				  const char				 *IN_vcard,
+				  e_data_book_gdbus_modify_contact_reply  callback,
+				  gpointer                                user_data)
+{
+        GVariant *parameters;
+        Closure *closure;
+
+        parameters = g_variant_new ("(s)", IN_vcard);
+
+        closure = g_slice_new (Closure);
+        closure->cb = G_CALLBACK (callback);
+        closure->user_data = user_data;
+
+        g_dbus_proxy_invoke_method (proxy, "modifyContact", parameters, -1, NULL, (GAsyncReadyCallback) modify_contact_cb, closure);
+}
+
+static gboolean
 remove_contacts_demarshal_retvals (GVariant *retvals)
 {
 	gboolean success = TRUE;

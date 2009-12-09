@@ -465,14 +465,17 @@ e_book_commit_contact (EBook           *book,
 
 	vcard = e_vcard_to_string (E_VCARD (contact), EVC_FORMAT_VCARD_30);
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_modify_contact (book->priv->proxy, vcard, &err);
+	e_data_book_gdbus_modify_contact_sync (book->priv->gdbus_proxy, vcard, &err);
+
 	UNLOCK_CONN ();
 	g_free (vcard);
 	return unwrap_gerror (err, error);
 }
 
 static void
-modify_contact_reply (DBusGProxy *proxy, GError *error, gpointer user_data)
+modify_contact_reply (GDBusProxy *proxy,
+		      GError     *error,
+		      gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -497,10 +500,10 @@ modify_contact_reply (DBusGProxy *proxy, GError *error, gpointer user_data)
  * Return value: %TRUE if the operation was started, %FALSE otherwise.
  **/
 guint
-e_book_async_commit_contact (EBook                 *book,
-			     EContact              *contact,
-			     EBookCallback          cb,
-			     gpointer               closure)
+e_book_async_commit_contact (EBook         *book,
+			     EContact      *contact,
+			     EBookCallback  cb,
+			     gpointer       closure)
 {
 	gchar *vcard;
 	AsyncData *data;
@@ -517,7 +520,7 @@ e_book_async_commit_contact (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_modify_contact_async (book->priv->proxy, vcard, modify_contact_reply, data);
+	e_data_book_gdbus_modify_contact (book->priv->gdbus_proxy, vcard, modify_contact_reply, data);
 	UNLOCK_CONN ();
 	g_free (vcard);
 	return 0;
