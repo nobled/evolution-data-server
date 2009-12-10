@@ -644,7 +644,7 @@ e_book_get_supported_fields  (EBook            *book,
 	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_supported_fields (book->priv->proxy, &list, &err);
+	e_data_book_gdbus_get_supported_fields_sync (book->priv->gdbus_proxy, &list, &err);
 	UNLOCK_CONN ();
 	if (list) {
 		*fields = array_to_stringlist (list);
@@ -655,7 +655,10 @@ e_book_get_supported_fields  (EBook            *book,
 }
 
 static void
-get_supported_fields_reply(DBusGProxy *proxy, gchar **fields, GError *error, gpointer user_data)
+get_supported_fields_reply (GDBusProxy  *proxy,
+		            gchar      **fields,
+			    GError      *error,
+			    gpointer     user_data)
 {
 	AsyncData *data = user_data;
 	EBookEListCallback cb = data->callback;
@@ -704,7 +707,7 @@ e_book_async_get_supported_fields (EBook              *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_supported_fields_async (book->priv->proxy, get_supported_fields_reply, data);
+	e_data_book_gdbus_get_supported_fields (book->priv->gdbus_proxy, get_supported_fields_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
