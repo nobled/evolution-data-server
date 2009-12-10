@@ -734,10 +734,10 @@ e_book_get_supported_auth_methods (EBook            *book,
 	gchar **list = NULL;
 
 	e_return_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_supported_auth_methods (book->priv->proxy, &list, &err);
+	e_data_book_gdbus_get_supported_auth_methods_sync (book->priv->gdbus_proxy, &list, &err);
 	UNLOCK_CONN ();
 	if (list) {
 		*auth_methods = array_to_stringlist (list);
@@ -748,7 +748,10 @@ e_book_get_supported_auth_methods (EBook            *book,
 }
 
 static void
-get_supported_auth_methods_reply(DBusGProxy *proxy, gchar **methods, GError *error, gpointer user_data)
+get_supported_auth_methods_reply (GDBusProxy  *proxy,
+				  gchar      **methods,
+				  GError      *error,
+				  gpointer     user_data)
 {
 	AsyncData *data = user_data;
 	EBookEListCallback cb = data->callback;
@@ -790,7 +793,7 @@ e_book_async_get_supported_auth_methods (EBook              *book,
 	AsyncData *data;
 
 	e_return_async_error_val_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_async_error_val_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_async_error_val_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	data = g_slice_new0 (AsyncData);
 	data->book = g_object_ref (book);
@@ -798,7 +801,7 @@ e_book_async_get_supported_auth_methods (EBook              *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_supported_auth_methods_async (book->priv->proxy, get_supported_auth_methods_reply, data);
+	e_data_book_gdbus_get_supported_auth_methods (book->priv->gdbus_proxy, get_supported_auth_methods_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;

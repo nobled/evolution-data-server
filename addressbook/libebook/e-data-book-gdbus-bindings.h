@@ -384,6 +384,63 @@ e_data_book_gdbus_get_required_fields (GDBusProxy                               
 }
 
 static gboolean
+e_data_book_gdbus_get_supported_auth_methods_sync (GDBusProxy   *proxy,
+						   char       ***OUT_methods,
+						   GError      **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getSupportedAuthMethods", parameters, -1, NULL, error);
+
+	return demarshal_retvals__STRINGVECTOR (retvals, OUT_methods);
+}
+
+typedef void (*e_data_book_gdbus_get_supported_auth_methods_reply) (GDBusProxy  *proxy,
+								    char       **OUT_methods,
+								    GError      *error,
+								    gpointer     user_data);
+
+static void
+get_supported_auth_methods_cb (GDBusProxy   *proxy,
+			       GAsyncResult *result,
+			       gpointer      user_data)
+{
+        Closure *closure = user_data;
+        GVariant *retvals;
+        GError *error = NULL;
+        char **OUT_methods = NULL;
+
+        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+	if (retvals) {
+		if (!demarshal_retvals__STRINGVECTOR (retvals, &OUT_methods)) {
+			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getSupportedAuthMethods'");
+		}
+	}
+
+	(*(e_data_book_gdbus_get_supported_auth_methods_reply) closure->cb) (proxy, OUT_methods, error, closure->user_data);
+	closure_free (closure);
+}
+
+static void
+e_data_book_gdbus_get_supported_auth_methods (GDBusProxy                                         *proxy,
+					      e_data_book_gdbus_get_supported_auth_methods_reply  callback,
+					      gpointer                                            user_data)
+{
+        GVariant *parameters;
+        Closure *closure;
+
+        parameters = g_variant_new ("()");
+
+        closure = g_slice_new (Closure);
+        closure->cb = G_CALLBACK (callback);
+        closure->user_data = user_data;
+
+        g_dbus_proxy_invoke_method (proxy, "getSupportedAuthMethods", parameters, -1, NULL, (GAsyncReadyCallback) get_supported_auth_methods_cb, closure);
+}
+
+static gboolean
 e_data_book_gdbus_get_supported_fields_sync (GDBusProxy   *proxy,
 					    char       ***OUT_fields,
 					    GError      **error)
