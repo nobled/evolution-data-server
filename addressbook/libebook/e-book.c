@@ -1263,12 +1263,12 @@ e_book_get_book_view (EBook       *book,
 	gboolean ret = TRUE;
 
 	e_return_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	sexp = e_book_query_to_string (query);
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_addressbook_Book_get_book_view (book->priv->proxy, sexp, max_results, &view_path, &err)) {
+	if (!e_data_book_gdbus_get_book_view_sync (book->priv->gdbus_proxy, sexp, max_results, &view_path, &err)) {
 		UNLOCK_CONN ();
 		*book_view = NULL;
 		g_free (sexp);
@@ -1295,7 +1295,10 @@ e_book_get_book_view (EBook       *book,
 }
 
 static void
-get_book_view_reply (DBusGProxy *proxy, gchar *view_path, GError *error, gpointer user_data)
+get_book_view_reply (GDBusProxy *proxy,
+		     gchar      *view_path,
+		     GError     *error,
+		     gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	GError *err = NULL;
@@ -1354,7 +1357,7 @@ e_book_async_get_book_view (EBook                 *book,
 	gchar *sexp;
 
 	e_return_async_error_val_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_async_error_val_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_async_error_val_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 	e_return_async_error_val_if_fail (query, E_BOOK_ERROR_INVALID_ARG);
 
 	data = g_slice_new0 (AsyncData);
@@ -1365,7 +1368,7 @@ e_book_async_get_book_view (EBook                 *book,
 	sexp = e_book_query_to_string (query);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_book_view_async (book->priv->proxy, sexp, max_results, get_book_view_reply, data);
+	e_data_book_gdbus_get_book_view (book->priv->gdbus_proxy, sexp, max_results, get_book_view_reply, data);
 	UNLOCK_CONN ();
 
 	g_free (sexp);
