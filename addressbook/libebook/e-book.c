@@ -128,7 +128,6 @@ e_book_dispose (GObject *object)
 
 	if (book->priv->proxy) {
 		LOCK_CONN ();
-		org_gnome_evolution_dataserver_addressbook_Book_close (book->priv->proxy, NULL);
 		g_object_unref (book->priv->proxy);
 		book->priv->proxy = NULL;
 		UNLOCK_CONN ();
@@ -137,9 +136,7 @@ e_book_dispose (GObject *object)
 		g_object_weak_unref (G_OBJECT (book->priv->gdbus_proxy), proxy_destroyed, book);
 
 		LOCK_CONN ();
-		/* FIXME: do this with the new bindings
 		e_data_book_gdbus_close_sync (book->priv->gdbus_proxy, NULL);
-		*/
 		g_object_unref (book->priv->gdbus_proxy);
 		book->priv->gdbus_proxy = NULL;
 		UNLOCK_CONN ();

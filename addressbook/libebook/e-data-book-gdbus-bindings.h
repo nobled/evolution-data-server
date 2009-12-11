@@ -83,6 +83,20 @@ e_data_book_gdbus_open (GDBusProxy     *proxy,
 }
 
 static gboolean
+e_data_book_gdbus_close_sync (GDBusProxy      *proxy,
+			      GError         **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "close", parameters,
+							-1, NULL, error);
+
+	return demarshal_retvals__VOID (retvals);
+}
+
+static gboolean
 e_data_book_gdbus_remove_sync (GDBusProxy  *proxy,
 			       GError     **error)
 {
