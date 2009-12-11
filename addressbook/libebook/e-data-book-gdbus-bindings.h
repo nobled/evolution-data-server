@@ -82,6 +82,20 @@ demarshal_retvals__STRINGVECTOR (GVariant *retvals, char ***OUT_strv1)
         return success;
 }
 
+typedef void (*reply__VOID) (GDBusProxy *proxy,
+			     GError     *error,
+			     gpointer    user_data);
+
+typedef void (*reply__STRING) (GDBusProxy *proxy,
+			       char       *OUT_string1,
+			       GError     *error,
+			       gpointer    user_data);
+
+typedef void (*reply__STRINGVECTOR) (GDBusProxy  *proxy,
+				     char       **OUT_strv1,
+				     GError      *error,
+				     gpointer     user_data);
+
 static gboolean
 e_data_book_gdbus_open_sync (GDBusProxy      *proxy,
 		             const gboolean   IN_only_if_exists,
@@ -96,10 +110,6 @@ e_data_book_gdbus_open_sync (GDBusProxy      *proxy,
 
 	return demarshal_retvals__VOID (retvals);
 }
-
-typedef void (*e_data_book_gdbus_open_reply) (GDBusProxy *proxy,
-		                              GError     *error,
-					      gpointer    user_data);
 
 static void
 open_cb (GDBusProxy *proxy,
@@ -117,15 +127,15 @@ open_cb (GDBusProxy *proxy,
 		}
 	}
 
-	(*(e_data_book_gdbus_open_reply)closure->cb) (proxy, error, closure->user_data);
+	(*(reply__VOID)closure->cb) (proxy, error, closure->user_data);
 	closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_open (GDBusProxy                   *proxy,
-			const gboolean                IN_only_if_exists,
-			e_data_book_gdbus_open_reply  callback,
-			gpointer                      user_data)
+e_data_book_gdbus_open (GDBusProxy     *proxy,
+			const gboolean  IN_only_if_exists,
+			reply__VOID     callback,
+			gpointer        user_data)
 {
 	GVariant *parameters;
 	Closure *closure;
@@ -153,10 +163,6 @@ e_data_book_gdbus_remove_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__VOID (retvals);
 }
 
-typedef void (*e_data_book_gdbus_remove_reply) (GDBusProxy *proxy,
-						GError     *error,
-						gpointer    user_data);
-
 static void
 remove_cb (GDBusProxy   *proxy,
 	   GAsyncResult *result,
@@ -173,14 +179,14 @@ remove_cb (GDBusProxy   *proxy,
 		}
 	}
 
-	(*(e_data_book_gdbus_remove_reply)closure->cb) (proxy, error, closure->user_data);
+	(*(reply__VOID)closure->cb) (proxy, error, closure->user_data);
 	closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_remove (GDBusProxy                     *proxy,
-			  e_data_book_gdbus_remove_reply  callback,
-			  gpointer                        user_data)
+e_data_book_gdbus_remove (GDBusProxy  *proxy,
+			  reply__VOID  callback,
+			  gpointer     user_data)
 {
 	GVariant *parameters;
 	Closure *closure;
@@ -209,11 +215,6 @@ e_data_book_gdbus_get_contact_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__STRING (retvals, OUT_vcard);
 }
 
-typedef void (*e_data_book_gdbus_get_contact_reply) (GDBusProxy *proxy,
-						     char *OUT_vcard,
-						     GError *error,
-						     gpointer user_data);
-
 static void
 get_contact_cb (GDBusProxy *proxy,
 		GAsyncResult *result,
@@ -231,15 +232,15 @@ get_contact_cb (GDBusProxy *proxy,
                 }
         }
 
-        (*(e_data_book_gdbus_get_contact_reply) closure->cb) (proxy, OUT_vcard, error, closure->user_data);
+        (*(reply__STRING) closure->cb) (proxy, OUT_vcard, error, closure->user_data);
         closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_get_contact (GDBusProxy                          *proxy,
-			       const char                          *IN_uid,
-			       e_data_book_gdbus_get_contact_reply  callback,
-			       gpointer                             user_data)
+e_data_book_gdbus_get_contact (GDBusProxy    *proxy,
+			       const char    *IN_uid,
+			       reply__STRING  callback,
+			       gpointer       user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -282,11 +283,6 @@ e_data_book_gdbus_get_contact_list_sync (GDBusProxy   *proxy,
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_vcards);
 }
 
-typedef void (*e_data_book_gdbus_get_contact_list_reply) (GDBusProxy  *proxy,
-							  char       **OUT_vcards,
-							  GError      *error,
-							  gpointer     user_data);
-
 static void
 get_contact_list_cb (GDBusProxy   *proxy,
 		     GAsyncResult *result,
@@ -304,15 +300,15 @@ get_contact_list_cb (GDBusProxy   *proxy,
 		}
 	}
 
-	(*(e_data_book_gdbus_get_contact_list_reply) closure->cb) (proxy, OUT_vcards, error, closure->user_data);
+	(*(reply__STRINGVECTOR) closure->cb) (proxy, OUT_vcards, error, closure->user_data);
 	closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_get_contact_list (GDBusProxy                               *proxy,
-				    const char                               *IN_query,
-				    e_data_book_gdbus_get_contact_list_reply  callback,
-				    gpointer                                  user_data)
+e_data_book_gdbus_get_contact_list (GDBusProxy          *proxy,
+				    const char          *IN_query,
+				    reply__STRINGVECTOR  callback,
+				    gpointer             user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -340,11 +336,6 @@ e_data_book_gdbus_get_required_fields_sync (GDBusProxy   *proxy,
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_fields);
 }
 
-typedef void (*e_data_book_gdbus_get_required_fields_reply) (GDBusProxy  *proxy,
-							     char       **OUT_fields,
-							     GError      *error,
-							     gpointer     user_data);
-
 static void
 get_required_fields_cb (GDBusProxy   *proxy,
 			GAsyncResult *result,
@@ -362,14 +353,14 @@ get_required_fields_cb (GDBusProxy   *proxy,
 		}
 	}
 
-	(*(e_data_book_gdbus_get_required_fields_reply) closure->cb) (proxy, OUT_fields, error, closure->user_data);
+	(*(reply__STRINGVECTOR) closure->cb) (proxy, OUT_fields, error, closure->user_data);
 	closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_get_required_fields (GDBusProxy                                  *proxy,
-				       e_data_book_gdbus_get_required_fields_reply  callback,
-				       gpointer                                     user_data)
+e_data_book_gdbus_get_required_fields (GDBusProxy          *proxy,
+				       reply__STRINGVECTOR  callback,
+				       gpointer             user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -397,11 +388,6 @@ e_data_book_gdbus_get_supported_auth_methods_sync (GDBusProxy   *proxy,
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_methods);
 }
 
-typedef void (*e_data_book_gdbus_get_supported_auth_methods_reply) (GDBusProxy  *proxy,
-								    char       **OUT_methods,
-								    GError      *error,
-								    gpointer     user_data);
-
 static void
 get_supported_auth_methods_cb (GDBusProxy   *proxy,
 			       GAsyncResult *result,
@@ -419,14 +405,14 @@ get_supported_auth_methods_cb (GDBusProxy   *proxy,
 		}
 	}
 
-	(*(e_data_book_gdbus_get_supported_auth_methods_reply) closure->cb) (proxy, OUT_methods, error, closure->user_data);
+	(*(reply__STRINGVECTOR) closure->cb) (proxy, OUT_methods, error, closure->user_data);
 	closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_get_supported_auth_methods (GDBusProxy                                         *proxy,
-					      e_data_book_gdbus_get_supported_auth_methods_reply  callback,
-					      gpointer                                            user_data)
+e_data_book_gdbus_get_supported_auth_methods (GDBusProxy          *proxy,
+					      reply__STRINGVECTOR  callback,
+					      gpointer             user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -442,8 +428,8 @@ e_data_book_gdbus_get_supported_auth_methods (GDBusProxy                        
 
 static gboolean
 e_data_book_gdbus_get_supported_fields_sync (GDBusProxy   *proxy,
-					    char       ***OUT_fields,
-					    GError      **error)
+					     char       ***OUT_fields,
+					     GError      **error)
 {
 	GVariant *parameters;
 	GVariant *retvals;
@@ -454,15 +440,10 @@ e_data_book_gdbus_get_supported_fields_sync (GDBusProxy   *proxy,
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_fields);
 }
 
-typedef void (*e_data_book_gdbus_get_supported_fields_reply) (GDBusProxy  *proxy,
-							      char       **OUT_fields,
-							      GError      *error,
-							      gpointer     user_data);
-
 static void
 get_supported_fields_cb (GDBusProxy   *proxy,
-			GAsyncResult *result,
-			gpointer      user_data)
+			 GAsyncResult *result,
+			 gpointer      user_data)
 {
         Closure *closure = user_data;
         GVariant *retvals;
@@ -476,14 +457,14 @@ get_supported_fields_cb (GDBusProxy   *proxy,
 		}
 	}
 
-	(*(e_data_book_gdbus_get_supported_fields_reply) closure->cb) (proxy, OUT_fields, error, closure->user_data);
+	(*(reply__STRINGVECTOR) closure->cb) (proxy, OUT_fields, error, closure->user_data);
 	closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_get_supported_fields (GDBusProxy                                  *proxy,
-				       e_data_book_gdbus_get_supported_fields_reply  callback,
-				       gpointer                                      user_data)
+e_data_book_gdbus_get_supported_fields (GDBusProxy          *proxy,
+					reply__STRINGVECTOR  callback,
+					gpointer             user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -512,11 +493,6 @@ e_data_book_gdbus_add_contact_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__STRING (retvals, OUT_uid);
 }
 
-typedef void (*e_data_book_gdbus_add_contact_reply) (GDBusProxy *proxy,
-						     char       *OUT_uid,
-						     GError     *error,
-						     gpointer    user_data);
-
 static void
 add_contact_cb (GDBusProxy   *proxy,
 		GAsyncResult *result,
@@ -534,15 +510,15 @@ add_contact_cb (GDBusProxy   *proxy,
                 }
         }
 
-        (*(e_data_book_gdbus_add_contact_reply) closure->cb) (proxy, OUT_uid, error, closure->user_data);
+        (*(reply__STRING) closure->cb) (proxy, OUT_uid, error, closure->user_data);
         closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_add_contact (GDBusProxy                          *proxy,
-			       const char                          *IN_vcard,
-			       e_data_book_gdbus_add_contact_reply  callback,
-			       gpointer                             user_data)
+e_data_book_gdbus_add_contact (GDBusProxy    *proxy,
+			       const char    *IN_vcard,
+			       reply__STRING  callback,
+			       gpointer       user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -570,10 +546,6 @@ e_data_book_gdbus_modify_contact_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__VOID (retvals);
 }
 
-typedef void (*e_data_book_gdbus_modify_contact_reply) (GDBusProxy *proxy,
-							GError     *error,
-							gpointer    user_data);
-
 static void
 modify_contact_cb (GDBusProxy   *proxy,
 		   GAsyncResult *result,
@@ -590,15 +562,15 @@ modify_contact_cb (GDBusProxy   *proxy,
                 }
         }
 
-        (*(e_data_book_gdbus_modify_contact_reply) closure->cb) (proxy, error, closure->user_data);
+        (*(reply__VOID) closure->cb) (proxy, error, closure->user_data);
         closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_modify_contact (GDBusProxy				 *proxy,
-				  const char				 *IN_vcard,
-				  e_data_book_gdbus_modify_contact_reply  callback,
-				  gpointer                                user_data)
+e_data_book_gdbus_modify_contact (GDBusProxy  *proxy,
+				  const char  *IN_vcard,
+				  reply__VOID  callback,
+				  gpointer     user_data)
 {
         GVariant *parameters;
         Closure *closure;
@@ -629,10 +601,6 @@ e_data_book_gdbus_remove_contacts_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__VOID (retvals);
 }
 
-typedef void (*e_data_book_gdbus_remove_contacts_reply) (GDBusProxy *proxy,
-						         GError     *error,
-						         gpointer    user_data);
-
 static void
 remove_contacts_cb (GDBusProxy   *proxy,
 		    GAsyncResult *result,
@@ -649,15 +617,15 @@ remove_contacts_cb (GDBusProxy   *proxy,
                 }
         }
 
-        (*(e_data_book_gdbus_remove_contacts_reply) closure->cb) (proxy,  error, closure->user_data);
+        (*(reply__VOID) closure->cb) (proxy,  error, closure->user_data);
         closure_free (closure);
 }
 
 static void
-e_data_book_gdbus_remove_contacts (GDBusProxy                               *proxy,
-			           const char                              **IN_uids,
-			           e_data_book_gdbus_remove_contacts_reply   callback,
-			           gpointer                                  user_data)
+e_data_book_gdbus_remove_contacts (GDBusProxy   *proxy,
+			           const char  **IN_uids,
+			           reply__VOID   callback,
+			           gpointer      user_data)
 {
         GVariant *parameters;
         Closure *closure;
