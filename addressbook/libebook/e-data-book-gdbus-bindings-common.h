@@ -127,6 +127,11 @@ typedef void (*reply__VOID) (GDBusProxy *proxy,
                              GError     *error,
                              gpointer    user_data);
 
+typedef void (*reply__OBJPATH) (GDBusProxy *proxy,
+				char       *OUT_path1,
+				GError     *error,
+				gpointer    user_data);
+
 typedef void (*reply__STRING) (GDBusProxy *proxy,
                                char       *OUT_string1,
                                GError     *error,

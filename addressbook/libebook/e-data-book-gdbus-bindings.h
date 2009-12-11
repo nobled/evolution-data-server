@@ -619,7 +619,7 @@ get_book_view_cb (GDBusProxy *proxy,
                 }
         }
 
-        (*(reply__STRING) closure->cb) (proxy, OUT_view, error, closure->user_data);
+        (*(reply__OBJPATH) closure->cb) (proxy, OUT_view, error, closure->user_data);
         closure_free (closure);
 }
 
