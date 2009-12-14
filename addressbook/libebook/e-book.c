@@ -32,8 +32,6 @@
 #include "e-contact.h"
 #include "e-book-view-private.h"
 #include "e-data-book-factory-gdbus-bindings.h"
-/* FIXME: cut this out */
-#include "e-data-book-bindings.h"
 #include "e-data-book-gdbus-bindings.h"
 #include "libedata-book/e-data-book-types.h"
 #include "e-book-marshal.h"
@@ -828,17 +826,19 @@ e_book_authenticate_user (EBook         *book,
 	GError *err = NULL;
 
 	e_return_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_authenticate_user (book->priv->proxy, user, passwd, auth_method, &err);
+	e_data_book_gdbus_authenticate_user_sync (book->priv->gdbus_proxy, user, passwd, auth_method, &err);
 	UNLOCK_CONN ();
 
 	return unwrap_gerror (err, error);
 }
 
 static void
-authenticate_user_reply(DBusGProxy *proxy, GError *error, gpointer user_data)
+authenticate_user_reply (GDBusProxy *proxy,
+			 GError     *error,
+			 gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookCallback cb = data->callback;
@@ -867,17 +867,17 @@ authenticate_user_reply(DBusGProxy *proxy, GError *error, gpointer user_data)
  * Return value: %FALSE if successful, %TRUE otherwise.
  **/
 guint
-e_book_async_authenticate_user (EBook                 *book,
-				const gchar            *user,
-				const gchar            *passwd,
-				const gchar            *auth_method,
-				EBookCallback         cb,
-				gpointer              closure)
+e_book_async_authenticate_user (EBook         *book,
+				const gchar   *user,
+				const gchar   *passwd,
+				const gchar   *auth_method,
+				EBookCallback  cb,
+				gpointer       closure)
 {
 	AsyncData *data;
 
 	e_return_async_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_async_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_async_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 	e_return_async_error_if_fail (user, E_BOOK_ERROR_INVALID_ARG);
 	e_return_async_error_if_fail (passwd, E_BOOK_ERROR_INVALID_ARG);
 	e_return_async_error_if_fail (auth_method, E_BOOK_ERROR_INVALID_ARG);
@@ -888,7 +888,7 @@ e_book_async_authenticate_user (EBook                 *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_authenticate_user_async (book->priv->proxy, user, passwd, auth_method, authenticate_user_reply, data);
+	e_data_book_gdbus_authenticate_user (book->priv->gdbus_proxy, user, passwd, auth_method, authenticate_user_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
@@ -1532,11 +1532,12 @@ e_book_get_changes (EBook       *book,
 	GPtrArray *array = NULL;
 
 	e_return_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_changes (book->priv->proxy, changeid, &array, &err);
+	e_data_book_gdbus_get_changes_sync (book->priv->gdbus_proxy, changeid, &array, &err);
 	UNLOCK_CONN ();
+
 	if (!err) {
 		*changes = parse_changes_array (array);
 		return TRUE;
@@ -1546,7 +1547,10 @@ e_book_get_changes (EBook       *book,
 }
 
 static void
-get_changes_reply (DBusGProxy *proxy, GPtrArray *changes, GError *error, gpointer user_data)
+get_changes_reply (GDBusProxy *proxy,
+		   GPtrArray  *changes,
+		   GError     *error,
+		   gpointer    user_data)
 {
 	AsyncData *data = user_data;
 	EBookListCallback cb = data->callback;
@@ -1583,7 +1587,7 @@ e_book_async_get_changes (EBook             *book,
 	AsyncData *data;
 
 	e_return_async_error_val_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_async_error_val_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_async_error_val_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	data = g_slice_new0 (AsyncData);
 	data->book = g_object_ref (book);
@@ -1591,7 +1595,7 @@ e_book_async_get_changes (EBook             *book,
 	data->closure = closure;
 
 	LOCK_CONN ();
-	org_gnome_evolution_dataserver_addressbook_Book_get_changes_async (book->priv->proxy, changeid, get_changes_reply, data);
+	e_data_book_gdbus_get_changes (book->priv->gdbus_proxy, changeid, get_changes_reply, data);
 	UNLOCK_CONN ();
 
 	return 0;
@@ -1641,10 +1645,10 @@ e_book_cancel (EBook   *book,
 	gboolean res;
 
 	e_return_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	res = org_gnome_evolution_dataserver_addressbook_Book_cancel_operation (book->priv->proxy, error);
+	res = e_data_book_gdbus_cancel_operation_sync (book->priv->gdbus_proxy, error);
 	UNLOCK_CONN ();
 
 	return res;
@@ -1661,10 +1665,10 @@ e_book_cancel_async_op (EBook *book, GError **error)
 	gboolean res;
 
 	e_return_error_if_fail (E_IS_BOOK (book), E_BOOK_ERROR_INVALID_ARG);
-	e_return_error_if_fail (book->priv->proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (book->priv->gdbus_proxy, E_BOOK_ERROR_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	res = org_gnome_evolution_dataserver_addressbook_Book_cancel_operation (book->priv->proxy, error);
+	res = e_data_book_gdbus_cancel_operation_sync (book->priv->gdbus_proxy, error);
 	UNLOCK_CONN ();
 
 	return res;
