@@ -287,20 +287,18 @@ e_book_activate(GError **error)
 		}
 	}
 
-	/* FIXME: watch for changes to this proxy */
-	/* XXX: it's a bug in gdbus that we need to specify not to track
-	 * properties and signals (otherwise we can't create the proxy -- we'll
-	 * see if it works properly for D-Bus objects that do have properties or
-	 * signals) */
+	/* FIXME: watch for changes to this proxy instead of relying upon
+	 * dbus-glib to get the unique name */
 	if (!factory_proxy_gdbus) {
 		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
 								G_TYPE_DBUS_PROXY,
 								G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-								E_DATA_BOOK_FACTORY_SERVICE_NAME,
+								dbus_g_proxy_get_bus_name (factory_proxy);
 								"/org/gnome/evolution/dataserver/addressbook/BookFactory",
 								"org.gnome.evolution.dataserver.addressbook.BookFactory",
 								NULL,
 								error);
+
 		if (!factory_proxy_gdbus) {
 			UNLOCK_CONN ();
 
@@ -317,7 +315,8 @@ e_book_activate(GError **error)
 }
 
 static void
-writable_cb (DBusGProxy *proxy, gboolean writable, EBook *book)
+book_handle_signal_writable (EBook    *book,
+			     gboolean  writable)
 {
 	g_return_if_fail (E_IS_BOOK (book));
 
@@ -327,7 +326,8 @@ writable_cb (DBusGProxy *proxy, gboolean writable, EBook *book)
 }
 
 static void
-connection_cb (DBusGProxy *proxy, gboolean connected, EBook *book)
+book_handle_signal_connection (EBook *book,
+			       gboolean connected)
 {
 	g_return_if_fail (E_IS_BOOK (book));
 
@@ -337,11 +337,32 @@ connection_cb (DBusGProxy *proxy, gboolean connected, EBook *book)
 }
 
 static void
-auth_required_cb (DBusGProxy *proxy, EBook *book)
+book_handle_signal_auth_required  (EBook *book)
 {
 	g_return_if_fail (E_IS_BOOK (book));
 
 	g_signal_emit (G_OBJECT (book), e_book_signals [AUTH_REQUIRED], 0);
+}
+
+static void
+book_proxy_signal_cb (GDBusProxy *proxy,
+		      gchar      *sender_name,
+		      gchar      *signal_name,
+		      GVariant   *parameters,
+		      EBook      *book)
+{
+	gboolean value = FALSE;
+
+	g_variant_get (parameters, "(b)", &value);
+
+	if (FALSE) {
+	} else if (!g_strcmp0 (signal_name, "auth_required")) {
+		book_handle_signal_auth_required (book);
+	} else if (!g_strcmp0 (signal_name, "connection")) {
+		book_handle_signal_connection (book, value);
+	} else if (!g_strcmp0 (signal_name, "writable")) {
+		book_handle_signal_writable (book, value);
+	}
 }
 
 /**
@@ -2264,14 +2285,15 @@ e_book_new (ESource *source, GError **error)
 							     "org.gnome.evolution.dataserver.addressbook.Book",
 							     &err);
 
-	/* FIXME: cut out the ignoring of signals and properties */
 	book->priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
 							G_TYPE_DBUS_PROXY,
-							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-							E_DATA_BOOK_FACTORY_SERVICE_NAME, path,
+							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+							g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+							path,
 							"org.gnome.evolution.dataserver.addressbook.Book",
 							NULL,
 							&err);
+
 	UNLOCK_CONN ();
 
 	if (!book->priv->proxy) {
@@ -2292,15 +2314,7 @@ e_book_new (ESource *source, GError **error)
 
 	g_object_weak_ref (G_OBJECT (book->priv->gdbus_proxy), proxy_destroyed, book);
 
-	/* FIXME: add the equivalent of these for the gdbus_proxy, which mostly
-	 * involves listening to its g-dbus-signals property and reacting
-	 * accordingly (with the contents of these callbacks, multiplexed) */
-	dbus_g_proxy_add_signal (book->priv->proxy, "writable", G_TYPE_BOOLEAN, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (book->priv->proxy, "writable", G_CALLBACK (writable_cb), book, NULL);
-	dbus_g_proxy_add_signal (book->priv->proxy, "connection", G_TYPE_BOOLEAN, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (book->priv->proxy, "connection", G_CALLBACK (connection_cb), book, NULL);
-	dbus_g_proxy_add_signal (book->priv->proxy, "auth_required", G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (book->priv->proxy, "auth_required", G_CALLBACK (auth_required_cb), book, NULL);
+	g_signal_connect (book->priv->gdbus_proxy, "g-signal", G_CALLBACK (book_proxy_signal_cb), book);
 
 	return book;
 }
