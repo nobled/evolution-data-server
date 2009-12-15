@@ -293,7 +293,7 @@ e_book_activate(GError **error)
 		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
 								G_TYPE_DBUS_PROXY,
 								G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-								dbus_g_proxy_get_bus_name (factory_proxy);
+								dbus_g_proxy_get_bus_name (factory_proxy),
 								"/org/gnome/evolution/dataserver/addressbook/BookFactory",
 								"org.gnome.evolution.dataserver.addressbook.BookFactory",
 								NULL,
