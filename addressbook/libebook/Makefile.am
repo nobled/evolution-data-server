@@ -14,6 +14,7 @@ libebook_1_2_la_CPPFLAGS = \
 	-I$(top_srcdir)/addressbook			\
 	-I$(top_builddir)/addressbook			\
 	-I$(top_builddir)/addressbook/libebook		\
+	-I$(top_srcdir)/libedata-gdbus-bindings		\
         $(EVOLUTION_ADDRESSBOOK_CFLAGS)
 
 libebook_1_2_la_SOURCES =				\

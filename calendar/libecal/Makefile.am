@@ -6,13 +6,14 @@ MARSHAL_GENERATED = e-cal-marshal.c e-cal-marshal.h
 lib_LTLIBRARIES = libecal-1.2.la
 
 libecal_1_2_la_CPPFLAGS = \
-	$(AM_CPPFLAGS)							\
-	-DG_LOG_DOMAIN=\"libecal\"				\
-	-I$(top_srcdir) 						\
-	-I$(top_srcdir)/calendar				\
-	-I$(top_builddir)						\
+	$(AM_CPPFLAGS)					\
+	-DG_LOG_DOMAIN=\"libecal\"			\
+	-I$(top_srcdir) 				\
+	-I$(top_srcdir)/calendar			\
+	-I$(top_builddir)				\
 	-I$(top_builddir)/calendar/libecal		\
-	$(LIBICAL_CFLAGS)						\
+	-I$(top_srcdir)/libedata-gdbus-bindings		\
+	$(LIBICAL_CFLAGS)				\
 	$(EVOLUTION_CALENDAR_CFLAGS)
 
 libecal_1_2_la_SOURCES =	             \

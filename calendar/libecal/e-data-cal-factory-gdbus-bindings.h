@@ -22,9 +22,7 @@
 #include <glib.h>
 #include <gdbus/gdbus.h>
 
-/* FIXME: move this file to a place where both sets of bindings can include it
- */
-#include "e-data-cal-gdbus-bindings-common.h"
+#include <libedata-gdbus-bindings/e-data-gdbus-bindings-common.h>
 
 G_BEGIN_DECLS
 

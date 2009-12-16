@@ -19,8 +19,8 @@
  * Author: Travis Reitter (travis.reitter@collabora.co.uk)
  */
 
-#ifndef _E_DATA_BOOK_GDBUS_BINDINGS_COMMON_H
-#define _E_DATA_BOOK_GDBUS_BINDINGS_COMMON_H
+#ifndef _E_DATA_GDBUS_BINDINGS_COMMON_H
+#define _E_DATA_GDBUS_BINDINGS_COMMON_H
 
 #include <glib.h>
 
@@ -203,4 +203,4 @@ typedef void (*reply__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwit
     GError     *error,
     gpointer    user_data);
 
-#endif /* _E_DATA_BOOK_GDBUS_BINDINGS_COMMON_H */
+#endif /* _E_DATA_GDBUS_BINDINGS_COMMON_H */
