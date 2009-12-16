@@ -68,8 +68,6 @@ struct _EBookPrivate {
 	gboolean cap_queried;
 };
 
-static DBusGConnection *connection = NULL;
-static DBusGProxy *factory_proxy = NULL;
 static GDBusConnection *connection_gdbus = NULL;
 static GDBusProxy *factory_proxy_gdbus = NULL;
 
@@ -109,8 +107,6 @@ proxy_destroyed (gpointer data, GObject *object)
 
 	/* Ensure that everything relevant is NULL */
 	LOCK_CONN ();
-	factory_proxy = NULL;
-	book->priv->proxy = NULL;
 	book->priv->gdbus_proxy = NULL;
 	UNLOCK_CONN ();
 
@@ -124,12 +120,6 @@ e_book_dispose (GObject *object)
 
 	book->priv->loaded = FALSE;
 
-	if (book->priv->proxy) {
-		LOCK_CONN ();
-		g_object_unref (book->priv->proxy);
-		book->priv->proxy = NULL;
-		UNLOCK_CONN ();
-	}
 	if (book->priv->gdbus_proxy) {
 		g_object_weak_unref (G_OBJECT (book->priv->gdbus_proxy), proxy_destroyed, book);
 
@@ -218,7 +208,6 @@ e_book_init (EBook *book)
 	EBookPrivate *priv = E_BOOK_GET_PRIVATE (book);
 	priv->source = NULL;
 	priv->uri = NULL;
-	priv->proxy = NULL;
 	priv->gdbus_proxy = NULL;
 	priv->loaded = FALSE;
 	priv->writable = FALSE;
@@ -228,51 +217,77 @@ e_book_init (EBook *book)
 	book->priv = priv;
 }
 
+/* FIXME: this is a hack until we can figure out how to do this purely in gdbus
+ */
+static char*
+get_factory_dbus_proxy_owner_name ()
+{
+        DBusGConnection *connection = NULL;
+        DBusGProxy *factory_proxy = NULL;
+	GError *error = NULL;
+        DBusError derror;
+        char *name;
+
+        LOCK_CONN ();
+
+	connection = dbus_g_bus_get (DBUS_BUS_SESSION, &error);
+	if (!connection) {
+		g_warning (G_STRLOC ": failed to get D-Bus bus connection: %s",
+				error->message);
+		goto get_factory_dbus_proxy_owner_name_OUT;
+	}
+
+        dbus_error_init (&derror);
+        if (!dbus_bus_start_service_by_name (dbus_g_connection_get_connection (connection),
+                                             E_DATA_BOOK_FACTORY_SERVICE_NAME,
+                                             0, NULL, &derror)) {
+                dbus_set_g_error (&error, &derror);
+                dbus_error_free (&derror);
+
+                g_warning (G_STRLOC ": FAILED to start " E_DATA_BOOK_FACTORY_SERVICE_NAME);
+
+		goto get_factory_dbus_proxy_owner_name_OUT;
+        }
+
+	factory_proxy = dbus_g_proxy_new_for_name_owner (connection,
+							 E_DATA_BOOK_FACTORY_SERVICE_NAME,
+							 "/org/gnome/evolution/dataserver/addressbook/BookFactory",
+							 "org.gnome.evolution.dataserver.addressbook.BookFactory",
+							 &error);
+	if (!factory_proxy) {
+		g_warning (G_STRLOC ": failed to get EBook Factory D-Bus proxy: %s",
+				error->message);
+		goto get_factory_dbus_proxy_owner_name_OUT;
+	}
+
+        name = g_strdup (dbus_g_proxy_get_bus_name (factory_proxy));
+
+get_factory_dbus_proxy_owner_name_OUT:
+	if (factory_proxy)
+		g_object_unref (factory_proxy);
+	if (connection)
+		dbus_g_connection_unref (connection);
+
+	g_clear_error (&error);
+
+        UNLOCK_CONN ();
+
+        return name;
+}
+
 static gboolean
 e_book_activate(GError **error)
 {
-	DBusError derror;
+	char *factory_proxy_name;
 
 	LOCK_CONN ();
 
-	if (G_LIKELY (factory_proxy && factory_proxy_gdbus)) {
+	if (G_LIKELY (factory_proxy_gdbus)) {
 		UNLOCK_CONN ();
 		return TRUE;
 	}
 
-	if (!connection) {
-		connection = dbus_g_bus_get (DBUS_BUS_SESSION, error);
-		if (!connection) {
-			UNLOCK_CONN ();
-			return FALSE;
-		}
-	}
-
-	dbus_error_init (&derror);
-	if (!dbus_bus_start_service_by_name (dbus_g_connection_get_connection (connection),
-					     E_DATA_BOOK_FACTORY_SERVICE_NAME,
-					     0, NULL, &derror)) {
-		dbus_set_g_error (error, &derror);
-		dbus_error_free (&derror);
-		UNLOCK_CONN ();
-
-		g_warning (G_STRLOC ": FAILED to start " E_DATA_BOOK_FACTORY_SERVICE_NAME);
-
-		return FALSE;
-	}
-
-	if (!factory_proxy) {
-		factory_proxy = dbus_g_proxy_new_for_name_owner (connection,
-									E_DATA_BOOK_FACTORY_SERVICE_NAME,
-									"/org/gnome/evolution/dataserver/addressbook/BookFactory",
-									"org.gnome.evolution.dataserver.addressbook.BookFactory",
-									error);
-		if (!factory_proxy) {
-			UNLOCK_CONN ();
-			return FALSE;
-		}
-		g_object_add_weak_pointer (G_OBJECT (factory_proxy), (gpointer)&factory_proxy);
-	}
+	factory_proxy_name = get_factory_dbus_proxy_owner_name ();
 
 	/* FIXME: better to just watch for the proxy instead of using the
 	 * connection directly? */
@@ -293,7 +308,7 @@ e_book_activate(GError **error)
 		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
 								G_TYPE_DBUS_PROXY,
 								G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
-								dbus_g_proxy_get_bus_name (factory_proxy),
+								factory_proxy_name,
 								"/org/gnome/evolution/dataserver/addressbook/BookFactory",
 								"org.gnome.evolution.dataserver.addressbook.BookFactory",
 								NULL,
@@ -311,6 +326,9 @@ e_book_activate(GError **error)
 	}
 
 	UNLOCK_CONN ();
+
+	g_free (factory_proxy_name);
+
 	return TRUE;
 }
 
@@ -2291,11 +2309,6 @@ e_book_new (ESource *source, GError **error)
 	}
 	g_free (xml);
 
-	book->priv->proxy = dbus_g_proxy_new_for_name_owner (connection,
-							     E_DATA_BOOK_FACTORY_SERVICE_NAME, path,
-							     "org.gnome.evolution.dataserver.addressbook.Book",
-							     &err);
-
 	book->priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
 							G_TYPE_DBUS_PROXY,
 							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
@@ -2307,13 +2320,6 @@ e_book_new (ESource *source, GError **error)
 
 	UNLOCK_CONN ();
 
-	if (!book->priv->proxy) {
-		g_warning (G_STRLOC ": cannot get proxy for book %s: %s", path, err->message);
-		g_propagate_error (error, err);
-		g_free (path);
-		g_object_unref (book);
-		return NULL;
-	}
 	if (!book->priv->gdbus_proxy) {
 		g_warning (G_STRLOC ": cannot get gdbus proxy for book %s: %s", path, err->message);
 		g_propagate_error (error, err);
@@ -2616,18 +2622,21 @@ get_status_from_error (GError *error)
 	if G_LIKELY (error == NULL)
 			    return E_BOOK_ERROR_OK;
 
-	if (error->domain == DBUS_GERROR && error->code == DBUS_GERROR_REMOTE_EXCEPTION) {
-		const gchar *name;
+	if (error->domain == G_DBUS_ERROR && g_dbus_error_is_remote_error (error)) {
+		gchar *name;
 		gint i;
 
-		name = dbus_g_error_get_name (error);
+		name = g_dbus_error_get_remote_error (error);
 
 		for (i = 0; i < G_N_ELEMENTS (errors); i++) {
-			if (g_ascii_strcasecmp (errors[i].name, name) == 0)
+			if (g_ascii_strcasecmp (errors[i].name, name) == 0) {
+				g_free (name);
 				return errors[i].err_code;
+			}
 		}
 
 		g_warning (G_STRLOC ": unmatched error name %s", name);
+		g_free (name);
 		return E_BOOK_ERROR_OTHER_ERROR;
 	} else {
 		/* In this case the error was caused by DBus. Dump the message to the
