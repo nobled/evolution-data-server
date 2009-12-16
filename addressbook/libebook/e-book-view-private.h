@@ -22,10 +22,12 @@
 #ifndef __E_BOOK_VIEW_PRIVATE_H__
 #define __E_BOOK_VIEW_PRIVATE_H__
 
+#include <gdbus/gdbus.h>
+
 #include "e-book.h"
 #include "e-book-view.h"
 
-EBookView *_e_book_view_new (EBook *book, DBusGProxy *view_proxy, GStaticRecMutex *connection_lock);
+EBookView *_e_book_view_new (EBook *book, GDBusProxy *view_proxy, GStaticRecMutex *connection_lock);
 
 G_END_DECLS
 

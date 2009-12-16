@@ -21,11 +21,10 @@
  */
 
 #include <glib-object.h>
-#include <dbus/dbus-glib.h>
 #include "e-book.h"
 #include "e-book-view.h"
 #include "e-book-view-private.h"
-#include "e-data-book-view-bindings.h"
+#include "e-data-book-view-gdbus-bindings.h"
 #include "e-book-marshal.h"
 
 G_DEFINE_TYPE(EBookView, e_book_view, G_TYPE_OBJECT);
@@ -35,7 +34,7 @@ G_DEFINE_TYPE(EBookView, e_book_view, G_TYPE_OBJECT);
 
 struct _EBookViewPrivate {
 	EBook *book;
-	DBusGProxy *view_proxy;
+	GDBusProxy *view_proxy;
 	GStaticRecMutex *view_proxy_lock;
 	gboolean running;
 };
@@ -51,8 +50,12 @@ enum {
 
 static guint signals [LAST_SIGNAL];
 
+#define LOCK_CONN()   g_static_rec_mutex_lock (book_view->priv->view_proxy_lock)
+#define UNLOCK_CONN() g_static_rec_mutex_unlock (book_view->priv->view_proxy_lock)
+
 static void
-status_message_cb (DBusGProxy *proxy, const gchar *message, EBookView *book_view)
+book_view_handle_signal_status_message (EBookView   *book_view,
+					const gchar *message)
 {
 	if (!book_view->priv->running)
 		return;
@@ -61,7 +64,8 @@ status_message_cb (DBusGProxy *proxy, const gchar *message, EBookView *book_view
 }
 
 static void
-contacts_added_cb (DBusGProxy *proxy, const gchar **vcards, EBookView *book_view)
+book_view_handle_signal_contacts_added (EBookView   *book_view,
+					const char **vcards)
 {
 	const gchar **p;
 	GList *contacts = NULL;
@@ -81,7 +85,8 @@ contacts_added_cb (DBusGProxy *proxy, const gchar **vcards, EBookView *book_view
 }
 
 static void
-contacts_changed_cb (DBusGProxy *proxy, const gchar **vcards, EBookView *book_view)
+book_view_handle_signal_contacts_changed (EBookView   *book_view,
+					  const char **vcards)
 {
 	const gchar **p;
 	GList *contacts = NULL;
@@ -101,7 +106,8 @@ contacts_changed_cb (DBusGProxy *proxy, const gchar **vcards, EBookView *book_vi
 }
 
 static void
-contacts_removed_cb (DBusGProxy *proxy, const gchar **ids, EBookView *book_view)
+book_view_handle_signal_contacts_removed (EBookView   *book_view,
+					  const char **ids)
 {
 	const gchar **p;
 	GList *list = NULL;
@@ -121,7 +127,8 @@ contacts_removed_cb (DBusGProxy *proxy, const gchar **ids, EBookView *book_view)
 }
 
 static void
-complete_cb (DBusGProxy *proxy, guint status, EBookView *book_view)
+book_view_handle_signal_complete (EBookView *book_view,
+				  guint      status)
 {
 	if (!book_view->priv->running)
 		return;
@@ -129,13 +136,50 @@ complete_cb (DBusGProxy *proxy, guint status, EBookView *book_view)
 	g_signal_emit (book_view, signals[SEQUENCE_COMPLETE], 0, status);
 }
 
-#define LOCK_CONN()   g_static_rec_mutex_lock (book_view->priv->view_proxy_lock)
-#define UNLOCK_CONN() g_static_rec_mutex_unlock (book_view->priv->view_proxy_lock)
+static void
+book_view_proxy_signal_cb (GDBusProxy *proxy,
+			   gchar      *sender_name,
+			   gchar      *signal_name,
+			   GVariant   *parameters,
+			   EBookView  *book_view)
+{
+        if (FALSE) {
+        } else if (!g_strcmp0 (signal_name, "StatusMessage")) {
+		const char *value;
+		g_variant_get (parameters, "(&s)", &value);
+
+                book_view_handle_signal_status_message (book_view, value);
+        } else if (!g_strcmp0 (signal_name, "ContactsAdded")) {
+		const char **value;
+
+		g_variant_get (parameters, "(^a&s)", &value, NULL);
+
+                book_view_handle_signal_contacts_added (book_view, value);
+		g_free (value);
+        } else if (!g_strcmp0 (signal_name, "ContactsChanged")) {
+		const char **value;
+		g_variant_get (parameters, "(^a&s)", &value, NULL);
+
+                book_view_handle_signal_contacts_changed (book_view, value);
+		g_free (value);
+        } else if (!g_strcmp0 (signal_name, "ContactsRemoved")) {
+		const char **value;
+		g_variant_get (parameters, "(^a&s)", &value, NULL);
+
+                book_view_handle_signal_contacts_removed (book_view, value);
+		g_free (value);
+        } else if (!g_strcmp0 (signal_name, "Complete")) {
+		const guint value;
+		g_variant_get (parameters, "(u)", &value);
+
+                book_view_handle_signal_complete (book_view, value);
+        }
+}
 
 /*
  * e_book_view_new:
  * @book: an #EBook
- * @view_proxy: The #DBusGProxy to get signals from
+ * @view_proxy: The #GDBusProxy to get signals from
  *
  * Creates a new #EBookView based on #EBook and listening to @view_proxy.  This
  * is a private function, applications should call #e_book_get_book_view or
@@ -144,7 +188,9 @@ complete_cb (DBusGProxy *proxy, guint status, EBookView *book_view)
  * Return value: A new #EBookView.
  **/
 EBookView *
-_e_book_view_new (EBook *book, DBusGProxy *view_proxy, GStaticRecMutex *view_proxy_lock)
+_e_book_view_new (EBook           *book,
+		  GDBusProxy      *view_proxy,
+		  GStaticRecMutex *view_proxy_lock)
 {
 	EBookView *view;
 	EBookViewPrivate *priv;
@@ -159,16 +205,7 @@ _e_book_view_new (EBook *book, DBusGProxy *view_proxy, GStaticRecMutex *view_pro
 	priv->view_proxy_lock = view_proxy_lock;
 	g_object_add_weak_pointer (G_OBJECT (view_proxy), (gpointer)&priv->view_proxy);
 
-	dbus_g_proxy_add_signal (view_proxy, "StatusMessage", G_TYPE_STRING, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (view_proxy, "StatusMessage", G_CALLBACK (status_message_cb), view, NULL);
-	dbus_g_proxy_add_signal (view_proxy, "ContactsAdded", G_TYPE_STRV, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (view_proxy, "ContactsAdded", G_CALLBACK (contacts_added_cb), view, NULL);
-	dbus_g_proxy_add_signal (view_proxy, "ContactsChanged", G_TYPE_STRV, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (view_proxy, "ContactsChanged", G_CALLBACK (contacts_changed_cb), view, NULL);
-	dbus_g_proxy_add_signal (view_proxy, "ContactsRemoved", G_TYPE_STRV, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (view_proxy, "ContactsRemoved", G_CALLBACK (contacts_removed_cb), view, NULL);
-	dbus_g_proxy_add_signal (view_proxy, "Complete", G_TYPE_UINT, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (view_proxy, "Complete", G_CALLBACK (complete_cb), view, NULL);
+	g_signal_connect (view_proxy, "g-signal", G_CALLBACK (book_view_proxy_signal_cb), view);
 
 	return view;
 }
@@ -206,7 +243,7 @@ e_book_view_start (EBookView *book_view)
 
 	if (book_view->priv->view_proxy) {
 		LOCK_CONN ();
-		org_gnome_evolution_dataserver_addressbook_BookView_start (book_view->priv->view_proxy, &error);
+		e_data_book_view_gdbus_start_sync (book_view->priv->view_proxy, &error);
 		UNLOCK_CONN ();
 		if (error) {
 			g_warning ("Cannot start book view: %s\n", error->message);
@@ -238,7 +275,7 @@ e_book_view_stop (EBookView *book_view)
 
 	if (book_view->priv->view_proxy) {
 		LOCK_CONN ();
-		org_gnome_evolution_dataserver_addressbook_BookView_stop (book_view->priv->view_proxy, &error);
+		e_data_book_view_gdbus_stop_sync (book_view->priv->view_proxy, &error);
 		UNLOCK_CONN ();
 		if (error) {
 			g_warning ("Cannot stop book view: %s\n", error->message);
@@ -267,7 +304,7 @@ e_book_view_dispose (GObject *object)
 
 	if (book_view->priv->view_proxy) {
 		LOCK_CONN ();
-		org_gnome_evolution_dataserver_addressbook_BookView_dispose (book_view->priv->view_proxy, NULL);
+		e_data_book_view_gdbus_dispose_sync (book_view->priv->view_proxy, NULL);
 		g_object_unref (book_view->priv->view_proxy);
 		book_view->priv->view_proxy = NULL;
 		UNLOCK_CONN ();

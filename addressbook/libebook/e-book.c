@@ -1279,7 +1279,7 @@ e_book_get_book_view (EBook       *book,
 		      GError     **error)
 {
 	GError *err = NULL;
-	DBusGProxy *view_proxy;
+	GDBusProxy *view_proxy_gdbus;
 	gchar *sexp, *view_path;
 	gboolean ret = TRUE;
 
@@ -1295,13 +1295,18 @@ e_book_get_book_view (EBook       *book,
 		g_free (sexp);
 		return unwrap_gerror (err, error);
 	}
-	view_proxy = dbus_g_proxy_new_for_name_owner (connection,
-						      E_DATA_BOOK_FACTORY_SERVICE_NAME, view_path,
-						      "org.gnome.evolution.dataserver.addressbook.BookView", error);
+	view_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
+						  G_TYPE_DBUS_PROXY,
+						  G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+						  g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+						  view_path,
+						  "org.gnome.evolution.dataserver.addressbook.BookView",
+						  NULL,
+						  error);
 	UNLOCK_CONN ();
 
-	if (view_proxy) {
-		*book_view = _e_book_view_new (book, view_proxy, &connection_lock);
+	if (view_proxy_gdbus) {
+		*book_view = _e_book_view_new (book, view_proxy_gdbus, &connection_lock);
 	} else {
 		*book_view = NULL;
 		g_set_error (error, E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION,
@@ -1325,16 +1330,22 @@ get_book_view_reply (GDBusProxy *proxy,
 	GError *err = NULL;
 	EBookView *view = NULL;
 	EBookBookViewCallback cb = data->callback;
-	DBusGProxy *view_proxy;
+	GDBusProxy *view_proxy_gdbus;
 	EBookStatus status;
 
 	if (view_path) {
 		LOCK_CONN ();
-		view_proxy = dbus_g_proxy_new_for_name_owner (connection, E_DATA_BOOK_FACTORY_SERVICE_NAME, view_path,
-							      "org.gnome.evolution.dataserver.addressbook.BookView", &err);
+		view_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
+							  G_TYPE_DBUS_PROXY,
+							  G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+							  g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+							  view_path,
+							  "org.gnome.evolution.dataserver.addressbook.BookView",
+							  NULL,
+							  &err);
 		UNLOCK_CONN ();
-		if (view_proxy) {
-			view = _e_book_view_new (data->book, view_proxy, &connection_lock);
+		if (view_proxy_gdbus) {
+			view = _e_book_view_new (data->book, view_proxy_gdbus, &connection_lock);
 			status = E_BOOK_ERROR_OK;
 		} else {
 			g_warning (G_STRLOC ": cannot get connection to view: %s", err->message);

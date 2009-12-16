@@ -18,7 +18,6 @@ libebook_1_2_la_CPPFLAGS = \
 
 libebook_1_2_la_SOURCES =				\
 	$(MARSHAL_GENERATED)				\
-	$(DBUS_GENERATED_H)				\
 	e-address-western.c				\
 	e-book-query.c					\
 	e-book-view-private.h				\
@@ -27,6 +26,7 @@ libebook_1_2_la_SOURCES =				\
 	e-contact.c					\
 	e-data-book-factory-gdbus-bindings.h            \
 	e-data-book-gdbus-bindings.h                    \
+	e-data-book-view-gdbus-bindings.h               \
 	e-destination.c					\
 	e-name-western.c				\
 	e-name-western-tables.h                         \
@@ -63,11 +63,7 @@ e-name-western-tables.h: e-name-western-tables.h.in
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libebook-$(API_VERSION).pc
 
-DBUS_GENERATED_H = e-data-book-view-bindings.h
-%-bindings.h: $(top_srcdir)/addressbook/libedata-book/%.xml
-	dbus-binding-tool --mode=glib-client --output=$@ --prefix=$(subst -,_,$*) $^
-
-BUILT_SOURCES = $(DBUS_GENERATED_H) $(MARSHAL_GENERATED)
+BUILT_SOURCES = $(MARSHAL_GENERATED)
 CLEANFILES    = $(BUILT_SOURCES)
 DISTCLEANFILES = $(pkgconfig_DATA)
 
