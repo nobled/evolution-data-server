@@ -44,12 +44,14 @@
 #include "e-cal-time-util.h"
 #include "e-cal-view-private.h"
 #include "e-cal.h"
-#include "e-data-cal-factory-bindings.h"
+#include "e-data-cal-factory-gdbus-bindings.h"
 #include "e-data-cal-bindings.h"
 #include <libedata-cal/e-data-cal-types.h>
 
 static DBusGConnection *connection = NULL;
 static DBusGProxy *factory_proxy = NULL;
+static GDBusConnection *connection_gdbus = NULL;
+static GDBusProxy *factory_proxy_gdbus = NULL;
 
 /* guards both connection and factory_proxy */
 static GStaticRecMutex connection_lock = G_STATIC_REC_MUTEX_INIT;
@@ -88,6 +90,7 @@ struct _ECalPrivate {
 	gboolean read_only;
 
 	DBusGProxy *proxy;
+	GDBusProxy *gdbus_proxy;
 
 	/* The authentication function */
 	ECalAuthFunc auth_func;
@@ -378,6 +381,7 @@ e_cal_init (ECal *ecal)
 	priv->ldap_attribute = NULL;
 	priv->capabilities = NULL;
 	priv->proxy = NULL;
+	priv->gdbus_proxy = NULL;
 	priv->timezones = g_hash_table_new (g_str_hash, g_str_equal);
 	priv->default_zone = icaltimezone_get_utc_timezone ();
 }
@@ -401,6 +405,7 @@ proxy_destroyed (gpointer data, GObject *object)
         LOCK_CONN ();
         factory_proxy = NULL;
         priv->proxy = NULL;
+	priv->gdbus_proxy = NULL;
 	priv->load_state = E_CAL_LOAD_NOT_LOADED;
         UNLOCK_CONN ();
 
@@ -420,7 +425,6 @@ e_cal_dispose (GObject *object)
 	if (priv->proxy) {
 		GError *error = NULL;
 
-                g_object_weak_unref (G_OBJECT (priv->proxy), proxy_destroyed, ecal);
 		LOCK_CONN ();
 		org_gnome_evolution_dataserver_calendar_Cal_close (priv->proxy, &error);
 		g_object_unref (priv->proxy);
@@ -432,6 +436,18 @@ e_cal_dispose (GObject *object)
 			g_error_free (error);
 		}
 	}
+	if (priv->gdbus_proxy) {
+		g_object_weak_unref (G_OBJECT (priv->gdbus_proxy), proxy_destroyed, ecal);
+
+		LOCK_CONN ();
+		/* FIXME: uncomment this
+		e_data_cal_gdbus_close_sync (priv->gdbus_proxy, NULL);
+		*/
+		g_object_unref (priv->gdbus_proxy);
+		priv->gdbus_proxy = NULL;
+		UNLOCK_CONN ();
+	}
+
 
 	(* G_OBJECT_CLASS (parent_class)->dispose) (object);
 }
@@ -558,9 +574,10 @@ static gboolean
 e_cal_activate(GError **error)
 {
 	DBusError derror;
+	const gchar *factory_proxy_name;
 
 	LOCK_CONN ();
-	if (G_LIKELY (factory_proxy)) {
+	if (G_LIKELY (factory_proxy && factory_proxy_gdbus)) {
 		UNLOCK_CONN ();
 		return TRUE;
 	}
@@ -594,6 +611,44 @@ e_cal_activate(GError **error)
 			UNLOCK_CONN ();
 			return FALSE;
 		}
+	}
+
+	factory_proxy_name = dbus_g_proxy_get_bus_name (factory_proxy);
+
+	/* FIXME: better to just watch for the proxy instead of using the
+	 * connection directly? */
+	if (!connection_gdbus) {
+		connection_gdbus = g_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
+		if (!connection_gdbus) {
+			UNLOCK_CONN ();
+
+			g_warning (G_STRLOC ": failed to create the factory gdbus connection");
+
+			return FALSE;
+		}
+	}
+
+	/* FIXME: watch for changes to this proxy instead of relying upon
+	 * dbus-glib to get the unique name */
+	if (!factory_proxy_gdbus) {
+		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
+							     G_TYPE_DBUS_PROXY,
+							     G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+							     factory_proxy_name,
+							     "/org/gnome/evolution/dataserver/calendar/CalFactory",
+							     "org.gnome.evolution.dataserver.calendar.CalFactory",
+							     NULL,
+							     error);
+
+		if (!factory_proxy_gdbus) {
+			UNLOCK_CONN ();
+
+			g_warning (G_STRLOC ": failed to create the factory gdbus proxy, %s", (*error)->message);
+
+			return FALSE;
+		}
+
+		g_object_add_weak_pointer (G_OBJECT (factory_proxy_gdbus), (gpointer)&factory_proxy_gdbus);
 	}
 
 	UNLOCK_CONN ();
@@ -805,7 +860,7 @@ e_cal_new (ESource *source, ECalSourceType type)
 
 	xml = e_source_to_standalone_xml (priv->source);
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_CalFactory_get_cal (factory_proxy, xml, convert_type (priv->type), &path, &error)) {
+	if (!e_data_cal_factory_gdbus_get_cal_sync (factory_proxy_gdbus, xml, convert_type (priv->type), &path, &error)) {
 		UNLOCK_CONN ();
 		g_free (xml);
 		g_warning ("Cannot get cal from factory: %s", error ? error->message : "Unknown error");
@@ -820,12 +875,33 @@ e_cal_new (ESource *source, ECalSourceType type)
 									"org.gnome.evolution.dataserver.calendar.Cal",
 									&error);
 
+	priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
+						   G_TYPE_DBUS_PROXY,
+						   G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+						   g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+						   path,
+						   "org.gnome.evolution.dataserver.calendar.Cal",
+						   NULL,
+						   &error);
+
 	UNLOCK_CONN ();
 
-	if (!priv->proxy)
+	if (!priv->proxy) {
+		g_warning (G_STRLOC ": cannot get dbus-glib proxy for calendar %s: %s", path, error->message);
+		g_free (path);
+		g_object_unref (ecal);
 		return NULL;
+	}
 
-	g_object_weak_ref (G_OBJECT (priv->proxy), proxy_destroyed, ecal);
+	if (!priv->gdbus_proxy) {
+		g_warning (G_STRLOC ": cannot get gdbus proxy for calendar %s: %s", path, error->message);
+		g_free (path);
+		g_object_unref (ecal);
+		return NULL;
+	}
+	g_free (path);
+
+	g_object_weak_ref (G_OBJECT (priv->gdbus_proxy), proxy_destroyed, ecal);
 
 	dbus_g_proxy_add_signal (priv->proxy, "auth_required", G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal (priv->proxy, "auth_required", G_CALLBACK (auth_required_cb), ecal, NULL);
