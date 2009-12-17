@@ -59,6 +59,7 @@ libecalinclude_HEADERS =	\
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libecal-$(API_VERSION).pc
 
+# FIXME: cut e-data-cal-bindings.h
 DBUS_GENERATED_H = e-data-cal-bindings.h e-data-cal-view-bindings.h
 
 %-bindings.h: $(top_srcdir)/calendar/libedata-cal/%.xml

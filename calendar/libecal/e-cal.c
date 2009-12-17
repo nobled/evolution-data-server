@@ -45,7 +45,9 @@
 #include "e-cal-view-private.h"
 #include "e-cal.h"
 #include "e-data-cal-factory-gdbus-bindings.h"
+/* FIXME: cut this */
 #include "e-data-cal-bindings.h"
+#include "e-data-cal-gdbus-bindings.h"
 #include <libedata-cal/e-data-cal-types.h>
 
 static DBusGConnection *connection = NULL;
@@ -1155,7 +1157,9 @@ build_pass_key (ECal *ecal)
 }
 
 static void
-async_signal_idle_cb (DBusGProxy *proxy, GError *error, gpointer user_data)
+async_signal_idle_cb (GDBusProxy *proxy,
+		      GError     *error,
+		      gpointer    user_data)
 {
 	ECal *ecal;
 	ECalendarStatus status;
@@ -1169,7 +1173,7 @@ async_signal_idle_cb (DBusGProxy *proxy, GError *error, gpointer user_data)
 	} else {
 		status = E_CALENDAR_STATUS_OK;
 		LOCK_CONN ();
-		org_gnome_evolution_dataserver_calendar_Cal_is_read_only (ecal->priv->proxy, NULL);
+		e_data_cal_gdbus_is_read_only_sync (ecal->priv->gdbus_proxy, NULL);
 		UNLOCK_CONN ();
 	}
 
@@ -1185,7 +1189,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 	e_return_error_if_fail (ecal != NULL, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 
 	if (!needs_auth && priv->load_state == E_CAL_LOAD_LOADED) {
 		return TRUE;
@@ -1255,12 +1259,12 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 	*status = E_CALENDAR_STATUS_OK;
 	if (!async) {
 		LOCK_CONN ();
-		if (!org_gnome_evolution_dataserver_calendar_Cal_open (priv->proxy, only_if_exists, username ? username : "", password ? password : "", error))
+		if (!e_data_cal_gdbus_open_sync (priv->gdbus_proxy, only_if_exists, username ? username : "", password ? password : "", error))
 			*status = E_CALENDAR_STATUS_CORBA_EXCEPTION;
 		UNLOCK_CONN ();
 	} else {
 		LOCK_CONN ();
-		if (!org_gnome_evolution_dataserver_calendar_Cal_open_async (priv->proxy, only_if_exists, username ? username : "", password ? password : "", async_signal_idle_cb, ecal))
+		if (!e_data_cal_gdbus_open (priv->gdbus_proxy, only_if_exists, username ? username : "", password ? password : "", async_signal_idle_cb, ecal))
 			*status = E_CALENDAR_STATUS_CORBA_EXCEPTION;
 		UNLOCK_CONN ();
 	}
@@ -1274,7 +1278,7 @@ open_calendar (ECal *ecal, gboolean only_if_exists, GError **error, ECalendarSta
 
 		if (!async) {
 			LOCK_CONN ();
-			org_gnome_evolution_dataserver_calendar_Cal_is_read_only (priv->proxy, &error);
+			e_data_cal_gdbus_is_read_only_sync (priv->gdbus_proxy, &error);
 			UNLOCK_CONN ();
 		}
 	} else {
