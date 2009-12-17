@@ -44,6 +44,20 @@ e_data_cal_gdbus_is_read_only_sync (GDBusProxy  *proxy,
 }
 
 static gboolean
+e_data_cal_gdbus_close_sync (GDBusProxy  *proxy,
+                             GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+        retvals = g_dbus_proxy_invoke_method_sync (proxy, "close", parameters,
+                                                        -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
+}
+
+static gboolean
 e_data_cal_gdbus_open_sync (GDBusProxy      *proxy,
                             const gboolean   IN_only_if_exists,
                             const char      *IN_username,
@@ -100,6 +114,20 @@ e_data_cal_gdbus_open (GDBusProxy      *proxy,
         g_dbus_proxy_invoke_method (proxy, "open", parameters, -1, NULL, (GAsyncReadyCallback) open_cb, closure);
 
 	return TRUE;
+}
+
+static gboolean
+e_data_cal_gdbus_remove_sync (GDBusProxy  *proxy,
+                              GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+        retvals = g_dbus_proxy_invoke_method_sync (proxy, "remove", parameters,
+                                                        -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
 }
 
 G_END_DECLS

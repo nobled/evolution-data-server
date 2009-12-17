@@ -428,7 +428,6 @@ e_cal_dispose (GObject *object)
 		GError *error = NULL;
 
 		LOCK_CONN ();
-		org_gnome_evolution_dataserver_calendar_Cal_close (priv->proxy, &error);
 		g_object_unref (priv->proxy);
 		priv->proxy = NULL;
 		UNLOCK_CONN ();
@@ -442,9 +441,7 @@ e_cal_dispose (GObject *object)
 		g_object_weak_unref (G_OBJECT (priv->gdbus_proxy), proxy_destroyed, ecal);
 
 		LOCK_CONN ();
-		/* FIXME: uncomment this
 		e_data_cal_gdbus_close_sync (priv->gdbus_proxy, NULL);
-		*/
 		g_object_unref (priv->gdbus_proxy);
 		priv->gdbus_proxy = NULL;
 		UNLOCK_CONN ();
@@ -1373,10 +1370,10 @@ e_cal_remove (ECal *ecal, GError **error)
 
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_remove (priv->proxy, error)) {
+	if (!e_data_cal_gdbus_remove_sync (priv->gdbus_proxy, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}
