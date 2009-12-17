@@ -172,4 +172,18 @@ e_data_cal_gdbus_get_ldap_attribute_sync (GDBusProxy  *proxy,
         return demarshal_retvals__STRING (retvals, attr);
 }
 
+static gboolean
+e_data_cal_gdbus_get_scheduling_information_sync (GDBusProxy  *proxy,
+						  char       **caps,
+						  GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getSchedulingInformation", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, caps);
+}
+
 G_END_DECLS

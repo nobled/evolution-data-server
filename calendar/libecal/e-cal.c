@@ -1714,7 +1714,7 @@ load_static_capabilities (ECal *ecal, GError **error)
 	}
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_get_scheduling_information (priv->proxy, &priv->capabilities, error)) {
+	if (!e_data_cal_gdbus_get_scheduling_information_sync (priv->gdbus_proxy, &priv->capabilities, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}
