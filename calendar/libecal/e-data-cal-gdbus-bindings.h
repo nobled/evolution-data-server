@@ -130,4 +130,18 @@ e_data_cal_gdbus_remove_sync (GDBusProxy  *proxy,
         return demarshal_retvals__VOID (retvals);
 }
 
+static gboolean
+e_data_cal_gdbus_get_cal_address_sync (GDBusProxy  *proxy,
+				       char       **address,
+				       GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getCalAddress", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, address);
+}
+
 G_END_DECLS
