@@ -158,4 +158,18 @@ e_data_cal_gdbus_get_cal_address_sync (GDBusProxy  *proxy,
         return demarshal_retvals__STRING (retvals, address);
 }
 
+static gboolean
+e_data_cal_gdbus_get_ldap_attribute_sync (GDBusProxy  *proxy,
+					  char       **attr,
+					  GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getLdapAttribute", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, attr);
+}
+
 G_END_DECLS
