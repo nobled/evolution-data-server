@@ -1645,7 +1645,7 @@ e_cal_get_alarm_email_address (ECal *ecal, gchar **alarm_address, GError **error
 	e_return_error_if_fail (alarm_address != NULL, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 	*alarm_address = NULL;
 
 	if (priv->load_state != E_CAL_LOAD_LOADED) {
@@ -1653,7 +1653,7 @@ e_cal_get_alarm_email_address (ECal *ecal, gchar **alarm_address, GError **error
 	}
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_get_alarm_email_address (priv->proxy, alarm_address, error)) {
+	if (!e_data_cal_gdbus_get_alarm_email_address_sync (priv->gdbus_proxy, alarm_address, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}

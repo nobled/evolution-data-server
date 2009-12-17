@@ -131,6 +131,20 @@ e_data_cal_gdbus_remove_sync (GDBusProxy  *proxy,
 }
 
 static gboolean
+e_data_cal_gdbus_get_alarm_email_address_sync (GDBusProxy  *proxy,
+					       char       **address,
+					       GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getAlarmEmailAddress", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, address);
+}
+
+static gboolean
 e_data_cal_gdbus_get_cal_address_sync (GDBusProxy  *proxy,
 				       char       **address,
 				       GError     **error)
