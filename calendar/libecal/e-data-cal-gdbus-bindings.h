@@ -200,4 +200,18 @@ e_data_cal_gdbus_set_mode (GDBusProxy  *proxy,
         return demarshal_retvals__VOID (retvals);
 }
 
+static gboolean
+e_data_cal_gdbus_get_default_object_sync (GDBusProxy  *proxy,
+					  char       **object,
+					  GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("()");
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getDefaultObject", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, object);
+}
+
 G_END_DECLS
