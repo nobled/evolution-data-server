@@ -1865,11 +1865,11 @@ e_cal_set_mode (ECal *ecal, CalMode mode)
 	g_return_val_if_fail (mode & CAL_MODE_ANY, FALSE);
 
 	priv = ecal->priv;
-	g_return_val_if_fail (priv->proxy, FALSE);
+	g_return_val_if_fail (priv->gdbus_proxy, FALSE);
 	g_return_val_if_fail (priv->load_state == E_CAL_LOAD_LOADED, FALSE);
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_set_mode (priv->proxy, mode, &error)) {
+	if (!e_data_cal_gdbus_set_mode (priv->gdbus_proxy, mode, &error)) {
 		UNLOCK_CONN ();
 		g_printerr ("%s: %s\n", G_STRFUNC, error ? error->message : "Unknown error");
 		g_error_free (error);

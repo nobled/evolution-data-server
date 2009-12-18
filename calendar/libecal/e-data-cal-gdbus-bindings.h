@@ -186,4 +186,18 @@ e_data_cal_gdbus_get_scheduling_information_sync (GDBusProxy  *proxy,
         return demarshal_retvals__STRING (retvals, caps);
 }
 
+static gboolean
+e_data_cal_gdbus_set_mode (GDBusProxy  *proxy,
+			   guint        mode,
+			   GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(u)", mode);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "setMode", parameters, -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
+}
+
 G_END_DECLS
