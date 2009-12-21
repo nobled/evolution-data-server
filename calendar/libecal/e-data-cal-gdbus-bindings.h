@@ -201,6 +201,22 @@ e_data_cal_gdbus_set_mode (GDBusProxy  *proxy,
 }
 
 static gboolean
+e_data_cal_gdbus_get_object_sync (GDBusProxy  *proxy,
+				  const char  *IN_uid,
+				  const char  *IN_rid,
+				  char       **OUT_object,
+				  GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(ss)", IN_uid, IN_rid);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getObject", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, OUT_object);
+}
+
+static gboolean
 e_data_cal_gdbus_get_default_object_sync (GDBusProxy  *proxy,
 					  char       **object,
 					  GError     **error)
@@ -212,6 +228,37 @@ e_data_cal_gdbus_get_default_object_sync (GDBusProxy  *proxy,
 	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getDefaultObject", parameters, -1, NULL, error);
 
         return demarshal_retvals__STRING (retvals, object);
+}
+
+static gboolean
+e_data_cal_gdbus_create_object_sync (GDBusProxy  *proxy,
+				     const char  *IN_object,
+				     char       **OUT_uid,
+				     GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(s)", IN_object);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "createObject", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, OUT_uid);
+}
+
+static gboolean
+e_data_cal_gdbus_remove_object_sync (GDBusProxy  *proxy,
+				     const char  *IN_uid,
+				     const char  *IN_rid,
+				     guint        IN_mod,
+				     GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(ssu)", IN_uid, IN_rid, IN_mod);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "removeObject", parameters, -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
 }
 
 G_END_DECLS
