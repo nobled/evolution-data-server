@@ -2327,7 +2327,7 @@ e_cal_get_object_list (ECal *ecal, const gchar *query, GList **objects, GError *
 	e_return_error_if_fail (query, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 	*objects = NULL;
 
 	if (priv->load_state != E_CAL_LOAD_LOADED) {
@@ -2335,7 +2335,7 @@ e_cal_get_object_list (ECal *ecal, const gchar *query, GList **objects, GError *
 	}
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_get_object_list (priv->proxy, query, &object_array, error)) {
+	if (!e_data_cal_gdbus_get_object_list_sync (priv->gdbus_proxy, query, &object_array, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}

@@ -217,6 +217,21 @@ e_data_cal_gdbus_get_object_sync (GDBusProxy  *proxy,
 }
 
 static gboolean
+e_data_cal_gdbus_get_object_list_sync (GDBusProxy   *proxy,
+				       const char   *IN_sexp,
+				       char       ***OUT_objects,
+				       GError      **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(s)", IN_sexp);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getObjectList", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRINGVECTOR (retvals, OUT_objects);
+}
+
+static gboolean
 e_data_cal_gdbus_get_default_object_sync (GDBusProxy  *proxy,
 					  char       **object,
 					  GError     **error)
