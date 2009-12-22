@@ -3479,7 +3479,7 @@ e_cal_modify_object (ECal *ecal, icalcomponent *icalcomp, CalObjModType mod, GEr
 	e_return_error_if_fail (icalcomponent_is_valid (icalcomp), E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (mod & CALOBJ_MOD_ALL, E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 
 	if (priv->load_state != E_CAL_LOAD_LOADED) {
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_URI_NOT_LOADED, error);
@@ -3487,7 +3487,7 @@ e_cal_modify_object (ECal *ecal, icalcomponent *icalcomp, CalObjModType mod, GEr
 
 	obj = icalcomponent_as_ical_string_r (icalcomp);
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_modify_object (priv->proxy, obj, mod, error)) {
+	if (!e_data_cal_gdbus_modify_object_sync (priv->gdbus_proxy, obj, mod, error)) {
 		UNLOCK_CONN ();
 		g_free (obj);
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);

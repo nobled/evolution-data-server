@@ -261,6 +261,21 @@ e_data_cal_gdbus_create_object_sync (GDBusProxy  *proxy,
 }
 
 static gboolean
+e_data_cal_gdbus_modify_object_sync (GDBusProxy  *proxy,
+				     const char  *IN_object,
+				     guint        IN_mod,
+				     GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(su)", IN_object, IN_mod);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "modifyObject", parameters, -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
+}
+
+static gboolean
 e_data_cal_gdbus_remove_object_sync (GDBusProxy  *proxy,
 				     const char  *IN_uid,
 				     const char  *IN_rid,
