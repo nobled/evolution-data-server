@@ -291,4 +291,19 @@ e_data_cal_gdbus_remove_object_sync (GDBusProxy  *proxy,
         return demarshal_retvals__VOID (retvals);
 }
 
+static gboolean
+e_data_cal_gdbus_get_timezone_sync (GDBusProxy  *proxy,
+				    const char  *IN_tzid,
+				    char       **OUT_object,
+				    GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(s)", IN_tzid);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getTimezone", parameters, -1, NULL, error);
+
+        return demarshal_retvals__STRING (retvals, OUT_object);
+}
+
 G_END_DECLS
