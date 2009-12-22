@@ -3907,7 +3907,7 @@ e_cal_set_default_timezone (ECal *ecal, icaltimezone *zone, GError **error)
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (zone, E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 
 	/* Don't set the same timezone multiple times */
 	if (priv->default_zone == zone)
@@ -3928,7 +3928,7 @@ e_cal_set_default_timezone (ECal *ecal, icaltimezone *zone, GError **error)
 
 	/* call the backend */
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_set_default_timezone (priv->proxy, tzobj, error)) {
+	if (!e_data_cal_gdbus_set_default_timezone_sync (priv->gdbus_proxy, tzobj, error)) {
 		UNLOCK_CONN ();
 		g_free (tzobj);
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
