@@ -306,4 +306,18 @@ e_data_cal_gdbus_get_timezone_sync (GDBusProxy  *proxy,
         return demarshal_retvals__STRING (retvals, OUT_object);
 }
 
+static gboolean
+e_data_cal_gdbus_add_timezone_sync (GDBusProxy  *proxy,
+				    const char  *IN_zone,
+				    GError     **error)
+{
+        GVariant *parameters;
+        GVariant *retvals;
+
+        parameters = g_variant_new ("(s)", IN_zone);
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "addTimezone", parameters, -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
+}
+
 G_END_DECLS
