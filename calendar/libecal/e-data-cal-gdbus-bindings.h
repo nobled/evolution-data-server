@@ -334,4 +334,23 @@ e_data_cal_gdbus_set_default_timezone_sync (GDBusProxy  *proxy,
         return demarshal_retvals__VOID (retvals);
 }
 
+static gboolean
+e_data_cal_gdbus_get_free_busy_sync (GDBusProxy    *proxy,
+				     const char   **IN_users,
+				     const guint    IN_start,
+				     const guint    IN_end,
+				     char        ***OUT_free_busy,
+				     GError       **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(^asuu)", IN_users, -1, IN_start, IN_end);
+
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getFreeBusy", parameters, -1, NULL, error);
+
+	return demarshal_retvals__STRINGVECTOR (retvals, OUT_free_busy);
+}
+
+
 G_END_DECLS
