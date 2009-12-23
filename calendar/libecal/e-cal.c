@@ -48,8 +48,6 @@
 #include "e-data-cal-gdbus-bindings.h"
 #include <libedata-cal/e-data-cal-types.h>
 
-static DBusGConnection *connection = NULL;
-static DBusGProxy *factory_proxy = NULL;
 static GDBusConnection *connection_gdbus = NULL;
 static GDBusProxy *factory_proxy_gdbus = NULL;
 
@@ -89,7 +87,6 @@ struct _ECalPrivate {
 
 	gboolean read_only;
 
-	DBusGProxy *proxy;
 	GDBusProxy *gdbus_proxy;
 
 	/* The authentication function */
@@ -380,7 +377,6 @@ e_cal_init (ECal *ecal)
 	priv->alarm_email_address = NULL;
 	priv->ldap_attribute = NULL;
 	priv->capabilities = NULL;
-	priv->proxy = NULL;
 	priv->gdbus_proxy = NULL;
 	priv->timezones = g_hash_table_new (g_str_hash, g_str_equal);
 	priv->default_zone = icaltimezone_get_utc_timezone ();
@@ -403,8 +399,6 @@ proxy_destroyed (gpointer data, GObject *object)
 
         /* Ensure that everything relevant is reset */
         LOCK_CONN ();
-        factory_proxy = NULL;
-        priv->proxy = NULL;
 	priv->gdbus_proxy = NULL;
 	priv->load_state = E_CAL_LOAD_NOT_LOADED;
         UNLOCK_CONN ();
@@ -422,19 +416,6 @@ e_cal_dispose (GObject *object)
 	ecal = E_CAL (object);
 	priv = ecal->priv;
 
-	if (priv->proxy) {
-		GError *error = NULL;
-
-		LOCK_CONN ();
-		g_object_unref (priv->proxy);
-		priv->proxy = NULL;
-		UNLOCK_CONN ();
-
-		if (error) {
-			g_warning ("%s: Failed to close calendar, %s\n", G_STRFUNC, error->message);
-			g_error_free (error);
-		}
-	}
 	if (priv->gdbus_proxy) {
 		g_object_weak_unref (G_OBJECT (priv->gdbus_proxy), proxy_destroyed, ecal);
 
@@ -566,25 +547,23 @@ e_cal_class_init (ECalClass *klass)
 	g_type_class_add_private (klass, sizeof (ECalPrivate));
 }
 
-/* one-time start up for libecal */
-static gboolean
-e_cal_activate(GError **error)
+/* FIXME: this is a hack until we can figure out how to do this purely in gdbus
+ *  */
+static char*
+get_factory_dbus_proxy_owner_name ()
 {
+        DBusGConnection *connection = NULL;
+        DBusGProxy *factory_proxy = NULL;
+        GError *error = NULL;
 	DBusError derror;
-	const gchar *factory_proxy_name;
+	char *name;
 
 	LOCK_CONN ();
-	if (G_LIKELY (factory_proxy && factory_proxy_gdbus)) {
-		UNLOCK_CONN ();
-		return TRUE;
-	}
 
+	connection = dbus_g_bus_get (DBUS_BUS_SESSION, &error);
 	if (!connection) {
-		connection = dbus_g_bus_get (DBUS_BUS_SESSION, error);
-		if (!connection) {
-			UNLOCK_CONN ();
-			return FALSE;
-		}
+		UNLOCK_CONN ();
+		return FALSE;
 	}
 
 	dbus_error_init (&derror);
@@ -592,25 +571,46 @@ e_cal_activate(GError **error)
 													"org.gnome.evolution.dataserver.Calendar",
 													0, NULL, &derror))
 	{
-		dbus_set_g_error (error, &derror);
+		dbus_set_g_error (&error, &derror);
 		dbus_error_free (&derror);
-		UNLOCK_CONN ();
-		return FALSE;
+
+                g_warning (G_STRLOC ": FAILED to start "
+				"org.gnome.evolution.dataserver.Calendar");
+
+                goto get_factory_dbus_proxy_owner_name_OUT;
 	}
 
+	factory_proxy = dbus_g_proxy_new_for_name_owner (connection,
+						"org.gnome.evolution.dataserver.Calendar",
+						"/org/gnome/evolution/dataserver/calendar/CalFactory",
+						"org.gnome.evolution.dataserver.calendar.CalFactory",
+						&error);
 	if (!factory_proxy) {
-		factory_proxy = dbus_g_proxy_new_for_name_owner (connection,
-							"org.gnome.evolution.dataserver.Calendar",
-							"/org/gnome/evolution/dataserver/calendar/CalFactory",
-							"org.gnome.evolution.dataserver.calendar.CalFactory",
-							error);
-		if (!factory_proxy) {
-			UNLOCK_CONN ();
-			return FALSE;
-		}
+		g_warning (G_STRLOC ": failed to get ECal Factory D-Bus proxy: %s",
+                                error->message);
+                goto get_factory_dbus_proxy_owner_name_OUT;
 	}
 
-	factory_proxy_name = dbus_g_proxy_get_bus_name (factory_proxy);
+	name = g_strdup (dbus_g_proxy_get_bus_name (factory_proxy));
+
+get_factory_dbus_proxy_owner_name_OUT:
+        if (factory_proxy)
+                g_object_unref (factory_proxy);
+        if (connection)
+                dbus_g_connection_unref (connection);
+
+	UNLOCK_CONN ();
+
+	return name;
+}
+
+/* one-time start up for libecal */
+static gboolean
+e_cal_activate(GError **error)
+{
+	char *factory_proxy_name;
+
+	factory_proxy_name = get_factory_dbus_proxy_owner_name ();
 
 	/* FIXME: better to just watch for the proxy instead of using the
 	 * connection directly? */
@@ -650,6 +650,8 @@ e_cal_activate(GError **error)
 
 	UNLOCK_CONN ();
 
+	g_free (factory_proxy_name);
+
 	return TRUE;
 }
 
@@ -663,15 +665,16 @@ reopen_with_auth (gpointer data)
 }
 
 static void
-auth_required_cb (DBusGProxy *proxy, ECal *cal)
+cal_handle_signal_auth_required (ECal *cal)
 {
 	g_return_if_fail (E_IS_CAL (cal));
 
-	g_idle_add (reopen_with_auth, (gpointer)cal);
+	g_idle_add (reopen_with_auth, (gpointer) cal);
 }
 
 static void
-mode_cb (DBusGProxy *proxy, EDataCalMode mode, ECal *cal)
+cal_handle_signal_mode (ECal         *cal,
+			EDataCalMode  mode)
 {
 	g_return_if_fail (E_IS_CAL (cal));
 	g_return_if_fail (mode & AnyMode);
@@ -681,7 +684,8 @@ mode_cb (DBusGProxy *proxy, EDataCalMode mode, ECal *cal)
 }
 
 static void
-readonly_cb (DBusGProxy *proxy, gboolean read_only, ECal *cal)
+cal_handle_signal_readonly (ECal     *cal,
+			    gboolean  read_only)
 {
 	ECalPrivate *priv;
 
@@ -690,18 +694,6 @@ readonly_cb (DBusGProxy *proxy, gboolean read_only, ECal *cal)
 	priv = cal->priv;
 	priv->read_only = read_only;
 }
-
-/*
-static void
-backend_died_cb (EComponentListener *cl, gpointer user_data)
-{
-	ECalPrivate *priv;
-	ECal *ecal = (ECal *) user_data;
-
-	priv = ecal->priv;
-	priv->load_state = E_CAL_LOAD_NOT_LOADED;
-	g_signal_emit (G_OBJECT (ecal), e_cal_signals[BACKEND_DIED], 0);
-}*/
 
 typedef struct
 {
@@ -723,20 +715,48 @@ backend_error_idle_cb (gpointer data)
 	return FALSE;
 }
 
-/* Handle the error_occurred signal from the listener */
 static void
-backend_error_cb (DBusGProxy *proxy, const gchar *message, ECal *ecal)
+cal_handle_signal_backend_error (ECal        *cal,
+				 const gchar *message)
 {
 	ECalErrorData *error_data;
 
-	g_return_if_fail (E_IS_CAL (ecal));
+	g_return_if_fail (E_IS_CAL (cal));
 
 	error_data = g_new0 (ECalErrorData, 1);
 
-	error_data->ecal = g_object_ref (ecal);
+	error_data->ecal = g_object_ref (cal);
 	error_data->message = g_strdup (message);
 
 	g_idle_add (backend_error_idle_cb, error_data);
+}
+
+static void
+cal_proxy_signal_cb (GDBusProxy *proxy,
+		     gchar      *sender_name,
+                     gchar      *signal_name,
+                     GVariant   *parameters,
+                     ECal       *cal)
+{
+        if (FALSE) {
+        } else if (!g_strcmp0 (signal_name, "auth_required")) {
+                cal_handle_signal_auth_required (cal);
+        } else if (!g_strcmp0 (signal_name, "backend_error")) {
+		const char *value;
+		g_variant_get (parameters, "(&s)", &value);
+
+                cal_handle_signal_backend_error (cal, value);
+        } else if (!g_strcmp0 (signal_name, "readonly")) {
+		gboolean value;
+		g_variant_get (parameters, "(b)", &value);
+
+                cal_handle_signal_readonly (cal, value);
+        } else if (!g_strcmp0 (signal_name, "mode")) {
+		gint32 value;
+		g_variant_get (parameters, "(i)", &value);
+
+                cal_handle_signal_mode (cal, value);
+        }
 }
 
 /* TODO - For now, the policy of where each backend serializes its
@@ -867,11 +887,6 @@ e_cal_new (ESource *source, ECalSourceType type)
 	}
 	g_free (xml);
 
-	priv->proxy = dbus_g_proxy_new_for_name_owner (connection,
-									"org.gnome.evolution.dataserver.Calendar", path,
-									"org.gnome.evolution.dataserver.calendar.Cal",
-									&error);
-
 	priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
 						   G_TYPE_DBUS_PROXY,
 						   G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
@@ -883,13 +898,6 @@ e_cal_new (ESource *source, ECalSourceType type)
 
 	UNLOCK_CONN ();
 
-	if (!priv->proxy) {
-		g_warning (G_STRLOC ": cannot get dbus-glib proxy for calendar %s: %s", path, error->message);
-		g_free (path);
-		g_object_unref (ecal);
-		return NULL;
-	}
-
 	if (!priv->gdbus_proxy) {
 		g_warning (G_STRLOC ": cannot get gdbus proxy for calendar %s: %s", path, error->message);
 		g_free (path);
@@ -900,14 +908,7 @@ e_cal_new (ESource *source, ECalSourceType type)
 
 	g_object_weak_ref (G_OBJECT (priv->gdbus_proxy), proxy_destroyed, ecal);
 
-	dbus_g_proxy_add_signal (priv->proxy, "auth_required", G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (priv->proxy, "auth_required", G_CALLBACK (auth_required_cb), ecal, NULL);
-	dbus_g_proxy_add_signal (priv->proxy, "backend_error", G_TYPE_STRING, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (priv->proxy, "backend_error", G_CALLBACK (backend_error_cb), ecal, NULL);
-	dbus_g_proxy_add_signal (priv->proxy, "readonly", G_TYPE_BOOLEAN, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (priv->proxy, "readonly", G_CALLBACK (readonly_cb), ecal, NULL);
-	dbus_g_proxy_add_signal (priv->proxy, "mode", G_TYPE_INT, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal (priv->proxy, "mode", G_CALLBACK (mode_cb), ecal, NULL);
+	g_signal_connect (priv->gdbus_proxy, "g-signal", G_CALLBACK (cal_proxy_signal_cb), ecal);
 
 	/* Set the local attachment store path for the calendar */
 	set_local_attachment_store (ecal);
@@ -1702,7 +1703,7 @@ load_static_capabilities (ECal *ecal, GError **error)
 	ECalPrivate *priv;
 
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 
 	if (priv->capabilities)
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_OK, error);
@@ -3844,7 +3845,7 @@ e_cal_get_query (ECal *ecal, const gchar *sexp, ECalView **query, GError **error
 	ECalPrivate *priv;
 	ECalendarStatus status;
 	gchar *query_path;
-	DBusGProxy *query_proxy;
+	GDBusProxy *query_proxy_gdbus;
 
 	e_return_error_if_fail (sexp, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (query, E_CALENDAR_STATUS_INVALID_ARG);
@@ -3867,19 +3868,23 @@ e_cal_get_query (ECal *ecal, const gchar *sexp, ECalView **query, GError **error
 	status = E_CALENDAR_STATUS_OK;
 
 	LOCK_CONN ();
-	query_proxy = dbus_g_proxy_new_for_name_owner (connection,
-                                                "org.gnome.evolution.dataserver.Calendar", query_path,
-                                                "org.gnome.evolution.dataserver.calendar.CalView", error);
+	query_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
+							G_TYPE_DBUS_PROXY,
+							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+							g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+							query_path,
+							"org.gnome.evolution.dataserver.calendar.CalView",
+							NULL,
+							error);
 	UNLOCK_CONN ();
 
-	if (!query_proxy) {
+	if (!query_proxy_gdbus) {
 		*query = NULL;
 		status = E_CALENDAR_STATUS_OTHER_ERROR;
 	} else {
-		*query = _e_cal_view_new (ecal, query_proxy, &connection_lock);
+		*query = _e_cal_view_new (ecal, query_proxy_gdbus, &connection_lock);
+		g_object_unref (query_proxy_gdbus);
 	}
-
-	g_object_unref (query_proxy);
 
 	E_CALENDAR_CHECK_STATUS (status, error);
 }

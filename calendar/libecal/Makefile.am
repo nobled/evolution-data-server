@@ -18,9 +18,9 @@ libecal_1_2_la_CPPFLAGS = \
 
 libecal_1_2_la_SOURCES =	             \
 	$(MARSHAL_GENERATED)	             \
-	$(DBUS_GENERATED_H)	             \
 	e-data-cal-factory-gdbus-bindings.h  \
 	e-data-cal-gdbus-bindings.h          \
+	e-data-cal-view-gdbus-bindings.h     \
 	e-cal.c			             \
 	e-cal-component.c	             \
 	e-cal-recur.c		             \
@@ -60,12 +60,7 @@ libecalinclude_HEADERS =	\
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libecal-$(API_VERSION).pc
 
-DBUS_GENERATED_H = e-data-cal-view-bindings.h
-
-%-bindings.h: $(top_srcdir)/calendar/libedata-cal/%.xml
-	dbus-binding-tool --mode=glib-client --output=$@ --prefix=$(subst -,_,$*) $^
-
-BUILT_SOURCES = $(DBUS_GENERATED_H) $(MARSHAL_GENERATED)
+BUILT_SOURCES = $(MARSHAL_GENERATED)
 CLEANFILES = $(BUILT_SOURCES)
 DISTCLEANFILES = $(pkgconfig_DATA)
 
