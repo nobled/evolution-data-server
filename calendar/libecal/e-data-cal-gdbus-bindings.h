@@ -352,5 +352,22 @@ e_data_cal_gdbus_get_free_busy_sync (GDBusProxy    *proxy,
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_free_busy);
 }
 
+static gboolean
+e_data_cal_gdbus_send_objects_sync (GDBusProxy   *proxy,
+				    const char   *IN_object,
+				    char       ***OUT_users,
+				    char        **OUT_object,
+				    GError      **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(s)", IN_object);
+
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "sendObjects", parameters, -1, NULL, error);
+
+	return demarshal_retvals__STRINGVECTOR_STRING (retvals, OUT_users, OUT_object);
+}
+
 
 G_END_DECLS

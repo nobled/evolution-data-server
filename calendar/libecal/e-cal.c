@@ -3605,7 +3605,7 @@ e_cal_receive_objects (ECal *ecal, icalcomponent *icalcomp, GError **error)
  * e_cal_send_objects:
  * @ecal: A calendar client.
  * @icalcomp: An icalcomponent.
- * @users: List of users to send the objects to.
+ * @users: Return value for the list of users the objects are sent to.
  * @modified_icalcomp: Return value for the icalcomponent after all the operations
  * performed.
  * @error: Placeholder for error information.
@@ -3620,8 +3620,8 @@ e_cal_send_objects (ECal *ecal, icalcomponent *icalcomp, GList **users, icalcomp
 {
 	ECalPrivate *priv;
 	ECalendarStatus status;
-	gchar **users_array;
-	gchar *object;
+	gchar **users_array = NULL;
+	gchar *object = NULL;
 
 	e_return_error_if_fail (users != NULL, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (modified_icalcomp != NULL, E_CALENDAR_STATUS_INVALID_ARG);
@@ -3629,7 +3629,7 @@ e_cal_send_objects (ECal *ecal, icalcomponent *icalcomp, GList **users, icalcomp
 	e_return_error_if_fail (icalcomponent_is_valid (icalcomp), E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 	*users = NULL;
 	*modified_icalcomp = NULL;
 
@@ -3638,7 +3638,7 @@ e_cal_send_objects (ECal *ecal, icalcomponent *icalcomp, GList **users, icalcomp
 	}
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_send_objects (priv->proxy, icalcomponent_as_ical_string (icalcomp), &users_array, &object, error)) {
+	if (!e_data_cal_gdbus_send_objects_sync (priv->gdbus_proxy, icalcomponent_as_ical_string (icalcomp), &users_array, &object, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}

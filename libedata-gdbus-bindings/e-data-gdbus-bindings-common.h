@@ -124,6 +124,45 @@ demarshal_retvals__STRINGVECTOR (GVariant *retvals, char ***OUT_strv1)
 }
 
 static gboolean
+demarshal_retvals__STRINGVECTOR_STRING (GVariant   *retvals,
+					char     ***OUT_strv1,
+					char      **OUT_string1)
+{
+        gboolean success = TRUE;
+
+        if (retvals) {
+                GVariant *strv1_variant;
+                char **strv1 = NULL;
+                GVariant *string1_variant;
+                char *string1 = NULL;
+
+                strv1_variant = g_variant_get_child_value (retvals, 0);
+                strv1 = g_variant_dup_strv (strv1_variant, NULL);
+
+                if (strv1) {
+                        *OUT_strv1 = strv1;
+                } else {
+                        success = FALSE;
+                }
+
+                string1_variant = g_variant_get_child_value (retvals, 1);
+                string1 = g_variant_dup_string (string1_variant, NULL);
+
+                if (string1) {
+                        *OUT_string1 = string1;
+                } else {
+                        success = FALSE;
+                }
+
+                g_variant_unref (retvals);
+        } else {
+                success = FALSE;
+        }
+
+        return success;
+}
+
+static gboolean
 demarshal_retvals__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith
 	(GVariant   *retvals,
 	 GPtrArray **OUT_ptrarray1)
