@@ -45,8 +45,6 @@
 #include "e-cal-view-private.h"
 #include "e-cal.h"
 #include "e-data-cal-factory-gdbus-bindings.h"
-/* FIXME: cut this */
-#include "e-data-cal-bindings.h"
 #include "e-data-cal-gdbus-bindings.h"
 #include <libedata-cal/e-data-cal-types.h>
 
