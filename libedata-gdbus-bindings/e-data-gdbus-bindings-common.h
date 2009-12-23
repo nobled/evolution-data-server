@@ -94,27 +94,51 @@ demarshal_retvals__STRING (GVariant *retvals, char **OUT_string1)
         return success;
 }
 
+static void
+string_dup_from_variant (GVariant  *variant,
+			 guint      child_position,
+			 char     **dest,
+			 gboolean  *success)
+{
+	GVariant *string_variant;
+	char *string = NULL;
+
+	string_variant = g_variant_get_child_value (variant, child_position);
+	string = g_variant_dup_string (string_variant, NULL);
+
+	if (string) {
+		*dest = string;
+	} else {
+		*success = FALSE;
+	}
+}
+
+static void
+strv_dup_from_variant (GVariant   *variant,
+		       guint       child_position,
+		       char     ***dest,
+		       gboolean   *success)
+{
+	GVariant *strv_variant;
+	char **strv = NULL;
+
+	strv_variant = g_variant_get_child_value (variant, child_position);
+	strv = g_variant_dup_strv (strv_variant, NULL);
+
+	if (strv) {
+		*dest = strv;
+	} else {
+		*success = FALSE;
+	}
+}
+
 static gboolean
 demarshal_retvals__STRINGVECTOR (GVariant *retvals, char ***OUT_strv1)
 {
         gboolean success = TRUE;
 
         if (retvals) {
-                GVariant *strv1_variant;
-                char **strv1 = NULL;
-                gint strv1_length;
-
-                /* retvals contains a (as) with length 1; de-shell the
-                 * array of strings from the tuple */
-                strv1_variant = g_variant_get_child_value (retvals, 0);
-                strv1 = g_variant_dup_strv (strv1_variant, &strv1_length);
-
-                if (strv1) {
-                        *OUT_strv1 = strv1;
-                } else {
-                        success = FALSE;
-                }
-
+		strv_dup_from_variant (retvals, 0, OUT_strv1, &success);
                 g_variant_unref (retvals);
         } else {
                 success = FALSE;
@@ -131,29 +155,27 @@ demarshal_retvals__STRINGVECTOR_STRING (GVariant   *retvals,
         gboolean success = TRUE;
 
         if (retvals) {
-                GVariant *strv1_variant;
-                char **strv1 = NULL;
-                GVariant *string1_variant;
-                char *string1 = NULL;
+		string_dup_from_variant (retvals, 1, OUT_string1, &success);
+                g_variant_unref (retvals);
+        } else {
+                success = FALSE;
+        }
 
-                strv1_variant = g_variant_get_child_value (retvals, 0);
-                strv1 = g_variant_dup_strv (strv1_variant, NULL);
+        return success;
+}
 
-                if (strv1) {
-                        *OUT_strv1 = strv1;
-                } else {
-                        success = FALSE;
-                }
+static gboolean
+demarshal_retvals__STRINGVECTOR_STRINGVECTOR_STRINGVECTOR (GVariant   *retvals,
+							   char     ***OUT_strv1,
+							   char     ***OUT_strv2,
+							   char     ***OUT_strv3)
+{
+        gboolean success = TRUE;
 
-                string1_variant = g_variant_get_child_value (retvals, 1);
-                string1 = g_variant_dup_string (string1_variant, NULL);
-
-                if (string1) {
-                        *OUT_string1 = string1;
-                } else {
-                        success = FALSE;
-                }
-
+        if (retvals) {
+		strv_dup_from_variant (retvals, 0, OUT_strv1, &success);
+		strv_dup_from_variant (retvals, 1, OUT_strv2, &success);
+		strv_dup_from_variant (retvals, 2, OUT_strv3, &success);
                 g_variant_unref (retvals);
         } else {
                 success = FALSE;
