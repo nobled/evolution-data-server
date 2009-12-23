@@ -384,4 +384,20 @@ e_data_cal_gdbus_receive_objects_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__VOID (retvals);
 }
 
+static gboolean
+e_data_cal_gdbus_get_query_sync (GDBusProxy  *proxy,
+				 const char  *IN_sexp,
+				 char       **OUT_path,
+				 GError     **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(s)", IN_sexp);
+
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getQuery", parameters, -1, NULL, error);
+
+	return demarshal_retvals__OBJPATH (retvals, OUT_path);
+}
+
 G_END_DECLS
