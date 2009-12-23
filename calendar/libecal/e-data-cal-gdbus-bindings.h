@@ -400,4 +400,56 @@ e_data_cal_gdbus_get_query_sync (GDBusProxy  *proxy,
 	return demarshal_retvals__OBJPATH (retvals, OUT_path);
 }
 
+static gboolean
+e_data_cal_gdbus_discard_alarm_sync (GDBusProxy  *proxy,
+				     const char  *IN_uid,
+				     const char  *IN_auid,
+				     GError     **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(ss)", IN_uid, IN_auid);
+
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "discardAlarm", parameters, -1, NULL, error);
+
+	return demarshal_retvals__VOID (retvals);
+}
+
+static gboolean
+e_data_cal_gdbus_get_changes_sync (GDBusProxy   *proxy,
+				   const char   *IN_change_id,
+				   char       ***OUT_additions,
+				   char       ***OUT_modifications,
+				   char       ***OUT_removals,
+				   GError      **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(s)", IN_change_id);
+
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getChanges", parameters, -1, NULL, error);
+
+	return demarshal_retvals__STRINGVECTOR_STRINGVECTOR_STRINGVECTOR (retvals, OUT_additions, OUT_modifications, OUT_removals);
+}
+
+static gboolean
+e_data_cal_gdbus_get_attachment_list_sync (GDBusProxy   *proxy,
+					   const char   *IN_uid,
+					   const char   *IN_rid,
+					   char       ***OUT_attachments,
+					   GError      **error)
+{
+	GVariant *parameters;
+	GVariant *retvals;
+
+	parameters = g_variant_new ("(ss)", IN_uid, IN_rid);
+
+	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getAttachmentList", parameters, -1, NULL, error);
+
+	return demarshal_retvals__STRINGVECTOR (retvals, OUT_attachments);
+}
+
+
 G_END_DECLS

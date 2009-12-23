@@ -1966,7 +1966,7 @@ e_cal_get_attachments_for_comp (ECal *ecal, const gchar *uid, const gchar *rid, 
 	e_return_error_if_fail (list != NULL, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 	*list = NULL;
 
 	if (priv->load_state != E_CAL_LOAD_LOADED) {
@@ -1974,7 +1974,7 @@ e_cal_get_attachments_for_comp (ECal *ecal, const gchar *uid, const gchar *rid, 
 	}
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_get_attachment_list (priv->proxy, uid, rid ? rid: "", &list_array, error)) {
+	if (!e_data_cal_gdbus_get_attachment_list_sync (priv->gdbus_proxy, uid, rid ? rid: "", &list_array, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}
@@ -2217,7 +2217,7 @@ e_cal_get_changes (ECal *ecal, const gchar *change_id, GList **changes, GError *
 	e_return_error_if_fail (change_id != NULL, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (E_IS_CAL (ecal), E_CALENDAR_STATUS_INVALID_ARG);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 	*changes = NULL;
 
 	if (priv->load_state != E_CAL_LOAD_LOADED) {
@@ -2225,7 +2225,7 @@ e_cal_get_changes (ECal *ecal, const gchar *change_id, GList **changes, GError *
 	}
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_get_changes (priv->proxy, change_id, &additions, &modifications, &removals, error)) {
+	if (!e_data_cal_gdbus_get_changes_sync (priv->gdbus_proxy, change_id, &additions, &modifications, &removals, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}
@@ -3213,7 +3213,7 @@ e_cal_discard_alarm (ECal *ecal, ECalComponent *comp, const gchar *auid, GError 
 	g_return_val_if_fail (E_IS_CAL_COMPONENT (comp), FALSE);
 	g_return_val_if_fail (auid != NULL, FALSE);
 	priv = ecal->priv;
-	e_return_error_if_fail (priv->proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
+	e_return_error_if_fail (priv->gdbus_proxy, E_CALENDAR_STATUS_REPOSITORY_OFFLINE);
 
 	if (priv->load_state != E_CAL_LOAD_LOADED) {
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_URI_NOT_LOADED, error);
@@ -3222,7 +3222,7 @@ e_cal_discard_alarm (ECal *ecal, ECalComponent *comp, const gchar *auid, GError 
 	e_cal_component_get_uid (comp, &uid);
 
 	LOCK_CONN ();
-	if (!org_gnome_evolution_dataserver_calendar_Cal_discard_alarm (priv->proxy, uid, auid, error)) {
+	if (!e_data_cal_gdbus_discard_alarm_sync (priv->gdbus_proxy, uid, auid, error)) {
 		UNLOCK_CONN ();
 		E_CALENDAR_CHECK_STATUS (E_CALENDAR_STATUS_CORBA_EXCEPTION, error);
 	}
