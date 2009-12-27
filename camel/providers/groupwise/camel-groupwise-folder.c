@@ -97,6 +97,7 @@ static CamelMimeMessage *groupwise_folder_item_to_msg ( CamelFolder *folder, EGw
 static gchar * groupwise_get_filename (CamelFolder *folder, const gchar *uid, GError **error);
 static const gchar *get_from_from_org (EGwItemOrganizer *org);
 static void groupwise_refresh_folder(CamelFolder *folder, GError **error);
+static gboolean groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_single, GError **error);
 
 #define d(x)
 
@@ -706,9 +707,39 @@ sync_flags (CamelFolder *folder, GList *uids)
 	}
 }
 
+static gboolean
+groupwise_set_message_flags (CamelFolder *folder, const gchar *uid, guint32 flags, guint32 set)
+{
+	CamelMessageInfo *info;
+	gint res;
+	const gchar *sync_immediately;
+
+	g_return_val_if_fail (folder->summary != NULL, FALSE);
+
+	info = camel_folder_summary_uid (folder->summary, uid);
+	if (info == NULL)
+		return FALSE;
+
+	res = camel_message_info_set_flags (info, flags, set);
+
+	sync_immediately = g_getenv ("GW_SYNC_IMMEDIATE");
+
+	if (sync_immediately)
+		groupwise_sync (folder, FALSE, info, NULL);
+
+	camel_message_info_free (info);
+	return res;
+}
+
+static gboolean
+groupwise_sync_all (CamelFolder *folder, gboolean expunge, GError **error)
+{
+	return groupwise_sync (folder, expunge, NULL, error);
+}
+
 /* This may need to be reorganized. */
 static gboolean
-groupwise_sync (CamelFolder *folder, gboolean expunge, GError **error)
+groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_single, GError **error)
 {
 	CamelGroupwiseStore *gw_store = CAMEL_GROUPWISE_STORE (folder->parent_store);
 	CamelGroupwiseFolder *gw_folder = CAMEL_GROUPWISE_FOLDER (folder);
@@ -749,7 +780,14 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, GError **error)
 	CAMEL_GROUPWISE_FOLDER_REC_LOCK (folder, cache_lock);
 	for (i=0; i < count; i++) {
 		guint32 flags = 0;
-		info = camel_folder_summary_index (folder->summary, i);
+
+		if (update_single != NULL) {
+			info = update_single;
+			camel_message_info_ref (info);
+			count = 1;
+		} else
+			info = camel_folder_summary_index (folder->summary, i);
+
 		gw_info = (CamelGroupwiseMessageInfo *) info;
 
 		/**Junk Mail handling**/
@@ -854,6 +892,7 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, GError **error)
 				}
 			}
 		}
+
 		camel_message_info_free (info);
 	}
 
@@ -1272,7 +1311,7 @@ groupwise_refresh_folder(CamelFolder *folder, GError **error)
 
 	/* Sync-up the (un)read changes before getting updates,
 	so that the getFolderList will reflect the most recent changes too */
-	/*groupwise_sync (folder, FALSE, ex);*/
+	groupwise_sync_all (folder, FALSE, error);
 
 	if (((CamelOfflineStore *) gw_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
 		g_warning ("In offline mode. Cannot refresh!!!\n");
@@ -2800,7 +2839,8 @@ groupwise_folder_class_init (CamelGroupwiseFolderClass *class)
 	folder_class->search_free = groupwise_folder_search_free;
 	folder_class->append_message = groupwise_append_message;
 	folder_class->refresh_info = groupwise_refresh_info;
-	folder_class->sync = groupwise_sync;
+	folder_class->sync = groupwise_sync_all;
+	folder_class->set_message_flags = groupwise_set_message_flags;
 	folder_class->expunge = groupwise_expunge;
 	folder_class->transfer_messages_to = groupwise_transfer_messages_to;
 	folder_class->get_filename = groupwise_get_filename;

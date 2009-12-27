@@ -1,3 +1,103 @@
+Evolution-Data-Server 2.29.4 2009-12-21
+---------------------------------------
+
+Bug Fixes:
+Mailer:
+	#604865 - Message part description shouldn't be translated (Matthew Barnes) 
+	#553057 - Add information about signers to a validity structure (Matthew W. S. Bell)
+	#603342 - Memory leak fixes (Milan Crha)
+	#592317 - Sign S/MIME with valid certificates only (Milan Crha)
+	#604305 -  Attachments not properly indicated in message summary (Milan Crha)
+	#603689 -  Improper escaping of folder name (Lucian Langa)
+	#487988 - Bad search filter for LDAP address book (Alex Larsson)
+Calendar:
+	#603437 - Fixes for valgrind reports on e-calendar-factory (Milan Crha)
+	 #602945 - Avoid code duplication with timezone fetching from backends (Milan Crha)
+Contacts:
+	#601513 - Crashes when trying to add a new contact in MAPI (Milan Crha)
+
+Misc:
+	#604550 - e_passwords_shutdown is buggy password_cache is destroyed without properly 
+	acquiring the lock. (Wenli).
+	#603770, Replace __PRETY_FUNCTION__ with G_STRFUNC (Jeff Cai)
+	#603772 - Include e-data-server-ui-marshal.list in tarballs (Matthew Barnes)
+
+Other Changes:
+	Get the prototype for strptime() when it's available  Instead of only getting it on Linux. 
+	Also use nl_langinfo() (Emilio Pozuelo Monfort)
+	In the factories, don't double-free some memory (and crash) when the DBus service name owner changes.
+	(Travis Reitter)
+	Fixes a crash in select - imapx. (Chenthill Palanisamy)
+	Sync up the store summary and rename labels for backward, thunderbird compatibility - imapx (Chenthill 
+	Palanisamy)
+	Get rid of rest of the warnings. (Chenthill Palanisamy)
+	Initialize the uidset before sync user flags. (Chenthill Palanisamy)
+	Sync the changes - imapx. (Chenthill Palanisamy)
+	Lock the search. (Chenthill Palanisamy)
+	Create a new me-card in e_book_get_self() if one doesn't exist (Ross Burton)
+
+Translations:
+	Lucian Adrian Grijincu (ro)
+	Kjartan Maraas (nb)
+	Ivar Smolin (et)
+	Matej Urbančič (sl)
+
+
+Evolution-Data-Server 2.29.3 2009-11-30
+---------------------------------------
+
+Bug Fixes:
+
+Mailer:
+	#600449 - segfault in camel_msgport_destroy (Milan Crha)
+	#549221 (BNC) - delete, sync flags immediately (Chenthill Palanisamy)
+	#361145 - Evolution hangs when formatting message - fixes part of it.
+	(Chenthill Palanisamy)
+	#574940 - Crash in message_info_to_db() (Milan Crha)
+
+Calendar:
+	#394567 - Use correct FBTYPE values in GroupWise calendar backend
+	(Jari Urpalainen)
+	#347845 - Early Hour AM iCal Calendar Entries Do Not Load (Milan Crha)
+	Bug 603311 -  Prepare for new weather_info_get_icon_name() return values
+	(Frank Solensky)
+	Bug 494394 -  No way for the user to refresh a calendar (Milan Crha)
+
+Misc:
+	#602719 - Crash in ep_set_proxy with no proxy user or password
+	(Milan Crha)
+
+
+Other Changes:
+
+Calendar:
+	Check the proxy state at the beginning of each function(Travis Reitter)
+	Add a bit more input validation for D-Bus-bound ECal functions.
+	(Travis Reitter)
+
+Contacts:
+	Documentation fix (Patrick Ohly)
+
+Camel:
+	Coding style and whitespace cleanup. (Matthew Barnes)
+	Fetch message summary - imapx. (Chenthill Palanisamy)
+	Add camel cflags for nameselector test program. (Chenthill Palanisamy)
+	Fetches the folderinfo from multiple namespaces - imapx.
+	(Chenthill Palanisamy)
+	Pass the port directly which to exchange message(Chenthill Palanisamy)
+	Revert 'Remove unused assignments' as it breaks nntp summary
+	(Lucian Langa)
+	Serializes the connect, notify new messages to UI, fixes a crash - imapx
+	(Chenthill Palanisamy)
+
+Misc:
+	Update API documentation. (Matthew Barnes)
+	Enable automatic .gitignore generation. (Matthew Barnes)
+	
+Translations:
+	Ivar Smolin (et)
+
+
 Evolution-Data-Server 2.29.2 2009-11-16
 ---------------------------------------
 

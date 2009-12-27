@@ -37,10 +37,11 @@ imap_tokenise (register const gchar *str, register guint len)
 }
 
 static void imapx_namespace_clear (CamelIMAPXStoreNamespace **ns);
+static const gchar * rename_label_flag (const gchar *flag, gint len, gboolean server_to_evo);
 
 /* flag table */
 static struct {
-	gchar *name;
+	const gchar *name;
 	guint32 flag;
 } flag_table[] = {
 	{ "\\ANSWERED", CAMEL_MESSAGE_ANSWERED },
@@ -48,8 +49,8 @@ static struct {
 	{ "\\DRAFT", CAMEL_MESSAGE_DRAFT },
 	{ "\\FLAGGED", CAMEL_MESSAGE_FLAGGED },
 	{ "\\SEEN", CAMEL_MESSAGE_SEEN },
-//	{ "\\RECENT", CAMEL_MESSAGE_RECENT },
-	{ "\\*", CAMEL_MESSAGE_USER },
+	{ "\\RECENT", CAMEL_IMAPX_MESSAGE_RECENT },
+	{ "\\*", CAMEL_MESSAGE_USER }
 };
 
 /* utility functions
@@ -80,8 +81,12 @@ imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_fla
 						flags |= flag_table[i].flag;
 						goto found;
 					}
-				if (user_flagsp)
-					camel_flag_set(user_flagsp, (gchar *)token, TRUE);
+				if (user_flagsp) {
+					const gchar *flag_name = rename_label_flag ((gchar *) token, strlen ((gchar *) token), TRUE);
+
+					camel_flag_set(user_flagsp, flag_name, TRUE);
+
+				}
 			found:
 				tok = tok; /* fixes stupid warning */
 			} else if (tok != ')') {
@@ -97,37 +102,91 @@ imap_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_fla
 	*flagsp = flags;
 }
 
+/*
+ * rename_flag
+ * Converts label flag name on server to name used in Evolution or back.
+ * if the flags does not match returns the original one as it is.
+ * It will never return NULL, it will return empty string, instead.
+ *
+ * @param flag Flag to rename.
+ * @param len Length of the flag name.
+ * @param server_to_evo if TRUE, then converting server names to evo's names, if FALSE then opposite.
+ */
+static const gchar *
+rename_label_flag (const gchar *flag, gint len, gboolean server_to_evo)
+{
+	gint i;
+	const gchar *labels[] = {
+		"$Label1", "$Labelimportant",
+		"$Label2", "$Labelwork",
+		"$Label3", "$Labelpersonal",
+		"$Label4", "$Labeltodo",
+		"$Label5", "$Labellater",
+		NULL,      NULL };
+
+	/* It really can pass zero-length flags inside, in that case it was able
+	   to always add first label, which is definitely wrong. */
+	if (!len || !flag || !*flag)
+		return "";
+
+	for (i = 0 + (server_to_evo ? 0 : 1); labels[i]; i = i + 2) {
+		if (!g_ascii_strncasecmp (flag, labels[i], len))
+			return labels [i + (server_to_evo ? 1 : -1)];
+	}
+
+	return flag;
+}
+
 void
-imap_write_flags(CamelStream *stream, guint32 flags, CamelFlag *user_flags)
+imap_write_flags(CamelStream *stream, guint32 flags, CamelFlag *user_flags, CamelException *ex)
 /* throws IO exception */
 {
 	gint i;
 
-	/* all this ugly exception throwing goes away once camel streams throw their own? */
-	if (camel_stream_write(stream, "(", 1) == -1)
-		camel_exception_throw(1, "io error: %s", strerror(errno));
+	if (camel_stream_write(stream, "(", 1) == -1) {
+		camel_exception_setv (ex, 1, "io error: %s", strerror(errno));
+		return;
+	}
 
 	for (i=0;flags!=0 && i< G_N_ELEMENTS (flag_table);i++) {
 		if (flag_table[i].flag & flags) {
-			if (camel_stream_write(stream, flag_table[i].name, strlen(flag_table[i].name)) == -1)
-				camel_exception_throw(1, "io error: %s", strerror(errno));
+			if (flags & CAMEL_IMAPX_MESSAGE_RECENT)
+				continue;
+
+			if (camel_stream_write (stream, flag_table[i].name, strlen(flag_table[i].name)) == -1) {
+				camel_exception_setv (ex,1, "io error: %s", strerror(errno));
+				return;
+			}
+
 			flags &= ~flag_table[i].flag;
 			if (flags != 0 && user_flags == NULL)
-				if (camel_stream_write(stream, " ", 1) == -1)
-					camel_exception_throw(1, "io error: %s", strerror(errno));
+				if (camel_stream_write(stream, " ", 1) == -1) {
+					camel_exception_setv (ex, 1, "io error: %s", strerror(errno));
+					return;
+				}
 		}
 	}
 
 	while (user_flags) {
-		if (camel_stream_write(stream, user_flags->name, strlen(user_flags->name)) == -1)
-			camel_exception_throw(1, "io error: %s", strerror(errno));
-		if (user_flags->next && camel_stream_write(stream, " ", 1) == -1)
-			camel_exception_throw(1, "io error: %s", strerror(errno));
+		const gchar *flag_name = rename_label_flag (user_flags->name, strlen (user_flags->name), FALSE);
+
+		if (camel_stream_write(stream, flag_name, strlen (flag_name)) == -1) {
+			camel_exception_setv (ex, 1, "io error: %s", strerror(errno));
+			return;
+		}
+
+		if (user_flags->next && camel_stream_write(stream, " ", 1) == -1) {
+			camel_exception_setv (ex, 1, "io error: %s", strerror(errno));
+			return;
+		}
+
 		user_flags = user_flags->next;
 	}
 
-	if (camel_stream_write(stream, ")", 1) == -1)
-		camel_exception_throw(1, "io error: %s", strerror(errno));
+	if (camel_stream_write(stream, ")", 1) == -1) {
+		camel_exception_setv (ex, 1, "io error: %s", strerror(errno));
+		return;
+	}
 }
 
 /*
@@ -139,7 +198,7 @@ capability_data ::= "CAPABILITY" SPACE [1#capability SPACE] "IMAP4rev1"
 */
 
 struct {
-	gchar *name;
+	const gchar *name;
 	guint32 flag;
 } capa_table[] = {
 	{ "IMAP4", IMAP_CAPABILITY_IMAP4 },
@@ -154,10 +213,11 @@ struct {
 struct _capability_info *
 imap_parse_capability(CamelIMAPXStream *stream, GError **error)
 {
-	gint tok, len, i;
-	guchar *token, *p, c, *temp;
+	gint tok, i;
+	guint len;
+	guchar *token, *p, c;
 	gboolean free_token = FALSE;
-	struct _capability_info * volatile cinfo;
+	struct _capability_info * cinfo;
 
 	cinfo = g_malloc0(sizeof(*cinfo));
 
@@ -165,7 +225,7 @@ imap_parse_capability(CamelIMAPXStream *stream, GError **error)
 	while (!camel_exception_is_set (ex) && (tok = camel_imapx_stream_token(stream, &token, &len, ex)) != '\n') {
 		switch (tok) {
 			case 43:
-				token = g_strconcat (token, "+", NULL);
+				token = (guchar *) g_strconcat ((gchar *)token, "+", NULL);
 				free_token = TRUE;
 			case IMAP_TOK_TOKEN:
 			case IMAP_TOK_STRING:
@@ -175,7 +235,7 @@ imap_parse_capability(CamelIMAPXStream *stream, GError **error)
 			case IMAP_TOK_INT:
 				printf(" cap: '%s'\n", token);
 				for (i = 0; i < G_N_ELEMENTS (capa_table); i++)
-					if (strcmp(token, capa_table[i].name))
+					if (!strcmp((gchar *) token, capa_table[i].name))
 						cinfo->capa |= capa_table[i].flag;
 				if (free_token) {
 					g_free (token);
@@ -207,8 +267,9 @@ imap_parse_namespace_list (CamelIMAPXStream *stream, GError **error)
 {
 	CamelIMAPXStoreNamespace *namespaces[3], *node, *tail;
 	CamelIMAPXNamespaceList *nsl = NULL;
-	gint tok, len, i;
-	guchar *token, *p, c;
+	gint tok, i;
+	guint len;
+	guchar *token;
 	gint n = 0;
 
 	nsl = g_malloc0(sizeof(CamelIMAPXNamespaceList));
@@ -233,13 +294,14 @@ imap_parse_namespace_list (CamelIMAPXStream *stream, GError **error)
 
 				node = g_new0 (CamelIMAPXStoreNamespace, 1);
 				node->next = NULL;
-				node->path = g_strdup (token);
+				node->full_name = g_strdup ((gchar *) token);
+				node->path = g_strdup ((gchar *) token);
 				g_message ("namespace: Node path is %s \n", node->path);
 
 				tok = camel_imapx_stream_token (stream, &token, &len, ex);
 
 				if (tok == IMAP_TOK_STRING) {
-					if (strlen (token) == 1) {
+					if (strlen ((gchar *) token) == 1) {
 						node->sep = *token;
 					} else {
 						if (*token)
@@ -280,7 +342,7 @@ imap_parse_namespace_list (CamelIMAPXStream *stream, GError **error)
 				goto exception;
 			}
 
-		} else if (tok == IMAP_TOK_TOKEN && !strcmp (token, "NIL")) {
+		} else if (tok == IMAP_TOK_TOKEN && !strcmp ((gchar *) token, "NIL")) {
 			namespaces [n] = NULL;
 		} else {
 			camel_exception_set (ex, 1, "namespace: expected either a '(' or NIL");
@@ -445,8 +507,10 @@ imap_free_body(struct _CamelMessageContentInfo *cinfo)
 void
 imap_parse_param_list(CamelIMAPXStream *is, struct _camel_header_param **plist, GError **error)
 {
-	gint tok, len;
-	guchar *token, *param;
+	gint tok;
+	guint len;
+	guchar *token;
+	gchar *param;
 
 	p(printf("body_fld_param\n"));
 
@@ -460,10 +524,10 @@ imap_parse_param_list(CamelIMAPXStream *is, struct _camel_header_param **plist, 
 			camel_imapx_stream_ungettoken(is, tok, token, len);
 
 			camel_imapx_stream_astring(is, &token, ex);
-			param = alloca(strlen(token)+1);
-			strcpy(param, token);
+			param = alloca (strlen ((gchar *) token)+1);
+			strcpy(param, (gchar *) token);
 			camel_imapx_stream_astring(is, &token, ex);
-			camel_header_set_param(plist, param, token);
+			camel_header_set_param(plist, param, (gchar *) token);
 		}
 	} /* else check nil?  no need */
 }
@@ -471,7 +535,8 @@ imap_parse_param_list(CamelIMAPXStream *is, struct _camel_header_param **plist, 
 struct _CamelContentDisposition *
 imap_parse_ext_optional(CamelIMAPXStream *is, GError **error)
 {
-	gint tok, len;
+	gint tok;
+	guint len;
 	guchar *token;
 	struct _CamelContentDisposition *dinfo = NULL;
 
@@ -500,7 +565,7 @@ imap_parse_ext_optional(CamelIMAPXStream *is, GError **error)
 			/* should be string */
 			camel_imapx_stream_astring(is, &token, ex);
 
-			dinfo->disposition = g_strdup(token);
+			dinfo->disposition = g_strdup((gchar *) token);
 			imap_parse_param_list(is, &dinfo->params, ex);
 		case IMAP_TOK_TOKEN:
 			d(printf("body_fld_dsp: NIL\n"));
@@ -557,7 +622,8 @@ imap_parse_ext_optional(CamelIMAPXStream *is, GError **error)
 struct _CamelMessageContentInfo *
 imap_parse_body_fields(CamelIMAPXStream *is, GError **error)
 {
-	guchar *token, *type;
+	guchar *token;
+	gchar  *type;
 	struct _CamelMessageContentInfo *cinfo;
 
 	/* body_fields     ::= body_fld_param SPACE body_fld_id SPACE
@@ -572,12 +638,12 @@ imap_parse_body_fields(CamelIMAPXStream *is, GError **error)
 	camel_imapx_stream_astring(is, &token, ex);
 	if (camel_exception_is_set (ex))
 		goto error;
-	type = alloca(strlen(token)+1);
-	strcpy(type, token);
+	type = alloca(strlen( (gchar *) token)+1);
+	strcpy(type, (gchar *) token);
 	camel_imapx_stream_astring(is, &token, ex);
 	if (camel_exception_is_set (ex))
 		goto error;
-	cinfo->type = camel_content_type_new(type, token);
+	cinfo->type = camel_content_type_new(type, (gchar *) token);
 	imap_parse_param_list(is, &cinfo->type->params, ex);
 	if (camel_exception_is_set (ex))
 		goto error;
@@ -586,20 +652,20 @@ imap_parse_body_fields(CamelIMAPXStream *is, GError **error)
 	camel_imapx_stream_nstring(is, &token, ex);
 	if (camel_exception_is_set (ex))
 		goto error;
-	cinfo->id = g_strdup(token);
+	cinfo->id = g_strdup((gchar *) token);
 
 	/* body_fld_desc   ::= nstring */
 	camel_imapx_stream_nstring(is, &token, ex);
 	if (camel_exception_is_set (ex))
 		goto error;
-	cinfo->description = g_strdup(token);
+	cinfo->description = g_strdup((gchar *) token);
 
 	/* body_fld_enc    ::= (<"> ("7BIT" / "8BIT" / "BINARY" / "BASE64"/
 	   "QUOTED-PRINTABLE") <">) / string */
 	camel_imapx_stream_astring(is, &token, ex);
 	if (camel_exception_is_set (ex))
 		goto error;
-	cinfo->encoding = g_strdup(token);
+	cinfo->encoding = g_strdup((gchar *) token);
 
 	/* body_fld_octets ::= number */
 	cinfo->size = camel_imapx_stream_number(is, ex);
@@ -616,8 +682,10 @@ struct _camel_header_address *
 imap_parse_address_list(CamelIMAPXStream *is, GError **error)
 /* throws PARSE,IO exception */
 {
-	gint tok, len;
-	guchar *token, *host, *mbox;
+	gint tok;
+	guint len;
+	guchar *token, *host;
+	gchar *mbox;
 	struct _camel_header_address *list = NULL;
 
 	/* "(" 1*address ")" / nil */
@@ -641,7 +709,7 @@ imap_parse_address_list(CamelIMAPXStream *is, GError **error)
 			addr = camel_header_address_new();
 			addr->type = CAMEL_HEADER_ADDRESS_NAME;
 			tok = camel_imapx_stream_nstring(is, &token, ex);
-			addr->name = g_strdup(token);
+			addr->name = g_strdup((gchar *) token);
 			/* we ignore the route, nobody uses it in the real world */
 			tok = camel_imapx_stream_nstring(is, &token, ex);
 
@@ -653,7 +721,7 @@ imap_parse_address_list(CamelIMAPXStream *is, GError **error)
 			   non-NIL, this is a start of group marker, and the
 			   mailbox name field holds the group name phrase. */
 
-			tok = camel_imapx_stream_nstring(is, &mbox, ex);
+			tok = camel_imapx_stream_nstring(is,(guchar **) &mbox, ex);
 			mbox = g_strdup(mbox);
 			tok = camel_imapx_stream_nstring(is, &host, ex);
 			if (host == NULL) {
@@ -668,7 +736,7 @@ imap_parse_address_list(CamelIMAPXStream *is, GError **error)
 					group = addr;
 				}
 			} else {
-				addr->v.addr = g_strdup_printf("%s%s%s", mbox?(gchar *)mbox:"", host?"@":"", host?(gchar *)host:"");
+				addr->v.addr = g_strdup_printf("%s%s%s", mbox? mbox:"", host?"@":"", host?(gchar *)host:"");
 				g_free(mbox);
 				d(printf("adding address '%s'\n", addr->v.addr));
 				if (group != NULL)
@@ -692,7 +760,8 @@ imap_parse_address_list(CamelIMAPXStream *is, GError **error)
 struct _CamelMessageInfo *
 imap_parse_envelope(CamelIMAPXStream *is, GError **error)
 {
-	gint tok, len;
+	gint tok;
+	guint len;
 	guchar *token;
 	struct _camel_header_address *addr, *addr_from;
 	gchar *addrstr;
@@ -716,11 +785,11 @@ imap_parse_envelope(CamelIMAPXStream *is, GError **error)
 
 	/* env_date        ::= nstring */
 	camel_imapx_stream_nstring(is, &token, ex);
-	minfo->date_sent = camel_header_decode_date(token, NULL);
+	minfo->date_sent = camel_header_decode_date((gchar *) token, NULL);
 
 	/* env_subject     ::= nstring */
 	tok = camel_imapx_stream_nstring(is, &token, ex);
-	minfo->subject = camel_pstring_strdup(token);
+	minfo->subject = camel_pstring_strdup((gchar *) token);
 
 	/* we merge from/sender into from, append should probably merge more smartly? */
 
@@ -790,7 +859,7 @@ imap_parse_envelope(CamelIMAPXStream *is, GError **error)
 	tok = camel_imapx_stream_token(is, &token, &len, ex);
 	if (tok != ')') {
 		camel_message_info_free(minfo);
-		camel_exception_throw(1, "expecting ')'");
+		camel_exception_set (ex, 1, "expecting ')'");
 		return NULL;
 	}
 
@@ -802,12 +871,13 @@ imap_parse_envelope(CamelIMAPXStream *is, GError **error)
 struct _CamelMessageContentInfo *
 imap_parse_body(CamelIMAPXStream *is, GError **error)
 {
-	gint tok, len;
+	gint tok;
+	guint len;
 	guchar *token;
-	struct _CamelMessageContentInfo * volatile cinfo = NULL;
+	struct _CamelMessageContentInfo * cinfo = NULL;
 	struct _CamelMessageContentInfo *subinfo, *last;
-	struct _CamelContentDisposition * volatile dinfo = NULL;
-	struct _CamelMessageInfo * volatile minfo = NULL;
+	struct _CamelContentDisposition * dinfo = NULL;
+	struct _CamelMessageInfo * minfo = NULL;
 
 	/* body            ::= "(" body_type_1part / body_type_mpart ")" */
 
@@ -840,7 +910,7 @@ imap_parse_body(CamelIMAPXStream *is, GError **error)
 		d(printf("media_subtype\n"));
 
 		camel_imapx_stream_astring(is, &token, ex);
-		cinfo->type = camel_content_type_new("multipart", token);
+		cinfo->type = camel_content_type_new("multipart", (gchar *) token);
 
 		/* body_ext_mpart  ::= body_fld_param
 		   [SPACE body_fld_dsp SPACE body_fld_lang
@@ -932,8 +1002,9 @@ imap_parse_body(CamelIMAPXStream *is, GError **error)
 	/* there should only be simple tokens, no lists */
 	do {
 		tok = camel_imapx_stream_token(is, &token, &len, ex);
-		if (tok != ')')
+		if (tok != ')') {
 			d(printf("Dropping extension data '%s'\n", token));
+		}
 	} while (tok != ')');
 
 	/* CHEN TODO handle exceptions better */
@@ -957,7 +1028,8 @@ imap_parse_body(CamelIMAPXStream *is, GError **error)
 gchar *
 imap_parse_section(CamelIMAPXStream *is, GError **error)
 {
-	gint tok, len;
+	gint tok;
+	guint len;
 	guchar *token;
 	gchar * section = NULL;
 
@@ -980,7 +1052,7 @@ imap_parse_section(CamelIMAPXStream *is, GError **error)
 
 	tok = camel_imapx_stream_token(is, &token, &len, ex);
 	if (tok == IMAP_TOK_INT || tok == IMAP_TOK_TOKEN)
-		section = g_strdup(token);
+		section = g_strdup((gchar *) token);
 	else if (tok == ']') {
 		section = g_strdup("");
 		camel_imapx_stream_ungettoken(is, tok, token, len);
@@ -1040,8 +1112,6 @@ imap_free_fetch(struct _fetch_info *finfo)
 	g_free(finfo);
 }
 
-extern void camel_message_info_dump(CamelMessageInfo *mi);
-
 #include <camel/camel-stream-fs.h>
 
 /* debug, dump one out */
@@ -1100,7 +1170,8 @@ imap_dump_fetch(struct _fetch_info *finfo)
 struct _fetch_info *
 imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 {
-	gint tok, len;
+	gint tok;
+	guint len;
 	guchar *token, *p, c;
 	struct _fetch_info *finfo;
 
@@ -1119,7 +1190,7 @@ imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 		while ((c=*p))
 			*p++ = toupper(c);
 
-		switch (imap_tokenise(token, len)) {
+		switch (imap_tokenise((gchar *) token, len)) {
 			case IMAP_ENVELOPE:
 				finfo->minfo = imap_parse_envelope(is, ex);
 				finfo->got |= FETCH_MINFO;
@@ -1131,7 +1202,7 @@ imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 			case IMAP_INTERNALDATE:
 				camel_imapx_stream_nstring(is, &token, ex);
 				/* TODO: convert to camel format? */
-				finfo->date = g_strdup(token);
+				finfo->date = g_strdup((gchar *) token);
 				finfo->got |= FETCH_DATE;
 				break;
 			case IMAP_RFC822_HEADER:
@@ -1161,7 +1232,7 @@ imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 					finfo->got |= FETCH_SECTION;
 					tok = camel_imapx_stream_token(is, &token, &len, ex);
 					if (token[0] == '<') {
-						finfo->offset = strtoul(token+1, NULL, 10);
+						finfo->offset = strtoul((gchar *) token+1, NULL, 10);
 					} else {
 						camel_imapx_stream_ungettoken(is, tok, token, len);
 					}
@@ -1179,7 +1250,7 @@ imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 					camel_exception_set (ex, 1, "uid not integer");
 				}
 
-				finfo->uid = g_strdup(token);
+				finfo->uid = g_strdup((gchar *) token);
 				finfo->got |= FETCH_UID;
 				break;
 			default:
@@ -1203,7 +1274,8 @@ imap_parse_fetch(CamelIMAPXStream *is, GError **error)
 struct _status_info *
 imap_parse_status(CamelIMAPXStream *is, GError **error)
 {
-	gint tok, len;
+	gint tok;
+	guint len;
 	guchar *token;
 	struct _status_info *sinfo;
 
@@ -1221,7 +1293,7 @@ imap_parse_status(CamelIMAPXStream *is, GError **error)
 	   ;; Status condition
 	 */
 
-	sinfo->result = imap_tokenise(token, len);
+	sinfo->result = imap_tokenise((gchar *) token, len);
 	switch (sinfo->result) {
 		case IMAP_OK:
 		case IMAP_NO:
@@ -1238,7 +1310,7 @@ imap_parse_status(CamelIMAPXStream *is, GError **error)
 	tok = camel_imapx_stream_token(is, &token, &len, ex);
 	if (tok == '[') {
 		camel_imapx_stream_atom(is, &token, &len, ex);
-		sinfo->condition = imap_tokenise(token, len);
+		sinfo->condition = imap_tokenise((gchar *) token, len);
 
 		/* parse any details */
 		switch (sinfo->condition) {
@@ -1255,9 +1327,9 @@ imap_parse_status(CamelIMAPXStream *is, GError **error)
 			case IMAP_NEWNAME:
 				/* the rfc doesn't specify the bnf for this */
 				camel_imapx_stream_astring(is, &token, ex);
-				sinfo->u.newname.oldname = g_strdup(token);
+				sinfo->u.newname.oldname = g_strdup((gchar *) token);
 				camel_imapx_stream_astring(is, &token, ex);
-				sinfo->u.newname.newname = g_strdup(token);
+				sinfo->u.newname.newname = g_strdup((gchar *) token);
 				break;
 			case IMAP_PERMANENTFLAGS:
 				/* we only care about \* for permanent flags, not user flags */
@@ -1330,22 +1402,23 @@ imap_free_status(struct _status_info *sinfo)
 /* FIXME: use tokeniser? */
 /* FIXME: real flags */
 static struct {
-	gchar *name;
+	const gchar *name;
 	guint32 flag;
 } list_flag_table[] = {
 	{ "\\NOINFERIORS", CAMEL_FOLDER_NOINFERIORS },
 	{ "\\NOSELECT", CAMEL_FOLDER_NOSELECT },
-	{ "\\MARKED", 1<<8 },
-	{ "\\UNMARKED", 1<<9 },
+	{ "\\MARKED", 1<< 16},
+	{ "\\UNMARKED", 1<< 17},
 };
 
 struct _list_info *
 imap_parse_list(CamelIMAPXStream *is, GError **error)
 /* throws io, parse */
 {
-	gint tok, len, i;
+	gint tok, i;
+	guint len;
 	guchar *token, *p, c;
-	struct _list_info * volatile linfo;
+	struct _list_info * linfo;
 
 	linfo = g_malloc0(sizeof(*linfo));
 
@@ -1366,7 +1439,7 @@ imap_parse_list(CamelIMAPXStream *is, GError **error)
 			while ((c=*p))
 				*p++ = toupper(c);
 			for (i = 0; i < G_N_ELEMENTS (list_flag_table); i++)
-				if (!strcmp(token, list_flag_table[i].name))
+				if (!strcmp((gchar *) token, list_flag_table[i].name))
 					linfo->flags |= list_flag_table[i].flag;
 		} else {
 			imap_free_list(linfo);
@@ -1378,7 +1451,7 @@ imap_parse_list(CamelIMAPXStream *is, GError **error)
 	camel_imapx_stream_nstring(is, &token, ex);
 	linfo->separator = token?*token:0;
 	camel_imapx_stream_astring(is, &token, ex);
-	linfo->name = g_strdup(token);
+	linfo->name = g_strdup((gchar *) token);
 
 	return linfo;
 }
@@ -1582,6 +1655,9 @@ imapx_namespace_clear (CamelIMAPXStoreNamespace **ns)
 void
 camel_imapx_namespace_list_clear (struct _CamelIMAPXNamespaceList *nsl)
 {
+	if (!nsl)
+		return;
+
 	imapx_namespace_clear (&nsl->personal);
 	imapx_namespace_clear (&nsl->shared);
 	imapx_namespace_clear (&nsl->other);

@@ -103,6 +103,7 @@ CamelKeyFile
 @flags: 
 @version: 
 @block_size: 
+@error: 
 @Returns: 
 
 
@@ -131,6 +132,7 @@ CamelKeyFile
 </para>
 
 @bs: 
+@error: 
 @Returns: 
 
 
@@ -141,6 +143,7 @@ CamelKeyFile
 
 @bs: 
 @id: 
+@error: 
 @Returns: 
 
 
@@ -151,6 +154,7 @@ CamelKeyFile
 
 @bs: 
 @id: 
+@error: 
 @Returns: 
 
 

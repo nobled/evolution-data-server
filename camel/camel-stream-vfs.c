@@ -57,10 +57,8 @@ stream_vfs_read (CamelStream *stream,
                  gsize n,
                  GError **error)
 {
-	gssize nread;
 	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
-
-	g_return_val_if_fail (G_IS_INPUT_STREAM (stream_vfs->stream), 0);
+	gssize nread;
 
 	nread = g_input_stream_read (
 		G_INPUT_STREAM (stream_vfs->stream),
@@ -75,70 +73,53 @@ stream_vfs_read (CamelStream *stream,
 static gssize
 stream_vfs_write (CamelStream *stream,
                   const gchar *buffer,
-                  gsize n)
+                  gsize n,
+                  GError **error)
 {
 	gboolean success;
 	gsize bytes_written;
-	GError *error = NULL;
 	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
 
-	g_return_val_if_fail (G_IS_OUTPUT_STREAM (stream_vfs->stream), 0);
+	success = g_output_stream_write_all (
+		G_OUTPUT_STREAM (stream_vfs->stream),
+		buffer, n, &bytes_written, NULL, error);
 
-	success = g_output_stream_write_all (G_OUTPUT_STREAM (stream_vfs->stream), buffer, n, &bytes_written, NULL, &error);
-
-	if (error) {
-		g_warning ("%s", error->message);
-		g_error_free (error);
-	}
 	return success ? bytes_written : -1;
 }
 
 static gint
-stream_vfs_flush (CamelStream *stream)
+stream_vfs_flush (CamelStream *stream,
+                  GError **error)
 {
 	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
-	GError *error = NULL;
+	gboolean success;
 
-	g_return_val_if_fail (CAMEL_IS_STREAM_VFS (stream) && stream_vfs != NULL, -1);
-	g_return_val_if_fail (stream_vfs->stream != NULL, -1);
-	g_return_val_if_fail (G_IS_OUTPUT_STREAM (stream_vfs->stream), -1);
+	success = g_output_stream_flush (
+		G_OUTPUT_STREAM (stream_vfs->stream), NULL, error);
 
-	g_output_stream_flush (G_OUTPUT_STREAM (stream_vfs->stream), NULL, &error);
-
-	if (error) {
-		g_warning ("%s", error->message);
-		g_error_free (error);
-		return -1;
-	}
-
-	return 0;
+	return success ? 0 : -1;
 }
 
 static gint
-stream_vfs_close (CamelStream *stream)
+stream_vfs_close (CamelStream *stream,
+                  GError **error)
 {
 	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
-	GError *error = NULL;
-
-	g_return_val_if_fail (CAMEL_IS_STREAM_VFS (stream) && stream_vfs != NULL, -1);
-	g_return_val_if_fail (stream_vfs->stream != NULL, -1);
-	g_return_val_if_fail (G_IS_OUTPUT_STREAM (stream_vfs->stream) || G_IS_INPUT_STREAM (stream_vfs->stream), -1);
+	gboolean success;
 
 	if (G_IS_OUTPUT_STREAM (stream_vfs->stream))
-		g_output_stream_close (G_OUTPUT_STREAM (stream_vfs->stream), NULL, &error);
+		success = g_output_stream_close (
+			G_OUTPUT_STREAM (stream_vfs->stream), NULL, error);
 	else
-		g_input_stream_close (G_INPUT_STREAM (stream_vfs->stream), NULL, &error);
+		success = g_input_stream_close (
+			G_INPUT_STREAM (stream_vfs->stream), NULL, error);
 
-	if (error) {
-		g_warning ("%s", error->message);
-		g_error_free (error);
-		return -1;
+	if (success) {
+		g_object_unref (stream_vfs->stream);
+		stream_vfs->stream = NULL;
 	}
 
-	g_object_unref (stream_vfs->stream);
-	stream_vfs->stream = NULL;
-
-	return 0;
+	return success ? 0 : -1;
 }
 
 static void

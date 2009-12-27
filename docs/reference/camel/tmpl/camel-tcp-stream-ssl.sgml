@@ -75,3 +75,12 @@ CamelTcpStreamSSL
 @Returns: 
 
 
+<!-- ##### FUNCTION camel_tcp_stream_ssl_sockfd ##### -->
+<para>
+
+</para>
+
+@stream: 
+@Returns: 
+
+

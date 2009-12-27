@@ -58,6 +58,7 @@ CamelTextIndex
 
 @path: 
 @flags: 
+@error: 
 @Returns: 
 
 
@@ -67,6 +68,7 @@ CamelTextIndex
 </para>
 
 @path: 
+@error: 
 @Returns: 
 
 

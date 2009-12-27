@@ -75,6 +75,7 @@ TEST_EDATASERVERUI_CPPFLAGS= \
 	-I$(top_srcdir)/addressbook		\
 	-I$(top_builddir)/addressbook		\
 	-DG_LOG_DOMAIN=\"e-data-server-ui\"	\
+	$(CAMEL_CFLAGS)				\
 	$(E_DATA_SERVER_UI_CFLAGS)
 
 TEST_EDATASERVERUI_LDFLAGS = \
@@ -116,6 +117,7 @@ BUILT_SOURCES = $(MARSHAL_GENERATED)
 
 EXTRA_DIST = 						\
 	$(ui_DATA)					\
+	e-data-server-ui-marshal.list			\
 	$(pkgconfig_DATA:-$(API_VERSION).pc=.pc.in)
 
 CLEANFILES = $(BUILT_SOURCES)

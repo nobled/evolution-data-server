@@ -317,8 +317,10 @@ impl_BookFactory_getBook(EDataBookFactory *factory, const gchar *IN_source, DBus
 		if (backend_factory)
 			backend = e_book_backend_factory_new_backend (backend_factory);
 
-		if (backend)
+		if (backend) {
 			g_hash_table_insert (priv->backends, g_strdup (uri), backend);
+			e_book_backend_set_mode (backend, priv->mode);
+		}
 	}
 
 	if (!backend) {
@@ -333,7 +335,6 @@ impl_BookFactory_getBook(EDataBookFactory *factory, const gchar *IN_source, DBus
 
 	path = construct_book_factory_path ();
 	book = e_data_book_new (backend, source);
-	e_book_backend_set_mode (backend, priv->mode);
 	g_hash_table_insert (priv->books, g_strdup (path), book);
 	e_book_backend_add_client (backend, book);
 	dbus_g_connection_register_g_object (connection, path, G_OBJECT (book));
@@ -367,11 +368,14 @@ name_owner_changed (DBusGProxy *proxy,
 		gchar *key;
 		GList *list = NULL;
 		g_mutex_lock (factory->priv->connections_lock);
-		if (g_hash_table_lookup_extended (factory->priv->connections, prev_owner, (gpointer)&key, (gpointer)&list)) {
-			g_list_foreach (list, (GFunc)g_object_unref, NULL);
-			g_list_free (list);
-			g_hash_table_remove (factory->priv->connections, prev_owner);
+		while (g_hash_table_lookup_extended (factory->priv->connections, prev_owner, (gpointer)&key, (gpointer)&list)) {
+			/* this should trigger the book's weak ref notify
+			 * function, which will remove it from the list before
+			 * it's freed, and will remove the connection from
+			 * priv->connections once they're all gone */
+			g_object_unref (list->data);
 		}
+
 		g_mutex_unlock (factory->priv->connections_lock);
 	}
 }
@@ -406,6 +410,7 @@ main (gint argc, gchar **argv)
 	EOfflineListener *eol;
 
 	g_type_init ();
+	g_set_prgname (E_PRGNAME);
 	if (!g_thread_supported ()) g_thread_init (NULL);
 	dbus_g_thread_init ();
 
@@ -442,6 +447,8 @@ main (gint argc, gchar **argv)
 	eol = e_offline_listener_new ();
 	offline_state_changed_cb (eol, factory);
 	g_signal_connect (eol, "changed", G_CALLBACK (offline_state_changed_cb), factory);
+
+	printf ("Server is up and running...\n");
 
 	g_main_loop_run (loop);
 

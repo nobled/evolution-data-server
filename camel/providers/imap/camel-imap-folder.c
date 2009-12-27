@@ -3163,6 +3163,8 @@ imap_get_message (CamelFolder *folder,
 
 done:
 	if (msg) {
+		gboolean has_attachment;
+
 		/* FIXME, this shouldn't be done this way. */
 		camel_medium_set_header (CAMEL_MEDIUM (msg), "X-Evolution-Source", store->base_url);
 
@@ -3185,8 +3187,13 @@ done:
 			}
 		}
 
-		if ((mi->info.flags & CAMEL_MESSAGE_ATTACHMENTS) && !camel_mime_message_has_attachment (msg)) {
-			mi->info.flags = mi->info.flags & ~CAMEL_MESSAGE_ATTACHMENTS;
+		has_attachment = camel_mime_message_has_attachment (msg);
+		if (((mi->info.flags & CAMEL_MESSAGE_ATTACHMENTS) && !has_attachment) ||
+		    ((mi->info.flags & CAMEL_MESSAGE_ATTACHMENTS) == 0 && has_attachment)) {
+			if (has_attachment)
+				mi->info.flags = mi->info.flags | CAMEL_MESSAGE_ATTACHMENTS;
+			else
+				mi->info.flags = mi->info.flags & ~CAMEL_MESSAGE_ATTACHMENTS;
 			mi->info.dirty = TRUE;
 
 			if (mi->info.summary)

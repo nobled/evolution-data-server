@@ -38,6 +38,7 @@ CamelDataWrapper
 
 @data_wrapper: 
 @stream: 
+@error: 
 @Returns: 
 
 
@@ -48,6 +49,7 @@ CamelDataWrapper
 
 @data_wrapper: 
 @stream: 
+@error: 
 @Returns: 
 
 
@@ -94,6 +96,7 @@ CamelDataWrapper
 
 @data_wrapper: 
 @stream: 
+@error: 
 @Returns: 
 
 

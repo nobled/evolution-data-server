@@ -1364,6 +1364,16 @@ camel-types
 @handle: 
 @Returns: 
 
+<!-- ##### FUNCTION camel_stream_vprintf ##### -->
+<para>
+
+</para>
+
+@stream: 
+@fmt: 
+@ap: 
+@Returns: 
+
 <!-- ##### FUNCTION camel_text_index_get_type ##### -->
 <para>
 

@@ -38,7 +38,7 @@
 #include "camel-imapx-exception.h"
 
 #define t(x) 
-#define io(x) x
+#define io(x)
 
 static CamelObjectClass *parent_class = NULL;
 
@@ -615,7 +615,6 @@ camel_imapx_stream_token(CamelIMAPXStream *is, guchar **data, guint *len, GError
 
 	/* Had an i/o erorr */
 io_error:
-	printf("Got io error\n");
 	camel_exception_set (ex, 1, "io error");
 	return IMAP_TOK_ERROR;
 

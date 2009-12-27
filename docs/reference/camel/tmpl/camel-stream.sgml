@@ -31,6 +31,7 @@ CamelStream
 @stream: 
 @buffer: 
 @n: 
+@error: 
 @Returns: 
 
 
@@ -42,6 +43,7 @@ CamelStream
 @stream: 
 @buffer: 
 @n: 
+@error: 
 @Returns: 
 
 
@@ -51,6 +53,7 @@ CamelStream
 </para>
 
 @stream: 
+@error: 
 @Returns: 
 
 
@@ -60,6 +63,7 @@ CamelStream
 </para>
 
 @stream: 
+@error: 
 @Returns: 
 
 
@@ -78,6 +82,7 @@ CamelStream
 </para>
 
 @stream: 
+@error: 
 @Returns: 
 
 
@@ -88,6 +93,7 @@ CamelStream
 
 @stream: 
 @string: 
+@error: 
 @Returns: 
 
 
@@ -97,19 +103,9 @@ CamelStream
 </para>
 
 @stream: 
+@error: 
 @fmt: 
 @Varargs: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_stream_vprintf ##### -->
-<para>
-
-</para>
-
-@stream: 
-@fmt: 
-@ap: 
 @Returns: 
 
 
@@ -120,6 +116,7 @@ CamelStream
 
 @stream: 
 @output_stream: 
+@error: 
 @Returns: 
 
 

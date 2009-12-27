@@ -84,6 +84,7 @@ CamelHttpStream
 </para>
 
 @http_stream: 
+@error: 
 @Returns: 
 
 

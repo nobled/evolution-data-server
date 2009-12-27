@@ -79,6 +79,7 @@ CamelMimeParser
 
 @m: 
 @stream: 
+@error: 
 @Returns: 
 
 

@@ -208,7 +208,10 @@ e_cal_backend_http_get_alarm_email_address (ECalBackendSync *backend, EDataCal *
 static ECalBackendSyncStatus
 e_cal_backend_http_get_static_capabilities (ECalBackendSync *backend, EDataCal *cal, gchar **capabilities)
 {
-	*capabilities = g_strdup (CAL_STATIC_CAPABILITY_NO_EMAIL_ALARMS);
+	*capabilities = g_strdup (
+		CAL_STATIC_CAPABILITY_NO_EMAIL_ALARMS ","
+		CAL_STATIC_CAPABILITY_REFRESH_SUPPORTED
+		);
 
 	return GNOME_Evolution_Calendar_Success;
 }
@@ -284,7 +287,7 @@ retrieval_done (SoupSession *session, SoupMessage *msg, ECalBackendHttp *cbhttp)
 	icalcomponent *icalcomp, *subcomp;
 	icalcomponent_kind kind;
 	const gchar *newuri;
-       SoupURI *uri_parsed;
+	SoupURI *uri_parsed;
 	GHashTable *old_cache;
 	GSList *comps_in_cache;
 
@@ -688,6 +691,29 @@ e_cal_backend_http_open (ECalBackendSync *backend, EDataCal *cal, gboolean only_
 }
 
 static ECalBackendSyncStatus
+e_cal_backend_http_refresh (ECalBackendSync *backend, EDataCal *cal)
+{
+	ECalBackendHttp *cbhttp;
+	ECalBackendHttpPrivate *priv;
+
+	cbhttp = E_CAL_BACKEND_HTTP (backend);
+	priv = cbhttp->priv;
+
+	if (!priv->opened ||
+	    priv->is_loading)
+		return GNOME_Evolution_Calendar_Success;
+
+	if (priv->reload_timeout_id)
+		g_source_remove (priv->reload_timeout_id);
+	priv->reload_timeout_id = 0;
+
+	/* wait a second, then start reloading */
+	priv->reload_timeout_id = g_timeout_add (1000, (GSourceFunc) reload_cb, cbhttp);
+
+	return GNOME_Evolution_Calendar_Success;
+}
+
+static ECalBackendSyncStatus
 e_cal_backend_http_remove (ECalBackendSync *backend, EDataCal *cal)
 {
 	ECalBackendHttp *cbhttp;
@@ -740,34 +766,39 @@ e_cal_backend_http_set_mode (ECalBackend *backend, CalMode mode)
 	ECalBackendHttpPrivate *priv;
 	GNOME_Evolution_Calendar_CalMode set_mode;
 	gboolean loaded;
+
 	cbhttp = E_CAL_BACKEND_HTTP (backend);
 	priv = cbhttp->priv;
 
 	loaded = e_cal_backend_http_is_loaded (backend);
 
-	switch (mode) {
-		case CAL_MODE_LOCAL:
-			priv->mode = mode;
-			set_mode = cal_mode_to_corba (mode);
-			if (loaded && priv->reload_timeout_id) {
-				g_source_remove (priv->reload_timeout_id);
-				priv->reload_timeout_id = 0;
-			}
-			break;
-		case CAL_MODE_REMOTE:
-		case CAL_MODE_ANY:
-			priv->mode = mode;
-			set_mode = cal_mode_to_corba (mode);
-			if (loaded)
-				g_idle_add ((GSourceFunc) begin_retrieval_cb, backend);
-			break;
+	if (priv->mode != mode) {
+		switch (mode) {
+			case CAL_MODE_LOCAL:
+				priv->mode = mode;
+				set_mode = cal_mode_to_corba (mode);
+				if (loaded && priv->reload_timeout_id) {
+					g_source_remove (priv->reload_timeout_id);
+					priv->reload_timeout_id = 0;
+				}
+				break;
+			case CAL_MODE_REMOTE:
+			case CAL_MODE_ANY:
+				priv->mode = mode;
+				set_mode = cal_mode_to_corba (mode);
+				if (loaded)
+					g_idle_add ((GSourceFunc) begin_retrieval_cb, backend);
+				break;
 
-			priv->mode = CAL_MODE_REMOTE;
-			set_mode = GNOME_Evolution_Calendar_MODE_REMOTE;
-			break;
-		default:
-			set_mode = GNOME_Evolution_Calendar_MODE_ANY;
-			break;
+				priv->mode = CAL_MODE_REMOTE;
+				set_mode = GNOME_Evolution_Calendar_MODE_REMOTE;
+				break;
+			default:
+				set_mode = GNOME_Evolution_Calendar_MODE_ANY;
+				break;
+		}
+	} else {
+		set_mode = cal_mode_to_corba (priv->mode);
 	}
 
 	if (loaded) {
@@ -824,37 +855,6 @@ e_cal_backend_http_get_object (ECalBackendSync *backend, EDataCal *cal, const gc
 
 	*object = e_cal_component_get_as_string (comp);
 	g_object_unref (comp);
-
-	return GNOME_Evolution_Calendar_Success;
-}
-
-/* Get_timezone_object handler for the file backend */
-static ECalBackendSyncStatus
-e_cal_backend_http_get_timezone (ECalBackendSync *backend, EDataCal *cal, const gchar *tzid, gchar **object)
-{
-	ECalBackendHttp *cbhttp;
-	ECalBackendHttpPrivate *priv;
-	const icaltimezone *zone;
-	icalcomponent *icalcomp;
-
-	cbhttp = E_CAL_BACKEND_HTTP (backend);
-	priv = cbhttp->priv;
-
-	g_return_val_if_fail (tzid != NULL, GNOME_Evolution_Calendar_ObjectNotFound);
-
-	/* first try to get the timezone from the cache */
-	zone = e_cal_backend_store_get_timezone (priv->store, tzid);
-	if (!zone) {
-		zone = icaltimezone_get_builtin_timezone_from_tzid (tzid);
-		if (!zone)
-			return GNOME_Evolution_Calendar_ObjectNotFound;
-	}
-
-	icalcomp = icaltimezone_get_component ((icaltimezone *)zone);
-	if (!icalcomp)
-		return GNOME_Evolution_Calendar_InvalidObject;
-
-	*object = icalcomponent_as_ical_string_r (icalcomp);
 
 	return GNOME_Evolution_Calendar_Success;
 }
@@ -1305,10 +1305,13 @@ e_cal_backend_http_internal_get_timezone (ECalBackend *backend, const gchar *tzi
 	cbhttp = E_CAL_BACKEND_HTTP (backend);
 	priv = cbhttp->priv;
 
+	g_return_val_if_fail (tzid != NULL, NULL);
+
 	if (!strcmp (tzid, "UTC"))
 		zone = icaltimezone_get_utc_timezone ();
 	else {
-		zone = icaltimezone_get_builtin_timezone_from_tzid (tzid);
+		/* first try to get the timezone from the cache */
+		zone = (icaltimezone *) e_cal_backend_store_get_timezone (priv->store, tzid);
 
 		if (!zone && E_CAL_BACKEND_CLASS (parent_class)->internal_get_timezone)
 			zone = E_CAL_BACKEND_CLASS (parent_class)->internal_get_timezone (backend, tzid);
@@ -1356,6 +1359,7 @@ e_cal_backend_http_class_init (ECalBackendHttpClass *class)
 	sync_class->get_ldap_attribute_sync = e_cal_backend_http_get_ldap_attribute;
 	sync_class->get_static_capabilities_sync = e_cal_backend_http_get_static_capabilities;
 	sync_class->open_sync = e_cal_backend_http_open;
+	sync_class->refresh_sync = e_cal_backend_http_refresh;
 	sync_class->remove_sync = e_cal_backend_http_remove;
 	sync_class->create_object_sync = e_cal_backend_http_create_object;
 	sync_class->modify_object_sync = e_cal_backend_http_modify_object;
@@ -1366,7 +1370,6 @@ e_cal_backend_http_class_init (ECalBackendHttpClass *class)
 	sync_class->get_default_object_sync = e_cal_backend_http_get_default_object;
 	sync_class->get_object_sync = e_cal_backend_http_get_object;
 	sync_class->get_object_list_sync = e_cal_backend_http_get_object_list;
-	sync_class->get_timezone_sync = e_cal_backend_http_get_timezone;
 	sync_class->add_timezone_sync = e_cal_backend_http_add_timezone;
 	sync_class->set_default_zone_sync = e_cal_backend_http_set_default_zone;
 	sync_class->get_freebusy_sync = e_cal_backend_http_get_free_busy;

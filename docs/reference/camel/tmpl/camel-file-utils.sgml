@@ -183,6 +183,7 @@ camel-file-utils
 @fd: 
 @buf: 
 @n: 
+@error: 
 @Returns: 
 
 
@@ -194,6 +195,7 @@ camel-file-utils
 @fd: 
 @buf: 
 @n: 
+@error: 
 @Returns: 
 
 
@@ -205,6 +207,7 @@ camel-file-utils
 @fd: 
 @buf: 
 @n: 
+@error: 
 @Returns: 
 
 
@@ -216,6 +219,7 @@ camel-file-utils
 @fd: 
 @buf: 
 @n: 
+@error: 
 @Returns: 
 
 

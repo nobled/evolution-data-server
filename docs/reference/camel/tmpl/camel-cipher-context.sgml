@@ -323,6 +323,7 @@ CamelCipherContext
 @part: 
 @flags: 
 @ostream: 
+@error: 
 @Returns: 
 
 

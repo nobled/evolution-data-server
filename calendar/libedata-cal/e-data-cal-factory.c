@@ -403,6 +403,8 @@ impl_CalFactory_getCal (EDataCalFactory		*factory,
 
 		/* Track the backend */
 		g_hash_table_insert (priv->backends, g_strdup (uid_type_string), backend);
+
+		e_cal_backend_set_mode (backend, priv->mode);
 	} else if (!e_source_equal (source, e_cal_backend_get_source (backend))) {
 		/* source changed, update it in a backend */
 		update_source_in_backend (backend, source);
@@ -410,7 +412,6 @@ impl_CalFactory_getCal (EDataCalFactory		*factory,
 
 	calendar = e_data_cal_new (backend, source);
 	e_cal_backend_add_client (backend, calendar);
-	e_cal_backend_set_mode (backend, priv->mode);
 
 	path = construct_cal_factory_path ();
 	dbus_g_connection_register_g_object (connection, path, G_OBJECT (calendar));
@@ -451,11 +452,13 @@ name_owner_changed (DBusGProxy      *proxy,
 	if (strcmp (new_owner, "") == 0 && strcmp (name, prev_owner) == 0) {
 		gchar *key;
 		GList *list = NULL;
-		if (g_hash_table_lookup_extended (factory->priv->connections, prev_owner, (gpointer)&key, (gpointer)&list)) {
-			g_list_foreach (list, (GFunc)g_object_unref, NULL);
-			g_list_free (list);
-			g_hash_table_remove (factory->priv->connections, prev_owner);
-		}
+                while (g_hash_table_lookup_extended (factory->priv->connections, prev_owner, (gpointer)&key, (gpointer)&list)) {
+                        /* this should trigger the book's weak ref notify
+                         * function, which will remove it from the list before
+                         * it's freed, and will remove the connection from
+                         * priv->connections once they're all gone */
+                        g_object_unref (list->data);
+                }
 	}
 }
 
@@ -688,6 +691,7 @@ main (gint argc, gchar **argv)
 	EOfflineListener *eol;
 
 	g_type_init ();
+	g_set_prgname (E_PRGNAME);
 	if (!g_thread_supported ()) g_thread_init (NULL);
 	dbus_g_thread_init ();
 
@@ -724,6 +728,8 @@ main (gint argc, gchar **argv)
 	eol = e_offline_listener_new ();
 	offline_state_changed_cb (eol, factory);
 	g_signal_connect (eol, "changed", G_CALLBACK (offline_state_changed_cb), factory);
+
+	printf ("Server is up and running...\n");
 
 	g_main_loop_run (loop);
 

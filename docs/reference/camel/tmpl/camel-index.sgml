@@ -125,7 +125,7 @@ CamelIndex
 
 </para>
 
-@Param1: 
+@index: 
 @path: 
 @flags: 
 
@@ -135,7 +135,7 @@ CamelIndex
 
 </para>
 
-@Param1: 
+@index: 
 @path: 
 @Returns: 
 
@@ -156,6 +156,7 @@ CamelIndex
 </para>
 
 @idx: 
+@error: 
 @Returns: 
 
 
@@ -165,6 +166,7 @@ CamelIndex
 </para>
 
 @idx: 
+@error: 
 @Returns: 
 
 

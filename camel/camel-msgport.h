@@ -26,6 +26,7 @@
 #define CAMEL_MSGPORT_H
 
 #include <glib.h>
+#include "camel-list-utils.h"
 
 G_BEGIN_DECLS
 
@@ -33,6 +34,7 @@ typedef struct _CamelMsg CamelMsg;
 typedef struct _CamelMsgPort CamelMsgPort;
 
 struct _CamelMsg {
+	CamelDListNode ln;
 	CamelMsgPort *reply_port;
 	gint flags;
 };

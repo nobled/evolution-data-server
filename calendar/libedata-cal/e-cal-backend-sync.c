@@ -211,6 +211,29 @@ e_cal_backend_sync_remove  (ECalBackendSync *backend, EDataCal *cal)
 }
 
 /**
+ * e_cal_backend_sync_refresh:
+ * @backend: An ECalBackendSync object.
+ * @cal: An EDataCal object.
+ *
+ * Calls the refresh method on the given backend.
+ *
+ * Return value: Status code.
+ */
+ECalBackendSyncStatus
+e_cal_backend_sync_refresh  (ECalBackendSync *backend, EDataCal *cal)
+{
+	ECalBackendSyncStatus status;
+
+	g_return_val_if_fail (backend && E_IS_CAL_BACKEND_SYNC (backend), GNOME_Evolution_Calendar_OtherError);
+	g_return_val_if_fail (E_CAL_BACKEND_SYNC_GET_CLASS (backend)->refresh_sync != NULL,
+			      GNOME_Evolution_Calendar_UnsupportedMethod);
+
+	LOCK_WRAPPER (refresh_sync, (backend, cal));
+
+	return status;
+}
+
+/**
  * e_cal_backend_sync_create_object:
  * @backend: An ECalBackendSync object.
  * @cal: An EDataCal object.
@@ -479,18 +502,51 @@ e_cal_backend_sync_get_attachment_list (ECalBackendSync *backend, EDataCal *cal,
  * @tzid: ID of the timezone to retrieve.
  * @object: Placeholder for the returned timezone.
  *
- * Calls the get_timezone method on the given backend.
+ * Calls the get_timezone_sync method on the given backend.
+ * This method is not mandatory on the backend, because here
+ * is used internal_get_timezone call to fetch timezone from
+ * it and that is transformed to a string. In other words,
+ * any object deriving from ECalBackendSync can implement only
+ * internal_get_timezone and can skip implementation of
+ * get_timezone_sync completely.
  *
  * Return value: Status code.
  */
 ECalBackendSyncStatus
 e_cal_backend_sync_get_timezone (ECalBackendSync *backend, EDataCal *cal, const gchar *tzid, gchar **object)
 {
-	ECalBackendSyncStatus status;
+	ECalBackendSyncStatus status = GNOME_Evolution_Calendar_ObjectNotFound;
 
 	g_return_val_if_fail (E_IS_CAL_BACKEND_SYNC (backend), GNOME_Evolution_Calendar_OtherError);
 
-	LOCK_WRAPPER (get_timezone_sync, (backend, cal, tzid, object));
+	if (E_CAL_BACKEND_SYNC_GET_CLASS (backend)->get_timezone_sync) {
+		LOCK_WRAPPER (get_timezone_sync, (backend, cal, tzid, object));
+	}
+
+	if (object && !object) {
+		icaltimezone *zone = NULL;
+
+		if (backend->priv->mutex_lock)
+			g_mutex_lock (backend->priv->sync_mutex);
+		zone = e_cal_backend_internal_get_timezone (E_CAL_BACKEND (backend), tzid);
+		if (backend->priv->mutex_lock)
+			g_mutex_unlock (backend->priv->sync_mutex);
+
+		if (!zone) {
+			status = GNOME_Evolution_Calendar_ObjectNotFound;
+		} else {
+			icalcomponent *icalcomp;
+
+			icalcomp = icaltimezone_get_component (zone);
+
+			if (!icalcomp) {
+				status = GNOME_Evolution_Calendar_InvalidObject;
+			} else {
+				*object = icalcomponent_as_ical_string_r (icalcomp);
+				status = GNOME_Evolution_Calendar_Success;
+			}
+		}
+	}
 
 	return status;
 }
@@ -707,6 +763,16 @@ _e_cal_backend_open (ECalBackend *backend, EDataCal *cal, EServerMethodContext c
 	status = e_cal_backend_sync_open (E_CAL_BACKEND_SYNC (backend), cal, only_if_exists, username, password);
 
 	e_data_cal_notify_open (cal, context, status);
+}
+
+static void
+_e_cal_backend_refresh (ECalBackend *backend, EDataCal *cal, EServerMethodContext context)
+{
+	ECalBackendSyncStatus status;
+
+	status = e_cal_backend_sync_refresh (E_CAL_BACKEND_SYNC (backend), cal);
+
+	e_data_cal_notify_refresh (cal, context, status);
 }
 
 static void
@@ -944,21 +1010,44 @@ _e_cal_backend_add_timezone (ECalBackend *backend, EDataCal *cal, EServerMethodC
 	e_data_cal_notify_timezone_added (cal, context, status, tzobj);
 }
 
+/* The default implementation is looking for timezone in the ical's builtin timezones,
+   and if that fails, then it tries to extract the location from the tzid and get the
+   timezone based on it. If even that fails, then it's returning UTC timezone.
+   That means, that any object deriving from ECalBackendSync is supposed to implement
+   this function for checking for a timezone in its own timezone cache, and if that
+   fails, then call parent's object internal_get_timezone, and that's all.
+ */
 static icaltimezone *
 _e_cal_backend_internal_get_timezone (ECalBackend *backend, const gchar *tzid)
 {
-	gint i, slashes = 0;
+	icaltimezone *zone = NULL;
 
 	if (!tzid || !*tzid)
 		return NULL;
 
-	for (i = 0; tzid [i]; i++) {
-		if (tzid [i] == '/')
-			slashes++;
+	zone = icaltimezone_get_builtin_timezone_from_tzid (tzid);
+
+	if (!zone) {
+		const gchar *s, *slash1 = NULL, *slash2 = NULL;
+
+		/* get builtin by a location, if any */
+		for (s = tzid; *s; s++) {
+			if (*s == '/') {
+				slash1 = slash2;
+				slash2 = s;
+			}
+		}
+
+		if (slash1)
+			zone = icaltimezone_get_builtin_timezone (slash1 + 1);
+		else if (slash2)
+			zone = icaltimezone_get_builtin_timezone (tzid);
 	}
 
-	/* try if it contains only location of the timezone */
-	return slashes == 1 ? icaltimezone_get_builtin_timezone (tzid) : NULL;
+	if (!zone)
+		zone = icaltimezone_get_utc_timezone ();
+
+	return zone;
 }
 
 static void
@@ -1064,6 +1153,7 @@ e_cal_backend_sync_class_init (ECalBackendSyncClass *klass)
 	backend_class->get_ldap_attribute = _e_cal_backend_get_ldap_attribute;
 	backend_class->get_static_capabilities = _e_cal_backend_get_static_capabilities;
 	backend_class->open = _e_cal_backend_open;
+	backend_class->refresh = _e_cal_backend_refresh;
 	backend_class->remove = _e_cal_backend_remove;
 	backend_class->create_object = _e_cal_backend_create_object;
 	backend_class->modify_object = _e_cal_backend_modify_object;

@@ -1919,9 +1919,9 @@ e_gw_connection_get_freebusy_info (EGwConnection *cnc, GList *users, time_t star
 				if (!strcmp (accept_level, "Busy"))
 					icalproperty_set_parameter_from_string (icalprop, "FBTYPE", "BUSY");
 				else if (!strcmp (accept_level, "Tentative"))
-					icalproperty_set_parameter_from_string (icalprop, "FBTYPE", "BUSYTENTATIVE");
+					icalproperty_set_parameter_from_string (icalprop, "FBTYPE", "BUSY-TENTATIVE");
 				else if (!strcmp (accept_level, "OutOfOffice"))
-					icalproperty_set_parameter_from_string (icalprop, "FBTYPE", "BUSYUNAVAILABLE");
+					icalproperty_set_parameter_from_string (icalprop, "FBTYPE", "BUSY-UNAVAILABLE");
 				else if (!strcmp (accept_level, "Free"))
 					icalproperty_set_parameter_from_string (icalprop, "FBTYPE", "FREE");
 				g_free (accept_level);
@@ -2090,8 +2090,13 @@ e_cal_backend_groupwise_store_settings (GwSettings *hold)
 	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgw));
 
 	/* TODO implement send options for Notes */
-	if (kind == ICAL_VJOURNAL_COMPONENT)
+	if (kind == ICAL_VJOURNAL_COMPONENT) {
+		g_object_unref (gconf);
+		g_object_unref (hold->opts);
+		g_free (hold);
+
 		return FALSE;
+	}
 
 	gopts = e_gw_sendoptions_get_general_options (opts);
 	if (kind == ICAL_VEVENT_COMPONENT) {

@@ -512,12 +512,11 @@ cs_waitinfo (gpointer (worker)(gpointer),
 					_("Canceled"));
 
 			/* We cancel so if the thread impl is decent it causes immediate exit.
-			   We detach so we dont need to wait for it to exit if it isn't.
 			   We check the reply port incase we had a reply in the mean time, which we free later */
 			d(printf("Canceling lookup thread and leaving it\n"));
 			msg->cancelled = 1;
-			pthread_detach(id);
 			pthread_cancel(id);
+			pthread_join (id, NULL);
 			cancel = 1;
 		} else {
 			struct _addrinfo_msg *reply = (struct _addrinfo_msg *)camel_msgport_try_pop(reply_port);
@@ -557,6 +556,8 @@ cs_getaddrinfo(gpointer data)
                 msg->hostbuflen *= 2;
                 msg->hostbufmem = g_realloc(msg->hostbufmem, msg->hostbuflen);
 	}
+
+	pthread_testcancel ();
 
 	/* If we got cancelled, dont reply, just free it */
 	if (msg->cancelled)
@@ -610,6 +611,8 @@ cs_getaddrinfo(gpointer data)
 		}
 	}
 
+	pthread_testcancel ();
+
 	for (i=0;h.h_addr_list[i];i++) {
 		res = g_malloc0(sizeof(*res));
 		if (msg->hints) {
@@ -640,9 +643,7 @@ cs_getaddrinfo(gpointer data)
 	}
 reply:
 	camel_msgport_reply((CamelMsg *)msg);
-	return NULL;
 cancel:
-	cs_freeinfo(msg);
 	return NULL;
 }
 #else
@@ -662,11 +663,10 @@ cs_getaddrinfo(gpointer data)
 			info->result = getaddrinfo(info->name, "443", info->hints, info->res);
 	}
 
-	if (info->cancelled) {
-		cs_freeinfo(info);
-	} else {
+	pthread_testcancel ();
+
+	if (!info->cancelled)
 		camel_msgport_reply((CamelMsg *)info);
-	}
 
 	return NULL;
 }
@@ -722,11 +722,10 @@ camel_getaddrinfo (const gchar *name,
 				_("Host lookup failed: %s: %s"),
 				name, gai_strerror (msg->result));
 		}
-
-		cs_freeinfo(msg);
 	} else
 		res = NULL;
 
+	cs_freeinfo (msg);
 	camel_operation_end(NULL);
 
 	return res;
@@ -776,6 +775,8 @@ cs_getnameinfo(gpointer data)
 	if (msg->cancelled)
 		goto cancel;
 
+	pthread_testcancel ();
+
 	if (msg->host) {
 		g_free(msg->host);
 		if (msg->result == 0 && h.h_name && h.h_name[0]) {
@@ -793,9 +794,7 @@ cs_getnameinfo(gpointer data)
 		sprintf(msg->serv, "%d", sin->sin_port);
 
 	camel_msgport_reply((CamelMsg *)msg);
-	return NULL;
 cancel:
-	cs_freeinfo(msg);
 	return NULL;
 }
 #else
@@ -807,9 +806,9 @@ cs_getnameinfo(gpointer data)
 	/* there doens't appear to be a return code which says host or serv buffers are too short, lengthen them */
 	msg->result = getnameinfo(msg->addr, msg->addrlen, msg->host, msg->hostlen, msg->serv, msg->servlen, msg->flags);
 
-	if (msg->cancelled)
-		cs_freeinfo(msg);
-	else
+	pthread_testcancel ();
+
+	if (!msg->cancelled)
 		camel_msgport_reply((CamelMsg *)msg);
 
 	return NULL;
@@ -868,10 +867,7 @@ camel_getnameinfo (const struct sockaddr *sa,
 			*serv = g_strdup(msg->serv);
 	}
 
-	g_free(msg->host);
-	g_free(msg->serv);
-	g_free(msg);
-
+	cs_freeinfo (msg);
 	camel_operation_end(NULL);
 
 	return result;

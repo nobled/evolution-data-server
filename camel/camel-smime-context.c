@@ -323,7 +323,7 @@ sm_signing_cmsmessage (CamelSMIMEContext *context,
 	if ((cert = CERT_FindUserCertByUsage (p->certdb,
 					     (gchar *)nick,
 					     certUsageEmailSigner,
-					     PR_FALSE,
+					     PR_TRUE,
 					     NULL)) == NULL) {
 		g_set_error (
 			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
@@ -390,7 +390,7 @@ sm_signing_cmsmessage (CamelSMIMEContext *context,
 			if ((ekpcert = CERT_FindUserCertByUsage (
 				     p->certdb,
 				     p->encrypt_key,
-				     certUsageEmailRecipient, PR_FALSE, NULL)) == NULL) {
+				     certUsageEmailRecipient, PR_TRUE, NULL)) == NULL) {
 				g_set_error (
 					error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
 					_("Encryption certificate for '%s' does not exist"),
@@ -405,7 +405,7 @@ sm_signing_cmsmessage (CamelSMIMEContext *context,
 			/* encrypt key uses same nick */
 			if ((ekpcert = CERT_FindUserCertByUsage (
 				     p->certdb, (gchar *)nick,
-				     certUsageEmailRecipient, PR_FALSE, NULL)) == NULL) {
+				     certUsageEmailRecipient, PR_TRUE, NULL)) == NULL) {
 				g_set_error (
 					error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
 					_("Encryption certificate for '%s' does not exist"), nick);

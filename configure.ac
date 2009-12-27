@@ -1,7 +1,7 @@
 dnl Evolution-Data-Server version
 m4_define([eds_major_version], [2])
 m4_define([eds_minor_version], [29])
-m4_define([eds_micro_version], [3])
+m4_define([eds_micro_version], [5])
 
 m4_define([eds_version],
 	[eds_major_version.eds_minor_version.eds_micro_version])
@@ -269,7 +269,7 @@ AC_FUNC_ALLOCA
 dnl ******************************
 dnl Checks for functions
 dnl ******************************
-AC_CHECK_FUNCS(fsync strptime strtok_r)
+AC_CHECK_FUNCS(fsync strptime strtok_r nl_langinfo)
 
 dnl ***********************************
 dnl Check for base dependencies early.

@@ -423,14 +423,15 @@ camel_imapx_store_summary_namespace_find_path(CamelIMAPXStoreSummary *s, const g
 CamelIMAPXStoreNamespace *
 camel_imapx_store_summary_namespace_find_full(CamelIMAPXStoreSummary *s, const gchar *full)
 {
-	gint len;
+	gint len = 0;
 	CamelIMAPXStoreNamespace *ns;
 
 	/* NB: this currently only compares against 1 namespace, in future compare against others */
 	/* CHEN TODO */
 	ns = s->namespaces->personal;
 	while (ns) {
-		len = strlen(ns->full_name);
+		if (ns->full_name)
+			len = strlen(ns->full_name);
 		d(printf("find_full: comparing namespace '%s' to name '%s'\n", ns->full_name, full));
 		if (len == 0
 		    || (strncmp(ns->full_name, full, len) == 0
@@ -448,7 +449,8 @@ namespace_load(CamelStoreSummary *s, FILE *in)
 {
 	CamelIMAPXStoreNamespace *ns, *tail;
 	CamelIMAPXNamespaceList *nsl;
-	guint32 i, j, n;
+	guint32 i, j;
+	gint32 n;
 
 	nsl = g_malloc0(sizeof(CamelIMAPXNamespaceList));
 	nsl->personal = NULL;
@@ -493,7 +495,7 @@ namespace_load(CamelStoreSummary *s, FILE *in)
 			tail->next = ns = g_malloc (sizeof (CamelIMAPXStoreNamespace));
 			ns->sep = sep;
 			ns->path = path;
-			ns->path = full_name;
+			ns->full_name = full_name;
 			ns->next = NULL;
 			tail = ns;
 		}

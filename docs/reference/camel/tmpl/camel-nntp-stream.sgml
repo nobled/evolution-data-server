@@ -68,6 +68,7 @@ CamelNNTPStream
 @is: 
 @data: 
 @len: 
+@error: 
 @Returns: 
 
 
@@ -79,6 +80,7 @@ CamelNNTPStream
 @is: 
 @start: 
 @len: 
+@error: 
 @Returns: 
 
 
@@ -90,6 +92,7 @@ CamelNNTPStream
 @is: 
 @start: 
 @len: 
+@error: 
 @Returns: 
 
 

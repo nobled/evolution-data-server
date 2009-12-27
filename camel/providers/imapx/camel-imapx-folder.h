@@ -32,15 +32,16 @@ extern "C" {
 #include <camel/camel-folder.h>
 
 #define CAMEL_IMAPX_FOLDER_TYPE     (camel_imapx_folder_get_type ())
-#define CAMEL_IMAPX_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_IMAPP_FOLDER_TYPE, CamelIMAPPFolder))
-#define CAMEL_IMAPX_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_IMAPP_FOLDER_TYPE, CamelIMAPPFolderClass))
-#define CAMEL_IS_IMAP_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_IMAPX_FOLDER_TYPE))
+#define CAMEL_IMAPX_FOLDER(obj)     (CAMEL_CHECK_CAST((obj), CAMEL_IMAPX_FOLDER_TYPE, CamelIMAPXFolder))
+#define CAMEL_IMAPX_FOLDER_CLASS(k) (CAMEL_CHECK_CLASS_CAST ((k), CAMEL_IMAPX_FOLDER_TYPE, CamelIMAPXFolderClass))
+#define CAMEL_IS_IMAPX_FOLDER(o)    (CAMEL_CHECK_TYPE((o), CAMEL_IMAPX_FOLDER_TYPE))
 
 typedef struct _CamelIMAPXFolder {
 	CamelFolder parent_object;
 
 	gchar *raw_name;
-//	CamelChangeInfo *changes;
+	CamelFolderSearch *search;
+	GMutex *search_lock;
 } CamelIMAPXFolder;
 
 typedef struct _CamelIMAPXFolderClass {

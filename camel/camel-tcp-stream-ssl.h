@@ -28,6 +28,7 @@
 #define CAMEL_TCP_STREAM_SSL_H
 
 #include <camel/camel-tcp-stream.h>
+#include <prio.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_TCP_STREAM_SSL \
@@ -77,6 +78,8 @@ CamelStream *camel_tcp_stream_ssl_new (struct _CamelSession *session, const gcha
 CamelStream *camel_tcp_stream_ssl_new_raw (struct _CamelSession *session, const gchar *expected_host, guint32 flags);
 
 gint camel_tcp_stream_ssl_enable_ssl (CamelTcpStreamSSL *ssl);
+
+PRFileDesc * camel_tcp_stream_ssl_sockfd (CamelTcpStreamSSL *stream);
 
 G_END_DECLS
 
