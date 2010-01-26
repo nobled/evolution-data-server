@@ -81,6 +81,10 @@ on_idle_create_widget (const gchar *gconf_path)
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_default_size (GTK_WINDOW (window), 200, 300);
 
+	g_signal_connect (
+		window, "delete-event",
+		G_CALLBACK (gtk_main_quit), NULL);
+
 	vbox = gtk_vbox_new (FALSE, 3);
 	gtk_container_add (GTK_CONTAINER (window), vbox);
 

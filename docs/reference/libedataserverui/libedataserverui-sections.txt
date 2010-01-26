@@ -268,6 +268,7 @@ e_name_selector_model_get_type
 <TITLE>ESourceSelector</TITLE>
 ESourceSelector
 e_source_selector_new
+e_source_selector_new_with_store
 e_source_selector_get_source_list
 e_source_selector_select_source
 e_source_selector_unselect_source
@@ -287,10 +288,39 @@ E_IS_SOURCE_SELECTOR
 E_TYPE_SOURCE_SELECTOR
 E_SOURCE_SELECTOR_CLASS
 E_IS_SOURCE_SELECTOR_CLASS
+E_SOURCE_SELECTOR_GET_CLASS
 ESourceSelectorClass
 <SUBSECTION Private>
 ESourceSelectorPrivate
 e_source_selector_get_type
+</SECTION>
+
+<SECTION>
+<FILE>e-source-store</FILE>
+<TITLE>ESourceStore</TITLE>
+ESourceStore
+e_source_store_new
+e_source_store_get_source_list
+e_source_store_queue_refresh
+e_source_store_get_iter_from_source
+e_source_store_select_source
+e_source_store_unselect_source
+e_source_store_is_selected
+e_source_store_get_selected
+e_source_store_get_client
+e_source_store_get_client_async
+e_source_store_get_client_finish
+<SUBSECTION Standard>
+E_SOURCE_STORE
+E_IS_SOURCE_STORE
+E_TYPE_SOURCE_STORE
+E_SOURCE_STORE_CLASS
+E_IS_SOURCE_STORE_CLASS
+E_SOURCE_STORE_GET_CLASS
+ESourceStoreClass
+<SUBSECTION Private>
+ESourceStorePrivate
+e_source_store_get_type
 </SECTION>
 
 <SECTION>

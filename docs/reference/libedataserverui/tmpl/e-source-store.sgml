@@ -1,0 +1,137 @@
+<!-- ##### SECTION Title ##### -->
+ESourceStore
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### STRUCT ESourceStore ##### -->
+<para>
+
+</para>
+
+@parent: 
+@priv: 
+
+<!-- ##### FUNCTION e_source_store_new ##### -->
+<para>
+
+</para>
+
+@source_list: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_store_get_source_list ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_store_queue_refresh ##### -->
+<para>
+
+</para>
+
+@source_store: 
+
+
+<!-- ##### FUNCTION e_source_store_get_iter_from_source ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@source: 
+@iter: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_store_select_source ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@source: 
+
+
+<!-- ##### FUNCTION e_source_store_unselect_source ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@source: 
+
+
+<!-- ##### FUNCTION e_source_store_is_selected ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@source: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_store_get_selected ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_store_get_client ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@source: 
+@cancellable: 
+@error: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_store_get_client_async ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@source: 
+@io_priority: 
+@cancellable: 
+@callback: 
+@user_data: 
+
+
+<!-- ##### FUNCTION e_source_store_get_client_finish ##### -->
+<para>
+
+</para>
+
+@source_store: 
+@result: 
+@error: 
+@Returns: 
+
+

@@ -69,7 +69,16 @@ ESourceSelector
 
 </para>
 
-@list: 
+@source_list: 
+@Returns: 
+
+
+<!-- ##### FUNCTION e_source_selector_new_with_store ##### -->
+<para>
+
+</para>
+
+@source_store: 
 @Returns: 
 
 

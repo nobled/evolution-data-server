@@ -25,7 +25,8 @@
 #define E_SOURCE_SELECTOR_H
 
 #include <gtk/gtk.h>
-#include "libedataserver/e-source-list.h"
+#include <libedataserver/e-source-list.h>
+#include <libedataserverui/e-source-store.h>
 
 /* Standard GObject macros */
 #define E_TYPE_SOURCE_SELECTOR \
@@ -78,7 +79,8 @@ struct _ESourceSelectorClass {
 };
 
 GType		e_source_selector_get_type	(void);
-GtkWidget *	e_source_selector_new		(ESourceList *list);
+GtkWidget *	e_source_selector_new		(ESourceList *source_list);
+GtkWidget *	e_source_selector_new_with_store(ESourceStore *source_store);
 ESourceList *	e_source_selector_get_source_list
 						(ESourceSelector *selector);
 void		e_source_selector_select_source	(ESourceSelector *selector,

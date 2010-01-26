@@ -37,6 +37,7 @@ libedataserverui_1_2_la_SOURCES =	\
 	e-source-selector-dialog.c	\
 	e-source-combo-box.c		\
 	e-source-option-menu.c		\
+	e-source-store.c		\
 	e-tree-model-generator.c	\
 	e-cell-renderer-color.c
 
@@ -66,6 +67,7 @@ libedataserveruiinclude_HEADERS =	\
 	e-source-selector-dialog.h	\
 	e-source-combo-box.h		\
 	e-source-option-menu.h		\
+	e-source-store.h		\
 	e-tree-model-generator.h	\
 	e-cell-renderer-color.h
 
