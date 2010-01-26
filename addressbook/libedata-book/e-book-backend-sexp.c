@@ -23,7 +23,7 @@
 #include "libedataserver/e-data-server-util.h"
 #include "e-book-backend-sexp.h"
 
-static GObjectClass *parent_class;
+static EBackendSExpClass *parent_class;
 
 typedef struct _SearchContext SearchContext;
 
@@ -35,6 +35,8 @@ struct _EBookBackendSExpPrivate {
 struct _SearchContext {
 	EContact *contact;
 };
+
+G_DEFINE_TYPE (EBookBackendSExp, e_book_backend_sexp, E_TYPE_BACKEND_SEXP);
 
 static gboolean
 compare_im (EContact *contact, const gchar *str,
@@ -864,7 +866,7 @@ e_book_backend_sexp_match_vcard (EBookBackendSExp *sexp, const gchar *vcard)
 EBookBackendSExp *
 e_book_backend_sexp_new (const gchar *text)
 {
-	EBookBackendSExp *sexp = g_object_new (E_TYPE_BACKEND_SEXP, NULL);
+	EBookBackendSExp *sexp = g_object_new (E_TYPE_BOOK_BACKEND_SEXP, NULL);
 	gint esexp_error;
 	gint i;
 
@@ -930,31 +932,4 @@ e_book_backend_sexp_init (EBookBackendSExp *sexp)
 
 	sexp->priv = priv;
 	priv->search_context = g_new (SearchContext, 1);
-}
-
-/**
- * e_book_backend_sexp_get_type:
- */
-GType
-e_book_backend_sexp_get_type (void)
-{
-	static GType type = 0;
-
-	if (! type) {
-		GTypeInfo info = {
-			sizeof (EBookBackendSExpClass),
-			NULL, /* base_class_init */
-			NULL, /* base_class_finalize */
-			(GClassInitFunc)  e_book_backend_sexp_class_init,
-			NULL, /* class_finalize */
-			NULL, /* class_data */
-			sizeof (EBookBackendSExp),
-			0,    /* n_preallocs */
-			(GInstanceInitFunc) e_book_backend_sexp_init
-		};
-
-		type = g_type_register_static (G_TYPE_OBJECT, "EBookBackendSExp", &info, 0);
-	}
-
-	return type;
 }

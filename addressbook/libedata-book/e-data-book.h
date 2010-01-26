@@ -26,6 +26,8 @@
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
 #include <libedataserver/e-source.h>
+#include <libebackend/e-data-types.h>
+#include <libebackend/e-data.h>
 #include "e-book-backend.h"
 #include "e-data-book-types.h"
 
@@ -39,14 +41,14 @@ G_BEGIN_DECLS
 #define E_DATA_BOOK_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), E_TYPE_DATA_BOOK, EDataBookClass))
 
 struct _EDataBook {
-	GObject parent;
-	EBookBackend *backend;
-	ESource *source;
+	EData parent;
 };
 
 struct _EDataBookClass {
-	GObjectClass parent;
+	EDataClass parent;
 };
+
+GType                   e_data_book_get_type               (void);
 
 GQuark e_data_book_error_quark (void);
 #define E_DATA_BOOK_ERROR e_data_book_error_quark ()
@@ -108,8 +110,6 @@ void                    e_data_book_report_connection_status (EDataBook         
 							      gboolean                         is_online);
 
 void                    e_data_book_report_auth_required     (EDataBook                       *book);
-
-GType                   e_data_book_get_type               (void);
 
 G_END_DECLS
 

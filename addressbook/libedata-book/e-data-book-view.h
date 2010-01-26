@@ -43,12 +43,12 @@ G_BEGIN_DECLS
 typedef struct _EDataBookViewPrivate EDataBookViewPrivate;
 
 struct _EDataBookView {
-	GObject parent;
+	EDataView parent;
 	EDataBookViewPrivate *priv;
 };
 
 struct _EDataBookViewClass {
-	GObjectClass parent;
+	EDataViewClass parent;
 };
 
 EDataBookView *e_data_book_view_new                  (EDataBook        *book,

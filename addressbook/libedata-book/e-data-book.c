@@ -34,8 +34,6 @@
 #include "e-book-backend-sexp.h"
 #include "opid.h"
 
-DBusGConnection *connection;
-
 /* DBus glue */
 static void impl_AddressBook_Book_open(EDataBook *book, gboolean only_if_exists, DBusGMethodInvocation *context);
 static void impl_AddressBook_Book_remove(EDataBook *book, DBusGMethodInvocation *context);
@@ -55,7 +53,6 @@ static gboolean impl_AddressBook_Book_cancelOperation(EDataBook *book, GError **
 static void impl_AddressBook_Book_close(EDataBook *book, DBusGMethodInvocation *context);
 #include "e-data-book-glue.h"
 
-static void return_status_and_list (guint32 opid, EDataBookStatus status, GList *list, gboolean free_data);
 static void data_book_return_error (DBusGMethodInvocation *context, gint code, const gchar *error_str);
 
 enum {
@@ -185,59 +182,20 @@ e_data_book_error_quark (void)
 }
 
 /* Generate the GObject boilerplate */
-G_DEFINE_TYPE(EDataBook, e_data_book, G_TYPE_OBJECT)
-
-static void
-e_data_book_dispose (GObject *object)
-{
-	EDataBook *book = E_DATA_BOOK (object);
-
-	if (book->backend) {
-		g_object_unref (book->backend);
-		book->backend = NULL;
-	}
-
-	if (book->source) {
-		g_object_unref (book->source);
-		book->source = NULL;
-	}
-
-	G_OBJECT_CLASS (e_data_book_parent_class)->dispose (object);
-}
+G_DEFINE_TYPE(EDataBook, e_data_book, E_TYPE_DATA)
 
 static void
 e_data_book_class_init (EDataBookClass *e_data_book_class)
 {
-	GObjectClass *object_class = G_OBJECT_CLASS (e_data_book_class);
+	EDataClass *data_class = E_DATA_CLASS (e_data_book_class);
 
-	object_class->dispose = e_data_book_dispose;
+	/* XXX: do some ugly casting to avoid breaking API */
+	data_class->get_backend = (EBackend* (*)(EData*)) e_data_book_get_backend;
+	data_class->get_source =  (ESource* (*)(EData*)) e_data_book_get_source;
 
-	signals[WRITABLE] =
-		g_signal_new ("writable",
-			      G_OBJECT_CLASS_TYPE (e_data_book_class),
-			      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-			      0,
-			      NULL, NULL,
-			      g_cclosure_marshal_VOID__BOOLEAN,
-			      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
-
-	signals[CONNECTION] =
-		g_signal_new ("connection",
-			      G_OBJECT_CLASS_TYPE (e_data_book_class),
-			      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-			      0,
-			      NULL, NULL,
-			      g_cclosure_marshal_VOID__BOOLEAN,
-			      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
-
-	signals[AUTH_REQUIRED] =
-		g_signal_new ("auth-required",
-			      G_OBJECT_CLASS_TYPE (e_data_book_class),
-			      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-			      0,
-			      NULL, NULL,
-			      g_cclosure_marshal_VOID__VOID,
-			      G_TYPE_NONE, 0);
+	signals[WRITABLE] = g_signal_lookup ("writable", E_TYPE_DATA);
+	signals[CONNECTION] = g_signal_lookup ("connection", E_TYPE_DATA);
+	signals[AUTH_REQUIRED] = g_signal_lookup ("auth-required", E_TYPE_DATA);
 
 	dbus_g_object_type_install_info (G_TYPE_FROM_CLASS (e_data_book_class), &dbus_glib_e_data_book_object_info);
 
@@ -259,9 +217,10 @@ e_data_book_new (EBookBackend *backend, ESource *source)
 {
 	EDataBook *book;
 
-	book = g_object_new (E_TYPE_DATA_BOOK, NULL);
-	book->backend = g_object_ref (backend);
-	book->source = g_object_ref (source);
+	book = g_object_new (E_TYPE_DATA_BOOK,
+			     "backend", backend,
+			     "source", source,
+			     NULL);
 
 	return book;
 }
@@ -269,17 +228,17 @@ e_data_book_new (EBookBackend *backend, ESource *source)
 ESource*
 e_data_book_get_source (EDataBook *book)
 {
-	g_return_val_if_fail (book != NULL, NULL);
+	g_return_val_if_fail (E_IS_DATA_BOOK (book), NULL);
 
-	return book->source;
+	return e_data_get_source (E_DATA (book));
 }
 
 EBookBackend*
 e_data_book_get_backend (EDataBook *book)
 {
-	g_return_val_if_fail (book != NULL, NULL);
+	g_return_val_if_fail (E_IS_DATA_BOOK (book), NULL);
 
-	return book->backend;
+	return E_BOOK_BACKEND (e_data_get_backend (E_DATA (book)));
 }
 
 static void
@@ -307,7 +266,11 @@ e_data_book_respond_open (EDataBook *book, guint opid, EDataBookStatus status)
 static void
 impl_AddressBook_Book_remove(EDataBook *book, DBusGMethodInvocation *context)
 {
-	e_book_backend_remove (book->backend, book, opid_store (context));
+	EBookBackend *backend;
+
+	backend = e_data_book_get_backend (book);
+
+	e_book_backend_remove (backend, book, opid_store (context));
 }
 
 void
@@ -362,6 +325,33 @@ impl_AddressBook_Book_getContactList (EDataBook *book, const gchar *query, DBusG
 	op = op_new (OP_GET_CONTACTS, book, context);
 	op->d.query = g_strdup (query);
 	g_thread_pool_push (op_pool, op, NULL);
+}
+
+static void
+return_status_and_list (guint32 opid, EDataBookStatus status, GList *list, gboolean free_data)
+{
+	DBusGMethodInvocation *context = opid_fetch (opid);
+
+	if (status == E_DATA_BOOK_STATUS_SUCCESS) {
+		gchar **array;
+		GList *l;
+		gint i = 0;
+
+		array = g_new0 (gchar *, g_list_length (list) + 1);
+		for (l = list; l != NULL; l = l->next) {
+			array[i++] = l->data;
+		}
+
+		dbus_g_method_return (context, array);
+
+		if (free_data) {
+			g_strfreev (array);
+		} else {
+			g_free (array);
+		}
+	} else {
+		data_book_return_error (context, status, _("Cannot complete operation"));
+	}
 }
 
 void
@@ -577,6 +567,7 @@ impl_AddressBook_Book_getBookView (EDataBook *book, const gchar *search, const g
 
 	dbus_g_method_return (context, path);
 	g_free (path);
+	g_object_unref (card_sexp);
 }
 
 static void
@@ -649,6 +640,8 @@ impl_AddressBook_Book_close(EDataBook *book, DBusGMethodInvocation *context)
 	dbus_g_method_return (context);
 }
 
+/* XXX: this should instead be a (static) handler for a signal on EBookBackend
+ * that announces it is writable */
 void
 e_data_book_report_writable (EDataBook *book, gboolean writable)
 {
@@ -657,6 +650,8 @@ e_data_book_report_writable (EDataBook *book, gboolean writable)
 	g_signal_emit (book, signals[WRITABLE], 0, writable);
 }
 
+/* XXX: this should instead be a (static) handler for a signal on EBookBackend
+ * that announces it is connected */
 void
 e_data_book_report_connection_status (EDataBook *book, gboolean connected)
 {
@@ -668,34 +663,7 @@ e_data_book_report_connection_status (EDataBook *book, gboolean connected)
 void
 e_data_book_report_auth_required (EDataBook *book)
 {
-	g_return_if_fail (book != NULL);
+	g_return_if_fail (E_IS_DATA_BOOK (book));
 
-	g_signal_emit (book, signals[AUTH_REQUIRED], 0);
-}
-
-static void
-return_status_and_list (guint32 opid, EDataBookStatus status, GList *list, gboolean free_data)
-{
-	DBusGMethodInvocation *context = opid_fetch (opid);
-
-	if (status == E_DATA_BOOK_STATUS_SUCCESS) {
-		gchar **array;
-		GList *l;
-		gint i = 0;
-
-		array = g_new0 (gchar *, g_list_length (list) + 1);
-		for (l = list; l != NULL; l = l->next) {
-			array[i++] = l->data;
-		}
-
-		dbus_g_method_return (context, array);
-
-		if (free_data) {
-			g_strfreev (array);
-		} else {
-			g_free (array);
-		}
-	} else {
-		data_book_return_error (context, status, _("Cannot complete operation"));
-	}
+	e_data_notify_auth_required (E_DATA (book));
 }

@@ -28,25 +28,27 @@
 #include <glib-object.h>
 #include <libebook/e-contact.h>
 #include <libedata-book/e-data-book-types.h>
+#include <libebackend/e-data-types.h>
+#include <libebackend/e-backend-sexp.h>
 
 G_BEGIN_DECLS
 
-#define E_TYPE_BACKEND_SEXP        (e_book_backend_sexp_get_type ())
-#define E_BOOK_BACKEND_SEXP(o)          (G_TYPE_CHECK_INSTANCE_CAST ((o), E_TYPE_BACKEND_SEXP, EBookBackendSExp))
+#define E_TYPE_BOOK_BACKEND_SEXP        (e_book_backend_sexp_get_type ())
+#define E_BOOK_BACKEND_SEXP(o)          (G_TYPE_CHECK_INSTANCE_CAST ((o), E_TYPE_BOOK_BACKEND_SEXP, EBookBackendSExp))
 #define E_BOOK_BACKEND_SEXP_CLASS(k)    (G_TYPE_CHECK_CLASS_CAST((k), E_BOOK_BACKEND_TYPE, EBookBackendSExpClass))
-#define E_IS_BACKEND_SEXP(o)       (G_TYPE_CHECK_INSTANCE_TYPE ((o), E_TYPE_BACKEND_SEXP))
-#define E_IS_BACKEND_SEXP_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), E_TYPE_BACKEND_SEXP))
-#define E_BOOK_BACKEND_SEXP_GET_CLASS(k) (G_TYPE_INSTANCE_GET_CLASS ((obj), E_TYPE_BACKEND_SEXP, EBookBackendSExpClass))
+#define E_IS_BOOK_BACKEND_SEXP(o)       (G_TYPE_CHECK_INSTANCE_TYPE ((o), E_TYPE_BOOK_BACKEND_SEXP))
+#define E_IS_BOOK_BACKEND_SEXP_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), E_TYPE_BOOK_BACKEND_SEXP))
+#define E_BOOK_BACKEND_SEXP_GET_CLASS(k) (G_TYPE_INSTANCE_GET_CLASS ((obj), E_TYPE_BOOK_BACKEND_SEXP, EBookBackendSExpClass))
 
 typedef struct _EBookBackendSExpPrivate EBookBackendSExpPrivate;
 
 struct _EBookBackendSExp {
-	GObject parent_object;
+	EBackendSExp parent_object;
 	EBookBackendSExpPrivate *priv;
 };
 
 struct _EBookBackendSExpClass {
-	GObjectClass parent_class;
+	EBackendSExpClass parent_class;
 };
 
 EBookBackendSExp *e_book_backend_sexp_new      (const gchar *text);

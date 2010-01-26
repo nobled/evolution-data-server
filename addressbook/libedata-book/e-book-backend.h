@@ -42,12 +42,12 @@ G_BEGIN_DECLS
 typedef struct _EBookBackendPrivate EBookBackendPrivate;
 
 struct _EBookBackend {
-	GObject parent_object;
+	EBackend parent_object;
 	EBookBackendPrivate *priv;
 };
 
 struct _EBookBackendClass {
-	GObjectClass parent_class;
+	EBackendClass parent_class;
 
 	/* Virtual methods */
 	GNOME_Evolution_Addressbook_CallStatus (*load_source) (EBookBackend *backend, ESource *source, gboolean only_if_exists);
@@ -80,6 +80,8 @@ struct _EBookBackendClass {
 	void (*_pas_reserved3) (void);
 	void (*_pas_reserved4) (void);
 };
+
+GType       e_book_backend_get_type                 (void);
 
 gboolean    e_book_backend_construct                (EBookBackend             *backend);
 
@@ -177,8 +179,6 @@ void        e_book_backend_notify_writable            (EBookBackend *backend, gb
 void        e_book_backend_notify_connection_status   (EBookBackend *backend, gboolean is_online);
 void        e_book_backend_notify_auth_required       (EBookBackend *backend);
 void        e_book_backend_sync                       (EBookBackend *backend);
-
-GType       e_book_backend_get_type                 (void);
 
 /* protected functions for subclasses */
 void        e_book_backend_set_is_loaded            (EBookBackend             *backend,

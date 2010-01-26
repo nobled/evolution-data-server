@@ -24,6 +24,7 @@
 #define _E_BOOK_BACKEND_FACTORY_H_
 
 #include <glib-object.h>
+#include <libebackend/e-backend-factory.h>
 #include "e-book-backend.h"
 
 G_BEGIN_DECLS
@@ -38,11 +39,11 @@ G_BEGIN_DECLS
 typedef struct _EBookBackendFactoryPrivate EBookBackendFactoryPrivate;
 
 typedef struct {
-	GObject            parent_object;
+	EBackendFactory parent_object;
 } EBookBackendFactory;
 
 typedef struct {
-	GObjectClass parent_class;
+	EBackendFactoryClass parent_class;
 
 	const gchar *   (*get_protocol) (EBookBackendFactory *factory);
 	EBookBackend* (*new_backend)  (EBookBackendFactory *factory);

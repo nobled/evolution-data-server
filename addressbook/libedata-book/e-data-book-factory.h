@@ -22,6 +22,8 @@
 #define __E_DATA_BOOK_FACTORY_H__
 
 #include <glib-object.h>
+#include <libebackend/e-data-factory.h>
+#include "e-book-backend.h"
 
 G_BEGIN_DECLS
 
@@ -35,12 +37,12 @@ G_BEGIN_DECLS
 typedef struct _EDataBookFactoryPrivate EDataBookFactoryPrivate;
 
 typedef struct {
-	GObject parent;
+	EDataFactory parent;
 	EDataBookFactoryPrivate *priv;
 } EDataBookFactory;
 
 typedef struct {
-	GObjectClass parent;
+	EDataFactoryClass parent;
 } EDataBookFactoryClass;
 
 typedef enum {
