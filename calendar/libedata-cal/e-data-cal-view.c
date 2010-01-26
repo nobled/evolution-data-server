@@ -32,6 +32,7 @@
 #include <dbus/dbus-glib.h>
 #include <glib-object.h>
 
+#include <libebackend/e-data-view.h>
 #include "e-cal-backend-sexp.h"
 #include "e-data-cal-view.h"
 #include "e-data-cal-marshal.h"
@@ -44,39 +45,21 @@ static gboolean impl_EDataCalView_start (EDataCalView *query, GError **error);
 #define THRESHOLD 32
 
 struct _EDataCalViewPrivate {
-	/* The backend we are monitoring */
-	ECalBackend *backend;
-
 	gboolean started;
 	gboolean done;
 	EDataCalCallStatus done_status;
-
-	/* Sexp that defines the query */
-	ECalBackendSExp *sexp;
 
 	GArray *adds;
 	GArray *changes;
 	GArray *removes;
 
 	GHashTable *ids;
-
-	gchar *path;
 };
 
-G_DEFINE_TYPE (EDataCalView, e_data_cal_view, G_TYPE_OBJECT);
+G_DEFINE_TYPE (EDataCalView, e_data_cal_view, E_TYPE_DATA_VIEW);
 #define E_DATA_CAL_VIEW_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), E_DATA_CAL_VIEW_TYPE, EDataCalViewPrivate))
 
-static void e_data_cal_view_dispose (GObject *object);
 static void e_data_cal_view_finalize (GObject *object);
-static void e_data_cal_view_get_property (GObject *object, guint property_id, GValue *value, GParamSpec *pspec);
-static void e_data_cal_view_set_property (GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
-
-/* Property IDs */
-enum props {
-	PROP_0,
-	PROP_BACKEND,
-	PROP_SEXP
-};
 
 /* Signals */
 enum {
@@ -90,26 +73,24 @@ enum {
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
+static void
+e_data_cal_view_stop_if_running (EDataCalView *query)
+{
+	/* Nothing for us to do here */
+}
+
 /* Class init */
 static void
 e_data_cal_view_class_init (EDataCalViewClass *klass)
 {
-	GParamSpec *param;
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+	EDataViewClass *parent_class = E_DATA_VIEW_CLASS (klass);
 
 	g_type_class_add_private (klass, sizeof (EDataCalViewPrivate));
 
-	object_class->set_property = e_data_cal_view_set_property;
-	object_class->get_property = e_data_cal_view_get_property;
-	object_class->dispose = e_data_cal_view_dispose;
 	object_class->finalize = e_data_cal_view_finalize;
 
-	param =  g_param_spec_object ("backend", NULL, NULL, E_TYPE_CAL_BACKEND,
-				      G_PARAM_READABLE | G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
-	g_object_class_install_property (object_class, PROP_BACKEND, param);
-	param =  g_param_spec_object ("sexp", NULL, NULL, E_TYPE_CAL_BACKEND_SEXP,
-				      G_PARAM_READABLE | G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
-	g_object_class_install_property (object_class, PROP_SEXP, param);
+	parent_class->stop_if_running = (void (*)(EDataView*)) e_data_cal_view_stop_if_running;
 
         signals[OBJECTS_ADDED] =
           g_signal_new ("objects-added",
@@ -176,12 +157,10 @@ e_data_cal_view_init (EDataCalView *view)
 
 	view->priv = priv;
 
-	priv->backend = NULL;
 	priv->started = FALSE;
 	priv->done = FALSE;
 	priv->done_status = Success;
 	priv->started = FALSE;
-	priv->sexp = NULL;
 
 	priv->adds = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
 	priv->changes = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
@@ -191,15 +170,22 @@ e_data_cal_view_init (EDataCalView *view)
 }
 
 EDataCalView *
-e_data_cal_view_new (ECalBackend *backend,
-		     const gchar *path, ECalBackendSExp *sexp)
+e_data_cal_view_new (ECalBackend     *backend,
+		     const gchar     *path,
+		     ECalBackendSExp *sexp)
 {
 	EDataCalView *query;
 
-	query = g_object_new (E_DATA_CAL_VIEW_TYPE, "backend", backend, "sexp", sexp, NULL);
-	query->priv->path = g_strdup (path);
-
-	dbus_g_connection_register_g_object (connection, path, G_OBJECT (query));
+	/* XXX: ideally we would pass an EDataCal for "data" here and remove the
+	 * "backend" property from EDataView, since it can be derived from the
+	 * "data" value (but it would require another argument to this function,
+	 * breaking API stability) */
+	query = g_object_new (E_DATA_CAL_VIEW_TYPE,
+			"data", NULL,
+			"dbus-path", path,
+			"backend", backend,
+			"sexp", sexp,
+			NULL);
 
 	return query;
 }
@@ -209,7 +195,7 @@ e_data_cal_view_get_dbus_path (EDataCalView *view)
 {
 	g_return_val_if_fail (E_IS_DATA_CAL_VIEW (view), NULL);
 
-	return view->priv->path;
+	return e_data_view_get_dbus_path (E_DATA_VIEW (view));
 }
 
 static void
@@ -334,79 +320,10 @@ impl_EDataCalView_start (EDataCalView *query, GError **error)
 
 	if (!priv->started) {
 		priv->started = TRUE;
-		e_cal_backend_start_query (priv->backend, query);
+		e_cal_backend_start_query (e_data_cal_view_get_backend (query), query);
 	}
 
 	return TRUE;
-}
-
-static void
-e_data_cal_view_set_property (GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
-{
-	EDataCalView *query;
-	EDataCalViewPrivate *priv;
-
-	query = QUERY (object);
-	priv = query->priv;
-
-	switch (property_id) {
-	case PROP_BACKEND:
-		priv->backend = E_CAL_BACKEND (g_value_dup_object (value));
-		break;
-	case PROP_SEXP:
-		priv->sexp = E_CAL_BACKEND_SEXP (g_value_dup_object (value));
-		break;
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-		break;
-	}
-}
-
-static void
-e_data_cal_view_get_property (GObject *object, guint property_id, GValue *value, GParamSpec *pspec)
-{
-	EDataCalView *query;
-	EDataCalViewPrivate *priv;
-
-	query = QUERY (object);
-	priv = query->priv;
-
-	switch (property_id) {
-	case PROP_BACKEND:
-		g_value_set_object (value, priv->backend);
-		break;
-	case PROP_SEXP:
-		g_value_set_object (value, priv->sexp);
-		break;
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-		break;
-	}
-}
-
-static void
-e_data_cal_view_dispose (GObject *object)
-{
-	EDataCalView *query;
-	EDataCalViewPrivate *priv;
-
-	g_return_if_fail (object != NULL);
-	g_return_if_fail (IS_QUERY (object));
-
-	query = QUERY (object);
-	priv = query->priv;
-
-	if (priv->backend) {
-		g_object_unref (priv->backend);
-		priv->backend = NULL;
-	}
-
-	if (priv->sexp) {
-		g_object_unref (priv->sexp);
-		priv->sexp = NULL;
-	}
-
-	(* G_OBJECT_CLASS (e_data_cal_view_parent_class)->dispose) (object);
 }
 
 static void
@@ -423,25 +340,23 @@ e_data_cal_view_finalize (GObject *object)
 
 	g_hash_table_destroy (priv->ids);
 
-	g_free (priv->path);
-
 	(* G_OBJECT_CLASS (e_data_cal_view_parent_class)->finalize) (object);
 }
 
 /**
- * e_data_cal_view_get_text:
- * @query: A #EDataCalView object.
+ * e_data_cal_view_get_backend:
+ * @query: A query object.
  *
- * Get the expression used for the given query.
+ * Get the #ECalBackend object used for the given query.
  *
- * Return value: the query expression used to search.
+ * Return value: The #ECalBackend backend.
  */
-const gchar *
-e_data_cal_view_get_text (EDataCalView *query)
+ECalBackend *
+e_data_cal_view_get_backend (EDataCalView *query)
 {
 	g_return_val_if_fail (IS_QUERY (query), NULL);
 
-	return e_cal_backend_sexp_text (query->priv->sexp);
+	return E_CAL_BACKEND (e_data_view_get_backend (E_DATA_VIEW (query)));
 }
 
 /**
@@ -457,7 +372,27 @@ e_data_cal_view_get_object_sexp (EDataCalView *query)
 {
 	g_return_val_if_fail (IS_QUERY (query), NULL);
 
-	return query->priv->sexp;
+	return E_CAL_BACKEND_SEXP (e_data_view_get_sexp (E_DATA_VIEW (query)));
+}
+
+/**
+ * e_data_cal_view_get_text:
+ * @query: A #EDataCalView object.
+ *
+ * Get the expression used for the given query.
+ *
+ * Return value: the query expression used to search.
+ */
+const gchar *
+e_data_cal_view_get_text (EDataCalView *query)
+{
+	ECalBackendSExp *sexp;
+
+	g_return_val_if_fail (IS_QUERY (query), NULL);
+
+	sexp = e_data_cal_view_get_object_sexp (query);
+
+	return e_cal_backend_sexp_text (sexp);
 }
 
 /**
@@ -473,15 +408,17 @@ e_data_cal_view_get_object_sexp (EDataCalView *query)
 gboolean
 e_data_cal_view_object_matches (EDataCalView *query, const gchar *object)
 {
-	EDataCalViewPrivate *priv;
+	ECalBackend *backend;
+	ECalBackendSExp *sexp;
 
 	g_return_val_if_fail (query != NULL, FALSE);
 	g_return_val_if_fail (IS_QUERY (query), FALSE);
 	g_return_val_if_fail (object != NULL, FALSE);
 
-	priv = query->priv;
+	backend = e_data_cal_view_get_backend (query);
+	sexp = e_data_cal_view_get_object_sexp (query);
 
-	return e_cal_backend_sexp_match_object (priv->sexp, object, priv->backend);
+	return e_cal_backend_sexp_match_object (sexp, object, backend);
 }
 
 /**

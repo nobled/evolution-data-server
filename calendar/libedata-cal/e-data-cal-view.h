@@ -27,10 +27,9 @@
 #include <libedata-cal/e-data-cal-common.h>
 #include <libedata-cal/e-cal-backend-sexp.h>
 #include <libedata-cal/e-data-cal-types.h>
+#include <libebackend/e-data-view.h>
 
 G_BEGIN_DECLS
-
-
 
 #define E_DATA_CAL_VIEW_TYPE            (e_data_cal_view_get_type ())
 #define E_DATA_CAL_VIEW(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), E_DATA_CAL_VIEW_TYPE, EDataCalView))
@@ -43,12 +42,12 @@ G_BEGIN_DECLS
 typedef struct _EDataCalViewPrivate EDataCalViewPrivate;
 
 struct _EDataCalView {
-	GObject parent;
+	EDataView parent;
 	EDataCalViewPrivate *priv;
 };
 
 struct _EDataCalViewClass {
-	GObjectClass parent_class;
+	EDataViewClass parent_class;
 };
 
 GType                 e_data_cal_view_get_type (void);
@@ -56,6 +55,7 @@ EDataCalView         *e_data_cal_view_new (ECalBackend *backend, const gchar *pa
 
 const gchar * e_data_cal_view_get_dbus_path (EDataCalView *view);
 
+ECalBackend*		e_data_cal_view_get_backend (EDataCalView *query);
 const gchar           *e_data_cal_view_get_text (EDataCalView *query);
 ECalBackendSExp      *e_data_cal_view_get_object_sexp (EDataCalView *query);
 gboolean              e_data_cal_view_object_matches (EDataCalView *query, const gchar *object);

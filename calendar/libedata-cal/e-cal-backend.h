@@ -23,8 +23,9 @@
 #ifndef E_CAL_BACKEND_H
 #define E_CAL_BACKEND_H
 
-#include "libedataserver/e-list.h"
-#include "libedataserver/e-source.h"
+#include <libedataserver/e-list.h>
+#include <libedataserver/e-source.h>
+#include <libebackend/e-backend.h>
 #include <libecal/e-cal-util.h>
 #include <libecal/e-cal-component.h>
 #include "e-data-cal-common.h"
@@ -33,8 +34,6 @@
 #include "e-data-cal-types.h"
 
 G_BEGIN_DECLS
-
-
 
 #define E_TYPE_CAL_BACKEND            (e_cal_backend_get_type ())
 #define E_CAL_BACKEND(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), E_TYPE_CAL_BACKEND, ECalBackend))
@@ -49,13 +48,13 @@ struct _ECalBackendCache;
 typedef struct _ECalBackendPrivate ECalBackendPrivate;
 
 struct _ECalBackend {
-	GObject object;
+	EBackend object;
 
 	ECalBackendPrivate *priv;
 };
 
 struct _ECalBackendClass {
-	GObjectClass parent_class;
+	EBackendClass parent_class;
 
 	/* Notification signals */
 	void (* last_client_gone) (ECalBackend *backend);

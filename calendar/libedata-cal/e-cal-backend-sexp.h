@@ -28,7 +28,9 @@
 #include <glib-object.h>
 #include <libecal/e-cal-component.h>
 #include <libedata-cal/e-cal-backend.h>
-#include "libedataserver/e-sexp.h"
+#include <libedataserver/e-sexp.h>
+#include <libebackend/e-data-types.h>
+#include <libebackend/e-backend-sexp.h>
 
 G_BEGIN_DECLS
 
@@ -42,13 +44,12 @@ G_BEGIN_DECLS
 typedef struct _ECalBackendSExpPrivate ECalBackendSExpPrivate;
 
 struct _ECalBackendSExp {
-	GObject parent_object;
-
+	EBackendSExp parent_object;
 	ECalBackendSExpPrivate *priv;
 };
 
 struct _ECalBackendSExpClass {
-	GObjectClass parent_class;
+	EBackendSExpClass parent_class;
 };
 
 GType            e_cal_backend_sexp_get_type     (void);

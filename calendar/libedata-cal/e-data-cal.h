@@ -25,13 +25,12 @@
 
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
+#include <libebackend/e-data.h>
 #include <libedata-cal/e-data-cal-common.h>
 #include <libedata-cal/e-data-cal-view.h>
 #include <libedata-cal/e-data-cal-types.h>
 
 G_BEGIN_DECLS
-
-
 
 #define E_TYPE_DATA_CAL            (e_data_cal_get_type ())
 #define E_DATA_CAL(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), E_TYPE_DATA_CAL, EDataCal))
@@ -45,12 +44,12 @@ GQuark e_data_cal_error_quark (void);
 typedef struct _EDataCalPrivate EDataCalPrivate;
 
 struct _EDataCal {
-	GObject parent;
+	EData parent;
 	EDataCalPrivate *priv;
 };
 
 struct _EDataCalClass {
-	GObjectClass parent_class;
+	EDataClass parent_class;
 };
 
 GType e_data_cal_get_type (void);

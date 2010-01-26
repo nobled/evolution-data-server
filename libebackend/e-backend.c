@@ -39,6 +39,21 @@ struct _EBackendPrivate {
 
 	GMutex *views_mutex;
 	EList *views;
+
+	/* signal handler ID for source's 'changed' signal */
+	gulong source_changed_id;
+
+	/* URI, from source. This is cached, since we return const. */
+	gchar *uri;
+};
+
+#define E_BACKEND_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), E_TYPE_BACKEND, EBackendPrivate))
+
+/* Property IDs */
+enum props {
+        PROP_0,
+        PROP_SOURCE,
+        PROP_URI,
 };
 
 /* Signal IDs */
@@ -69,6 +84,29 @@ e_backend_get_source (EBackend *backend)
 	return backend->priv->source;
 }
 
+static void
+source_changed_cb (ESource  *source,
+		   EBackend *backend)
+{
+	EBackendPrivate *priv;
+	gchar *suri;
+
+	g_return_if_fail (source != NULL);
+	g_return_if_fail (E_IS_BACKEND (backend));
+
+	priv = backend->priv;
+	g_return_if_fail (priv != NULL);
+	g_return_if_fail (e_backend_get_source (backend) == source);
+
+	suri = e_source_get_uri (e_backend_get_source (backend));
+	if (!priv->uri || (suri && !g_str_equal (priv->uri, suri))) {
+		g_free (priv->uri);
+		priv->uri = suri;
+	} else {
+		g_free (suri);
+	}
+}
+
 /**
  * e_backend_set_source:
  * @backend: An #EBackend.
@@ -82,87 +120,65 @@ void
 e_backend_set_source (EBackend *backend,
 		      ESource  *source)
 {
+	EBackendPrivate *priv;
+
 	g_return_if_fail (E_IS_BACKEND (backend));
-	g_return_if_fail (E_IS_SOURCE (source));
+	g_return_if_fail (E_IS_SOURCE (source) || !source);
 
-	if (backend->priv->source)
-		g_object_unref (backend->priv->source);
+	g_return_if_fail (E_IS_BACKEND (backend));
 
-	backend->priv->source = g_object_ref (backend);
+	priv = backend->priv;
+	if (priv->source_changed_id && priv->source) {
+		g_signal_handler_disconnect (priv->source, priv->source_changed_id);
+		priv->source_changed_id = 0;
+	}
+
+	if (priv->source)
+		g_object_unref (priv->source);
+
+	if (source) {
+		priv->source = g_object_ref (source);
+		priv->source_changed_id = g_signal_connect (source, "changed", G_CALLBACK (source_changed_cb), backend);
+
+		/* Cache the URI */
+		g_free (priv->uri);
+		priv->uri = e_source_get_uri (priv->source);
+	}
 }
 
 /**
- * e_book_backend_stop_view:
- * @backend: an #EBackend
- * @view: the #EDataView to stop
+ * e_backend_get_uri:
+ * @backend: An #EBackend.
  *
- * Stops running the query specified by @view, emitting
- * no more signals.
+ * Gets the URI of the source that @backend is serving.
+ *
+ * Return value: uri for the backend.
  **/
-void
-e_backend_stop_view (EBackend  *backend,
-		     EDataView *view)
+const gchar*
+e_backend_get_uri (EBackend *backend)
 {
-	EBackendClass *klass;
+	g_return_val_if_fail (E_IS_BACKEND (backend), NULL);
 
-	g_return_if_fail (E_IS_BACKEND (backend));
-
-	klass = E_BACKEND_GET_CLASS (backend);
-
-	g_assert (klass->stop_view);
-
-	return klass->stop_view (backend, view);
+	return backend->priv->uri;
 }
 
 /**
- * e_backend_remove:
- * @backend: an #EBackend
- * @data: an #EData
- * @opid: the ID to use for this operation
+ * e_backend_set_uri:
+ * @backend: An #EBackend.
+ * @uri: The URI of the source @backend is using.
  *
- * Executes a 'remove' request to remove all of @backend's data,
- * specified by @opid on @data.
+ * Sets the source that @backend is serving.
  **/
 void
-e_backend_remove (EBackend *backend,
-		  EData    *data,
-		  guint32   opid)
-{
-	EBackendClass *klass;
-
-	g_return_if_fail (E_IS_BACKEND (backend));
-	g_return_if_fail (E_IS_DATA (data));
-
-	klass = E_BACKEND_GET_CLASS (data);
-
-	g_assert (klass->remove);
-
-	klass->remove (backend, data, opid);
-}
-
-/**
- * e_backend_get_changes:
- * @backend: an #EBackend
- * @data: an #EData
- * @opid: the ID to use for this operation
- * @change_id: the ID of the changeset
- *
- * Executes a 'get changes' request specified by @opid on @data
- * using @backend.
- **/
-void
-e_backend_get_changes (EBackend    *backend,
-		       EData       *data,
-		       guint32      opid,
-		       const gchar *change_id)
+e_backend_set_uri (EBackend    *backend,
+		   const gchar *uri)
 {
 	g_return_if_fail (E_IS_BACKEND (backend));
-	g_return_if_fail (E_IS_DATA (data));
-	g_return_if_fail (change_id);
 
-	g_assert (E_BACKEND_GET_CLASS (backend)->get_changes);
-
-	(* E_BACKEND_GET_CLASS (backend)->get_changes) (backend, data, opid, change_id);
+	if (!backend->priv->source) {
+		g_free (backend->priv->uri);
+		backend->priv->uri = g_strdup (uri);
+	}
 }
 
 static void
@@ -172,10 +188,29 @@ last_client_gone (EBackend *backend)
 }
 
 /**
+ * e_backend_get_views_mutex:
+ * @backend: an #EBackend
+ *
+ * Returns the #GMutex used to regulate access of the vies list and the
+ * views themselves. The mutex is owned by @backend.
+ **/
+GMutex*
+e_backend_get_views_mutex (EBackend *backend)
+{
+	g_return_val_if_fail (E_IS_BACKEND (backend), NULL);
+
+	return backend->priv->views_mutex;
+}
+
+/**
  * e_backend_get_views:
  * @backend: an #EBackend
  *
- * Gets the list of #EDataView views running on this backend.
+ * Gets the list of #EDataView views running on this backend. This list (but not
+ * its members) must be g_object_unref()'d when you're done with it.
+ *
+ * Be sure to also lock and unlock the mutex from @e_backend_get_views_mutex()
+ * as appropriate when using this list of views.
  *
  * Return value: An #EList of #EDataView objects.
  **/
@@ -199,10 +234,11 @@ e_backend_add_view (EBackend  *backend,
 		    EDataView *view)
 {
 	g_return_if_fail (E_IS_BACKEND (backend));
+	g_return_if_fail (E_IS_DATA_VIEW (view));
 
 	g_mutex_lock (backend->priv->views_mutex);
 
-	e_list_append (backend->priv->views, view);
+	e_list_append (backend->priv->views, g_object_ref (view));
 
 	g_mutex_unlock (backend->priv->views_mutex);
 }
@@ -219,6 +255,7 @@ e_backend_remove_view (EBackend  *backend,
 		       EDataView *view)
 {
 	g_return_if_fail (E_IS_BACKEND (backend));
+	g_return_if_fail (E_IS_DATA_VIEW (view));
 
 	g_mutex_lock (backend->priv->views_mutex);
 
@@ -317,28 +354,6 @@ e_backend_get_clients_mutex (EBackend *backend)
 }
 
 /**
- * e_backend_get_static_capabilities:
- * @backend: an #EBackend
- *
- * Gets the capabilities offered by this @backend.
- *
- * Return value: A string listing the capabilities.
- **/
-gchar *
-e_backend_get_static_capabilities (EBackend *backend)
-{
-	EBackendClass *klass;
-
-	g_return_val_if_fail (E_IS_BACKEND (backend), NULL);
-
-	klass = E_BACKEND_GET_CLASS (backend);
-
-	g_assert (klass->get_static_capabilities);
-
-	return klass->get_static_capabilities (backend);
-}
-
-/**
  * e_backend_is_loaded:
  * @backend: an #EBackend
  *
@@ -397,6 +412,8 @@ e_backend_notify_auth_required (EBackend *backend)
 	EBackendPrivate *priv;
 	GList *clients;
 
+	g_return_if_fail (E_IS_BACKEND (backend));
+
 	priv = backend->priv;
 	g_mutex_lock (priv->clients_mutex);
 
@@ -406,46 +423,101 @@ e_backend_notify_auth_required (EBackend *backend)
 }
 
 static void
+e_backend_get_property (GObject      *object,
+			guint         property_id,
+			GValue       *value,
+			GParamSpec   *pspec)
+{
+        EBackend *backend;
+        EBackendPrivate *priv;
+
+        backend = E_BACKEND (object);
+        priv = backend->priv;
+
+        switch (property_id) {
+        case PROP_SOURCE:
+                g_value_set_object (value, e_backend_get_source (backend));
+                break;
+        case PROP_URI:
+                g_value_set_string (value, e_backend_get_uri (backend));
+                break;
+        default:
+                G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+                break;
+        }
+}
+
+static void
+e_backend_set_property (GObject      *object,
+			guint         property_id,
+			const GValue *value,
+			GParamSpec   *pspec)
+{
+	EBackend *backend;
+	EBackendPrivate *priv;
+
+	backend = E_BACKEND (object);
+	priv = backend->priv;
+
+	switch (property_id) {
+	case PROP_SOURCE:
+		e_backend_set_source (backend, g_value_get_object (value));
+		break;
+	case PROP_URI:
+		e_backend_set_uri (backend, g_value_get_string (value));
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+		break;
+	}
+}
+
+static void
 e_backend_init (EBackend *backend)
 {
 	EBackendPrivate *priv;
 
-	priv          = g_new0 (EBackendPrivate, 1);
-	priv->clients = NULL;
-	priv->source = NULL;
-	priv->views   = e_list_new((EListCopyFunc) NULL, (EListFreeFunc) NULL, NULL);
+	priv = E_BACKEND_GET_PRIVATE (backend);
+	backend->priv = priv;
+
+	priv->views = e_list_new((EListCopyFunc) NULL, (EListFreeFunc) g_object_unref, NULL);
 	priv->open_mutex = g_mutex_new ();
 	priv->clients_mutex = g_mutex_new ();
 	priv->views_mutex = g_mutex_new ();
-
-	backend->priv = priv;
 }
 
 static void
 e_backend_dispose (GObject *object)
 {
 	EBackend *backend;
+	EBackendPrivate *priv;
 
 	backend = E_BACKEND (object);
+	priv = backend->priv;
 
-	if (backend->priv) {
-		g_list_free (backend->priv->clients);
+	if (priv) {
+		g_assert (priv->clients == NULL);
 
-		if (backend->priv->views) {
-			g_object_unref (backend->priv->views);
-			backend->priv->views = NULL;
+		if (priv->views) {
+			g_object_unref (priv->views);
+			priv->views = NULL;
 		}
 
-		if (backend->priv->source) {
-			g_object_unref (backend->priv->source);
-			backend->priv->source = NULL;
+		if (priv->source_changed_id && priv->source) {
+			g_signal_handler_disconnect (priv->source, priv->source_changed_id);
+			priv->source_changed_id = 0;
 		}
 
-		g_mutex_free (backend->priv->open_mutex);
-		g_mutex_free (backend->priv->clients_mutex);
-		g_mutex_free (backend->priv->views_mutex);
+		if (priv->source) {
+			g_object_unref (priv->source);
+			priv->source = NULL;
+		}
 
-		g_free (backend->priv);
+		g_mutex_free (priv->open_mutex);
+		g_mutex_free (priv->clients_mutex);
+		g_mutex_free (priv->views_mutex);
+
+		g_free (priv);
 		backend->priv = NULL;
 	}
 
@@ -462,6 +534,26 @@ e_backend_class_init (EBackendClass *klass)
 	object_class = (GObjectClass *) klass;
 
 	object_class->dispose = e_backend_dispose;
+	object_class->get_property = e_backend_get_property;
+	object_class->set_property = e_backend_set_property;
+
+	g_object_class_install_property
+		(object_class, PROP_SOURCE,
+		 g_param_spec_object
+			("source",
+			 NULL,
+			 NULL,
+			 E_TYPE_SOURCE,
+			 G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+	g_object_class_install_property
+		(object_class, PROP_URI,
+		 g_param_spec_string
+			("uri",
+			 NULL,
+			 NULL,
+			 "",
+			 G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
 	e_backend_signals[LAST_CLIENT_GONE] =
 		g_signal_new ("last_client_gone",
@@ -471,4 +563,6 @@ e_backend_class_init (EBackendClass *klass)
 			      NULL, NULL,
 			      g_cclosure_marshal_VOID__VOID,
 			      G_TYPE_NONE, 0);
+
+	g_type_class_add_private (klass, sizeof (EBackendPrivate));
 }

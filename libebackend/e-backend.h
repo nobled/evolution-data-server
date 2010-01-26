@@ -53,20 +53,6 @@ struct _EBackend {
 struct _EBackendClass {
 	GObjectClass parent_class;
 
-/* XXX: eCal equiv is start_query */
-	/* FIXME: this could be genericized
-	void (*start_view) (EBackend *backend,
-			EDataView *view);
-			*/
-	void		(*stop_view)			(EBackend  *backend,
-							 EDataView *view);
-
-	void		(*remove)			(EBackend  *backend,
-							 EData     *data,
-							 guint32    opid);
-
-        gchar *		(*get_static_capabilities)	(EBackend  *backend);
-
 	void		(*set_mode)			(EBackend  *backend,
 							 EDataMode  mode);
 
@@ -77,11 +63,6 @@ struct _EBackendClass {
 							 EData     *data);
 
 	gboolean	(*is_loaded)			(EBackend  *backend);
-
-	void		(*get_changes)			(EBackend    *backend,
-							 EData       *data,
-							 guint32      opid,
-							 const gchar *change_id);
 
 	/* Notification signals */
 	void (* last_client_gone) (EBackend *backend);
@@ -100,50 +81,38 @@ ESource*	e_backend_get_source		(EBackend *backend);
 void		e_backend_set_source		(EBackend *backend,
 						 ESource  *source);
 
+const gchar*	e_backend_get_uri		(EBackend *backend);
+
+void		e_backend_set_uri		(EBackend    *backend,
+						 const gchar *uri);
+
 /* XXX: ecal equiv: add_query */
-void		e_backend_add_view		(EBackend           *backend,
-						 EDataView          *view);
+void		e_backend_add_view		(EBackend  *backend,
+						 EDataView *view);
 /* XXX: ecal equiv: remove_query */
-void		e_backend_remove_view		(EBackend           *backend,
-						 EDataView          *view);
+void		e_backend_remove_view		(EBackend  *backend,
+						 EDataView *view);
 
-EList*		e_backend_get_views		(EBackend           *backend);
+GMutex*		e_backend_get_views_mutex	(EBackend  *backend);
 
-void		e_backend_notify_auth_required	(EBackend           *backend);
+EList*		e_backend_get_views		(EBackend  *backend);
 
+void		e_backend_notify_auth_required	(EBackend  *backend);
 
-void		e_backend_remove			(EBackend  *backend,
-							 EData     *data,
-							 guint32    opid);
+void		e_backend_set_mode		(EBackend  *backend,
+						 EDataMode  mode);
 
-gchar*		e_backend_get_static_capabilities	(EBackend  *backend);
+gboolean	e_backend_add_client		(EBackend  *backend,
+						 EData     *data);
 
-void		e_backend_set_mode			(EBackend  *backend,
-							 EDataMode  mode);
+void		e_backend_remove_client		(EBackend  *backend,
+						 EData     *data);
 
-gboolean	e_backend_add_client			(EBackend  *backend,
-							 EData     *data);
+GList*		e_backend_get_clients		(EBackend  *backend);
 
-void		e_backend_remove_client			(EBackend  *backend,
-							 EData     *data);
+GMutex*		e_backend_get_clients_mutex	(EBackend  *backend);
 
-GList*		e_backend_get_clients			(EBackend  *backend);
-
-GMutex*		e_backend_get_clients_mutex		(EBackend  *backend);
-
-gboolean	e_backend_is_loaded			(EBackend  *backend);
-
-void		e_backend_get_changes			(EBackend    *backend,
-							 EData       *data,
-							 guint32      opid,
-							 const gchar *change_id);
-
-void		e_backend_notify_writable		(EBackend *backend, gboolean is_writable);
-
-void		e_backend_notify_connection_status	(EBackend *backend, gboolean is_online);
-
-void		e_backend_stop_view			(EBackend  *backend,
-							 EDataView *view);
+gboolean	e_backend_is_loaded		(EBackend  *backend);
 
 /* FIXME: these could be genericized a bit */
 #if 0

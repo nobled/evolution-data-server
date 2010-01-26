@@ -26,32 +26,17 @@
 #include <libxml/parserInternals.h>
 #include <libxml/xmlmemory.h>
 
+#include <libebackend/e-backend.h>
+#include <libebackend/e-data-view.h>
 #include "e-cal-backend.h"
 #include "e-cal-backend-cache.h"
 
-
-
-G_DEFINE_TYPE (ECalBackend, e_cal_backend, G_TYPE_OBJECT);
+G_DEFINE_TYPE (ECalBackend, e_cal_backend, E_TYPE_BACKEND);
 
 /* Private part of the CalBackend structure */
 struct _ECalBackendPrivate {
-	/* The source for this backend */
-	ESource *source;
-	/* signal handler ID for source's 'changed' signal */
-	gulong source_changed_id;
-
-	/* URI, from source. This is cached, since we return const. */
-	gchar *uri;
-
 	/* The kind of components for this backend */
 	icalcomponent_kind kind;
-
-	/* List of Cal objects */
-	GMutex *clients_mutex;
-	GList *clients;
-
-	GMutex *queries_mutex;
-	EList *queries;
 
 	/* ECalBackend to pass notifications on to */
 	ECalBackend *notification_proxy;
@@ -70,8 +55,6 @@ struct _ECalBackendPrivate {
 /* Property IDs */
 enum props {
 	PROP_0,
-	PROP_SOURCE,
-	PROP_URI,
 	PROP_KIND
 };
 
@@ -84,33 +67,6 @@ enum {
 };
 static guint e_cal_backend_signals[LAST_SIGNAL];
 
-static void e_cal_backend_finalize (GObject *object);
-
-
-
-static void
-source_changed_cb (ESource *source, ECalBackend *backend)
-{
-	ECalBackendPrivate *priv;
-	gchar *suri;
-
-	g_return_if_fail (source != NULL);
-	g_return_if_fail (backend != NULL);
-	g_return_if_fail (E_IS_CAL_BACKEND (backend));
-
-	priv = backend->priv;
-	g_return_if_fail (priv != NULL);
-	g_return_if_fail (priv->source == source);
-
-	suri = e_source_get_uri (priv->source);
-	if (!priv->uri || (suri && !g_str_equal (priv->uri, suri))) {
-		g_free (priv->uri);
-		priv->uri = suri;
-	} else {
-		g_free (suri);
-	}
-}
-
 static void
 e_cal_backend_set_property (GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
 {
@@ -121,39 +77,6 @@ e_cal_backend_set_property (GObject *object, guint property_id, const GValue *va
 	priv = backend->priv;
 
 	switch (property_id) {
-	case PROP_SOURCE:
-		{
-			ESource *new_source;
-
-			if (priv->source_changed_id && priv->source) {
-				g_signal_handler_disconnect (priv->source, priv->source_changed_id);
-				priv->source_changed_id = 0;
-			}
-
-			new_source = g_value_get_object (value);
-			if (new_source) {
-				g_object_ref (new_source);
-				priv->source_changed_id = g_signal_connect (new_source, "changed", G_CALLBACK (source_changed_cb), backend);
-			}
-
-			if (priv->source)
-				g_object_unref (priv->source);
-
-			priv->source = new_source;
-
-			/* Cache the URI */
-			if (new_source) {
-				g_free (priv->uri);
-				priv->uri = e_source_get_uri (priv->source);
-			}
-		}
-		break;
-	case PROP_URI:
-		if (!priv->source) {
-			g_free (priv->uri);
-			priv->uri = g_value_dup_string (value);
-		}
-		break;
 	case PROP_KIND:
 		priv->kind = g_value_get_ulong (value);
 		break;
@@ -173,12 +96,6 @@ e_cal_backend_get_property (GObject *object, guint property_id, GValue *value, G
 	priv = backend->priv;
 
 	switch (property_id) {
-	case PROP_SOURCE:
-		g_value_set_object (value, e_cal_backend_get_source (backend));
-		break;
-	case PROP_URI:
-		g_value_set_string (value, e_cal_backend_get_uri (backend));
-		break;
 	case PROP_KIND:
 		g_value_set_ulong (value, e_cal_backend_get_kind (backend));
 		break;
@@ -188,27 +105,50 @@ e_cal_backend_get_property (GObject *object, guint property_id, GValue *value, G
 	}
 }
 
+static void
+e_cal_backend_set_mode_from_data_mode (ECalBackend *backend,
+				       EDataMode    mode)
+{
+	CalMode real_mode = CAL_MODE_ANY;
+
+	g_return_if_fail (E_IS_CAL_BACKEND (backend));
+
+	switch (mode) {
+		case E_DATA_MODE_LOCAL:
+			real_mode = CAL_MODE_LOCAL;
+			break;
+		case E_DATA_MODE_REMOTE:
+			real_mode = CAL_MODE_REMOTE;
+			break;
+		case E_DATA_MODE_ANY:
+			real_mode = CAL_MODE_ANY;
+			break;
+		default:
+			g_warning (G_STRLOC ": unsupported EDataMode: %d; using 'any'", mode);
+	}
+
+	e_cal_backend_set_mode (backend, real_mode);
+}
+
 /* Class initialization function for the calendar backend */
 static void
-e_cal_backend_class_init (ECalBackendClass *class)
+e_cal_backend_class_init (ECalBackendClass *klass)
 {
 	GObjectClass *object_class;
+	EBackendClass *parent_class;
 
-	object_class = (GObjectClass *) class;
+	parent_class = E_BACKEND_CLASS (klass);
+
+	object_class = (GObjectClass *) klass;
 
 	object_class->set_property = e_cal_backend_set_property;
 	object_class->get_property = e_cal_backend_get_property;
-	object_class->finalize = e_cal_backend_finalize;
 
-	g_object_class_install_property (object_class, PROP_SOURCE,
-					 g_param_spec_object ("source", NULL, NULL, E_TYPE_SOURCE,
-							      G_PARAM_READABLE | G_PARAM_WRITABLE
-							      | G_PARAM_CONSTRUCT_ONLY));
-
-	g_object_class_install_property (object_class, PROP_URI,
-					 g_param_spec_string ("uri", NULL, NULL, "",
-							      G_PARAM_READABLE | G_PARAM_WRITABLE
-							      | G_PARAM_CONSTRUCT_ONLY));
+        /* XXX: do some ugly casting to avoid breaking API */
+        parent_class->set_mode = (void (*)(EBackend*, EDataMode)) e_cal_backend_set_mode_from_data_mode;
+        parent_class->add_client = (gboolean (*)(EBackend*, EData*)) e_cal_backend_add_client;
+        parent_class->remove_client = (void (*)(EBackend*, EData*)) e_cal_backend_remove_client;
+        parent_class->is_loaded = (gboolean (*)(EBackend*)) e_cal_backend_is_loaded;
 
 	g_object_class_install_property (object_class, PROP_KIND,
 					 g_param_spec_ulong ("kind", NULL, NULL,
@@ -217,16 +157,10 @@ e_cal_backend_class_init (ECalBackendClass *class)
 							     G_PARAM_READABLE | G_PARAM_WRITABLE
 							     | G_PARAM_CONSTRUCT_ONLY));
 	e_cal_backend_signals[LAST_CLIENT_GONE] =
-		g_signal_new ("last_client_gone",
-			      G_TYPE_FROM_CLASS (class),
-			      G_SIGNAL_RUN_FIRST,
-			      G_STRUCT_OFFSET (ECalBackendClass, last_client_gone),
-			      NULL, NULL,
-			      g_cclosure_marshal_VOID__VOID,
-			      G_TYPE_NONE, 0);
+		g_signal_lookup ("last_client_gone", E_TYPE_BACKEND);
 	e_cal_backend_signals[OPENED] =
 		g_signal_new ("opened",
-			      G_TYPE_FROM_CLASS (class),
+			      G_TYPE_FROM_CLASS (klass),
 			      G_SIGNAL_RUN_FIRST,
 			      G_STRUCT_OFFSET (ECalBackendClass, opened),
 			      NULL, NULL,
@@ -235,7 +169,7 @@ e_cal_backend_class_init (ECalBackendClass *class)
 			      G_TYPE_INT);
 	e_cal_backend_signals[REMOVED] =
 		g_signal_new ("removed",
-			      G_TYPE_FROM_CLASS (class),
+			      G_TYPE_FROM_CLASS (klass),
 			      G_SIGNAL_RUN_FIRST,
 			      G_STRUCT_OFFSET (ECalBackendClass, removed),
 			      NULL, NULL,
@@ -243,35 +177,7 @@ e_cal_backend_class_init (ECalBackendClass *class)
 			      G_TYPE_NONE, 1,
 			      G_TYPE_INT);
 
-	class->last_client_gone = NULL;
-	class->opened = NULL;
-	class->obj_updated = NULL;
-
-	class->get_cal_address = NULL;
-	class->get_alarm_email_address = NULL;
-	class->get_static_capabilities = NULL;
-	class->open = NULL;
-	class->is_loaded = NULL;
-	class->is_read_only = NULL;
-	class->start_query = NULL;
-	class->get_mode = NULL;
-	class->set_mode = NULL;
-	class->get_object = NULL;
-	class->get_default_object = NULL;
-	class->get_object_list = NULL;
-	class->get_free_busy = NULL;
-	class->get_changes = NULL;
-	class->discard_alarm = NULL;
-	class->create_object = NULL;
-	class->modify_object = NULL;
-	class->remove_object = NULL;
-	class->receive_objects = NULL;
-	class->send_objects = NULL;
-	class->get_timezone = NULL;
-	class->add_timezone = NULL;
-	class->set_default_timezone = NULL;
-
-	g_type_class_add_private (class, sizeof (ECalBackendPrivate));
+	g_type_class_add_private (klass, sizeof (ECalBackendPrivate));
 }
 
 /* Object initialization func for the calendar backend */
@@ -283,40 +189,8 @@ e_cal_backend_init (ECalBackend *backend)
 	priv = E_CAL_BACKEND_GET_PRIVATE (backend);
 	backend->priv = priv;
 
-	priv->clients = NULL;
-	priv->clients_mutex = g_mutex_new ();
 	priv->last_percent_notified = 0;
-
-	priv->queries = e_list_new((EListCopyFunc) g_object_ref, (EListFreeFunc) g_object_unref, NULL);
-	priv->queries_mutex = g_mutex_new ();
 }
-
-static void
-e_cal_backend_finalize (GObject *object)
-{
-	ECalBackend *backend = (ECalBackend *)object;
-	ECalBackendPrivate *priv;
-
-	priv = backend->priv;
-
-	g_assert (priv->clients == NULL);
-
-	g_object_unref (priv->queries);
-
-	g_mutex_free (priv->clients_mutex);
-	g_mutex_free (priv->queries_mutex);
-
-	g_free (priv->uri);
-	if (priv->source_changed_id && priv->source) {
-		g_signal_handler_disconnect (priv->source, priv->source_changed_id);
-		priv->source_changed_id = 0;
-	}
-	g_object_unref (priv->source);
-
-	G_OBJECT_CLASS (e_cal_backend_parent_class)->finalize (object);
-}
-
-
 
 /**
  * e_cal_backend_get_source:
@@ -329,14 +203,10 @@ e_cal_backend_finalize (GObject *object)
 ESource *
 e_cal_backend_get_source (ECalBackend *backend)
 {
-	ECalBackendPrivate *priv;
-
 	g_return_val_if_fail (backend != NULL, NULL);
 	g_return_val_if_fail (E_IS_CAL_BACKEND (backend), NULL);
 
-	priv = backend->priv;
-
-	return priv->source;
+	return e_backend_get_source (E_BACKEND (backend));
 }
 
 /**
@@ -351,14 +221,10 @@ e_cal_backend_get_source (ECalBackend *backend)
 const gchar *
 e_cal_backend_get_uri (ECalBackend *backend)
 {
-	ECalBackendPrivate *priv;
-
 	g_return_val_if_fail (backend != NULL, NULL);
 	g_return_val_if_fail (E_IS_CAL_BACKEND (backend), NULL);
 
-	priv = backend->priv;
-
-	return priv->uri;
+	return e_backend_get_uri (E_BACKEND (backend));
 }
 
 /**
@@ -382,12 +248,6 @@ e_cal_backend_get_kind (ECalBackend *backend)
 	return priv->kind;
 }
 
-static void
-last_client_gone (ECalBackend *backend)
-{
-	g_signal_emit (backend, e_cal_backend_signals[LAST_CLIENT_GONE], 0);
-}
-
 /**
  * e_cal_backend_add_client:
  * @backend: An ECalBackend object.
@@ -399,27 +259,7 @@ last_client_gone (ECalBackend *backend)
 void
 e_cal_backend_add_client (ECalBackend *backend, EDataCal *cal)
 {
-	ECalBackendPrivate *priv;
-
-	g_return_if_fail (backend != NULL);
-	g_return_if_fail (E_IS_CAL_BACKEND (backend));
-	g_return_if_fail (cal != NULL);
-	g_return_if_fail (E_IS_DATA_CAL (cal));
-
-	priv = backend->priv;
-
-	/* TODO: Implement this? */
-#if 0
-	bonobo_object_set_immortal (BONOBO_OBJECT (cal), TRUE);
-
-	g_object_weak_ref (G_OBJECT (cal), cal_destroy_cb, backend);
-
-	ORBit_small_listen_for_broken (e_data_cal_get_listener (cal), G_CALLBACK (listener_died_cb), cal);
-#endif
-
-	g_mutex_lock (priv->clients_mutex);
-	priv->clients = g_list_append (priv->clients, cal);
-	g_mutex_unlock (priv->clients_mutex);
+	e_backend_add_client (E_BACKEND (backend), E_DATA (cal));
 }
 
 /**
@@ -432,28 +272,7 @@ e_cal_backend_add_client (ECalBackend *backend, EDataCal *cal)
 void
 e_cal_backend_remove_client (ECalBackend *backend, EDataCal *cal)
 {
-	ECalBackendPrivate *priv;
-
-	/* XXX this needs a bit more thinking wrt the mutex - we
-	   should be holding it when we check to see if clients is
-	   NULL */
-	g_return_if_fail (backend != NULL);
-	g_return_if_fail (E_IS_CAL_BACKEND (backend));
-	g_return_if_fail (cal != NULL);
-	g_return_if_fail (E_IS_DATA_CAL (cal));
-
-	priv = backend->priv;
-
-	/* Disconnect */
-	g_mutex_lock (priv->clients_mutex);
-	priv->clients = g_list_remove (priv->clients, cal);
-	g_mutex_unlock (priv->clients_mutex);
-
-	/* When all clients go away, notify the parent factory about it so that
-	 * it may decide whether to kill the backend or not.
-	 */
-	if (!priv->clients)
-		last_client_gone (backend);
+	e_backend_remove_client (E_BACKEND (backend), E_DATA (cal));
 }
 
 /**
@@ -468,14 +287,10 @@ e_cal_backend_remove_client (ECalBackend *backend, EDataCal *cal)
 void
 e_cal_backend_add_query (ECalBackend *backend, EDataCalView *query)
 {
-	g_return_if_fail (backend != NULL);
 	g_return_if_fail (E_IS_CAL_BACKEND (backend));
+	g_return_if_fail (E_IS_DATA_CAL_VIEW (query));
 
-	g_mutex_lock (backend->priv->queries_mutex);
-
-	e_list_append (backend->priv->queries, query);
-
-	g_mutex_unlock (backend->priv->queries_mutex);
+	e_backend_add_view (E_BACKEND (backend), E_DATA_VIEW (query));
 }
 
 /**
@@ -489,10 +304,9 @@ e_cal_backend_add_query (ECalBackend *backend, EDataCalView *query)
 EList *
 e_cal_backend_get_queries (ECalBackend *backend)
 {
-	g_return_val_if_fail (backend != NULL, NULL);
 	g_return_val_if_fail (E_IS_CAL_BACKEND (backend), NULL);
 
-	return backend->priv->queries;
+	return e_backend_get_views (E_BACKEND (backend));
 }
 
 /**
@@ -505,14 +319,9 @@ e_cal_backend_get_queries (ECalBackend *backend)
 void
 e_cal_backend_remove_query (ECalBackend *backend, EDataCalView *query)
 {
-	g_return_if_fail (backend != NULL);
 	g_return_if_fail (E_IS_CAL_BACKEND (backend));
 
-	g_mutex_lock (backend->priv->queries_mutex);
-
-	e_list_remove (backend->priv->queries, query);
-
-	g_mutex_unlock (backend->priv->queries_mutex);
+	e_backend_remove_view (E_BACKEND (backend), E_DATA_VIEW (query));
 }
 
 /**
@@ -537,6 +346,7 @@ e_cal_backend_notify_readonly (ECalBackend *backend, gboolean read_only)
 {
 	ECalBackendPrivate *priv;
 	GList *l;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
@@ -544,8 +354,14 @@ e_cal_backend_notify_readonly (ECalBackend *backend, gboolean read_only)
 		e_cal_backend_notify_readonly (priv->notification_proxy, read_only);
 		return;
 	}
-	for (l = priv->clients; l; l = l->next)
+
+	mutex = e_backend_get_clients_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
+
+	for (l = e_backend_get_clients (E_BACKEND (backend)); l; l = l->next)
 		e_data_cal_notify_read_only (l->data, GNOME_Evolution_Calendar_Success, read_only);
+
+	g_mutex_unlock (mutex);
 }
 
 void
@@ -553,11 +369,17 @@ e_cal_backend_notify_cal_address (ECalBackend *backend, EServerMethodContext con
 {
 	ECalBackendPrivate *priv;
 	GList *l;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
-	for (l = priv->clients; l; l = l->next)
+	mutex = e_backend_get_clients_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
+
+	for (l = e_backend_get_clients (E_BACKEND (backend)); l; l = l->next)
 		e_data_cal_notify_cal_address (l->data, context, GNOME_Evolution_Calendar_Success, address);
+
+	g_mutex_unlock (mutex);
 }
 
 /**
@@ -1161,6 +983,7 @@ e_cal_backend_notify_object_created (ECalBackend *backend, const gchar *calobj)
 	EList *queries;
 	EIterator *iter;
 	EDataCalView *query;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
@@ -1168,6 +991,9 @@ e_cal_backend_notify_object_created (ECalBackend *backend, const gchar *calobj)
 		e_cal_backend_notify_object_created (priv->notification_proxy, calobj);
 		return;
 	}
+
+	mutex = e_backend_get_views_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
 
 	queries = e_cal_backend_get_queries (backend);
 	iter = e_list_get_iterator (queries);
@@ -1183,6 +1009,9 @@ e_cal_backend_notify_object_created (ECalBackend *backend, const gchar *calobj)
 		e_iterator_next (iter);
 	}
 	g_object_unref (iter);
+	g_object_unref (queries);
+
+	g_mutex_unlock (mutex);
 }
 
 static void
@@ -1245,6 +1074,7 @@ e_cal_backend_notify_view_progress (ECalBackend *backend, const gchar *message, 
 	EList *queries;
 	EIterator *iter;
 	EDataCalView *query;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
@@ -1257,6 +1087,9 @@ e_cal_backend_notify_view_progress (ECalBackend *backend, const gchar *message, 
 		e_cal_backend_notify_view_progress (priv->notification_proxy, message, percent);
 		return;
 	}
+
+	mutex = e_backend_get_views_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
 
 	queries = e_cal_backend_get_queries (backend);
 	iter = e_list_get_iterator (queries);
@@ -1273,6 +1106,9 @@ e_cal_backend_notify_view_progress (ECalBackend *backend, const gchar *message, 
 		e_iterator_next (iter);
 	}
 	g_object_unref (iter);
+	g_object_unref (queries);
+
+	g_mutex_unlock (mutex);
 }
 
 /**
@@ -1289,6 +1125,7 @@ e_cal_backend_notify_view_done (ECalBackend *backend, GNOME_Evolution_Calendar_C
 	EList *queries;
 	EIterator *iter;
 	EDataCalView *query;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
@@ -1296,6 +1133,9 @@ e_cal_backend_notify_view_done (ECalBackend *backend, GNOME_Evolution_Calendar_C
 		e_cal_backend_notify_view_done (priv->notification_proxy, status);
 		return;
 	}
+
+	mutex = e_backend_get_views_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
 
 	queries = e_cal_backend_get_queries (backend);
 	iter = e_list_get_iterator (queries);
@@ -1312,6 +1152,9 @@ e_cal_backend_notify_view_done (ECalBackend *backend, GNOME_Evolution_Calendar_C
 		e_iterator_next (iter);
 	}
 	g_object_unref (iter);
+	g_object_unref (queries);
+
+	g_mutex_unlock (mutex);
 }
 
 /**
@@ -1334,6 +1177,7 @@ e_cal_backend_notify_object_modified (ECalBackend *backend,
 	EList *queries;
 	EIterator *iter;
 	EDataCalView *query;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
@@ -1341,6 +1185,9 @@ e_cal_backend_notify_object_modified (ECalBackend *backend,
 		e_cal_backend_notify_object_modified (priv->notification_proxy, old_object, object);
 		return;
 	}
+
+	mutex = e_backend_get_views_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
 
 	queries = e_cal_backend_get_queries (backend);
 	iter = e_list_get_iterator (queries);
@@ -1355,6 +1202,9 @@ e_cal_backend_notify_object_modified (ECalBackend *backend,
 		e_iterator_next (iter);
 	}
 	g_object_unref (iter);
+	g_object_unref (queries);
+
+	g_mutex_unlock (mutex);
 }
 
 /**
@@ -1380,6 +1230,7 @@ e_cal_backend_notify_object_removed (ECalBackend *backend, const ECalComponentId
 	EList *queries;
 	EIterator *iter;
 	EDataCalView *query;
+	GMutex *mutex;
 
 	priv = backend->priv;
 
@@ -1387,6 +1238,9 @@ e_cal_backend_notify_object_removed (ECalBackend *backend, const ECalComponentId
 		e_cal_backend_notify_object_removed (priv->notification_proxy, id, old_object, object);
 		return;
 	}
+
+	mutex = e_backend_get_views_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
 
 	queries = e_cal_backend_get_queries (backend);
 	iter = e_list_get_iterator (queries);
@@ -1409,6 +1263,9 @@ e_cal_backend_notify_object_removed (ECalBackend *backend, const ECalComponentId
 		e_iterator_next (iter);
 	}
 	g_object_unref (iter);
+	g_object_unref (queries);
+
+	g_mutex_unlock (mutex);
 }
 
 void
@@ -1445,14 +1302,20 @@ e_cal_backend_notify_mode (ECalBackend *backend,
 {
 	ECalBackendPrivate *priv = backend->priv;
 	GList *l;
+	GMutex *mutex;
 
 	if (priv->notification_proxy) {
 		e_cal_backend_notify_mode (priv->notification_proxy, status, mode);
 		return;
 	}
 
-	for (l = priv->clients; l; l = l->next)
+	mutex = e_backend_get_clients_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
+
+	for (l = e_backend_get_clients (E_BACKEND (backend)); l; l = l->next)
 		e_data_cal_notify_mode (l->data, status, mode);
+
+	g_mutex_unlock (mutex);
 }
 
 /**
@@ -1465,11 +1328,16 @@ e_cal_backend_notify_mode (ECalBackend *backend,
 void
 e_cal_backend_notify_auth_required (ECalBackend *backend)
 {
-        ECalBackendPrivate *priv = backend->priv;
         GList *l;
+	GMutex *mutex;
 
-        for (l = priv->clients; l; l = l->next)
+	mutex = e_backend_get_clients_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
+
+	for (l = e_backend_get_clients (E_BACKEND (backend)); l; l = l->next)
                 e_data_cal_notify_auth_required (l->data);
+
+	g_mutex_unlock (mutex);
 }
 
 /**
@@ -1484,14 +1352,20 @@ e_cal_backend_notify_error (ECalBackend *backend, const gchar *message)
 {
 	ECalBackendPrivate *priv = backend->priv;
 	GList *l;
+	GMutex *mutex;
 
 	if (priv->notification_proxy) {
 		e_cal_backend_notify_error (priv->notification_proxy, message);
 		return;
 	}
 
-	for (l = priv->clients; l; l = l->next)
+	mutex = e_backend_get_clients_mutex (E_BACKEND (backend));
+	g_mutex_lock (mutex);
+
+	for (l = e_backend_get_clients (E_BACKEND (backend)); l; l = l->next)
 		e_data_cal_notify_error (l->data, message);
+
+	g_mutex_unlock (mutex);
 }
 
 /**

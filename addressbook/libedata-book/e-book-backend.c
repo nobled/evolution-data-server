@@ -996,12 +996,8 @@ e_book_backend_class_init (EBookBackendClass *klass)
 	object_class->dispose = e_book_backend_dispose;
 
 	/* XXX: do some ugly casting to avoid breaking API */
-	parent_class->stop_view = (void (*)(EBackend*, EDataView*)) e_book_backend_stop_book_view;
-	parent_class->remove = (void (*)(EBackend*, EData*, guint32)) e_book_backend_remove;
-	parent_class->get_static_capabilities = (gchar* (*)(EBackend*)) e_book_backend_get_static_capabilities;
 	parent_class->set_mode = (void (*)(EBackend*, EDataMode)) e_book_backend_set_mode_from_data_mode;
 	parent_class->add_client = (gboolean (*)(EBackend*, EData*)) e_book_backend_add_client;
 	parent_class->remove_client = (void (*)(EBackend*, EData*)) e_book_backend_remove_client;
 	parent_class->is_loaded = (gboolean (*)(EBackend*)) e_book_backend_is_loaded;
-	parent_class->get_changes = (void (*)(EBackend*, EData*, guint32, const gchar *)) e_book_backend_get_changes;
 }

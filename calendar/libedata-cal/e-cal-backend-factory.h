@@ -24,6 +24,7 @@
 #define _E_CAL_BACKEND_FACTORY_H_
 
 #include <glib-object.h>
+#include <libebackend/e-backend-factory.h>
 #include "e-cal-backend.h"
 
 G_BEGIN_DECLS
@@ -38,22 +39,24 @@ G_BEGIN_DECLS
 typedef struct _ECalBackendFactoryPrivate ECalBackendFactoryPrivate;
 
 typedef struct {
-	GObject            parent_object;
+	EBackend	parent_object;
 } ECalBackendFactory;
 
 typedef struct {
-	GObjectClass parent_class;
+	EBackendClass	parent_class;
 
-	icalcomponent_kind (*get_kind)     (ECalBackendFactory *factory);
-	const gchar *        (*get_protocol) (ECalBackendFactory *factory);
-	ECalBackend*       (*new_backend)  (ECalBackendFactory *factory, ESource *source);
+	icalcomponent_kind	(*get_kind)	(ECalBackendFactory *factory);
+	const gchar*		(*get_protocol)	(ECalBackendFactory *factory);
+	ECalBackend*		(*new_backend)	(ECalBackendFactory *factory,
+						 ESource            *source);
 } ECalBackendFactoryClass;
 
-GType               e_cal_backend_factory_get_type              (void);
+GType			e_cal_backend_factory_get_type		(void);
 
-icalcomponent_kind  e_cal_backend_factory_get_kind              (ECalBackendFactory *factory);
-const gchar *         e_cal_backend_factory_get_protocol          (ECalBackendFactory *factory);
-ECalBackend*        e_cal_backend_factory_new_backend           (ECalBackendFactory *factory, ESource *source);
+icalcomponent_kind	e_cal_backend_factory_get_kind		(ECalBackendFactory *factory);
+const gchar*		e_cal_backend_factory_get_protocol	(ECalBackendFactory *factory);
+ECalBackend*		e_cal_backend_factory_new_backend	(ECalBackendFactory *factory,
+								 ESource            *source);
 
 G_END_DECLS
 
