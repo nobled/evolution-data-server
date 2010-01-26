@@ -35,12 +35,8 @@ static gboolean impl_BookView_dispose (EDataBookView *view, GError **eror);
 
 #include "e-data-book-view-glue.h"
 
-static void reset_array (GArray *array);
-
 G_DEFINE_TYPE (EDataBookView, e_data_book_view, E_TYPE_DATA_VIEW);
 #define E_DATA_BOOK_VIEW_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), E_TYPE_DATA_BOOK_VIEW, EDataBookViewPrivate))
-
-#define THRESHOLD 32
 
 struct _EDataBookViewPrivate {
 	gchar* query;
@@ -50,11 +46,6 @@ struct _EDataBookViewPrivate {
 
 	GMutex *pending_mutex;
 
-	GArray *adds;
-	GArray *changes;
-	GArray *removes;
-
-	GHashTable *ids;
 	guint idle_id;
 };
 
@@ -70,6 +61,7 @@ enum {
 	CONTACTS_REMOVED,
 	STATUS_MESSAGE,
 	COMPLETE,
+	DONE,
 	LAST_SIGNAL
 };
 
@@ -91,104 +83,24 @@ e_data_book_view_stop_if_running (EDataBookView *view)
 }
 
 static void
-send_pending_adds (EDataBookView *view)
+contacts_added (EDataView    *view,
+		const gchar **objects)
 {
-	EDataBookViewPrivate *priv = view->priv;
-
-	if (priv->adds->len == 0)
-		return;
-
-	g_signal_emit (view, signals[CONTACTS_ADDED], 0, priv->adds->data);
-	reset_array (priv->adds);
+	g_signal_emit (view, signals[CONTACTS_ADDED], 0, objects);
 }
 
 static void
-send_pending_changes (EDataBookView *view)
+contacts_changed (EDataView    *view,
+		  const gchar **objects)
 {
-	EDataBookViewPrivate *priv = view->priv;
-
-	if (priv->changes->len == 0)
-		return;
-
-	g_signal_emit (view, signals[CONTACTS_CHANGED], 0, priv->changes->data);
-	reset_array (priv->changes);
+	g_signal_emit (view, signals[CONTACTS_CHANGED], 0, objects);
 }
 
 static void
-send_pending_removes (EDataBookView *view)
+contacts_removed (EDataView    *view,
+		  const gchar **ids)
 {
-	EDataBookViewPrivate *priv = view->priv;
-
-	if (priv->removes->len == 0)
-		return;
-
-	g_signal_emit (view, signals[CONTACTS_REMOVED], 0, priv->removes->data);
-	reset_array (priv->removes);
-}
-
-/*
- * Queue @vcard to be sent as a change notification. This takes ownership of
- * @vcard.
- */
-static void
-notify_change (EDataBookView *view, gchar *vcard)
-{
-	EDataBookViewPrivate *priv = view->priv;
-	send_pending_adds (view);
-	send_pending_removes (view);
-
-	g_array_append_val (priv->changes, vcard);
-}
-
-/*
- * Queue @id to be sent as a change notification. This takes ownership of @id.
- */
-static void
-notify_remove (EDataBookView *view, gchar *id)
-{
-	EDataBookViewPrivate *priv = view->priv;
-
-	send_pending_adds (view);
-	send_pending_changes (view);
-
-	g_array_append_val (priv->removes, id);
-	g_hash_table_remove (priv->ids, id);
-}
-
-/*
- * Queue @id and @vcard to be sent as a change notification. This takes ownership of
- * @vcard but not @id.
- */
-static void
-notify_add (EDataBookView *view, const gchar *id, gchar *vcard)
-{
-	EDataBookViewPrivate *priv = view->priv;
-	send_pending_changes (view);
-	send_pending_removes (view);
-
-	if (priv->adds->len == THRESHOLD) {
-		send_pending_adds (view);
-	}
-	g_array_append_val (priv->adds, vcard);
-	g_hash_table_insert (priv->ids, g_strdup (id),
-			     GUINT_TO_POINTER (1));
-}
-
-static void
-reset_array (GArray *array)
-{
-	gint i = 0;
-	gchar *tmp = NULL;
-
-	/* Free stored strings */
-	for (i = 0; i < array->len; i++)
-		{
-			tmp = g_array_index (array, gchar *, i);
-			g_free (tmp);
-		}
-
-	/* Force the array size to 0 */
-	g_array_set_size (array, 0);
+	g_signal_emit (view, signals[CONTACTS_REMOVED], 0, ids);
 }
 
 /**
@@ -219,8 +131,7 @@ e_data_book_view_notify_update (EDataBookView *book_view,
 
 	id = e_contact_get_const (contact, E_CONTACT_UID);
 
-	currently_in_view =
-		g_hash_table_lookup (priv->ids, id) != NULL;
+	currently_in_view = e_data_view_contains_object (E_DATA_VIEW (book_view), (gpointer) id);
 
 	sexp = E_BOOK_BACKEND_SEXP (e_data_view_get_sexp (E_DATA_VIEW (book_view)));
 	want_in_view =
@@ -230,13 +141,15 @@ e_data_book_view_notify_update (EDataBookView *book_view,
 		vcard = e_vcard_to_string (E_VCARD (contact),
 					   EVC_FORMAT_VCARD_30);
 
-		if (currently_in_view)
-			notify_change (book_view, vcard);
-		else
-			notify_add (book_view, id, vcard);
+		if (currently_in_view) {
+			e_data_view_notify_object_modification (E_DATA_VIEW (book_view), vcard);
+		} else {
+			e_data_view_notify_object_add (E_DATA_VIEW (book_view), (gpointer) g_strdup (id), vcard);
+		}
 	} else {
-		if (currently_in_view)
-			notify_remove (book_view, g_strdup (id));
+		if (currently_in_view) {
+			e_data_view_notify_object_remove (E_DATA_VIEW (book_view), (gpointer) id);
+		}
 		/* else nothing; we're removing a card that wasn't there */
 	}
 
@@ -272,24 +185,27 @@ e_data_book_view_notify_update_vcard (EDataBookView *book_view, gchar *vcard)
 
 	contact = e_contact_new_from_vcard (vcard);
 	id = e_contact_get_const (contact, E_CONTACT_UID);
-	currently_in_view =
-		g_hash_table_lookup (priv->ids, id) != NULL;
+	currently_in_view = e_data_view_contains_object (E_DATA_VIEW (book_view), (gpointer) id);
 
 	sexp = E_BOOK_BACKEND_SEXP (e_data_view_get_sexp (E_DATA_VIEW (book_view)));
 	want_in_view =
 		e_book_backend_sexp_match_contact (sexp, contact);
 
 	if (want_in_view) {
-		if (currently_in_view)
-			notify_change (book_view, vcard);
-		else
-			notify_add (book_view, id, vcard);
+		if (currently_in_view) {
+			e_data_view_notify_object_modification (E_DATA_VIEW (book_view), vcard);
+		} else {
+			e_data_view_notify_object_add (E_DATA_VIEW (book_view), (gpointer) g_strdup (id), vcard);
+		}
 	} else {
-		if (currently_in_view)
-			notify_remove (book_view, g_strdup (id));
-		else
+		if (currently_in_view) {
+			e_data_view_notify_object_remove (E_DATA_VIEW (book_view), (gpointer) id);
+		} else {
 			/* else nothing; we're removing a card that wasn't there */
+			/* FIXME: this seems to not have been intended to be
+			 * included in this else block, but it was */
 			g_free (vcard);
+		}
 	}
 	/* Do this last so that id is still valid when notify_ is called */
 	g_object_unref (contact);
@@ -328,13 +244,13 @@ e_data_book_view_notify_update_prefiltered_vcard (EDataBookView *book_view, cons
 
 	g_mutex_lock (priv->pending_mutex);
 
-	currently_in_view =
-		g_hash_table_lookup (priv->ids, id) != NULL;
+	currently_in_view = e_data_view_contains_object (E_DATA_VIEW (book_view), (gpointer) id);
 
-	if (currently_in_view)
-		notify_change (book_view, vcard);
-	else
-		notify_add (book_view, id, vcard);
+	if (currently_in_view) {
+		e_data_view_notify_object_modification (E_DATA_VIEW (book_view), vcard);
+	} else {
+		e_data_view_notify_object_add (E_DATA_VIEW (book_view), (gpointer) g_strdup (id), vcard);
+	}
 
 	g_mutex_unlock (priv->pending_mutex);
 }
@@ -357,8 +273,9 @@ e_data_book_view_notify_remove (EDataBookView *book_view, const gchar *id)
 
 	g_mutex_lock (priv->pending_mutex);
 
-	if (g_hash_table_lookup (priv->ids, id))
-		notify_remove (book_view, g_strdup (id));
+	if (e_data_view_contains_object (E_DATA_VIEW (book_view), (gpointer) id)) {
+		e_data_view_notify_object_remove (E_DATA_VIEW (book_view), (gpointer) id);
+	}
 
 	g_mutex_unlock (priv->pending_mutex);
 }
@@ -382,15 +299,17 @@ e_data_book_view_notify_complete (EDataBookView *book_view, EDataBookStatus stat
 
 	g_mutex_lock (priv->pending_mutex);
 
-	send_pending_adds (book_view);
-	send_pending_changes (book_view);
-	send_pending_removes (book_view);
+	e_data_view_send_pending_adds (E_DATA_VIEW (book_view));
+	e_data_view_send_pending_modifications (E_DATA_VIEW (book_view));
+	e_data_view_send_pending_removes (E_DATA_VIEW (book_view));
 
 	g_mutex_unlock (priv->pending_mutex);
 
 	/* We're done now, so tell the backend to stop?  TODO: this is a bit different to
 	   how the CORBA backend works... */
 
+	e_data_view_notify_done (E_DATA_VIEW (book_view), status);
+	/* retained for backwards compatibility */
 	g_signal_emit (book_view, signals[COMPLETE], 0, status);
 }
 
@@ -457,18 +376,8 @@ e_data_book_view_finalize (GObject *object)
 	EDataBookView *book_view = E_DATA_BOOK_VIEW (object);
 	EDataBookViewPrivate *priv = book_view->priv;
 
-	reset_array (priv->adds);
-	reset_array (priv->changes);
-	reset_array (priv->removes);
-	g_array_free (priv->adds, TRUE);
-	g_array_free (priv->changes, TRUE);
-	g_array_free (priv->removes, TRUE);
-
 	g_free (priv->query);
-
 	g_mutex_free (priv->pending_mutex);
-
-	g_hash_table_destroy (priv->ids);
 
 	G_OBJECT_CLASS (e_data_book_view_parent_class)->finalize (object);
 }
@@ -531,6 +440,9 @@ e_data_book_view_class_init (EDataBookViewClass *klass)
 	object_class->set_property = e_data_book_view_set_property;
 
 	parent_class->stop_if_running = (void (*)(EDataView*)) e_data_book_view_stop_if_running;
+	parent_class->objects_added = contacts_added;
+	parent_class->objects_modified = contacts_changed;
+	parent_class->objects_removed = contacts_removed;
 
 	signals[CONTACTS_ADDED] =
 		g_signal_new ("contacts-added",
@@ -564,6 +476,8 @@ e_data_book_view_class_init (EDataBookViewClass *klass)
 			      g_cclosure_marshal_VOID__STRING,
 			      G_TYPE_NONE, 1, G_TYPE_STRING);
 
+	/* this is meant to do the same thing as "done", but existed before it,
+	 * so it's retained for compatibility */
 	signals[COMPLETE] =
 		g_signal_new ("complete",
 			      G_OBJECT_CLASS_TYPE (klass),
@@ -571,6 +485,8 @@ e_data_book_view_class_init (EDataBookViewClass *klass)
 			      0, NULL, NULL,
 			      g_cclosure_marshal_VOID__UINT,
 			      G_TYPE_NONE, 1, G_TYPE_UINT);
+
+	signals[DONE] = g_signal_lookup ("done", E_TYPE_DATA_VIEW);
 
         g_object_class_install_property
                 (object_class,
@@ -607,13 +523,6 @@ e_data_book_view_init (EDataBookView *book_view)
 
 	priv->running = FALSE;
 	priv->pending_mutex = g_mutex_new ();
-
-	priv->adds = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
-	priv->changes = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
-	priv->removes = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
-
-	priv->ids = g_hash_table_new_full (g_str_hash, g_str_equal,
-					   g_free, NULL);
 }
 
 static gboolean

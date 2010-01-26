@@ -46,29 +46,19 @@ static gboolean impl_EDataCalView_start (EDataCalView *query, GError **error);
 
 struct _EDataCalViewPrivate {
 	gboolean started;
-	gboolean done;
-	EDataCalCallStatus done_status;
-
-	GArray *adds;
-	GArray *changes;
-	GArray *removes;
-
-	GHashTable *ids;
 };
 
 G_DEFINE_TYPE (EDataCalView, e_data_cal_view, E_TYPE_DATA_VIEW);
 #define E_DATA_CAL_VIEW_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), E_DATA_CAL_VIEW_TYPE, EDataCalViewPrivate))
 
-static void e_data_cal_view_finalize (GObject *object);
-
 /* Signals */
 enum {
-  OBJECTS_ADDED,
-  OBJECTS_MODIFIED,
-  OBJECTS_REMOVED,
-  PROGRESS,
-  DONE,
-  LAST_SIGNAL
+	OBJECTS_ADDED,
+	OBJECTS_MODIFIED,
+	OBJECTS_REMOVED,
+	PROGRESS,
+	DONE,
+	LAST_SIGNAL
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
@@ -77,6 +67,43 @@ static void
 e_data_cal_view_stop_if_running (EDataCalView *query)
 {
 	/* Nothing for us to do here */
+}
+
+static void
+e_data_cal_view_finalize (GObject *object)
+{
+	EDataCalView *query;
+	EDataCalViewPrivate *priv;
+
+	g_return_if_fail (object != NULL);
+	g_return_if_fail (IS_QUERY (object));
+
+	query = QUERY (object);
+	priv = query->priv;
+
+	(* G_OBJECT_CLASS (e_data_cal_view_parent_class)->finalize) (object);
+}
+
+static guint
+id_hash (gconstpointer key)
+{
+	const ECalComponentId *id = key;
+	return g_str_hash (id->uid) ^ (id->rid ? g_str_hash (id->rid) : 0);
+}
+
+static gboolean
+id_equal (gconstpointer a, gconstpointer b)
+{
+	const ECalComponentId *id_a = a, *id_b = b;
+
+	return (g_strcmp0 (id_a->uid, id_b->uid) == 0) &&
+	       (g_strcmp0 (id_a->rid, id_b->rid) == 0);
+}
+
+static const gchar*
+id_get_str_id (ECalComponentId *id)
+{
+	return id->uid;
 }
 
 /* Class init */
@@ -91,30 +118,15 @@ e_data_cal_view_class_init (EDataCalViewClass *klass)
 	object_class->finalize = e_data_cal_view_finalize;
 
 	parent_class->stop_if_running = (void (*)(EDataView*)) e_data_cal_view_stop_if_running;
+	parent_class->id_hash = (GHashFunc) id_hash;
+	parent_class->id_equal = (GEqualFunc) id_equal;
+	parent_class->id_destroy = (GDestroyNotify) e_cal_component_free_id;
+	parent_class->id_get_str_id = (const gchar* (*)(gconstpointer)) id_get_str_id;
 
-        signals[OBJECTS_ADDED] =
-          g_signal_new ("objects-added",
-                        G_OBJECT_CLASS_TYPE (klass),
-                        G_SIGNAL_RUN_LAST,
-                        0, NULL, NULL,
-                        g_cclosure_marshal_VOID__BOXED,
-                        G_TYPE_NONE, 1, G_TYPE_STRV);
-
-        signals[OBJECTS_MODIFIED] =
-          g_signal_new ("objects-modified",
-                        G_OBJECT_CLASS_TYPE (klass),
-                        G_SIGNAL_RUN_LAST,
-                        0, NULL, NULL,
-                        g_cclosure_marshal_VOID__BOXED,
-                        G_TYPE_NONE, 1, G_TYPE_STRV);
-
-        signals[OBJECTS_REMOVED] =
-          g_signal_new ("objects-removed",
-                        G_OBJECT_CLASS_TYPE (klass),
-                        G_SIGNAL_RUN_LAST,
-                        0, NULL, NULL,
-                        g_cclosure_marshal_VOID__BOXED,
-                        G_TYPE_NONE, 1, G_TYPE_STRV);
+        signals[OBJECTS_ADDED] = g_signal_lookup ("objects-added", E_TYPE_DATA_VIEW);
+        signals[OBJECTS_MODIFIED] = g_signal_lookup ("objects-modified", E_TYPE_DATA_VIEW);
+        signals[OBJECTS_REMOVED] = g_signal_lookup ("objects-removed", E_TYPE_DATA_VIEW);
+        signals[DONE] = g_signal_lookup ("done", E_TYPE_DATA_VIEW);
 
         signals[PROGRESS] =
           g_signal_new ("progress",
@@ -124,29 +136,7 @@ e_data_cal_view_class_init (EDataCalViewClass *klass)
                         e_data_cal_marshal_VOID__STRING_UINT,
                         G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
 
-        signals[DONE] =
-          g_signal_new ("done",
-                        G_OBJECT_CLASS_TYPE (klass),
-                        G_SIGNAL_RUN_LAST,
-                        0, NULL, NULL,
-                        g_cclosure_marshal_VOID__UINT,
-                        G_TYPE_NONE, 1, G_TYPE_UINT);
-
 	dbus_g_object_type_install_info (G_TYPE_FROM_CLASS (klass), &dbus_glib_e_data_cal_view_object_info);
-}
-
-static guint
-id_hash (gconstpointer key)
-{
-	const ECalComponentId *id = key;
-	return g_str_hash (id->uid) ^ (id->rid ? g_str_hash (id->rid) : 0);
-}
-
-static gboolean
-id_equal (gconstpointer a, gconstpointer b)
-{
-	const ECalComponentId *id_a = a, *id_b = b;
-	return g_strcmp0 (id_a->uid, id_b->uid) == 0 && g_strcmp0 (id_a->rid, id_b->rid) == 0;
 }
 
 /* Instance init */
@@ -158,15 +148,6 @@ e_data_cal_view_init (EDataCalView *view)
 	view->priv = priv;
 
 	priv->started = FALSE;
-	priv->done = FALSE;
-	priv->done_status = Success;
-	priv->started = FALSE;
-
-	priv->adds = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
-	priv->changes = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
-	priv->removes = g_array_sized_new (TRUE, TRUE, sizeof (gchar *), THRESHOLD);
-
-	priv->ids = g_hash_table_new_full (id_hash, id_equal, (GDestroyNotify)e_cal_component_free_id, NULL);
 }
 
 EDataCalView *
@@ -198,119 +179,6 @@ e_data_cal_view_get_dbus_path (EDataCalView *view)
 	return e_data_view_get_dbus_path (E_DATA_VIEW (view));
 }
 
-static void
-reset_array (GArray *array)
-{
-	gint i = 0;
-	gchar *tmp = NULL;
-
-	/* Free stored strings */
-	for (i = 0; i < array->len; i++) {
-		tmp = g_array_index (array, gchar *, i);
-		g_free (tmp);
-	}
-
-	/* Force the array size to 0 */
-	g_array_set_size (array, 0);
-}
-
-static void
-send_pending_adds (EDataCalView *view)
-{
-	EDataCalViewPrivate *priv = view->priv;
-
-	if (priv->adds->len == 0)
-		return;
-
-	g_signal_emit (view, signals[OBJECTS_ADDED], 0, priv->adds->data);
-	reset_array (priv->adds);
-}
-
-static void
-send_pending_changes (EDataCalView *view)
-{
-	EDataCalViewPrivate *priv = view->priv;
-
-	if (priv->changes->len == 0)
-		return;
-
-	g_signal_emit (view, signals[OBJECTS_MODIFIED], 0, priv->changes->data);
-	reset_array (priv->changes);
-}
-
-static void
-send_pending_removes (EDataCalView *view)
-{
-	EDataCalViewPrivate *priv = view->priv;
-
-	if (priv->removes->len == 0)
-		return;
-
-	/* TODO: send ECalComponentIds as a list of pairs */
-	g_signal_emit (view, signals[OBJECTS_REMOVED], 0, priv->removes->data);
-	reset_array (priv->removes);
-}
-
-static void
-notify_add (EDataCalView *view, gchar *obj)
-{
-	EDataCalViewPrivate *priv = view->priv;
-	ECalComponent *comp;
-
-	send_pending_changes (view);
-	send_pending_removes (view);
-
-	if (priv->adds->len == THRESHOLD) {
-		send_pending_adds (view);
-	}
-	g_array_append_val (priv->adds, obj);
-
-	comp = e_cal_component_new_from_string (obj);
-	g_hash_table_insert (priv->ids,
-			     e_cal_component_get_id (comp),
-			     GUINT_TO_POINTER (1));
-	g_object_unref (comp);
-}
-
-static void
-notify_change (EDataCalView *view, gchar *obj)
-{
-	EDataCalViewPrivate *priv = view->priv;
-
-	send_pending_adds (view);
-	send_pending_removes (view);
-
-	g_array_append_val (priv->changes, obj);
-}
-
-static void
-notify_remove (EDataCalView *view, ECalComponentId *id)
-{
-	EDataCalViewPrivate *priv = view->priv;
-	gchar *uid;
-
-	send_pending_adds (view);
-	send_pending_changes (view);
-
-	/* TODO: store ECalComponentId instead of just uid*/
-	uid = g_strdup (id->uid);
-	g_array_append_val (priv->removes, uid);
-
-	g_hash_table_remove (priv->ids, id);
-}
-
-static void
-notify_done (EDataCalView *view)
-{
-	EDataCalViewPrivate *priv = view->priv;
-
-	send_pending_adds (view);
-	send_pending_changes (view);
-	send_pending_removes (view);
-
-	g_signal_emit (view, signals[DONE], 0, priv->done_status);
-}
-
 static gboolean
 impl_EDataCalView_start (EDataCalView *query, GError **error)
 {
@@ -324,23 +192,6 @@ impl_EDataCalView_start (EDataCalView *query, GError **error)
 	}
 
 	return TRUE;
-}
-
-static void
-e_data_cal_view_finalize (GObject *object)
-{
-	EDataCalView *query;
-	EDataCalViewPrivate *priv;
-
-	g_return_if_fail (object != NULL);
-	g_return_if_fail (IS_QUERY (object));
-
-	query = QUERY (object);
-	priv = query->priv;
-
-	g_hash_table_destroy (priv->ids);
-
-	(* G_OBJECT_CLASS (e_data_cal_view_parent_class)->finalize) (object);
 }
 
 /**
@@ -467,13 +318,7 @@ e_data_cal_view_is_started (EDataCalView *view)
 gboolean
 e_data_cal_view_is_done (EDataCalView *query)
 {
-	EDataCalViewPrivate *priv;
-
-	g_return_val_if_fail (IS_QUERY (query), FALSE);
-
-	priv = query->priv;
-
-	return priv->done;
+	return e_data_view_is_done (E_DATA_VIEW (query));
 }
 
 /**
@@ -488,14 +333,8 @@ e_data_cal_view_is_done (EDataCalView *query)
 EDataCalCallStatus
 e_data_cal_view_get_done_status (EDataCalView *query)
 {
-	EDataCalViewPrivate *priv;
-
-	g_return_val_if_fail (IS_QUERY (query), FALSE);
-
-	priv = query->priv;
-
-	if (priv->done)
-		return priv->done_status;
+	if (e_data_view_is_done (E_DATA_VIEW (query)))
+		return e_data_view_get_done_status (E_DATA_VIEW (query));
 
 	return Success;
 }
@@ -520,10 +359,18 @@ e_data_cal_view_notify_objects_added (EDataCalView *view, const GList *objects)
 		return;
 
 	for (l = objects; l; l = l->next) {
-		notify_add (view, g_strdup (l->data));
+		gchar *object;
+		ECalComponent *comp;
+
+		object = g_strdup (l->data);
+		comp = e_cal_component_new_from_string (object);
+
+		e_data_view_notify_object_add (E_DATA_VIEW (view), e_cal_component_get_id (comp), object);
+
+		g_object_unref (comp);
 	}
 
-	send_pending_adds (view);
+	e_data_view_send_pending_adds (E_DATA_VIEW (view));
 }
 
 /**
@@ -565,11 +412,10 @@ e_data_cal_view_notify_objects_modified (EDataCalView *view, const GList *object
 		return;
 
 	for (l = objects; l; l = l->next) {
-		/* TODO: send add/remove/change as relevant, based on ->ids */
-		notify_change (view, g_strdup (l->data));
+		e_data_view_notify_object_modification (E_DATA_VIEW (view), g_strdup (l->data));
 	}
 
-	send_pending_changes (view);
+	e_data_view_send_pending_modifications (E_DATA_VIEW (view));
 }
 
 /**
@@ -612,11 +458,13 @@ e_data_cal_view_notify_objects_removed (EDataCalView *view, const GList *ids)
 
 	for (l = ids; l; l = l->next) {
 		ECalComponentId *id = l->data;
-		if (g_hash_table_lookup (priv->ids, id))
-		    notify_remove (view, id);
+
+		if (e_data_view_contains_object (E_DATA_VIEW (view), id)) {
+			e_data_view_notify_object_remove (E_DATA_VIEW (view), id);
+		}
 	}
 
-	send_pending_removes (view);
+	e_data_view_send_pending_removes (E_DATA_VIEW (view));
 }
 
 /**
@@ -679,8 +527,5 @@ e_data_cal_view_notify_done (EDataCalView *view, GNOME_Evolution_Calendar_CallSt
 	if (!priv->started)
 		return;
 
-	priv->done = TRUE;
-	priv->done_status = status;
-
-	notify_done (view);
+	e_data_view_notify_done (E_DATA_VIEW (view), status);
 }

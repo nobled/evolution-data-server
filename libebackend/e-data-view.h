@@ -50,7 +50,29 @@ struct _EDataView {
 struct _EDataViewClass {
 	GObjectClass parent;
 
-        void	(*stop_if_running)	(EDataView *view);
+        void		(*stop_if_running)	(EDataView *view);
+
+	GHashFunc	id_hash;
+
+	GEqualFunc	id_equal;
+
+	GDestroyNotify	id_destroy;
+
+        const gchar*	(*id_get_str_id)	(gconstpointer id);
+
+	/* Notification signals */
+	void		(*objects_added)	(EDataView    *view,
+						 const gchar **objects);
+
+	void		(*objects_modified)	(EDataView    *view,
+						 const gchar **objects);
+
+	void		(*objects_removed)	(EDataView    *view,
+						 const gchar **ids);
+/* FIXME: cut this
+	void		(*done)			(EDataView    *view,
+						 guint         status);
+*/
 };
 
 GType		e_data_view_get_type		(void);
@@ -58,6 +80,30 @@ GType		e_data_view_get_type		(void);
 EBackendSExp*	e_data_view_get_sexp		(EDataView *view);
 EBackend*	e_data_view_get_backend		(EDataView *view);
 const gchar*	e_data_view_get_dbus_path	(EDataView *view);
+
+void		e_data_view_send_pending_adds		(EDataView *view);
+void		e_data_view_send_pending_modifications	(EDataView *view);
+void		e_data_view_send_pending_removes	(EDataView *view);
+
+gboolean	e_data_view_contains_object		(EDataView   *view,
+							 gpointer     id);
+
+void		e_data_view_notify_object_add		(EDataView   *view,
+							 gpointer     id,
+							 const gchar *obj);
+
+void		e_data_view_notify_object_modification	(EDataView *view,
+							 gchar     *obj);
+
+void		e_data_view_notify_object_remove	(EDataView *view,
+							 gpointer   id);
+
+void		e_data_view_notify_done			(EDataView *view,
+							 guint      status);
+
+gboolean	e_data_view_is_done			(EDataView *view);
+
+guint		e_data_view_get_done_status		(EDataView *view);
 
 
 G_END_DECLS
