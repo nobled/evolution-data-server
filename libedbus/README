@@ -1,0 +1,30 @@
+This is a version of David Zeuthan's gdbus code, intended for inclusion in glib.
+
+Until it is included, it helps us to have a copy to work with included in Evolution.
+
+Of course, some regexps are required to rename g_dbus -> e_dbus etc. to avoid potential symbol conflicts.
+
+The code is taken from:
+
+git://anongit.freedesktop.org/~david/gdbus-standalone commit 7457cdc8863f08163c48de455e8cd7469b0fe876
+
+With a number of fixes layered on top.
+
+Also included is a renamed copy of gvariant from glib commit 1433655e23634446b990d1cf782b22ad6430496a
+
+perl script to in-place re-write code using g_dbus:
+
+#!/usr/bin/perl -pi.bak
+
+s/G_VARIANT/E_VARIANT/g;
+s/G_TYPE_VARIANT/E_TYPE_VARIANT/g;
+s/GVariant/EVariant/g;
+s/g_variant/e_variant/g;
+
+s/g_bit_/e_bit_/g;
+s/g_bus_/e_bus_/g;
+
+s/GDBus/EDBus/g;
+s/G_DBUS_/E_DBUS_/g;
+s/G_TYPE_DBUS/E_TYPE_DBUS/g;
+s/g_dbus_/e_dbus_/g;
