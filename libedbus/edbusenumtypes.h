@@ -8,7 +8,7 @@
 
 G_BEGIN_DECLS
 
-/* enumerations from "gvariant.h" */
+/* enumerations from "evariant.h" */
 GType struct_struct_get_type (void) G_GNUC_CONST;
 #define STRUCT_TYPE_STRUCT (struct_struct_get_type ())
 GType e_variant_builder_error_get_type (void) G_GNUC_CONST;
@@ -16,11 +16,11 @@ GType e_variant_builder_error_get_type (void) G_GNUC_CONST;
 GType e_variant_flags_get_type (void) G_GNUC_CONST;
 #define E_TYPE_VARIANT_FLAGS (e_variant_flags_get_type ())
 
-/* enumerations from "gdbusenums.h" */
-GType e_bus_type_get_type (void) G_GNUC_CONST;
-#define G_TYPE_BUS_TYPE (e_bus_type_get_type ())
-GType e_bus_name_owner_flags_get_type (void) G_GNUC_CONST;
-#define G_TYPE_BUS_NAME_OWNER_FLAGS (e_bus_name_owner_flags_get_type ())
+/* enumerations from "edbusenums.h" */
+GType g_bus_type_get_type (void) G_GNUC_CONST;
+#define G_TYPE_BUS_TYPE (g_bus_type_get_type ())
+GType g_bus_name_owner_flags_get_type (void) G_GNUC_CONST;
+#define G_TYPE_BUS_NAME_OWNER_FLAGS (g_bus_name_owner_flags_get_type ())
 GType e_dbus_proxy_flags_get_type (void) G_GNUC_CONST;
 #define E_TYPE_DBUS_PROXY_FLAGS (e_dbus_proxy_flags_get_type ())
 GType e_dbus_error_get_type (void) G_GNUC_CONST;

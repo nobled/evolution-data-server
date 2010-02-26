@@ -3,7 +3,7 @@
 
 #include <gdbus.h>
 
-/* enumerations from "gvariant.h" */
+/* enumerations from "evariant.h" */
 GType
 struct_struct_get_type (void)
 {
@@ -84,9 +84,9 @@ e_variant_flags_get_type (void)
   return g_define_type_id__volatile;
 }
 
-/* enumerations from "gdbusenums.h" */
+/* enumerations from "edbusenums.h" */
 GType
-e_bus_type_get_type (void)
+g_bus_type_get_type (void)
 {
   static volatile gsize g_define_type_id__volatile = 0;
 
@@ -108,7 +108,7 @@ e_bus_type_get_type (void)
 }
 
 GType
-e_bus_name_owner_flags_get_type (void)
+g_bus_name_owner_flags_get_type (void)
 {
   static volatile gsize g_define_type_id__volatile = 0;
 

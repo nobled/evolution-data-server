@@ -1495,6 +1495,7 @@ camel/tests/stream/Makefile
 camel/camel.pc
 camel/camel-provider.pc
 libedbus/Makefile
+libedbus/tests/Makefile
 libebackend/Makefile
 libebackend/libebackend.pc
 libedataserver/Makefile
