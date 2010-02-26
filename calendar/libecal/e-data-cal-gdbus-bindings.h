@@ -131,6 +131,20 @@ e_data_cal_gdbus_remove_sync (EDBusProxy  *proxy,
 }
 
 static gboolean
+e_data_cal_gdbus_refresh_sync (EDBusProxy  *proxy,
+			       GError     **error)
+{
+        EVariant *parameters;
+        EVariant *retvals;
+
+        parameters = e_variant_new ("()");
+        retvals = e_dbus_proxy_invoke_method_sync (proxy, "refresh", parameters,
+                                                        -1, NULL, error);
+
+        return demarshal_retvals__VOID (retvals);
+}
+
+static gboolean
 e_data_cal_gdbus_get_alarm_email_address_sync (EDBusProxy  *proxy,
 					       char       **address,
 					       GError     **error)

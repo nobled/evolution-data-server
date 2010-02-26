@@ -301,8 +301,7 @@ e_book_activate(GError **error)
 
 			return FALSE;
 		}
-
-		dbus_connection_add_filter (dbus_g_connection_get_connection (connection), filter_dbus_msgs_cb, NULL, NULL);
+		g_object_add_weak_pointer (G_OBJECT (connection_gdbus), (gpointer)&connection_gdbus);
 	}
 
 	/* FIXME: watch for changes to this proxy instead of relying upon

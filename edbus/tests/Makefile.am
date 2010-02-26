@@ -2,7 +2,7 @@ include $(srcdir)/Makefile.decl
 
 NULL =
 
-INCLUDES =                      \
+AM_CPPFLAGS =			\
         -g                      \
         -I$(top_srcdir)         \
 	$(EDBUS_CFLAGS)		\

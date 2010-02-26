@@ -506,9 +506,7 @@ cs_waitinfo(gpointer (worker)(gpointer), struct _addrinfo_msg *msg, const gchar 
 			   We check the reply port incase we had a reply in the mean time, which we free later */
 			d(printf("Canceling lookup thread and leaving it\n"));
 			msg->cancelled = 1;
-#warning FIXME: do we want this pthread_cancel here as per the comment ?
-/*			pthread_cancel(id); */
-			pthread_join (id, NULL);
+			g_thread_join (thread);
 			cancel = 1;
 		} else {
 			struct _addrinfo_msg *reply;
@@ -606,13 +604,7 @@ cs_getaddrinfo(gpointer data)
 		}
 	}
 
-<<<<<<< HEAD:camel/camel-net-utils.c
-	pthread_testcancel ();
-
-	for (i=0;h.h_addr_list[i];i++) {
-=======
 	for (i = 0; h.h_addr_list[i] && !msg->cancelled; i++) {
->>>>>>> master:camel/camel-net-utils.c
 		res = g_malloc0(sizeof(*res));
 		if (msg->hints) {
 			res->ai_flags = msg->hints->ai_flags;
@@ -662,11 +654,6 @@ cs_getaddrinfo(gpointer data)
 			info->result = getaddrinfo(info->name, "443", info->hints, info->res);
 	}
 
-<<<<<<< HEAD:camel/camel-net-utils.c
-	pthread_testcancel ();
-
-=======
->>>>>>> master:camel/camel-net-utils.c
 	if (!info->cancelled)
 		camel_msgport_reply((CamelMsg *)info);
 
@@ -788,12 +775,8 @@ cs_getnameinfo(gpointer data)
 	if (msg->serv)
 		sprintf(msg->serv, "%d", sin->sin_port);
 
-<<<<<<< HEAD:camel/camel-net-utils.c
-	camel_msgport_reply((CamelMsg *)msg);
-=======
 	if (!msg->cancelled)
 		camel_msgport_reply ((CamelMsg *)msg);
->>>>>>> master:camel/camel-net-utils.c
 cancel:
 	return NULL;
 }
@@ -806,11 +789,6 @@ cs_getnameinfo(gpointer data)
 	/* there doens't appear to be a return code which says host or serv buffers are too short, lengthen them */
 	msg->result = getnameinfo(msg->addr, msg->addrlen, msg->host, msg->hostlen, msg->serv, msg->servlen, msg->flags);
 
-<<<<<<< HEAD:camel/camel-net-utils.c
-	pthread_testcancel ();
-
-=======
->>>>>>> master:camel/camel-net-utils.c
 	if (!msg->cancelled)
 		camel_msgport_reply((CamelMsg *)msg);
 
