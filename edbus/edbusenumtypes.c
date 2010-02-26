@@ -1,7 +1,7 @@
 
 /* Generated data (by glib-mkenums) */
 
-#include <gdbus.h>
+#include <edbus.h>
 
 /* enumerations from "evariant.h" */
 GType

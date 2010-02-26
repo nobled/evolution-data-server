@@ -1,5 +1,5 @@
 /*** BEGIN file-header ***/
-#include <gdbus.h>
+#include <edbus.h>
 
 /*** END file-header ***/
 

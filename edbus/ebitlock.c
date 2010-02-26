@@ -38,7 +38,7 @@ static GSList *g_futex_address_list = NULL;
 static GMutex *g_futex_mutex = NULL;
 #endif
 
-#warning Need to initialize me ...
+/* called by gdbus_threads_init */
 extern void _g_futex_thread_init(void);
 
 void
