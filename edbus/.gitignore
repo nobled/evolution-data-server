@@ -1,0 +1,11 @@
+*.lo
+libedbus.la
+.deps
+.libs
+Makefile.in
+Makefile
+example-own-name
+example-server
+example-subtree
+example-watch-name
+example-watch-proxy
