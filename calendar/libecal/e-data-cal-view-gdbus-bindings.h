@@ -20,7 +20,7 @@
  */
 
 #include <glib.h>
-#include <gdbus/gdbus.h>
+#include <edbus/edbus.h>
 
 #include <libedata-gdbus-bindings/e-data-gdbus-bindings-common.h>
 
@@ -30,14 +30,14 @@ G_BEGIN_DECLS
  * when possible */
 
 static gboolean
-e_data_cal_view_gdbus_start_sync (GDBusProxy  *proxy,
+e_data_cal_view_gdbus_start_sync (EDBusProxy  *proxy,
 				  GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "start", parameters, -1, NULL, error);
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "start", parameters, -1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }

@@ -34,7 +34,7 @@ G_DEFINE_TYPE(EBookView, e_book_view, G_TYPE_OBJECT);
 
 struct _EBookViewPrivate {
 	EBook *book;
-	GDBusProxy *view_proxy;
+	EDBusProxy *view_proxy;
 	GStaticRecMutex *view_proxy_lock;
 	gboolean running;
 };
@@ -137,40 +137,40 @@ book_view_handle_signal_complete (EBookView *book_view,
 }
 
 static void
-book_view_proxy_signal_cb (GDBusProxy *proxy,
+book_view_proxy_signal_cb (EDBusProxy *proxy,
 			   gchar      *sender_name,
 			   gchar      *signal_name,
-			   GVariant   *parameters,
+			   EVariant   *parameters,
 			   EBookView  *book_view)
 {
         if (FALSE) {
         } else if (!g_strcmp0 (signal_name, "StatusMessage")) {
 		const char *value;
-		g_variant_get (parameters, "(&s)", &value);
+		e_variant_get (parameters, "(&s)", &value);
 
                 book_view_handle_signal_status_message (book_view, value);
         } else if (!g_strcmp0 (signal_name, "ContactsAdded")) {
 		const char **value;
 
-		g_variant_get (parameters, "(^a&s)", &value, NULL);
+		e_variant_get (parameters, "(^a&s)", &value, NULL);
 
                 book_view_handle_signal_contacts_added (book_view, value);
 		g_free (value);
         } else if (!g_strcmp0 (signal_name, "ContactsChanged")) {
 		const char **value;
-		g_variant_get (parameters, "(^a&s)", &value, NULL);
+		e_variant_get (parameters, "(^a&s)", &value, NULL);
 
                 book_view_handle_signal_contacts_changed (book_view, value);
 		g_free (value);
         } else if (!g_strcmp0 (signal_name, "ContactsRemoved")) {
 		const char **value;
-		g_variant_get (parameters, "(^a&s)", &value, NULL);
+		e_variant_get (parameters, "(^a&s)", &value, NULL);
 
                 book_view_handle_signal_contacts_removed (book_view, value);
 		g_free (value);
         } else if (!g_strcmp0 (signal_name, "Complete")) {
 		const guint value;
-		g_variant_get (parameters, "(u)", &value);
+		e_variant_get (parameters, "(u)", &value);
 
                 book_view_handle_signal_complete (book_view, value);
         }
@@ -179,7 +179,7 @@ book_view_proxy_signal_cb (GDBusProxy *proxy,
 /*
  * e_book_view_new:
  * @book: an #EBook
- * @view_proxy: The #GDBusProxy to get signals from
+ * @view_proxy: The #EDBusProxy to get signals from
  *
  * Creates a new #EBookView based on #EBook and listening to @view_proxy.  This
  * is a private function, applications should call #e_book_get_book_view or
@@ -189,7 +189,7 @@ book_view_proxy_signal_cb (GDBusProxy *proxy,
  **/
 EBookView *
 _e_book_view_new (EBook           *book,
-		  GDBusProxy      *view_proxy,
+		  EDBusProxy      *view_proxy,
 		  GStaticRecMutex *view_proxy_lock)
 {
 	EBookView *view;

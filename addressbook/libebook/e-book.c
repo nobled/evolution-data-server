@@ -60,7 +60,7 @@ struct _EBookPrivate {
 	ESource *source;
 	gchar *uri;
 	DBusGProxy *proxy;
-	GDBusProxy *gdbus_proxy;
+	EDBusProxy *gdbus_proxy;
 	gboolean loaded;
 	gboolean writable;
 	gboolean connected;
@@ -68,8 +68,8 @@ struct _EBookPrivate {
 	gboolean cap_queried;
 };
 
-static GDBusConnection *connection_gdbus = NULL;
-static GDBusProxy *factory_proxy_gdbus = NULL;
+static EDBusConnection *connection_gdbus = NULL;
+static EDBusProxy *factory_proxy_gdbus = NULL;
 
 /* guards both connection and factory_proxy */
 static GStaticRecMutex connection_lock = G_STATIC_REC_MUTEX_INIT;
@@ -292,7 +292,7 @@ e_book_activate(GError **error)
 	/* FIXME: better to just watch for the proxy instead of using the
 	 * connection directly? */
 	if (!connection_gdbus) {
-		connection_gdbus = g_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
+		connection_gdbus = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
 		if (!connection_gdbus) {
 			UNLOCK_CONN ();
 
@@ -305,9 +305,9 @@ e_book_activate(GError **error)
 	/* FIXME: watch for changes to this proxy instead of relying upon
 	 * dbus-glib to get the unique name */
 	if (!factory_proxy_gdbus) {
-		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
-								G_TYPE_DBUS_PROXY,
-								G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+		factory_proxy_gdbus = e_dbus_proxy_new_sync (connection_gdbus,
+								E_TYPE_DBUS_PROXY,
+								E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | E_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
 								factory_proxy_name,
 								"/org/gnome/evolution/dataserver/addressbook/BookFactory",
 								"org.gnome.evolution.dataserver.addressbook.BookFactory",
@@ -363,15 +363,15 @@ book_handle_signal_auth_required  (EBook *book)
 }
 
 static void
-book_proxy_signal_cb (GDBusProxy *proxy,
+book_proxy_signal_cb (EDBusProxy *proxy,
 		      gchar      *sender_name,
 		      gchar      *signal_name,
-		      GVariant   *parameters,
+		      EVariant   *parameters,
 		      EBook      *book)
 {
 	gboolean value = FALSE;
 
-	g_variant_get (parameters, "(b)", &value);
+	e_variant_get (parameters, "(b)", &value);
 
 	if (FALSE) {
 	} else if (!g_strcmp0 (signal_name, "auth_required")) {
@@ -418,7 +418,7 @@ e_book_add_contact (EBook           *book,
 }
 
 static void
-add_contact_reply (GDBusProxy *proxy,
+add_contact_reply (EDBusProxy *proxy,
 		   gchar      *uid,
 		   GError     *error,
 		   gpointer    user_data)
@@ -507,7 +507,7 @@ e_book_commit_contact (EBook           *book,
 }
 
 static void
-modify_contact_reply (GDBusProxy *proxy,
+modify_contact_reply (EDBusProxy *proxy,
 		      GError     *error,
 		      gpointer    user_data)
 {
@@ -596,7 +596,7 @@ e_book_get_required_fields  (EBook            *book,
 }
 
 static void
-get_required_fields_reply (GDBusProxy  *proxy,
+get_required_fields_reply (EDBusProxy  *proxy,
 			   gchar      **fields,
 			   GError      *error,
 			   gpointer     user_data)
@@ -689,7 +689,7 @@ e_book_get_supported_fields  (EBook            *book,
 }
 
 static void
-get_supported_fields_reply (GDBusProxy  *proxy,
+get_supported_fields_reply (EDBusProxy  *proxy,
 		            gchar      **fields,
 			    GError      *error,
 			    gpointer     user_data)
@@ -782,7 +782,7 @@ e_book_get_supported_auth_methods (EBook            *book,
 }
 
 static void
-get_supported_auth_methods_reply (GDBusProxy  *proxy,
+get_supported_auth_methods_reply (EDBusProxy  *proxy,
 				  gchar      **methods,
 				  GError      *error,
 				  gpointer     user_data)
@@ -875,7 +875,7 @@ e_book_authenticate_user (EBook         *book,
 }
 
 static void
-authenticate_user_reply (GDBusProxy *proxy,
+authenticate_user_reply (EDBusProxy *proxy,
 			 GError     *error,
 			 gpointer    user_data)
 {
@@ -969,7 +969,7 @@ e_book_get_contact (EBook       *book,
 }
 
 static void
-get_contact_reply (GDBusProxy *proxy,
+get_contact_reply (EDBusProxy *proxy,
 		   gchar      *vcard,
 		   GError     *error,
 		   gpointer    user_data)
@@ -1067,7 +1067,7 @@ e_book_remove_contact (EBook       *book,
 }
 
 static void
-remove_contact_reply (GDBusProxy *proxy,
+remove_contact_reply (EDBusProxy *proxy,
 		      GError     *error,
 		      gpointer    user_data)
 {
@@ -1157,7 +1157,7 @@ e_book_async_remove_contact (EBook                 *book,
  }
 
 static void
-remove_contact_by_id_reply (GDBusProxy *proxy,
+remove_contact_by_id_reply (EDBusProxy *proxy,
 		            GError     *error,
 			    gpointer    user_data)
 {
@@ -1211,7 +1211,7 @@ e_book_async_remove_contact_by_id (EBook                 *book,
 }
 
 static void
-remove_contacts_reply (GDBusProxy *proxy,
+remove_contacts_reply (EDBusProxy *proxy,
 		       GError     *error,
 		       gpointer    user_data)
 {
@@ -1297,7 +1297,7 @@ e_book_get_book_view (EBook       *book,
 		      GError     **error)
 {
 	GError *err = NULL;
-	GDBusProxy *view_proxy_gdbus;
+	EDBusProxy *view_proxy_gdbus;
 	gchar *sexp, *view_path;
 	gboolean ret = TRUE;
 
@@ -1313,10 +1313,10 @@ e_book_get_book_view (EBook       *book,
 		g_free (sexp);
 		return unwrap_gerror (err, error);
 	}
-	view_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
-						  G_TYPE_DBUS_PROXY,
-						  G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
-						  g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+	view_proxy_gdbus = e_dbus_proxy_new_sync (connection_gdbus,
+						  E_TYPE_DBUS_PROXY,
+						  E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+						  e_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
 						  view_path,
 						  "org.gnome.evolution.dataserver.addressbook.BookView",
 						  NULL,
@@ -1339,7 +1339,7 @@ e_book_get_book_view (EBook       *book,
 }
 
 static void
-get_book_view_reply (GDBusProxy *proxy,
+get_book_view_reply (EDBusProxy *proxy,
 		     gchar      *view_path,
 		     GError     *error,
 		     gpointer    user_data)
@@ -1348,15 +1348,15 @@ get_book_view_reply (GDBusProxy *proxy,
 	GError *err = NULL;
 	EBookView *view = NULL;
 	EBookBookViewCallback cb = data->callback;
-	GDBusProxy *view_proxy_gdbus;
+	EDBusProxy *view_proxy_gdbus;
 	EBookStatus status;
 
 	if (view_path) {
 		LOCK_CONN ();
-		view_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
-							  G_TYPE_DBUS_PROXY,
-							  G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
-							  g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+		view_proxy_gdbus = e_dbus_proxy_new_sync (connection_gdbus,
+							  E_TYPE_DBUS_PROXY,
+							  E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+							  e_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
 							  view_path,
 							  "org.gnome.evolution.dataserver.addressbook.BookView",
 							  NULL,
@@ -1469,7 +1469,7 @@ e_book_get_contacts (EBook       *book,
 }
 
 static void
-get_contacts_reply (GDBusProxy  *proxy,
+get_contacts_reply (EDBusProxy  *proxy,
 		    gchar      **vcards,
 		    GError      *error,
 		    gpointer     user_data)
@@ -1597,7 +1597,7 @@ e_book_get_changes (EBook       *book,
 }
 
 static void
-get_changes_reply (GDBusProxy *proxy,
+get_changes_reply (EDBusProxy *proxy,
 		   GPtrArray  *changes,
 		   GError     *error,
 		   gpointer    user_data)
@@ -1765,7 +1765,7 @@ e_book_open (EBook     *book,
 }
 
 static void
-open_reply (GDBusProxy *proxy,
+open_reply (EDBusProxy *proxy,
 	    GError     *error,
 	    gpointer    user_data)
 {
@@ -1846,7 +1846,7 @@ e_book_remove (EBook   *book,
 }
 
 static void
-remove_reply (GDBusProxy *proxy,
+remove_reply (EDBusProxy *proxy,
 	      GError *error,
 	      gpointer user_data)
 {
@@ -2309,10 +2309,10 @@ e_book_new (ESource *source, GError **error)
 	}
 	g_free (xml);
 
-	book->priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
-							G_TYPE_DBUS_PROXY,
-							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
-							g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+	book->priv->gdbus_proxy = e_dbus_proxy_new_sync (connection_gdbus,
+							E_TYPE_DBUS_PROXY,
+							E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+							e_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
 							path,
 							"org.gnome.evolution.dataserver.addressbook.Book",
 							NULL,
@@ -2622,11 +2622,11 @@ get_status_from_error (GError *error)
 	if G_LIKELY (error == NULL)
 			    return E_BOOK_ERROR_OK;
 
-	if (error->domain == G_DBUS_ERROR && g_dbus_error_is_remote_error (error)) {
+	if (error->domain == E_DBUS_ERROR && e_dbus_error_is_remote_error (error)) {
 		gchar *name;
 		gint i;
 
-		name = g_dbus_error_get_remote_error (error);
+		name = e_dbus_error_get_remote_error (error);
 
 		for (i = 0; i < G_N_ELEMENTS (errors); i++) {
 			if (g_ascii_strcasecmp (errors[i].name, name) == 0) {

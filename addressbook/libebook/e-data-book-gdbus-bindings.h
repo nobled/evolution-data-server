@@ -20,7 +20,7 @@
  */
 
 #include <glib.h>
-#include <gdbus/gdbus.h>
+#include <edbus/edbus.h>
 
 #include <libedata-gdbus-bindings/e-data-gdbus-bindings-common.h>
 
@@ -30,30 +30,30 @@ G_BEGIN_DECLS
  * when possible */
 
 static gboolean
-e_data_book_gdbus_open_sync (GDBusProxy      *proxy,
+e_data_book_gdbus_open_sync (EDBusProxy      *proxy,
 		             const gboolean   IN_only_if_exists,
 			     GError         **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(b)", IN_only_if_exists);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "open", parameters,
+	parameters = e_variant_new ("(b)", IN_only_if_exists);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "open", parameters,
 							-1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static void
-open_cb (GDBusProxy *proxy,
+open_cb (EDBusProxy *proxy,
 	 GAsyncResult *result,
 	 gpointer user_data)
 {
 	Closure *closure = user_data;
-	GVariant *retvals;
+	EVariant *retvals;
 	GError *error = NULL;
 
-	retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+	retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__VOID (retvals)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'open'");
@@ -65,63 +65,63 @@ open_cb (GDBusProxy *proxy,
 }
 
 static void
-e_data_book_gdbus_open (GDBusProxy     *proxy,
+e_data_book_gdbus_open (EDBusProxy     *proxy,
 			const gboolean  IN_only_if_exists,
 			reply__VOID     callback,
 			gpointer        user_data)
 {
-	GVariant *parameters;
+	EVariant *parameters;
 	Closure *closure;
 
-	parameters = g_variant_new ("(b)", IN_only_if_exists);
+	parameters = e_variant_new ("(b)", IN_only_if_exists);
 
 	closure = g_slice_new (Closure);
 	closure->cb = G_CALLBACK (callback);
 	closure->user_data = user_data;
 
-	g_dbus_proxy_invoke_method (proxy, "open", parameters, -1, NULL, (GAsyncReadyCallback) open_cb, closure);
+	e_dbus_proxy_invoke_method (proxy, "open", parameters, -1, NULL, (GAsyncReadyCallback) open_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_close_sync (GDBusProxy      *proxy,
+e_data_book_gdbus_close_sync (EDBusProxy      *proxy,
 			      GError         **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "close", parameters,
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "close", parameters,
 							-1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static gboolean
-e_data_book_gdbus_authenticate_user_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_authenticate_user_sync (EDBusProxy  *proxy,
 					  const char  *IN_user,
 					  const char  *IN_passwd,
 					  const char  *IN_auth_method,
 					  GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(sss)", IN_user, IN_passwd, IN_auth_method);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "authenticateUser", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(sss)", IN_user, IN_passwd, IN_auth_method);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "authenticateUser", parameters, -1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static void
-authenticate_user_cb (GDBusProxy   *proxy,
+authenticate_user_cb (EDBusProxy   *proxy,
 		      GAsyncResult *result,
 		      gpointer      user_data)
 {
 	Closure *closure = user_data;
-	GVariant *retvals;
+	EVariant *retvals;
 	GError *error = NULL;
 
-	retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+	retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__VOID (retvals)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'authenticateUser'");
@@ -133,49 +133,49 @@ authenticate_user_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_authenticate_user (GDBusProxy  *proxy,
+e_data_book_gdbus_authenticate_user (EDBusProxy  *proxy,
 				     const char  *IN_user,
 				     const char  *IN_passwd,
 				     const char  *IN_auth_method,
 				     reply__VOID  callback,
 				     gpointer     user_data)
 {
-	GVariant *parameters;
+	EVariant *parameters;
 	Closure *closure;
 
-	parameters = g_variant_new ("(sss)", IN_user, IN_passwd, IN_auth_method);
+	parameters = e_variant_new ("(sss)", IN_user, IN_passwd, IN_auth_method);
 
 	closure = g_slice_new (Closure);
 	closure->cb = G_CALLBACK (callback);
 	closure->user_data = user_data;
 
-	g_dbus_proxy_invoke_method (proxy, "authenticateUser", parameters, -1, NULL, (GAsyncReadyCallback) authenticate_user_cb, closure);
+	e_dbus_proxy_invoke_method (proxy, "authenticateUser", parameters, -1, NULL, (GAsyncReadyCallback) authenticate_user_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_remove_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_remove_sync (EDBusProxy  *proxy,
 			       GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "remove", parameters,
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "remove", parameters,
 							-1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static void
-remove_cb (GDBusProxy   *proxy,
+remove_cb (EDBusProxy   *proxy,
 	   GAsyncResult *result,
 	   gpointer      user_data)
 {
 	Closure *closure = user_data;
-	GVariant *retvals;
+	EVariant *retvals;
 	GError *error = NULL;
 
-	retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+	retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__VOID (retvals)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'remove'");
@@ -187,48 +187,48 @@ remove_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_remove (GDBusProxy  *proxy,
+e_data_book_gdbus_remove (EDBusProxy  *proxy,
 			  reply__VOID  callback,
 			  gpointer     user_data)
 {
-	GVariant *parameters;
+	EVariant *parameters;
 	Closure *closure;
 
-	parameters = g_variant_new ("()");
+	parameters = e_variant_new ("()");
 
 	closure = g_slice_new (Closure);
 	closure->cb = G_CALLBACK (callback);
 	closure->user_data = user_data;
 
-	g_dbus_proxy_invoke_method (proxy, "remove", parameters, -1, NULL, (GAsyncReadyCallback) remove_cb, closure);
+	e_dbus_proxy_invoke_method (proxy, "remove", parameters, -1, NULL, (GAsyncReadyCallback) remove_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_get_contact_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_get_contact_sync (EDBusProxy  *proxy,
 				    const char  *IN_uid,
 				    char       **OUT_vcard,
 			            GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(s)", IN_uid);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getContact", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(s)", IN_uid);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getContact", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRING (retvals, OUT_vcard);
 }
 
 static void
-get_contact_cb (GDBusProxy *proxy,
+get_contact_cb (EDBusProxy *proxy,
 		GAsyncResult *result,
 		gpointer user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char *OUT_vcard = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
         if (retvals) {
                 if (!demarshal_retvals__STRING (retvals, &OUT_vcard)) {
                         error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getContact'");
@@ -240,63 +240,63 @@ get_contact_cb (GDBusProxy *proxy,
 }
 
 static void
-e_data_book_gdbus_get_contact (GDBusProxy    *proxy,
+e_data_book_gdbus_get_contact (EDBusProxy    *proxy,
 			       const char    *IN_uid,
 			       reply__STRING  callback,
 			       gpointer       user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("(s)", IN_uid);
+        parameters = e_variant_new ("(s)", IN_uid);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getContact", parameters, -1, NULL, (GAsyncReadyCallback) get_contact_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getContact", parameters, -1, NULL, (GAsyncReadyCallback) get_contact_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_get_static_capabilities_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_get_static_capabilities_sync (EDBusProxy  *proxy,
 						char       **OUT_caps,
 						GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getStaticCapabilities", parameters, -1, NULL, error);
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getStaticCapabilities", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRING (retvals, OUT_caps);
 }
 
 static gboolean
-e_data_book_gdbus_get_contact_list_sync (GDBusProxy   *proxy,
+e_data_book_gdbus_get_contact_list_sync (EDBusProxy   *proxy,
 					 const char   *IN_query,
 					 char       ***OUT_vcards,
 					 GError      **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(s)", IN_query);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getContactList", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(s)", IN_query);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getContactList", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_vcards);
 }
 
 static void
-get_contact_list_cb (GDBusProxy   *proxy,
+get_contact_list_cb (EDBusProxy   *proxy,
 		     GAsyncResult *result,
 		     gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char **OUT_vcards = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__STRINGVECTOR (retvals, &OUT_vcards)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getContactList'");
@@ -308,48 +308,48 @@ get_contact_list_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_get_contact_list (GDBusProxy          *proxy,
+e_data_book_gdbus_get_contact_list (EDBusProxy          *proxy,
 				    const char          *IN_query,
 				    reply__STRINGVECTOR  callback,
 				    gpointer             user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("(s)", IN_query);
+        parameters = e_variant_new ("(s)", IN_query);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getContactList", parameters, -1, NULL, (GAsyncReadyCallback) get_contact_list_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getContactList", parameters, -1, NULL, (GAsyncReadyCallback) get_contact_list_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_get_required_fields_sync (GDBusProxy   *proxy,
+e_data_book_gdbus_get_required_fields_sync (EDBusProxy   *proxy,
 					    char       ***OUT_fields,
 					    GError      **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getRequiredFields", parameters, -1, NULL, error);
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getRequiredFields", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_fields);
 }
 
 static void
-get_required_fields_cb (GDBusProxy   *proxy,
+get_required_fields_cb (EDBusProxy   *proxy,
 			GAsyncResult *result,
 			gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char **OUT_fields = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__STRINGVECTOR (retvals, &OUT_fields)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getRequiredFields'");
@@ -361,47 +361,47 @@ get_required_fields_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_get_required_fields (GDBusProxy          *proxy,
+e_data_book_gdbus_get_required_fields (EDBusProxy          *proxy,
 				       reply__STRINGVECTOR  callback,
 				       gpointer             user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("()");
+        parameters = e_variant_new ("()");
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getRequiredFields", parameters, -1, NULL, (GAsyncReadyCallback) get_required_fields_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getRequiredFields", parameters, -1, NULL, (GAsyncReadyCallback) get_required_fields_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_get_supported_auth_methods_sync (GDBusProxy   *proxy,
+e_data_book_gdbus_get_supported_auth_methods_sync (EDBusProxy   *proxy,
 						   char       ***OUT_methods,
 						   GError      **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getSupportedAuthMethods", parameters, -1, NULL, error);
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getSupportedAuthMethods", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_methods);
 }
 
 static void
-get_supported_auth_methods_cb (GDBusProxy   *proxy,
+get_supported_auth_methods_cb (EDBusProxy   *proxy,
 			       GAsyncResult *result,
 			       gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char **OUT_methods = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__STRINGVECTOR (retvals, &OUT_methods)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getSupportedAuthMethods'");
@@ -413,47 +413,47 @@ get_supported_auth_methods_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_get_supported_auth_methods (GDBusProxy          *proxy,
+e_data_book_gdbus_get_supported_auth_methods (EDBusProxy          *proxy,
 					      reply__STRINGVECTOR  callback,
 					      gpointer             user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("()");
+        parameters = e_variant_new ("()");
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getSupportedAuthMethods", parameters, -1, NULL, (GAsyncReadyCallback) get_supported_auth_methods_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getSupportedAuthMethods", parameters, -1, NULL, (GAsyncReadyCallback) get_supported_auth_methods_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_get_supported_fields_sync (GDBusProxy   *proxy,
+e_data_book_gdbus_get_supported_fields_sync (EDBusProxy   *proxy,
 					     char       ***OUT_fields,
 					     GError      **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getSupportedFields", parameters, -1, NULL, error);
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getSupportedFields", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRINGVECTOR (retvals, OUT_fields);
 }
 
 static void
-get_supported_fields_cb (GDBusProxy   *proxy,
+get_supported_fields_cb (EDBusProxy   *proxy,
 			 GAsyncResult *result,
 			 gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char **OUT_fields = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
 	if (retvals) {
 		if (!demarshal_retvals__STRINGVECTOR (retvals, &OUT_fields)) {
 			error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getSupportedFields'");
@@ -465,48 +465,48 @@ get_supported_fields_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_get_supported_fields (GDBusProxy          *proxy,
+e_data_book_gdbus_get_supported_fields (EDBusProxy          *proxy,
 					reply__STRINGVECTOR  callback,
 					gpointer             user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("()");
+        parameters = e_variant_new ("()");
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getSupportedFields", parameters, -1, NULL, (GAsyncReadyCallback) get_supported_fields_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getSupportedFields", parameters, -1, NULL, (GAsyncReadyCallback) get_supported_fields_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_add_contact_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_add_contact_sync (EDBusProxy  *proxy,
 				    const char  *IN_vcard,
 				    char       **OUT_uid,
 			            GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(s)", IN_vcard);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "addContact", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(s)", IN_vcard);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "addContact", parameters, -1, NULL, error);
 
 	return demarshal_retvals__STRING (retvals, OUT_uid);
 }
 
 static void
-add_contact_cb (GDBusProxy   *proxy,
+add_contact_cb (EDBusProxy   *proxy,
 		GAsyncResult *result,
 		gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char *OUT_uid = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
         if (retvals) {
                 if (!demarshal_retvals__STRING (retvals, &OUT_uid)) {
                         error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'addContact'");
@@ -518,47 +518,47 @@ add_contact_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_add_contact (GDBusProxy    *proxy,
+e_data_book_gdbus_add_contact (EDBusProxy    *proxy,
 			       const char    *IN_vcard,
 			       reply__STRING  callback,
 			       gpointer       user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("(s)", IN_vcard);
+        parameters = e_variant_new ("(s)", IN_vcard);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "addContact", parameters, -1, NULL, (GAsyncReadyCallback) add_contact_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "addContact", parameters, -1, NULL, (GAsyncReadyCallback) add_contact_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_modify_contact_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_modify_contact_sync (EDBusProxy  *proxy,
 				       const char  *IN_vcard,
 				       GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(s)", IN_vcard);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "modifyContact", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(s)", IN_vcard);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "modifyContact", parameters, -1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static void
-modify_contact_cb (GDBusProxy   *proxy,
+modify_contact_cb (EDBusProxy   *proxy,
 		   GAsyncResult *result,
 		   gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
         if (retvals) {
                 if (!demarshal_retvals__VOID (retvals)) {
                         error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'modifyContact'");
@@ -570,50 +570,50 @@ modify_contact_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_modify_contact (GDBusProxy  *proxy,
+e_data_book_gdbus_modify_contact (EDBusProxy  *proxy,
 				  const char  *IN_vcard,
 				  reply__VOID  callback,
 				  gpointer     user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("(s)", IN_vcard);
+        parameters = e_variant_new ("(s)", IN_vcard);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "modifyContact", parameters, -1, NULL, (GAsyncReadyCallback) modify_contact_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "modifyContact", parameters, -1, NULL, (GAsyncReadyCallback) modify_contact_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_remove_contacts_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_remove_contacts_sync (EDBusProxy  *proxy,
 					const char **IN_uids,
 					GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
 	g_return_val_if_fail (IN_uids && IN_uids[0], FALSE);
 
-	parameters = g_variant_new ("(^as)", IN_uids);
+	parameters = e_variant_new ("(^as)", IN_uids);
 
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "removeContacts", parameters, -1, NULL, error);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "removeContacts", parameters, -1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static void
-remove_contacts_cb (GDBusProxy   *proxy,
+remove_contacts_cb (EDBusProxy   *proxy,
 		    GAsyncResult *result,
 		    gpointer      user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
         if (retvals) {
                 if (!demarshal_retvals__VOID (retvals)) {
                         error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'removeContacts'");
@@ -625,50 +625,50 @@ remove_contacts_cb (GDBusProxy   *proxy,
 }
 
 static void
-e_data_book_gdbus_remove_contacts (GDBusProxy   *proxy,
+e_data_book_gdbus_remove_contacts (EDBusProxy   *proxy,
 			           const char  **IN_uids,
 			           reply__VOID   callback,
 			           gpointer      user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("(^as)", IN_uids);
+        parameters = e_variant_new ("(^as)", IN_uids);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "removeContacts", parameters, -1, NULL, (GAsyncReadyCallback) remove_contacts_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "removeContacts", parameters, -1, NULL, (GAsyncReadyCallback) remove_contacts_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_get_book_view_sync (GDBusProxy   *proxy,
+e_data_book_gdbus_get_book_view_sync (EDBusProxy   *proxy,
 				      const char   *IN_query,
 				      const guint   IN_max_results,
 				      char        **OUT_view,
 				      GError      **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(su)", IN_query, IN_max_results);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getBookView", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(su)", IN_query, IN_max_results);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getBookView", parameters, -1, NULL, error);
 
 	return demarshal_retvals__OBJPATH (retvals, OUT_view);
 }
 
 static void
-get_book_view_cb (GDBusProxy *proxy,
+get_book_view_cb (EDBusProxy *proxy,
 		  GAsyncResult *result,
 		  gpointer user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         char *OUT_view = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
         if (retvals) {
                 if (!demarshal_retvals__OBJPATH (retvals, &OUT_view)) {
                         error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getBookView'");
@@ -680,63 +680,63 @@ get_book_view_cb (GDBusProxy *proxy,
 }
 
 static void
-e_data_book_gdbus_get_book_view (GDBusProxy    *proxy,
+e_data_book_gdbus_get_book_view (EDBusProxy    *proxy,
 				 const char    *IN_query,
 				 const guint    IN_max_results,
 				 reply__STRING  callback,
 				 gpointer       user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-        parameters = g_variant_new ("(su)", IN_query, IN_max_results);
+        parameters = e_variant_new ("(su)", IN_query, IN_max_results);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getBookView", parameters, -1, NULL, (GAsyncReadyCallback) get_book_view_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getBookView", parameters, -1, NULL, (GAsyncReadyCallback) get_book_view_cb, closure);
 }
 
 static gboolean
-e_data_book_gdbus_cancel_operation_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_cancel_operation_sync (EDBusProxy  *proxy,
 					 GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("()");
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "cancelOperation", parameters, -1, NULL, error);
+	parameters = e_variant_new ("()");
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "cancelOperation", parameters, -1, NULL, error);
 
 	return demarshal_retvals__VOID (retvals);
 }
 
 static gboolean
-e_data_book_gdbus_get_changes_sync (GDBusProxy  *proxy,
+e_data_book_gdbus_get_changes_sync (EDBusProxy  *proxy,
 				    const char  *IN_change_id,
 				    GPtrArray  **OUT_changes,
 				    GError     **error)
 {
-	GVariant *parameters;
-	GVariant *retvals;
+	EVariant *parameters;
+	EVariant *retvals;
 
-	parameters = g_variant_new ("(s)", IN_change_id);
-	retvals = g_dbus_proxy_invoke_method_sync (proxy, "getChanges", parameters, -1, NULL, error);
+	parameters = e_variant_new ("(s)", IN_change_id);
+	retvals = e_dbus_proxy_invoke_method_sync (proxy, "getChanges", parameters, -1, NULL, error);
 
 	return demarshal_retvals__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith (retvals, OUT_changes);
 }
 
 static void
-get_changes_cb (GDBusProxy *proxy,
+get_changes_cb (EDBusProxy *proxy,
 		GAsyncResult *result,
 		gpointer user_data)
 {
         Closure *closure = user_data;
-        GVariant *retvals;
+        EVariant *retvals;
         GError *error = NULL;
         GPtrArray *OUT_changes = NULL;
 
-        retvals = g_dbus_proxy_invoke_method_finish (proxy, result, &error);
+        retvals = e_dbus_proxy_invoke_method_finish (proxy, result, &error);
         if (retvals) {
                 if (!demarshal_retvals__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith (retvals, &OUT_changes)) {
                         error = g_error_new (E_BOOK_ERROR, E_BOOK_ERROR_CORBA_EXCEPTION, "demarshalling results for Book method 'getChanges'");
@@ -748,21 +748,21 @@ get_changes_cb (GDBusProxy *proxy,
 }
 
 static void
-e_data_book_gdbus_get_changes (GDBusProxy    *proxy,
+e_data_book_gdbus_get_changes (EDBusProxy    *proxy,
 			       const char    *IN_change_id,
 			       reply__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith  callback,
 			       gpointer       user_data)
 {
-        GVariant *parameters;
+        EVariant *parameters;
         Closure *closure;
 
-	parameters = g_variant_new ("(s)", IN_change_id);
+	parameters = e_variant_new ("(s)", IN_change_id);
 
         closure = g_slice_new (Closure);
         closure->cb = G_CALLBACK (callback);
         closure->user_data = user_data;
 
-        g_dbus_proxy_invoke_method (proxy, "getChanges", parameters, -1, NULL, (GAsyncReadyCallback) get_changes_cb, closure);
+        e_dbus_proxy_invoke_method (proxy, "getChanges", parameters, -1, NULL, (GAsyncReadyCallback) get_changes_cb, closure);
 }
 
 

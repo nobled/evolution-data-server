@@ -42,7 +42,7 @@ G_DEFINE_TYPE(ECalView, e_cal_view, G_TYPE_OBJECT);
 
 /* Private part of the ECalView structure */
 struct _ECalViewPrivate {
-	GDBusProxy *view_proxy;
+	EDBusProxy *view_proxy;
 	GStaticRecMutex *view_proxy_lock;
 	ECal *client;
 };
@@ -182,29 +182,29 @@ cal_view_handle_signal_done (ECalView        *view,
 }
 
 static void
-cal_view_proxy_signal_cb (GDBusProxy *proxy,
+cal_view_proxy_signal_cb (EDBusProxy *proxy,
 			  gchar      *sender_name,
 			  gchar      *signal_name,
-			  GVariant   *parameters,
+			  EVariant   *parameters,
 			  ECalView   *view)
 {
         if (FALSE) {
         } else if (!g_strcmp0 (signal_name, "ObjectsAdded")) {
                 const char **value;
 
-                g_variant_get (parameters, "(^a&s)", &value, NULL);
+                e_variant_get (parameters, "(^a&s)", &value, NULL);
 
                 cal_view_handle_signal_objects_added (view, value);
                 g_free (value);
         } else if (!g_strcmp0 (signal_name, "ObjectsModified")) {
                 const char **value;
-                g_variant_get (parameters, "(^a&s)", &value, NULL);
+                e_variant_get (parameters, "(^a&s)", &value, NULL);
 
                 cal_view_handle_signal_objects_modified (view, value);
                 g_free (value);
         } else if (!g_strcmp0 (signal_name, "ObjectsRemoved")) {
                 const char **value;
-                g_variant_get (parameters, "(^a&s)", &value, NULL);
+                e_variant_get (parameters, "(^a&s)", &value, NULL);
 
                 cal_view_handle_signal_objects_removed (view, value);
                 g_free (value);
@@ -212,12 +212,12 @@ cal_view_proxy_signal_cb (GDBusProxy *proxy,
                 const char *value_string;
                 const gint value_int;
 
-                g_variant_get (parameters, "(&su)", &value_string, &value_int);
+                e_variant_get (parameters, "(&su)", &value_string, &value_int);
 
                 cal_view_handle_signal_progress (view, value_string, value_int);
         } else if (!g_strcmp0 (signal_name, "Done")) {
                 const guint value;
-                g_variant_get (parameters, "(u)", &value);
+                e_variant_get (parameters, "(u)", &value);
 
                 cal_view_handle_signal_done (view, value);
         }
@@ -379,7 +379,7 @@ e_cal_view_class_init (ECalViewClass *klass)
 
 /**
  * _e_cal_view_new:
- * @view_proxy: The @GDBusProxy for the view.
+ * @view_proxy: The @EDBusProxy for the view.
  * @client: An #ECal object.
  *
  * Creates a new view object by issuing the view creation request to the
@@ -388,7 +388,7 @@ e_cal_view_class_init (ECalViewClass *klass)
  * Return value: A newly-created view object, or NULL if the request failed.
  **/
 ECalView *
-_e_cal_view_new (ECal *client, GDBusProxy *view_proxy, GStaticRecMutex *connection_lock)
+_e_cal_view_new (ECal *client, EDBusProxy *view_proxy, GStaticRecMutex *connection_lock)
 {
 	ECalView *view;
 

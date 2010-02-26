@@ -36,12 +36,12 @@ closure_free (Closure *closure)
 }
 
 static gboolean
-demarshal_retvals__VOID (GVariant *retvals)
+demarshal_retvals__VOID (EVariant *retvals)
 {
         gboolean success = TRUE;
 
         if (retvals)
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         else
                 success = FALSE;
 
@@ -49,21 +49,21 @@ demarshal_retvals__VOID (GVariant *retvals)
 }
 
 static gboolean
-demarshal_retvals__OBJPATH (GVariant *retvals, char **OUT_objpath1)
+demarshal_retvals__OBJPATH (EVariant *retvals, char **OUT_objpath1)
 {
         gboolean success = TRUE;
 
         if (retvals) {
                 const char *objpath1 = NULL;
 
-                g_variant_get (retvals, "(o)", &objpath1);
+                e_variant_get (retvals, "(o)", &objpath1);
                 if (objpath1) {
                         *OUT_objpath1 = g_strdup (objpath1);
                 } else {
                         success = FALSE;
                 }
 
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         } else {
                 success = FALSE;
         }
@@ -72,21 +72,21 @@ demarshal_retvals__OBJPATH (GVariant *retvals, char **OUT_objpath1)
 }
 
 static gboolean
-demarshal_retvals__STRING (GVariant *retvals, char **OUT_string1)
+demarshal_retvals__STRING (EVariant *retvals, char **OUT_string1)
 {
         gboolean success = TRUE;
 
         if (retvals) {
                 const char *string1 = NULL;
 
-                g_variant_get (retvals, "(s)", &string1);
+                e_variant_get (retvals, "(s)", &string1);
                 if (string1) {
                         *OUT_string1 = g_strdup (string1);
                 } else {
                         success = FALSE;
                 }
 
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         } else {
                 success = FALSE;
         }
@@ -95,16 +95,16 @@ demarshal_retvals__STRING (GVariant *retvals, char **OUT_string1)
 }
 
 static void
-string_dup_from_variant (GVariant  *variant,
+string_dup_from_variant (EVariant  *variant,
 			 guint      child_position,
 			 char     **dest,
 			 gboolean  *success)
 {
-	GVariant *string_variant;
+	EVariant *strine_variant;
 	char *string = NULL;
 
-	string_variant = g_variant_get_child_value (variant, child_position);
-	string = g_variant_dup_string (string_variant, NULL);
+	strine_variant = e_variant_get_child_value (variant, child_position);
+	string = e_variant_dup_string (strine_variant, NULL);
 
 	if (string) {
 		*dest = string;
@@ -114,16 +114,16 @@ string_dup_from_variant (GVariant  *variant,
 }
 
 static void
-strv_dup_from_variant (GVariant   *variant,
+strv_dup_from_variant (EVariant   *variant,
 		       guint       child_position,
 		       char     ***dest,
 		       gboolean   *success)
 {
-	GVariant *strv_variant;
+	EVariant *strv_variant;
 	char **strv = NULL;
 
-	strv_variant = g_variant_get_child_value (variant, child_position);
-	strv = g_variant_dup_strv (strv_variant, NULL);
+	strv_variant = e_variant_get_child_value (variant, child_position);
+	strv = e_variant_dup_strv (strv_variant, NULL);
 
 	if (strv) {
 		*dest = strv;
@@ -133,13 +133,13 @@ strv_dup_from_variant (GVariant   *variant,
 }
 
 static gboolean
-demarshal_retvals__STRINGVECTOR (GVariant *retvals, char ***OUT_strv1)
+demarshal_retvals__STRINGVECTOR (EVariant *retvals, char ***OUT_strv1)
 {
         gboolean success = TRUE;
 
         if (retvals) {
 		strv_dup_from_variant (retvals, 0, OUT_strv1, &success);
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         } else {
                 success = FALSE;
         }
@@ -148,7 +148,7 @@ demarshal_retvals__STRINGVECTOR (GVariant *retvals, char ***OUT_strv1)
 }
 
 static gboolean
-demarshal_retvals__STRINGVECTOR_STRING (GVariant   *retvals,
+demarshal_retvals__STRINGVECTOR_STRING (EVariant   *retvals,
 					char     ***OUT_strv1,
 					char      **OUT_string1)
 {
@@ -156,7 +156,7 @@ demarshal_retvals__STRINGVECTOR_STRING (GVariant   *retvals,
 
         if (retvals) {
 		string_dup_from_variant (retvals, 1, OUT_string1, &success);
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         } else {
                 success = FALSE;
         }
@@ -165,7 +165,7 @@ demarshal_retvals__STRINGVECTOR_STRING (GVariant   *retvals,
 }
 
 static gboolean
-demarshal_retvals__STRINGVECTOR_STRINGVECTOR_STRINGVECTOR (GVariant   *retvals,
+demarshal_retvals__STRINGVECTOR_STRINGVECTOR_STRINGVECTOR (EVariant   *retvals,
 							   char     ***OUT_strv1,
 							   char     ***OUT_strv2,
 							   char     ***OUT_strv3)
@@ -176,7 +176,7 @@ demarshal_retvals__STRINGVECTOR_STRINGVECTOR_STRINGVECTOR (GVariant   *retvals,
 		strv_dup_from_variant (retvals, 0, OUT_strv1, &success);
 		strv_dup_from_variant (retvals, 1, OUT_strv2, &success);
 		strv_dup_from_variant (retvals, 2, OUT_strv3, &success);
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         } else {
                 success = FALSE;
         }
@@ -186,32 +186,32 @@ demarshal_retvals__STRINGVECTOR_STRINGVECTOR_STRINGVECTOR (GVariant   *retvals,
 
 static gboolean
 demarshal_retvals__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith
-	(GVariant   *retvals,
+	(EVariant   *retvals,
 	 GPtrArray **OUT_ptrarray1)
 {
         gboolean success = TRUE;
 
         if (retvals) {
-                GVariant *array1_variant;
-		GVariantIter iter1;
+                EVariant *array1_variant;
+		EVariantIter iter1;
                 GPtrArray *ptrarray1 = NULL;
 		const guint uint1_tmp;
 		const char *string1_tmp = NULL;
 
 		/* deshelling a (a(us)); there should always be exactly one
 		 * a(us) in the outermost tuple */
-                array1_variant = g_variant_get_child_value (retvals, 0);
-		g_variant_iter_init (&iter1, array1_variant);
+                array1_variant = e_variant_get_child_value (retvals, 0);
+		e_variant_iter_init (&iter1, array1_variant);
 
 		/* return NULL instead of an empty GPtrArray* if there's nothing
 		 * to put in it */
-		if (g_variant_n_children (array1_variant) < 1) {
+		if (e_variant_n_children (array1_variant) < 1) {
 			goto empty_inner_array;
 		}
 
 		ptrarray1 = g_ptr_array_new ();
 
-		while (g_variant_iter_next (&iter1, "(us)", &uint1_tmp, &string1_tmp)) {
+		while (e_variant_iter_next (&iter1, "(us)", &uint1_tmp, &string1_tmp)) {
 			GValueArray *valuearray = NULL;
 			GValue uint_value1 = {0};
 			GValue string_value1 = {0};
@@ -231,7 +231,7 @@ demarshal_retvals__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith
 empty_inner_array:
 		*OUT_ptrarray1 = ptrarray1;
 
-                g_variant_unref (retvals);
+                e_variant_unref (retvals);
         } else {
                 success = FALSE;
         }
@@ -240,26 +240,26 @@ empty_inner_array:
 }
 
 
-typedef void (*reply__VOID) (GDBusProxy *proxy,
+typedef void (*reply__VOID) (EDBusProxy *proxy,
                              GError     *error,
                              gpointer    user_data);
 
-typedef void (*reply__OBJPATH) (GDBusProxy *proxy,
+typedef void (*reply__OBJPATH) (EDBusProxy *proxy,
 				char       *OUT_path1,
 				GError     *error,
 				gpointer    user_data);
 
-typedef void (*reply__STRING) (GDBusProxy *proxy,
+typedef void (*reply__STRING) (EDBusProxy *proxy,
                                char       *OUT_string1,
                                GError     *error,
                                gpointer    user_data);
 
-typedef void (*reply__STRINGVECTOR) (GDBusProxy  *proxy,
+typedef void (*reply__STRINGVECTOR) (EDBusProxy  *proxy,
                                      char       **OUT_strv1,
                                      GError      *error,
                                      gpointer     user_data);
 
-typedef void (*reply__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith) (GDBusProxy *proxy,
+typedef void (*reply__GPTRARRAY_with_GVALUEARRAY_with_UINT_STRING_endwith_endwith) (EDBusProxy *proxy,
     GPtrArray  *OUT_ptrarray1,
     GError     *error,
     gpointer    user_data);

@@ -48,8 +48,8 @@
 #include "e-data-cal-gdbus-bindings.h"
 #include <libedata-cal/e-data-cal-types.h>
 
-static GDBusConnection *connection_gdbus = NULL;
-static GDBusProxy *factory_proxy_gdbus = NULL;
+static EDBusConnection *connection_gdbus = NULL;
+static EDBusProxy *factory_proxy_gdbus = NULL;
 
 /* guards both connection and factory_proxy */
 static GStaticRecMutex connection_lock = G_STATIC_REC_MUTEX_INIT;
@@ -87,7 +87,7 @@ struct _ECalPrivate {
 
 	gboolean read_only;
 
-	GDBusProxy *gdbus_proxy;
+	EDBusProxy *gdbus_proxy;
 
 	/* The authentication function */
 	ECalAuthFunc auth_func;
@@ -615,7 +615,7 @@ e_cal_activate(GError **error)
 	/* FIXME: better to just watch for the proxy instead of using the
 	 * connection directly? */
 	if (!connection_gdbus) {
-		connection_gdbus = g_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
+		connection_gdbus = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
 		if (!connection_gdbus) {
 			UNLOCK_CONN ();
 
@@ -628,9 +628,9 @@ e_cal_activate(GError **error)
 	/* FIXME: watch for changes to this proxy instead of relying upon
 	 * dbus-glib to get the unique name */
 	if (!factory_proxy_gdbus) {
-		factory_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
-							     G_TYPE_DBUS_PROXY,
-							     G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
+		factory_proxy_gdbus = e_dbus_proxy_new_sync (connection_gdbus,
+							     E_TYPE_DBUS_PROXY,
+							     E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | E_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS,
 							     factory_proxy_name,
 							     "/org/gnome/evolution/dataserver/calendar/CalFactory",
 							     "org.gnome.evolution.dataserver.calendar.CalFactory",
@@ -732,10 +732,10 @@ cal_handle_signal_backend_error (ECal        *cal,
 }
 
 static void
-cal_proxy_signal_cb (GDBusProxy *proxy,
+cal_proxy_signal_cb (EDBusProxy *proxy,
 		     gchar      *sender_name,
                      gchar      *signal_name,
-                     GVariant   *parameters,
+                     EVariant   *parameters,
                      ECal       *cal)
 {
         if (FALSE) {
@@ -743,17 +743,17 @@ cal_proxy_signal_cb (GDBusProxy *proxy,
                 cal_handle_signal_auth_required (cal);
         } else if (!g_strcmp0 (signal_name, "backend_error")) {
 		const char *value;
-		g_variant_get (parameters, "(&s)", &value);
+		e_variant_get (parameters, "(&s)", &value);
 
                 cal_handle_signal_backend_error (cal, value);
         } else if (!g_strcmp0 (signal_name, "readonly")) {
 		gboolean value;
-		g_variant_get (parameters, "(b)", &value);
+		e_variant_get (parameters, "(b)", &value);
 
                 cal_handle_signal_readonly (cal, value);
         } else if (!g_strcmp0 (signal_name, "mode")) {
 		gint32 value;
-		g_variant_get (parameters, "(i)", &value);
+		e_variant_get (parameters, "(i)", &value);
 
                 cal_handle_signal_mode (cal, value);
         }
@@ -887,10 +887,10 @@ e_cal_new (ESource *source, ECalSourceType type)
 	}
 	g_free (xml);
 
-	priv->gdbus_proxy = g_dbus_proxy_new_sync (connection_gdbus,
-						   G_TYPE_DBUS_PROXY,
-						   G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
-						   g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+	priv->gdbus_proxy = e_dbus_proxy_new_sync (connection_gdbus,
+						   E_TYPE_DBUS_PROXY,
+						   E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+						   e_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
 						   path,
 						   "org.gnome.evolution.dataserver.calendar.Cal",
 						   NULL,
@@ -1153,7 +1153,7 @@ build_pass_key (ECal *ecal)
 }
 
 static void
-async_signal_idle_cb (GDBusProxy *proxy,
+async_signal_idle_cb (EDBusProxy *proxy,
 		      GError     *error,
 		      gpointer    user_data)
 {
@@ -3845,7 +3845,7 @@ e_cal_get_query (ECal *ecal, const gchar *sexp, ECalView **query, GError **error
 	ECalPrivate *priv;
 	ECalendarStatus status;
 	gchar *query_path;
-	GDBusProxy *query_proxy_gdbus;
+	EDBusProxy *query_proxy_gdbus;
 
 	e_return_error_if_fail (sexp, E_CALENDAR_STATUS_INVALID_ARG);
 	e_return_error_if_fail (query, E_CALENDAR_STATUS_INVALID_ARG);
@@ -3868,10 +3868,10 @@ e_cal_get_query (ECal *ecal, const gchar *sexp, ECalView **query, GError **error
 	status = E_CALENDAR_STATUS_OK;
 
 	LOCK_CONN ();
-	query_proxy_gdbus = g_dbus_proxy_new_sync (connection_gdbus,
-							G_TYPE_DBUS_PROXY,
-							G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
-							g_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
+	query_proxy_gdbus = e_dbus_proxy_new_sync (connection_gdbus,
+							E_TYPE_DBUS_PROXY,
+							E_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES,
+							e_dbus_proxy_get_unique_bus_name (factory_proxy_gdbus),
 							query_path,
 							"org.gnome.evolution.dataserver.calendar.CalView",
 							NULL,
