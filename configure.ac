@@ -42,7 +42,6 @@ m4_define([sqlite_minimum_version], [3.5])
 m4_define([gweather_minimum_version], [2.25.4])
 m4_define([libical_minimum_version], [0.43])
 m4_define([dbus_glib_minimum_version], [0.6])
-m4_define([gdbus_standalone_minimum_version], [0.1])
 
 AC_SUBST([BASE_VERSION],[base_version])
 AC_SUBST([API_VERSION],[api_version])
@@ -1143,9 +1142,6 @@ fi
 DBUS_GLIB_REQUIRED=dbus_glib_minimum_version
 AC_SUBST(DBUS_GLIB_REQUIRED)
 
-GDBUS_STANDALONE_REQUIRED=gdbus_standalone_minimum_version
-AC_SUBST(GDBUS_STANDALONE_REQUIRED)
-
 dnl ******************************
 dnl GObject marshalling
 dnl ******************************
@@ -1184,10 +1180,6 @@ dnl ******************************
 PKG_CHECK_MODULES(DBUS_GLIB, dbus-glib-1 >= dbus_glib_minimum_version)
 AC_SUBST(DBUS_GLIB_CFLAGS)
 AC_SUBST(DBUS_GLIB_LIBS)
-
-PKG_CHECK_MODULES(GDBUS_STANDALONE, gdbus-standalone >= gdbus_standalone_minimum_version)
-AC_SUBST(GDBUS_STANDALONE_CFLAGS)
-AC_SUBST(GDBUS_STANDALONE_LIBS)
 
 dnl ***********************
 dnl Gnome keyring support
@@ -1247,17 +1239,21 @@ AC_SUBST(E_BACKEND_LIBS)
 dnl ******************************
 dnl evolution-addressbook flags
 dnl ******************************
-EVOLUTION_ADDRESSBOOK_DEPS="libxml-2.0 dbus-glib-1 gdbus-standalone gobject-2.0 gthread-2.0 gconf-2.0"
+EVOLUTION_ADDRESSBOOK_DEPS="libxml-2.0 dbus-glib-1 gobject-2.0 gthread-2.0 gconf-2.0"
 
 EVO_SET_COMPILE_FLAGS(EVOLUTION_ADDRESSBOOK, $EVOLUTION_ADDRESSBOOK_DEPS)
+EVOLUTION_ADDRESSBOOK_CFLAGS="$EVOLUTION_ADDRESSBOOK_CFLAGS -I$(top_srcdir)/libedbus"
+EVOLUTION_ADDRESSBOOK_LIBS="$EVOLUTION_ADDRESSBOOK_LIBS $(top_builddir)/libedbus/libedbus.la"
+
 AC_SUBST(EVOLUTION_ADDRESSBOOK_CFLAGS)
 AC_SUBST(EVOLUTION_ADDRESSBOOK_LIBS)
+
 
 dnl ******************************
 dnl evolution-calendar flags
 dnl ******************************
 if test "x${enable_calendar}" = "xyes"; then
-	EVOLUTION_CALENDAR_DEPS="libical >= libical_minimum_version libxml-2.0 dbus-glib-1 gdbus-standalone gio-2.0 gobject-2.0 gthread-2.0 gconf-2.0"
+	EVOLUTION_CALENDAR_DEPS="libical >= libical_minimum_version libxml-2.0 dbus-glib-1 gio-2.0 gobject-2.0 gthread-2.0 gconf-2.0"
 
 dnl *****
 dnl libical.pc from libical-0.43 has a bug in it's CFlags.
@@ -1272,6 +1268,9 @@ dnl *****
 	AC_SUBST(LIBICAL_EXTRA_LIBS)
 
 	EVO_SET_COMPILE_FLAGS(EVOLUTION_CALENDAR, $EVOLUTION_CALENDAR_DEPS, $LIBICAL_EXTRA_CFLAGS, $LIBICAL_EXTRA_LIBS)
+	EVOLUTION_CALENDAR_CFLAGS="$EVOLUTION_CALENDAR_CFLAGS -I$(top_srcdir)/libedbus"
+	EVOLUTION_CALENDAR_LIBS="$EVOLUTION_CALENDAR_LIBS $(top_builddir)/libedbus/libedbus.la"
+
 	AC_SUBST(EVOLUTION_CALENDAR_CFLAGS)
 	AC_SUBST(EVOLUTION_CALENDAR_LIBS)
 fi
@@ -1495,6 +1494,7 @@ camel/tests/smime/Makefile
 camel/tests/stream/Makefile
 camel/camel.pc
 camel/camel-provider.pc
+libedbus/Makefile
 libebackend/Makefile
 libebackend/libebackend.pc
 libedataserver/Makefile
