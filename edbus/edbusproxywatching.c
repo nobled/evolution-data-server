@@ -329,7 +329,7 @@ on_name_vanished (EDBusConnection *connection,
  * e_bus_unwatch_proxy() to stop watching the remote object.
  **/
 guint
-e_bus_watch_proxy (GBusType                   bus_type,
+e_bus_watch_proxy (EDBusType                   bus_type,
                    const gchar               *name,
                    const gchar               *object_path,
                    const gchar               *interface_name,

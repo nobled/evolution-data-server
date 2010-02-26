@@ -21,7 +21,7 @@ main (int argc, char *argv[])
 {
   guint owner_id;
   GMainLoop *loop;
-  GBusNameOwnerFlags flags;
+  EDBusNameOwnerFlags flags;
   gboolean opt_replace;
   gboolean opt_allow_replacement;
   gchar *opt_name;

@@ -63,7 +63,7 @@ typedef void (*GBusProxyVanishedCallback) (EDBusConnection *connection,
                                            const gchar     *name,
                                            gpointer         user_data);
 
-guint e_bus_watch_proxy   (GBusType                   bus_type,
+guint e_bus_watch_proxy   (EDBusType                   bus_type,
                            const gchar               *name,
                            const gchar               *object_path,
                            const gchar               *interface_name,

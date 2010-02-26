@@ -57,7 +57,7 @@ typedef struct
 {
   volatile gint             ref_count;
   guint                     id;
-  GBusNameOwnerFlags        flags;
+  EDBusNameOwnerFlags        flags;
   gchar                    *name;
   GBusNameAcquiredCallback  name_acquired_handler;
   GBusNameLostCallback      name_lost_handler;
@@ -429,14 +429,14 @@ connection_get_cb (GObject      *source_object,
  * e_bus_own_name_on_connection:
  * @connection: A #EDBusConnection that has not been disconnected.
  * @name: The well-known name to own.
- * @flags: A set of flags from the #GBusNameOwnerFlags enumeration.
+ * @flags: A set of flags from the #EDBusNameOwnerFlags enumeration.
  * @name_acquired_handler: Handler to invoke when @name is acquired.
  * @name_lost_handler: Handler to invoke when @name is lost.
  * @user_data: User data to pass to handlers.
  * @user_data_free_func: Function for freeing @user_data or %NULL.
  *
  * Like e_bus_own_name() but takes a #EDBusConnection instead of a
- * #GBusType.
+ * #EDBusType.
  *
  * Returns: An identifier (never 0) that an be used with
  * e_bus_unown_name() to stop owning the name.
@@ -444,7 +444,7 @@ connection_get_cb (GObject      *source_object,
 guint
 e_bus_own_name_on_connection (EDBusConnection          *connection,
                               const gchar              *name,
-                              GBusNameOwnerFlags        flags,
+                              EDBusNameOwnerFlags        flags,
                               GBusNameAcquiredCallback  name_acquired_handler,
                               GBusNameLostCallback      name_lost_handler,
                               gpointer                  user_data,
@@ -495,7 +495,7 @@ e_bus_own_name_on_connection (EDBusConnection          *connection,
  * e_bus_own_name:
  * @bus_type: The type of bus to own a name on (can't be #G_BUS_TYPE_NONE).
  * @name: The well-known name to own.
- * @flags: A set of flags from the #GBusNameOwnerFlags enumeration.
+ * @flags: A set of flags from the #EDBusNameOwnerFlags enumeration.
  * @name_acquired_handler: Handler to invoke when @name is acquired.
  * @name_lost_handler: Handler to invoke when @name is lost.
  * @user_data: User data to pass to handlers.
@@ -536,9 +536,9 @@ e_bus_own_name_on_connection (EDBusConnection          *connection,
  * e_bus_unown_name() to stop owning the name.
  **/
 guint
-e_bus_own_name (GBusType                  bus_type,
+e_bus_own_name (EDBusType                  bus_type,
                 const gchar              *name,
-                GBusNameOwnerFlags        flags,
+                EDBusNameOwnerFlags        flags,
                 GBusNameAcquiredCallback  name_acquired_handler,
                 GBusNameLostCallback      name_lost_handler,
                 gpointer                  user_data,

@@ -58,7 +58,7 @@ typedef void (*GBusNameVanishedCallback) (EDBusConnection *connection,
                                           gpointer         user_data);
 
 
-guint e_bus_watch_name   (GBusType                  bus_type,
+guint e_bus_watch_name   (EDBusType                  bus_type,
                           const gchar              *name,
                           GBusNameAppearedCallback  name_appeared_handler,
                           GBusNameVanishedCallback  name_vanished_handler,

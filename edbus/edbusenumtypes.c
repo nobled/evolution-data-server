@@ -100,7 +100,7 @@ g_bus_type_get_type (void)
         { 0, NULL, NULL }
       };
       GType g_define_type_id =
-        g_enum_register_static (g_intern_static_string ("GBusType"), values);
+        g_enum_register_static (g_intern_static_string ("EDBusType"), values);
       g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
     }
 
@@ -121,7 +121,7 @@ g_bus_name_owner_flags_get_type (void)
         { 0, NULL, NULL }
       };
       GType g_define_type_id =
-        g_flags_register_static (g_intern_static_string ("GBusNameOwnerFlags"), values);
+        g_flags_register_static (g_intern_static_string ("EDBusNameOwnerFlags"), values);
       g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
     }
 

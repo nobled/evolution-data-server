@@ -54,7 +54,7 @@ struct _EDBusConnectionPrivate
   DBusConnection *dbus_1_connection;
 
   /* construct properties */
-  GBusType        bus_type;
+  EDBusType        bus_type;
   gchar          *address;
   gboolean        is_private;
 
@@ -467,7 +467,7 @@ e_dbus_connection_init (EDBusConnection *connection)
  * #G_BUS_TYPE_NONE if the connection is not to a message
  * bus.
  **/
-GBusType
+EDBusType
 e_dbus_connection_get_bus_type (EDBusConnection *connection)
 {
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), G_BUS_TYPE_NONE);
@@ -708,7 +708,7 @@ e_dbus_connection_constructor (GType                  type,
     {
       if (g_strcmp0 (construct_properties[n].pspec->name, "bus-type") == 0)
         {
-          GBusType bus_type;
+          EDBusType bus_type;
           const gchar *starter_bus;
 
           bus_type = g_value_get_enum (construct_properties[n].value);
@@ -954,7 +954,7 @@ _e_dbus_connection_new_for_dbus_1_connection (DBusConnection  *dbus_1_connection
 
 /**
  * e_dbus_connection_bus_get_sync:
- * @bus_type: A #GBusType.
+ * @bus_type: A #EDBusType.
  * @cancellable: A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
@@ -973,7 +973,7 @@ _e_dbus_connection_new_for_dbus_1_connection (DBusConnection  *dbus_1_connection
  * Returns: A #EDBusConnection or %NULL if @error is set. Free with g_object_unref().
  **/
 EDBusConnection *
-e_dbus_connection_bus_get_sync (GBusType            bus_type,
+e_dbus_connection_bus_get_sync (EDBusType            bus_type,
                                 GCancellable       *cancellable,
                                 GError            **error)
 {
@@ -993,7 +993,7 @@ e_dbus_connection_bus_get_sync (GBusType            bus_type,
 
 /**
  * e_dbus_connection_bus_get:
- * @bus_type: A #GBusType.
+ * @bus_type: A #EDBusType.
  * @cancellable: A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied.
  * @user_data: The data to pass to @callback.
@@ -1011,7 +1011,7 @@ e_dbus_connection_bus_get_sync (GBusType            bus_type,
  * e_dbus_connection_bus_get_sync() for the synchronous version.
  **/
 void
-e_dbus_connection_bus_get (GBusType             bus_type,
+e_dbus_connection_bus_get (EDBusType             bus_type,
                            GCancellable        *cancellable,
                            GAsyncReadyCallback  callback,
                            gpointer             user_data)
@@ -1064,7 +1064,7 @@ e_dbus_connection_bus_get_finish (GAsyncResult  *res,
 
 /**
  * e_dbus_connection_bus_get_private_sync:
- * @bus_type: A #GBusType.
+ * @bus_type: A #EDBusType.
  * @cancellable: A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
@@ -1074,7 +1074,7 @@ e_dbus_connection_bus_get_finish (GAsyncResult  *res,
  * Returns: A #EDBusConnection. Free with g_object_unref().
  **/
 EDBusConnection *
-e_dbus_connection_bus_get_private_sync (GBusType        bus_type,
+e_dbus_connection_bus_get_private_sync (EDBusType        bus_type,
                                         GCancellable   *cancellable,
                                         GError        **error)
 {
@@ -1095,7 +1095,7 @@ e_dbus_connection_bus_get_private_sync (GBusType        bus_type,
 
 /**
  * e_dbus_connection_bus_get_private:
- * @bus_type: A #GBusType.
+ * @bus_type: A #EDBusType.
  * @cancellable: A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied.
  * @user_data: The data to pass to @callback.
@@ -1114,7 +1114,7 @@ e_dbus_connection_bus_get_private_sync (GBusType        bus_type,
  * version.
  **/
 void
-e_dbus_connection_bus_get_private (GBusType             bus_type,
+e_dbus_connection_bus_get_private (EDBusType             bus_type,
                                    GCancellable        *cancellable,
                                    GAsyncReadyCallback  callback,
                                    gpointer             user_data)

@@ -94,26 +94,26 @@ EDBusConnection *e_dbus_connection_new_sync                   (const gchar      
                                                                GCancellable       *cancellable,
                                                                GError            **error);
 
-void             e_dbus_connection_bus_get                    (GBusType             bus_type,
+void             e_dbus_connection_bus_get                    (EDBusType             bus_type,
                                                                GCancellable        *cancellable,
                                                                GAsyncReadyCallback  callback,
                                                                gpointer             user_data);
 EDBusConnection *e_dbus_connection_bus_get_finish             (GAsyncResult        *res,
                                                                GError             **error);
-EDBusConnection *e_dbus_connection_bus_get_sync               (GBusType            bus_type,
+EDBusConnection *e_dbus_connection_bus_get_sync               (EDBusType            bus_type,
                                                                GCancellable       *cancellable,
                                                                GError            **error);
 
-void             e_dbus_connection_bus_get_private            (GBusType             bus_type,
+void             e_dbus_connection_bus_get_private            (EDBusType             bus_type,
                                                                GCancellable        *cancellable,
                                                                GAsyncReadyCallback  callback,
                                                                gpointer             user_data);
 EDBusConnection *e_dbus_connection_bus_get_private_finish     (GAsyncResult        *res,
                                                                GError             **error);
-EDBusConnection *e_dbus_connection_bus_get_private_sync       (GBusType            bus_type,
+EDBusConnection *e_dbus_connection_bus_get_private_sync       (EDBusType            bus_type,
                                                                GCancellable       *cancellable,
                                                                GError            **error);
-GBusType         e_dbus_connection_get_bus_type               (EDBusConnection    *connection);
+EDBusType         e_dbus_connection_get_bus_type               (EDBusConnection    *connection);
 const gchar     *e_dbus_connection_get_address                (EDBusConnection    *connection);
 const gchar     *e_dbus_connection_get_unique_name            (EDBusConnection    *connection);
 gboolean         e_dbus_connection_get_is_private             (EDBusConnection    *connection);

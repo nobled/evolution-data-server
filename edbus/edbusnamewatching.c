@@ -451,7 +451,7 @@ connection_get_cb (GObject      *source_object,
  * e_bus_unwatch_name() to stop watching the name.
  **/
 guint
-e_bus_watch_name (GBusType                  bus_type,
+e_bus_watch_name (EDBusType                  bus_type,
                   const gchar              *name,
                   GBusNameAppearedCallback  name_appeared_handler,
                   GBusNameVanishedCallback  name_vanished_handler,
