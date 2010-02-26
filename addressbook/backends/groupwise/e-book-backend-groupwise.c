@@ -326,7 +326,7 @@ set_im_changes (EGwItem *new_item, EGwItem *old_item)
 				}
 
 			}
-			if (! ims_matched)
+			if (!ims_matched)
 				added_ims = g_list_append (added_ims, im1);
 		}
 
@@ -3262,7 +3262,7 @@ e_book_backend_groupwise_authenticate_user (EBookBackend *backend,
 		if (status == E_GW_CONNECTION_STATUS_INVALID_CONNECTION)
 			status = e_gw_connection_get_address_book_id (priv->cnc,  priv->book_name, &id, &is_writable);
 		if (status == E_GW_CONNECTION_STATUS_OK) {
-			if ( (id == NULL) && !priv->only_if_exists ) {
+			if ((id == NULL) && !priv->only_if_exists) {
 				status = e_gw_connection_create_book (priv->cnc, priv->book_name,  &id);
 				is_writable = TRUE;
 				if (status != E_GW_CONNECTION_STATUS_OK ) {
@@ -3583,7 +3583,7 @@ e_book_backend_groupwise_load_source (EBookBackend           *backend,
 
 		/* the databade didn't exist, so we create the
 		   directory then the .db */
-		rv = g_mkdir_with_parents (dirname, 0777);
+		rv = g_mkdir_with_parents (dirname, 0700);
 		if (rv == -1 && errno != EEXIST) {
 			g_warning ("failed to make directory %s: %s", dirname, g_strerror (errno));
 			g_free (dirname);

@@ -439,7 +439,7 @@ e_cal_view_start (ECalView *view)
 	LOCK_VIEW ();
 	if (!e_data_cal_view_gdbus_start_sync (priv->view_proxy, &error)) {
 		UNLOCK_VIEW ();
-		g_printerr("%s: %s\n", __FUNCTION__, error->message);
+		g_printerr("%s: %s\n", G_STRFUNC, error->message);
 		g_error_free (error);
 		g_warning (G_STRLOC ": Unable to start view");
 		return;

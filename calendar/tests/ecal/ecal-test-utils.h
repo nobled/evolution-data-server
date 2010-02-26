@@ -33,6 +33,7 @@ typedef struct {
 } ECalTestClosure;
 
 void
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
 test_print (const char *format,
             ...);
 
@@ -43,6 +44,18 @@ ecal_test_utils_cal_new_from_uri (const char     *uri,
 ECal*
 ecal_test_utils_cal_new_temp (char           **uri,
 		              ECalSourceType   type);
+=======
+test_print (const gchar *format,
+            ...);
+
+ECal*
+ecal_test_utils_cal_new_from_uri (const gchar     *uri,
+				  ECalSourceType  type);
+
+ECal*
+ecal_test_utils_cal_new_temp (gchar           **uri,
+			      ECalSourceType   type);
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 
 void
 ecal_test_utils_cal_open (ECal     *cal,
@@ -57,6 +70,7 @@ ecal_test_utils_cal_async_open (ECal        *cal,
 void
 ecal_test_utils_cal_remove (ECal *cal);
 
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
 char*
 ecal_test_utils_cal_get_alarm_email_address (ECal *cal);
 
@@ -64,6 +78,15 @@ char*
 ecal_test_utils_cal_get_cal_address (ECal *cal);
 
 char*
+=======
+gchar *
+ecal_test_utils_cal_get_alarm_email_address (ECal *cal);
+
+gchar *
+ecal_test_utils_cal_get_cal_address (ECal *cal);
+
+gchar *
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 ecal_test_utils_cal_get_ldap_attribute (ECal *cal);
 
 void
@@ -85,7 +108,11 @@ ecal_test_utils_cal_assert_e_cal_components_equal (ECalComponent *a,
 
 icalcomponent*
 ecal_test_utils_cal_get_object (ECal       *cal,
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
                                 const char *uid);
+=======
+                                const gchar *uid);
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 
 void
 ecal_test_utils_cal_modify_object (ECal          *cal,
@@ -94,13 +121,18 @@ ecal_test_utils_cal_modify_object (ECal          *cal,
 
 void
 ecal_test_utils_cal_remove_object (ECal       *cal,
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
 				   const char *uid);
+=======
+				   const gchar *uid);
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 
 icalcomponent*
 ecal_test_utils_cal_get_default_object (ECal *cal);
 
 GList*
 ecal_test_utils_cal_get_object_list (ECal       *cal,
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
                                      const char *query);
 
 GList*
@@ -108,6 +140,15 @@ ecal_test_utils_cal_get_objects_for_uid (ECal       *cal,
 					 const char *uid);
 
 char*
+=======
+                                     const gchar *query);
+
+GList*
+ecal_test_utils_cal_get_objects_for_uid (ECal       *cal,
+					 const gchar *uid);
+
+gchar *
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 ecal_test_utils_cal_create_object (ECal          *cal,
 				   icalcomponent *component);
 
@@ -119,6 +160,7 @@ ecal_test_utils_cal_set_mode (ECal        *cal,
 
 void
 ecal_test_utils_create_component (ECal           *cal,
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
                                   const char     *dtstart,
                                   const char     *dtstart_tzid,
                                   const char     *dtend,
@@ -126,6 +168,15 @@ ecal_test_utils_create_component (ECal           *cal,
                                   const char     *summary,
                                   ECalComponent **comp_out,
                                   char          **uid_out);
+=======
+                                  const gchar     *dtstart,
+                                  const gchar     *dtstart_tzid,
+                                  const gchar     *dtend,
+                                  const gchar     *dtend_tzid,
+                                  const gchar     *summary,
+                                  ECalComponent **comp_out,
+                                  gchar          **uid_out);
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 
 void
 ecal_test_utils_cal_component_set_icalcomponent (ECalComponent *e_component,
@@ -133,7 +184,11 @@ ecal_test_utils_cal_component_set_icalcomponent (ECalComponent *e_component,
 
 icaltimezone*
 ecal_test_utils_cal_get_timezone (ECal       *cal,
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
                                   const char *tzid);
+=======
+                                  const gchar *tzid);
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 
 void
 ecal_test_utils_cal_add_timezone (ECal         *cal,
@@ -155,6 +210,10 @@ ecal_test_utils_cal_receive_objects (ECal          *cal,
 
 ECalView*
 ecal_test_utils_get_query (ECal       *cal,
+<<<<<<< HEAD:calendar/tests/ecal/ecal-test-utils.h
                            const char *sexp);
+=======
+                           const gchar *sexp);
+>>>>>>> master:calendar/tests/ecal/ecal-test-utils.h
 
 #endif /* _ECAL_TEST_UTILS_H */

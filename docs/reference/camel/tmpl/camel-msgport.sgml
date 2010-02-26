@@ -22,6 +22,7 @@ CamelMsgPort
 
 </para>
 
+@ln: 
 @reply_port: 
 @flags: 
 
@@ -80,6 +81,16 @@ CamelMsgPort
 </para>
 
 @msgport: 
+@Returns: 
+
+
+<!-- ##### FUNCTION camel_msgport_timed_pop ##### -->
+<para>
+
+</para>
+
+@msgport: 
+@end_time: 
 @Returns: 
 
 

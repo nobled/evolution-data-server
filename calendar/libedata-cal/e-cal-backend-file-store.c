@@ -134,7 +134,7 @@ put_component (ECalBackendFileStore *fstore, ECalComponent *comp)
 		gchar *rid = e_cal_component_get_recurid_as_string (comp);
 
 		g_object_ref (comp);
-		g_hash_table_insert (obj->recurrences, g_strdup (rid), comp);
+		g_hash_table_insert (obj->recurrences, rid, comp);
 	}
 
 	g_static_rw_lock_writer_unlock (&priv->lock);
@@ -637,10 +637,14 @@ scan_vcalendar (ECalBackendFileStore *fstore, icalcomponent *top_icalcomp)
 
 		comp = e_cal_component_new ();
 
-		if (!e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (icalcomp)))
+		if (!e_cal_component_set_icalcomponent (comp, icalcomponent_new_clone (icalcomp))) {
+			g_object_unref (comp);
 			continue;
+		}
 
 		put_component (fstore, comp);
+
+		g_object_unref (comp);
 	}
 }
 

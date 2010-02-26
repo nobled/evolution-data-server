@@ -43,6 +43,8 @@
 
 #include "libedataserver/e-source-list.h"
 
+G_DEFINE_TYPE (ECalBackendContacts, e_cal_backend_contacts, E_TYPE_CAL_BACKEND_SYNC)
+
 static ECalBackendSyncClass *parent_class;
 
 typedef enum
@@ -1048,32 +1050,6 @@ e_cal_backend_contacts_is_loaded (ECalBackend *backend)
         return priv->addressbook_loaded;
 }
 
-static ECalBackendSyncStatus
-e_cal_backend_contacts_get_timezone (ECalBackendSync *backend, EDataCal *cal, const gchar *tzid, gchar **object)
-{
-	ECalBackendContacts *cbcontacts;
-	ECalBackendContactsPrivate *priv;
-	icaltimezone *zone;
-	icalcomponent *icalcomp;
-
-	cbcontacts = E_CAL_BACKEND_CONTACTS (backend);
-	priv = cbcontacts->priv;
-
-	g_return_val_if_fail (tzid != NULL, GNOME_Evolution_Calendar_ObjectNotFound);
-
-	zone = e_cal_backend_internal_get_timezone (E_CAL_BACKEND (backend), tzid);
-	if (!zone)
-		return GNOME_Evolution_Calendar_ObjectNotFound;
-
-	icalcomp = icaltimezone_get_component (zone);
-	if (!icalcomp)
-		return GNOME_Evolution_Calendar_InvalidObject;
-
-	*object = icalcomponent_as_ical_string_r (icalcomp);
-
-	return GNOME_Evolution_Calendar_Success;
-}
-
 /* Add_timezone handler for the file backend */
 static ECalBackendSyncStatus
 e_cal_backend_contacts_add_timezone (ECalBackendSync *backend, EDataCal *cal, const gchar *tzobj)
@@ -1267,7 +1243,7 @@ e_cal_backend_contacts_finalize (GObject *object)
 
 /* Object initialization function for the contacts backend */
 static void
-e_cal_backend_contacts_init (ECalBackendContacts *cbc, ECalBackendContactsClass *class)
+e_cal_backend_contacts_init (ECalBackendContacts *cbc)
 {
 	ECalBackendContactsPrivate *priv;
 
@@ -1339,7 +1315,6 @@ e_cal_backend_contacts_class_init (ECalBackendContactsClass *class)
 	sync_class->get_default_object_sync = e_cal_backend_contacts_get_default_object;
 	sync_class->get_object_sync = e_cal_backend_contacts_get_object;
 	sync_class->get_object_list_sync = e_cal_backend_contacts_get_object_list;
-	sync_class->get_timezone_sync = e_cal_backend_contacts_get_timezone;
 	sync_class->add_timezone_sync = e_cal_backend_contacts_add_timezone;
 	sync_class->set_default_zone_sync = e_cal_backend_contacts_set_default_zone;
 	sync_class->get_freebusy_sync = e_cal_backend_contacts_get_free_busy;
@@ -1351,36 +1326,4 @@ e_cal_backend_contacts_class_init (ECalBackendContactsClass *class)
 
 	backend_class->internal_get_default_timezone = e_cal_backend_contacts_internal_get_default_timezone;
 	backend_class->internal_get_timezone = e_cal_backend_contacts_internal_get_timezone;
-}
-
-/**
- * e_cal_backend_contacts_get_type:
- * @void:
- *
- * Registers the #ECalBackendContacts class if necessary, and returns
- * the type ID associated to it.
- *
- * Return value: The type ID of the #ECalBackendContacts class.
- **/
-GType
-e_cal_backend_contacts_get_type (void)
-{
-	static GType e_cal_backend_contacts_type = 0;
-
-	if (!e_cal_backend_contacts_type) {
-		static GTypeInfo info = {
-                        sizeof (ECalBackendContactsClass),
-                        (GBaseInitFunc) NULL,
-                        (GBaseFinalizeFunc) NULL,
-                        (GClassInitFunc) e_cal_backend_contacts_class_init,
-                        NULL, NULL,
-                        sizeof (ECalBackendContacts),
-                        0,
-                        (GInstanceInitFunc) e_cal_backend_contacts_init
-                };
-		e_cal_backend_contacts_type = g_type_register_static (E_TYPE_CAL_BACKEND_SYNC,
-                                                                     "ECalBackendContacts", &info, 0);
-	}
-
-	return e_cal_backend_contacts_type;
 }

@@ -31,4 +31,4 @@ EBookView *_e_book_view_new (EBook *book, EDBusProxy *view_proxy, GStaticRecMute
 
 G_END_DECLS
 
-#endif /* ! __E_BOOK_VIEW_PRIVATE_H__ */
+#endif /* __E_BOOK_VIEW_PRIVATE_H__ */

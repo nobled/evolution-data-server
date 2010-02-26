@@ -30,6 +30,7 @@
 #include "e-book.h"
 #include "e-error.h"
 #include "e-contact.h"
+#include "e-name-western.h"
 #include "e-book-view-private.h"
 #include "e-data-book-factory-gdbus-bindings.h"
 #include "e-data-book-gdbus-bindings.h"
@@ -300,6 +301,8 @@ e_book_activate(GError **error)
 
 			return FALSE;
 		}
+
+		dbus_connection_add_filter (dbus_g_connection_get_connection (connection), filter_dbus_msgs_cb, NULL, NULL);
 	}
 
 	/* FIXME: watch for changes to this proxy instead of relying upon
@@ -1477,17 +1480,21 @@ get_contacts_reply (EDBusProxy  *proxy,
 	AsyncData *data = user_data;
 	GList *list = NULL;
 	EBookListCallback cb = data->callback;
-	if (vcards) {
+
+	if (!error && vcards) {
 		gchar **i = vcards;
+
 		while (*i != NULL) {
 			list = g_list_prepend (list, e_contact_new_from_vcard (*i++));
 		}
+
+		g_strfreev (vcards);
+
+		list = g_list_reverse (list);
 	}
-	list = g_list_reverse (list);
 
 	if (cb)
 		cb (data->book, get_status_from_error (error), list, data->closure);
-	g_strfreev (vcards);
 
 	g_object_unref (data->book);
 	g_slice_free (AsyncData, data);
@@ -2035,6 +2042,43 @@ e_book_is_online (EBook *book)
 
 #define SELF_UID_KEY "/apps/evolution/addressbook/self/self_uid"
 
+static EContact *
+make_me_card (void)
+{
+	GString *vcard;
+	const gchar *s;
+	EContact *contact;
+
+	vcard = g_string_new ("BEGIN:VCARD\nVERSION:3.0\n");
+
+	s = g_get_user_name ();
+	if (s)
+		g_string_append_printf (vcard, "NICKNAME:%s\n", s);
+
+	s = g_get_real_name ();
+	if (s && strcmp (s, "Unknown") != 0) {
+		ENameWestern *western;
+
+		g_string_append_printf (vcard, "FN:%s\n", s);
+
+		western = e_name_western_parse (s);
+		g_string_append_printf (vcard, "N:%s;%s;%s;%s;%s\n",
+					western->last ? western->last : "",
+					western->first ? western->first : "",
+					western->middle ? western->middle : "",
+					western->prefix ? western->prefix : "",
+					western->suffix ? western->suffix : "");
+		e_name_western_free (western);
+	}
+	g_string_append (vcard, "END:VCARD");
+
+	contact = e_contact_new_from_vcard (vcard->str);
+
+	g_string_free (vcard, TRUE);
+
+	return contact;
+}
+
 /**
  * e_book_get_self:
  * @contact: an #EContact pointer to set
@@ -2075,24 +2119,29 @@ e_book_get_self (EContact **contact, EBook **book, GError **error)
 	uid = gconf_client_get_string (gconf, SELF_UID_KEY, NULL);
 	g_object_unref (gconf);
 
-	if (!uid) {
-		g_object_unref (*book);
-		*book = NULL;
-		g_set_error (error, E_BOOK_ERROR, E_BOOK_ERROR_NO_SELF_CONTACT,
-			     _("%s: there was no self contact UID stored in gconf"), "e_book_get_self");
-		return FALSE;
+	if (uid) {
+		gboolean got;
+
+		/* Don't care about errors because we'll create a new card on failure */
+		got = e_book_get_contact (*book, uid, contact, NULL);
+		g_free (uid);
+		if (got)
+			return TRUE;
 	}
 
-	if (!e_book_get_contact (*book, uid, contact, &e)) {
+	*contact = make_me_card ();
+	if (!e_book_add_contact (*book, *contact, &e)) {
+		/* TODO: return NULL or the contact anyway? */
 		g_object_unref (*book);
 		*book = NULL;
-		g_free (uid);
+		g_object_unref (*contact);
+		*contact = NULL;
 		if (error)
 			g_propagate_error (error, e);
 		return FALSE;
 	}
 
-	g_free (uid);
+	e_book_set_self (*book, *contact, NULL);
 
 	return TRUE;
 }

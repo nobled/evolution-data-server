@@ -30,8 +30,6 @@
 
 #include <string.h>
 
-#include <libedataserver/e-sexp.h>
-
 #include "camel-mime-utils.h"	/* base64 encoding */
 #include "camel-search-private.h"
 #include "camel-seekable-stream.h"
@@ -125,7 +123,7 @@ camel_imap_search_finalise(CamelImapSearch *is)
 {
 	struct _match_record *mr;
 
-	while ( (mr = (struct _match_record *)camel_dlist_remtail(&is->matches)) )
+	while ((mr = (struct _match_record *)camel_dlist_remtail(&is->matches)))
 		free_match(is, mr);
 	g_hash_table_destroy(is->matches_hash);
 	if (is->cache)

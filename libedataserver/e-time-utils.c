@@ -9,19 +9,17 @@
  */
 
 #include <config.h>
+#define _XOPEN_SOURCE
 
-#ifdef __linux__
-/* We need this to get a prototype for strptime. */
-#define _GNU_SOURCE
-#endif /* __linux__ */
+/* For tm_gmtoff */
+#define _BSD_SOURCE
 
 #include <time.h>
 #include <sys/time.h>
 
-#ifdef __linux__
+#ifdef HAVE_NL_LANGINFO
 #include <langinfo.h>
-#undef _GNU_SOURCE
-#endif /* __linux__ */
+#endif /* HAVE_NL_LANGINFO */
 
 #include <string.h>
 #include <ctype.h>
@@ -211,7 +209,7 @@ enum ptime_locale_status { not, loc, raw };
 # endif  /* GCC.  */
 #endif  /* Not __P.  */
 
-#if ! HAVE_LOCALTIME_R && ! defined localtime_r
+#if !HAVE_LOCALTIME_R && !defined localtime_r
 # ifdef _LIBC
 #  define localtime_r __localtime_r
 # else
@@ -224,13 +222,13 @@ localtime_r (t, tp)
      struct tm *tp;
 {
   struct tm *l = localtime (t);
-  if (! l)
+  if (!l)
     return 0;
   *tp = *l;
   return tp;
 }
-# endif /* ! _LIBC */
-#endif /* ! HAVE_LOCALTIME_R && ! defined (localtime_r) */
+# endif /* !_LIBC */
+#endif /* HAVE_LOCALTIME_R && !defined (localtime_r) */
 
 #define match_char(ch1, ch2) if (ch1 != ch2) return NULL
 #if defined _LIBC && defined __GNUC__ && __GNUC__ >= 2
@@ -1110,7 +1108,7 @@ __strptime_internal (rp, fmt, tm, decided, era_cnt LOCALE_PARAM)
 						- (int64_t) era->start_date[0])
 					       * era->absolute_direction));
 			}
-		      if (! match)
+		      if (!match)
 			return NULL;
 
 		      break;
@@ -2028,7 +2026,7 @@ e_time_get_d_fmt_with_4digit_year (void)
 {
 	gchar *p;
 	gchar *res = NULL;
-#if defined(__linux__)
+#if defined(HAVE_NL_LANGINFO)
 	res = g_strdup (nl_langinfo (D_FMT) );
 #elif defined(G_OS_WIN32)
   #define GET_LOCALE_INFO(str, len) GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SLONGDATE, str, len)

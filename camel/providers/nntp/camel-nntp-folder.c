@@ -33,8 +33,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-data-server-util.h>
-
 #include "camel/camel-data-cache.h"
 #include "camel/camel-data-wrapper.h"
 #include "camel/camel-exception.h"
@@ -538,7 +536,7 @@ camel_nntp_folder_new (CamelStore *parent, const gchar *folder_name, CamelExcept
 		return NULL;
 
 	/* If this doesn't work, stuff wont save, but let it continue anyway */
-	g_mkdir_with_parents (root, 0777);
+	g_mkdir_with_parents (root, 0700);
 
 	folder = (CamelFolder *) camel_object_new (CAMEL_NNTP_FOLDER_TYPE);
 	nntp_folder = (CamelNNTPFolder *)folder;

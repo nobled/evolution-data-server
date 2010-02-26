@@ -1019,7 +1019,7 @@ camel_db_get_folder_preview (CamelDB *db, gchar *folder_name, CamelException *ex
 	 gint ret;
 	 GHashTable *hash = g_hash_table_new (g_str_hash, g_str_equal);
 
-	 sel_query = sqlite3_mprintf("SELECT uid, preview FROM '%s_preview'", folder_name);
+	 sel_query = sqlite3_mprintf("SELECT uid, preview FROM '%q_preview'", folder_name);
 
 	 ret = camel_db_select (db, sel_query, read_preview_callback, hash, ex);
 	 sqlite3_free (sel_query);
@@ -1038,7 +1038,7 @@ camel_db_write_preview_record (CamelDB *db, gchar *folder_name, const gchar *uid
 	gchar *query;
 	gint ret;
 
-	query = sqlite3_mprintf("INSERT OR REPLACE INTO '%s_preview' VALUES(%Q,%Q)", folder_name, uid, msg);
+	query = sqlite3_mprintf("INSERT OR REPLACE INTO '%q_preview' VALUES(%Q,%Q)", folder_name, uid, msg);
 
 	ret = camel_db_add_to_transaction (db, query, ex);
 	sqlite3_free (query);
@@ -1110,7 +1110,7 @@ camel_db_add_to_vfolder (CamelDB *db, gchar *folder_name, gchar *vuid, CamelExce
 }
 
 gint
-camel_db_add_to_vfolder_transaction (CamelDB *db, gchar *folder_name, gchar *vuid, CamelException *ex)
+camel_db_add_to_vfolder_transaction (CamelDB *db, const gchar *folder_name, const gchar *vuid, CamelException *ex)
 {
 	 gchar *ins_query;
 	 gint ret;
@@ -1143,12 +1143,12 @@ camel_db_create_message_info_table (CamelDB *cdb, const gchar *folder_name, Came
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	sqlite3_free (table_creation_query);
 
-	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS '%s_bodystructure' (  uid TEXT PRIMARY KEY , bodystructure TEXT )", folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS '%q_bodystructure' (  uid TEXT PRIMARY KEY , bodystructure TEXT )", folder_name);
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	sqlite3_free (table_creation_query);
 
 	/* Create message preview table. */
-	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS '%s_preview' (  uid TEXT PRIMARY KEY , preview TEXT)", folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE TABLE IF NOT EXISTS '%q_preview' (  uid TEXT PRIMARY KEY , preview TEXT)", folder_name);
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	sqlite3_free (table_creation_query);
 
@@ -1161,7 +1161,7 @@ camel_db_create_message_info_table (CamelDB *cdb, const gchar *folder_name, Came
 
 	/* INDEX on preview */
 	safe_index = g_strdup_printf("SINDEX-%s-preview", folder_name);
-	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON '%s_preview' (uid, preview)", safe_index, folder_name);
+	table_creation_query = sqlite3_mprintf ("CREATE INDEX IF NOT EXISTS %Q ON '%q_preview' (uid, preview)", safe_index, folder_name);
 	ret = camel_db_add_to_transaction (cdb, table_creation_query, ex);
 	g_free (safe_index);
 	sqlite3_free (table_creation_query);
@@ -1403,7 +1403,7 @@ write_mir (CamelDB *cdb, const gchar *folder_name, CamelMIRecord *record, CamelE
 	sqlite3_free (ins_query);
 
 	if (ret == 0) {
-		ins_query = sqlite3_mprintf ("INSERT OR REPLACE INTO '%s_bodystructure' VALUES (%Q, %Q )",
+		ins_query = sqlite3_mprintf ("INSERT OR REPLACE INTO '%q_bodystructure' VALUES (%Q, %Q )",
 				folder_name, record->uid, record->bodystructure);
 		ret = camel_db_add_to_transaction (cdb, ins_query, ex);
 		sqlite3_free (ins_query);
@@ -1578,7 +1578,7 @@ camel_db_delete_uid (CamelDB *cdb, const gchar *folder, const gchar *uid, CamelE
 
 	ret = camel_db_trim_deleted_table (cdb, ex);
 
-	tab = sqlite3_mprintf ("DELETE FROM '%s_bodystructure' WHERE uid = %Q", folder, uid);
+	tab = sqlite3_mprintf ("DELETE FROM '%q_bodystructure' WHERE uid = %Q", folder, uid);
 	ret = camel_db_add_to_transaction (cdb, tab, ex);
 	sqlite3_free (tab);
 
@@ -1690,7 +1690,7 @@ camel_db_clear_folder_summary (CamelDB *cdb, gchar *folder, CamelException *ex)
 
 	folders_del = sqlite3_mprintf ("DELETE FROM folders WHERE folder_name = %Q", folder);
 	msginfo_del = sqlite3_mprintf ("DELETE FROM %Q ", folder);
-	bstruct_del = sqlite3_mprintf ("DELETE FROM '%s_bodystructure' ", folder);
+	bstruct_del = sqlite3_mprintf ("DELETE FROM '%q_bodystructure' ", folder);
 
 	camel_db_begin_transaction (cdb, ex);
 
@@ -1740,7 +1740,7 @@ camel_db_delete_folder (CamelDB *cdb, const gchar *folder, CamelException *ex)
 	ret = camel_db_add_to_transaction (cdb, del, ex);
 	sqlite3_free (del);
 
-	del = sqlite3_mprintf ("DROP TABLE '%s_bodystructure' ", folder);
+	del = sqlite3_mprintf ("DROP TABLE '%q_bodystructure' ", folder);
 	ret = camel_db_add_to_transaction (cdb, del, ex);
 	sqlite3_free (del);
 

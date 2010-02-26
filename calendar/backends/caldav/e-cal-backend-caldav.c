@@ -518,7 +518,7 @@ check_state (ECalBackendCalDAV *cbdav, gboolean *online)
 
 	if (priv->mode == CAL_MODE_LOCAL) {
 
-		if (! priv->do_offline) {
+		if (!priv->do_offline) {
 			return GNOME_Evolution_Calendar_RepositoryOffline;
 		}
 
@@ -949,7 +949,7 @@ caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 
 	send_and_handle_redirection (priv->session, message, NULL);
 
-	if (! SOUP_STATUS_IS_SUCCESSFUL (message->status_code)) {
+	if (!SOUP_STATUS_IS_SUCCESSFUL (message->status_code)) {
 		guint status_code = message->status_code;
 
 		g_object_unref (message);
@@ -980,7 +980,7 @@ caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 	g_object_unref (message);
 
 	if (calendar_access) {
-		priv->read_only = ! (put_allowed && delete_allowed);
+		priv->read_only = !(put_allowed && delete_allowed);
 		return GNOME_Evolution_Calendar_Success;
 	}
 
@@ -2110,11 +2110,13 @@ caldav_get_static_capabilities (ECalBackendSync  *backend,
 
 	if (priv && priv->is_google)
 		*capabilities = g_strdup (CAL_STATIC_CAPABILITY_NO_THISANDFUTURE ","
-					  CAL_STATIC_CAPABILITY_NO_THISANDPRIOR);
+					  CAL_STATIC_CAPABILITY_NO_THISANDPRIOR ","
+					  CAL_STATIC_CAPABILITY_REFRESH_SUPPORTED);
 	else
 		*capabilities = g_strdup (CAL_STATIC_CAPABILITY_NO_EMAIL_ALARMS ","
 					  CAL_STATIC_CAPABILITY_NO_THISANDFUTURE ","
-					  CAL_STATIC_CAPABILITY_NO_THISANDPRIOR);
+					  CAL_STATIC_CAPABILITY_NO_THISANDPRIOR ","
+					  CAL_STATIC_CAPABILITY_REFRESH_SUPPORTED);
 
 	return GNOME_Evolution_Calendar_Success;
 }
@@ -2175,8 +2177,20 @@ initialize_backend (ECalBackendCalDAV *cbdav)
 
 		/* properly encode uri */
 		if (suri && suri->path) {
-			gchar *tmp = soup_uri_encode (suri->path, NULL);
-			gchar *path = soup_uri_normalize (tmp, "/");
+			gchar *tmp, *path;
+
+			if (suri->path && strchr (suri->path, '%')) {
+				/* If path contains anything already encoded, then decode it first,
+				   thus it'll be managed properly. For example, the '#' in a path
+				   is in URI shown as %23 and not doing this decode makes it being
+				   like %2523, which is not what is wanted here. */
+				tmp = soup_uri_decode (suri->path);
+				soup_uri_set_path (suri, tmp);
+				g_free (tmp);
+			}
+
+			tmp = soup_uri_encode (suri->path, NULL);
+			path = soup_uri_normalize (tmp, "/");
 
 			soup_uri_set_path (suri, path);
 
@@ -2377,6 +2391,35 @@ caldav_do_open (ECalBackendSync *backend,
 	g_mutex_unlock (priv->busy_lock);
 
 	return status;
+}
+
+static ECalBackendSyncStatus
+caldav_refresh (ECalBackendSync *backend, EDataCal *cal)
+{
+	ECalBackendCalDAV        *cbdav;
+	ECalBackendCalDAVPrivate *priv;
+	gboolean                  online;
+
+	cbdav = E_CAL_BACKEND_CALDAV (backend);
+	priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
+
+	g_mutex_lock (priv->busy_lock);
+
+	if (!priv->loaded
+	    || priv->slave_cmd != SLAVE_SHOULD_SLEEP
+	    || check_state (cbdav, &online) != GNOME_Evolution_Calendar_Success
+	    || !online) {
+		g_mutex_unlock (priv->busy_lock);
+		return GNOME_Evolution_Calendar_Success;
+	}
+
+	priv->slave_cmd = SLAVE_SHOULD_WORK;
+
+	/* wake it up */
+	g_cond_signal (priv->cond);
+	g_mutex_unlock (priv->busy_lock);
+
+	return GNOME_Evolution_Calendar_Success;
 }
 
 static ECalBackendSyncStatus
@@ -3370,6 +3413,11 @@ do_modify_object (ECalBackendCalDAV *cbdav, const gchar *calobj, CalObjModType m
 				cache_comp = icomp;
 			}
 
+			if (cache_comp && priv->is_google) {
+				icalcomponent_set_sequence (cache_comp, icalcomponent_get_sequence (cache_comp) + 1);
+				icalcomponent_set_sequence (new_comp, icalcomponent_get_sequence (new_comp) + 1);
+			}
+
 			/* add the detached instance finally */
 			icalcomponent_add_component (cache_comp, icalcomponent_new_clone (new_comp));
 		} else {
@@ -3907,43 +3955,6 @@ caldav_get_object (ECalBackendSync  *backend,
 }
 
 static ECalBackendSyncStatus
-caldav_get_timezone (ECalBackendSync  *backend,
-		     EDataCal         *cal,
-		     const gchar       *tzid,
-		     gchar            **object)
-{
-	ECalBackendCalDAV        *cbdav;
-	ECalBackendCalDAVPrivate *priv;
-	const icaltimezone       *zone;
-	icalcomponent            *icalcomp;
-
-	cbdav = E_CAL_BACKEND_CALDAV (backend);
-	priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
-
-	g_return_val_if_fail (tzid, GNOME_Evolution_Calendar_ObjectNotFound);
-
-	/* first try to get the timezone from the cache */
-	zone = e_cal_backend_store_get_timezone (priv->store, tzid);
-
-	if (!zone) {
-		zone = icaltimezone_get_builtin_timezone_from_tzid (tzid);
-		if (!zone) {
-			return GNOME_Evolution_Calendar_ObjectNotFound;
-		}
-	}
-
-	icalcomp = icaltimezone_get_component ((icaltimezone *) zone);
-
-	if (!icalcomp) {
-		return GNOME_Evolution_Calendar_InvalidObject;
-	}
-
-	*object = icalcomponent_as_ical_string_r (icalcomp);
-
-	return GNOME_Evolution_Calendar_Success;
-}
-
-static ECalBackendSyncStatus
 caldav_add_timezone (ECalBackendSync *backend,
 		     EDataCal        *cal,
 		     const gchar      *tzobj)
@@ -4387,26 +4398,18 @@ caldav_internal_get_timezone (ECalBackend *backend,
 			      const gchar *tzid)
 {
 	icaltimezone *zone;
+	ECalBackendCalDAV *cbdav;
+	ECalBackendCalDAVPrivate *priv;
 
-	zone = icaltimezone_get_builtin_timezone_from_tzid (tzid);
+	cbdav = E_CAL_BACKEND_CALDAV (backend);
+	priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
+	zone = NULL;
 
-	if (!zone) {
-		ECalBackendCalDAV *cbdav;
-		ECalBackendCalDAVPrivate *priv;
-
-		cbdav = E_CAL_BACKEND_CALDAV (backend);
-		priv  = E_CAL_BACKEND_CALDAV_GET_PRIVATE (cbdav);
-
-		if (priv->store)
-			zone = (icaltimezone *) e_cal_backend_store_get_timezone (priv->store, tzid);
-	}
+	if (priv->store)
+		zone = (icaltimezone *) e_cal_backend_store_get_timezone (priv->store, tzid);
 
 	if (!zone && E_CAL_BACKEND_CLASS (parent_class)->internal_get_timezone)
 		zone = E_CAL_BACKEND_CLASS (parent_class)->internal_get_timezone (backend, tzid);
-
-	if (!zone) {
-		zone = icaltimezone_get_utc_timezone ();
-	}
 
 	return zone;
 }
@@ -4596,6 +4599,7 @@ e_cal_backend_caldav_class_init (ECalBackendCalDAVClass *class)
 	sync_class->get_static_capabilities_sync = caldav_get_static_capabilities;
 
 	sync_class->open_sync                    = caldav_do_open;
+	sync_class->refresh_sync                 = caldav_refresh;
 	sync_class->remove_sync                  = caldav_remove;
 
 	sync_class->create_object_sync = caldav_create_object;
@@ -4608,7 +4612,6 @@ e_cal_backend_caldav_class_init (ECalBackendCalDAVClass *class)
 	sync_class->get_default_object_sync   = caldav_get_default_object;
 	sync_class->get_object_sync           = caldav_get_object;
 	sync_class->get_object_list_sync      = caldav_get_object_list;
-	sync_class->get_timezone_sync         = caldav_get_timezone;
 	sync_class->add_timezone_sync         = caldav_add_timezone;
 	sync_class->set_default_zone_sync = caldav_set_default_zone;
 	sync_class->get_freebusy_sync         = caldav_get_free_busy;

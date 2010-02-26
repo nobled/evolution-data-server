@@ -32,6 +32,8 @@
 #include "e-gw-connection.h"
 #include "e-gw-message.h"
 
+G_DEFINE_TYPE (EGwItem, e_gw_item, G_TYPE_OBJECT)
+
 struct _EGwItemPrivate {
 	EGwItemType item_type;
 	gchar *container;
@@ -537,7 +539,7 @@ e_gw_item_class_init (EGwItemClass *klass)
 }
 
 static void
-e_gw_item_init (EGwItem *item, EGwItemClass *klass)
+e_gw_item_init (EGwItem *item)
 {
 	EGwItemPrivate *priv;
 
@@ -583,28 +585,6 @@ e_gw_item_init (EGwItem *item, EGwItemClass *klass)
 	priv->parent_threads = NULL;
 	item->priv = priv;
 
-}
-
-GType
-e_gw_item_get_type (void)
-{
-	static GType type = 0;
-
-	if (!type) {
-		static GTypeInfo info = {
-			sizeof (EGwItemClass),
-			(GBaseInitFunc) NULL,
-			(GBaseFinalizeFunc) NULL,
-			(GClassInitFunc) e_gw_item_class_init,
-			NULL, NULL,
-			sizeof (EGwItem),
-			0,
-			(GInstanceInitFunc) e_gw_item_init
-		};
-		type = g_type_register_static (G_TYPE_OBJECT, "EGwItem", &info, 0);
-	}
-
-	return type;
 }
 
 void
@@ -693,7 +673,7 @@ set_recipient_list_from_soap_parameter (EGwItem *item, SoupSoapParameter *param)
 			SoupSoapParameter *temp_param;
 
 			recipient->status_enabled = TRUE;
-			if ( (temp_param = soup_soap_parameter_get_first_child_by_name (subparam, "deleted")) ) {
+			if ((temp_param = soup_soap_parameter_get_first_child_by_name (subparam, "deleted"))) {
 				recipient->status = E_GW_ITEM_STAT_DELETED;
 				value = soup_soap_parameter_get_string_value (temp_param);
 				formatted_date = e_gw_connection_format_date_string (value);
@@ -701,7 +681,7 @@ set_recipient_list_from_soap_parameter (EGwItem *item, SoupSoapParameter *param)
 				g_free (value), value = NULL;
 				g_free (formatted_date), formatted_date = NULL;
 			}
-			if ( (temp_param = soup_soap_parameter_get_first_child_by_name (subparam, "declined")) ) {
+			if ((temp_param = soup_soap_parameter_get_first_child_by_name (subparam, "declined"))) {
 				recipient->status = E_GW_ITEM_STAT_DECLINED;
 				value = soup_soap_parameter_get_string_value (temp_param);
 				formatted_date = e_gw_connection_format_date_string (value);
@@ -791,7 +771,7 @@ set_sendoptions_from_soap_parameter (EGwItem *item, SoupSoapParameter *param)
 
 	priv = item->priv;
 
-	if ( (subparam = soup_soap_parameter_get_first_child_by_name (param, "requestReply")) ) {
+	if ((subparam = soup_soap_parameter_get_first_child_by_name (param, "requestReply"))) {
 		child = soup_soap_parameter_get_first_child_by_name (subparam, "whenConvenient");
 		if (child) {
 			value = soup_soap_parameter_get_string_value (child);

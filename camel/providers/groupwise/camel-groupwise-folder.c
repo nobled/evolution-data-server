@@ -689,16 +689,15 @@ sync_flags (CamelFolder *folder, GList *uids)
 	}
 }
 
-
 static gboolean
 groupwise_set_message_flags (CamelFolder *folder, const gchar *uid, guint32 flags, guint32 set)
 {
 	CamelMessageInfo *info;
 	gint res;
 	const gchar *sync_immediately;
-	
+
 	g_return_val_if_fail (folder->summary != NULL, FALSE);
-	
+
 	info = camel_folder_summary_uid (folder->summary, uid);
 	if (info == NULL)
 		return FALSE;
@@ -706,12 +705,12 @@ groupwise_set_message_flags (CamelFolder *folder, const gchar *uid, guint32 flag
 	res = camel_message_info_set_flags (info, flags, set);
 
 	sync_immediately = g_getenv ("GW_SYNC_IMMEDIATE");
-	
+
 	if (sync_immediately) {
 		CamelException ex;
-		
+
 		camel_exception_init (&ex);
-		groupwise_sync (folder, FALSE, info, &ex); 
+		groupwise_sync (folder, FALSE, info, &ex);
 		camel_exception_clear (&ex);
 	}
 
@@ -722,7 +721,7 @@ groupwise_set_message_flags (CamelFolder *folder, const gchar *uid, guint32 flag
 static void
 groupwise_sync_all (CamelFolder *folder, gboolean expunge, CamelException *ex)
 {
-	groupwise_sync (folder, expunge, NULL, ex);	
+	groupwise_sync (folder, expunge, NULL, ex);
 }
 
 /* This may need to be reorganized. */
@@ -745,14 +744,10 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_
 
 	deleted_items = deleted_head = NULL;
 
-	if (((CamelOfflineStore *) gw_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL ||
-			((CamelService *)gw_store)->status == CAMEL_SERVICE_DISCONNECTED) {
+	if (((CamelOfflineStore *) gw_store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
 		groupwise_sync_summary (folder, ex);
 		return;
 	}
-	cnc = cnc_lookup (priv);
-
-	container_id =  camel_groupwise_store_container_id_lookup (gw_store, folder->full_name);
 
 	CAMEL_SERVICE_REC_LOCK (gw_store, connect_lock);
 	if (!camel_groupwise_store_connected (gw_store, ex)) {
@@ -762,6 +757,9 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_
 	}
 	CAMEL_SERVICE_REC_UNLOCK (gw_store, connect_lock);
 
+	cnc = cnc_lookup (priv);
+	container_id =  camel_groupwise_store_container_id_lookup (gw_store, folder->full_name);
+
 	if (folder->folder_flags & CAMEL_FOLDER_HAS_BEEN_DELETED)
 		return;
 
@@ -769,7 +767,7 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_
 	CAMEL_GROUPWISE_FOLDER_REC_LOCK (folder, cache_lock);
 	for (i=0; i < count; i++) {
 		guint32 flags = 0;
-		
+
 		if (update_single != NULL) {
 			info = update_single;
 			camel_message_info_ref (info);
@@ -881,7 +879,7 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_
 				}
 			}
 		}
-		
+
 		camel_message_info_free (info);
 	}
 
@@ -1352,7 +1350,7 @@ groupwise_refresh_folder(CamelFolder *folder, CamelException *ex)
 	if (!is_proxy) {
 		const gchar *source;
 
-		if ( !strcmp (folder->full_name, RECEIVED) || !strcmp(folder->full_name, SENT) ) {
+		if (!strcmp (folder->full_name, RECEIVED) || !strcmp(folder->full_name, SENT)) {
 			source = NULL;
 		} else {
 			source = "sent received";
@@ -2162,7 +2160,7 @@ groupwise_folder_item_to_msg( CamelFolder *folder,
 			     !g_ascii_strcasecmp (attach->name, "meeting.ics")) && (attach->hidden == TRUE))
 				continue;
 
-			if ( (attach->item_reference) && (!g_ascii_strcasecmp (attach->item_reference, "1")) ) {
+			if ((attach->item_reference) && (!g_ascii_strcasecmp (attach->item_reference, "1"))) {
 				CamelMimeMessage *temp_msg = NULL;
 				status = e_gw_connection_get_item (cnc, container_id, attach->id, GET_ITEM_VIEW_WITH_CACHE, &temp_item);
 				if (status != E_GW_CONNECTION_STATUS_OK) {
@@ -2503,7 +2501,7 @@ groupwise_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 				break;
 
 			if (delete_originals) {
-				if ( !strcmp(source->full_name, SENT) ) {
+				if (!strcmp(source->full_name, SENT)) {
 					camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
 							_("This message is not available in offline mode."));
 
