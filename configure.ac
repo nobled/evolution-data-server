@@ -1181,6 +1181,13 @@ PKG_CHECK_MODULES(DBUS_GLIB, dbus-glib-1 >= dbus_glib_minimum_version)
 AC_SUBST(DBUS_GLIB_CFLAGS)
 AC_SUBST(DBUS_GLIB_LIBS)
 
+dnl ******************************
+dnl EDBus stuff
+dnl ******************************
+PKG_CHECK_MODULES(EDBUS, gthread-2.0 glib-2.0 gobject-2.0 gio-2.0 dbus-1)
+AC_SUBST(EDBUS_CFLAGS)
+AC_SUBST(EDBUS_LIBS)
+
 dnl ***********************
 dnl Gnome keyring support
 dnl ***********************
@@ -1494,8 +1501,8 @@ camel/tests/smime/Makefile
 camel/tests/stream/Makefile
 camel/camel.pc
 camel/camel-provider.pc
-libedbus/Makefile
-libedbus/tests/Makefile
+edbus/Makefile
+edbus/tests/Makefile
 libebackend/Makefile
 libebackend/libebackend.pc
 libedataserver/Makefile

@@ -6,8 +6,8 @@ if ENABLE_CALENDAR
 CALENDAR_DIR = calendar
 endif
 
-SUBDIRS = win32 libedataserver libebackend servers camel addressbook $(CALENDAR_DIR) libedataserverui docs art po libedbus
-DIST_SUBDIRS = win32 libedataserver libebackend servers camel addressbook calendar libedataserverui docs art po libedbus
+SUBDIRS = win32 libedataserver libebackend servers camel addressbook $(CALENDAR_DIR) libedataserverui docs art po edbus
+DIST_SUBDIRS = win32 libedataserver libebackend servers camel addressbook calendar libedataserverui docs art po edbus
 
 changelogs =			\
 	ChangeLog
