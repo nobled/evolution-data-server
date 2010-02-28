@@ -46,8 +46,6 @@ struct _CamelDigestFolderPrivate {
 #define CAMEL_DIGEST_FOLDER_LOCK(f, l) (g_mutex_lock(((CamelDigestFolder *)f)->priv->l))
 #define CAMEL_DIGEST_FOLDER_UNLOCK(f, l) (g_mutex_unlock(((CamelDigestFolder *)f)->priv->l))
 
-static gpointer parent_class;
-
 static gboolean digest_refresh_info (CamelFolder *folder, GError **error);
 static gboolean digest_sync (CamelFolder *folder, gboolean expunge, GError **error);
 static const gchar *digest_get_full_name (CamelFolder *folder);
@@ -69,6 +67,8 @@ static GPtrArray *digest_search_by_uids (CamelFolder *folder, const gchar *expre
 					 GPtrArray *uids, GError **error);
 
 static void digest_search_free (CamelFolder *folder, GPtrArray *result);
+
+G_DEFINE_TYPE (CamelDigestFolder, camel_digest_folder, CAMEL_TYPE_FOLDER)
 
 static void
 digest_dispose (GObject *object)
@@ -95,7 +95,7 @@ digest_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_digest_folder_parent_class)->dispose (object);
 }
 
 static void
@@ -108,16 +108,15 @@ digest_finalize (GObject *object)
 	g_mutex_free (priv->search_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_digest_folder_parent_class)->finalize (object);
 }
 
 static void
-digest_folder_class_init (CamelDigestFolderClass *class)
+camel_digest_folder_class_init (CamelDigestFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelFolderClass *folder_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelDigestFolderPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -138,7 +137,7 @@ digest_folder_class_init (CamelDigestFolderClass *class)
 }
 
 static void
-digest_folder_init (CamelDigestFolder *digest_folder)
+camel_digest_folder_init (CamelDigestFolder *digest_folder)
 {
 	CamelFolder *folder = CAMEL_FOLDER (digest_folder);
 
@@ -150,24 +149,6 @@ digest_folder_init (CamelDigestFolder *digest_folder)
 	digest_folder->priv->message = NULL;
 	digest_folder->priv->search = NULL;
 	digest_folder->priv->search_lock = g_mutex_new ();
-}
-
-GType
-camel_digest_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER,
-			"CamelDigestFolder",
-			sizeof (CamelDigestFolderClass),
-			(GClassInitFunc) digest_folder_class_init,
-			sizeof (CamelDigestFolder),
-			(GInstanceInitFunc) digest_folder_init,
-			0);
-
-	return type;
 }
 
 static gboolean

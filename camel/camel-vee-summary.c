@@ -41,9 +41,9 @@
 
 #define d(x)
 
-static gpointer parent_class;
-
 static const gchar *unread_str = " (and\n  \n     (match-all (not (system-flag  \"Seen\")))\n    \n  )\n;  (or\n  \n     (match-all (not (system-flag  \"Seen\")))\n    \n  )\n; (match-threads \"all\"  (and\n  \n     (match-all (not (system-flag  \"Seen\")))\n    \n  )\n)\n;  (match-threads \"all\"  (or\n  \n     (match-all (not (system-flag  \"Seen\")))\n    \n  )\n)\n;";
+
+G_DEFINE_TYPE (CamelVeeSummary, camel_vee_summary, CAMEL_TYPE_FOLDER_SUMMARY)
 
 static void
 vee_message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
@@ -381,11 +381,9 @@ message_info_from_uid (CamelFolderSummary *s, const gchar *uid)
 }
 
 static void
-vee_summary_class_init (CamelVeeSummaryClass *class)
+camel_vee_summary_class_init (CamelVeeSummaryClass *class)
 {
 	CamelFolderSummaryClass *folder_summary_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
 	folder_summary_class->message_info_size = sizeof (CamelVeeMessageInfo);
@@ -403,22 +401,9 @@ vee_summary_class_init (CamelVeeSummaryClass *class)
 	folder_summary_class->message_info_from_uid = message_info_from_uid;
 }
 
-GType
-camel_vee_summary_get_type (void)
+static void
+camel_vee_summary_init (CamelVeeSummary *vee_summary)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER_SUMMARY,
-			"CamelVeeSummary",
-			sizeof (CamelVeeSummaryClass),
-			(GClassInitFunc) vee_summary_class_init,
-			sizeof (CamelVeeSummary),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

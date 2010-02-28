@@ -99,7 +99,7 @@ static struct {
 
 static GHashTable *enriched_hash = NULL;
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterEnriched, camel_mime_filter_enriched, CAMEL_TYPE_MIME_FILTER)
 
 #if 0
 static gboolean
@@ -523,12 +523,11 @@ mime_filter_enriched_reset (CamelMimeFilter *filter)
 }
 
 static void
-mime_filter_enriched_class_init (CamelMimeFilterEnrichedClass *class)
+camel_mime_filter_enriched_class_init (CamelMimeFilterEnrichedClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 	gint i;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterEnrichedPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -546,27 +545,9 @@ mime_filter_enriched_class_init (CamelMimeFilterEnrichedClass *class)
 }
 
 static void
-mime_filter_enriched_init (CamelMimeFilterEnriched *filter)
+camel_mime_filter_enriched_init (CamelMimeFilterEnriched *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (filter);
-}
-
-GType
-camel_mime_filter_enriched_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterEnriched",
-			sizeof (CamelMimeFilterEnrichedClass),
-			(GClassInitFunc) mime_filter_enriched_class_init,
-			sizeof (CamelMimeFilterEnriched),
-			(GInstanceInitFunc) mime_filter_enriched_init,
-			0);
-
-	return type;
 }
 
 /**

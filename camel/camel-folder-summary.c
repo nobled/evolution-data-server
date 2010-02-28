@@ -134,7 +134,7 @@ static CamelMessageContentInfo * summary_build_content_info_message(CamelFolderS
 
 static CamelMessageInfo * message_info_from_uid (CamelFolderSummary *s, const gchar *uid);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelFolderSummary, camel_folder_summary, CAMEL_TYPE_OBJECT)
 
 static void
 free_o_name(gpointer key, gpointer value, gpointer data)
@@ -191,7 +191,7 @@ folder_summary_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_folder_summary_parent_class)->dispose (object);
 }
 
 static void
@@ -223,7 +223,7 @@ folder_summary_finalize (GObject *object)
 	g_mutex_free(summary->priv->ref_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_folder_summary_parent_class)->finalize (object);
 }
 
 static	gint
@@ -848,11 +848,10 @@ info_set_flags(CamelMessageInfo *info, guint32 flags, guint32 set)
 }
 
 static void
-folder_summary_class_init (CamelFolderSummaryClass *class)
+camel_folder_summary_class_init (CamelFolderSummaryClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelFolderSummaryPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -911,7 +910,7 @@ folder_summary_class_init (CamelFolderSummaryClass *class)
 }
 
 static void
-folder_summary_init (CamelFolderSummary *summary)
+camel_folder_summary_init (CamelFolderSummary *summary)
 {
 	summary->priv = CAMEL_FOLDER_SUMMARY_GET_PRIVATE (summary);
 
@@ -950,24 +949,6 @@ folder_summary_init (CamelFolderSummary *summary)
 	summary->meta_summary->uid_len = 20;
 	summary->cache_load_time = 0;
 	summary->timeout_handle = 0;
-}
-
-GType
-camel_folder_summary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelFolderSummary",
-			sizeof (CamelFolderSummaryClass),
-			(GClassInitFunc) folder_summary_class_init,
-			sizeof (CamelFolderSummary),
-			(GInstanceInitFunc) folder_summary_init,
-			0);
-
-	return type;
 }
 
 /**

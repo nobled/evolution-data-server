@@ -39,8 +39,6 @@ static void imap4_search_finalize (CamelObject *object);
 
 static ESExpResult *imap4_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFolderSearch *search);
 
-static gpointer parent_class;
-
 GType
 camel_imap4_search_get_type (void)
 {
@@ -64,8 +62,6 @@ static void
 camel_imap4_search_class_init (CamelIMAP4SearchClass *class)
 {
 	CamelFolderSearchClass *search_class = (CamelFolderSearchClass *) class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	search_class->body_contains = imap4_body_contains;
 }
@@ -146,7 +142,7 @@ imap4_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Ca
 	gchar *set;
 
 	if (((CamelOfflineStore *) engine->service)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
-		return parent_class->body_contains (f, argc, argv, search);
+		return camel_imap4_search_parent_class->body_contains (f, argc, argv, search);
 
 	summary_set = search->summary_set ? search->summary_set : search->summary;
 

@@ -43,7 +43,7 @@ struct _CamelMimeFilterWindowsPrivate {
 	gchar *claimed_charset;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterWindows, camel_mime_filter_windows, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_windows_finalize (GObject *object)
@@ -55,7 +55,7 @@ mime_filter_windows_finalize (GObject *object)
 	g_free (priv->claimed_charset);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_mime_filter_windows_parent_class)->finalize (object);
 }
 
 static void
@@ -118,12 +118,11 @@ mime_filter_windows_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_windows_class_init (CamelMimeFilterWindowsClass *class)
+camel_mime_filter_windows_class_init (CamelMimeFilterWindowsClass *class)
 {
 	GObjectClass *object_class;
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterWindowsPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -136,27 +135,9 @@ mime_filter_windows_class_init (CamelMimeFilterWindowsClass *class)
 }
 
 static void
-mime_filter_windows_init (CamelMimeFilterWindows *filter)
+camel_mime_filter_windows_init (CamelMimeFilterWindows *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_WINDOWS_GET_PRIVATE (filter);
-}
-
-GType
-camel_mime_filter_windows_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterWindows",
-			sizeof (CamelMimeFilterWindowsClass),
-			(GClassInitFunc) mime_filter_windows_class_init,
-			sizeof (CamelMimeFilterWindows),
-			(GInstanceInitFunc) mime_filter_windows_init,
-			0);
-
-	return type;
 }
 
 /**

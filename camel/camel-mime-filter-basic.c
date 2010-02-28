@@ -35,7 +35,7 @@ struct _CamelMimeFilterBasicPrivate {
 	gint save;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterBasic, camel_mime_filter_basic, CAMEL_TYPE_MIME_FILTER)
 
 /* here we do all of the basic mime filtering */
 static void
@@ -234,11 +234,10 @@ mime_filter_basic_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_basic_class_init (CamelMimeFilterBasicClass *class)
+camel_mime_filter_basic_class_init (CamelMimeFilterBasicClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterBasicPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -248,27 +247,9 @@ mime_filter_basic_class_init (CamelMimeFilterBasicClass *class)
 }
 
 static void
-mime_filter_basic_init (CamelMimeFilterBasic *filter)
+camel_mime_filter_basic_init (CamelMimeFilterBasic *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_BASIC_GET_PRIVATE (filter);
-}
-
-GType
-camel_mime_filter_basic_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterBasic",
-			sizeof (CamelMimeFilterBasicClass),
-			(GClassInitFunc) mime_filter_basic_class_init,
-			sizeof (CamelMimeFilterBasic),
-			(GInstanceInitFunc) mime_filter_basic_init,
-			0);
-
-	return type;
 }
 
 /**

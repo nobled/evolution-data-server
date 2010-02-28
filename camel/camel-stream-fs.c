@@ -48,7 +48,7 @@ struct _CamelStreamFsPrivate {
 	gint fd;	/* file descriptor on the underlying file */
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStreamFs, camel_stream_fs, CAMEL_TYPE_SEEKABLE_STREAM)
 
 static void
 stream_fs_finalize (GObject *object)
@@ -61,7 +61,7 @@ stream_fs_finalize (GObject *object)
 		close (priv->fd);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_stream_fs_parent_class)->finalize (object);
 }
 
 static gssize
@@ -209,13 +209,12 @@ stream_fs_seek (CamelSeekableStream *stream,
 }
 
 static void
-stream_fs_class_init (CamelStreamFsClass *class)
+camel_stream_fs_class_init (CamelStreamFsClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 	CamelSeekableStreamClass *seekable_stream_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelStreamFsPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -232,30 +231,12 @@ stream_fs_class_init (CamelStreamFsClass *class)
 }
 
 static void
-stream_fs_init (CamelStreamFs *stream)
+camel_stream_fs_init (CamelStreamFs *stream)
 {
 	stream->priv = CAMEL_STREAM_FS_GET_PRIVATE (stream);
 	stream->priv->fd = -1;
 
 	CAMEL_SEEKABLE_STREAM (stream)->bound_end = CAMEL_STREAM_UNBOUND;
-}
-
-GType
-camel_stream_fs_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SEEKABLE_STREAM,
-			"CamelStreamFs",
-			sizeof (CamelStreamFsClass),
-			(GClassInitFunc) stream_fs_class_init,
-			sizeof (CamelStreamFs),
-			(GInstanceInitFunc) stream_fs_init,
-			0);
-
-	return type;
 }
 
 /**

@@ -91,7 +91,7 @@ typedef enum {
 static GHashTable *header_name_table;
 static GHashTable *header_formatted_table;
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimePart, camel_mime_part, CAMEL_TYPE_MEDIUM)
 
 static gssize
 write_raw (CamelStream *stream,
@@ -389,7 +389,7 @@ mime_part_finalize (GObject *object)
 	g_queue_free (priv->raw_headers);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_mime_part_parent_class)->finalize (object);
 }
 
 static void
@@ -495,7 +495,7 @@ mime_part_set_content (CamelMedium *medium,
 	CamelContentType *content_type;
 
 	/* Chain up to parent's set_content() method. */
-	medium_class = CAMEL_MEDIUM_CLASS (parent_class);
+	medium_class = CAMEL_MEDIUM_CLASS (camel_mime_part_parent_class);
 	medium_class->set_content (medium, content);
 
 	content_type = camel_data_wrapper_get_mime_type_field (content);
@@ -778,13 +778,12 @@ mime_part_construct_from_parser (CamelMimePart *mime_part,
 }
 
 static void
-mime_part_class_init (CamelMimePartClass *class)
+camel_mime_part_class_init (CamelMimePartClass *class)
 {
 	GObjectClass *object_class;
 	CamelMediumClass *medium_class;
 	CamelDataWrapperClass *data_wrapper_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimePartPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -851,7 +850,7 @@ mime_part_class_init (CamelMimePartClass *class)
 }
 
 static void
-mime_part_init (CamelMimePart *mime_part)
+camel_mime_part_init (CamelMimePart *mime_part)
 {
 	CamelDataWrapper *data_wrapper;
 
@@ -865,24 +864,6 @@ mime_part_init (CamelMimePart *mime_part)
 		camel_content_type_unref (data_wrapper->mime_type);
 
 	data_wrapper->mime_type = camel_content_type_new ("text", "plain");
-}
-
-GType
-camel_mime_part_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MEDIUM,
-			"CamelMimePart",
-			sizeof (CamelMimePartClass),
-			(GClassInitFunc) mime_part_class_init,
-			sizeof (CamelMimePart),
-			(GInstanceInitFunc) mime_part_init,
-			0);
-
-	return type;
 }
 
 /* **** Content-Description */

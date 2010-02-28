@@ -38,8 +38,6 @@
 
 #define d(x)
 
-static gpointer parent_class;
-
 static gboolean pop3_refresh_info (CamelFolder *folder, GError **error);
 static gboolean pop3_sync (CamelFolder *folder, gboolean expunge, GError **error);
 static gint pop3_get_message_count (CamelFolder *folder);
@@ -47,6 +45,8 @@ static GPtrArray *pop3_get_uids (CamelFolder *folder);
 static CamelMimeMessage *pop3_get_message (CamelFolder *folder, const gchar *uid, GError **error);
 static gboolean pop3_set_message_flags (CamelFolder *folder, const gchar *uid, guint32 flags, guint32 set);
 static gchar * pop3_get_filename (CamelFolder *folder, const gchar *uid, GError **error);
+
+G_DEFINE_TYPE (CamelPOP3Folder, camel_pop3_folder, CAMEL_TYPE_FOLDER)
 
 static void
 pop3_folder_finalize (GObject *object)
@@ -73,7 +73,7 @@ pop3_folder_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_pop3_folder_parent_class)->finalize (object);
 }
 
 static void
@@ -81,8 +81,6 @@ camel_pop3_folder_class_init (CamelPOP3FolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelFolderClass *folder_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = pop3_folder_finalize;
@@ -98,22 +96,9 @@ camel_pop3_folder_class_init (CamelPOP3FolderClass *class)
 	folder_class->set_message_flags = pop3_set_message_flags;
 }
 
-GType
-camel_pop3_folder_get_type (void)
+static void
+camel_pop3_folder_init (CamelPOP3Folder *pop3_folder)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER,
-			"CamelPOP3Folder",
-			sizeof (CamelPOP3FolderClass),
-			(GClassInitFunc) camel_pop3_folder_class_init,
-			sizeof (CamelPOP3Folder),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 CamelFolder *

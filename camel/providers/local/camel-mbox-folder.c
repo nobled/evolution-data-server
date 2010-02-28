@@ -46,8 +46,6 @@
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
-static gpointer parent_class;
-
 static gint mbox_lock(CamelLocalFolder *lf, CamelLockType type, GError **error);
 static void mbox_unlock(CamelLocalFolder *lf);
 
@@ -58,13 +56,13 @@ static gchar * mbox_get_filename (CamelFolder *folder, const gchar *uid, GError 
 static gint mbox_cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2);
 static void mbox_sort_uids (CamelFolder *folder, GPtrArray *uids);
 
+G_DEFINE_TYPE (CamelMboxFolder, camel_mbox_folder, CAMEL_TYPE_LOCAL_FOLDER)
+
 static void
-mbox_folder_class_init (CamelMboxFolderClass *class)
+camel_mbox_folder_class_init (CamelMboxFolderClass *class)
 {
 	CamelFolderClass *folder_class;
 	CamelLocalFolderClass *local_folder_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	folder_class = CAMEL_FOLDER_CLASS (class);
 	folder_class->append_message = mbox_append_message;
@@ -80,27 +78,9 @@ mbox_folder_class_init (CamelMboxFolderClass *class)
 }
 
 static void
-mbox_folder_init (CamelMboxFolder *mbox_folder)
+camel_mbox_folder_init (CamelMboxFolder *mbox_folder)
 {
 	mbox_folder->lockfd = -1;
-}
-
-GType
-camel_mbox_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_FOLDER,
-			"CamelMboxFolder",
-			sizeof (CamelMboxFolderClass),
-			(GClassInitFunc) mbox_folder_class_init,
-			sizeof (CamelMboxFolder),
-			(GInstanceInitFunc) mbox_folder_init,
-			0);
-
-	return type;
 }
 
 CamelFolder *
@@ -505,12 +485,12 @@ mbox_cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2)
 static void
 mbox_sort_uids (CamelFolder *folder, GPtrArray *uids)
 {
-	g_return_if_fail (parent_class != NULL);
+	g_return_if_fail (camel_mbox_folder_parent_class != NULL);
 	g_return_if_fail (folder != NULL);
 
 	if (uids && uids->len > 1)
 		camel_folder_summary_ensure_infos_loaded (
 			folder->summary, uids->len, NULL);
 
-	CAMEL_FOLDER_CLASS (parent_class)->sort_uids (folder, uids);
+	CAMEL_FOLDER_CLASS (camel_mbox_folder_parent_class)->sort_uids (folder, uids);
 }

@@ -86,7 +86,7 @@ enum {
 	PROP_ALWAYS_TRUST
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelGpgContext, camel_gpg_context, CAMEL_TYPE_CIPHER_CONTEXT)
 
 static const gchar *
 gpg_hash_to_id (CamelCipherContext *context, CamelCipherHash hash)
@@ -2130,12 +2130,11 @@ gpg_context_get_property (GObject *object,
 }
 
 static void
-gpg_context_class_init (CamelGpgContextClass *class)
+camel_gpg_context_class_init (CamelGpgContextClass *class)
 {
 	GObjectClass *object_class;
 	CamelCipherContextClass *cipher_context_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelGpgContextClass));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -2168,27 +2167,9 @@ gpg_context_class_init (CamelGpgContextClass *class)
 }
 
 static void
-gpg_context_init (CamelGpgContext *context)
+camel_gpg_context_init (CamelGpgContext *context)
 {
 	context->priv = CAMEL_GPG_CONTEXT_GET_PRIVATE (context);
-}
-
-GType
-camel_gpg_context_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_CIPHER_CONTEXT,
-			"CamelGpgContext",
-			sizeof (CamelGpgContextClass),
-			(GClassInitFunc) gpg_context_class_init,
-			sizeof (CamelGpgContext),
-			(GInstanceInitFunc) gpg_context_init,
-			0);
-
-	return type;
 }
 
 /**

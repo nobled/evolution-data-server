@@ -57,7 +57,7 @@ static void certdb_cert_free (CamelCertDB *certdb, CamelCert *cert);
 static const gchar *cert_get_string (CamelCertDB *certdb, CamelCert *cert, gint string);
 static void cert_set_string (CamelCertDB *certdb, CamelCert *cert, gint string, const gchar *value);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelCertDB, camel_certdb, CAMEL_TYPE_OBJECT)
 
 static void
 certdb_finalize (GObject *object)
@@ -85,15 +85,14 @@ certdb_finalize (GObject *object)
 	g_mutex_free (priv->ref_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_certdb_parent_class)->finalize (object);
 }
 
 static void
-certdb_class_init (CamelCertDBClass *class)
+camel_certdb_class_init (CamelCertDBClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelCertDBPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -111,7 +110,7 @@ certdb_class_init (CamelCertDBClass *class)
 }
 
 static void
-certdb_init (CamelCertDB *certdb)
+camel_certdb_init (CamelCertDB *certdb)
 {
 	certdb->priv = CAMEL_CERTDB_GET_PRIVATE (certdb);
 
@@ -130,24 +129,6 @@ certdb_init (CamelCertDB *certdb)
 	certdb->priv->io_lock = g_mutex_new ();
 	certdb->priv->alloc_lock = g_mutex_new ();
 	certdb->priv->ref_lock = g_mutex_new ();
-}
-
-GType
-camel_certdb_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelCertDB",
-			sizeof (CamelCertDBClass),
-			(GClassInitFunc) certdb_class_init,
-			sizeof (CamelCertDB),
-			(GInstanceInitFunc) certdb_init,
-			0);
-
-	return type;
 }
 
 CamelCertDB *

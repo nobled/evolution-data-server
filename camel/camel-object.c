@@ -38,7 +38,7 @@
 #define b(x)			/* object bag */
 #define h(x)			/* hooks */
 
-static gpointer parent_class;
+G_DEFINE_ABSTRACT_TYPE (CamelObject, camel_object, G_TYPE_OBJECT)
 
 /* ** Quickie type system ************************************************* */
 
@@ -514,15 +514,13 @@ object_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_object_parent_class)->dispose (object);
 }
 
 static void
-object_class_init (CamelObjectClass *class)
+camel_object_class_init (CamelObjectClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = object_dispose;
@@ -541,22 +539,9 @@ object_class_init (CamelObjectClass *class)
 	camel_object_class_add_event (class, "finalize", NULL);
 }
 
-GType
-camel_object_get_type(void)
+static void
+camel_object_init (CamelObject *object)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			G_TYPE_OBJECT,
-			"CamelObject",
-			sizeof (CamelObjectClass),
-			(GClassInitFunc) object_class_init,
-			sizeof (CamelObject),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 GQuark

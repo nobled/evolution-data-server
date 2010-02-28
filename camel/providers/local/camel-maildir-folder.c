@@ -41,8 +41,6 @@
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
-static gpointer parent_class;
-
 static CamelLocalSummary *maildir_create_summary(CamelLocalFolder *lf, const gchar *path, const gchar *folder, CamelIndex *index);
 
 static gboolean maildir_append_message(CamelFolder * folder, CamelMimeMessage * message, const CamelMessageInfo *info, gchar **appended_uid, GError **error);
@@ -51,6 +49,8 @@ static gchar * maildir_get_filename (CamelFolder *folder, const gchar *uid, GErr
 static gint maildir_cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2);
 static void maildir_sort_uids (CamelFolder *folder, GPtrArray *uids);
 static gboolean maildir_transfer_messages_to (CamelFolder *source, GPtrArray *uids, CamelFolder *dest, GPtrArray **transferred_uids, gboolean delete_originals, GError **error);
+
+G_DEFINE_TYPE (CamelMaildirFolder, camel_maildir_folder, CAMEL_TYPE_LOCAL_FOLDER)
 
 static gint
 maildir_folder_getv (CamelObject *object,
@@ -80,17 +80,15 @@ maildir_folder_getv (CamelObject *object,
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return ((CamelObjectClass *)parent_class)->getv(object, error, args);
+	return ((CamelObjectClass *)camel_maildir_folder_parent_class)->getv(object, error, args);
 }
 
 static void
-maildir_folder_class_init (CamelObjectClass *class)
+camel_maildir_folder_class_init (CamelMaildirFolderClass *class)
 {
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
 	CamelLocalFolderClass *local_folder_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	camel_object_class = CAMEL_OBJECT_CLASS (class);
 	camel_object_class->getv = maildir_folder_getv;
@@ -107,22 +105,9 @@ maildir_folder_class_init (CamelObjectClass *class)
 	local_folder_class->create_summary = maildir_create_summary;
 }
 
-GType
-camel_maildir_folder_get_type (void)
+static void
+camel_maildir_folder_init (CamelMaildirFolder *maildir_folder)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_FOLDER,
-			"CamelMaildirFolder",
-			sizeof (CamelMaildirFolderClass),
-			(GClassInitFunc) maildir_folder_class_init,
-			sizeof (CamelMaildirFolder),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 CamelFolder *
@@ -374,7 +359,7 @@ static void
 maildir_sort_uids (CamelFolder *folder,
                    GPtrArray *uids)
 {
-	g_return_if_fail (parent_class != NULL);
+	g_return_if_fail (camel_maildir_folder_parent_class != NULL);
 	g_return_if_fail (folder != NULL);
 
 	if (uids && uids->len > 1)
@@ -382,7 +367,7 @@ maildir_sort_uids (CamelFolder *folder,
 			folder->summary, uids->len, NULL);
 
 	/* Chain up to parent's sort_uids() method. */
-	CAMEL_FOLDER_CLASS (parent_class)->sort_uids (folder, uids);
+	CAMEL_FOLDER_CLASS (camel_maildir_folder_parent_class)->sort_uids (folder, uids);
 }
 
 static gboolean
@@ -459,7 +444,7 @@ maildir_transfer_messages_to (CamelFolder *source,
 		CamelFolderClass *folder_class;
 
 		/* Chain up to parent's transfer_messages_to() method. */
-		folder_class = CAMEL_FOLDER_CLASS (parent_class);
+		folder_class = CAMEL_FOLDER_CLASS (camel_maildir_folder_parent_class);
 		return folder_class->transfer_messages_to (
 			source, uids, dest, transferred_uids,
 			delete_originals, error);

@@ -93,7 +93,7 @@ struct _match_record {
 
 static ESExpResult *imap_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, CamelFolderSearch *s);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelImapSearch, camel_imap_search, CAMEL_TYPE_FOLDER_SEARCH)
 
 static void
 free_match(CamelImapSearch *is, struct _match_record *mr)
@@ -120,7 +120,7 @@ imap_search_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_imap_search_parent_class)->dispose (object);
 }
 
 static void
@@ -137,16 +137,14 @@ imap_search_finalize (GObject *object)
 	g_hash_table_destroy (search->matches_hash);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_imap_search_parent_class)->finalize (object);
 }
 
 static void
-imap_search_class_init (CamelImapSearchClass *class)
+camel_imap_search_class_init (CamelImapSearchClass *class)
 {
 	GObjectClass *object_class;
 	CamelFolderSearchClass *folder_search_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = imap_search_dispose;
@@ -157,30 +155,12 @@ imap_search_class_init (CamelImapSearchClass *class)
 }
 
 static void
-imap_search_init (CamelImapSearch *is)
+camel_imap_search_init (CamelImapSearch *is)
 {
 	camel_dlist_init(&is->matches);
 	is->matches_hash = g_hash_table_new(g_str_hash, g_str_equal);
 	is->matches_count = 0;
 	is->lastuid = 0;
-}
-
-GType
-camel_imap_search_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER_SEARCH,
-			"CamelImapSearch",
-			sizeof (CamelImapSearchClass),
-			(GClassInitFunc) imap_search_class_init,
-			sizeof (CamelImapSearch),
-			(GInstanceInitFunc) imap_search_init,
-			0);
-
-	return type;
 }
 
 /**
@@ -459,7 +439,7 @@ imap_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Cam
 
 	/* If offline, search using the parent class, which can handle this manually */
 	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
-		return CAMEL_FOLDER_SEARCH_CLASS (parent_class)->body_contains(f, argc, argv, s);
+		return CAMEL_FOLDER_SEARCH_CLASS (camel_imap_search_parent_class)->body_contains(f, argc, argv, s);
 
 	/* optimise the match "" case - match everything */
 	if (argc == 1 && argv[0]->value.string[0] == '\0') {

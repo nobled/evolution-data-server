@@ -36,7 +36,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_TRANSPORT, CamelTransportPrivate))
 
-static gpointer parent_class;
+G_DEFINE_ABSTRACT_TYPE (CamelTransport, camel_transport, CAMEL_TYPE_SERVICE)
 
 static void
 transport_finalize (GObject *object)
@@ -48,15 +48,14 @@ transport_finalize (GObject *object)
 	g_mutex_free (priv->send_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_transport_parent_class)->finalize (object);
 }
 
 static void
-transport_class_init (CamelTransportClass *class)
+camel_transport_class_init (CamelTransportClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelTransportPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -64,29 +63,11 @@ transport_class_init (CamelTransportClass *class)
 }
 
 static void
-transport_init (CamelTransport *transport)
+camel_transport_init (CamelTransport *transport)
 {
 	transport->priv = CAMEL_TRANSPORT_GET_PRIVATE (transport);
 
 	transport->priv->send_lock = g_mutex_new ();
-}
-
-GType
-camel_transport_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SERVICE,
-			"CamelTransport",
-			sizeof (CamelTransportClass),
-			(GClassInitFunc) transport_class_init,
-			sizeof (CamelTransport),
-			(GInstanceInitFunc) transport_init,
-			0);
-
-	return type;
 }
 
 /**

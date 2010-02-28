@@ -39,7 +39,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_DATA_WRAPPER, CamelDataWrapperPrivate))
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelDataWrapper, camel_data_wrapper, CAMEL_TYPE_OBJECT)
 
 static void
 data_wrapper_dispose (GObject *object)
@@ -57,7 +57,7 @@ data_wrapper_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_data_wrapper_parent_class)->dispose (object);
 }
 
 static void
@@ -68,7 +68,7 @@ data_wrapper_finalize (GObject *object)
 	pthread_mutex_destroy (&data_wrapper->priv->stream_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_data_wrapper_parent_class)->finalize (object);
 }
 
 static gssize
@@ -195,11 +195,10 @@ data_wrapper_is_offline (CamelDataWrapper *data_wrapper)
 }
 
 static void
-data_wrapper_class_init (CamelDataWrapperClass *class)
+camel_data_wrapper_class_init (CamelDataWrapperClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelDataWrapperPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -217,7 +216,7 @@ data_wrapper_class_init (CamelDataWrapperClass *class)
 }
 
 static void
-data_wrapper_init (CamelDataWrapper *data_wrapper)
+camel_data_wrapper_init (CamelDataWrapper *data_wrapper)
 {
 	data_wrapper->priv = CAMEL_DATA_WRAPPER_GET_PRIVATE (data_wrapper);
 
@@ -227,24 +226,6 @@ data_wrapper_init (CamelDataWrapper *data_wrapper)
 		"application", "octet-stream");
 	data_wrapper->encoding = CAMEL_TRANSFER_ENCODING_DEFAULT;
 	data_wrapper->offline = FALSE;
-}
-
-GType
-camel_data_wrapper_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelDataWrapper",
-			sizeof (CamelDataWrapperClass),
-			(GClassInitFunc) data_wrapper_class_init,
-			sizeof (CamelDataWrapper),
-			(GInstanceInitFunc) data_wrapper_init,
-			0);
-
-	return type;
 }
 
 /**

@@ -57,8 +57,6 @@ CamelServiceAuthType camel_sasl_digest_md5_authtype = {
 	TRUE
 };
 
-static gpointer parent_class;
-
 enum {
 	STATE_AUTH,
 	STATE_FINAL
@@ -165,6 +163,8 @@ struct _CamelSaslDigestMd5Private {
 	struct _DigestResponse *response;
 	gint state;
 };
+
+G_DEFINE_TYPE (CamelSaslDigestMd5, camel_sasl_digest_md5, CAMEL_TYPE_SASL)
 
 static void
 decode_lwsp (const gchar **in)
@@ -776,7 +776,7 @@ sasl_digest_md5_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_sasl_digest_md5_parent_class)->finalize (object);
 }
 
 static GByteArray *
@@ -918,12 +918,11 @@ sasl_digest_md5_challenge (CamelSasl *sasl,
 }
 
 static void
-sasl_digest_md5_class_init (CamelSaslDigestMd5Class *class)
+camel_sasl_digest_md5_class_init (CamelSaslDigestMd5Class *class)
 {
 	GObjectClass *object_class;
 	CamelSaslClass *sasl_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslDigestMd5Private));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -934,25 +933,8 @@ sasl_digest_md5_class_init (CamelSaslDigestMd5Class *class)
 }
 
 static void
-sasl_digest_md5_init (CamelSaslDigestMd5 *sasl)
+camel_sasl_digest_md5_init (CamelSaslDigestMd5 *sasl)
 {
 	sasl->priv = CAMEL_SASL_DIGEST_MD5_GET_PRIVATE (sasl);
 }
 
-GType
-camel_sasl_digest_md5_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslDigestMd5",
-			sizeof (CamelSaslDigestMd5Class),
-			(GClassInitFunc) sasl_digest_md5_class_init,
-			sizeof (CamelSaslDigestMd5),
-			(GInstanceInitFunc) sasl_digest_md5_init,
-			0);
-
-	return type;
-}

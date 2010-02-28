@@ -34,7 +34,7 @@ struct _CamelMimeFilterCRLFPrivate {
 	gboolean saw_dot;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterCRLF, camel_mime_filter_crlf, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_crlf_filter (CamelMimeFilter *mime_filter,
@@ -155,11 +155,10 @@ mime_filter_crlf_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_crlf_class_init (CamelMimeFilterCRLFClass *class)
+camel_mime_filter_crlf_class_init (CamelMimeFilterCRLFClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterCRLFPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -169,31 +168,13 @@ mime_filter_crlf_class_init (CamelMimeFilterCRLFClass *class)
 }
 
 static void
-mime_filter_crlf_init (CamelMimeFilterCRLF *filter)
+camel_mime_filter_crlf_init (CamelMimeFilterCRLF *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_CRLF_GET_PRIVATE (filter);
 
 	filter->priv->saw_cr = FALSE;
 	filter->priv->saw_lf = TRUE;
 	filter->priv->saw_dot = FALSE;
-}
-
-GType
-camel_mime_filter_crlf_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterCRLF",
-			sizeof (CamelMimeFilterCRLFClass),
-			(GClassInitFunc) mime_filter_crlf_class_init,
-			sizeof (CamelMimeFilterCRLF),
-			(GInstanceInitFunc) mime_filter_crlf_init,
-			0);
-
-	return type;
 }
 
 /**

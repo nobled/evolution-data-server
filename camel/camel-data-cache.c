@@ -73,7 +73,7 @@ enum {
 	PROP_PATH
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelDataCache, camel_data_cache, CAMEL_TYPE_OBJECT)
 
 static void
 data_cache_set_property (GObject *object,
@@ -120,15 +120,14 @@ data_cache_finalize (GObject *object)
 	g_free (priv->path);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_data_cache_parent_class)->finalize (object);
 }
 
 static void
-data_cache_class_init (CamelDataCacheClass *class)
+camel_data_cache_class_init (CamelDataCacheClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelDataCachePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -149,7 +148,7 @@ data_cache_class_init (CamelDataCacheClass *class)
 }
 
 static void
-data_cache_init (CamelDataCache *data_cache)
+camel_data_cache_init (CamelDataCache *data_cache)
 {
 	CamelObjectBag *busy_bag;
 
@@ -162,23 +161,6 @@ data_cache_init (CamelDataCache *data_cache)
 	data_cache->priv->busy_bag = busy_bag;
 	data_cache->priv->expire_age = -1;
 	data_cache->priv->expire_access = -1;
-}
-
-GType
-camel_data_cache_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT, "CamelDataCache",
-			sizeof (CamelDataCacheClass),
-			(GClassInitFunc) data_cache_class_init,
-			sizeof (CamelDataCache),
-			(GInstanceInitFunc) data_cache_init,
-			0);
-
-	return type;
 }
 
 /**

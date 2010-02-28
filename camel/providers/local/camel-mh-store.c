@@ -35,8 +35,6 @@
 #include "camel-mh-store.h"
 #include "camel-mh-summary.h"
 
-static gpointer parent_class;
-
 #define d(x)
 
 static gboolean construct (CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, GError **error);
@@ -46,13 +44,13 @@ static gboolean delete_folder(CamelStore * store, const gchar *folder_name, GErr
 static gboolean rename_folder(CamelStore *store, const gchar *old, const gchar *new, GError **error);
 static CamelFolderInfo * get_folder_info (CamelStore *store, const gchar *top, guint32 flags, GError **error);
 
+G_DEFINE_TYPE (CamelMhStore, camel_mh_store, CAMEL_TYPE_LOCAL_STORE)
+
 static void
-mh_store_class_init (CamelObjectClass *class)
+camel_mh_store_class_init (CamelMhStoreClass *class)
 {
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->construct = construct;
@@ -65,22 +63,9 @@ mh_store_class_init (CamelObjectClass *class)
 	store_class->get_folder_info = get_folder_info;
 }
 
-GType
-camel_mh_store_get_type (void)
+static void
+camel_mh_store_init (CamelMhStore *mh_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_STORE,
-			"CamelMhStore",
-			sizeof (CamelMhStoreClass),
-			(GClassInitFunc) mh_store_class_init,
-			sizeof (CamelMhStore),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static gboolean
@@ -94,7 +79,7 @@ construct (CamelService *service,
 	CamelMhStore *mh_store = (CamelMhStore *)service;
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_mh_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -215,7 +200,7 @@ get_folder (CamelStore *store,
 	struct stat st;
 
 	/* Chain up to parent's get_folder() method. */
-	store_class = CAMEL_STORE_CLASS (parent_class);
+	store_class = CAMEL_STORE_CLASS (camel_mh_store_parent_class);
 	if (store_class->get_folder (store, folder_name, flags, error) == NULL)
 		return NULL;
 
@@ -311,7 +296,7 @@ delete_folder (CamelStore *store,
 		folders_update(((CamelLocalStore *)store)->toplevel_dir, UPDATE_REMOVE, folder_name, NULL);
 
 	/* Chain up to parent's delete_folder() method. */
-	store_class = CAMEL_STORE_CLASS (parent_class);
+	store_class = CAMEL_STORE_CLASS (camel_mh_store_parent_class);
 	return store_class->delete_folder (store, folder_name, error);
 }
 
@@ -324,7 +309,7 @@ rename_folder (CamelStore *store,
 	CamelStoreClass *store_class;
 
 	/* Chain up to parent's rename_folder() method. */
-	store_class = CAMEL_STORE_CLASS (parent_class);
+	store_class = CAMEL_STORE_CLASS (camel_mh_store_parent_class);
 	if (!store_class->rename_folder (store, old, new, error))
 		return FALSE;
 

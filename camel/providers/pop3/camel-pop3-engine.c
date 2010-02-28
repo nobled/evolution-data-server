@@ -44,7 +44,7 @@ extern CamelServiceAuthType camel_pop3_apop_authtype;
 
 static void get_capabilities(CamelPOP3Engine *pe);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelPOP3Engine, camel_pop3_engine, CAMEL_TYPE_OBJECT)
 
 static void
 pop3_engine_dispose (GObject *object)
@@ -57,7 +57,7 @@ pop3_engine_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_pop3_engine_parent_class)->dispose (object);
 }
 
 static void
@@ -71,15 +71,13 @@ pop3_engine_finalize (GObject *object)
 	g_free (engine->apop);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_pop3_engine_parent_class)->finalize (object);
 }
 
 static void
 camel_pop3_engine_class_init (CamelPOP3EngineClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = pop3_engine_dispose;
@@ -93,24 +91,6 @@ camel_pop3_engine_init (CamelPOP3Engine *engine)
 	camel_dlist_init (&engine->queue);
 	camel_dlist_init (&engine->done);
 	engine->state = CAMEL_POP3_ENGINE_DISCONNECT;
-}
-
-GType
-camel_pop3_engine_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelPOP3Engine",
-			sizeof (CamelPOP3EngineClass),
-			(GClassInitFunc) camel_pop3_engine_class_init,
-			sizeof (CamelPOP3Engine),
-			(GInstanceInitFunc) camel_pop3_engine_init,
-			0);
-
-	return type;
 }
 
 static gint

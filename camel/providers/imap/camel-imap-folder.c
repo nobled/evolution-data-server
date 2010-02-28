@@ -115,8 +115,6 @@ static void       imap_search_free          (CamelFolder *folder, GPtrArray *uid
 static void imap_thaw (CamelFolder *folder);
 static CamelFolderQuotaInfo *imap_get_quota_info (CamelFolder *folder);
 
-static gpointer parent_class;
-
 static GData *parse_fetch_response (CamelImapFolder *imap_folder, gchar *msg_att);
 
 /* internal helpers */
@@ -132,6 +130,8 @@ static CamelImapMessageInfo * imap_folder_summary_uid_or_error(
  */
 #define strtok_r(s,sep,lasts) (*(lasts)=strtok((s),(sep)))
 #endif
+
+G_DEFINE_TYPE (CamelImapFolder, camel_imap_folder, CAMEL_TYPE_OFFLINE_FOLDER)
 
 static void
 imap_folder_dispose (GObject *object)
@@ -162,7 +162,7 @@ imap_folder_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_imap_folder_parent_class)->dispose (object);
 }
 
 static void
@@ -178,18 +178,17 @@ imap_folder_finalize (GObject *object)
 #endif
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_imap_folder_parent_class)->finalize (object);
 }
 
 static void
-imap_folder_class_init (CamelImapFolderClass *class)
+camel_imap_folder_class_init (CamelImapFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
 	gint i;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelImapFolderPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -224,7 +223,7 @@ imap_folder_class_init (CamelImapFolderClass *class)
 }
 
 static void
-imap_folder_init (CamelImapFolder *imap_folder)
+camel_imap_folder_init (CamelImapFolder *imap_folder)
 {
 	CamelFolder *folder = CAMEL_FOLDER (imap_folder);
 
@@ -244,24 +243,6 @@ imap_folder_init (CamelImapFolder *imap_folder)
 
 	imap_folder->journal = NULL;
 	imap_folder->need_rescan = TRUE;
-}
-
-GType
-camel_imap_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OFFLINE_FOLDER,
-			"CamelImapFolder",
-			sizeof (CamelImapFolderClass),
-			(GClassInitFunc) imap_folder_class_init,
-			sizeof (CamelImapFolder),
-			(GInstanceInitFunc) imap_folder_init,
-			0);
-
-	return type;
 }
 
 static void
@@ -531,7 +512,7 @@ imap_getv(CamelObject *object, GError **error, CamelArgGetV *args)
 
 			props.argc = 1;
 			props.argv[0] = *arg;
-			((CamelObjectClass *)parent_class)->getv(object, error, &props);
+			((CamelObjectClass *)camel_imap_folder_parent_class)->getv(object, error, &props);
 
 			for (i = 0; i < G_N_ELEMENTS (imap_property_list); i++)
 				*arg->ca_ptr = g_slist_append (*arg->ca_ptr, &imap_property_list[i]);
@@ -560,7 +541,7 @@ imap_getv(CamelObject *object, GError **error, CamelArgGetV *args)
 	}
 
 	if (count)
-		return ((CamelObjectClass *)parent_class)->getv(object, error, args);
+		return ((CamelObjectClass *)camel_imap_folder_parent_class)->getv(object, error, args);
 
 	return 0;
 }
@@ -613,7 +594,7 @@ imap_setv (CamelObject *object, GError **error, CamelArgV *args)
 	if (save)
 		camel_object_state_write (object);
 
-	return ((CamelObjectClass *)parent_class)->setv (object, error, args);
+	return ((CamelObjectClass *)camel_imap_folder_parent_class)->setv (object, error, args);
 }
 
 static void
@@ -642,7 +623,7 @@ imap_rename (CamelFolder *folder, const gchar *new)
 	g_free(summary_path);
 	g_free(folder_dir);
 
-	CAMEL_FOLDER_CLASS (parent_class)->rename (folder, new);
+	CAMEL_FOLDER_CLASS (camel_imap_folder_parent_class)->rename (folder, new);
 }
 
 /* called with connect_lock locked */
@@ -3905,7 +3886,7 @@ imap_thaw (CamelFolder *folder)
 {
 	CamelImapFolder *imap_folder;
 
-	CAMEL_FOLDER_CLASS (parent_class)->thaw (folder);
+	CAMEL_FOLDER_CLASS (camel_imap_folder_parent_class)->thaw (folder);
 	if (camel_folder_is_frozen (folder))
 		return;
 

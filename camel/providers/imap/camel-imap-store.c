@@ -59,8 +59,6 @@
 #define strtok_r(s,sep,lasts) (*(lasts)=strtok((s),(sep)))
 #endif
 
-static gpointer parent_class;
-
 static gchar imap_tag_prefix = 'A';
 
 static gboolean construct (CamelService *service, CamelSession *session,
@@ -103,6 +101,8 @@ static CamelFolderInfo * get_folder_info (CamelStore *store, const gchar *top, g
 static CamelFolder * get_folder_offline (CamelStore *store, const gchar *folder_name, guint32 flags, GError **error);
 static CamelFolderInfo * get_folder_info_offline (CamelStore *store, const gchar *top, guint32 flags, GError **error);
 
+G_DEFINE_TYPE (CamelImapStore, camel_imap_store, CAMEL_TYPE_OFFLINE_STORE)
+
 static gboolean
 free_key (gpointer key, gpointer value, gpointer user_data)
 {
@@ -123,7 +123,7 @@ imap_store_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_imap_store_parent_class)->dispose (object);
 }
 
 static void
@@ -140,18 +140,16 @@ imap_store_finalize (GObject *object)
 	g_free (imap_store->custom_headers);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_imap_store_parent_class)->finalize (object);
 }
 
 static void
-imap_store_class_init (CamelImapStoreClass *class)
+camel_imap_store_class_init (CamelImapStoreClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = imap_store_dispose;
@@ -187,7 +185,7 @@ imap_store_class_init (CamelImapStoreClass *class)
 }
 
 static void
-imap_store_init (CamelImapStore *imap_store)
+camel_imap_store_init (CamelImapStore *imap_store)
 {
 	imap_store->istream = NULL;
 	imap_store->ostream = NULL;
@@ -204,24 +202,6 @@ imap_store_init (CamelImapStore *imap_store)
 		imap_tag_prefix = 'A';
 }
 
-GType
-camel_imap_store_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OFFLINE_STORE,
-			"CamelImapStore",
-			sizeof (CamelImapStoreClass),
-			(GClassInitFunc) imap_store_class_init,
-			sizeof (CamelImapStore),
-			(GInstanceInitFunc) imap_store_init,
-			0);
-
-	return type;
-}
-
 static gboolean
 construct (CamelService *service, CamelSession *session,
 	   CamelProvider *provider, CamelURL *url,
@@ -234,7 +214,7 @@ construct (CamelService *service, CamelSession *session,
 	CamelURL *summary_url;
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_imap_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -374,7 +354,7 @@ imap_setv (CamelObject *object, GError **error, CamelArgV *args)
            we need to do it here... or, better yet, somehow chain it
            up to CamelService's setv implementation. */
 
-	return CAMEL_OBJECT_CLASS (parent_class)->setv (object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_imap_store_parent_class)->setv (object, error, args);
 }
 
 static gint
@@ -420,7 +400,7 @@ imap_getv (CamelObject *object, GError **error, CamelArgGetV *args)
 		}
 	}
 
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_imap_store_parent_class)->getv (object, error, args);
 }
 
 static gchar *
@@ -1685,7 +1665,7 @@ done:
 static CamelFolder *
 imap_get_trash(CamelStore *store, GError **error)
 {
-	CamelFolder *folder = CAMEL_STORE_CLASS(parent_class)->get_trash(store, error);
+	CamelFolder *folder = CAMEL_STORE_CLASS(camel_imap_store_parent_class)->get_trash(store, error);
 
 	if (folder) {
 		gchar *state = g_build_filename(((CamelImapStore *)store)->storage_path, "system", "Trash.cmeta", NULL);
@@ -1702,7 +1682,7 @@ imap_get_trash(CamelStore *store, GError **error)
 static CamelFolder *
 imap_get_junk(CamelStore *store, GError **error)
 {
-	CamelFolder *folder = CAMEL_STORE_CLASS(parent_class)->get_junk(store, error);
+	CamelFolder *folder = CAMEL_STORE_CLASS(camel_imap_store_parent_class)->get_junk(store, error);
 
 	if (folder) {
 		gchar *state = g_build_filename(((CamelImapStore *)store)->storage_path, "system", "Junk.cmeta", NULL);
@@ -3223,7 +3203,7 @@ imap_can_refresh_folder (CamelStore *store,
 	GError *local_error = NULL;
 	gboolean res;
 
-	res = CAMEL_STORE_CLASS(parent_class)->can_refresh_folder (store, info, &local_error) ||
+	res = CAMEL_STORE_CLASS(camel_imap_store_parent_class)->can_refresh_folder (store, info, &local_error) ||
 	      (camel_url_get_param (((CamelService *)store)->url, "check_all") != NULL) ||
 	      (camel_url_get_param (((CamelService *)store)->url, "check_lsub") != NULL && (info->flags & CAMEL_FOLDER_SUBSCRIBED) != 0);
 

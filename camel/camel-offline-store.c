@@ -31,7 +31,7 @@
 #include "camel-offline-store.h"
 #include "camel-session.h"
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelOfflineStore, camel_offline_store, CAMEL_TYPE_STORE)
 
 static gboolean
 offline_store_construct (CamelService *service,
@@ -44,7 +44,7 @@ offline_store_construct (CamelService *service,
 	CamelServiceClass *service_class;
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_offline_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -56,38 +56,18 @@ offline_store_construct (CamelService *service,
 }
 
 static void
-offline_store_class_init (CamelOfflineStoreClass *class)
+camel_offline_store_class_init (CamelOfflineStoreClass *class)
 {
 	CamelServiceClass *service_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->construct = offline_store_construct;
 }
 
 static void
-offline_store_init (CamelOfflineStore *store)
+camel_offline_store_init (CamelOfflineStore *store)
 {
 	store->state = CAMEL_OFFLINE_STORE_NETWORK_AVAIL;
-}
-
-GType
-camel_offline_store_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE,
-			"CamelOfflineStore",
-			sizeof (CamelOfflineStoreClass),
-			(GClassInitFunc) offline_store_class_init,
-			sizeof (CamelOfflineStore),
-			(GInstanceInitFunc) offline_store_init,
-			0);
-
-	return type;
 }
 
 /**

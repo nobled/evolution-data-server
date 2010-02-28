@@ -27,7 +27,7 @@
 
 #include "camel-seekable-substream.h"
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSeekableSubstream, camel_seekable_substream, CAMEL_TYPE_SEEKABLE_STREAM)
 
 static gboolean
 seekable_substream_parent_reset (CamelSeekableSubstream *seekable_substream,
@@ -56,7 +56,7 @@ seekable_substream_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_seekable_substream_parent_class)->dispose (object);
 }
 
 static gssize
@@ -233,13 +233,11 @@ seekable_substream_seek (CamelSeekableStream *seekable_stream,
 }
 
 static void
-seekable_substream_class_init (CamelSeekableSubstreamClass *class)
+camel_seekable_substream_class_init (CamelSeekableSubstreamClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 	CamelSeekableStreamClass *seekable_stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = seekable_substream_dispose;
@@ -253,25 +251,11 @@ seekable_substream_class_init (CamelSeekableSubstreamClass *class)
 
 	seekable_stream_class = CAMEL_SEEKABLE_STREAM_CLASS (class);
 	seekable_stream_class->seek = seekable_substream_seek;
-
 }
 
-GType
-camel_seekable_substream_get_type (void)
+static void
+camel_seekable_substream_init (CamelSeekableSubstream *seekable_substream)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SEEKABLE_STREAM,
-			"CamelSeekableSubstream",
-			sizeof (CamelSeekableSubstreamClass),
-			(GClassInitFunc) seekable_substream_class_init,
-			sizeof (CamelSeekableSubstream),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

@@ -30,7 +30,7 @@
 
 #include "camel-stream.h"
 
-static gpointer parent_class;
+G_DEFINE_ABSTRACT_TYPE (CamelStream, camel_stream, CAMEL_TYPE_OBJECT)
 
 static gssize
 stream_read (CamelStream *stream,
@@ -78,10 +78,8 @@ stream_reset (CamelStream *stream,
 }
 
 static void
-stream_class_init (CamelStreamClass *class)
+camel_stream_class_init (CamelStreamClass *class)
 {
-	parent_class = g_type_class_peek_parent (class);
-
 	class->read = stream_read;
 	class->write = stream_write;
 	class->close = stream_close;
@@ -90,22 +88,9 @@ stream_class_init (CamelStreamClass *class)
 	class->reset = stream_reset;
 }
 
-GType
-camel_stream_get_type (void)
+static void
+camel_stream_init (CamelStream *stream)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelStream",
-			sizeof (CamelStreamClass),
-			(GClassInitFunc) stream_class_init,
-			sizeof (CamelStream),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

@@ -38,8 +38,6 @@
 
 #define d(x)
 
-static gpointer parent_class;
-
 static CamelFolder *get_folder(CamelStore * store, const gchar *folder_name, guint32 flags, GError **error);
 static CamelFolder *get_inbox (CamelStore *store, GError **error);
 static gboolean delete_folder(CamelStore * store, const gchar *folder_name, GError **error);
@@ -50,12 +48,12 @@ static CamelFolderInfo * get_folder_info (CamelStore *store, const gchar *top, g
 static gboolean maildir_compare_folder_name(gconstpointer a, gconstpointer b);
 static guint maildir_hash_folder_name(gconstpointer a);
 
+G_DEFINE_TYPE (CamelMaildirStore, camel_maildir_store, CAMEL_TYPE_LOCAL_STORE)
+
 static void
-maildir_store_class_init (CamelObjectClass *class)
+camel_maildir_store_class_init (CamelMaildirStoreClass *class)
 {
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	store_class = CAMEL_STORE_CLASS (class);
 	store_class->hash_folder_name = maildir_hash_folder_name;
@@ -68,22 +66,9 @@ maildir_store_class_init (CamelObjectClass *class)
 	store_class->free_folder_info = camel_store_free_folder_info_full;
 }
 
-GType
-camel_maildir_store_get_type (void)
+static void
+camel_maildir_store_init (CamelMaildirStore *maildir_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_STORE,
-			"CamelMaildirStore",
-			sizeof (CamelMaildirStoreClass),
-			(GClassInitFunc) maildir_store_class_init,
-			sizeof (CamelMaildirStore),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /* This fixes up some historical cruft of names starting with "./" */
@@ -127,7 +112,7 @@ get_folder (CamelStore * store,
 	folder_name = md_canon_name(folder_name);
 
 	/* Chain up to parent's get_folder() method. */
-	store_class = CAMEL_STORE_CLASS (parent_class);
+	store_class = CAMEL_STORE_CLASS (camel_maildir_store_parent_class);
 	if (!store_class->get_folder (store, folder_name, flags, error))
 		return NULL;
 
@@ -301,7 +286,7 @@ delete_folder (CamelStore * store,
 			CamelStoreClass *store_class;
 
 			/* Chain up to parent's delete_folder() method. */
-			store_class = CAMEL_STORE_CLASS (parent_class);
+			store_class = CAMEL_STORE_CLASS (camel_maildir_store_parent_class);
 			success = store_class->delete_folder (
 				store, folder_name, error);
 		}
@@ -333,7 +318,7 @@ maildir_rename_folder (CamelStore *store,
 	}
 
 	/* Chain up to parent's rename_folder() method. */
-	store_class = CAMEL_STORE_CLASS (parent_class);
+	store_class = CAMEL_STORE_CLASS (camel_maildir_store_parent_class);
 	return store_class->rename_folder (store, old, new, error);
 }
 

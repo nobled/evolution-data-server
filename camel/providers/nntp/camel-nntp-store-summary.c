@@ -51,14 +51,12 @@ static void		 store_info_free(CamelStoreSummary *, CamelStoreInfo *);
 static const gchar *store_info_string(CamelStoreSummary *, const CamelStoreInfo *, gint);
 static void store_info_set_string(CamelStoreSummary *, CamelStoreInfo *, int, const gchar *);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelNNTPStoreSummary, camel_nntp_store_summary, CAMEL_TYPE_STORE_SUMMARY)
 
 static void
-nntp_store_summary_class_init (CamelNNTPStoreSummaryClass *class)
+camel_nntp_store_summary_class_init (CamelNNTPStoreSummaryClass *class)
 {
 	CamelStoreSummaryClass *store_summary_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	store_summary_class = CAMEL_STORE_SUMMARY_CLASS (class);
 	store_summary_class->summary_header_load = summary_header_load;
@@ -71,7 +69,7 @@ nntp_store_summary_class_init (CamelNNTPStoreSummaryClass *class)
 }
 
 static void
-nntp_store_summary_init (CamelNNTPStoreSummary *nntp_store_summary)
+camel_nntp_store_summary_init (CamelNNTPStoreSummary *nntp_store_summary)
 {
 	CamelStoreSummary *store_summary;
 
@@ -83,24 +81,6 @@ nntp_store_summary_init (CamelNNTPStoreSummary *nntp_store_summary)
 	memset (
 		&nntp_store_summary->last_newslist, 0,
 		sizeof (nntp_store_summary->last_newslist));
-}
-
-GType
-camel_nntp_store_summary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE_SUMMARY,
-			"CamelNNTPStoreSummary",
-			sizeof (CamelNNTPStoreSummaryClass),
-			(GClassInitFunc) nntp_store_summary_class_init,
-			sizeof (CamelNNTPStoreSummary),
-			(GInstanceInitFunc) nntp_store_summary_init,
-			0);
-
-	return type;
 }
 
 /**
@@ -298,7 +278,7 @@ summary_header_load (CamelStoreSummary *s, FILE *in)
 	CamelNNTPStoreSummary *is = (CamelNNTPStoreSummary *) s;
 	gint32 version, nil;
 
-	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->summary_header_load ((CamelStoreSummary *) s, in) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->summary_header_load ((CamelStoreSummary *) s, in) == -1
 	    || camel_file_util_decode_fixed_int32 (in, &version) == -1)
 		return -1;
 
@@ -323,7 +303,7 @@ summary_header_save (CamelStoreSummary *s, FILE *out)
 	CamelNNTPStoreSummary *is = (CamelNNTPStoreSummary *) s;
 
 	/* always write as latest version */
-	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->summary_header_save ((CamelStoreSummary *) s, out) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->summary_header_save ((CamelStoreSummary *) s, out) == -1
 	    || camel_file_util_encode_fixed_int32 (out, CAMEL_NNTP_STORE_SUMMARY_VERSION) == -1
 	    || fwrite (is->last_newslist, 1, NNTP_DATE_SIZE, out) < NNTP_DATE_SIZE
 	    || camel_file_util_encode_fixed_int32 (out, 0) == -1)
@@ -337,7 +317,7 @@ store_info_load (CamelStoreSummary *s, FILE *in)
 {
 	CamelNNTPStoreInfo *ni;
 
-	ni = (CamelNNTPStoreInfo *) CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_load (s, in);
+	ni = (CamelNNTPStoreInfo *) CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->store_info_load (s, in);
 	if (ni) {
 		if (camel_file_util_decode_string (in, &ni->full_name) == -1) {
 			camel_store_summary_info_free (s, (CamelStoreInfo *) ni);
@@ -361,7 +341,7 @@ store_info_save (CamelStoreSummary *s, FILE *out, CamelStoreInfo *mi)
 {
 	CamelNNTPStoreInfo *isi = (CamelNNTPStoreInfo *)mi;
 
-	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_save (s, out, mi) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->store_info_save (s, out, mi) == -1
 	    || camel_file_util_encode_string (out, isi->full_name) == -1
 	    || camel_file_util_encode_uint32(out, isi->first) == -1
 	    || camel_file_util_encode_uint32(out, isi->last) == -1)
@@ -376,7 +356,7 @@ store_info_free (CamelStoreSummary *s, CamelStoreInfo *mi)
 	CamelNNTPStoreInfo *nsi = (CamelNNTPStoreInfo *) mi;
 
 	g_free (nsi->full_name);
-	CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_free (s, mi);
+	CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->store_info_free (s, mi);
 }
 
 static const gchar *
@@ -392,7 +372,7 @@ store_info_string(CamelStoreSummary *s, const CamelStoreInfo *mi, gint type)
 	case CAMEL_NNTP_STORE_INFO_FULL_NAME:
 		return nsi->full_name;
 	default:
-		return CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_string(s, mi, type);
+		return CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->store_info_string(s, mi, type);
 	}
 }
 
@@ -412,7 +392,7 @@ store_info_set_string(CamelStoreSummary *s, CamelStoreInfo *mi, gint type, const
 		CAMEL_STORE_SUMMARY_UNLOCK(s, summary_lock);
 		break;
 	default:
-		CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_set_string (s, mi, type, str);
+		CAMEL_STORE_SUMMARY_CLASS (camel_nntp_store_summary_parent_class)->store_info_set_string (s, mi, type, str);
 		break;
 	}
 }

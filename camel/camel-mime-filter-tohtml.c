@@ -83,7 +83,7 @@ static struct {
 	{ CONVERT_ADDRSPEC, { "@",         "mailto:", camel_url_addrspec_start, camel_url_addrspec_end } },
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterToHTML, camel_mime_filter_tohtml, CAMEL_TYPE_MIME_FILTER)
 
 static gchar *
 check_size (CamelMimeFilter *mime_filter,
@@ -402,7 +402,7 @@ mime_filter_tohtml_finalize (GObject *object)
 	camel_url_scanner_free (priv->scanner);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_mime_filter_tohtml_parent_class)->finalize (object);
 }
 
 static void
@@ -445,12 +445,11 @@ mime_filter_tohtml_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_tohtml_class_init (CamelMimeFilterToHTMLClass *class)
+camel_mime_filter_tohtml_class_init (CamelMimeFilterToHTMLClass *class)
 {
 	GObjectClass *object_class;
 	CamelMimeFilterClass *filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterToHTMLPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -463,29 +462,11 @@ mime_filter_tohtml_class_init (CamelMimeFilterToHTMLClass *class)
 }
 
 static void
-mime_filter_tohtml_init (CamelMimeFilterToHTML *filter)
+camel_mime_filter_tohtml_init (CamelMimeFilterToHTML *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_TOHTML_GET_PRIVATE (filter);
 
 	filter->priv->scanner = camel_url_scanner_new ();
-}
-
-GType
-camel_mime_filter_tohtml_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterToHTML",
-			sizeof (CamelMimeFilterToHTMLClass),
-			(GClassInitFunc) mime_filter_tohtml_class_init,
-			sizeof (CamelMimeFilterToHTML),
-			(GInstanceInitFunc) mime_filter_tohtml_init,
-			0);
-
-	return type;
 }
 
 /**

@@ -96,7 +96,7 @@ static ESExpResult *search_dummy(struct _ESExp *f, gint argc, struct _ESExpResul
 
 static gint read_uid_callback (gpointer  ref, gint ncol, gchar ** cols, gchar **name);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelFolderSearch, camel_folder_search, CAMEL_TYPE_OBJECT)
 
 static void
 folder_search_dispose (GObject *object)
@@ -109,7 +109,7 @@ folder_search_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_folder_search_parent_class)->dispose (object);
 }
 
 static void
@@ -120,15 +120,14 @@ folder_search_finalize (GObject *object)
 	g_free (search->last_search);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_folder_search_parent_class)->finalize (object);
 }
 
 static void
-folder_search_class_init (CamelFolderSearchClass *class)
+camel_folder_search_class_init (CamelFolderSearchClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelFolderSearchPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -160,28 +159,10 @@ folder_search_class_init (CamelFolderSearchClass *class)
 }
 
 static void
-folder_search_init (CamelFolderSearch *search)
+camel_folder_search_init (CamelFolderSearch *search)
 {
 	search->priv = CAMEL_FOLDER_SEARCH_GET_PRIVATE (search);
 	search->sexp = e_sexp_new();
-}
-
-GType
-camel_folder_search_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelFolderSearch",
-			sizeof (CamelFolderSearchClass),
-			(GClassInitFunc) folder_search_class_init,
-			sizeof (CamelFolderSearch),
-			(GInstanceInitFunc) folder_search_init,
-			0);
-
-	return type;
 }
 
 static struct {

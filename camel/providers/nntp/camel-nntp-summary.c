@@ -64,14 +64,13 @@ static gint summary_header_save (CamelFolderSummary *, FILE *);
 static gint summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir);
 static CamelFIRecord * summary_header_to_db (CamelFolderSummary *s, GError **error);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelNNTPSummary, camel_nntp_summary, CAMEL_TYPE_FOLDER_SUMMARY)
 
 static void
-nntp_summary_class_init (CamelNNTPSummaryClass *class)
+camel_nntp_summary_class_init (CamelNNTPSummaryClass *class)
 {
 	CamelFolderSummaryClass *folder_summary_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelNNTPSummaryPrivate));
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
@@ -85,7 +84,7 @@ nntp_summary_class_init (CamelNNTPSummaryClass *class)
 }
 
 static void
-nntp_summary_init (CamelNNTPSummary *nntp_summary)
+camel_nntp_summary_init (CamelNNTPSummary *nntp_summary)
 {
 	CamelFolderSummary *summary = CAMEL_FOLDER_SUMMARY (nntp_summary);
 
@@ -93,24 +92,6 @@ nntp_summary_init (CamelNNTPSummary *nntp_summary)
 
 	/* and a unique file version */
 	summary->version += CAMEL_NNTP_SUMMARY_VERSION;
-}
-
-GType
-camel_nntp_summary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER_SUMMARY,
-			"CamelNNTPSummary",
-			sizeof (CamelNNTPSummaryClass),
-			(GClassInitFunc) nntp_summary_class_init,
-			sizeof (CamelNNTPSummary),
-			(GInstanceInitFunc) nntp_summary_init,
-			0);
-
-	return type;
 }
 
 CamelNNTPSummary *
@@ -138,7 +119,7 @@ message_info_new_from_header (CamelFolderSummary *s,
 	if (cns->priv->uid == NULL)
 		return NULL;
 
-	mi = (CamelMessageInfoBase *)CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->message_info_new_from_header (s, header_queue);
+	mi = (CamelMessageInfoBase *)CAMEL_FOLDER_SUMMARY_CLASS (camel_nntp_summary_parent_class)->message_info_new_from_header (s, header_queue);
 	if (mi) {
 		camel_pstring_free (mi->uid);
 		mi->uid = camel_pstring_strdup (cns->priv->uid);
@@ -155,7 +136,7 @@ summary_header_from_db (CamelFolderSummary *s, CamelFIRecord *mir)
 	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY (s);
 	gchar *part;
 
-	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_from_db (s, mir) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (camel_nntp_summary_parent_class)->summary_header_from_db (s, mir) == -1)
 		return -1;
 
 	part = mir->bdata;
@@ -180,7 +161,7 @@ summary_header_load (CamelFolderSummary *s, FILE *in)
 {
 	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY (s);
 
-	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_load (s, in) == -1)
+	if (CAMEL_FOLDER_SUMMARY_CLASS (camel_nntp_summary_parent_class)->summary_header_load (s, in) == -1)
 		return -1;
 
 	/* Legacy version */
@@ -211,7 +192,7 @@ summary_header_to_db (CamelFolderSummary *s, GError **error)
 	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY (s);
 	struct _CamelFIRecord *fir;
 
-	fir = CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_to_db (s, error);
+	fir = CAMEL_FOLDER_SUMMARY_CLASS (camel_nntp_summary_parent_class)->summary_header_to_db (s, error);
 	if (!fir)
 		return NULL;
 	fir->bdata = g_strdup_printf ("%d %d %d", CAMEL_NNTP_SUMMARY_VERSION, cns->high, cns->low);
@@ -224,7 +205,7 @@ summary_header_save (CamelFolderSummary *s, FILE *out)
 {
 	CamelNNTPSummary *cns = CAMEL_NNTP_SUMMARY (s);
 
-	if (CAMEL_FOLDER_SUMMARY_CLASS (parent_class)->summary_header_save (s, out) == -1
+	if (CAMEL_FOLDER_SUMMARY_CLASS (camel_nntp_summary_parent_class)->summary_header_save (s, out) == -1
 	    || camel_file_util_encode_fixed_int32 (out, CAMEL_NNTP_SUMMARY_VERSION) == -1
 	    || camel_file_util_encode_fixed_int32 (out, cns->high) == -1
 	    || camel_file_util_encode_fixed_int32 (out, cns->low) == -1)

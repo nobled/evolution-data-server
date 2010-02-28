@@ -49,7 +49,7 @@ static void unref_folder (gpointer key, gpointer value, gpointer data);
 static void free_uids (GPtrArray *array);
 static void close_folder (gpointer name, gpointer folder, gpointer data);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelIMAPJournal, camel_imap_journal, CAMEL_TYPE_OFFLINE_JOURNAL)
 
 static void
 free_uid (gpointer key, gpointer value, gpointer data)
@@ -75,16 +75,14 @@ imap_journal_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_imap_journal_parent_class)->finalize (object);
 }
 
 static void
-imap_journal_class_init (CamelIMAPJournalClass *class)
+camel_imap_journal_class_init (CamelIMAPJournalClass *class)
 {
 	GObjectClass *object_class;
 	CamelOfflineJournalClass *offline_journal_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = imap_journal_finalize;
@@ -97,28 +95,10 @@ imap_journal_class_init (CamelIMAPJournalClass *class)
 }
 
 static void
-imap_journal_init (CamelIMAPJournal *journal)
+camel_imap_journal_init (CamelIMAPJournal *journal)
 {
 	journal->folders = g_hash_table_new (g_str_hash, g_str_equal);
 	journal->uidmap = g_hash_table_new (g_str_hash, g_str_equal);
-}
-
-GType
-camel_imap_journal_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OFFLINE_JOURNAL,
-			"CamelIMAPJournal",
-			sizeof (CamelIMAPJournalClass),
-			(GClassInitFunc) imap_journal_class_init,
-			sizeof (CamelIMAPJournal),
-			(GInstanceInitFunc) imap_journal_init,
-			0);
-
-	return type;
 }
 
 static void

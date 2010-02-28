@@ -48,15 +48,13 @@ static gint spool_summary_check(CamelLocalSummary *cls, CamelFolderChangeInfo *c
 static gint spool_summary_sync_full(CamelMboxSummary *cls, gboolean expunge, CamelFolderChangeInfo *changeinfo, GError **error);
 static gint spool_summary_need_index(void);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSpoolSummary, camel_spool_summary, CAMEL_TYPE_MBOX_SUMMARY)
 
 static void
-spool_summary_class_init (CamelSpoolSummaryClass *class)
+camel_spool_summary_class_init (CamelSpoolSummaryClass *class)
 {
 	CamelLocalSummaryClass *local_summary_class;
 	CamelMboxSummaryClass *mbox_summary_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	local_summary_class = CAMEL_LOCAL_SUMMARY_CLASS (class);
 	local_summary_class->load = spool_summary_load;
@@ -68,7 +66,7 @@ spool_summary_class_init (CamelSpoolSummaryClass *class)
 }
 
 static void
-spool_summary_init(CamelSpoolSummary *spool_summary)
+camel_spool_summary_init(CamelSpoolSummary *spool_summary)
 {
 	CamelFolderSummary *folder_summary;
 
@@ -78,24 +76,6 @@ spool_summary_init(CamelSpoolSummary *spool_summary)
 
 	/* and a unique file version */
 	folder_summary->version += CAMEL_SPOOL_SUMMARY_VERSION;
-}
-
-GType
-camel_spool_summary_get_type(void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MBOX_SUMMARY,
-			"CamelSpoolSummary",
-			sizeof (CamelSpoolSummaryClass),
-			(GClassInitFunc) spool_summary_class_init,
-			sizeof (CamelSpoolSummary),
-			(GInstanceInitFunc) spool_summary_init,
-			0);
-
-	return type;
 }
 
 CamelSpoolSummary *
@@ -325,7 +305,7 @@ spool_summary_check (CamelLocalSummary *cls,
 	struct stat st;
 	CamelFolderSummary *s = (CamelFolderSummary *)cls;
 
-	if (CAMEL_LOCAL_SUMMARY_CLASS (parent_class)->check(cls, changeinfo, error) == -1)
+	if (CAMEL_LOCAL_SUMMARY_CLASS (camel_spool_summary_parent_class)->check(cls, changeinfo, error) == -1)
 		return -1;
 
 	/* check to see if we need to copy/update the file; missing xev headers prompt this */

@@ -37,7 +37,7 @@
 
 #define d(x)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMultipart, camel_multipart, CAMEL_TYPE_DATA_WRAPPER)
 
 static void
 multipart_dispose (GObject *object)
@@ -49,7 +49,7 @@ multipart_dispose (GObject *object)
 	multipart->parts = NULL;
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_multipart_parent_class)->dispose (object);
 }
 
 static void
@@ -61,7 +61,7 @@ multipart_finalize (GObject *object)
 	g_free (multipart->postface);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_multipart_parent_class)->finalize (object);
 }
 
 /* this is MIME specific, doesn't belong here really */
@@ -141,7 +141,7 @@ multipart_is_offline (CamelDataWrapper *data_wrapper)
 	GList *node;
 	CamelDataWrapper *part;
 
-	if (CAMEL_DATA_WRAPPER_CLASS (parent_class)->is_offline (data_wrapper))
+	if (CAMEL_DATA_WRAPPER_CLASS (camel_multipart_parent_class)->is_offline (data_wrapper))
 		return TRUE;
 	for (node = multipart->parts; node; node = node->next) {
 		part = node->data;
@@ -319,12 +319,10 @@ multipart_construct_from_parser (CamelMultipart *multipart,
 }
 
 static void
-multipart_class_init (CamelMultipartClass *class)
+camel_multipart_class_init (CamelMultipartClass *class)
 {
 	GObjectClass *object_class;
 	CamelDataWrapperClass *data_wrapper_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = multipart_dispose;
@@ -347,32 +345,13 @@ multipart_class_init (CamelMultipartClass *class)
 }
 
 static void
-multipart_init (CamelMultipart *multipart)
+camel_multipart_init (CamelMultipart *multipart)
 {
 	camel_data_wrapper_set_mime_type (
 		CAMEL_DATA_WRAPPER (multipart), "multipart/mixed");
 	multipart->parts = NULL;
 	multipart->preface = NULL;
 	multipart->postface = NULL;
-}
-
-GType
-camel_multipart_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID)) {
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_DATA_WRAPPER,
-			"CamelMultipart",
-			sizeof (CamelMultipartClass),
-			(GClassInitFunc) multipart_class_init,
-			sizeof (CamelMultipart),
-			(GInstanceInitFunc) multipart_init,
-			0);
-	}
-
-	return type;
 }
 
 /**

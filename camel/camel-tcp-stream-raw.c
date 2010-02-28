@@ -52,7 +52,7 @@
 #define ETIMEDOUT EAGAIN
 #endif
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelTcpStreamRaw, camel_tcp_stream_raw, CAMEL_TYPE_TCP_STREAM)
 
 #ifdef SIMULATE_FLAKY_NETWORK
 static gssize
@@ -330,7 +330,7 @@ tcp_stream_raw_finalize (GObject *object)
 		SOCKET_CLOSE (stream->sockfd);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_tcp_stream_raw_parent_class)->finalize (object);
 }
 
 static gssize
@@ -509,13 +509,11 @@ tcp_stream_raw_get_remote_address (CamelTcpStream *stream, socklen_t *len)
 }
 
 static void
-tcp_stream_raw_class_init (CamelTcpStreamRawClass *class)
+camel_tcp_stream_raw_class_init (CamelTcpStreamRawClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 	CamelTcpStreamClass *tcp_stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = tcp_stream_raw_finalize;
@@ -535,27 +533,9 @@ tcp_stream_raw_class_init (CamelTcpStreamRawClass *class)
 }
 
 static void
-tcp_stream_raw_init (CamelTcpStreamRaw *stream)
+camel_tcp_stream_raw_init (CamelTcpStreamRaw *stream)
 {
 	stream->sockfd = -1;
-}
-
-GType
-camel_tcp_stream_raw_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_TCP_STREAM,
-			"CamelTcpStreamRaw",
-			sizeof (CamelTcpStreamRawClass),
-			(GClassInitFunc) tcp_stream_raw_class_init,
-			sizeof (CamelTcpStreamRaw),
-			(GInstanceInitFunc) tcp_stream_raw_init,
-			0);
-
-	return type;
 }
 
 /**

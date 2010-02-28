@@ -70,15 +70,13 @@ static gboolean smtp_quit (CamelSmtpTransport *transport, GError **error);
 static void smtp_set_exception (CamelSmtpTransport *transport, gboolean disconnect, const gchar *respbuf,
 				const gchar *message, GError **error);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSmtpTransport, camel_smtp_transport, CAMEL_TYPE_TRANSPORT)
 
 static void
-smtp_transport_class_init (CamelSmtpTransportClass *class)
+camel_smtp_transport_class_init (CamelSmtpTransportClass *class)
 {
 	CamelTransportClass *transport_class;
 	CamelServiceClass *service_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->connect = smtp_connect;
@@ -91,28 +89,10 @@ smtp_transport_class_init (CamelSmtpTransportClass *class)
 }
 
 static void
-smtp_transport_init (CamelSmtpTransport *smtp)
+camel_smtp_transport_init (CamelSmtpTransport *smtp)
 {
 	smtp->flags = 0;
 	smtp->connected = FALSE;
-}
-
-GType
-camel_smtp_transport_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_TRANSPORT,
-			"CamelSmtpTransport",
-			sizeof (CamelSmtpTransportClass),
-			(GClassInitFunc) smtp_transport_class_init,
-			sizeof (CamelSmtpTransport),
-			(GInstanceInitFunc) smtp_transport_init,
-			0);
-
-	return type;
 }
 
 static const gchar *
@@ -206,7 +186,7 @@ connect_to_server (CamelService *service,
 	gchar *respbuf = NULL;
 	gint ret;
 
-	if (!CAMEL_SERVICE_CLASS (parent_class)->connect (service, error))
+	if (!CAMEL_SERVICE_CLASS (camel_smtp_transport_parent_class)->connect (service, error))
 		return FALSE;
 
 	/* set some smtp transport defaults */
@@ -592,7 +572,7 @@ smtp_disconnect (CamelService *service,
 	}
 
 	/* Chain up to parent's disconnect() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_smtp_transport_parent_class);
 	if (!service_class->disconnect (service, clean, error))
 		return FALSE;
 

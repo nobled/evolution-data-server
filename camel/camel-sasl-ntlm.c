@@ -47,7 +47,7 @@ CamelServiceAuthType camel_sasl_ntlm_authtype = {
 	TRUE
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSaslNTLM, camel_sasl_ntlm, CAMEL_TYPE_SASL)
 
 #define NTLM_REQUEST "NTLMSSP\x00\x01\x00\x00\x00\x06\x82\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x30\x00\x00\x00\x00\x00\x00\x00\x30\x00\x00\x00"
 
@@ -722,11 +722,10 @@ exit:
 }
 
 static void
-sasl_ntlm_class_init (CamelSaslNTLMClass *class)
+camel_sasl_ntlm_class_init (CamelSaslNTLMClass *class)
 {
 	CamelSaslClass *sasl_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslNTLMPrivate));
 
 	sasl_class = CAMEL_SASL_CLASS (class);
@@ -734,26 +733,8 @@ sasl_ntlm_class_init (CamelSaslNTLMClass *class)
 }
 
 static void
-sasl_ntlm_init (CamelSaslNTLM *sasl)
+camel_sasl_ntlm_init (CamelSaslNTLM *sasl)
 {
 	sasl->priv = CAMEL_SASL_NTLM_GET_PRIVATE (sasl);
-}
-
-GType
-camel_sasl_ntlm_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslNTLM",
-			sizeof (CamelSaslNTLMClass),
-			(GClassInitFunc) sasl_ntlm_class_init,
-			sizeof (CamelSaslNTLM),
-			(GInstanceInitFunc) sasl_ntlm_init,
-			0);
-
-	return type;
 }
 

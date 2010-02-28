@@ -20,7 +20,7 @@
 
 #include "camel-address.h"
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelAddress, camel_address, CAMEL_TYPE_OBJECT)
 
 static void
 address_finalize (GObject *object)
@@ -31,42 +31,22 @@ address_finalize (GObject *object)
 	g_ptr_array_free (address->addresses, TRUE);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_address_parent_class)->finalize (object);
 }
 
 static void
-address_class_init (CamelAddressClass *class)
+camel_address_class_init (CamelAddressClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = address_finalize;
 }
 
 static void
-address_init (CamelAddress *address)
+camel_address_init (CamelAddress *address)
 {
 	address->addresses = g_ptr_array_new();
-}
-
-GType
-camel_address_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelAddress",
-			sizeof (CamelAddressClass),
-			(GClassInitFunc) address_class_init,
-			sizeof (CamelAddress),
-			(GInstanceInitFunc) address_init,
-			0);
-
-	return type;
 }
 
 /**

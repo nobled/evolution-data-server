@@ -54,37 +54,20 @@ static gchar *get_password (CamelSession *session, const gchar *prompt,
 			   CamelService *service, const gchar *item,
 			   GError **error);
 
-static void
-init (CamelPgpSession *session)
-{
-	;
-}
+G_DEFINE_TYPE (CamelPgpSession, camel_pgp_session, camel_test_session_get_type ())
 
 static void
-class_init (CamelPgpSessionClass *camel_pgp_session_class)
+camel_pgp_session_class_init (CamelPgpSessionClass *class)
 {
-	CamelSessionClass *camel_session_class =
-		CAMEL_SESSION_CLASS (camel_pgp_session_class);
+	CamelSessionClass *session_class;
 
+	session_class = CAMEL_SESSION_CLASS (class);
 	camel_session_class->get_password = get_password;
 }
 
-static GType
-camel_pgp_session_get_type (void)
+static void
+camel_pgp_session_init (CamelPgpSession *session)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			camel_test_session_get_type (),
-			"CamelPgpSession",
-			sizeof (CamelPgpSessionClass),
-			(GClassInitFunc) class_init,
-			sizeof (CamelPgpSession),
-			(GInstanceInitFunc) init,
-			0);
-
-	return type;
 }
 
 static gchar *

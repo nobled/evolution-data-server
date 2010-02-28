@@ -48,8 +48,6 @@ static CamelStoreInfo *store_info_load (CamelStoreSummary *s, FILE *in);
 static gint store_info_save (CamelStoreSummary *s, FILE *out, CamelStoreInfo *info);
 static void store_info_free (CamelStoreSummary *s, CamelStoreInfo *info);
 
-static gpointer parent_class;
-
 GType
 camel_imap4_store_summary_get_type (void)
 {
@@ -73,8 +71,6 @@ static void
 camel_imap4_store_summary_class_init (CamelIMAP4StoreSummaryClass *class)
 {
 	CamelStoreSummaryClass *ssclass = (CamelStoreSummaryClass *) class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	ssclass->summary_header_load = summary_header_load;
 	ssclass->summary_header_save = summary_header_save;
@@ -164,7 +160,7 @@ summary_header_load (CamelStoreSummary *s, FILE *in)
 	CamelIMAP4StoreSummary *is = (CamelIMAP4StoreSummary *) s;
 	guint32 version, capa;
 
-	if (parent_class->summary_header_load (s, in) == -1)
+	if (camel_imap4_store_summary_parent_class->summary_header_load (s, in) == -1)
 		return -1;
 
 	if (camel_file_util_decode_fixed_int32 (in, &version) == -1)
@@ -233,7 +229,7 @@ summary_header_save (CamelStoreSummary *s, FILE *out)
 {
 	CamelIMAP4StoreSummary *is = (CamelIMAP4StoreSummary *) s;
 
-	if (parent_class->summary_header_save (s, out) == -1)
+	if (camel_imap4_store_summary_parent_class->summary_header_save (s, out) == -1)
 		return -1;
 
 	if (camel_file_util_encode_fixed_int32 (out, is->version) == -1)
@@ -251,19 +247,19 @@ summary_header_save (CamelStoreSummary *s, FILE *out)
 static CamelStoreInfo *
 store_info_load (CamelStoreSummary *s, FILE *in)
 {
-	return parent_class->store_info_load (s, in);
+	return camel_imap4_store_summary_parent_class->store_info_load (s, in);
 }
 
 static gint
 store_info_save (CamelStoreSummary *s, FILE *out, CamelStoreInfo *info)
 {
-	return parent_class->store_info_save (s, out, info);
+	return camel_imap4_store_summary_parent_class->store_info_save (s, out, info);
 }
 
 static void
 store_info_free (CamelStoreSummary *s, CamelStoreInfo *info)
 {
-	parent_class->store_info_free (s, info);
+	camel_imap4_store_summary_parent_class->store_info_free (s, info);
 }
 
 /**

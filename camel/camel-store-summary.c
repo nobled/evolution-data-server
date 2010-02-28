@@ -55,7 +55,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_STORE_SUMMARY, CamelStoreSummaryPrivate))
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStoreSummary, camel_store_summary, CAMEL_TYPE_OBJECT)
 
 static void
 store_summary_finalize (GObject *object)
@@ -77,7 +77,7 @@ store_summary_finalize (GObject *object)
 	g_mutex_free (summary->priv->ref_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_store_summary_parent_class)->finalize (object);
 }
 
 static gint
@@ -290,11 +290,10 @@ store_summary_store_info_set_string (CamelStoreSummary *summary,
 }
 
 static void
-store_summary_class_init (CamelStoreSummaryClass *class)
+camel_store_summary_class_init (CamelStoreSummaryClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelStoreSummaryPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -311,7 +310,7 @@ store_summary_class_init (CamelStoreSummaryClass *class)
 }
 
 static void
-store_summary_init (CamelStoreSummary *summary)
+camel_store_summary_init (CamelStoreSummary *summary)
 {
 	summary->priv = CAMEL_STORE_SUMMARY_GET_PRIVATE (summary);
 
@@ -331,24 +330,6 @@ store_summary_init (CamelStoreSummary *summary)
 	summary->priv->io_lock = g_mutex_new ();
 	summary->priv->alloc_lock = g_mutex_new ();
 	summary->priv->ref_lock = g_mutex_new ();
-}
-
-GType
-camel_store_summary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelStoreSummary",
-			sizeof (CamelStoreSummaryClass),
-			(GClassInitFunc) store_summary_class_init,
-			sizeof (CamelStoreSummary),
-			(GInstanceInitFunc) store_summary_init,
-			0);
-
-	return type;
 }
 
 /**

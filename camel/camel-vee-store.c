@@ -43,7 +43,7 @@
 #define CHANGE_DELETE (1)
 #define CHANGE_NOSELECT (2)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelVeeStore, camel_vee_store, CAMEL_TYPE_STORE)
 
 static gint
 vee_folder_cmp (gconstpointer ap,
@@ -102,7 +102,7 @@ vee_store_finalize (GObject *object)
 	g_object_unref (vee_store->folder_unmatched);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_vee_store_parent_class)->finalize (object);
 }
 
 static gboolean
@@ -120,7 +120,7 @@ vee_store_construct (CamelService *service,
 	vee_store = CAMEL_VEE_STORE (service);
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_vee_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -420,13 +420,11 @@ vee_store_get_junk (CamelStore *store,
 }
 
 static void
-vee_store_class_init (CamelVeeStoreClass *class)
+camel_vee_store_class_init (CamelVeeStoreClass *class)
 {
 	GObjectClass *object_class;
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = vee_store_finalize;
@@ -445,30 +443,12 @@ vee_store_class_init (CamelVeeStoreClass *class)
 }
 
 static void
-vee_store_init (CamelVeeStore *vee_store)
+camel_vee_store_init (CamelVeeStore *vee_store)
 {
 	CamelStore *store = CAMEL_STORE (vee_store);
 
 	/* we dont want a vtrash/vjunk on this one */
 	store->flags &= ~(CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK);
-}
-
-GType
-camel_vee_store_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE,
-			"CamelVeeStore",
-			sizeof (CamelVeeStoreClass),
-			(GClassInitFunc) vee_store_class_init,
-			sizeof (CamelVeeStore),
-			(GInstanceInitFunc) vee_store_init,
-			0);
-
-	return type;
 }
 
 /**

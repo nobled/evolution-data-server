@@ -36,10 +36,10 @@
 #define ECONNRESET EIO
 #endif
 
-static gpointer parent_class;
-
 #define CAMEL_NNTP_STREAM_SIZE (4096)
 #define CAMEL_NNTP_STREAM_LINE_SIZE (1024) /* maximum line size */
+
+G_DEFINE_TYPE (CamelNNTPStream, camel_nntp_stream, CAMEL_TYPE_STREAM)
 
 static void
 nntp_stream_dispose (GObject *object)
@@ -52,7 +52,7 @@ nntp_stream_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose () method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_nntp_stream_parent_class)->dispose (object);
 }
 
 static void
@@ -64,7 +64,7 @@ nntp_stream_finalize (GObject *object)
 	g_free (stream->linebuf);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_nntp_stream_parent_class)->finalize (object);
 }
 
 static gint
@@ -213,12 +213,10 @@ nntp_stream_reset (CamelStream *stream,
 }
 
 static void
-nntp_stream_class_init (CamelStreamClass *class)
+camel_nntp_stream_class_init (CamelNNTPStreamClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = nntp_stream_dispose;
@@ -234,7 +232,7 @@ nntp_stream_class_init (CamelStreamClass *class)
 }
 
 static void
-nntp_stream_init (CamelNNTPStream *is)
+camel_nntp_stream_init (CamelNNTPStream *is)
 {
 	/* +1 is room for appending a 0 if we need to for a line */
 	is->ptr = is->end = is->buf = g_malloc (CAMEL_NNTP_STREAM_SIZE+1);
@@ -246,24 +244,6 @@ nntp_stream_init (CamelNNTPStream *is)
 
 	is->state = 0;
 	is->mode = CAMEL_NNTP_STREAM_LINE;
-}
-
-GType
-camel_nntp_stream_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelNNTPStream",
-			sizeof (CamelNNTPStreamClass),
-			(GClassInitFunc) nntp_stream_class_init,
-			sizeof (CamelNNTPStream),
-			(GInstanceInitFunc) nntp_stream_init,
-			0);
-
-	return type;
 }
 
 /**

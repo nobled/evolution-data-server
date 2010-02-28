@@ -56,7 +56,7 @@ struct _CamelPartitionTablePrivate {
 #define CAMEL_PARTITION_TABLE_LOCK(kf, lock) (pthread_mutex_lock (&(kf)->priv->lock))
 #define CAMEL_PARTITION_TABLE_UNLOCK(kf, lock) (pthread_mutex_unlock (&(kf)->priv->lock))
 
-static gpointer partition_table_parent_class;
+G_DEFINE_TYPE (CamelPartitionTable, camel_partition_table, CAMEL_TYPE_OBJECT)
 
 static void
 partition_table_finalize (GObject *object)
@@ -77,15 +77,14 @@ partition_table_finalize (GObject *object)
 	pthread_mutex_destroy (&table->priv->lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (partition_table_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_partition_table_parent_class)->finalize (object);
 }
 
 static void
-partition_table_class_init (CamelPartitionTableClass *class)
+camel_partition_table_class_init (CamelPartitionTableClass *class)
 {
 	GObjectClass *object_class;
 
-	partition_table_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelPartitionTablePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -93,30 +92,12 @@ partition_table_class_init (CamelPartitionTableClass *class)
 }
 
 static void
-partition_table_init (CamelPartitionTable *cpi)
+camel_partition_table_init (CamelPartitionTable *cpi)
 {
 	cpi->priv = CAMEL_PARTITION_TABLE_GET_PRIVATE (cpi);
 
 	camel_dlist_init (&cpi->partition);
 	pthread_mutex_init (&cpi->priv->lock, NULL);
-}
-
-GType
-camel_partition_table_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelPartitionTable",
-			sizeof (CamelPartitionTableClass),
-			(GClassInitFunc) partition_table_class_init,
-			sizeof (CamelPartitionTable),
-			(GInstanceInitFunc) partition_table_init,
-			0);
-
-	return type;
 }
 
 /* ********************************************************************** */
@@ -625,7 +606,7 @@ struct _CamelKeyTablePrivate {
 #define CAMEL_KEY_TABLE_LOCK(kf, lock) (pthread_mutex_lock (&(kf)->priv->lock))
 #define CAMEL_KEY_TABLE_UNLOCK(kf, lock) (pthread_mutex_unlock (&(kf)->priv->lock))
 
-static gpointer key_table_parent_class;
+G_DEFINE_TYPE (CamelKeyTable, camel_key_table, CAMEL_TYPE_OBJECT)
 
 static void
 key_table_finalize (GObject *object)
@@ -644,15 +625,14 @@ key_table_finalize (GObject *object)
 	pthread_mutex_destroy (&table->priv->lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (key_table_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_key_table_parent_class)->finalize (object);
 }
 
 static void
-key_table_class_init (CamelKeyTableClass *class)
+camel_key_table_class_init (CamelKeyTableClass *class)
 {
 	GObjectClass *object_class;
 
-	key_table_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelKeyTablePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -660,29 +640,10 @@ key_table_class_init (CamelKeyTableClass *class)
 }
 
 static void
-key_table_init (CamelKeyTable *table)
+camel_key_table_init (CamelKeyTable *table)
 {
 	table->priv = CAMEL_KEY_TABLE_GET_PRIVATE (table);
 	pthread_mutex_init (&table->priv->lock, NULL);
-}
-
-GType
-camel_key_table_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID)) {
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelKeyTable",
-			sizeof (CamelKeyTableClass),
-			(GClassInitFunc) key_table_class_init,
-			sizeof (CamelKeyTable),
-			(GInstanceInitFunc) key_table_init,
-			0);
-	}
-
-	return type;
 }
 
 CamelKeyTable *

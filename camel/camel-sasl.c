@@ -58,7 +58,7 @@ enum {
 	PROP_SERVICE_NAME
 };
 
-static gpointer parent_class;
+G_DEFINE_ABSTRACT_TYPE (CamelSasl, camel_sasl, CAMEL_TYPE_OBJECT)
 
 static void
 sasl_set_mechanism (CamelSasl *sasl,
@@ -173,7 +173,7 @@ sasl_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_sasl_parent_class)->dispose (object);
 }
 
 static void
@@ -187,15 +187,14 @@ sasl_finalize (GObject *object)
 	g_free (priv->service_name);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_sasl_parent_class)->finalize (object);
 }
 
 static void
-sasl_class_init (CamelSaslClass *class)
+camel_sasl_class_init (CamelSaslClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -249,27 +248,9 @@ sasl_class_init (CamelSaslClass *class)
 }
 
 static void
-sasl_init (CamelSasl *sasl)
+camel_sasl_init (CamelSasl *sasl)
 {
 	sasl->priv = CAMEL_SASL_GET_PRIVATE (sasl);
-}
-
-GType
-camel_sasl_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelSasl",
-			sizeof (CamelSaslClass),
-			(GClassInitFunc) sasl_class_init,
-			sizeof (CamelSasl),
-			(GInstanceInitFunc) sasl_init,
-			0);
-
-	return type;
 }
 
 /**

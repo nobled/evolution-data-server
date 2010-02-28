@@ -175,7 +175,7 @@ static struct {
 	{ "only-once",         (ESExpFunc *) do_only_once, 0 }
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelFilterDriver, camel_filter_driver, CAMEL_TYPE_OBJECT)
 
 static void
 free_hash_strings (gpointer key, gpointer value, gpointer data)
@@ -203,7 +203,7 @@ filter_driver_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_filter_driver_parent_class)->dispose (object);
 }
 
 static void
@@ -234,15 +234,14 @@ filter_driver_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_filter_driver_parent_class)->finalize (object);
 }
 
 static void
-filter_driver_class_init (CamelFilterDriverClass *class)
+camel_filter_driver_class_init (CamelFilterDriverClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelFilterDriverPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -251,7 +250,7 @@ filter_driver_class_init (CamelFilterDriverClass *class)
 }
 
 static void
-filter_driver_init (CamelFilterDriver *filter_driver)
+camel_filter_driver_init (CamelFilterDriver *filter_driver)
 {
 	gint ii;
 
@@ -284,24 +283,6 @@ filter_driver_init (CamelFilterDriver *filter_driver)
 
 	filter_driver->priv->only_once =
 		g_hash_table_new (g_str_hash, g_str_equal);
-}
-
-GType
-camel_filter_driver_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelFilterDriver",
-			sizeof (CamelFilterDriverClass),
-			(GClassInitFunc) filter_driver_class_init,
-			sizeof (CamelFilterDriver),
-			(GInstanceInitFunc) filter_driver_init,
-			0);
-
-	return type;
 }
 
 /**

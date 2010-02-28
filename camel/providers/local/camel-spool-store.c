@@ -58,16 +58,14 @@ static gboolean delete_folder(CamelStore *store, const gchar *folder_name, GErro
 static gchar *spool_get_meta_path(CamelLocalStore *ls, const gchar *full_name, const gchar *ext);
 static gchar *spool_get_full_path(CamelLocalStore *ls, const gchar *full_name);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSpoolStore, camel_spool_store, CAMEL_TYPE_MBOX_STORE)
 
 static void
-spool_store_class_init (CamelSpoolStoreClass *class)
+camel_spool_store_class_init (CamelSpoolStoreClass *class)
 {
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
 	CamelLocalStoreClass *local_store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->construct = construct;
@@ -86,22 +84,9 @@ spool_store_class_init (CamelSpoolStoreClass *class)
 	local_store_class->get_meta_path = spool_get_meta_path;
 }
 
-GType
-camel_spool_store_get_type (void)
+static void
+camel_spool_store_init (CamelSpoolStore *spool_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MBOX_STORE,
-			"CamelSpoolStore",
-			sizeof (CamelSpoolStoreClass),
-			(GClassInitFunc) spool_store_class_init,
-			sizeof (CamelSpoolStore),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static gboolean
@@ -118,7 +103,7 @@ construct (CamelService *service,
 		 G_OBJECT_CLASS_NAME(((CamelObject *)service)->s.type), url->protocol, url->path));
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_spool_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 

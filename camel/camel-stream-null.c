@@ -28,7 +28,7 @@
 
 #include "camel-stream-null.h"
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStreamNull, camel_stream_null, CAMEL_TYPE_STREAM)
 
 static gssize
 stream_null_write (CamelStream *stream,
@@ -57,11 +57,9 @@ stream_null_reset (CamelStream *stream,
 }
 
 static void
-stream_null_class_init (CamelStreamClass *class)
+camel_stream_null_class_init (CamelStreamNullClass *class)
 {
 	CamelStreamClass *stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	stream_class = CAMEL_STREAM_CLASS (class);
 	stream_class->write = stream_null_write;
@@ -69,22 +67,9 @@ stream_null_class_init (CamelStreamClass *class)
 	stream_class->reset = stream_null_reset;
 }
 
-GType
-camel_stream_null_get_type (void)
+static void
+camel_stream_null_init (CamelStreamNull *stream_null)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelStreamNull",
-			sizeof (CamelStreamNullClass),
-			(GClassInitFunc) stream_null_class_init,
-			sizeof (CamelStreamNull),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

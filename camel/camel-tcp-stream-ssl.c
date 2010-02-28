@@ -68,8 +68,6 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_TCP_STREAM_SSL, CamelTcpStreamSSLPrivate))
 
-static gpointer parent_class;
-
 static gssize stream_read (CamelStream *stream, gchar *buffer, gsize n, GError **error);
 static gssize stream_write (CamelStream *stream, const gchar *buffer, gsize n, GError **error);
 static gint stream_flush  (CamelStream *stream, GError **error);
@@ -92,6 +90,8 @@ struct _CamelTcpStreamSSLPrivate {
 	guint32 flags;
 };
 
+G_DEFINE_TYPE (CamelTcpStreamSSL, camel_tcp_stream_ssl, CAMEL_TYPE_TCP_STREAM)
+
 static void
 tcp_stream_ssl_dispose (GObject *object)
 {
@@ -105,7 +105,7 @@ tcp_stream_ssl_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_tcp_stream_ssl_parent_class)->dispose (object);
 }
 
 static void
@@ -123,17 +123,16 @@ tcp_stream_ssl_finalize (GObject *object)
 	g_free (priv->expected_host);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_tcp_stream_ssl_parent_class)->finalize (object);
 }
 
 static void
-tcp_stream_ssl_class_init (CamelTcpStreamSSLClass *class)
+camel_tcp_stream_ssl_class_init (CamelTcpStreamSSLClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 	CamelTcpStreamClass *tcp_stream_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelTcpStreamSSLPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -155,27 +154,9 @@ tcp_stream_ssl_class_init (CamelTcpStreamSSLClass *class)
 }
 
 static void
-tcp_stream_ssl_init (CamelTcpStreamSSL *stream)
+camel_tcp_stream_ssl_init (CamelTcpStreamSSL *stream)
 {
 	stream->priv = CAMEL_TCP_STREAM_SSL_GET_PRIVATE (stream);
-}
-
-GType
-camel_tcp_stream_ssl_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_TCP_STREAM,
-			"CamelTcpStreamSSL",
-			sizeof (CamelTcpStreamSSLClass),
-			(GClassInitFunc) tcp_stream_ssl_class_init,
-			sizeof (CamelTcpStreamSSL),
-			(GInstanceInitFunc) tcp_stream_ssl_init,
-			0);
-
-	return type;
 }
 
 /**

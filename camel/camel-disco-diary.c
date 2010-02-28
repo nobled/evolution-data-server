@@ -43,7 +43,7 @@
 
 #define d(x)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelDiscoDiary, camel_disco_diary, CAMEL_TYPE_OBJECT)
 
 static void
 unref_folder (gpointer key, gpointer value, gpointer data)
@@ -77,42 +77,23 @@ disco_diary_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_disco_diary_parent_class)->finalize (object);
 }
 
 static void
-disco_diary_class_init (CamelDiscoDiaryClass *class)
+camel_disco_diary_class_init (CamelDiscoDiaryClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = disco_diary_finalize;
 }
 
 static void
-disco_diary_init (CamelDiscoDiary *diary)
+camel_disco_diary_init (CamelDiscoDiary *diary)
 {
 	diary->folders = g_hash_table_new (g_str_hash, g_str_equal);
 	diary->uidmap = g_hash_table_new (g_str_hash, g_str_equal);
-}
-
-GType
-camel_disco_diary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT, "CamelDiscoDiary",
-			sizeof (CamelDiscoDiaryClass),
-			(GClassInitFunc) disco_diary_class_init,
-			sizeof (CamelDiscoDiary),
-			(GInstanceInitFunc) disco_diary_init,
-			0);
-
-	return type;
 }
 
 static gint

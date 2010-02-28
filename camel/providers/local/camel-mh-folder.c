@@ -39,21 +39,19 @@
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/
 
-static gpointer parent_class;
-
 static CamelLocalSummary *mh_create_summary(CamelLocalFolder *lf, const gchar *path, const gchar *folder, CamelIndex *index);
 
 static gboolean mh_append_message(CamelFolder * folder, CamelMimeMessage * message, const CamelMessageInfo *info, gchar **appended_uid, GError **error);
 static CamelMimeMessage *mh_get_message(CamelFolder * folder, const gchar * uid, GError **error);
 static gchar * mh_get_filename (CamelFolder *folder, const gchar *uid, GError **error);
 
+G_DEFINE_TYPE (CamelMhFolder, camel_mh_folder, CAMEL_TYPE_LOCAL_FOLDER)
+
 static void
-mh_folder_class_init (CamelObjectClass *class)
+camel_mh_folder_class_init (CamelMhFolderClass *class)
 {
 	CamelFolderClass *folder_class;
 	CamelLocalFolderClass *local_folder_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	folder_class = CAMEL_FOLDER_CLASS (class);
 	folder_class->append_message = mh_append_message;
@@ -64,22 +62,9 @@ mh_folder_class_init (CamelObjectClass *class)
 	local_folder_class->create_summary = mh_create_summary;
 }
 
-GType
-camel_mh_folder_get_type (void)
+static void
+camel_mh_folder_init (CamelMhFolder *mh_folder)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_FOLDER,
-			"CamelMhFolder",
-			sizeof (CamelMhFolderClass),
-			(GClassInitFunc) mh_folder_class_init,
-			sizeof (CamelMhFolder),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 CamelFolder *

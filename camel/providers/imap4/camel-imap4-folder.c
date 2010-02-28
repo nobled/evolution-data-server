@@ -70,8 +70,6 @@ static GPtrArray *imap4_search_by_uids (CamelFolder *folder, const gchar *expr, 
 static void imap4_search_free (CamelFolder *folder, GPtrArray *uids);
 static gchar * imap4_get_filename (CamelFolder *folder, const gchar *uid, GError **error);
 
-static gpointer parent_class;
-
 static GSList *imap4_folder_props = NULL;
 
 static CamelProperty imap4_prop_list[] = {
@@ -105,8 +103,6 @@ camel_imap4_folder_class_init (CamelIMAP4FolderClass *class)
 	CamelFolderClass *folder_class = (CamelFolderClass *) class;
 	CamelObjectClass *object_class = (CamelObjectClass *) class;
 	gint i;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	if (imap4_folder_props == NULL) {
 		for (i = 0; i < G_N_ELEMENTS (imap4_prop_list); i++) {
@@ -185,7 +181,7 @@ imap4_getv (CamelObject *object, GError **error, CamelArgGetV *args)
 		case CAMEL_FOLDER_ARG_PROPERTIES:
 			props.argc = 1;
 			props.argv[0] = *arg;
-			((CamelObjectClass *) parent_class)->getv (object, ex, &props);
+			((CamelObjectClass *) camel_imap4_folder_parent_class)->getv (object, ex, &props);
 			*arg->ca_ptr = g_slist_concat (*arg->ca_ptr, g_slist_copy (imap4_folder_props));
 			break;
 		case CAMEL_IMAP4_FOLDER_ARG_ENABLE_MLIST:
@@ -206,7 +202,7 @@ imap4_getv (CamelObject *object, GError **error, CamelArgGetV *args)
 	}
 
 	if (count)
-		return ((CamelObjectClass *) parent_class)->getv (object, ex, args);
+		return ((CamelObjectClass *) camel_imap4_folder_parent_class)->getv (object, ex, args);
 
 	return 0;
 }
@@ -254,7 +250,7 @@ imap4_setv (CamelObject *object, GError **error, CamelArgV *args)
 	if (save)
 		camel_object_state_write (object);
 
-	return ((CamelObjectClass *) parent_class)->setv (object, ex, args);
+	return ((CamelObjectClass *) camel_imap4_folder_parent_class)->setv (object, ex, args);
 }
 
 static gchar *

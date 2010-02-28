@@ -49,7 +49,7 @@ CamelServiceAuthType camel_sasl_plain_authtype = {
 	TRUE
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSaslPlain, camel_sasl_plain, CAMEL_TYPE_SASL)
 
 static GByteArray *
 sasl_plain_challenge (CamelSasl *sasl,
@@ -77,11 +77,10 @@ sasl_plain_challenge (CamelSasl *sasl,
 }
 
 static void
-sasl_plain_class_init (CamelSaslPlainClass *class)
+camel_sasl_plain_class_init (CamelSaslPlainClass *class)
 {
 	CamelSaslClass *sasl_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslPlainPrivate));
 
 	sasl_class = CAMEL_SASL_CLASS (class);
@@ -89,25 +88,8 @@ sasl_plain_class_init (CamelSaslPlainClass *class)
 }
 
 static void
-sasl_plain_init (CamelSaslPlain *sasl)
+camel_sasl_plain_init (CamelSaslPlain *sasl)
 {
 	sasl->priv = CAMEL_SASL_PLAIN_GET_PRIVATE (sasl);
 }
 
-GType
-camel_sasl_plain_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslPlain",
-			sizeof (CamelSaslPlainClass),
-			(GClassInitFunc) sasl_plain_class_init,
-			sizeof (CamelSaslPlain),
-			(GInstanceInitFunc) sasl_plain_init,
-			0);
-
-	return type;
-}

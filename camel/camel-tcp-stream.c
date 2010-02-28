@@ -30,30 +30,16 @@
 
 #define w(x)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelTcpStream, camel_tcp_stream, CAMEL_TYPE_STREAM)
 
 static void
-tcp_stream_class_init (CamelTcpStreamClass *class)
+camel_tcp_stream_class_init (CamelTcpStreamClass *class)
 {
-	parent_class = g_type_class_peek_parent (class);
 }
 
-GType
-camel_tcp_stream_get_type (void)
+static void
+camel_tcp_stream_init (CamelTcpStream *tcp_stream)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelTcpStream",
-			sizeof (CamelTcpStreamClass),
-			(GClassInitFunc) tcp_stream_class_init,
-			sizeof (CamelTcpStream),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

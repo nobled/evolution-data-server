@@ -55,7 +55,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_SESSION, CamelSessionPrivate))
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSession, camel_session, CAMEL_TYPE_OBJECT)
 
 static void
 cs_thread_status (CamelOperation *op,
@@ -97,7 +97,7 @@ session_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_session_parent_class)->finalize (object);
 }
 
 static CamelService *
@@ -295,12 +295,11 @@ session_thread_status (CamelSession *session,
 }
 
 static void
-session_class_init (CamelSessionClass *class)
+camel_session_class_init (CamelSessionClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSessionPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -319,7 +318,7 @@ session_class_init (CamelSessionClass *class)
 }
 
 static void
-session_init (CamelSession *session)
+camel_session_init (CamelSession *session)
 {
 	session->priv = CAMEL_SESSION_GET_PRIVATE (session);
 
@@ -332,24 +331,6 @@ session_init (CamelSession *session)
 	session->priv->thread_active = g_hash_table_new(NULL, NULL);
 	session->priv->thread_pool = NULL;
 	session->priv->junk_headers = NULL;
-}
-
-GType
-camel_session_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelSession",
-			sizeof (CamelSessionClass),
-			(GClassInitFunc) session_class_init,
-			sizeof (CamelSession),
-			(GInstanceInitFunc) session_init,
-			0);
-
-	return type;
 }
 
 /**

@@ -43,7 +43,7 @@ struct _CamelMimeFilterCharsetPrivate {
 	gchar *to;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterCharset, camel_mime_filter_charset, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_charset_finalize (GObject *object)
@@ -61,7 +61,7 @@ mime_filter_charset_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_mime_filter_charset_parent_class)->finalize (object);
 }
 
 static void
@@ -234,12 +234,11 @@ mime_filter_charset_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_charset_class_init (CamelMimeFilterCharsetClass *class)
+camel_mime_filter_charset_class_init (CamelMimeFilterCharsetClass *class)
 {
 	GObjectClass *object_class;
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterCharsetPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -252,28 +251,10 @@ mime_filter_charset_class_init (CamelMimeFilterCharsetClass *class)
 }
 
 static void
-mime_filter_charset_init (CamelMimeFilterCharset *filter)
+camel_mime_filter_charset_init (CamelMimeFilterCharset *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_CHARSET_GET_PRIVATE (filter);
 	filter->priv->ic = (iconv_t) -1;
-}
-
-GType
-camel_mime_filter_charset_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterCharset",
-			sizeof (CamelMimeFilterCharsetClass),
-			(GClassInitFunc) mime_filter_charset_class_init,
-			sizeof (CamelMimeFilterCharset),
-			(GInstanceInitFunc) mime_filter_charset_init,
-			0);
-
-	return type;
 }
 
 /**

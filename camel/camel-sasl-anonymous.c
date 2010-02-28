@@ -40,7 +40,7 @@ CamelServiceAuthType camel_sasl_anonymous_authtype = {
 	FALSE
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSaslAnonymous, camel_sasl_anonymous, CAMEL_TYPE_SASL)
 
 static GByteArray *
 sasl_anonymous_challenge (CamelSasl *sasl,
@@ -111,16 +111,14 @@ sasl_anonymous_finalize (GObject *object)
 	g_free (sasl->trace_info);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_sasl_anonymous_parent_class)->finalize (object);
 }
 
 static void
-sasl_anonymous_class_init (CamelSaslAnonymousClass *class)
+camel_sasl_anonymous_class_init (CamelSaslAnonymousClass *class)
 {
 	GObjectClass *object_class;
 	CamelSaslClass *sasl_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = sasl_anonymous_finalize;
@@ -129,22 +127,9 @@ sasl_anonymous_class_init (CamelSaslAnonymousClass *class)
 	sasl_class->challenge = sasl_anonymous_challenge;
 }
 
-GType
-camel_sasl_anonymous_get_type (void)
+static void
+camel_sasl_anonymous_init (CamelSaslAnonymous *sasl_anonymous)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslAnonymous",
-			sizeof (CamelSaslAnonymousClass),
-			(GClassInitFunc) sasl_anonymous_class_init,
-			sizeof (CamelSaslAnonymous),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

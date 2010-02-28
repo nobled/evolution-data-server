@@ -20,23 +20,7 @@
 
 #include "camel-news-address.h"
 
-GType
-camel_news_address_get_type (void)
-{
-	static guint type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_ADDRESS,
-			"CamelNewsAddress",
-			sizeof (CamelNewsAddressClass),
-			(GClassInitFunc) NULL,
-			sizeof (CamelNewsAddress),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
-}
+G_DEFINE_TYPE (CamelNewsAddress, camel_news_address, CAMEL_TYPE_ADDRESS)
 
 /**
  * camel_news_address_new:

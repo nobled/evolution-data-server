@@ -69,8 +69,6 @@ which needs to be better organized via functions */
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_GROUPWISE_FOLDER, CamelGroupwiseFolderPrivate))
 
-static gpointer parent_class;
-
 struct _CamelGroupwiseFolderPrivate {
 
 #ifdef ENABLE_THREADS
@@ -103,6 +101,8 @@ static gboolean groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMess
 
 static const gchar * GET_ITEM_VIEW_WITH_CACHE = "peek default recipient threading attachments subject status priority startDate created delivered size recurrenceKey message notification";
 static const gchar * GET_ITEM_VIEW_WITHOUT_CACHE = "peek default recipient threading hasAttachment subject status priority startDate created delivered size recurrenceKey";
+
+G_DEFINE_TYPE (CamelGroupwiseFolder, camel_groupwise_folder, CAMEL_TYPE_OFFLINE_FOLDER)
 
 static gchar *
 groupwise_get_filename (CamelFolder *folder, const gchar *uid, GError **error)
@@ -481,7 +481,7 @@ groupwise_folder_rename (CamelFolder *folder, const gchar *new)
 	camel_data_cache_set_path (gw_folder->cache, folder_dir);
 	CAMEL_GROUPWISE_FOLDER_REC_UNLOCK (folder, cache_lock);
 
-	((CamelFolderClass *)parent_class)->rename(folder, new);
+	((CamelFolderClass *)camel_groupwise_folder_parent_class)->rename(folder, new);
 	camel_folder_summary_set_filename (folder->summary, summary_path);
 
 	state_file = g_strdup_printf ("%s/cmeta", folder_dir);
@@ -2810,17 +2810,16 @@ groupwise_folder_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_groupwise_folder_parent_class)->dispose (object);
 }
 
 static void
-groupwise_folder_class_init (CamelGroupwiseFolderClass *class)
+camel_groupwise_folder_class_init (CamelGroupwiseFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelGroupwiseFolderPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -2847,7 +2846,7 @@ groupwise_folder_class_init (CamelGroupwiseFolderClass *class)
 }
 
 static void
-groupwise_folder_init (CamelGroupwiseFolder *gw_folder)
+camel_groupwise_folder_init (CamelGroupwiseFolder *gw_folder)
 {
 	CamelFolder *folder = CAMEL_FOLDER (gw_folder);
 
@@ -2864,24 +2863,6 @@ groupwise_folder_init (CamelGroupwiseFolder *gw_folder)
 #endif
 
 	gw_folder->need_rescan = TRUE;
-}
-
-GType
-camel_groupwise_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OFFLINE_FOLDER,
-			"CamelGroupwiseFolder",
-			sizeof (CamelGroupwiseFolderClass),
-			(GClassInitFunc) groupwise_folder_class_init,
-			sizeof (CamelGroupwiseFolder),
-			(GInstanceInitFunc) groupwise_folder_init,
-			0);
-
-	return type;
 }
 
 static gint
@@ -2915,7 +2896,7 @@ gw_getv (CamelObject *object, GError **error, CamelArgGetV *args)
 	}
 
 	if (count)
-		return ((CamelObjectClass *)parent_class)->getv(object, error, args);
+		return ((CamelObjectClass *)camel_groupwise_folder_parent_class)->getv(object, error, args);
 
 	return 0;
 

@@ -51,14 +51,12 @@ static void		 store_info_free(CamelStoreSummary *, CamelStoreInfo *);
 static const gchar *store_info_string(CamelStoreSummary *, const CamelStoreInfo *, gint);
 static void store_info_set_string(CamelStoreSummary *, CamelStoreInfo *, int, const gchar *);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelImapStoreSummary, camel_imap_store_summary, CAMEL_TYPE_STORE_SUMMARY)
 
 static void
-imap_store_summary_class_init (CamelImapStoreSummaryClass *class)
+camel_imap_store_summary_class_init (CamelImapStoreSummaryClass *class)
 {
 	CamelStoreSummaryClass *store_summary_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	store_summary_class = CAMEL_STORE_SUMMARY_CLASS (class);
 	store_summary_class->summary_header_load = summary_header_load;
@@ -72,7 +70,7 @@ imap_store_summary_class_init (CamelImapStoreSummaryClass *class)
 }
 
 static void
-imap_store_summary_init (CamelImapStoreSummary *imap_store_summary)
+camel_imap_store_summary_init (CamelImapStoreSummary *imap_store_summary)
 {
 	CamelStoreSummary *store_summary;
 
@@ -80,24 +78,6 @@ imap_store_summary_init (CamelImapStoreSummary *imap_store_summary)
 	store_summary->store_info_size = sizeof (CamelImapStoreInfo);
 
 	imap_store_summary->version = CAMEL_IMAP_STORE_SUMMARY_VERSION;
-}
-
-GType
-camel_imap_store_summary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE_SUMMARY,
-			"CamelImapStoreSummary",
-			sizeof (CamelImapStoreSummaryClass),
-			(GClassInitFunc) imap_store_summary_class_init,
-			sizeof (CamelImapStoreSummary),
-			(GInstanceInitFunc) imap_store_summary_init,
-			0);
-
-	return type;
 }
 
 /**
@@ -572,7 +552,7 @@ summary_header_load(CamelStoreSummary *s, FILE *in)
 
 	namespace_clear (is);
 
-	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->summary_header_load((CamelStoreSummary *)s, in) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->summary_header_load((CamelStoreSummary *)s, in) == -1
 	    || camel_file_util_decode_fixed_int32(in, &version) == -1)
 		return -1;
 
@@ -608,7 +588,7 @@ summary_header_save(CamelStoreSummary *s, FILE *out)
 	}
 
 	/* always write as latest version */
-	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->summary_header_save((CamelStoreSummary *)s, out) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->summary_header_save((CamelStoreSummary *)s, out) == -1
 	    || camel_file_util_encode_fixed_int32(out, CAMEL_IMAP_STORE_SUMMARY_VERSION) == -1
 	    || camel_file_util_encode_fixed_int32(out, is->capabilities) == -1
 	    || camel_file_util_encode_fixed_int32(out, count) == -1)
@@ -625,7 +605,7 @@ store_info_load(CamelStoreSummary *s, FILE *in)
 {
 	CamelImapStoreInfo *mi;
 
-	mi = (CamelImapStoreInfo *) CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_load(s, in);
+	mi = (CamelImapStoreInfo *) CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->store_info_load(s, in);
 	if (mi) {
 		if (camel_file_util_decode_string(in, &mi->full_name) == -1) {
 			camel_store_summary_info_free(s, (CamelStoreInfo *)mi);
@@ -645,7 +625,7 @@ store_info_save(CamelStoreSummary *s, FILE *out, CamelStoreInfo *mi)
 {
 	CamelImapStoreInfo *isi = (CamelImapStoreInfo *)mi;
 
-	if (CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_save(s, out, mi) == -1
+	if (CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->store_info_save(s, out, mi) == -1
 	    || camel_file_util_encode_string(out, isi->full_name) == -1)
 		return -1;
 
@@ -658,7 +638,7 @@ store_info_free(CamelStoreSummary *s, CamelStoreInfo *mi)
 	CamelImapStoreInfo *isi = (CamelImapStoreInfo *)mi;
 
 	g_free(isi->full_name);
-	CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_free(s, mi);
+	CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->store_info_free(s, mi);
 }
 
 static const gchar *
@@ -674,7 +654,7 @@ store_info_string(CamelStoreSummary *s, const CamelStoreInfo *mi, gint type)
 	case CAMEL_IMAP_STORE_INFO_FULL_NAME:
 		return isi->full_name;
 	default:
-		return CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_string(s, mi, type);
+		return CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->store_info_string(s, mi, type);
 	}
 }
 
@@ -694,7 +674,7 @@ store_info_set_string(CamelStoreSummary *s, CamelStoreInfo *mi, gint type, const
 		CAMEL_STORE_SUMMARY_UNLOCK(s, summary_lock);
 		break;
 	default:
-		CAMEL_STORE_SUMMARY_CLASS (parent_class)->store_info_set_string(s, mi, type, str);
+		CAMEL_STORE_SUMMARY_CLASS (camel_imap_store_summary_parent_class)->store_info_set_string(s, mi, type, str);
 		break;
 	}
 }

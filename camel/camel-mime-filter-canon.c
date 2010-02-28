@@ -39,7 +39,7 @@ struct _CamelMimeFilterCanonPrivate {
 	guint32 flags;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterCanon, camel_mime_filter_canon, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_canon_run (CamelMimeFilter *mime_filter,
@@ -178,11 +178,10 @@ mime_filter_canon_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_canon_class_init (CamelMimeFilterCanonClass *class)
+camel_mime_filter_canon_class_init (CamelMimeFilterCanonClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterCanonPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -192,26 +191,9 @@ mime_filter_canon_class_init (CamelMimeFilterCanonClass *class)
 }
 
 static void
-mime_filter_canon_init (CamelMimeFilterCanon *filter)
+camel_mime_filter_canon_init (CamelMimeFilterCanon *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_CANON_GET_PRIVATE (filter);
-}
-
-GType
-camel_mime_filter_canon_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER, "CamelMimeFilterCanon",
-			sizeof (CamelMimeFilterCanonClass),
-			(GClassInitFunc) mime_filter_canon_class_init,
-			sizeof (CamelMimeFilterCanon),
-			(GInstanceInitFunc) mime_filter_canon_init,
-			0);
-
-	return type;
 }
 
 /**

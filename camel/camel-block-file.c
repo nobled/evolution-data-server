@@ -43,8 +43,6 @@
 
 #define d(x) /*(printf("%s(%d):%s: ",  __FILE__, __LINE__, __PRETTY_FUNCTION__),(x))*/
 
-static gpointer block_file_parent_class;
-
 /* Locks must be obtained in the order defined */
 
 struct _CamelBlockFilePrivate {
@@ -79,6 +77,8 @@ static gint block_file_threshhold = 10;
 
 static gint sync_nolock(CamelBlockFile *bs);
 static gint sync_block_nolock(CamelBlockFile *bs, CamelBlock *bl);
+
+G_DEFINE_TYPE (CamelBlockFile, camel_block_file, CAMEL_TYPE_OBJECT)
 
 static gint
 block_file_validate_root(CamelBlockFile *bs)
@@ -188,15 +188,13 @@ block_file_finalize(GObject *object)
 	g_free(p);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (block_file_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_block_file_parent_class)->finalize (object);
 }
 
 static void
-block_file_class_init(CamelBlockFileClass *class)
+camel_block_file_class_init(CamelBlockFileClass *class)
 {
 	GObjectClass *object_class;
-
-	block_file_parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = block_file_finalize;
@@ -212,7 +210,7 @@ block_hash_func(gconstpointer v)
 }
 
 static void
-block_file_init(CamelBlockFile *bs)
+camel_block_file_init(CamelBlockFile *bs)
 {
 	struct _CamelBlockFilePrivate *p;
 
@@ -248,24 +246,6 @@ block_file_init(CamelBlockFile *bs)
 #endif
 
 	UNLOCK(block_file_lock);
-}
-
-GType
-camel_block_file_get_type(void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelBlockFile",
-			sizeof (CamelBlockFileClass),
-			(GClassInitFunc) block_file_class_init,
-			sizeof (CamelBlockFile),
-			(GInstanceInitFunc) block_file_init,
-			0);
-
-	return type;
 }
 
 /* 'use' a block file for io */
@@ -830,8 +810,6 @@ gint camel_block_file_sync(CamelBlockFile *bs)
 
 /* ********************************************************************** */
 
-static gpointer key_file_parent_class;
-
 struct _CamelKeyFilePrivate {
 	struct _CamelKeyFilePrivate *next;
 	struct _CamelKeyFilePrivate *prev;
@@ -852,6 +830,8 @@ static CamelDList key_file_list = CAMEL_DLIST_INITIALISER(key_file_list);
 static CamelDList key_file_active_list = CAMEL_DLIST_INITIALISER(key_file_active_list);
 static gint key_file_count = 0;
 static const gint key_file_threshhold = 10;
+
+G_DEFINE_TYPE (CamelKeyFile, camel_key_file, CAMEL_TYPE_OBJECT)
 
 static void
 key_file_finalize(GObject *object)
@@ -876,22 +856,20 @@ key_file_finalize(GObject *object)
 	g_free(p);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (key_file_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_key_file_parent_class)->finalize (object);
 }
 
 static void
-key_file_class_init(CamelKeyFileClass *class)
+camel_key_file_class_init(CamelKeyFileClass *class)
 {
 	GObjectClass *object_class;
-
-	key_file_parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = key_file_finalize;
 }
 
 static void
-key_file_init(CamelKeyFile *bs)
+camel_key_file_init(CamelKeyFile *bs)
 {
 	struct _CamelKeyFilePrivate *p;
 
@@ -903,24 +881,6 @@ key_file_init(CamelKeyFile *bs)
 	LOCK(key_file_lock);
 	camel_dlist_addhead(&key_file_list, (CamelDListNode *)p);
 	UNLOCK(key_file_lock);
-}
-
-GType
-camel_key_file_get_type(void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelKeyFile",
-			sizeof (CamelKeyFileClass),
-			(GClassInitFunc) key_file_class_init,
-			sizeof (CamelKeyFile),
-			(GInstanceInitFunc) key_file_init,
-			0);
-
-	return type;
 }
 
 /* 'use' a key file for io */

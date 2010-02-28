@@ -43,7 +43,7 @@ struct _CamelMimeFilterYencPrivate {
 	guint32 crc;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterYenc, camel_mime_filter_yenc, CAMEL_TYPE_MIME_FILTER)
 
 /* here we do all of the basic yEnc filtering */
 static void
@@ -209,11 +209,10 @@ mime_filter_yenc_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_yenc_class_init (CamelMimeFilterYencClass *class)
+camel_mime_filter_yenc_class_init (CamelMimeFilterYencClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterYencPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -223,31 +222,13 @@ mime_filter_yenc_class_init (CamelMimeFilterYencClass *class)
 }
 
 static void
-mime_filter_yenc_init (CamelMimeFilterYenc *filter)
+camel_mime_filter_yenc_init (CamelMimeFilterYenc *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (filter);
 
 	filter->priv->part = 0;
 	filter->priv->pcrc = CAMEL_MIME_YENCODE_CRC_INIT;
 	filter->priv->crc = CAMEL_MIME_YENCODE_CRC_INIT;
-}
-
-GType
-camel_mime_filter_yenc_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterYenc",
-			sizeof (CamelMimeFilterYencClass),
-			(GClassInitFunc) mime_filter_yenc_class_init,
-			sizeof (CamelMimeFilterYenc),
-			(GInstanceInitFunc) mime_filter_yenc_init,
-			0);
-
-	return type;
 }
 
 /**

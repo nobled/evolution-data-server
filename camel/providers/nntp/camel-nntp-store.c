@@ -55,9 +55,9 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_NNTP_STORE, CamelNNTPStorePrivate))
 
-static gpointer parent_class;
-
 static gint camel_nntp_try_authenticate (CamelNNTPStore *store, GError **error);
+
+G_DEFINE_TYPE (CamelNNTPStore, camel_nntp_store, CAMEL_TYPE_DISCO_STORE)
 
 static void
 nntp_store_dispose (GObject *object)
@@ -97,7 +97,7 @@ nntp_store_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_nntp_store_parent_class)->dispose (object);
 }
 
 static void
@@ -117,7 +117,7 @@ nntp_store_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_nntp_store_parent_class)->finalize (object);
 }
 
 static gboolean
@@ -403,7 +403,7 @@ nntp_disconnect_online (CamelService *service, gboolean clean, GError **error)
 	CamelServiceClass *service_class;
 	gchar *line;
 
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_nntp_store_parent_class);
 
 	CAMEL_SERVICE_REC_LOCK(store, connect_lock);
 
@@ -433,7 +433,7 @@ nntp_disconnect_offline (CamelService *service, gboolean clean, GError **error)
 	CamelServiceClass *service_class;
 
 	/* Chain up to parent's disconnect() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_nntp_store_parent_class);
 	if (!service_class->disconnect (service, clean, error))
 		return FALSE;
 
@@ -1079,7 +1079,7 @@ nntp_construct (CamelService *service, CamelSession *session,
 	gchar *tmp;
 
 	/* construct the parent first */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_nntp_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -1126,14 +1126,13 @@ nntp_construct (CamelService *service, CamelSession *session,
 }
 
 static void
-nntp_store_class_init (CamelNNTPStoreClass *class)
+camel_nntp_store_class_init (CamelNNTPStoreClass *class)
 {
 	GObjectClass *object_class;
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
 	CamelDiscoStoreClass *disco_store_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelNNTPStorePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -1170,7 +1169,7 @@ nntp_store_class_init (CamelNNTPStoreClass *class)
 }
 
 static void
-nntp_store_init (CamelNNTPStore *nntp_store)
+camel_nntp_store_init (CamelNNTPStore *nntp_store)
 {
 	CamelStore *store = CAMEL_STORE (nntp_store);
 
@@ -1179,24 +1178,6 @@ nntp_store_init (CamelNNTPStore *nntp_store)
 	nntp_store->mem = (CamelStreamMem *)camel_stream_mem_new();
 
 	nntp_store->priv = CAMEL_NNTP_STORE_GET_PRIVATE (nntp_store);
-}
-
-GType
-camel_nntp_store_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_DISCO_STORE,
-			"CamelNNTPStore",
-			sizeof (CamelNNTPStoreClass),
-			(GClassInitFunc) nntp_store_class_init,
-			sizeof (CamelNNTPStore),
-			(GInstanceInitFunc) nntp_store_init,
-			0);
-
-	return type;
 }
 
 static gint

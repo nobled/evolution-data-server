@@ -54,7 +54,7 @@ static gboolean local_can_refresh_folder (CamelStore *store, CamelFolderInfo *in
 static gchar *local_get_full_path(CamelLocalStore *lf, const gchar *full_name);
 static gchar *local_get_meta_path(CamelLocalStore *lf, const gchar *full_name, const gchar *ext);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelLocalStore, camel_local_store, CAMEL_TYPE_STORE)
 
 static void
 local_store_finalize (GObject *object)
@@ -64,17 +64,15 @@ local_store_finalize (GObject *object)
 	g_free (local_store->toplevel_dir);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_local_store_parent_class)->finalize (object);
 }
 
 static void
-local_store_class_init (CamelLocalStoreClass *class)
+camel_local_store_class_init (CamelLocalStoreClass *class)
 {
 	GObjectClass *object_class;
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = local_store_finalize;
@@ -99,22 +97,9 @@ local_store_class_init (CamelLocalStoreClass *class)
 	class->get_meta_path = local_get_meta_path;
 }
 
-GType
-camel_local_store_get_type (void)
+static void
+camel_local_store_init (CamelLocalStore *local_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE,
-			"CamelLocalStore",
-			sizeof (CamelLocalStoreClass),
-			(GClassInitFunc) local_store_class_init,
-			sizeof (CamelLocalStore),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static gboolean
@@ -129,7 +114,7 @@ construct (CamelService *service,
 	gint len;
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_local_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -219,7 +204,7 @@ local_get_trash (CamelStore *store,
 	CamelFolder *folder;
 
 	/* Chain up to parent's get_trash() method. */
-	folder = CAMEL_STORE_CLASS (parent_class)->get_trash (store, error);
+	folder = CAMEL_STORE_CLASS (camel_local_store_parent_class)->get_trash (store, error);
 
 	if (folder) {
 		gchar *state = camel_local_store_get_meta_path(store, CAMEL_VTRASH_NAME, ".cmeta");
@@ -240,7 +225,7 @@ local_get_junk (CamelStore *store,
 	CamelFolder *folder;
 
 	/* Chain up to parent's get_junk() method. */
-	folder = CAMEL_STORE_CLASS (parent_class)->get_junk (store, error);
+	folder = CAMEL_STORE_CLASS (camel_local_store_parent_class)->get_junk (store, error);
 
 	if (folder) {
 		gchar *state = camel_local_store_get_meta_path(store, CAMEL_VJUNK_NAME, ".cmeta");

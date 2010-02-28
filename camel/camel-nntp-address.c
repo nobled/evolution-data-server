@@ -31,12 +31,12 @@ static gchar * nntp_address_encode		(CamelAddress *);
 static gint    nntp_address_cat		(CamelAddress *dest, CamelAddress *source);
 static void   nntp_address_remove		(CamelAddress *, gint index);
 
-static gpointer parent_class;
-
 struct _address {
 	gchar *name;
 	gchar *address;
 };
+
+G_DEFINE_TYPE (CamelNNTPAddress, camel_nntp_address, CAMEL_TYPE_ADDRESS)
 
 /* since newsgropus are 7bit ascii, decode/unformat are the same */
 static gint
@@ -111,11 +111,9 @@ nntp_address_remove (CamelAddress *address,
 }
 
 static void
-nntp_address_class_init(CamelNNTPAddressClass *class)
+camel_nntp_address_class_init (CamelNNTPAddressClass *class)
 {
 	CamelAddressClass *address_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	address_class = CAMEL_ADDRESS_CLASS (class);
 	address_class->decode = nntp_address_decode;
@@ -126,22 +124,9 @@ nntp_address_class_init(CamelNNTPAddressClass *class)
 	address_class->cat = nntp_address_cat;
 }
 
-GType
-camel_nntp_address_get_type(void)
+static void
+camel_nntp_address_init (CamelNNTPAddress *nntp_address)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_ADDRESS,
-			"CamelNNTPAddress",
-			sizeof (CamelNNTPAddressClass),
-			(GClassInitFunc) nntp_address_class_init,
-			sizeof (CamelNNTPAddress),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

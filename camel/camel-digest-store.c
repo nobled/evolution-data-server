@@ -41,14 +41,12 @@ static CamelFolder *digest_get_junk  (CamelStore *store, GError **error);
 static CamelFolderInfo *digest_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, GError **error);
 
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelDigestStore, camel_digest_store, CAMEL_TYPE_STORE)
 
 static void
-digest_store_class_init (CamelDigestStoreClass *class)
+camel_digest_store_class_init (CamelDigestStoreClass *class)
 {
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	store_class = CAMEL_STORE_CLASS (class);
 	store_class->get_folder = digest_get_folder;
@@ -62,30 +60,12 @@ digest_store_class_init (CamelDigestStoreClass *class)
 }
 
 static void
-digest_store_init (CamelDigestStore *digest_store)
+camel_digest_store_init (CamelDigestStore *digest_store)
 {
 	CamelStore *store = CAMEL_STORE (digest_store);
 
 	/* we dont want a vtrash and vjunk on this one */
 	store->flags &= ~(CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK);
-}
-
-GType
-camel_digest_store_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE,
-			"CamelDigestStore",
-			sizeof (CamelDigestStoreClass),
-			(GClassInitFunc) digest_store_class_init,
-			sizeof (CamelDigestStore),
-			(GInstanceInitFunc) digest_store_init,
-			0);
-
-	return type;
 }
 
 /**

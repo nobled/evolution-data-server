@@ -42,7 +42,7 @@ static gboolean groupwise_send_to (CamelTransport *transport,
 				  CamelAddress *recipients,
 				  GError **error);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelGroupwiseTransport, camel_groupwise_transport, CAMEL_TYPE_TRANSPORT)
 
 static gboolean
 groupwise_transport_connect (CamelService *service,
@@ -179,12 +179,10 @@ groupwise_send_to (CamelTransport *transport,
 }
 
 static void
-groupwise_transport_class_init (CamelGroupwiseTransportClass *class)
+camel_groupwise_transport_class_init (CamelGroupwiseTransportClass *class)
 {
 	CamelServiceClass *service_class;
 	CamelTransportClass *transport_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->connect = groupwise_transport_connect;
@@ -194,20 +192,8 @@ groupwise_transport_class_init (CamelGroupwiseTransportClass *class)
 	transport_class->send_to = groupwise_send_to;
 }
 
-GType
-camel_groupwise_transport_get_type (void)
+static void
+camel_groupwise_transport_init (CamelGroupwiseTransport *groupwise_transport)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_TRANSPORT,
-			"CamelGroupwiseTransport",
-			sizeof (CamelGroupwiseTransportClass),
-			(GClassInitFunc) groupwise_transport_class_init,
-			sizeof (CamelGroupwiseTransport),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
+

@@ -37,8 +37,6 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_MEDIUM, CamelMediumPrivate))
 
-static gpointer parent_class;
-
 struct _CamelMediumPrivate {
 	/* The content of the medium, as opposed to our parent
 	 * CamelDataWrapper, which wraps both the headers and
@@ -50,6 +48,8 @@ enum {
 	PROP_0,
 	PROP_CONTENT
 };
+
+G_DEFINE_ABSTRACT_TYPE (CamelMedium, camel_medium, CAMEL_TYPE_DATA_WRAPPER)
 
 static void
 medium_set_property (GObject *object,
@@ -98,7 +98,7 @@ medium_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_medium_parent_class)->dispose (object);
 }
 
 static gboolean
@@ -134,12 +134,11 @@ medium_get_content (CamelMedium *medium)
 }
 
 static void
-medium_class_init (CamelMediumClass *class)
+camel_medium_class_init (CamelMediumClass *class)
 {
 	GObjectClass *object_class;
 	CamelDataWrapperClass *data_wrapper_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMediumPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -165,27 +164,9 @@ medium_class_init (CamelMediumClass *class)
 }
 
 static void
-medium_init (CamelMedium *medium)
+camel_medium_init (CamelMedium *medium)
 {
 	medium->priv = CAMEL_MEDIUM_GET_PRIVATE (medium);
-}
-
-GType
-camel_medium_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_DATA_WRAPPER,
-			"CamelMedium",
-			sizeof (CamelMediumClass),
-			(GClassInitFunc) medium_class_init,
-			sizeof (CamelMedium),
-			(GInstanceInitFunc) medium_init,
-			0);
-
-	return type;
 }
 
 /**

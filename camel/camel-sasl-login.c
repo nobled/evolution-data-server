@@ -54,7 +54,7 @@ struct _CamelSaslLoginPrivate {
 	gint state;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSaslLogin, camel_sasl_login, CAMEL_TYPE_SASL)
 
 static GByteArray *
 sasl_login_challenge (CamelSasl *sasl,
@@ -100,11 +100,10 @@ sasl_login_challenge (CamelSasl *sasl,
 }
 
 static void
-sasl_login_class_init (CamelSaslLoginClass *class)
+camel_sasl_login_class_init (CamelSaslLoginClass *class)
 {
 	CamelSaslClass *sasl_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslLoginPrivate));
 
 	sasl_class = CAMEL_SASL_CLASS (class);
@@ -112,25 +111,8 @@ sasl_login_class_init (CamelSaslLoginClass *class)
 }
 
 static void
-sasl_login_init (CamelSaslLogin *sasl)
+camel_sasl_login_init (CamelSaslLogin *sasl)
 {
 	sasl->priv = CAMEL_SASL_LOGIN_GET_PRIVATE (sasl);
 }
 
-GType
-camel_sasl_login_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslLogin",
-			sizeof (CamelSaslLoginClass),
-			(GClassInitFunc) sasl_login_class_init,
-			sizeof (CamelSaslLogin),
-			(GInstanceInitFunc) sasl_login_init,
-			0);
-
-	return type;
-}

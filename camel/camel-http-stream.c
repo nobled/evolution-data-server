@@ -49,7 +49,7 @@
 
 #define d(x)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelHttpStream, camel_http_stream, CAMEL_TYPE_STREAM)
 
 static CamelStream *
 http_connect (CamelHttpStream *http,
@@ -344,7 +344,7 @@ http_stream_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_http_stream_parent_class)->dispose (object);
 }
 
 static void
@@ -365,7 +365,7 @@ http_stream_finalize (GObject *object)
 	g_free (http->authpass);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_http_stream_parent_class)->finalize (object);
 }
 
 static gssize
@@ -520,12 +520,10 @@ http_stream_reset (CamelStream *stream,
 }
 
 static void
-http_stream_class_init (CamelHttpStreamClass *class)
+camel_http_stream_class_init (CamelHttpStreamClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = http_stream_dispose;
@@ -540,27 +538,9 @@ http_stream_class_init (CamelHttpStreamClass *class)
 }
 
 static void
-http_stream_init (CamelHttpStream *http)
+camel_http_stream_init (CamelHttpStream *http)
 {
 	http->raw_headers = g_queue_new ();
-}
-
-GType
-camel_http_stream_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelHttpStream",
-			sizeof (CamelHttpStreamClass),
-			(GClassInitFunc) http_stream_class_init,
-			sizeof (CamelHttpStream),
-			(GInstanceInitFunc) http_stream_init,
-			0);
-
-	return type;
 }
 
 /**

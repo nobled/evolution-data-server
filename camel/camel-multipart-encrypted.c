@@ -37,7 +37,7 @@
 #include "camel-stream-fs.h"
 #include "camel-stream-mem.h"
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMultipartEncrypted, camel_multipart_encrypted, CAMEL_TYPE_MULTIPART)
 
 static void
 multipart_encrypted_dispose (GObject *object)
@@ -52,7 +52,7 @@ multipart_encrypted_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_multipart_encrypted_parent_class)->dispose (object);
 }
 
 static void
@@ -65,7 +65,7 @@ multipart_encrypted_finalize (GObject *object)
 	g_free (multipart->protocol);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_multipart_encrypted_parent_class)->finalize (object);
 }
 
 /* we snoop the mime type to get the protocol */
@@ -87,17 +87,15 @@ multipart_encrypted_set_mime_type_field (CamelDataWrapper *data_wrapper,
 	}
 
 	/* Chain up to parent's set_mime_type_field() method. */
-	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (parent_class);
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (camel_multipart_encrypted_parent_class);
 	data_wrapper_class->set_mime_type_field (data_wrapper, mime_type);
 }
 
 static void
-multipart_encrypted_class_init (CamelMultipartEncryptedClass *class)
+camel_multipart_encrypted_class_init (CamelMultipartEncryptedClass *class)
 {
 	GObjectClass *object_class;
 	CamelDataWrapperClass *data_wrapper_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = multipart_encrypted_dispose;
@@ -109,30 +107,12 @@ multipart_encrypted_class_init (CamelMultipartEncryptedClass *class)
 }
 
 static void
-multipart_encrypted_init (CamelMultipartEncrypted *multipart)
+camel_multipart_encrypted_init (CamelMultipartEncrypted *multipart)
 {
 	camel_data_wrapper_set_mime_type (
 		CAMEL_DATA_WRAPPER (multipart), "multipart/encrypted");
 
 	multipart->decrypted = NULL;
-}
-
-GType
-camel_multipart_encrypted_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MULTIPART,
-			"CamelMultipartEncrypted",
-			sizeof (CamelMultipartEncryptedClass),
-			(GClassInitFunc) multipart_encrypted_class_init,
-			sizeof (CamelMultipartEncrypted),
-			(GInstanceInitFunc) multipart_encrypted_init,
-			0);
-
-	return type;
 }
 
 /**

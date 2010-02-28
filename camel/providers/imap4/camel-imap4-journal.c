@@ -48,8 +48,6 @@ static CamelDListNode *imap4_entry_load (CamelOfflineJournal *journal, FILE *in)
 static gint imap4_entry_write (CamelOfflineJournal *journal, CamelDListNode *entry, FILE *out);
 static gint imap4_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, GError **error);
 
-static gpointer parent_class;
-
 GType
 camel_imap4_journal_get_type (void)
 {
@@ -73,8 +71,6 @@ static void
 camel_imap4_journal_class_init (CamelIMAP4JournalClass *class)
 {
 	CamelOfflineJournalClass *journal_class = (CamelOfflineJournalClass *) class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	journal_class->entry_free = imap4_entry_free;
 	journal_class->entry_load = imap4_entry_load;

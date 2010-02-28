@@ -46,8 +46,6 @@ static gint stream_flush  (CamelStream *stream);
 static gint stream_close  (CamelStream *stream);
 static gboolean stream_eos (CamelStream *stream);
 
-static gpointer parent_class;
-
 GType
 camel_imap4_stream_get_type (void)
 {
@@ -71,8 +69,6 @@ static void
 camel_imap4_stream_class_init (CamelIMAP4StreamClass *class)
 {
 	CamelStreamClass *stream_class = (CamelStreamClass *) class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	stream_class->read = stream_read;
 	stream_class->write = stream_write;

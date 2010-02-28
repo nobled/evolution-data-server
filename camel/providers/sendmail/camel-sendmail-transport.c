@@ -44,8 +44,10 @@ static gboolean sendmail_send_to (CamelTransport *transport,
 				  CamelAddress *from, CamelAddress *recipients,
 				  GError **error);
 
+G_DEFINE_TYPE (CamelSendmailTransport, camel_sendmail_transport, CAMEL_TYPE_TRANSPORT)
+
 static void
-sendmail_transport_class_init (CamelSendmailTransportClass *class)
+camel_sendmail_transport_class_init (CamelSendmailTransportClass *class)
 {
 	CamelServiceClass *service_class;
 	CamelTransportClass *transport_class;
@@ -57,22 +59,9 @@ sendmail_transport_class_init (CamelSendmailTransportClass *class)
 	transport_class->send_to = sendmail_send_to;
 }
 
-GType
-camel_sendmail_transport_get_type (void)
+static void
+camel_sendmail_transport_init (CamelSendmailTransport *sendmail_transport)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_TRANSPORT,
-			"CamelSendmailTransport",
-			sizeof (CamelSendmailTransportClass),
-			(GClassInitFunc) sendmail_transport_class_init,
-			sizeof (CamelSendmailTransport),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static gboolean

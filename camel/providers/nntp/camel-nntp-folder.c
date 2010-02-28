@@ -47,7 +47,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_NNTP_FOLDER, CamelNNTPFolderPrivate))
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelNNTPFolder, camel_nntp_folder, CAMEL_TYPE_DISCO_FOLDER)
 
 static void
 nntp_folder_finalize (GObject *object)
@@ -61,7 +61,7 @@ nntp_folder_finalize (GObject *object)
 	g_mutex_free (nntp_folder->priv->cache_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_nntp_folder_parent_class)->finalize (object);
 }
 
 gboolean
@@ -481,23 +481,12 @@ nntp_folder_transfer_message (CamelFolder *source,
 }
 
 static void
-nntp_folder_init (CamelNNTPFolder *nntp_folder)
-{
-	nntp_folder->priv = CAMEL_NNTP_FOLDER_GET_PRIVATE (nntp_folder);
-
-	nntp_folder->changes = camel_folder_change_info_new ();
-	nntp_folder->priv->search_lock = g_mutex_new ();
-	nntp_folder->priv->cache_lock = g_mutex_new ();
-}
-
-static void
-nntp_folder_class_init (CamelNNTPFolderClass *class)
+camel_nntp_folder_class_init (CamelNNTPFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelFolderClass *folder_class;
 	CamelDiscoFolderClass *disco_folder_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelNNTPFolderPrivate));
 
 	folder_class = CAMEL_FOLDER_CLASS (g_type_class_peek (CAMEL_TYPE_FOLDER));
@@ -527,22 +516,14 @@ nntp_folder_class_init (CamelNNTPFolderClass *class)
 	disco_folder_class->refresh_info_online = nntp_folder_refresh_info_online;
 }
 
-GType
-camel_nntp_folder_get_type (void)
+static void
+camel_nntp_folder_init (CamelNNTPFolder *nntp_folder)
 {
-	static GType type = G_TYPE_INVALID;
+	nntp_folder->priv = CAMEL_NNTP_FOLDER_GET_PRIVATE (nntp_folder);
 
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_DISCO_FOLDER,
-			"CamelNNTPFolder",
-			sizeof (CamelNNTPFolderClass),
-			(GClassInitFunc) nntp_folder_class_init,
-			sizeof (CamelNNTPFolder),
-			(GInstanceInitFunc) nntp_folder_init,
-			0);
-
-	return type;
+	nntp_folder->changes = camel_folder_change_info_new ();
+	nntp_folder->priv->search_lock = g_mutex_new ();
+	nntp_folder->priv->cache_lock = g_mutex_new ();
 }
 
 CamelFolder *

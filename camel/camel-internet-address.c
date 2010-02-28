@@ -31,7 +31,7 @@ struct _address {
 	gchar *address;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelInternetAddress, camel_internet_address, CAMEL_TYPE_ADDRESS)
 
 static gint
 internet_address_decode (CamelAddress *a, const gchar *raw)
@@ -221,11 +221,9 @@ internet_address_cat (CamelAddress *dest, CamelAddress *source)
 }
 
 static void
-internet_address_class_init (CamelInternetAddressClass *class)
+camel_internet_address_class_init (CamelInternetAddressClass *class)
 {
 	CamelAddressClass *address_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	address_class = CAMEL_ADDRESS_CLASS (class);
 	address_class->decode = internet_address_decode;
@@ -236,22 +234,9 @@ internet_address_class_init (CamelInternetAddressClass *class)
 	address_class->cat = internet_address_cat;
 }
 
-GType
-camel_internet_address_get_type(void)
+static void
+camel_internet_address_init (CamelInternetAddress *internet_address)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_ADDRESS,
-			"CamelInternetAddress",
-			sizeof (CamelInternetAddressClass),
-			(GClassInitFunc) internet_address_class_init,
-			sizeof (CamelInternetAddress),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

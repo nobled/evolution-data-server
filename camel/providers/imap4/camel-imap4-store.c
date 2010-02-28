@@ -67,8 +67,6 @@ static void imap4_unsubscribe_folder (CamelStore *store, const gchar *folder_nam
 static gboolean imap4_folder_subscribed (CamelStore *store, const gchar *folder_name);
 static void imap4_noop (CamelStore *store, GError **error);
 
-static gpointer parent_class;
-
 GType
 camel_imap4_store_get_type (void)
 {
@@ -115,8 +113,6 @@ camel_imap4_store_class_init (CamelIMAP4StoreClass *class)
 {
 	CamelServiceClass *service_class = (CamelServiceClass *) class;
 	CamelStoreClass *store_class = (CamelStoreClass *) class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class->construct = imap4_construct;
 	service_class->get_name = imap4_get_name;
@@ -168,7 +164,7 @@ imap4_construct (CamelService *service, CamelSession *session, CamelProvider *pr
 	CamelIMAP4Store *store = (CamelIMAP4Store *) service;
 	gchar *buf;
 
-	CAMEL_SERVICE_CLASS (parent_class)->construct (service, session, provider, url, ex);
+	CAMEL_SERVICE_CLASS (camel_imap4_store_parent_class)->construct (service, session, provider, url, ex);
 	if (camel_exception_is_set (ex))
 		return;
 

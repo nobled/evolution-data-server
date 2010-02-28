@@ -40,8 +40,6 @@
 
 #define d(x)
 
-static gpointer parent_class;
-
 static CamelFolder *get_folder(CamelStore *store, const gchar *folder_name, guint32 flags, GError **error);
 static gboolean delete_folder(CamelStore *store, const gchar *folder_name, GError **error);
 static gboolean rename_folder(CamelStore *store, const gchar *old, const gchar *new, GError **error);
@@ -50,13 +48,13 @@ static CamelFolderInfo *get_folder_info(CamelStore *store, const gchar *top, gui
 static gchar *mbox_get_meta_path(CamelLocalStore *ls, const gchar *full_name, const gchar *ext);
 static gchar *mbox_get_full_path(CamelLocalStore *ls, const gchar *full_name);
 
+G_DEFINE_TYPE (CamelMboxStore, camel_mbox_store, CAMEL_TYPE_LOCAL_STORE)
+
 static void
-mbox_store_class_init (CamelMboxStoreClass *class)
+camel_mbox_store_class_init (CamelMboxStoreClass *class)
 {
 	CamelStoreClass *store_class;
 	CamelLocalStoreClass *local_store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	store_class = CAMEL_STORE_CLASS (class);
 	store_class->get_folder = get_folder;
@@ -71,22 +69,9 @@ mbox_store_class_init (CamelMboxStoreClass *class)
 	local_store_class->get_meta_path = mbox_get_meta_path;
 }
 
-GType
-camel_mbox_store_get_type (void)
+static void
+camel_mbox_store_init (CamelMboxStore *mbox_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_STORE,
-			"CamelMboxStore",
-			sizeof (CamelMboxStoreClass),
-			(GClassInitFunc) mbox_store_class_init,
-			sizeof (CamelMboxStore),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static const gchar *extensions[] = {
@@ -126,7 +111,7 @@ get_folder (CamelStore *store,
 	gchar *name;
 
 	/* Chain up to parent's get_folder() method. */
-	store_class = CAMEL_STORE_CLASS (parent_class);
+	store_class = CAMEL_STORE_CLASS (camel_mbox_store_parent_class);
 	if (!store_class->get_folder (store, folder_name, flags, error))
 		return NULL;
 

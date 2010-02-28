@@ -75,7 +75,7 @@ struct _CamelSMIMEContextPrivate {
 	guint send_encrypt_key_prefs:1;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSMIMEContext, camel_smime_context, CAMEL_TYPE_CIPHER_CONTEXT)
 
 /* used for decode content callback, for streaming decode */
 static void
@@ -1164,11 +1164,10 @@ fail:
 }
 
 static void
-smime_context_class_init (CamelSMIMEContextClass *class)
+camel_smime_context_class_init (CamelSMIMEContextClass *class)
 {
 	CamelCipherContextClass *cipher_context_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSMIMEContextPrivate));
 
 	cipher_context_class = CAMEL_CIPHER_CONTEXT_CLASS (class);
@@ -1184,31 +1183,13 @@ smime_context_class_init (CamelSMIMEContextClass *class)
 }
 
 static void
-smime_context_init (CamelSMIMEContext *smime_context)
+camel_smime_context_init (CamelSMIMEContext *smime_context)
 {
 	smime_context->priv = CAMEL_SMIME_CONTEXT_GET_PRIVATE (smime_context);
 
 	smime_context->priv->certdb = CERT_GetDefaultCertDB ();
 	smime_context->priv->sign_mode = CAMEL_SMIME_SIGN_CLEARSIGN;
 	smime_context->priv->password_tries = 0;
-}
-
-GType
-camel_smime_context_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_CIPHER_CONTEXT,
-			"CamelSMIMEContext",
-			sizeof (CamelSMIMEContextClass),
-			(GClassInitFunc) smime_context_class_init,
-			sizeof (CamelSMIMEContext),
-			(GInstanceInitFunc) smime_context_init,
-			0);
-
-	return type;
 }
 
 /**

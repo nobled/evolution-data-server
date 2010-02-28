@@ -45,8 +45,6 @@ static void imap4_engine_finalize (CamelObject *object);
 static gint parse_xgwextensions (CamelIMAP4Engine *engine, CamelIMAP4Command *ic, guint32 index,
 				camel_imap4_token_t *token, GError **error);
 
-static gpointer parent_class;
-
 GType
 camel_imap4_engine_get_type (void)
 {
@@ -69,8 +67,6 @@ camel_imap4_engine_get_type (void)
 static void
 camel_imap4_engine_class_init (CamelIMAP4EngineClass *class)
 {
-	parent_class = g_type_class_peek_parent (class);
-
 	class->tagprefix = 'A';
 }
 

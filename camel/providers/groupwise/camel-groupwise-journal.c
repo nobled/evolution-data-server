@@ -46,14 +46,12 @@ static CamelDListNode *groupwise_entry_load (CamelOfflineJournal *journal, FILE 
 static gint groupwise_entry_write (CamelOfflineJournal *journal, CamelDListNode *entry, FILE *out);
 static gint groupwise_entry_play (CamelOfflineJournal *journal, CamelDListNode *entry, GError **error);
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelGroupwiseJournal, camel_groupwise_journal, CAMEL_TYPE_OFFLINE_JOURNAL)
 
 static void
-groupwise_journal_class_init (CamelGroupwiseJournalClass *class)
+camel_groupwise_journal_class_init (CamelGroupwiseJournalClass *class)
 {
 	CamelOfflineJournalClass *offline_journal_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	offline_journal_class = CAMEL_OFFLINE_JOURNAL_CLASS (class);
 	offline_journal_class->entry_free = groupwise_entry_free;
@@ -62,22 +60,9 @@ groupwise_journal_class_init (CamelGroupwiseJournalClass *class)
 	offline_journal_class->entry_play = groupwise_entry_play;
 }
 
-GType
-camel_groupwise_journal_get_type (void)
+static void
+camel_groupwise_journal_init (CamelGroupwiseJournal *groupwise_journal)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OFFLINE_JOURNAL,
-			"CamelGroupwiseJournal",
-			sizeof (CamelGroupwiseJournalClass),
-			(GClassInitFunc) groupwise_journal_class_init,
-			sizeof (CamelGroupwiseJournal),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static void

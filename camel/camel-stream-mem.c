@@ -46,7 +46,7 @@ struct _CamelStreamMemPrivate {
 	GByteArray *buffer;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStreamMem, camel_stream_mem, CAMEL_TYPE_SEEKABLE_STREAM)
 
 /* could probably be a util method */
 static void
@@ -82,7 +82,7 @@ stream_mem_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_stream_mem_parent_class)->finalize (object);
 }
 
 static gssize
@@ -194,13 +194,12 @@ stream_mem_seek (CamelSeekableStream *stream,
 }
 
 static void
-stream_mem_class_init (CamelStreamMemClass *class)
+camel_stream_mem_class_init (CamelStreamMemClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 	CamelSeekableStreamClass *seekable_stream_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelStreamMemPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -216,27 +215,9 @@ stream_mem_class_init (CamelStreamMemClass *class)
 }
 
 static void
-stream_mem_init (CamelStreamMem *stream)
+camel_stream_mem_init (CamelStreamMem *stream)
 {
 	stream->priv = CAMEL_STREAM_MEM_GET_PRIVATE (stream);
-}
-
-GType
-camel_stream_mem_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SEEKABLE_STREAM,
-			"CamelStreamMem",
-			sizeof (CamelStreamMemClass),
-			(GClassInitFunc) stream_mem_class_init,
-			sizeof (CamelStreamMem),
-			(GInstanceInitFunc) stream_mem_init,
-			0);
-
-	return type;
 }
 
 /**

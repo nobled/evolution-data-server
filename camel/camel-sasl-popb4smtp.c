@@ -62,7 +62,7 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #define POPB4SMTP_LOCK(l) pthread_mutex_lock(&l)
 #define POPB4SMTP_UNLOCK(l) pthread_mutex_unlock(&l)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSaslPOPB4SMTP, camel_sasl_popb4smtp, CAMEL_TYPE_SASL)
 
 static GByteArray *
 sasl_popb4smtp_challenge (CamelSasl *sasl,
@@ -137,11 +137,10 @@ sasl_popb4smtp_challenge (CamelSasl *sasl,
 }
 
 static void
-sasl_popb4smtp_class_init (CamelSaslPOPB4SMTPClass *class)
+camel_sasl_popb4smtp_class_init (CamelSaslPOPB4SMTPClass *class)
 {
 	CamelSaslClass *sasl_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslPOPB4SMTPPrivate));
 
 	sasl_class = CAMEL_SASL_CLASS (class);
@@ -151,26 +150,8 @@ sasl_popb4smtp_class_init (CamelSaslPOPB4SMTPClass *class)
 }
 
 static void
-sasl_popb4smtp_init (CamelSaslPOPB4SMTP *sasl)
+camel_sasl_popb4smtp_init (CamelSaslPOPB4SMTP *sasl)
 {
 	sasl->priv = CAMEL_SASL_POPB4SMTP_GET_PRIVATE (sasl);
-}
-
-GType
-camel_sasl_popb4smtp_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslPOPB4SMTP",
-			sizeof (CamelSaslPOPB4SMTPClass),
-			(GClassInitFunc) sasl_popb4smtp_class_init,
-			sizeof (CamelSaslPOPB4SMTP),
-			(GInstanceInitFunc) sasl_popb4smtp_init,
-			0);
-
-	return type;
 }
 

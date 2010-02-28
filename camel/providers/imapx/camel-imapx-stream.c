@@ -40,8 +40,6 @@
 #define t(x) 
 #define io(x)
 
-static CamelObjectClass *parent_class = NULL;
-
 /* Returns the class for a CamelStream */
 #define CS_CLASS(so) CAMEL_IMAPX_STREAM_CLASS(CAMEL_OBJECT_GET_CLASS(so))
 
@@ -146,8 +144,6 @@ static void
 camel_imapx_stream_class_init (CamelStreamClass *camel_imapx_stream_class)
 {
 	CamelStreamClass *camel_stream_class = (CamelStreamClass *)camel_imapx_stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	camel_stream_class->read = stream_read;
 	camel_stream_class->write = stream_write;

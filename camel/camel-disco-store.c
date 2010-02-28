@@ -35,8 +35,6 @@
 
 #define d(x)
 
-static gpointer parent_class;
-
 static gboolean disco_construct (CamelService *service, CamelSession *session,
 			     CamelProvider *provider, CamelURL *url,
 			     GError **error);
@@ -53,14 +51,13 @@ static void set_status (CamelDiscoStore *disco_store,
 			GError **error);
 static gboolean can_work_offline (CamelDiscoStore *disco_store);
 
+G_DEFINE_TYPE (CamelDiscoStore, camel_disco_store, CAMEL_TYPE_STORE)
 
 static void
-disco_store_class_init (CamelDiscoStoreClass *class)
+camel_disco_store_class_init (CamelDiscoStoreClass *class)
 {
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->construct = disco_construct;
@@ -76,22 +73,9 @@ disco_store_class_init (CamelDiscoStoreClass *class)
 	class->can_work_offline = can_work_offline;
 }
 
-GType
-camel_disco_store_get_type (void)
+static void
+camel_disco_store_init (CamelDiscoStore *disco_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE,
-			"CamelDiscoStore",
-			sizeof (CamelDiscoStoreClass),
-			(GClassInitFunc) disco_store_class_init,
-			sizeof (CamelDiscoStore),
-			NULL,
-			0);
-
-	return type;
 }
 
 static gboolean
@@ -105,7 +89,7 @@ disco_construct (CamelService *service,
 	CamelDiscoStore *disco = CAMEL_DISCO_STORE (service);
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_disco_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -126,7 +110,7 @@ disco_connect (CamelService *service,
 
 	status = camel_disco_store_status (store);
 	if (status != CAMEL_DISCO_STORE_OFFLINE) {
-		if (!CAMEL_SERVICE_CLASS (parent_class)->connect (service, error)) {
+		if (!CAMEL_SERVICE_CLASS (camel_disco_store_parent_class)->connect (service, error)) {
 			status = camel_disco_store_status (store);
 			if (status != CAMEL_DISCO_STORE_OFFLINE)
 				return FALSE;
@@ -179,7 +163,7 @@ disco_cancel_connect (CamelService *service)
 
 	/* Fall back */
 	store->status = CAMEL_DISCO_STORE_OFFLINE;
-	CAMEL_SERVICE_CLASS (parent_class)->cancel_connect (service);
+	CAMEL_SERVICE_CLASS (camel_disco_store_parent_class)->cancel_connect (service);
 }
 
 static gboolean
@@ -203,7 +187,7 @@ disco_disconnect (CamelService *service,
 
 	}
 
-	return CAMEL_SERVICE_CLASS (parent_class)->disconnect (service, clean, error);
+	return CAMEL_SERVICE_CLASS (camel_disco_store_parent_class)->disconnect (service, clean, error);
 }
 
 static CamelFolder *

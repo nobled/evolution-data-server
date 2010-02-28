@@ -37,9 +37,6 @@
 #include "camel-vtrash-folder.h"
 #include "camel-string-utils.h"
 
-/* Returns the class for a CamelFolder */
-#define CF_CLASS(so) ((CamelFolderClass *)((CamelObject *)(so))->class)
-
 static struct {
 	const gchar *full_name;
 	const gchar *name;
@@ -62,7 +59,7 @@ struct _transfer_data {
 	gboolean delete;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelVTrashFolder, camel_vtrash_folder, CAMEL_TYPE_VEE_FOLDER)
 
 static void
 transfer_messages (CamelFolder *folder,
@@ -168,7 +165,7 @@ vtrash_folder_getv (CamelObject *object,
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_vtrash_folder_parent_class)->getv (object, error, args);
 }
 
 static gboolean
@@ -269,12 +266,10 @@ vtrash_folder_transfer_messages_to (CamelFolder *source,
 }
 
 static void
-vtrash_folder_class_init (CamelVTrashFolderClass *class)
+camel_vtrash_folder_class_init (CamelVTrashFolderClass *class)
 {
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	/* Not required from here on. We don't count */
 	camel_object_class = CAMEL_OBJECT_CLASS (class);
@@ -285,22 +280,9 @@ vtrash_folder_class_init (CamelVTrashFolderClass *class)
 	folder_class->transfer_messages_to = vtrash_folder_transfer_messages_to;
 }
 
-GType
-camel_vtrash_folder_get_type (void)
+static void
+camel_vtrash_folder_init (CamelVTrashFolder *vtrash_folder)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_VEE_FOLDER,
-			"CamelVTrashFolder",
-			sizeof (CamelVTrashFolderClass),
-			(GClassInitFunc) vtrash_folder_class_init,
-			sizeof (CamelVTrashFolder),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 /**

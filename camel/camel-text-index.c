@@ -171,7 +171,7 @@ struct _CamelTextIndexWord {
 /* CamelTextIndex */
 /* ********************************************************************** */
 
-static gpointer text_index_parent_class;
+G_DEFINE_TYPE (CamelTextIndex, camel_text_index, CAMEL_TYPE_INDEX)
 
 static void
 text_index_dispose (GObject *object)
@@ -215,7 +215,7 @@ text_index_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose () method. */
-	G_OBJECT_CLASS (text_index_parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_text_index_parent_class)->dispose (object);
 }
 
 static void
@@ -233,7 +233,7 @@ text_index_finalize (GObject *object)
 	g_static_rec_mutex_free (&priv->lock);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (text_index_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_text_index_parent_class)->finalize (object);
 }
 
 /* call locked */
@@ -822,12 +822,11 @@ text_index_names (CamelIndex *idx)
 }
 
 static void
-text_index_class_init (CamelTextIndexClass *class)
+camel_text_index_class_init (CamelTextIndexClass *class)
 {
 	GObjectClass *object_class;
 	CamelIndexClass *index_class;
 
-	text_index_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelTextIndexPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -850,7 +849,7 @@ text_index_class_init (CamelTextIndexClass *class)
 }
 
 static void
-text_index_init (CamelTextIndex *text_index)
+camel_text_index_init (CamelTextIndex *text_index)
 {
 	text_index->priv = CAMEL_TEXT_INDEX_GET_PRIVATE (text_index);
 
@@ -864,24 +863,6 @@ text_index_init (CamelTextIndex *text_index)
 	text_index->priv->word_cache_limit = 4096; /* 1024 = 128K */
 
 	g_static_rec_mutex_init (&text_index->priv->lock);
-}
-
-GType
-camel_text_index_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_INDEX,
-			"CamelTextIndex",
-			sizeof (CamelTextIndexClass),
-			(GClassInitFunc) text_index_class_init,
-			sizeof (CamelTextIndex),
-			(GInstanceInitFunc) text_index_init,
-			0);
-
-	return type;
 }
 
 static gchar *
@@ -1465,7 +1446,7 @@ camel_text_index_validate (CamelTextIndex *idx)
 /* CamelTextIndexName */
 /* ********************************************************************** */
 
-static gpointer text_index_name_parent_class;
+G_DEFINE_TYPE (CamelTextIndexName, camel_text_index_name, CAMEL_TYPE_INDEX_NAME)
 
 static void
 text_index_name_finalize (GObject *object)
@@ -1480,7 +1461,7 @@ text_index_name_finalize (GObject *object)
 	e_mempool_destroy (priv->pool);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (text_index_name_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_text_index_name_parent_class)->finalize (object);
 }
 
 static void
@@ -1598,12 +1579,11 @@ text_index_name_add_buffer (CamelIndexName *idn, const gchar *buffer, gsize len)
 }
 
 static void
-text_index_name_class_init (CamelTextIndexNameClass *class)
+camel_text_index_name_class_init (CamelTextIndexNameClass *class)
 {
 	GObjectClass *object_class;
 	CamelIndexNameClass *index_name_class;
 
-	text_index_name_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelTextIndexNamePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -1615,7 +1595,7 @@ text_index_name_class_init (CamelTextIndexNameClass *class)
 }
 
 static void
-text_index_name_init (CamelTextIndexName *text_index_name)
+camel_text_index_name_init (CamelTextIndexName *text_index_name)
 {
 	text_index_name->priv =
 		CAMEL_TEXT_INDEX_NAME_GET_PRIVATE (text_index_name);
@@ -1626,25 +1606,6 @@ text_index_name_init (CamelTextIndexName *text_index_name)
 	text_index_name->priv->buffer = g_string_new ("");
 	text_index_name->priv->pool =
 		e_mempool_new (256, 128, E_MEMPOOL_ALIGN_BYTE);
-}
-
-GType
-camel_text_index_name_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID)) {
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_INDEX_NAME,
-			"CamelTextIndexName",
-			sizeof (CamelTextIndexNameClass),
-			(GClassInitFunc) text_index_name_class_init,
-			sizeof (CamelTextIndexName),
-			(GInstanceInitFunc) text_index_name_init,
-			0);
-	}
-
-	return type;
 }
 
 CamelTextIndexName *
@@ -1666,7 +1627,7 @@ camel_text_index_name_new (CamelTextIndex *idx, const gchar *name, camel_key_t n
 /* CamelTextIndexCursor */
 /* ********************************************************************** */
 
-static gpointer text_index_cursor_parent_class;
+G_DEFINE_TYPE (CamelTextIndexCursor, camel_text_index_cursor, CAMEL_TYPE_INDEX_CURSOR)
 
 static void
 text_index_cursor_finalize (GObject *object)
@@ -1679,7 +1640,7 @@ text_index_cursor_finalize (GObject *object)
 	g_free (priv->current);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (text_index_cursor_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_text_index_cursor_parent_class)->finalize (object);
 }
 
 static const gchar *
@@ -1732,12 +1693,11 @@ text_index_cursor_reset (CamelIndexCursor *idc)
 }
 
 static void
-text_index_cursor_class_init (CamelTextIndexCursorClass *class)
+camel_text_index_cursor_class_init (CamelTextIndexCursorClass *class)
 {
 	GObjectClass *object_class;
 	CamelIndexCursorClass *index_cursor_class;
 
-	text_index_cursor_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelTextIndexCursorPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -1749,29 +1709,10 @@ text_index_cursor_class_init (CamelTextIndexCursorClass *class)
 }
 
 static void
-text_index_cursor_init (CamelTextIndexCursor *text_index_cursor)
+camel_text_index_cursor_init (CamelTextIndexCursor *text_index_cursor)
 {
 	text_index_cursor->priv =
 		CAMEL_TEXT_INDEX_CURSOR_GET_PRIVATE (text_index_cursor);
-}
-
-GType
-camel_text_index_cursor_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID)) {
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_INDEX_CURSOR,
-			"CamelTextIndexCursor",
-			sizeof (CamelTextIndexCursorClass),
-			(GClassInitFunc) text_index_cursor_class_init,
-			sizeof (CamelTextIndexCursor),
-			(GInstanceInitFunc) text_index_cursor_init,
-			0);
-	}
-
-	return type;
 }
 
 CamelTextIndexCursor *
@@ -1795,7 +1736,7 @@ camel_text_index_cursor_new (CamelTextIndex *idx, camel_block_t data)
 /* CamelTextIndexKeyCursor */
 /* ********************************************************************** */
 
-static gpointer text_index_key_cursor_parent_class;
+G_DEFINE_TYPE (CamelTextIndexKeyCursor, camel_text_index_key_cursor, CAMEL_TYPE_INDEX_CURSOR)
 
 static void
 text_index_key_cursor_dispose (GObject *object)
@@ -1810,7 +1751,7 @@ text_index_key_cursor_dispose (GObject *object)
 	}
 
 	/* Chain up parent's dispose() method. */
-	G_OBJECT_CLASS (text_index_key_cursor_parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_text_index_key_cursor_parent_class)->dispose (object);
 }
 
 static void
@@ -1823,7 +1764,7 @@ text_index_key_cursor_finalize (GObject *object)
 	g_free (priv->current);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (text_index_key_cursor_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_text_index_key_cursor_parent_class)->finalize (object);
 }
 
 static const gchar *
@@ -1861,12 +1802,11 @@ text_index_key_cursor_reset (CamelIndexCursor *idc)
 }
 
 static void
-text_index_key_cursor_class_init (CamelTextIndexKeyCursorClass *class)
+camel_text_index_key_cursor_class_init (CamelTextIndexKeyCursorClass *class)
 {
 	GObjectClass *object_class;
 	CamelIndexCursorClass *index_cursor_class;
 
-	text_index_key_cursor_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelTextIndexKeyCursorPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -1879,7 +1819,7 @@ text_index_key_cursor_class_init (CamelTextIndexKeyCursorClass *class)
 }
 
 static void
-text_index_key_cursor_init (CamelTextIndexKeyCursor *text_index_key_cursor)
+camel_text_index_key_cursor_init (CamelTextIndexKeyCursor *text_index_key_cursor)
 {
 	text_index_key_cursor->priv =
 		CAMEL_TEXT_INDEX_KEY_CURSOR_GET_PRIVATE (text_index_key_cursor);
@@ -1888,25 +1828,6 @@ text_index_key_cursor_init (CamelTextIndexKeyCursor *text_index_key_cursor)
 	text_index_key_cursor->priv->flags = 0;
 	text_index_key_cursor->priv->data = 0;
 	text_index_key_cursor->priv->current = NULL;
-}
-
-GType
-camel_text_index_key_cursor_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID)) {
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_INDEX_CURSOR,
-			"CamelTextIndexKeyCursor",
-			sizeof (CamelTextIndexKeyCursorClass),
-			(GClassInitFunc) text_index_key_cursor_class_init,
-			sizeof (CamelTextIndexKeyCursor),
-			(GInstanceInitFunc) text_index_key_cursor_init,
-			0);
-	}
-
-	return type;
 }
 
 CamelTextIndexKeyCursor *

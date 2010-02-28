@@ -55,7 +55,7 @@ enum {
 	PGP_FOOTER
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterPgp, camel_mime_filter_pgp, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_pgp_run (CamelMimeFilter *mime_filter,
@@ -189,11 +189,10 @@ mime_filter_pgp_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_pgp_class_init (CamelMimeFilterPgpClass *class)
+camel_mime_filter_pgp_class_init (CamelMimeFilterPgpClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterPgpPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -203,27 +202,9 @@ mime_filter_pgp_class_init (CamelMimeFilterPgpClass *class)
 }
 
 static void
-mime_filter_pgp_init (CamelMimeFilterPgp *filter)
+camel_mime_filter_pgp_init (CamelMimeFilterPgp *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_PGP_GET_PRIVATE (filter);
-}
-
-GType
-camel_mime_filter_pgp_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterPgp",
-			sizeof (CamelMimeFilterPgpClass),
-			(GClassInitFunc) mime_filter_pgp_class_init,
-			sizeof (CamelMimeFilterPgp),
-			(GInstanceInitFunc) mime_filter_pgp_init,
-			0);
-
-	return type;
 }
 
 CamelMimeFilter *

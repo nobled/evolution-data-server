@@ -30,7 +30,7 @@ struct _CamelMimeFilterIndexPrivate {
 	CamelIndexName *name;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterIndex, camel_mime_filter_index, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_index_dispose (GObject *object)
@@ -50,7 +50,7 @@ mime_filter_index_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_mime_filter_index_parent_class)->dispose (object);
 }
 
 static void
@@ -105,12 +105,11 @@ donothing:
 }
 
 static void
-mime_filter_index_class_init (CamelMimeFilterIndexClass *class)
+camel_mime_filter_index_class_init (CamelMimeFilterIndexClass *class)
 {
 	GObjectClass *object_class;
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterIndexPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -122,27 +121,9 @@ mime_filter_index_class_init (CamelMimeFilterIndexClass *class)
 }
 
 static void
-mime_filter_index_init (CamelMimeFilterIndex *filter)
+camel_mime_filter_index_init (CamelMimeFilterIndex *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_INDEX_GET_PRIVATE (filter);
-}
-
-GType
-camel_mime_filter_index_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterIndex",
-			sizeof (CamelMimeFilterIndexClass),
-			(GClassInitFunc) mime_filter_index_class_init,
-			sizeof (CamelMimeFilterIndex),
-			(GInstanceInitFunc) mime_filter_index_init,
-			0);
-
-	return type;
 }
 
 /**

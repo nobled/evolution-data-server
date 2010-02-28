@@ -58,14 +58,14 @@ struct _update_data {
 	gboolean rebuilt, correlating;
 };
 
-static gpointer parent_class;
-
 struct _folder_changed_msg {
 	CamelSessionThreadMsg msg;
 	CamelFolderChangeInfo *changes;
 	CamelFolder *sub;
 	CamelVeeFolder *vee_folder;
 };
+
+G_DEFINE_TYPE (CamelVeeFolder, camel_vee_folder, CAMEL_TYPE_FOLDER)
 
 /* must be called with summary_lock held */
 static CamelVeeMessageInfo *
@@ -1034,7 +1034,7 @@ vee_folder_finalize (GObject *object)
 	g_hash_table_destroy (vf->hashes);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_vee_folder_parent_class)->finalize (object);
 }
 
 /* This entire code will be useless, since we sync the counts always. */
@@ -1135,7 +1135,7 @@ vee_folder_getv (CamelObject *object,
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return ((CamelObjectClass *)parent_class)->getv (object, error, args);
+	return ((CamelObjectClass *)camel_vee_folder_parent_class)->getv (object, error, args);
 }
 
 static gboolean
@@ -1490,7 +1490,7 @@ vee_folder_delete (CamelFolder *folder)
 	}
 	CAMEL_VEE_FOLDER_UNLOCK (folder, subfolder_lock);
 
-	((CamelFolderClass *)parent_class)->delete (folder);
+	((CamelFolderClass *)camel_vee_folder_parent_class)->delete (folder);
 	((CamelVeeFolder *)folder)->deleted = TRUE;
 }
 
@@ -1514,7 +1514,7 @@ vee_folder_freeze (CamelFolder *folder)
 	CAMEL_VEE_FOLDER_UNLOCK (vfolder, subfolder_lock);
 
 	/* call parent implementation */
-	CAMEL_FOLDER_CLASS (parent_class)->freeze (folder);
+	CAMEL_FOLDER_CLASS (camel_vee_folder_parent_class)->freeze (folder);
 }
 
 static void
@@ -1537,7 +1537,7 @@ vee_folder_thaw (CamelFolder *folder)
 	CAMEL_VEE_FOLDER_UNLOCK (vfolder, subfolder_lock);
 
 	/* call parent implementation */
-	CAMEL_FOLDER_CLASS (parent_class)->thaw (folder);
+	CAMEL_FOLDER_CLASS (camel_vee_folder_parent_class)->thaw (folder);
 }
 
 static void
@@ -1895,13 +1895,12 @@ vee_folder_folder_renamed (CamelVeeFolder *vee_folder,
 }
 
 static void
-vee_folder_class_init (CamelVeeFolderClass *class)
+camel_vee_folder_class_init (CamelVeeFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelVeeFolderPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -1933,7 +1932,7 @@ vee_folder_class_init (CamelVeeFolderClass *class)
 }
 
 static void
-vee_folder_init (CamelVeeFolder *vee_folder)
+camel_vee_folder_init (CamelVeeFolder *vee_folder)
 {
 	CamelFolder *folder = CAMEL_FOLDER (vee_folder);
 
@@ -1961,24 +1960,6 @@ vee_folder_init (CamelVeeFolder *vee_folder)
 	vee_folder->priv->subfolder_lock = g_mutex_new ();
 	vee_folder->priv->changed_lock = g_mutex_new ();
 	vee_folder->priv->unread_vfolder = -1;
-}
-
-GType
-camel_vee_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER,
-			"CamelVeeFolder",
-			sizeof (CamelVeeFolderClass),
-			(GClassInitFunc) vee_folder_class_init,
-			sizeof (CamelVeeFolder),
-			(GInstanceInitFunc) vee_folder_init,
-			0);
-
-	return type;
 }
 
 void

@@ -64,7 +64,7 @@ struct _CamelStreamFilterPrivate {
 #define READ_PAD (128)		/* bytes padded before buffer */
 #define READ_SIZE (4096)
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStreamFilter, camel_stream_filter, CAMEL_TYPE_STREAM)
 
 static void
 stream_filter_finalize (GObject *object)
@@ -84,7 +84,7 @@ stream_filter_finalize (GObject *object)
 	g_object_unref (stream->priv->source);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_stream_filter_parent_class)->finalize (object);
 }
 
 static gssize
@@ -306,12 +306,11 @@ stream_filter_reset (CamelStream *stream,
 }
 
 static void
-stream_filter_class_init (CamelStreamFilterClass *class)
+camel_stream_filter_class_init (CamelStreamFilterClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelStreamFilterPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -328,7 +327,7 @@ stream_filter_class_init (CamelStreamFilterClass *class)
 }
 
 static void
-stream_filter_init (CamelStreamFilter *stream)
+camel_stream_filter_init (CamelStreamFilter *stream)
 {
 	stream->priv = CAMEL_STREAM_FILTER_GET_PRIVATE (stream);
 
@@ -336,24 +335,6 @@ stream_filter_init (CamelStreamFilter *stream)
 	stream->priv->buffer = stream->priv->realbuffer + READ_PAD;
 	stream->priv->last_was_read = TRUE;
 	stream->priv->flushed = FALSE;
-}
-
-GType
-camel_stream_filter_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelStreamFilter",
-			sizeof (CamelStreamFilterClass),
-			(GClassInitFunc) stream_filter_class_init,
-			sizeof (CamelStreamFilter),
-			(GInstanceInitFunc) stream_filter_init,
-			0);
-
-	return type;
 }
 
 /**

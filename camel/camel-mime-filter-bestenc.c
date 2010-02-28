@@ -54,7 +54,7 @@ struct _CamelMimeFilterBestencPrivate {
 	CamelCharset charset;	/* used to determine the best charset to use */
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeFilterBestenc, camel_mime_filter_bestenc, CAMEL_TYPE_MIME_FILTER)
 
 static void
 mime_filter_bestenc_filter (CamelMimeFilter *mime_filter,
@@ -200,11 +200,10 @@ mime_filter_bestenc_reset (CamelMimeFilter *mime_filter)
 }
 
 static void
-mime_filter_bestenc_class_init (CamelMimeFilterBestencClass *class)
+camel_mime_filter_bestenc_class_init (CamelMimeFilterBestencClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMimeFilterBestencPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
@@ -214,29 +213,11 @@ mime_filter_bestenc_class_init (CamelMimeFilterBestencClass *class)
 }
 
 static void
-mime_filter_bestenc_init (CamelMimeFilterBestenc *filter)
+camel_mime_filter_bestenc_init (CamelMimeFilterBestenc *filter)
 {
 	filter->priv = CAMEL_MIME_FILTER_BESTENC_GET_PRIVATE (filter);
 
 	mime_filter_bestenc_reset (CAMEL_MIME_FILTER (filter));
-}
-
-GType
-camel_mime_filter_bestenc_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_FILTER,
-			"CamelMimeFilterBestenc",
-			sizeof (CamelMimeFilterBestencClass),
-			(GClassInitFunc) mime_filter_bestenc_class_init,
-			sizeof (CamelMimeFilterBestenc),
-			(GInstanceInitFunc) mime_filter_bestenc_init,
-			0);
-
-	return type;
 }
 
 /**

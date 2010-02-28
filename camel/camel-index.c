@@ -53,7 +53,7 @@ struct _CamelIndexPrivate {
 /* CamelIndex */
 /* ********************************************************************** */
 
-static gpointer index_parent_class;
+G_DEFINE_TYPE (CamelIndex, camel_index, CAMEL_TYPE_OBJECT)
 
 static void
 index_finalize (GObject *object)
@@ -63,15 +63,14 @@ index_finalize (GObject *object)
 	g_free (index->path);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (index_parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_index_parent_class)->finalize (object);
 }
 
 static void
-index_class_init (CamelIndexClass *class)
+camel_index_class_init (CamelIndexClass *class)
 {
 	GObjectClass *object_class;
 
-	index_parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelIndexPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -79,28 +78,10 @@ index_class_init (CamelIndexClass *class)
 }
 
 static void
-index_init (CamelIndex *index)
+camel_index_init (CamelIndex *index)
 {
 	index->priv = CAMEL_INDEX_GET_PRIVATE (index);
 	index->version = CAMEL_INDEX_VERSION;
-}
-
-GType
-camel_index_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelIndex",
-			sizeof (CamelIndexClass),
-			(GClassInitFunc) index_class_init,
-			sizeof (CamelIndex),
-			(GInstanceInitFunc) index_init,
-			0);
-
-	return type;
 }
 
 CamelIndex *
@@ -355,7 +336,7 @@ camel_index_names (CamelIndex *idx)
 /* CamelIndexName */
 /* ********************************************************************** */
 
-static gpointer index_name_parent_class;
+G_DEFINE_TYPE (CamelIndexName, camel_index_name, CAMEL_TYPE_OBJECT)
 
 static void
 index_name_dispose (GObject *object)
@@ -368,36 +349,21 @@ index_name_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose () method. */
-	G_OBJECT_CLASS (index_name_parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_index_name_parent_class)->dispose (object);
 }
 
 static void
-index_name_class_init (CamelIndexNameClass *class)
+camel_index_name_class_init (CamelIndexNameClass *class)
 {
 	GObjectClass *object_class;
-
-	index_name_parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = index_name_dispose;
 }
 
-GType
-camel_index_name_get_type (void)
+static void
+camel_index_name_init (CamelIndexName *index_name)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelIndexName",
-			sizeof (CamelIndexNameClass),
-			(GClassInitFunc) index_name_class_init,
-			sizeof (CamelIndexName),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 CamelIndexName *
@@ -451,7 +417,7 @@ camel_index_name_add_buffer (CamelIndexName *idn,
 /* CamelIndexCursor */
 /* ********************************************************************** */
 
-static gpointer index_cursor_parent_class;
+G_DEFINE_TYPE (CamelIndexCursor, camel_index_cursor, CAMEL_TYPE_OBJECT)
 
 static void
 index_cursor_dispose (GObject *object)
@@ -464,36 +430,21 @@ index_cursor_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose () method. */
-	G_OBJECT_CLASS (index_cursor_parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_index_cursor_parent_class)->dispose (object);
 }
 
 static void
-index_cursor_class_init (CamelIndexCursorClass *class)
+camel_index_cursor_class_init (CamelIndexCursorClass *class)
 {
 	GObjectClass *object_class;
-
-	index_cursor_parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = index_cursor_dispose;
 }
 
-GType
-camel_index_cursor_get_type (void)
+static void
+camel_index_cursor_init (CamelIndexCursor *index_cursor)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelIndexCursor",
-			sizeof (CamelIndexCursorClass),
-			(GClassInitFunc) index_cursor_class_init,
-			sizeof (CamelIndexCursor),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 CamelIndexCursor *

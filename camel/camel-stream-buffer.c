@@ -51,7 +51,7 @@ struct _CamelStreamBufferPrivate {
 	guint flags;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStreamBuffer, camel_stream_buffer, CAMEL_TYPE_STREAM)
 
 enum {
 	BUF_USER = 1<<0	/* user-supplied buffer, do not free */
@@ -119,7 +119,7 @@ stream_buffer_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_stream_buffer_parent_class)->dispose (object);
 }
 
 static void
@@ -135,7 +135,7 @@ stream_buffer_finalize (GObject *object)
 	g_free (priv->linebuf);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_stream_buffer_parent_class)->finalize (object);
 }
 
 static gssize
@@ -322,12 +322,11 @@ stream_buffer_init_method (CamelStreamBuffer *stream,
 }
 
 static void
-stream_buffer_class_init (CamelStreamBufferClass *class)
+camel_stream_buffer_class_init (CamelStreamBufferClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelStreamBufferPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -346,7 +345,7 @@ stream_buffer_class_init (CamelStreamBufferClass *class)
 }
 
 static void
-stream_buffer_init (CamelStreamBuffer *stream)
+camel_stream_buffer_init (CamelStreamBuffer *stream)
 {
 	stream->priv = CAMEL_STREAM_BUFFER_GET_PRIVATE (stream);
 
@@ -361,24 +360,6 @@ stream_buffer_init (CamelStreamBuffer *stream)
 	stream->priv->stream = NULL;
 	stream->priv->linesize = 80;
 	stream->priv->linebuf = g_malloc (stream->priv->linesize);
-}
-
-GType
-camel_stream_buffer_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelStreamBuffer",
-			sizeof (CamelStreamBufferClass),
-			(GClassInitFunc) stream_buffer_class_init,
-			sizeof (CamelStreamBuffer),
-			(GInstanceInitFunc) stream_buffer_init,
-			0);
-
-	return type;
 }
 
 /**

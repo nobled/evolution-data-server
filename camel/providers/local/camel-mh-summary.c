@@ -57,15 +57,14 @@ struct _CamelMhSummaryPrivate {
 	gchar *current_uid;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMhSummary, camel_mh_summary, CAMEL_TYPE_LOCAL_SUMMARY)
 
 static void
-mh_summary_class_init (CamelMhSummaryClass *class)
+camel_mh_summary_class_init (CamelMhSummaryClass *class)
 {
 	CamelFolderSummaryClass *folder_summary_class;
 	CamelLocalSummaryClass *local_summary_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelMhSummaryPrivate));
 
 	folder_summary_class = CAMEL_FOLDER_SUMMARY_CLASS (class);
@@ -78,7 +77,7 @@ mh_summary_class_init (CamelMhSummaryClass *class)
 }
 
 static void
-mh_summary_init (CamelMhSummary *mh_summary)
+camel_mh_summary_init (CamelMhSummary *mh_summary)
 {
 	CamelFolderSummary *folder_summary;
 
@@ -88,24 +87,6 @@ mh_summary_init (CamelMhSummary *mh_summary)
 
 	/* set unique file version */
 	folder_summary->version += CAMEL_MH_SUMMARY_VERSION;
-}
-
-GType
-camel_mh_summary_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_LOCAL_SUMMARY,
-			"CamelMhSummary",
-			sizeof (CamelMhSummaryClass),
-			(GClassInitFunc) mh_summary_class_init,
-			sizeof (CamelMhSummary),
-			(GInstanceInitFunc) mh_summary_init,
-			0);
-
-	return type;
 }
 
 /**
@@ -347,6 +328,6 @@ mh_summary_sync (CamelLocalSummary *cls,
 	}
 
 	/* Chain up to parent's sync() method. */
-	local_summary_class = CAMEL_LOCAL_SUMMARY_CLASS (parent_class);
+	local_summary_class = CAMEL_LOCAL_SUMMARY_CLASS (camel_mh_summary_parent_class);
 	return local_summary_class->sync (cls, expunge, changes, error);
 }

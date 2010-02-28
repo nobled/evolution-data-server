@@ -35,7 +35,7 @@
 #include "camel-private.h"
 #include "camel-stream-vfs.h"
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelStreamVFS, camel_stream_vfs, CAMEL_TYPE_STREAM)
 
 static void
 stream_vfs_dispose (GObject *object)
@@ -48,7 +48,7 @@ stream_vfs_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_stream_vfs_parent_class)->dispose (object);
 }
 
 static gssize
@@ -123,12 +123,10 @@ stream_vfs_close (CamelStream *stream,
 }
 
 static void
-stream_vfs_class_init (CamelStreamVFSClass *class)
+camel_stream_vfs_class_init (CamelStreamVFSClass *class)
 {
 	GObjectClass *object_class;
 	CamelStreamClass *stream_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = stream_vfs_dispose;
@@ -141,27 +139,9 @@ stream_vfs_class_init (CamelStreamVFSClass *class)
 }
 
 static void
-stream_vfs_init (CamelStreamVFS *stream)
+camel_stream_vfs_init (CamelStreamVFS *stream)
 {
 	stream->stream = NULL;
-}
-
-GType
-camel_stream_vfs_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STREAM,
-			"CamelStreamVFS",
-			sizeof (CamelStreamVFSClass),
-			(GClassInitFunc) stream_vfs_class_init,
-			sizeof (CamelStreamVFS),
-			(GInstanceInitFunc) stream_vfs_init,
-			0);
-
-	return type;
 }
 
 /**

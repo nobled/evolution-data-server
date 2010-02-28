@@ -47,8 +47,6 @@
 /* defines the length of the server error message we can display in the error dialog */
 #define POP3_ERROR_SIZE_LIMIT 60
 
-static gpointer parent_class;
-
 static gboolean pop3_connect (CamelService *service, GError **error);
 static gboolean pop3_disconnect (CamelService *service, gboolean clean, GError **error);
 static GList *query_auth_types (CamelService *service, GError **error);
@@ -59,6 +57,8 @@ static CamelFolder *get_folder (CamelStore *store, const gchar *folder_name,
 static CamelFolder *get_trash  (CamelStore *store, GError **error);
 
 static gboolean pop3_can_refresh_folder (CamelStore *store, CamelFolderInfo *info, GError **error);
+
+G_DEFINE_TYPE (CamelPOP3Store, camel_pop3_store, CAMEL_TYPE_STORE)
 
 static void
 pop3_store_finalize (GObject *object)
@@ -76,17 +76,15 @@ pop3_store_finalize (GObject *object)
 		g_object_unref (pop3_store->cache);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_pop3_store_parent_class)->finalize (object);
 }
 
 static void
-pop3_store_class_init (CamelPOP3StoreClass *class)
+camel_pop3_store_class_init (CamelPOP3StoreClass *class)
 {
 	GObjectClass *object_class;
 	CamelServiceClass *service_class;
 	CamelStoreClass *store_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = pop3_store_finalize;
@@ -102,22 +100,9 @@ pop3_store_class_init (CamelPOP3StoreClass *class)
 	store_class->can_refresh_folder = pop3_can_refresh_folder;
 }
 
-GType
-camel_pop3_store_get_type (void)
+static void
+camel_pop3_store_init (CamelPOP3Store *pop3_store)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_STORE,
-			"CamelPOP3Store",
-			sizeof (CamelPOP3StoreClass),
-			(GClassInitFunc) pop3_store_class_init,
-			sizeof (CamelPOP3Store),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 enum {
@@ -193,7 +178,7 @@ connect_to_server (CamelService *service,
 	}
 
 	/* parent class connect initialization */
-	if (CAMEL_SERVICE_CLASS (parent_class)->connect (service, error) == FALSE) {
+	if (CAMEL_SERVICE_CLASS (camel_pop3_store_parent_class)->connect (service, error) == FALSE) {
 		g_object_unref (tcp_stream);
 		return FALSE;
 	}
@@ -368,7 +353,7 @@ query_auth_types (CamelService *service,
 	GError *local_error = NULL;
 
 	/* Chain up to parent's query_auth_types() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_pop3_store_parent_class);
 	types = service_class->query_auth_types (service, &local_error);
 
 	if (local_error != NULL) {
@@ -726,7 +711,7 @@ pop3_disconnect (CamelService *service,
 	}
 
 	/* Chain up to parent's disconnect() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_pop3_store_parent_class);
 	if (!service_class->disconnect (service, clean, error))
 		return FALSE;
 

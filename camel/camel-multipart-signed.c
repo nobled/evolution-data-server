@@ -50,7 +50,7 @@
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))
 	       #include <stdio.h>;*/
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMultipartSigned, camel_multipart_signed, CAMEL_TYPE_MULTIPART)
 
 static gint
 multipart_signed_skip_content (CamelMimeParser *cmp)
@@ -214,7 +214,7 @@ multipart_signed_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_multipart_signed_parent_class)->dispose (object);
 }
 
 static void
@@ -228,7 +228,7 @@ multipart_signed_finalize (GObject *object)
 	g_free (multipart->micalg);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_multipart_signed_parent_class)->finalize (object);
 }
 
 static void
@@ -241,7 +241,7 @@ multipart_signed_set_mime_type_field (CamelDataWrapper *data_wrapper,
 	/* we snoop the mime type to get boundary and hash info */
 
 	/* Chain up to parent's set_mime_type_field() method. */
-	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (parent_class);
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (camel_multipart_signed_parent_class);
 	data_wrapper_class->set_mime_type_field(data_wrapper, mime_type);
 
 	if (mime_type) {
@@ -501,13 +501,11 @@ multipart_signed_construct_from_parser (CamelMultipart *multipart,
 }
 
 static void
-multipart_signed_class_init (CamelMultipartSignedClass *class)
+camel_multipart_signed_class_init (CamelMultipartSignedClass *class)
 {
 	GObjectClass *object_class;
 	CamelDataWrapperClass *data_wrapper_class;
 	CamelMultipartClass *multipart_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = multipart_signed_dispose;
@@ -530,30 +528,12 @@ multipart_signed_class_init (CamelMultipartSignedClass *class)
 }
 
 static void
-multipart_signed_init (CamelMultipartSigned *multipart)
+camel_multipart_signed_init (CamelMultipartSigned *multipart)
 {
 	camel_data_wrapper_set_mime_type (
 		CAMEL_DATA_WRAPPER (multipart), "multipart/signed");
 
 	multipart->start1 = -1;
-}
-
-GType
-camel_multipart_signed_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MULTIPART,
-			"CamelMultipartSigned",
-			sizeof (CamelMultipartSignedClass),
-			(GClassInitFunc) multipart_signed_class_init,
-			sizeof (CamelMultipartSigned),
-			(GInstanceInitFunc) multipart_signed_init,
-			0);
-
-	return type;
 }
 
 /**

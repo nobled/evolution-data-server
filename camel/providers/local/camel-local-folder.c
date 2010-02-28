@@ -57,7 +57,6 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_LOCAL_FOLDER, CamelLocalFolderPrivate))
 
-static gpointer parent_class;
 static GSList *local_folder_properties;
 
 static gint local_getv(CamelObject *object, GError **error, CamelArgGetV *args);
@@ -83,6 +82,8 @@ static void local_rename(CamelFolder *folder, const gchar *newname);
 static CamelProperty local_property_list[] = {
 	{ CAMEL_LOCAL_FOLDER_INDEX_BODY, "index_body", N_("Index message body data") },
 };
+
+G_DEFINE_TYPE (CamelLocalFolder, camel_local_folder, CAMEL_TYPE_FOLDER)
 
 static void
 local_folder_dispose (GObject *object)
@@ -112,7 +113,7 @@ local_folder_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_local_folder_parent_class)->dispose (object);
 }
 
 static void
@@ -135,18 +136,17 @@ local_folder_finalize (GObject *object)
 	g_mutex_free (local_folder->priv->search_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_local_folder_parent_class)->finalize (object);
 }
 
 static void
-local_folder_class_init (CamelLocalFolderClass *class)
+camel_local_folder_class_init (CamelLocalFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
 	gint ii;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelLocalFolderPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -181,7 +181,7 @@ local_folder_class_init (CamelLocalFolderClass *class)
 }
 
 static void
-local_folder_init (CamelLocalFolder *local_folder)
+camel_local_folder_init (CamelLocalFolder *local_folder)
 {
 	CamelFolder *folder = CAMEL_FOLDER (local_folder);
 
@@ -198,24 +198,6 @@ local_folder_init (CamelLocalFolder *local_folder)
 
 	folder->summary = NULL;
 	local_folder->search = NULL;
-}
-
-GType
-camel_local_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER,
-			"CamelLocalFolder",
-			sizeof (CamelLocalFolderClass),
-			(GClassInitFunc) local_folder_class_init,
-			sizeof (CamelLocalFolder),
-			(GInstanceInitFunc) local_folder_init,
-			0);
-
-	return type;
 }
 
 CamelLocalFolder *
@@ -429,7 +411,7 @@ local_getv(CamelObject *object, GError **error, CamelArgGetV *args)
 
 			props.argc = 1;
 			props.argv[0] = *arg;
-			((CamelObjectClass *)parent_class)->getv(object, error, &props);
+			((CamelObjectClass *)camel_local_folder_parent_class)->getv(object, error, &props);
 			*arg->ca_ptr = g_slist_concat(*arg->ca_ptr, g_slist_copy(local_folder_properties));
 
 			break; }
@@ -446,7 +428,7 @@ local_getv(CamelObject *object, GError **error, CamelArgGetV *args)
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return ((CamelObjectClass *)parent_class)->getv(object, error, args);
+	return ((CamelObjectClass *)camel_local_folder_parent_class)->getv(object, error, args);
 }
 
 static gint
@@ -477,7 +459,7 @@ local_setv(CamelObject *object, GError **error, CamelArgV *args)
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return ((CamelObjectClass *)parent_class)->setv(object, error, args);
+	return ((CamelObjectClass *)camel_local_folder_parent_class)->setv(object, error, args);
 }
 
 static gint
@@ -562,7 +544,7 @@ local_delete(CamelFolder *folder)
 	if (lf->index)
 		camel_index_delete(lf->index);
 
-	CAMEL_FOLDER_CLASS (parent_class)->delete (folder);
+	CAMEL_FOLDER_CLASS (camel_local_folder_parent_class)->delete (folder);
 }
 
 static void
@@ -592,7 +574,7 @@ local_rename(CamelFolder *folder, const gchar *newname)
 	g_free(((CamelLocalSummary *)folder->summary)->folder_path);
 	((CamelLocalSummary *)folder->summary)->folder_path = g_strdup(lf->folder_path);
 
-	CAMEL_FOLDER_CLASS (parent_class)->rename (folder, newname);
+	CAMEL_FOLDER_CLASS (camel_local_folder_parent_class)->rename (folder, newname);
 }
 
 static GPtrArray *

@@ -51,8 +51,6 @@
 #define d(x)
 #define w(x)
 
-static gpointer parent_class;
-
 static gboolean refresh_info (CamelFolder *folder, GError **error);
 
 static const gchar *get_name (CamelFolder *folder);
@@ -104,6 +102,8 @@ static gboolean        folder_changed        (CamelObject *object,
 
 static CamelFolderQuotaInfo *get_quota_info  (CamelFolder *folder);
 
+G_DEFINE_ABSTRACT_TYPE (CamelFolder, camel_folder, CAMEL_TYPE_OBJECT)
+
 static void
 folder_dispose (GObject *object)
 {
@@ -123,7 +123,7 @@ folder_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose () method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_folder_parent_class)->dispose (object);
 }
 
 static void
@@ -145,16 +145,15 @@ folder_finalize (GObject *object)
 	g_static_mutex_free (&priv->change_lock);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_folder_parent_class)->finalize (object);
 }
 
 static void
-folder_class_init (CamelFolderClass *class)
+camel_folder_class_init (CamelFolderClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelFolderPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -206,7 +205,7 @@ folder_class_init (CamelFolderClass *class)
 }
 
 static void
-folder_init (CamelFolder *folder)
+camel_folder_init (CamelFolder *folder)
 {
 	folder->priv = CAMEL_FOLDER_GET_PRIVATE (folder);
 
@@ -215,24 +214,6 @@ folder_init (CamelFolder *folder)
 
 	g_static_rec_mutex_init (&folder->priv->lock);
 	g_static_mutex_init (&folder->priv->change_lock);
-}
-
-GType
-camel_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelFolder",
-			sizeof (CamelFolderClass),
-			(GClassInitFunc) folder_class_init,
-			sizeof (CamelFolder),
-			(GInstanceInitFunc) folder_init,
-			0);
-
-	return type;
 }
 
 GQuark
@@ -504,7 +485,7 @@ folder_getv (CamelObject *object,
 		arg->tag = (tag & CAMEL_ARG_TYPE) | CAMEL_ARG_IGNORE;
 	}
 
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_folder_parent_class)->getv (object, error, args);
 }
 
 static void
@@ -528,7 +509,7 @@ folder_free (CamelObject *o, guint32 tag, gpointer val)
 		g_slist_free (val);
 		break;
 	default:
-		CAMEL_OBJECT_CLASS (parent_class)->free (o, tag, val);
+		CAMEL_OBJECT_CLASS (camel_folder_parent_class)->free (o, tag, val);
 	}
 }
 

@@ -47,7 +47,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_SERVICE, CamelServicePrivate))
 
-static gpointer parent_class;
+G_DEFINE_ABSTRACT_TYPE (CamelService, camel_service, CAMEL_TYPE_OBJECT)
 
 static void
 service_finalize (GObject *object)
@@ -67,7 +67,7 @@ service_finalize (GObject *object)
 	g_static_mutex_free (&service->priv->connect_op_lock);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_service_parent_class)->finalize (object);
 }
 
 static gint
@@ -136,7 +136,7 @@ service_setv (CamelObject *object,
 	}
 
 	/* Chain up to parent's setv() method. */
-	return CAMEL_OBJECT_CLASS (parent_class)->setv (object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_service_parent_class)->setv (object, error, args);
 }
 
 static gint
@@ -185,7 +185,7 @@ service_getv (CamelObject *object,
 	}
 
 	/* Chain up to parent's getv() method. */
-	return CAMEL_OBJECT_CLASS (parent_class)->getv (object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_service_parent_class)->getv (object, error, args);
 }
 
 static gboolean
@@ -318,12 +318,11 @@ service_get_path (CamelService *service)
 }
 
 static void
-service_class_init (CamelServiceClass *class)
+camel_service_class_init (CamelServiceClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelServicePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -343,30 +342,12 @@ service_class_init (CamelServiceClass *class)
 }
 
 static void
-service_init (CamelService *service)
+camel_service_init (CamelService *service)
 {
 	service->priv = CAMEL_SERVICE_GET_PRIVATE (service);
 
 	g_static_rec_mutex_init (&service->priv->connect_lock);
 	g_static_mutex_init (&service->priv->connect_op_lock);
-}
-
-GType
-camel_service_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelService",
-			sizeof (CamelServiceClass),
-			(GClassInitFunc) service_class_init,
-			sizeof (CamelService),
-			(GInstanceInitFunc) service_init,
-			0);
-
-	return type;
 }
 
 GQuark

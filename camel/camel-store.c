@@ -48,7 +48,7 @@
 	(G_TYPE_INSTANCE_GET_PRIVATE \
 	((obj), CAMEL_TYPE_STORE, CamelStorePrivate))
 
-static gpointer parent_class;
+G_DEFINE_ABSTRACT_TYPE (CamelStore, camel_store, CAMEL_TYPE_SERVICE)
 
 /**
  * ignore_no_such_table_exception:
@@ -105,7 +105,25 @@ store_finalize (GObject *object)
 	}
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_store_parent_class)->finalize (object);
+}
+
+static void
+store_constructed (GObject *object)
+{
+	CamelStore *store;
+	CamelStoreClass *class;
+
+	store = CAMEL_STORE (object);
+	class = CAMEL_STORE_GET_CLASS (store);
+
+	if (class->hash_folder_name != NULL)
+		store->folders = camel_object_bag_new (
+			class->hash_folder_name,
+			class->compare_folder_name,
+			(CamelCopyFunc) g_strdup, g_free);
+	else
+		store->folders = NULL;
 }
 
 static gboolean
@@ -120,7 +138,7 @@ store_construct (CamelService *service,
 	gchar *store_db_path, *store_path = NULL;
 
 	/* Chain up to parent's construct() method. */
-	service_class = CAMEL_SERVICE_CLASS (parent_class);
+	service_class = CAMEL_SERVICE_CLASS (camel_store_parent_class);
 	if (!service_class->construct (service, session, provider, url, error))
 		return FALSE;
 
@@ -258,17 +276,17 @@ store_can_refresh_folder (CamelStore *store,
 }
 
 static void
-store_class_init (CamelStoreClass *class)
+camel_store_class_init (CamelStoreClass *class)
 {
 	GObjectClass *object_class;
 	CamelObjectClass *camel_object_class;
 	CamelServiceClass *service_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelStorePrivate));
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = store_finalize;
+	object_class->constructed = store_constructed;
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->construct = store_construct;
@@ -292,41 +310,15 @@ store_class_init (CamelStoreClass *class)
 }
 
 static void
-store_init (CamelStore *store,
-            CamelStoreClass *store_class)
+camel_store_init (CamelStore *store)
 {
 	store->priv = CAMEL_STORE_GET_PRIVATE (store);
-
-	if (store_class->hash_folder_name) {
-		store->folders = camel_object_bag_new(store_class->hash_folder_name,
-						      store_class->compare_folder_name,
-						      (CamelCopyFunc)g_strdup, g_free);
-	} else
-		store->folders = NULL;
 
 	/* set vtrash and vjunk on by default */
 	store->flags = CAMEL_STORE_VTRASH | CAMEL_STORE_VJUNK;
 	store->mode = CAMEL_STORE_READ | CAMEL_STORE_WRITE;
 
 	g_static_rec_mutex_init (&store->priv->folder_lock);
-}
-
-GType
-camel_store_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SERVICE,
-			"CamelStore",
-			sizeof (CamelStoreClass),
-			(GClassInitFunc) store_class_init,
-			sizeof (CamelStore),
-			(GInstanceInitFunc) store_init,
-			0);
-
-	return type;
 }
 
 GQuark

@@ -34,8 +34,6 @@
 /* if defined, must also compile in dump_tag() below somewhere */
 #define d(x)
 
-static gpointer parent_class;
-
 /* Parser definitions, see below object code for details */
 
 struct _CamelHTMLParserPrivate {
@@ -60,6 +58,8 @@ static CamelHTMLParserPrivate *tokenize_init(void);
 static void tokenize_free(CamelHTMLParserPrivate *p);
 static gint tokenize_step(CamelHTMLParserPrivate *p, gchar **datap, gint *lenp);
 
+G_DEFINE_TYPE (CamelHTMLParser, camel_html_parser, CAMEL_TYPE_OBJECT)
+
 /* ********************************************************************** */
 
 static void
@@ -68,14 +68,15 @@ html_parser_finalize (GObject *object)
 	CamelHTMLParser *parser = CAMEL_HTML_PARSER (object);
 
 	tokenize_free (parser->priv);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (camel_html_parser_parent_class)->finalize (object);
 }
 
 static void
-html_parser_class_init (CamelHTMLParserClass *class)
+camel_html_parser_class_init (CamelHTMLParserClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = html_parser_finalize;
@@ -84,27 +85,9 @@ html_parser_class_init (CamelHTMLParserClass *class)
 }
 
 static void
-html_parser_init (CamelHTMLParser *parser)
+camel_html_parser_init (CamelHTMLParser *parser)
 {
 	parser->priv = tokenize_init();
-}
-
-GType
-camel_html_parser_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelHTMLParser",
-			sizeof (CamelHTMLParserClass),
-			(GClassInitFunc) html_parser_class_init,
-			sizeof (CamelHTMLParser),
-			(GInstanceInitFunc) html_parser_init,
-			0);
-
-	return type;
 }
 
 /**

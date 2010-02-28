@@ -31,7 +31,6 @@
 #include "camel-disco-store.h"
 #include "camel-session.h"
 
-static gpointer parent_class;
 static GSList *disco_folder_properties;
 
 static CamelProperty disco_property_list[] = {
@@ -64,6 +63,8 @@ struct _cdf_sync_msg {
 	CamelFolder *folder;
 	CamelFolderChangeInfo *changes;
 };
+
+G_DEFINE_TYPE (CamelDiscoFolder, camel_disco_folder, CAMEL_TYPE_FOLDER)
 
 static void
 cdf_sync_offline(CamelSession *session, CamelSessionThreadMsg *mm)
@@ -125,13 +126,11 @@ cdf_folder_changed(CamelFolder *folder, CamelFolderChangeInfo *changes, gpointer
 }
 
 static void
-disco_folder_class_init (CamelDiscoFolderClass *class)
+camel_disco_folder_class_init (CamelDiscoFolderClass *class)
 {
 	CamelObjectClass *camel_object_class;
 	CamelFolderClass *folder_class;
 	gint ii;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	camel_object_class = CAMEL_OBJECT_CLASS (class);
 	camel_object_class->getv = disco_getv;
@@ -156,29 +155,11 @@ disco_folder_class_init (CamelDiscoFolderClass *class)
 }
 
 static void
-disco_folder_init (CamelDiscoFolder *disco_folder)
+camel_disco_folder_init (CamelDiscoFolder *disco_folder)
 {
 	camel_object_hook_event (
 		disco_folder, "folder_changed",
 		(CamelObjectEventHookFunc) cdf_folder_changed, NULL);
-}
-
-GType
-camel_disco_folder_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_FOLDER,
-			"CamelDiscoFolder",
-			sizeof (CamelDiscoFolderClass),
-			(GClassInitFunc) disco_folder_class_init,
-			sizeof (CamelDiscoFolder),
-			(GInstanceInitFunc) disco_folder_init,
-			0);
-
-	return type;
 }
 
 static gint
@@ -201,7 +182,7 @@ disco_getv (CamelObject *object,
 
 			props.argc = 1;
 			props.argv[0] = *arg;
-			((CamelObjectClass *)parent_class)->getv(object, error, &props);
+			CAMEL_OBJECT_CLASS (camel_disco_folder_parent_class)->getv(object, error, &props);
 			*arg->ca_ptr = g_slist_concat(*arg->ca_ptr, g_slist_copy(disco_folder_properties));
 			break; }
 			/* disco args */
@@ -217,7 +198,7 @@ disco_getv (CamelObject *object,
 	}
 
 	if (count)
-		return ((CamelObjectClass *)parent_class)->getv(object, error, args);
+		return CAMEL_OBJECT_CLASS (camel_disco_folder_parent_class)->getv(object, error, args);
 
 	return 0;
 }
@@ -253,7 +234,7 @@ disco_setv (CamelObject *object,
 	if (save)
 		camel_object_state_write(object);
 
-	return ((CamelObjectClass *)parent_class)->setv(object, error, args);
+	return CAMEL_OBJECT_CLASS (camel_disco_folder_parent_class)->setv(object, error, args);
 }
 
 static gboolean

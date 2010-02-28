@@ -59,7 +59,7 @@ enum {
 	PROP_SESSION
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelCipherContext, camel_cipher_context, CAMEL_TYPE_OBJECT)
 
 static gint
 cipher_sign (CamelCipherContext *ctx,
@@ -688,7 +688,7 @@ cipher_context_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose () method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_cipher_context_parent_class)->dispose (object);
 }
 
 static void
@@ -701,15 +701,14 @@ cipher_context_finalize (GObject *object)
 	g_mutex_free (priv->lock);
 
 	/* Chain up to parent's finalize () method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_cipher_context_parent_class)->finalize (object);
 }
 
 static void
-cipher_context_class_init (CamelCipherContextClass *class)
+camel_cipher_context_class_init (CamelCipherContextClass *class)
 {
 	GObjectClass *object_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelCipherContextPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -740,28 +739,10 @@ cipher_context_class_init (CamelCipherContextClass *class)
 }
 
 static void
-cipher_context_init (CamelCipherContext *context)
+camel_cipher_context_init (CamelCipherContext *context)
 {
 	context->priv = CAMEL_CIPHER_CONTEXT_GET_PRIVATE (context);
 	context->priv->lock = g_mutex_new ();
-}
-
-GType
-camel_cipher_context_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelCipherContext",
-			sizeof (CamelCipherContextClass),
-			(GClassInitFunc) cipher_context_class_init,
-			sizeof (CamelCipherContext),
-			(GInstanceInitFunc) cipher_context_init,
-			0);
-
-	return type;
 }
 
 /**

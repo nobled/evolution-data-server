@@ -101,7 +101,7 @@ struct _CamelSaslGssapiPrivate {
 	gss_name_t target;
 };
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelSaslGssapi, camel_sasl_gssapi, CAMEL_TYPE_SASL)
 
 static void
 gssapi_set_exception (OM_uint32 major,
@@ -176,7 +176,7 @@ sasl_gssapi_finalize (GObject *object)
 		gss_release_name (&status, &sasl->priv->target);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_sasl_gssapi_parent_class)->finalize (object);
 }
 
 /* DBUS Specific code */
@@ -411,12 +411,11 @@ sasl_gssapi_challenge (CamelSasl *sasl,
 }
 
 static void
-sasl_gssapi_class_init (CamelSaslGssapiClass *class)
+camel_sasl_gssapi_class_init (CamelSaslGssapiClass *class)
 {
 	GObjectClass *object_class;
 	CamelSaslClass *sasl_class;
 
-	parent_class = g_type_class_peek_parent (class);
 	g_type_class_add_private (class, sizeof (CamelSaslGssapiPrivate));
 
 	object_class = G_OBJECT_CLASS (class);
@@ -427,31 +426,13 @@ sasl_gssapi_class_init (CamelSaslGssapiClass *class)
 }
 
 static void
-sasl_gssapi_init (CamelSaslGssapi *sasl)
+camel_sasl_gssapi_init (CamelSaslGssapi *sasl)
 {
 	sasl->priv = CAMEL_SASL_GSSAPI_GET_PRIVATE (sasl);
 
 	sasl->priv->state = GSSAPI_STATE_INIT;
 	sasl->priv->ctx = GSS_C_NO_CONTEXT;
 	sasl->priv->target = GSS_C_NO_NAME;
-}
-
-GType
-camel_sasl_gssapi_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_SASL,
-			"CamelSaslGssapi",
-			sizeof (CamelSaslGssapiClass),
-			(GClassInitFunc) sasl_gssapi_class_init,
-			sizeof (CamelSaslGssapi),
-			(GInstanceInitFunc) sasl_gssapi_init,
-			0);
-
-	return type;
 }
 
 #endif /* HAVE_KRB5 */

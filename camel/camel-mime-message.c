@@ -84,8 +84,9 @@ static const gchar *recipient_names[] = {
 	"To", "Cc", "Bcc", "Resent-To", "Resent-Cc", "Resent-Bcc", NULL
 };
 
-static gpointer parent_class;
 static GHashTable *header_name_table;
+
+G_DEFINE_TYPE (CamelMimeMessage, camel_mime_message, CAMEL_TYPE_MIME_PART)
 
 /* FIXME: check format of fields. */
 static gboolean
@@ -196,7 +197,7 @@ mime_message_dispose (GObject *object)
 	}
 
 	/* Chain up to parent's dispose() method. */
-	G_OBJECT_CLASS (parent_class)->dispose (object);
+	G_OBJECT_CLASS (camel_mime_message_parent_class)->dispose (object);
 }
 
 static void
@@ -212,7 +213,7 @@ mime_message_finalize (GObject *object)
 	g_hash_table_destroy (message->recipients);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_mime_message_parent_class)->finalize (object);
 }
 
 static gssize
@@ -244,7 +245,7 @@ mime_message_write_to_stream (CamelDataWrapper *data_wrapper,
 		camel_medium_set_header ((CamelMedium *)mm, "Mime-Version", "1.0");
 
 	/* Chain up to parent's write_to_stream() method. */
-	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (parent_class);
+	data_wrapper_class = CAMEL_DATA_WRAPPER_CLASS (camel_mime_message_parent_class);
 	return data_wrapper_class->write_to_stream (data_wrapper, stream, error);
 }
 
@@ -255,7 +256,7 @@ mime_message_add_header (CamelMedium *medium,
 {
 	CamelMediumClass *medium_class;
 
-	medium_class = CAMEL_MEDIUM_CLASS (parent_class);
+	medium_class = CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class);
 
 	/* if we process it, then it must be forced unique as well ... */
 	if (process_header (medium, name, value))
@@ -272,7 +273,7 @@ mime_message_set_header (CamelMedium *medium,
 	process_header (medium, name, value);
 
 	/* Chain up to parent's set_header() method. */
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header (medium, name, value);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header (medium, name, value);
 }
 
 static void
@@ -282,7 +283,7 @@ mime_message_remove_header (CamelMedium *medium,
 	process_header (medium, name, NULL);
 
 	/* Chain up to parent's remove_header() method. */
-	CAMEL_MEDIUM_CLASS (parent_class)->remove_header (medium, name);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->remove_header (medium, name);
 }
 
 static gint
@@ -302,7 +303,7 @@ mime_message_construct_from_parser (CamelMimePart *dw,
 	d(printf("mime_message::construct_from_parser()\n"));
 
 	/* let the mime-part construct the guts ... */
-	mime_part_class = CAMEL_MIME_PART_CLASS (parent_class);
+	mime_part_class = CAMEL_MIME_PART_CLASS (camel_mime_message_parent_class);
 	ret = mime_part_class->construct_from_parser (dw, mp, error);
 
 	if (ret == -1)
@@ -334,15 +335,13 @@ mime_message_construct_from_parser (CamelMimePart *dw,
 }
 
 static void
-mime_message_class_init (CamelMimeMessageClass *class)
+camel_mime_message_class_init (CamelMimeMessageClass *class)
 {
 	GObjectClass *object_class;
 	CamelDataWrapperClass *data_wrapper_class;
 	CamelMimePartClass *mime_part_class;
 	CamelMediumClass *medium_class;
 	gint ii;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->dispose = mime_message_dispose;
@@ -371,7 +370,7 @@ mime_message_class_init (CamelMimeMessageClass *class)
 }
 
 static void
-mime_message_init (CamelMimeMessage *mime_message)
+camel_mime_message_init (CamelMimeMessage *mime_message)
 {
 	gint ii;
 
@@ -392,24 +391,6 @@ mime_message_init (CamelMimeMessage *mime_message)
 	mime_message->date_received = CAMEL_MESSAGE_DATE_CURRENT;
 	mime_message->date_received_offset = 0;
 	mime_message->message_id = NULL;
-}
-
-GType
-camel_mime_message_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_MIME_PART,
-			"CamelMimeMessage",
-			sizeof (CamelMimeMessageClass),
-			(GClassInitFunc) mime_message_class_init,
-			sizeof (CamelMimeMessage),
-			(GInstanceInitFunc) mime_message_init,
-			0);
-
-	return type;
 }
 
 /**
@@ -454,7 +435,7 @@ camel_mime_message_set_date (CamelMimeMessage *message,  time_t date, gint offse
 	message->date_offset = offset;
 
 	datestr = camel_header_format_date (date, offset);
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header ((CamelMedium *)message, "Date", datestr);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header ((CamelMedium *)message, "Date", datestr);
 	g_free (datestr);
 }
 
@@ -530,7 +511,7 @@ camel_mime_message_set_message_id (CamelMimeMessage *mime_message, const gchar *
 
 	mime_message->message_id = id;
 	id = g_strdup_printf ("<%s>", mime_message->message_id);
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header (CAMEL_MEDIUM (mime_message), "Message-ID", id);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header (CAMEL_MEDIUM (mime_message), "Message-ID", id);
 	g_free (id);
 }
 
@@ -572,13 +553,13 @@ camel_mime_message_set_reply_to (CamelMimeMessage *msg, const CamelInternetAddre
 	}
 
 	if (reply_to == NULL) {
-		CAMEL_MEDIUM_CLASS (parent_class)->remove_header (CAMEL_MEDIUM (msg), "Reply-To");
+		CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->remove_header (CAMEL_MEDIUM (msg), "Reply-To");
 		return;
 	}
 
 	msg->reply_to = (CamelInternetAddress *)camel_address_new_clone ((CamelAddress *)reply_to);
 	addr = camel_address_encode ((CamelAddress *)msg->reply_to);
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header (CAMEL_MEDIUM (msg), "Reply-To", addr);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header (CAMEL_MEDIUM (msg), "Reply-To", addr);
 	g_free (addr);
 }
 
@@ -626,7 +607,7 @@ camel_mime_message_set_subject (CamelMimeMessage *message, const gchar *subject)
 		text = NULL;
 	}
 
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header (CAMEL_MEDIUM (message), "Subject", text);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header (CAMEL_MEDIUM (message), "Subject", text);
 	g_free (text);
 }
 
@@ -672,13 +653,13 @@ camel_mime_message_set_from (CamelMimeMessage *msg, const CamelInternetAddress *
 	}
 
 	if (from == NULL || camel_address_length((CamelAddress *)from) == 0) {
-		CAMEL_MEDIUM_CLASS(parent_class)->remove_header(CAMEL_MEDIUM(msg), "From");
+		CAMEL_MEDIUM_CLASS(camel_mime_message_parent_class)->remove_header(CAMEL_MEDIUM(msg), "From");
 		return;
 	}
 
 	msg->from = (CamelInternetAddress *)camel_address_new_clone((CamelAddress *)from);
 	addr = camel_address_encode((CamelAddress *)msg->from);
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header(CAMEL_MEDIUM(msg), "From", addr);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header(CAMEL_MEDIUM(msg), "From", addr);
 	g_free(addr);
 }
 
@@ -726,7 +707,7 @@ camel_mime_message_set_recipients(CamelMimeMessage *mime_message, const gchar *t
 
 	if (r == NULL || camel_address_length ((CamelAddress *)r) == 0) {
 		camel_address_remove ((CamelAddress *)addr, -1);
-		CAMEL_MEDIUM_CLASS (parent_class)->remove_header (CAMEL_MEDIUM (mime_message), type);
+		CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->remove_header (CAMEL_MEDIUM (mime_message), type);
 		return;
 	}
 
@@ -735,7 +716,7 @@ camel_mime_message_set_recipients(CamelMimeMessage *mime_message, const gchar *t
 
 	/* and sync our headers */
 	text = camel_address_encode (CAMEL_ADDRESS (addr));
-	CAMEL_MEDIUM_CLASS (parent_class)->set_header (CAMEL_MEDIUM (mime_message), type, text);
+	CAMEL_MEDIUM_CLASS (camel_mime_message_parent_class)->set_header (CAMEL_MEDIUM (mime_message), type, text);
 	g_free(text);
 }
 

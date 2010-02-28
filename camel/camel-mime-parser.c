@@ -150,9 +150,6 @@ static off_t folder_tell(struct _header_scan_state *s);
 static gint folder_read(struct _header_scan_state *s);
 static void folder_push_part(struct _header_scan_state *s, struct _header_scan_stack *h);
 
-static void mime_parser_class_init (CamelMimeParserClass *class);
-static void mime_parser_init       (CamelMimeParser *obj);
-
 #if d(!)0
 static gchar *states[] = {
 	"CAMEL_MIME_PARSER_STATE_INITIAL",
@@ -175,7 +172,7 @@ static gchar *states[] = {
 };
 #endif
 
-static gpointer parent_class;
+G_DEFINE_TYPE (CamelMimeParser, camel_mime_parser, CAMEL_TYPE_OBJECT)
 
 static void
 mime_parser_finalize (GObject *object)
@@ -189,42 +186,22 @@ mime_parser_finalize (GObject *object)
 	folder_scan_close(s);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_mime_parser_parent_class)->finalize (object);
 }
 
 static void
-mime_parser_class_init (CamelMimeParserClass *class)
+camel_mime_parser_class_init (CamelMimeParserClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = mime_parser_finalize;
 }
 
 static void
-mime_parser_init (CamelMimeParser *parser)
+camel_mime_parser_init (CamelMimeParser *parser)
 {
 	parser->priv = folder_scan_init();
-}
-
-GType
-camel_mime_parser_get_type (void)
-{
-	static GType type = G_TYPE_INVALID;
-
-	if (G_UNLIKELY (type == G_TYPE_INVALID))
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelMimeParser",
-			sizeof (CamelMimeParserClass),
-			(GClassInitFunc) mime_parser_class_init,
-			sizeof (CamelMimeParser),
-			(GInstanceInitFunc) mime_parser_init,
-			0);
-
-	return type;
 }
 
 /**

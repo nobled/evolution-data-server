@@ -47,8 +47,6 @@
 #define BASE_PART_SUFFIX "."
 #endif
 
-static gpointer parent_class;
-
 static void stream_finalize (CamelObject *stream, gpointer event_data, gpointer user_data);
 
 struct _part_find {
@@ -59,6 +57,8 @@ struct _part_find {
 	/* Was the part found? */
 	gint found;
 };
+
+G_DEFINE_TYPE (CamelImapMessageCache, camel_imap_message_cache, CAMEL_TYPE_OBJECT)
 
 static void
 free_part (gpointer key, gpointer value, gpointer data)
@@ -92,36 +92,21 @@ imap_message_cache_finalize (GObject *object)
 		g_hash_table_destroy (cache->cached);
 
 	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (parent_class)->finalize (object);
+	G_OBJECT_CLASS (camel_imap_message_cache_parent_class)->finalize (object);
 }
 
 static void
-imap_message_cache_class_init (CamelImapMessageCacheClass *class)
+camel_imap_message_cache_class_init (CamelImapMessageCacheClass *class)
 {
 	GObjectClass *object_class;
-
-	parent_class = g_type_class_peek_parent (class);
 
 	object_class = G_OBJECT_CLASS (class);
 	object_class->finalize = imap_message_cache_finalize;
 }
 
-GType
-camel_imap_message_cache_get_type (void)
+static void
+camel_imap_message_cache_init (CamelImapMessageCache *imap_message_cache)
 {
-	static GType type = G_TYPE_INVALID;
-
-	if (type == G_TYPE_INVALID)
-		type = g_type_register_static_simple (
-			CAMEL_TYPE_OBJECT,
-			"CamelImapMessageCache",
-			sizeof (CamelImapMessageCacheClass),
-			(GClassInitFunc) imap_message_cache_class_init,
-			sizeof (CamelImapMessageCache),
-			(GInstanceInitFunc) NULL,
-			0);
-
-	return type;
 }
 
 static void
