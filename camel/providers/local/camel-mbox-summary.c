@@ -956,6 +956,7 @@ mbox_summary_sync_quick(CamelMboxSummary *mbs, gboolean expunge, CamelFolderChan
 		info->info.info.flags &= 0xffff;
 		info->info.info.dirty = TRUE;
 		camel_message_info_free((CamelMessageInfo *)info);
+		info = NULL;
 	}
 
 	d(printf("Closing folders\n"));
@@ -1274,6 +1275,7 @@ camel_mbox_summary_sync_mbox(CamelMboxSummary *cls, guint32 flags, CamelFolderCh
 				camel_folder_summary_touch(s);
 			}
 			camel_message_info_free((CamelMessageInfo *)info);
+			info = NULL;
 		}
 	}
 

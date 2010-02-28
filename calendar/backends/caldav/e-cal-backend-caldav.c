@@ -518,7 +518,7 @@ check_state (ECalBackendCalDAV *cbdav, gboolean *online)
 
 	if (priv->mode == CAL_MODE_LOCAL) {
 
-		if (! priv->do_offline) {
+		if (!priv->do_offline) {
 			return GNOME_Evolution_Calendar_RepositoryOffline;
 		}
 
@@ -949,7 +949,7 @@ caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 
 	send_and_handle_redirection (priv->session, message, NULL);
 
-	if (! SOUP_STATUS_IS_SUCCESSFUL (message->status_code)) {
+	if (!SOUP_STATUS_IS_SUCCESSFUL (message->status_code)) {
 		guint status_code = message->status_code;
 
 		g_object_unref (message);
@@ -980,7 +980,7 @@ caldav_server_open_calendar (ECalBackendCalDAV *cbdav)
 	g_object_unref (message);
 
 	if (calendar_access) {
-		priv->read_only = ! (put_allowed && delete_allowed);
+		priv->read_only = !(put_allowed && delete_allowed);
 		return GNOME_Evolution_Calendar_Success;
 	}
 
@@ -2177,8 +2177,20 @@ initialize_backend (ECalBackendCalDAV *cbdav)
 
 		/* properly encode uri */
 		if (suri && suri->path) {
-			gchar *tmp = soup_uri_encode (suri->path, NULL);
-			gchar *path = soup_uri_normalize (tmp, "/");
+			gchar *tmp, *path;
+
+			if (suri->path && strchr (suri->path, '%')) {
+				/* If path contains anything already encoded, then decode it first,
+				   thus it'll be managed properly. For example, the '#' in a path
+				   is in URI shown as %23 and not doing this decode makes it being
+				   like %2523, which is not what is wanted here. */
+				tmp = soup_uri_decode (suri->path);
+				soup_uri_set_path (suri, tmp);
+				g_free (tmp);
+			}
+
+			tmp = soup_uri_encode (suri->path, NULL);
+			path = soup_uri_normalize (tmp, "/");
 
 			soup_uri_set_path (suri, path);
 
@@ -3399,6 +3411,11 @@ do_modify_object (ECalBackendCalDAV *cbdav, const gchar *calobj, CalObjModType m
 
 				/* no need to free the cache_comp, as it is inside icomp */
 				cache_comp = icomp;
+			}
+
+			if (cache_comp && priv->is_google) {
+				icalcomponent_set_sequence (cache_comp, icalcomponent_get_sequence (cache_comp) + 1);
+				icalcomponent_set_sequence (new_comp, icalcomponent_get_sequence (new_comp) + 1);
 			}
 
 			/* add the detached instance finally */

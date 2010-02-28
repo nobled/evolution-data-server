@@ -260,10 +260,10 @@ mh_summary_check (CamelLocalSummary *cls,
 		}
 	}
 
-	while ( (d = readdir(dir)) ) {
+	while ((d = readdir(dir))) {
 		/* FIXME: also run stat to check for regular file */
 		p = d->d_name;
-		while ( (c = *p++) ) {
+		while ((c = *p++)) {
 			if (!isdigit(c))
 				break;
 		}

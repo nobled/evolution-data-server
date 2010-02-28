@@ -426,7 +426,6 @@ maildir_transfer_messages_to (CamelFolder *source,
 			d_filename = g_strdup_printf ("%s/cur/%s", df->folder_path, tmp);
 			g_free (tmp);
 			s_filename = g_strdup_printf("%s/cur/%s", lf->folder_path, camel_maildir_info_filename (mdi));
-			camel_message_info_free (info);
 
 			if (g_rename (s_filename, d_filename) != 0) {
 				if (errno == EXDEV) {
@@ -444,6 +443,7 @@ maildir_transfer_messages_to (CamelFolder *source,
 				camel_folder_summary_remove (source->summary, info);
 			}
 
+			camel_message_info_free (info);
 			g_free (s_filename);
 			g_free (d_filename);
 		}

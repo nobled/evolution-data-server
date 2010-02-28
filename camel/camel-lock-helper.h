@@ -65,4 +65,4 @@ enum {
 
 G_END_DECLS
 
-#endif /* !CAMEL_LOCK_HELPER_H */
+#endif /* CAMEL_LOCK_HELPER_H */

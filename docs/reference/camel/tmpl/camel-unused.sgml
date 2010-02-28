@@ -829,6 +829,14 @@ camel-types
 @value: 
 @Returns: 
 
+<!-- ##### FUNCTION camel_folder_set_lock_async ##### -->
+<para>
+
+</para>
+
+@folder: 
+@async: 
+
 <!-- ##### FUNCTION camel_folder_summary_array_free ##### -->
 <para>
 

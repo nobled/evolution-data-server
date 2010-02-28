@@ -44,6 +44,9 @@
 #define POP3_PORT "110"
 #define POP3S_PORT "995"
 
+/* defines the length of the server error message we can display in the error dialog */
+#define POP3_ERROR_SIZE_LIMIT 60
+
 static gpointer parent_class;
 
 static gboolean pop3_connect (CamelService *service, GError **error);
@@ -127,6 +130,25 @@ enum {
 #define SSL_PORT_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_SSL2 | CAMEL_TCP_STREAM_SSL_ENABLE_SSL3)
 #define STARTTLS_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_TLS)
 #endif
+
+/* returns error message with ': ' as prefix */
+static gchar *
+get_valid_utf8_error (const gchar *text)
+{
+	gchar *tmp = camel_utf8_make_valid (text);
+	gchar *ret = NULL;
+
+	/*TODO If the error message > size limit log it somewhere */
+	if (!tmp || g_utf8_strlen (tmp, -1) > POP3_ERROR_SIZE_LIMIT) {
+		g_free (tmp);
+		return NULL;
+	}
+
+	ret = g_strconcat (": ", tmp, NULL);
+
+	g_free (tmp);
+	return ret;
+}
 
 static gboolean
 connect_to_server (CamelService *service,
@@ -216,10 +238,14 @@ connect_to_server (CamelService *service,
 	camel_pop3_engine_command_free (store->engine, pc);
 
 	if (ret == FALSE) {
+		gchar *tmp;
+
+		tmp = get_valid_utf8_error ((gchar *) store->engine->line);
 		g_set_error (
 			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
 			_("Failed to connect to POP server %s in secure mode: %s"),
-			service->url->host, store->engine->line);
+			service->url->host, (tmp != NULL) ? tmp : "");
+		g_free (tmp);
 		goto stls_exception;
 	}
 
@@ -417,11 +443,18 @@ try_sasl (CamelPOP3Store *store,
 		if (strncmp((gchar *) line, "+OK", 3) == 0)
 			break;
 		if (strncmp((gchar *) line, "-ERR", 4) == 0) {
+			gchar *tmp;
+
+			tmp = get_valid_utf8_error (
+				(gchar *) store->engine->line);
 			g_set_error (
 				error, CAMEL_SERVICE_ERROR,
 				CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
 				_("SASL '%s' Login failed for POP server %s: %s"),
-				mech, CAMEL_SERVICE (store)->url->host, line);
+				mech, CAMEL_SERVICE (store)->url->host,
+				(tmp != NULL) ? tmp : "");
+			g_free (tmp);
+
 			goto done;
 		}
 		/* If we dont get continuation, or the sasl object's run out of work, or we dont get a challenge,
@@ -570,25 +603,29 @@ pop3_try_authenticate (CamelService *service,
 				g_strerror (errno) : _("Unknown error"));
 		}
 	} else if (pcu && pcu->state != CAMEL_POP3_COMMAND_OK) {
+		gchar *tmp;
+
+		tmp = get_valid_utf8_error ((gchar *) store->engine->line);
 		g_set_error (
 			error, CAMEL_SERVICE_ERROR,
 			CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
 			_("Unable to connect to POP server %s.\n"
 			  "Error sending username: %s"),
 			CAMEL_SERVICE (store)->url->host,
-			store->engine->line ?
-			(gchar *)store->engine->line :
-			_("Unknown error"));
+			(tmp != NULL) ? tmp : "");
+		g_free (tmp);
 	} else if (pcp->state != CAMEL_POP3_COMMAND_OK) {
+		gchar *tmp;
+
+		tmp = get_valid_utf8_error ((gchar *) store->engine->line);
 		g_set_error (
 			error, CAMEL_SERVICE_ERROR,
 			CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
 			_("Unable to connect to POP server %s.\n"
 			  "Error sending password: %s"),
 			CAMEL_SERVICE (store)->url->host,
-			store->engine->line ?
-			(gchar *)store->engine->line :
-			_("Unknown error"));
+			(tmp != NULL) ? tmp : "");
+		g_free (tmp);
 	}
 
 	camel_pop3_engine_command_free (store->engine, pcp);

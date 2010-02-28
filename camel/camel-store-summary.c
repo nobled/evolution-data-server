@@ -631,8 +631,8 @@ camel_store_summary_save (CamelStoreSummary *s)
 		return -1;
 	}
 
-	out = fdopen (fd, "wb");
-	if ( out == NULL ) {
+	out = fdopen(fd, "wb");
+	if (out == NULL) {
 		i = errno;
 		printf ("**  fdopen error: %s\n", g_strerror (errno));
 		close (fd);
@@ -1047,4 +1047,3 @@ camel_store_info_set_string (CamelStoreSummary *s,
 
 	class->store_info_set_string (s, info, type, value);
 }
-

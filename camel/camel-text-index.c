@@ -365,7 +365,7 @@ text_index_sync (CamelIndex *idx,
 
 	work = !camel_dlist_empty (&p->word_cache);
 
-	while ( (ww = (struct _CamelTextIndexWord *)camel_dlist_remhead (&p->word_cache)) ) {
+	while ((ww = (struct _CamelTextIndexWord *)camel_dlist_remhead (&p->word_cache))) {
 		if (ww->used > 0) {
 			io (printf ("writing key file entry '%s' [%x]\n", ww->word, ww->data));
 			if (camel_key_file_write (p->links, &ww->data, ww->used, ww->names) != -1) {
@@ -505,7 +505,7 @@ text_index_compress_nosync (CamelIndex *idx,
 	remap = g_hash_table_new (NULL, NULL);
 	oldkeyid = 0;
 	deleted = 0;
-	while ( (oldkeyid = camel_key_table_next (oldp->name_index, oldkeyid, &name, &flags, &data, NULL)) ) {
+	while ((oldkeyid = camel_key_table_next (oldp->name_index, oldkeyid, &name, &flags, &data, NULL))) {
 		if ((flags&1) == 0) {
 			io (printf ("copying name '%s'\n", name));
 			newkeyid = camel_key_table_add (
@@ -528,8 +528,8 @@ text_index_compress_nosync (CamelIndex *idx,
 	/* We re-block the data into 256 entry lots while we're at it, since we only
 	   have to do 1 at a time and its cheap */
 	oldkeyid = 0;
-	while ( (oldkeyid = camel_key_table_next (oldp->word_index, oldkeyid, &name, &flags, &data, NULL)) ) {
-		io (printf ("copying word '%s'\n", name));
+	while ((oldkeyid = camel_key_table_next (oldp->word_index, oldkeyid, &name, &flags, &data, NULL))) {
+		io(printf ("copying word '%s'\n", name));
 		newdata = 0;
 		newcount = 0;
 		if (data) {
@@ -1295,7 +1295,7 @@ camel_text_index_dump (CamelTextIndex *idx)
 	printf ("UID's in index\n");
 
 	keyid = 0;
-	while ( (keyid = camel_key_table_next (p->name_index, keyid, &word, &flags, &data, NULL)) ) {
+	while ((keyid = camel_key_table_next (p->name_index, keyid, &word, &flags, &data, NULL))) {
 		if ((flags & 1) == 0)
 			printf (" %s\n", word);
 		else
@@ -1306,7 +1306,7 @@ camel_text_index_dump (CamelTextIndex *idx)
 	printf ("Word's in index\n");
 
 	keyid = 0;
-	while ( (keyid = camel_key_table_next (p->word_index, keyid, &word, &flags, &data, NULL)) ) {
+	while ((keyid = camel_key_table_next (p->word_index, keyid, &word, &flags, &data, NULL))) {
 		CamelIndexCursor *idc;
 
 		printf ("Word: '%s':\n", word);
@@ -1368,9 +1368,9 @@ camel_text_index_validate (CamelTextIndex *idx)
 	printf ("Checking UID consistency\n");
 
 	keyid = 0;
-	while ( (keyid = camel_key_table_next (p->name_index, keyid, &word, &flags, &data, NULL)) ) {
-		if ((oldword = g_hash_table_lookup (names, GINT_TO_POINTER (keyid))) != NULL
-		    || (oldword = g_hash_table_lookup (deleted, GINT_TO_POINTER (keyid))) != NULL) {
+	while ((keyid = camel_key_table_next (p->name_index, keyid, &word, &flags, &data, NULL))) {
+		if ((oldword = g_hash_table_lookup (names, GINT_TO_POINTER(keyid))) != NULL
+		    || (oldword = g_hash_table_lookup (deleted, GINT_TO_POINTER(keyid))) != NULL) {
 			printf ("Warning, name '%s' duplicates key (%x) with name '%s'\n", word, keyid, oldword);
 			g_free (word);
 		} else {
@@ -1386,7 +1386,7 @@ camel_text_index_validate (CamelTextIndex *idx)
 	printf ("Checking WORD member consistency\n");
 
 	keyid = 0;
-	while ( (keyid = camel_key_table_next (p->word_index, keyid, &word, &flags, &data, NULL)) ) {
+	while ((keyid = camel_key_table_next (p->word_index, keyid, &word, &flags, &data, NULL))) {
 		CamelIndexCursor *idc;
 		GHashTable *used;
 
@@ -1510,7 +1510,7 @@ camel_utf8_next (const guchar **ptr, const guchar *ptrend)
 	if (p == ptrend)
 		return 0;
 
-	while ( (c = *p++) ) {
+	while ((c = *p++)) {
 		if (c < 0x80) {
 			*ptr = p;
 			return c;
@@ -1836,7 +1836,7 @@ text_index_key_cursor_next (CamelIndexCursor *idc)
 	g_free (p->current);
 	p->current = NULL;
 
-	while ( (p->keyid = camel_key_table_next (p->table, p->keyid, &p->current, &p->flags, &p->data, NULL)) ) {
+	while ((p->keyid = camel_key_table_next (p->table, p->keyid, &p->current, &p->flags, &p->data, NULL))) {
 		if ((p->flags & 1) == 0) {
 			return p->current;
 		} else {
@@ -1990,7 +1990,7 @@ gint main (gint argc, gchar **argv)
 
 	printf ("Looking up which names contain word 'word'\n");
 	idc = camel_index_find (idx, "words");
-	while ( (word = camel_index_cursor_next (idc)) != NULL ) {
+	while ((word = camel_index_cursor_next (idc)) != NULL) {
 		printf (" name is '%s'\n", word);
 	}
 	g_object_unref (idc);
@@ -1998,7 +1998,7 @@ gint main (gint argc, gchar **argv)
 
 	printf ("Looking up which names contain word 'truncate'\n");
 	idc = camel_index_find (idx, "truncate");
-	while ( (word = camel_index_cursor_next (idc)) != NULL ) {
+	while ((word = camel_index_cursor_next (idc)) != NULL) {
 		printf (" name is '%s'\n", word);
 	}
 	g_object_unref (idc);

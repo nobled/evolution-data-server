@@ -59,4 +59,4 @@ void camel_unlock_folder(const gchar *path, gint fd);
 
 G_END_DECLS
 
-#endif /* !CAMEL_LOCK_H */
+#endif /* CAMEL_LOCK_H */

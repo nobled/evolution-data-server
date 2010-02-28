@@ -122,8 +122,13 @@ camel_provider_module_init(void)
 	CamelProvider *imap_provider = NULL;
 	gboolean use_imap = g_getenv ("USE_IMAP") != NULL;
 
-	if (use_imap)
-	    imap_provider =  camel_provider_get("imap://", NULL);
+	if (use_imap) {
+#ifdef ENABLE_IMAPX
+	    imap_provider = camel_provider_get("imapx://", NULL);
+#else
+	    imap_provider = camel_provider_get("imap://", NULL);
+#endif
+	}
 
 	groupwise_provider.url_hash = groupwise_url_hash;
 	groupwise_provider.url_equal = groupwise_url_equal;

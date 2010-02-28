@@ -104,6 +104,7 @@ imap_wrapper_write_to_stream (CamelDataWrapper *data_wrapper,
 		datastream = camel_imap_folder_fetch_data (
 			imap_wrapper->folder, imap_wrapper->uid,
 			imap_wrapper->part_spec, FALSE, NULL);
+
 		if (!datastream) {
 			CAMEL_IMAP_WRAPPER_UNLOCK (imap_wrapper, lock);
 #ifdef ENETUNREACH
@@ -174,11 +175,13 @@ camel_imap_wrapper_new (CamelImapFolder *imap_folder,
 {
 	CamelImapWrapper *imap_wrapper;
 	CamelStream *stream;
+	gboolean sync_offline = FALSE;
 
 	imap_wrapper = g_object_new (CAMEL_TYPE_IMAP_WRAPPER, NULL);
 
+	imap_wrapper = (CamelImapWrapper *)g_object_new (camel_imap_wrapper_get_type(), NULL);
 	camel_data_wrapper_set_mime_type_field (CAMEL_DATA_WRAPPER (imap_wrapper), type);
-	((CamelDataWrapper *)imap_wrapper)->offline = TRUE;
+	((CamelDataWrapper *)imap_wrapper)->offline = !sync_offline;
 	((CamelDataWrapper *)imap_wrapper)->encoding = encoding;
 
 	imap_wrapper->folder = imap_folder;
@@ -189,9 +192,10 @@ camel_imap_wrapper_new (CamelImapFolder *imap_folder,
 	/* Don't ref this, it's our parent. */
 	imap_wrapper->part = part;
 
-	/* Try the cache. */
+	/* Download the attachments if sync_offline is set, else skip them by checking only in cache */
 	stream = camel_imap_folder_fetch_data (imap_folder, uid, part_spec,
-					       TRUE, NULL);
+			!sync_offline, NULL);
+
 	if (stream) {
 		imap_wrapper_hydrate (imap_wrapper, stream);
 		g_object_unref (stream);

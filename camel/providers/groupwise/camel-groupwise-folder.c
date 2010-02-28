@@ -762,9 +762,6 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_
 			((CamelService *)gw_store)->status == CAMEL_SERVICE_DISCONNECTED) {
 		return groupwise_sync_summary (folder, error);
 	}
-	cnc = cnc_lookup (priv);
-
-	container_id =  camel_groupwise_store_container_id_lookup (gw_store, folder->full_name);
 
 	CAMEL_SERVICE_REC_LOCK (gw_store, connect_lock);
 	if (!camel_groupwise_store_connected (gw_store, NULL)) {
@@ -772,6 +769,9 @@ groupwise_sync (CamelFolder *folder, gboolean expunge, CamelMessageInfo *update_
 		return TRUE;
 	}
 	CAMEL_SERVICE_REC_UNLOCK (gw_store, connect_lock);
+
+	cnc = cnc_lookup (priv);
+	container_id =  camel_groupwise_store_container_id_lookup (gw_store, folder->full_name);
 
 	if (folder->folder_flags & CAMEL_FOLDER_HAS_BEEN_DELETED)
 		return TRUE;
@@ -1366,7 +1366,7 @@ groupwise_refresh_folder(CamelFolder *folder, GError **error)
 	if (!is_proxy) {
 		const gchar *source;
 
-		if ( !strcmp (folder->full_name, RECEIVED) || !strcmp(folder->full_name, SENT) ) {
+		if (!strcmp (folder->full_name, RECEIVED) || !strcmp(folder->full_name, SENT)) {
 			source = NULL;
 		} else {
 			source = "sent received";
@@ -2188,7 +2188,7 @@ groupwise_folder_item_to_msg( CamelFolder *folder,
 			     !g_ascii_strcasecmp (attach->name, "meeting.ics")) && (attach->hidden == TRUE))
 				continue;
 
-			if ( (attach->item_reference) && (!g_ascii_strcasecmp (attach->item_reference, "1")) ) {
+			if ((attach->item_reference) && (!g_ascii_strcasecmp (attach->item_reference, "1"))) {
 				CamelMimeMessage *temp_msg = NULL;
 				status = e_gw_connection_get_item (cnc, container_id, attach->id, GET_ITEM_VIEW_WITH_CACHE, &temp_item);
 				if (status != E_GW_CONNECTION_STATUS_OK) {

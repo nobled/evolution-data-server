@@ -40,7 +40,8 @@ libcamel_provider_1_2_la_CPPFLAGS = \
 	-DE_DATA_SERVER_PREFIX=\"$(prefix)\"			\
 	-DEVOLUTION_LOCALEDIR=\""$(localedir)"\"		\
 	-DCAMEL_COMPILATION					\
-	$(CAMEL_CFLAGS)
+	$(CAMEL_CFLAGS)						\
+	$(DBUS_GLIB_CFLAGS)
 
 libcamel_provider_1_2_la_SOURCES = 		\
 	camel-cipher-context.c			\
@@ -107,7 +108,6 @@ libcamel_providerinclude_HEADERS =		\
 	camel-gpg-context.h			\
 	camel-http-stream.h			\
 	camel-html-parser.h			\
-	camel-iconv.h				\
 	camel-lock-helper.h			\
 	camel-movemail.h			\
 	camel-news-address.h			\
@@ -149,7 +149,8 @@ libcamel_provider_1_2_la_LIBADD =			\
 	libcamel-1.2.la				\
 	$(CAMEL_LIBS)				\
 	$(SOCKET_LIBS)				\
-	$(REGEX_LIBS)
+	$(REGEX_LIBS)				\
+	$(DBUS_GLIB_LIBS)	
 
 libcamel_1_2_la_CPPFLAGS = \
 	$(AM_CPPFLAGS)						\

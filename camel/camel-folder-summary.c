@@ -65,7 +65,7 @@
 	((obj), CAMEL_TYPE_FOLDER_SUMMARY, CamelFolderSummaryPrivate))
 
 /* Make 5 minutes as default cache drop */
-#define SUMMARY_CACHE_DROP 300
+#define SUMMARY_CACHE_DROP 300 
 #define dd(x) if (camel_debug("sync")) x
 
 static pthread_mutex_t info_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -1246,7 +1246,6 @@ message_info_from_uid (CamelFolderSummary *s, const gchar *uid)
 	gint ret;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
-	CAMEL_SUMMARY_LOCK(s, ref_lock);
 
 	info = g_hash_table_lookup (s->loaded_infos, uid);
 
@@ -1261,7 +1260,6 @@ message_info_from_uid (CamelFolderSummary *s, const gchar *uid)
 		folder_name = s->folder->full_name;
 		cdb = s->folder->parent_store->cdb_r;
 
-		CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 		CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 		data.summary = s;
@@ -1275,7 +1273,6 @@ message_info_from_uid (CamelFolderSummary *s, const gchar *uid)
 			return NULL;
 
 		CAMEL_SUMMARY_LOCK(s, summary_lock);
-		CAMEL_SUMMARY_LOCK(s, ref_lock);
 
 		/* We would have double reffed at camel_read_mir_callback */
 		info = g_hash_table_lookup (s->loaded_infos, uid);
@@ -1283,7 +1280,6 @@ message_info_from_uid (CamelFolderSummary *s, const gchar *uid)
 	} else
 		info->refcount++;
 
-	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 
 	return info;
@@ -1815,56 +1811,56 @@ mir_from_cols (CamelMIRecord *mir, CamelFolderSummary *s, gint ncol, gchar ** co
 
 	for (i = 0; i < ncol; ++i) {
 
-		if ( !strcmp (name [i], "uid") )
+		if (!strcmp (name [i], "uid"))
 			mir->uid = (gchar *) camel_pstring_strdup (cols [i]);
-		else if ( !strcmp (name [i], "flags") )
+		else if (!strcmp (name [i], "flags"))
 			mir->flags = cols [i] ? strtoul (cols [i], NULL, 10) : 0;
-		else if ( !strcmp (name [i], "read") )
+		else if (!strcmp (name [i], "read"))
 			mir->read =  (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
-		else if ( !strcmp (name [i], "deleted") )
+		else if (!strcmp (name [i], "deleted"))
 			mir->deleted = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
-		else if ( !strcmp (name [i], "replied") )
+		else if (!strcmp (name [i], "replied"))
 			mir->replied = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
-		else if ( !strcmp (name [i], "important") )
+		else if (!strcmp (name [i], "important"))
 			mir->important = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
-		else if ( !strcmp (name [i], "junk") )
+		else if (!strcmp (name [i], "junk"))
 			mir->junk = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
-		else if ( !strcmp (name [i], "attachment") )
+		else if (!strcmp (name [i], "attachment"))
 			mir->attachment = (cols [i]) ? ( ((strtoul (cols [i], NULL, 10)) ? TRUE : FALSE)) : FALSE;
-		else if ( !strcmp (name [i], "size") )
+		else if (!strcmp (name [i], "size"))
 			mir->size =  cols [i] ? strtoul (cols [i], NULL, 10) : 0;
-		else if ( !strcmp (name [i], "dsent") )
+		else if (!strcmp (name [i], "dsent"))
 			mir->dsent = cols [i] ? strtol (cols [i], NULL, 10) : 0;
-		else if ( !strcmp (name [i], "dreceived") )
+		else if (!strcmp (name [i], "dreceived"))
 			mir->dreceived = cols [i] ? strtol (cols [i], NULL, 10) : 0;
-		else if ( !strcmp (name [i], "subject") )
+		else if (!strcmp (name [i], "subject"))
 			mir->subject = (gchar *) camel_pstring_strdup (cols [i]);
-		else if ( !strcmp (name [i], "mail_from") )
+		else if (!strcmp (name [i], "mail_from"))
 			mir->from = (gchar *) camel_pstring_strdup (cols [i]);
-		else if ( !strcmp (name [i], "mail_to") )
+		else if (!strcmp (name [i], "mail_to"))
 			mir->to = (gchar *) camel_pstring_strdup (cols [i]);
-		else if ( !strcmp (name [i], "mail_cc") )
+		else if (!strcmp (name [i], "mail_cc"))
 			mir->cc = (gchar *) camel_pstring_strdup(cols [i]);
-		else if ( !strcmp (name [i], "mlist") )
+		else if (!strcmp (name [i], "mlist"))
 			mir->mlist = (gchar *) camel_pstring_strdup (cols [i]);
-		else if ( !strcmp (name [i], "followup_flag") )
+		else if (!strcmp (name [i], "followup_flag"))
 			mir->followup_flag = (gchar *) camel_pstring_strdup(cols [i]);
-		else if ( !strcmp (name [i], "followup_completed_on") )
+		else if (!strcmp (name [i], "followup_completed_on"))
 			mir->followup_completed_on = (gchar *) camel_pstring_strdup(cols [i]);
-		else if ( !strcmp (name [i], "followup_due_by") )
+		else if (!strcmp (name [i], "followup_due_by"))
 			mir->followup_due_by = (gchar *) camel_pstring_strdup(cols [i]);
-		else if ( !strcmp (name [i], "part") )
+		else if (!strcmp (name [i], "part"))
 			mir->part = g_strdup (cols [i]);
-		else if ( !strcmp (name [i], "labels") )
+		else if (!strcmp (name [i], "labels"))
 			mir->labels = g_strdup (cols [i]);
-		else if ( !strcmp (name [i], "usertags") )
+		else if (!strcmp (name [i], "usertags"))
 			mir->usertags = g_strdup (cols [i]);
-		else if ( !strcmp (name [i], "cinfo") )
+		else if (!strcmp (name [i], "cinfo"))
 			mir->cinfo = g_strdup(cols [i]);
-		else if ( !strcmp (name [i], "bdata") )
+		else if (!strcmp (name [i], "bdata"))
 			mir->bdata = g_strdup(cols [i]);
 		/* Evolution itself doesn't yet use this, ignoring
-		else if ( !strcmp (name [i], "bodystructure") )
+		else if (!strcmp (name [i], "bodystructure"))
 			mir->bodystructure = g_strdup(cols [i]); */
 
 	}
@@ -3078,11 +3074,12 @@ summary_remove_uid (CamelFolderSummary *s, const gchar *uid)
 void
 camel_folder_summary_remove (CamelFolderSummary *s, CamelMessageInfo *info)
 {
-
+	gboolean found;
 	gint ret;
 
 	CAMEL_SUMMARY_LOCK(s, summary_lock);
 
+	found = g_hash_table_lookup (s->loaded_infos, camel_message_info_uid (info)) != NULL;
 	g_hash_table_remove (s->loaded_infos, camel_message_info_uid(info));
 	ret = summary_remove_uid (s, camel_message_info_uid(info));
 
@@ -3093,7 +3090,8 @@ camel_folder_summary_remove (CamelFolderSummary *s, CamelMessageInfo *info)
 	if (!ret && camel_db_delete_uid (s->folder->parent_store->cdb_w, s->folder->full_name, camel_message_info_uid(info), NULL) != 0)
 		return;
 
-	camel_message_info_free(info);
+	if (found)
+		camel_message_info_free (info);
 }
 
 /**
@@ -3812,7 +3810,7 @@ message_info_load(CamelFolderSummary *s, FILE *in)
 	camel_file_util_decode_string(in, &cc);
 	camel_file_util_decode_string(in, &mlist);
 
-	mi->uid = uid;
+	mi->uid = camel_pstring_add (uid, TRUE);
 	mi->subject = camel_pstring_add (subject, TRUE);
 	mi->from = camel_pstring_add (from, TRUE);
 	mi->to = camel_pstring_add (to, TRUE);
@@ -3950,7 +3948,7 @@ message_info_free(CamelFolderSummary *s, CamelMessageInfo *info)
 	CamelMessageInfoBase *mi = (CamelMessageInfoBase *)info;
 
 	if (mi->uid) {
-		if (g_hash_table_lookup (s->loaded_infos, mi->uid) == mi) {
+		if (s && g_hash_table_lookup (s->loaded_infos, mi->uid) == mi) {
 			g_hash_table_remove (s->loaded_infos, mi->uid);
 		}
 		camel_pstring_free(mi->uid);
@@ -5137,17 +5135,16 @@ match_content_type (CamelContentType *info_ctype, CamelContentType *ctype)
 	return TRUE;
 }
 
-CamelMessageContentInfo *
+const CamelMessageContentInfo *
 camel_folder_summary_guess_content_info (CamelMessageInfo *mi, CamelContentType *ctype)
 {
-	CamelMessageInfoBase *bmi = (CamelMessageInfoBase *) mi;
-	CamelMessageContentInfo *ci = bmi->content;
+	const CamelMessageContentInfo *ci = camel_message_info_content (mi);
 
 	while (ci) {
-		CamelMessageContentInfo *child = ci;
+		const CamelMessageContentInfo *child = ci;
 
 		do {
-			if (match_content_type (child->type, ctype))
+			if (child->type && match_content_type (child->type, ctype))
 				return child;
 
 			child = child->next;

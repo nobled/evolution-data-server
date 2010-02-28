@@ -556,7 +556,7 @@ book_view_thread (gpointer data)
 	db = bf->priv->file_db;
 	query = e_data_book_view_get_card_query (book_view);
 
-	if ( ! strcmp (query, "(contains \"x-evolution-any-field\" \"\")")) {
+	if ( !strcmp (query, "(contains \"x-evolution-any-field\" \"\")")) {
 		e_data_book_view_notify_status_message (book_view, _("Loading..."));
 		allcontacts = TRUE;
 	} else {
@@ -899,6 +899,16 @@ e_book_backend_file_get_required_fields (EBookBackendSync *backend,
 }
 
 static EBookBackendSyncStatus
+e_book_backend_file_get_supported_auth_methods (EBookBackendSync *backend,
+						EDataBook *book,
+						guint32 opid,
+						GList **methods_out)
+{
+	*methods_out = NULL;
+	return GNOME_Evolution_Addressbook_Success;
+}
+
+static EBookBackendSyncStatus
 e_book_backend_file_get_supported_fields (EBookBackendSync *backend,
 					  EDataBook *book,
 					  guint32 opid,
@@ -995,6 +1005,8 @@ e_book_backend_file_upgrade_db (EBookBackendFile *bf, gchar *old_version)
 
 			db_error = dbc->c_get(dbc, &id_dbt, &vcard_dbt, DB_NEXT);
 		}
+
+		dbc->c_close (dbc);
 
 		if (card_failed) {
 			g_warning ("failed to update %d cards", card_failed);
@@ -1176,7 +1188,7 @@ e_book_backend_file_load_source (EBookBackend           *backend,
 			/* the database didn't exist, so we create the
 			   directory then the .db */
 			db->close (db, 0);
-			rv = g_mkdir_with_parents (dirname, 0777);
+			rv = g_mkdir_with_parents (dirname, 0700);
 			if (rv == -1 && errno != EEXIST) {
 				g_warning ("failed to make directory %s: %s", dirname, g_strerror (errno));
 				g_free (dirname);
@@ -1373,7 +1385,7 @@ e_book_backend_file_construct (EBookBackendFile *backend)
 	g_assert (backend != NULL);
 	g_assert (E_IS_BOOK_BACKEND_FILE (backend));
 
-	if (! e_book_backend_construct (E_BOOK_BACKEND (backend)))
+	if (!e_book_backend_construct (E_BOOK_BACKEND (backend)))
 		return FALSE;
 
 	return TRUE;
@@ -1389,7 +1401,7 @@ e_book_backend_file_new (void)
 
 	backend = g_object_new (E_TYPE_BOOK_BACKEND_FILE, NULL);
 
-	if (! e_book_backend_file_construct (backend)) {
+	if (!e_book_backend_file_construct (backend)) {
 		g_object_unref (backend);
 
 		return NULL;
@@ -1497,23 +1509,24 @@ e_book_backend_file_class_init (EBookBackendFileClass *klass)
 	backend_class = E_BOOK_BACKEND_CLASS (klass);
 
 	/* Set the virtual methods. */
-	backend_class->load_source             = e_book_backend_file_load_source;
-	backend_class->get_static_capabilities = e_book_backend_file_get_static_capabilities;
-	backend_class->start_book_view         = e_book_backend_file_start_book_view;
-	backend_class->stop_book_view          = e_book_backend_file_stop_book_view;
-	backend_class->cancel_operation        = e_book_backend_file_cancel_operation;
-	backend_class->set_mode                = e_book_backend_file_set_mode;
-	backend_class->sync                    = e_book_backend_file_sync;
-	sync_class->remove_sync                = e_book_backend_file_remove;
-	sync_class->create_contact_sync        = e_book_backend_file_create_contact;
-	sync_class->remove_contacts_sync       = e_book_backend_file_remove_contacts;
-	sync_class->modify_contact_sync        = e_book_backend_file_modify_contact;
-	sync_class->get_contact_sync           = e_book_backend_file_get_contact;
-	sync_class->get_contact_list_sync      = e_book_backend_file_get_contact_list;
-	sync_class->get_changes_sync           = e_book_backend_file_get_changes;
-	sync_class->authenticate_user_sync     = e_book_backend_file_authenticate_user;
-	sync_class->get_supported_fields_sync  = e_book_backend_file_get_supported_fields;
-	sync_class->get_required_fields_sync   = e_book_backend_file_get_required_fields;
+	backend_class->load_source			= e_book_backend_file_load_source;
+	backend_class->get_static_capabilities		= e_book_backend_file_get_static_capabilities;
+	backend_class->start_book_view			= e_book_backend_file_start_book_view;
+	backend_class->stop_book_view			= e_book_backend_file_stop_book_view;
+	backend_class->cancel_operation			= e_book_backend_file_cancel_operation;
+	backend_class->set_mode				= e_book_backend_file_set_mode;
+	backend_class->sync				= e_book_backend_file_sync;
+	sync_class->remove_sync				= e_book_backend_file_remove;
+	sync_class->create_contact_sync			= e_book_backend_file_create_contact;
+	sync_class->remove_contacts_sync		= e_book_backend_file_remove_contacts;
+	sync_class->modify_contact_sync			= e_book_backend_file_modify_contact;
+	sync_class->get_contact_sync			= e_book_backend_file_get_contact;
+	sync_class->get_contact_list_sync		= e_book_backend_file_get_contact_list;
+	sync_class->get_changes_sync			= e_book_backend_file_get_changes;
+	sync_class->authenticate_user_sync		= e_book_backend_file_authenticate_user;
+	sync_class->get_supported_auth_methods_sync	= e_book_backend_file_get_supported_auth_methods;
+	sync_class->get_supported_fields_sync		= e_book_backend_file_get_supported_fields;
+	sync_class->get_required_fields_sync		= e_book_backend_file_get_required_fields;
 
 	object_class->dispose = e_book_backend_file_dispose;
 	object_class->finalize = e_book_backend_file_finalize;

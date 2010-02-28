@@ -303,7 +303,7 @@ again:
 			res = 0;
 			break;
 		default:
-			d(printf("locking failed ! \n"));
+			d(printf("locking failed !\n"));
 			break;
 		}
 	} else if (retry > 0) {

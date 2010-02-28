@@ -190,7 +190,7 @@ static CamelBlock *find_partition (CamelPartitionTable *cpi, camel_hash_t id, gi
 		bl = bl->next;
 	}
 
-	g_warning ("could not find a partition that could fit !  partition table corrupt!");
+	g_warning ("could not find a partition that could fit!  partition table corrupt!");
 
 	/* This should never be reached */
 

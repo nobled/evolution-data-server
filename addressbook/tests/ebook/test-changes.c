@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <libebook/e-book.h>
 
+#include "ebook-test-utils.h"
+
 #define NEW_VCARD "BEGIN:VCARD\n\
 X-EVOLUTION-FILE-AS:Toshok, Chris\n\
 FN:Chris Toshok\n\
@@ -18,38 +20,12 @@ main (gint argc, gchar **argv)
 	GList *changes;
 	GError *error = NULL;
 	EBookChange *change;
-	gchar *file_template;
 	gchar *uri;
 
 	g_type_init ();
 
-	file_template = g_build_filename (g_get_tmp_dir (),
-					  "change-test-XXXXXX",
-					  NULL);
-	g_mkstemp (file_template);
-
-	uri = g_filename_to_uri (file_template, NULL, &error);
-	if (!uri) {
-		printf ("failed to convert %s to an URI: %s\n",
-			file_template, error->message);
-		exit (0);
-	}
-	g_free (file_template);
-
-	/* create a temp addressbook in /tmp */
-	printf ("loading addressbook\n");
-	book = e_book_new_from_uri (uri, &error);
-	if (!book) {
-		printf ("failed to create addressbook: `%s': %s\n",
-			uri, error->message);
-		exit(0);
-	}
-
-	if (!e_book_open (book, FALSE, &error)) {
-		printf ("failed to open addressbook: `%s': %s\n",
-			uri, error->message);
-		exit(0);
-	}
+	book = ebook_test_utils_book_new_temp (&uri);
+        ebook_test_utils_book_open (book, FALSE);
 
 	/* get an initial change set */
 	if (!e_book_get_changes (book, "changeidtest", &changes, &error)) {
@@ -59,10 +35,7 @@ main (gint argc, gchar **argv)
 
 	/* make a change to the book */
 	contact = e_contact_new_from_vcard (NEW_VCARD);
-	if (!e_book_add_contact (book, contact, &error)) {
-		printf ("failed to add new contact: %s\n", error->message);
-		exit(0);
-	}
+	ebook_test_utils_book_add_contact (book, contact);
 
 	/* get another change set */
 	if (!e_book_get_changes (book, "changeidtest", &changes, &error)) {
@@ -86,12 +59,8 @@ main (gint argc, gchar **argv)
 
 	e_book_free_change_list (changes);
 
-	if (!e_book_remove (book, &error)) {
-		printf ("failed to remove book; %s\n", error->message);
-		exit(0);
-	}
-
-	g_object_unref (book);
+	g_object_unref (contact);
+	ebook_test_utils_book_remove (book);
 
 	return 0;
 }

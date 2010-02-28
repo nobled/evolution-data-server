@@ -37,4 +37,4 @@ gint camel_lock_helper_unlock(gint lockid);
 
 G_END_DECLS
 
-#endif /* !CAMEL_LOCK_HELPER_H */
+#endif /* CAMEL_LOCK_HELPER_H */

@@ -163,7 +163,7 @@ G_STMT_START{								\
 		return TRUE;						\
 	else {								\
 		const gchar *msg;					\
-		if (error)						\
+		if (error && *error)					\
 			return unwrap_gerror (error);			\
 		msg = e_cal_get_error_message ((status));		\
 		g_set_error ((error), E_CALENDAR_ERROR, (status), "%s", msg);	\
@@ -237,6 +237,8 @@ get_status_from_error (GError *error)
 
 		g_warning ("Unmatched error name %s", name);
 		return E_CALENDAR_STATUS_OTHER_ERROR;
+	} else if (error->domain == E_CALENDAR_ERROR) {
+		return error->code;
 	} else {
 		/* In this case the error was caused by DBus */
 		return E_CALENDAR_STATUS_CORBA_EXCEPTION;
@@ -274,9 +276,10 @@ unwrap_gerror(GError **error)
 GType
 e_cal_source_type_enum_get_type (void)
 {
-	static GType e_cal_source_type_enum_type = 0;
+	static volatile gsize enum_type__volatile = 0;
 
-	if (!e_cal_source_type_enum_type) {
+	if (g_once_init_enter (&enum_type__volatile)) {
+		GType enum_type;
 		static GEnumValue values [] = {
 			{ E_CAL_SOURCE_TYPE_EVENT, "Event", NULL},
 			{ E_CAL_SOURCE_TYPE_TODO, "ToDo", NULL},
@@ -285,11 +288,11 @@ e_cal_source_type_enum_get_type (void)
 			{ -1, NULL, NULL}
 		};
 
-		e_cal_source_type_enum_type =
-			g_enum_register_static ("ECalSourceTypeEnum", values);
+		enum_type = g_enum_register_static ("ECalSourceTypeEnum", values);
+		g_once_init_leave (&enum_type__volatile, enum_type);
 	}
 
-	return e_cal_source_type_enum_type;
+	return enum_type__volatile;
 }
 
 /**
@@ -302,21 +305,22 @@ e_cal_source_type_enum_get_type (void)
 GType
 e_cal_set_mode_status_enum_get_type (void)
 {
-	static GType e_cal_set_mode_status_enum_type = 0;
+	static volatile gsize enum_type__volatile = 0;
 
-	if (!e_cal_set_mode_status_enum_type) {
+	if (g_once_init_enter (&enum_type__volatile)) {
+		GType enum_type;
 		static GEnumValue values [] = {
 			{ E_CAL_SET_MODE_SUCCESS,          "ECalSetModeSuccess",         "success"     },
 			{ E_CAL_SET_MODE_ERROR,            "ECalSetModeError",           "error"       },
 			{ E_CAL_SET_MODE_NOT_SUPPORTED,    "ECalSetModeNotSupported",    "unsupported" },
-			{ -1,                                   NULL,                              NULL          }
+			{ -1,                                   NULL,                              NULL}
 		};
 
-		e_cal_set_mode_status_enum_type =
-			g_enum_register_static ("ECalSetModeStatusEnum", values);
+		enum_type = g_enum_register_static ("ECalSetModeStatusEnum", values);
+		g_once_init_leave (&enum_type__volatile, enum_type);
 	}
 
-	return e_cal_set_mode_status_enum_type;
+	return enum_type__volatile;
 }
 
 /**
@@ -329,9 +333,10 @@ e_cal_set_mode_status_enum_get_type (void)
 GType
 cal_mode_enum_get_type (void)
 {
-	static GType cal_mode_enum_type = 0;
+	static volatile gsize enum_type__volatile = 0;
 
-	if (!cal_mode_enum_type) {
+	if (g_once_init_enter (&enum_type__volatile)) {
+		GType enum_type;
 		static GEnumValue values [] = {
 			{ CAL_MODE_INVALID,                     "CalModeInvalid",                  "invalid" },
 			{ CAL_MODE_LOCAL,                       "CalModeLocal",                    "local"   },
@@ -340,10 +345,11 @@ cal_mode_enum_get_type (void)
 			{ -1,                                   NULL,                              NULL      }
 		};
 
-		cal_mode_enum_type = g_enum_register_static ("CalModeEnum", values);
+		enum_type = g_enum_register_static ("CalModeEnum", values);
+		g_once_init_leave (&enum_type__volatile, enum_type);
 	}
 
-	return cal_mode_enum_type;
+	return enum_type__volatile;
 }
 
 static EDataCalObjType
@@ -553,6 +559,31 @@ e_cal_class_init (ECalClass *klass)
 	g_type_class_add_private (klass, sizeof (ECalPrivate));
 }
 
+static DBusHandlerResult
+filter_dbus_msgs_cb (DBusConnection *pconnection, DBusMessage *message, void *user_data)
+{
+	if (dbus_message_is_signal (message, DBUS_INTERFACE_LOCAL, "Disconnected")) {
+		DBusGConnection *conn = connection;
+
+		LOCK_CONN ();
+		factory_proxy = NULL;
+		connection = NULL;
+		UNLOCK_CONN ();
+		dbus_g_connection_unref (conn);
+		return DBUS_HANDLER_RESULT_HANDLED;
+	}
+
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+static void
+factory_proxy_destroy_cb (DBusGProxy *proxy, gpointer user_data)
+{
+	LOCK_CONN ();
+	factory_proxy = NULL;
+	UNLOCK_CONN ();
+}
+
 /* one-time start up for libecal */
 static gboolean
 e_cal_activate(GError **error)
@@ -571,6 +602,8 @@ e_cal_activate(GError **error)
 			UNLOCK_CONN ();
 			return FALSE;
 		}
+
+		dbus_connection_add_filter (dbus_g_connection_get_connection (connection), filter_dbus_msgs_cb, NULL, NULL);
 	}
 
 	dbus_error_init (&derror);
@@ -594,6 +627,8 @@ e_cal_activate(GError **error)
 			UNLOCK_CONN ();
 			return FALSE;
 		}
+
+		g_signal_connect (factory_proxy, "destroy", G_CALLBACK (factory_proxy_destroy_cb), NULL);
 	}
 
 	UNLOCK_CONN ();
@@ -1235,6 +1270,30 @@ e_cal_open (ECal *ecal, gboolean only_if_exists, GError **error)
 	return result;
 }
 
+struct idle_async_error_reply_data
+{
+	ECal *ecal; /* ref-ed */
+	GError *error; /* cannot be NULL */
+};
+
+static gboolean
+idle_async_error_reply_cb (gpointer user_data)
+{
+	struct idle_async_error_reply_data *data = user_data;
+
+	g_return_val_if_fail (data != NULL, FALSE);
+	g_return_val_if_fail (data->ecal != NULL, FALSE);
+	g_return_val_if_fail (data->error != NULL, FALSE);
+
+	async_signal_idle_cb (NULL, data->error, data->ecal);
+
+	g_object_unref (data->ecal);
+	g_error_free (data->error);
+	g_free (data);
+
+	return FALSE;
+}
+
 /**
  * e_cal_open_async:
  * @ecal: A calendar client.
@@ -1275,6 +1334,14 @@ e_cal_open_async (ECal *ecal, gboolean only_if_exists)
 	}
 
 	open_calendar (ecal, only_if_exists, &error, &status, FALSE, TRUE);
+	if (error) {
+		struct idle_async_error_reply_data *data;
+
+		data = g_new0 (struct idle_async_error_reply_data, 1);
+		data->ecal = g_object_ref (ecal);
+		data->error = error;
+		g_idle_add (idle_async_error_reply_cb, data);
+	}
 }
 
 /**

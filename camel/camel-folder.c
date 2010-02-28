@@ -429,7 +429,7 @@ folder_getv (CamelObject *object,
 								deleted++;
 							if (flags & CAMEL_MESSAGE_JUNK) {
 								junked++;
-								if (! (flags & CAMEL_MESSAGE_DELETED))
+								if (!(flags & CAMEL_MESSAGE_DELETED))
 									junked_not_deleted++;
 							}
 							if ((flags & (CAMEL_MESSAGE_DELETED|CAMEL_MESSAGE_JUNK)) == 0)

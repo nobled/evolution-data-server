@@ -150,7 +150,7 @@ load_from_gconf (ESourceList *list)
 			g_signal_handlers_disconnect_by_func (group, group_changed_callback, list);
 		}
 
-		if (! changed && q != NULL) {
+		if (!changed && q != NULL) {
 			if (q->data != p->data)
 				changed = TRUE;
 			q = q->next;
@@ -191,7 +191,7 @@ sync_idle_callback (ESourceList *list)
 {
 	GError *error = NULL;
 
-	if (! e_source_list_sync (list, &error)) {
+	if (!e_source_list_sync (list, &error)) {
 		g_warning ("Cannot update \"%s\": %s", list->priv->gconf_path, error ? error->message : "Unknown error");
 		g_error_free (error);
 	}
@@ -205,7 +205,7 @@ static void
 group_changed_callback (ESourceGroup *group,
 			ESourceList *list)
 {
-	if (! list->priv->ignore_group_changed)
+	if (!list->priv->ignore_group_changed)
 		g_signal_emit (list, signals[CHANGED], 0);
 
 	if (list->priv->sync_idle_id == 0)
@@ -236,7 +236,7 @@ impl_dispose (GObject *object)
 		g_source_remove (priv->sync_idle_id);
 		priv->sync_idle_id = 0;
 
-		if (! e_source_list_sync (E_SOURCE_LIST (object), &error))
+		if (!e_source_list_sync (E_SOURCE_LIST (object), &error))
 			g_warning ("Could not update \"%s\": %s",
 				   priv->gconf_path, error->message);
 	}
@@ -334,26 +334,12 @@ e_source_list_init (ESourceList *source_list)
 	source_list->priv = priv;
 }
 
-/* returns the type */
-static GType
-get_source_list_type (void)
-{
-	static GType type = 0;
-
-	if (!type) {
-		if (!(type = g_type_from_name ("ESourceList")))
-			type = e_source_list_get_type ();
-	}
-
-	return type;
-}
-
 /* Public methods.  */
 
 ESourceList *
 e_source_list_new (void)
 {
-	ESourceList *list = g_object_new (get_source_list_type (), NULL);
+	ESourceList *list = g_object_new (e_source_list_get_type (), NULL);
 
 	return list;
 }
@@ -367,7 +353,7 @@ e_source_list_new_for_gconf (GConfClient *client,
 	g_return_val_if_fail (GCONF_IS_CLIENT (client), NULL);
 	g_return_val_if_fail (path != NULL, NULL);
 
-	list = g_object_new (get_source_list_type (), NULL);
+	list = g_object_new (e_source_list_get_type (), NULL);
 
 	list->priv->gconf_path = g_strdup (path);
 	list->priv->gconf_client = client;
@@ -391,7 +377,7 @@ e_source_list_new_for_gconf_default (const gchar  *path)
 
 	g_return_val_if_fail (path != NULL, NULL);
 
-	list = g_object_new (get_source_list_type (), NULL);
+	list = g_object_new (e_source_list_get_type (), NULL);
 
 	list->priv->gconf_path = g_strdup (path);
 	list->priv->gconf_client = gconf_client_get_default ();

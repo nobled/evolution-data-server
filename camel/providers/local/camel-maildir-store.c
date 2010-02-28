@@ -271,7 +271,7 @@ delete_folder (CamelStore * store,
 			/* for tmp (only), its contents is irrelevant */
 			dir = opendir(tmp);
 			if (dir) {
-				while ( (d=readdir(dir)) ) {
+				while ((d=readdir(dir))) {
 					gchar *name = d->d_name, *file;
 
 					if (!strcmp(name, ".") || !strcmp(name, ".."))
@@ -500,7 +500,7 @@ scan_dirs (CamelStore *store,
 			goto fail;
 		}
 
-		while ( (d = readdir(dir)) ) {
+		while ((d = readdir(dir))) {
 			if (strcmp(d->d_name, "tmp") == 0
 			    || strcmp(d->d_name, "cur") == 0
 			    || strcmp(d->d_name, "new") == 0

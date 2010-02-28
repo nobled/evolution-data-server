@@ -531,7 +531,7 @@ rename_folder(CamelStore *store, const gchar *old, const gchar *new, GError **er
 	newibex = camel_local_store_get_meta_path(store, new, ".ibex");
 
 	newdir = g_path_get_dirname(newibex);
-	if (g_mkdir_with_parents(newdir, 0777) == -1) {
+	if (g_mkdir_with_parents(newdir, 0700) == -1) {
 		if (errno != EEXIST) {
 			g_set_error (
 				error, G_FILE_ERROR,

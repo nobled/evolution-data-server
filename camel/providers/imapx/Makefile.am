@@ -14,7 +14,7 @@ libcamelimapx_la_CPPFLAGS = \
 
 libcamelimapx_la_SOURCES =			\
 	camel-imapx-exception.c			\
-	camel-imapx-stream.c			\	
+	camel-imapx-stream.c			\
 	camel-imapx-utils.c			\
 	camel-imapx-provider.c			\
 	camel-imapx-store-summary.c		\
@@ -34,7 +34,13 @@ noinst_HEADERS =				\
 	camel-imapx-utils.h
 
 camel-imapx-tokenise.h: camel-imapx-tokens.txt
-	gperf -H imap_hash -N imap_tokenise_struct -L ANSI-C -o -t -k1,$$ $< > $@
+	gperf -H imapx_hash -N imapx_tokenise_struct -L ANSI-C -o -t -k1,$$ $< > $@
+
+libcamelimapx_la_LIBADD = \
+        $(top_builddir)/libedataserver/libedataserver-${API_VERSION}.la \
+        $(top_builddir)/camel/libcamel-provider-1.2.la                  \
+        $(top_builddir)/camel/libcamel-1.2.la                           \
+        $(CAMEL_LIBS)
 
 libcamelimapx_la_LDFLAGS = -avoid-version -module
 
@@ -51,11 +57,11 @@ test_imapx_CPPFLAGS = \
 	$(CAMEL_CFLAGS)				\
 	-DG_LOG_DOMAIN=\"camel-imapx\"
 test_imapx_SOURCES = test-imapx.c
-test_imapx_LDADD =							\ 
+test_imapx_LDADD =							\
 	$(top_builddir)/camel/libcamel-1.2.la				\
 	$(top_builddir)/camel/libcamel-provider-1.2.la			\
 	libcamelimapx.la
 
-EXTRA_DIST = libcamelimapx.urls
+EXTRA_DIST = libcamelimapx.urls camel-imapx-tokens.txt
 
 -include $(top_srcdir)/git.mk

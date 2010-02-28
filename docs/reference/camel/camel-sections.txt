@@ -460,6 +460,7 @@ CAMEL_FOLDER_FILTER_JUNK
 camel_folder_construct
 camel_folder_refresh_info
 camel_folder_sync
+camel_folder_set_lock_async
 camel_folder_get_parent_store
 camel_folder_expunge
 camel_folder_get_name
@@ -662,6 +663,7 @@ camel_message_info_references
 camel_message_info_user_flags
 camel_message_info_user_tags
 camel_message_info_headers
+camel_message_info_content
 camel_message_info_user_flag
 camel_message_info_user_tag
 camel_message_info_set_flags
@@ -1341,6 +1343,7 @@ camel_mime_part_set_description
 camel_mime_part_get_description
 camel_mime_part_set_disposition
 camel_mime_part_get_disposition
+camel_mime_part_get_content_disposition
 camel_mime_part_set_filename
 camel_mime_part_get_filename
 camel_mime_part_set_content_id
@@ -1385,6 +1388,7 @@ camel_msgport_fd
 camel_msgport_push
 camel_msgport_pop
 camel_msgport_try_pop
+camel_msgport_timed_pop
 camel_msgport_reply
 camel_msgport_prfd
 </SECTION>
@@ -3760,17 +3764,6 @@ camel_folder_thread_messages_remove
 camel_folder_thread_messages_ref
 camel_folder_thread_messages_unref
 camel_folder_threaded_messages_dump
-</SECTION>
-
-<SECTION>
-<FILE>camel-i18n</FILE>
-_
-N_
-textdomain
-gettext
-dgettext
-dcgettext
-bindtextdomain
 </SECTION>
 
 <SECTION>

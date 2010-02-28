@@ -36,7 +36,6 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-data-server-util.h>
 #include "camel-data-cache.h"
 #include "camel-stream-fs.h"
 #include "camel-stream-mem.h"
@@ -285,7 +284,7 @@ data_cache_expire(CamelDataCache *cdc, const gchar *path, const gchar *keep, tim
 		return;
 
 	s = g_string_new("");
-	while ( (dname = g_dir_read_name(dir)) ) {
+	while ((dname = g_dir_read_name(dir))) {
 		if (strcmp(dname, keep) == 0)
 			continue;
 

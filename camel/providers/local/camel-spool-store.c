@@ -408,7 +408,7 @@ scan_dir (CamelStore *store,
 		parent = fi;
 	}
 
-	while ( (d = readdir(dir)) ) {
+	while ((d = readdir(dir))) {
 		if (strcmp(d->d_name, ".") == 0
 		    || strcmp(d->d_name, "..") == 0)
 			continue;
@@ -566,7 +566,7 @@ spool_get_meta_path (CamelLocalStore *ls,
 	if (root == NULL)
 		return NULL;
 
-	g_mkdir_with_parents(root, 0777);
+	g_mkdir_with_parents(root, 0700);
 	key = camel_file_util_safe_filename(full_name);
 	path = g_strdup_printf("%s/%s%s", root, key, ext);
 	g_free(key);

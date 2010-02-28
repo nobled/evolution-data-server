@@ -34,6 +34,8 @@
 
 #define CRLF "\r\n"
 
+G_DEFINE_TYPE (EVCard, e_vcard, G_TYPE_OBJECT)
+
 /** Encoding used in v-card
  *  Note: v-card spec defines additional 7BIT 8BIT and X- encoding
  */
@@ -100,30 +102,6 @@ e_vcard_init (EVCard *evc)
 	evc->priv = g_new0 (EVCardPrivate, 1);
 }
 
-GType
-e_vcard_get_type (void)
-{
-	static GType vcard_type = 0;
-
-	if (!vcard_type) {
-		static const GTypeInfo vcard_info =  {
-			sizeof (EVCardClass),
-			NULL,           /* base_init */
-			NULL,           /* base_finalize */
-			(GClassInitFunc) e_vcard_class_init,
-			NULL,           /* class_finalize */
-			NULL,           /* class_data */
-			sizeof (EVCard),
-			0,             /* n_preallocs */
-			(GInstanceInitFunc) e_vcard_init,
-		};
-
-		vcard_type = g_type_register_static (G_TYPE_OBJECT, "EVCard", &vcard_info, 0);
-	}
-
-	return vcard_type;
-}
-
 /*  Skip newline characters and return the next character.
  *  This function takes care of folding lines, skipping
  *  newline characters if found, taking care of equal characters
@@ -185,7 +163,7 @@ skip_to_next_line (gchar **p)
 		lp = g_utf8_next_char (lp);
 
 	/* -- skip over the endline */
-	while ( *lp == '\r' || *lp == '\n' ) {
+	while (*lp == '\r' || *lp == '\n') {
 		lp = g_utf8_next_char (lp);
 	}
 
