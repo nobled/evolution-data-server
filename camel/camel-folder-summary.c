@@ -781,14 +781,10 @@ static gboolean
 remove_item (gchar *key, CamelMessageInfoBase *info, GSList **to_free_list)
 {
 	d(printf("%d(%d)\t", info->refcount, info->dirty)); /* camel_message_info_dump (info); */
-	CAMEL_SUMMARY_LOCK(info->summary, ref_lock);
 	if (info->refcount == 1 && !info->dirty && !(info->flags & CAMEL_MESSAGE_FOLDER_FLAGGED)) {
-		CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);
-		/* free the entry later */
 		*to_free_list = g_slist_prepend (*to_free_list, info);
 		return TRUE;
 	}
-	CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);
 	return FALSE;
 }
 
@@ -816,7 +812,10 @@ remove_cache (CamelSession *session, CamelSessionThreadMsg *msg)
 	dd(printf("removing cache for  %s %d %p\n", s->folder ? s->folder->full_name : s->summary_path, g_hash_table_size (s->loaded_infos), (gpointer) s->loaded_infos));
 	/* FIXME[disk-summary] hack. fix it */
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
+
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
 	g_hash_table_foreach_remove  (s->loaded_infos, (GHRFunc) remove_item, &to_free_list);
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
 
 	/* Deferred freeing as _free function will try to remove
 	   entries from the hash_table in foreach_remove otherwise */
