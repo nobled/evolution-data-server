@@ -654,7 +654,7 @@ test_object_registration (void)
   num_successful_registrations = 0;
 
   error = NULL;
-  c = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  c = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_no_error (error);
   g_assert (c != NULL);
 

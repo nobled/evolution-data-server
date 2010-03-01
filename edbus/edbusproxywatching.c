@@ -283,7 +283,7 @@ on_name_vanished (EDBusConnection *connection,
 
 /**
  * e_bus_watch_proxy:
- * @bus_type: The type of bus to watch a name on (can't be #G_BUS_TYPE_NONE).
+ * @bus_type: The type of bus to watch a name on (can't be #E_BUS_TYPE_NONE).
  * @name: The name (well-known or unique) to watch.
  * @object_path: The object path of the remote object to watch.
  * @interface_name: The D-Bus interface name for the proxy.
@@ -342,7 +342,7 @@ e_bus_watch_proxy (EDBusType                   bus_type,
 {
   Client *client;
 
-  g_return_val_if_fail (bus_type != G_BUS_TYPE_NONE, 0);
+  g_return_val_if_fail (bus_type != E_BUS_TYPE_NONE, 0);
   g_return_val_if_fail (name != NULL, 0);
   g_return_val_if_fail (proxy_appeared_handler != NULL, 0);
   g_return_val_if_fail (proxy_vanished_handler != NULL, 0);

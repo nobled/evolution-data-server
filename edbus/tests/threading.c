@@ -200,7 +200,7 @@ test_delivery_in_thread_func (gpointer _data)
   g_assert (subscription_id != 0);
   g_assert (data.signal_count == 0);
 
-  priv_c = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  priv_c = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_no_error (error);
   g_assert (priv_c != NULL);
 
@@ -457,7 +457,7 @@ test_method_calls_in_thread (void)
 {
   guint watcher_id;
 
-  watcher_id = e_bus_watch_proxy (G_BUS_TYPE_SESSION,
+  watcher_id = e_bus_watch_proxy (E_BUS_TYPE_SESSION,
                                   "com.example.TestService",
                                   "/com/example/TestObject",
                                   "com.example.Frob",
@@ -511,7 +511,7 @@ main (int   argc,
 
   /* Create the connection in the main thread */
   error = NULL;
-  c = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  c = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_no_error (error);
   g_assert (c != NULL);
 

@@ -45,7 +45,7 @@ test_connection_life_cycle (void)
    * Check for correct behavior when no bus is present
    *
    */
-  c = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  c = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_error (error, E_DBUS_ERROR, E_DBUS_ERROR_FILE_NOT_FOUND);
   g_assert (!e_dbus_error_is_remote_error (error));
   g_assert (c == NULL);
@@ -57,7 +57,7 @@ test_connection_life_cycle (void)
    */
   session_bus_up ();
   /* case 1 */
-  c = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  c = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_no_error (error);
   g_assert (c != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c));
@@ -65,7 +65,7 @@ test_connection_life_cycle (void)
   /**
    * Check that singleton handling work
    */
-  c2 = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  c2 = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_no_error (error);
   g_assert (c2 != NULL);
   g_assert (c == c2);
@@ -74,7 +74,7 @@ test_connection_life_cycle (void)
   /**
    * Check that private connections work
    */
-  c2 = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  c2 = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, &error);
   g_assert_no_error (error);
   g_assert (c2 != NULL);
   g_assert (c != c2);
@@ -184,7 +184,7 @@ test_connection_send (void)
   session_bus_up ();
 
   /* First, get an unopened connection */
-  c = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  c = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, NULL);
   g_assert (c != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c));
 
@@ -330,12 +330,12 @@ test_connection_signals (void)
    */
   if (g_getenv ("E_DBUS_MONITOR") == NULL)
     {
-      c1 = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+      c1 = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, NULL);
       g_assert (c1 != NULL);
       g_assert (!e_dbus_connection_get_is_disconnected (c1));
       g_object_unref (c1);
     }
-  c1 = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  c1 = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, NULL);
   g_assert (c1 != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c1));
   g_assert_cmpstr (e_dbus_connection_get_unique_name (c1), ==, ":1.1");
@@ -386,11 +386,11 @@ test_connection_signals (void)
   /**
    * Bring up two other connections
    */
-  c2 = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  c2 = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, NULL);
   g_assert (c2 != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c2));
   g_assert_cmpstr (e_dbus_connection_get_unique_name (c2), ==, ":1.2");
-  c3 = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  c3 = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, NULL);
   g_assert (c3 != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c3));
   g_assert_cmpstr (e_dbus_connection_get_unique_name (c3), ==, ":1.3");

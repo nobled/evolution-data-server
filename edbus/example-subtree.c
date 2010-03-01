@@ -369,9 +369,9 @@ main (int argc, char *argv[])
   g_assert (block_interface_info != NULL);
   g_assert (partition_interface_info != NULL);
 
-  owner_id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  owner_id = e_bus_own_name (E_BUS_TYPE_SESSION,
                              "org.gtk.EDBus.TestSubtree",
-                             G_BUS_NAME_OWNER_FLAGS_NONE,
+                             E_BUS_NAME_OWNER_FLAGS_NONE,
                              on_name_acquired,
                              on_name_lost,
                              NULL,

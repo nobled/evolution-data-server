@@ -54,13 +54,13 @@ main (int argc, char *argv[])
       return 1;
     }
 
-  flags = G_BUS_NAME_OWNER_FLAGS_NONE;
+  flags = E_BUS_NAME_OWNER_FLAGS_NONE;
   if (opt_replace)
-    flags |= G_BUS_NAME_OWNER_FLAGS_REPLACE;
+    flags |= E_BUS_NAME_OWNER_FLAGS_REPLACE;
   if (opt_allow_replacement)
-    flags |= G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT;
+    flags |= E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT;
 
-  owner_id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  owner_id = e_bus_own_name (E_BUS_TYPE_SESSION,
                              opt_name,
                              flags,
                              on_name_acquired,

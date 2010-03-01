@@ -17,10 +17,10 @@ GType e_variant_flags_get_type (void) G_GNUC_CONST;
 #define E_TYPE_VARIANT_FLAGS (e_variant_flags_get_type ())
 
 /* enumerations from "edbusenums.h" */
-GType g_bus_type_get_type (void) G_GNUC_CONST;
-#define G_TYPE_BUS_TYPE (g_bus_type_get_type ())
-GType g_bus_name_owner_flags_get_type (void) G_GNUC_CONST;
-#define G_TYPE_BUS_NAME_OWNER_FLAGS (g_bus_name_owner_flags_get_type ())
+GType e_dbus_type_get_type (void) G_GNUC_CONST;
+#define E_TYPE_DBUS_TYPE (e_dbus_type_get_type ())
+GType e_dbus_name_owner_flags_get_type (void) G_GNUC_CONST;
+#define E_TYPE_DBUS_NAME_OWNER_FLAGS (e_dbus_name_owner_flags_get_type ())
 GType e_dbus_proxy_flags_get_type (void) G_GNUC_CONST;
 #define E_TYPE_DBUS_PROXY_FLAGS (e_dbus_proxy_flags_get_type ())
 GType e_dbus_error_get_type (void) G_GNUC_CONST;

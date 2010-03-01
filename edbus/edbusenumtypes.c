@@ -86,17 +86,17 @@ e_variant_flags_get_type (void)
 
 /* enumerations from "edbusenums.h" */
 GType
-g_bus_type_get_type (void)
+e_dbus_type_get_type (void)
 {
   static volatile gsize g_define_type_id__volatile = 0;
 
   if (g_once_init_enter (&g_define_type_id__volatile))
     {
       static const GEnumValue values[] = {
-        { G_BUS_TYPE_NONE, "G_BUS_TYPE_NONE", "none" },
-        { G_BUS_TYPE_SESSION, "G_BUS_TYPE_SESSION", "session" },
-        { G_BUS_TYPE_SYSTEM, "G_BUS_TYPE_SYSTEM", "system" },
-        { G_BUS_TYPE_STARTER, "G_BUS_TYPE_STARTER", "starter" },
+        { E_BUS_TYPE_NONE, "E_BUS_TYPE_NONE", "none" },
+        { E_BUS_TYPE_SESSION, "E_BUS_TYPE_SESSION", "session" },
+        { E_BUS_TYPE_SYSTEM, "E_BUS_TYPE_SYSTEM", "system" },
+        { E_BUS_TYPE_STARTER, "E_BUS_TYPE_STARTER", "starter" },
         { 0, NULL, NULL }
       };
       GType g_define_type_id =
@@ -108,16 +108,16 @@ g_bus_type_get_type (void)
 }
 
 GType
-g_bus_name_owner_flags_get_type (void)
+e_dbus_name_owner_flags_get_type (void)
 {
   static volatile gsize g_define_type_id__volatile = 0;
 
   if (g_once_init_enter (&g_define_type_id__volatile))
     {
       static const GFlagsValue values[] = {
-        { G_BUS_NAME_OWNER_FLAGS_NONE, "G_BUS_NAME_OWNER_FLAGS_NONE", "none" },
-        { G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT, "G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT", "allow-replacement" },
-        { G_BUS_NAME_OWNER_FLAGS_REPLACE, "G_BUS_NAME_OWNER_FLAGS_REPLACE", "replace" },
+        { E_BUS_NAME_OWNER_FLAGS_NONE, "E_BUS_NAME_OWNER_FLAGS_NONE", "none" },
+        { E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT, "E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT", "allow-replacement" },
+        { E_BUS_NAME_OWNER_FLAGS_REPLACE, "E_BUS_NAME_OWNER_FLAGS_REPLACE", "replace" },
         { 0, NULL, NULL }
       };
       GType g_define_type_id =

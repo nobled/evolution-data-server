@@ -151,7 +151,7 @@ main (int argc, char *argv[])
       goto out;
     }
 
-  watcher_id = e_bus_watch_proxy (opt_system_bus ? G_BUS_TYPE_SYSTEM : G_BUS_TYPE_SESSION,
+  watcher_id = e_bus_watch_proxy (opt_system_bus ? E_BUS_TYPE_SYSTEM : E_BUS_TYPE_SESSION,
                                   opt_name,
                                   opt_object_path,
                                   opt_interface,

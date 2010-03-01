@@ -342,7 +342,7 @@ test_proxy (void)
    */
   usleep (500 * 1000);
 
-  watcher_id = e_bus_watch_proxy (G_BUS_TYPE_SESSION,
+  watcher_id = e_bus_watch_proxy (E_BUS_TYPE_SESSION,
                                   "com.example.TestService",
                                   "/com/example/TestObject",
                                   "com.example.Frob",

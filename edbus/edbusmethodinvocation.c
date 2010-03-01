@@ -451,8 +451,8 @@ e_dbus_method_invocation_new (const gchar      *sender,
   g_return_val_if_fail (method_name != NULL, NULL);
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), NULL);
   g_return_val_if_fail (parameters != NULL, NULL);
-  g_return_val_if_fail ((e_dbus_connection_get_bus_type (connection) == G_BUS_TYPE_NONE && sender == NULL) ||
-                        (e_dbus_connection_get_bus_type (connection) != G_BUS_TYPE_NONE && sender != NULL), NULL);
+  g_return_val_if_fail ((e_dbus_connection_get_bus_type (connection) == E_BUS_TYPE_NONE && sender == NULL) ||
+                        (e_dbus_connection_get_bus_type (connection) != E_BUS_TYPE_NONE && sender != NULL), NULL);
 
   return E_DBUS_METHOD_INVOCATION (g_object_new (E_TYPE_DBUS_METHOD_INVOCATION,
                                                  "sender", sender,

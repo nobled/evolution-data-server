@@ -281,12 +281,12 @@ e_dbus_connection_class_init (EDBusConnectionClass *klass)
    * EDBusConnection:bus-type:
    *
    * When constructing an object, set this to the type of the message bus
-   * the connection is for or #G_BUS_TYPE_NONE if the connection is not
+   * the connection is for or #E_BUS_TYPE_NONE if the connection is not
    * a message bus connection.
    *
-   * When reading, this property is never #G_BUS_TYPE_STARTER - if #G_BUS_TYPE_STARTER
-   * was passed as a construction property, then this property will be either #G_BUS_TYPE_SESSION
-   * or #G_BUS_TYPE_SYSTEM depending on what message bus activated the process.
+   * When reading, this property is never #E_BUS_TYPE_STARTER - if #E_BUS_TYPE_STARTER
+   * was passed as a construction property, then this property will be either #E_BUS_TYPE_SESSION
+   * or #E_BUS_TYPE_SYSTEM depending on what message bus activated the process.
    *
    * This property must be unset on construction if
    * #EDBusConnection:address is set upon construction.
@@ -296,8 +296,8 @@ e_dbus_connection_class_init (EDBusConnectionClass *klass)
                                    g_param_spec_enum ("bus-type",
                                                       _("bus-type"),
                                                       _("The type of message bus, if any, the connection is for"),
-                                                      G_TYPE_BUS_TYPE,
-                                                      G_BUS_TYPE_NONE,
+                                                      E_TYPE_DBUS_TYPE,
+                                                      E_BUS_TYPE_NONE,
                                                       G_PARAM_READABLE |
                                                       G_PARAM_WRITABLE |
                                                       G_PARAM_CONSTRUCT_ONLY |
@@ -328,7 +328,7 @@ e_dbus_connection_class_init (EDBusConnectionClass *klass)
    * EDBusConnection:is-private:
    *
    * When constructing an object and #EDBusConnection:bus-type is set to something
-   * other than #G_BUS_TYPE_NONE, specifies whether the connection to the requested
+   * other than #E_BUS_TYPE_NONE, specifies whether the connection to the requested
    * message bus should be a private connection.
    * This property is ignored if #EDBusConnection:dbus-1-connection is set upon construction.
    *
@@ -457,20 +457,20 @@ e_dbus_connection_init (EDBusConnection *connection)
  *
  * Gets the type of message bus connection, if any.
  *
- * This will never return #G_BUS_TYPE_STARTER. If
- * #G_BUS_TYPE_STARTER was passed to e_dbus_connection_bus_get()
- * then the return value will be either #G_BUS_TYPE_SESSION or
- * #G_BUS_TYPE_SYSTEM depending on what bus started the
+ * This will never return #E_BUS_TYPE_STARTER. If
+ * #E_BUS_TYPE_STARTER was passed to e_dbus_connection_bus_get()
+ * then the return value will be either #E_BUS_TYPE_SESSION or
+ * #E_BUS_TYPE_SYSTEM depending on what bus started the
  * process.
  *
  * Returns: Type type of the message bus the connection is for or
- * #G_BUS_TYPE_NONE if the connection is not to a message
+ * #E_BUS_TYPE_NONE if the connection is not to a message
  * bus.
  **/
 EDBusType
 e_dbus_connection_get_bus_type (EDBusConnection *connection)
 {
-  g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), G_BUS_TYPE_NONE);
+  g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), E_BUS_TYPE_NONE);
 
   return connection->priv->bus_type;
 }
@@ -714,33 +714,33 @@ e_dbus_connection_constructor (GType                  type,
           bus_type = g_value_get_enum (construct_properties[n].value);
           switch (bus_type)
             {
-            case G_BUS_TYPE_NONE:
+            case E_BUS_TYPE_NONE:
               /* do nothing */
               break;
 
-            case G_BUS_TYPE_SESSION:
+            case E_BUS_TYPE_SESSION:
               singleton = &the_session_bus;
               break;
 
-            case G_BUS_TYPE_SYSTEM:
+            case E_BUS_TYPE_SYSTEM:
               singleton = &the_system_bus;
               break;
 
-            case G_BUS_TYPE_STARTER:
+            case E_BUS_TYPE_STARTER:
               starter_bus = g_getenv ("DBUS_STARTER_BUS_TYPE");
               if (g_strcmp0 (starter_bus, "session") == 0)
                 {
-                  g_value_set_enum (construct_properties[n].value, G_BUS_TYPE_SESSION);
+                  g_value_set_enum (construct_properties[n].value, E_BUS_TYPE_SESSION);
                   singleton = &the_session_bus;
                 }
               else if (g_strcmp0 (starter_bus, "system") == 0)
                 {
-                  g_value_set_enum (construct_properties[n].value, G_BUS_TYPE_SYSTEM);
+                  g_value_set_enum (construct_properties[n].value, E_BUS_TYPE_SYSTEM);
                   singleton = &the_system_bus;
                 }
               else
                 {
-                  g_critical (_("Cannot construct a EDBusConnection object with bus_type G_BUS_TYPE_STARTER "
+                  g_critical (_("Cannot construct a EDBusConnection object with bus_type E_BUS_TYPE_STARTER "
                                 "because the DBUS_STARTER_BUS_TYPE environment variable is not set. "
                                 "This is an error in the application or library using EDBus."));
                   goto out;
@@ -817,7 +817,7 @@ initable_init (GInitable       *initable,
   dbus_error_init (&dbus_error);
   if (connection->priv->address != NULL)
     {
-      g_assert (connection->priv->bus_type == G_BUS_TYPE_NONE); /* API contract */
+      g_assert (connection->priv->bus_type == E_BUS_TYPE_NONE); /* API contract */
 
       if (connection->priv->is_private)
         {
@@ -832,7 +832,7 @@ initable_init (GInitable       *initable,
     }
   else
     {
-      g_assert (connection->priv->bus_type != G_BUS_TYPE_NONE); /* API contract */
+      g_assert (connection->priv->bus_type != E_BUS_TYPE_NONE); /* API contract */
       if (connection->priv->is_private)
         {
           dbus_1_connection = dbus_bus_get_private (connection->priv->bus_type,
@@ -1305,7 +1305,7 @@ e_dbus_connection_get_unique_name (EDBusConnection *connection)
 {
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), NULL);
 
-  if (connection->priv->bus_type == G_BUS_TYPE_NONE)
+  if (connection->priv->bus_type == E_BUS_TYPE_NONE)
     return NULL;
 
   if (connection->priv->dbus_1_connection != NULL)
@@ -1874,7 +1874,7 @@ e_dbus_connection_signal_subscribe (EDBusConnection     *connection,
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), 0);
   g_return_val_if_fail (!e_dbus_connection_get_is_disconnected (connection), 0);
   g_return_val_if_fail (sender == NULL || ((strcmp (sender, DBUS_SERVICE_DBUS) == 0 || sender[0] == ':') &&
-                                           connection->priv->bus_type != G_BUS_TYPE_NONE), 0);
+                                           connection->priv->bus_type != E_BUS_TYPE_NONE), 0);
   g_return_val_if_fail (callback != NULL, 0);
   /* TODO: check that passed in data is well-formed */
 
@@ -1921,7 +1921,7 @@ e_dbus_connection_signal_subscribe (EDBusConnection     *connection,
    * Avoid adding match rules for NameLost and NameAcquired messages - the bus will
    * always send such messages to to us.
    */
-  if (connection->priv->bus_type != G_BUS_TYPE_NONE)
+  if (connection->priv->bus_type != E_BUS_TYPE_NONE)
     {
       if (!is_signal_data_for_name_lost_or_acquired (signal_data))
         {
@@ -1996,7 +1996,7 @@ unsubscribe_id_internal (EDBusConnection    *connection,
           g_assert (g_hash_table_remove (connection->priv->map_sender_to_signal_data_array, signal_data->sender));
 
           /* remove the match rule from the bus unless NameLost or NameAcquired (see subscribe()) */
-          if (connection->priv->bus_type != G_BUS_TYPE_NONE)
+          if (connection->priv->bus_type != E_BUS_TYPE_NONE)
             {
               if (!is_signal_data_for_name_lost_or_acquired (signal_data))
                 {
@@ -3419,8 +3419,8 @@ e_dbus_connection_invoke_method (EDBusConnection    *connection,
   error = NULL;
 
   g_return_if_fail (G_IS_DBUS_CONNECTION (connection));
-  g_return_if_fail ((connection->priv->bus_type == G_BUS_TYPE_NONE && bus_name == NULL) ||
-                    (connection->priv->bus_type != G_BUS_TYPE_NONE && bus_name != NULL));
+  g_return_if_fail ((connection->priv->bus_type == E_BUS_TYPE_NONE && bus_name == NULL) ||
+                    (connection->priv->bus_type != E_BUS_TYPE_NONE && bus_name != NULL));
   g_return_if_fail (object_path != NULL);
   g_return_if_fail (interface_name != NULL);
   g_return_if_fail (method_name != NULL);
@@ -3565,8 +3565,8 @@ e_dbus_connection_invoke_method_sync (EDBusConnection    *connection,
   result = NULL;
 
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), NULL);
-  g_return_val_if_fail ((connection->priv->bus_type == G_BUS_TYPE_NONE && bus_name == NULL) ||
-                        (connection->priv->bus_type != G_BUS_TYPE_NONE && bus_name != NULL),
+  g_return_val_if_fail ((connection->priv->bus_type == E_BUS_TYPE_NONE && bus_name == NULL) ||
+                        (connection->priv->bus_type != E_BUS_TYPE_NONE && bus_name != NULL),
                         NULL);
   g_return_val_if_fail (object_path != NULL, NULL);
   g_return_val_if_fail (interface_name != NULL, NULL);

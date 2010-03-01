@@ -301,9 +301,9 @@ main (int argc, char *argv[])
   introspection_data = e_dbus_node_info_new_for_xml (introspection_xml, NULL);
   g_assert (introspection_data != NULL);
 
-  owner_id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  owner_id = e_bus_own_name (E_BUS_TYPE_SESSION,
                              "org.gtk.EDBus.TestServer",
-                             G_BUS_NAME_OWNER_FLAGS_NONE,
+                             E_BUS_NAME_OWNER_FLAGS_NONE,
                              on_name_acquired,
                              on_name_lost,
                              NULL,

@@ -493,7 +493,7 @@ e_bus_own_name_on_connection (EDBusConnection          *connection,
 
 /**
  * e_bus_own_name:
- * @bus_type: The type of bus to own a name on (can't be #G_BUS_TYPE_NONE).
+ * @bus_type: The type of bus to own a name on (can't be #E_BUS_TYPE_NONE).
  * @name: The well-known name to own.
  * @flags: A set of flags from the #EDBusNameOwnerFlags enumeration.
  * @name_acquired_handler: Handler to invoke when @name is acquired.
@@ -546,7 +546,7 @@ e_bus_own_name (EDBusType                  bus_type,
 {
   Client *client;
 
-  g_return_val_if_fail (bus_type != G_BUS_TYPE_NONE, 0);
+  g_return_val_if_fail (bus_type != E_BUS_TYPE_NONE, 0);
   g_return_val_if_fail (name != NULL, 0);
   //g_return_val_if_fail (TODO_is_well_known_name (), 0);
   g_return_val_if_fail (name_acquired_handler != NULL, 0);

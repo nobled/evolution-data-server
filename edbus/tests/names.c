@@ -104,9 +104,9 @@ test_bus_own_name (void)
   data.num_acquired = 0;
   data.num_lost = 0;
   data.expect_null_connection = TRUE;
-  id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  id = e_bus_own_name (E_BUS_TYPE_SESSION,
                        name,
-                       G_BUS_NAME_OWNER_FLAGS_NONE,
+                       E_BUS_NAME_OWNER_FLAGS_NONE,
                        name_acquired_handler,
                        name_lost_handler,
                        &data,
@@ -129,9 +129,9 @@ test_bus_own_name (void)
   data.num_acquired = 0;
   data.num_lost = 0;
   data.expect_null_connection = FALSE;
-  id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  id = e_bus_own_name (E_BUS_TYPE_SESSION,
                        name,
-                       G_BUS_NAME_OWNER_FLAGS_NONE,
+                       E_BUS_NAME_OWNER_FLAGS_NONE,
                        name_acquired_handler,
                        name_lost_handler,
                        &data,
@@ -145,7 +145,7 @@ test_bus_own_name (void)
   /**
    * Check that the name was actually acquired.
    */
-  c = e_dbus_connection_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  c = e_dbus_connection_bus_get_sync (E_BUS_TYPE_SESSION, NULL, NULL);
   g_assert (c != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c));
   result = e_dbus_connection_invoke_method_sync (c,
@@ -198,9 +198,9 @@ test_bus_own_name (void)
   data.num_acquired = 0;
   data.num_lost = 0;
   data.expect_null_connection = FALSE;
-  id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  id = e_bus_own_name (E_BUS_TYPE_SESSION,
                        name,
-                       G_BUS_NAME_OWNER_FLAGS_NONE,
+                       E_BUS_NAME_OWNER_FLAGS_NONE,
                        name_acquired_handler,
                        name_lost_handler,
                        &data,
@@ -219,9 +219,9 @@ test_bus_own_name (void)
   data2.num_acquired = 0;
   data2.num_lost = 0;
   data2.expect_null_connection = FALSE;
-  id2 = e_bus_own_name (G_BUS_TYPE_SESSION,
+  id2 = e_bus_own_name (E_BUS_TYPE_SESSION,
                         name,
-                        G_BUS_NAME_OWNER_FLAGS_NONE,
+                        E_BUS_NAME_OWNER_FLAGS_NONE,
                         name_acquired_handler,
                         name_lost_handler,
                         &data2,
@@ -242,7 +242,7 @@ test_bus_own_name (void)
    * connection. This should fail both with and without _REPLACE because we
    * didn't specify ALLOW_REPLACEMENT.
    */
-  c2 = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+  c2 = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, NULL);
   g_assert (c2 != NULL);
   g_assert (!e_dbus_connection_get_is_disconnected (c2));
   /* first without _REPLACE */
@@ -252,7 +252,7 @@ test_bus_own_name (void)
   data2.num_free_func = 0;
   id2 = e_bus_own_name_on_connection (c2,
                                       name,
-                                      G_BUS_NAME_OWNER_FLAGS_NONE,
+                                      E_BUS_NAME_OWNER_FLAGS_NONE,
                                       name_acquired_handler,
                                       name_lost_handler,
                                       &data2,
@@ -274,7 +274,7 @@ test_bus_own_name (void)
   data2.num_free_func = 0;
   id2 = e_bus_own_name_on_connection (c2,
                                       name,
-                                      G_BUS_NAME_OWNER_FLAGS_REPLACE,
+                                      E_BUS_NAME_OWNER_FLAGS_REPLACE,
                                       name_acquired_handler,
                                       name_lost_handler,
                                       &data2,
@@ -303,9 +303,9 @@ test_bus_own_name (void)
   data.num_acquired = 0;
   data.num_lost = 0;
   data.expect_null_connection = FALSE;
-  id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  id = e_bus_own_name (E_BUS_TYPE_SESSION,
                        name,
-                       G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT,
+                       E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT,
                        name_acquired_handler,
                        name_lost_handler,
                        &data,
@@ -327,7 +327,7 @@ test_bus_own_name (void)
   data2.num_free_func = 0;
   id2 = e_bus_own_name_on_connection (c2,
                                       name,
-                                      G_BUS_NAME_OWNER_FLAGS_NONE,
+                                      E_BUS_NAME_OWNER_FLAGS_NONE,
                                       name_acquired_handler,
                                       name_lost_handler,
                                       &data2,
@@ -350,7 +350,7 @@ test_bus_own_name (void)
   data2.num_free_func = 0;
   id2 = e_bus_own_name_on_connection (c2,
                                       name,
-                                      G_BUS_NAME_OWNER_FLAGS_REPLACE,
+                                      E_BUS_NAME_OWNER_FLAGS_REPLACE,
                                       name_acquired_handler,
                                       name_lost_handler,
                                       &data2,
@@ -489,7 +489,7 @@ test_bus_watch_name (void)
   data.num_appeared = 0;
   data.num_vanished = 0;
   data.expect_null_connection = TRUE;
-  id = e_bus_watch_name (G_BUS_TYPE_SESSION,
+  id = e_bus_watch_name (E_BUS_TYPE_SESSION,
                          "org.gtk.EDBus.Name1",
                          name_appeared_handler,
                          name_vanished_handler,
@@ -515,9 +515,9 @@ test_bus_watch_name (void)
   data.num_acquired = 0;
   data.num_lost = 0;
   data.expect_null_connection = FALSE;
-  owner_id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  owner_id = e_bus_own_name (E_BUS_TYPE_SESSION,
                              "org.gtk.EDBus.Name1",
-                             G_BUS_NAME_OWNER_FLAGS_NONE,
+                             E_BUS_NAME_OWNER_FLAGS_NONE,
                              w_name_acquired_handler,
                              w_name_lost_handler,
                              &data,
@@ -528,7 +528,7 @@ test_bus_watch_name (void)
   /* now watch the name */
   data.num_appeared = 0;
   data.num_vanished = 0;
-  id = e_bus_watch_name (G_BUS_TYPE_SESSION,
+  id = e_bus_watch_name (E_BUS_TYPE_SESSION,
                          "org.gtk.EDBus.Name1",
                          name_appeared_handler,
                          name_vanished_handler,
@@ -572,7 +572,7 @@ test_bus_watch_name (void)
   data.num_appeared = 0;
   data.num_vanished = 0;
   data.num_free_func = 0;
-  id = e_bus_watch_name (G_BUS_TYPE_SESSION,
+  id = e_bus_watch_name (E_BUS_TYPE_SESSION,
                          "org.gtk.EDBus.Name1",
                          name_appeared_handler,
                          name_vanished_handler,
@@ -588,9 +588,9 @@ test_bus_watch_name (void)
   data.num_acquired = 0;
   data.num_lost = 0;
   data.expect_null_connection = FALSE;
-  owner_id = e_bus_own_name (G_BUS_TYPE_SESSION,
+  owner_id = e_bus_own_name (E_BUS_TYPE_SESSION,
                              "org.gtk.EDBus.Name1",
-                             G_BUS_NAME_OWNER_FLAGS_NONE,
+                             E_BUS_NAME_OWNER_FLAGS_NONE,
                              w_name_acquired_handler,
                              w_name_lost_handler,
                              &data,

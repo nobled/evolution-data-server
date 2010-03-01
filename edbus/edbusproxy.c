@@ -364,7 +364,7 @@ e_dbus_proxy_class_init (EDBusProxyClass *klass)
                                          G_STRUCT_OFFSET (EDBusProxyClass, signal),
                                          NULL,
                                          NULL,
-                                         _gdbus_marshal_VOID__STRING_STRING_BOXED,
+                                         _edbus_marshal_VOID__STRING_STRING_BOXED,
                                          G_TYPE_NONE,
                                          3,
                                          G_TYPE_STRING,
@@ -846,8 +846,8 @@ e_dbus_proxy_new (EDBusConnection     *connection,
   g_return_if_fail (G_IS_DBUS_CONNECTION (connection));
   g_return_if_fail (g_type_is_a (object_type, E_TYPE_DBUS_PROXY));
   /* TODO: check that unique_bus_name is unique */
-  g_return_if_fail ((e_dbus_connection_get_bus_type (connection) == G_BUS_TYPE_NONE && unique_bus_name == NULL) ||
-                    (e_dbus_connection_get_bus_type (connection) != G_BUS_TYPE_NONE || unique_bus_name != NULL));
+  g_return_if_fail ((e_dbus_connection_get_bus_type (connection) == E_BUS_TYPE_NONE && unique_bus_name == NULL) ||
+                    (e_dbus_connection_get_bus_type (connection) != E_BUS_TYPE_NONE || unique_bus_name != NULL));
   g_return_if_fail (object_path != NULL);
   g_return_if_fail (interface_name);
 
@@ -935,8 +935,8 @@ e_dbus_proxy_new_sync (EDBusConnection     *connection,
 
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), NULL);
   g_return_val_if_fail (g_type_is_a (object_type, E_TYPE_DBUS_PROXY), NULL);
-  g_return_val_if_fail ((e_dbus_connection_get_bus_type (connection) == G_BUS_TYPE_NONE && unique_bus_name == NULL) ||
-                        (e_dbus_connection_get_bus_type (connection) != G_BUS_TYPE_NONE || unique_bus_name != NULL),
+  g_return_val_if_fail ((e_dbus_connection_get_bus_type (connection) == E_BUS_TYPE_NONE && unique_bus_name == NULL) ||
+                        (e_dbus_connection_get_bus_type (connection) != E_BUS_TYPE_NONE || unique_bus_name != NULL),
                         NULL);
   g_return_val_if_fail (object_path != NULL, NULL);
   g_return_val_if_fail (interface_name, NULL);

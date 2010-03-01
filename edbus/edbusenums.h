@@ -34,36 +34,36 @@ G_BEGIN_DECLS
 
 /**
  * EDBusType:
- * @G_BUS_TYPE_NONE: Not a message bus connection.
- * @G_BUS_TYPE_SESSION: The login session message bus.
- * @G_BUS_TYPE_SYSTEM: The system-wide message bus.
- * @G_BUS_TYPE_STARTER: Connect to the bus that activated the program.
+ * @E_BUS_TYPE_NONE: Not a message bus connection.
+ * @E_BUS_TYPE_SESSION: The login session message bus.
+ * @E_BUS_TYPE_SYSTEM: The system-wide message bus.
+ * @E_BUS_TYPE_STARTER: Connect to the bus that activated the program.
  *
  * An enumeration to specify the type of a #EDBusConnection.
  */
 typedef enum
 {
-  G_BUS_TYPE_NONE    = -1,
-  G_BUS_TYPE_SESSION = 0,
-  G_BUS_TYPE_SYSTEM  = 1,
-  G_BUS_TYPE_STARTER = 2
+  E_BUS_TYPE_NONE    = -1,
+  E_BUS_TYPE_SESSION = 0,
+  E_BUS_TYPE_SYSTEM  = 1,
+  E_BUS_TYPE_STARTER = 2
 } EDBusType;
 
 /**
  * EDBusNameOwnerFlags:
- * @G_BUS_NAME_OWNER_FLAGS_NONE: No flags set.
- * @G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT: Allow another message connection to take the name.
- * @G_BUS_NAME_OWNER_FLAGS_REPLACE: If another message bus connection
- * owns the name and have specified #G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT, then
+ * @E_BUS_NAME_OWNER_FLAGS_NONE: No flags set.
+ * @E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT: Allow another message connection to take the name.
+ * @E_BUS_NAME_OWNER_FLAGS_REPLACE: If another message bus connection
+ * owns the name and have specified #E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT, then
  * take the name from the other connection.
  *
  * Flags used when constructing a #GBusNameOwner.
  */
 typedef enum
 {
-  G_BUS_NAME_OWNER_FLAGS_NONE = 0,                    /*< nick=none >*/
-  G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT = (1<<0),  /*< nick=allow-replacement >*/
-  G_BUS_NAME_OWNER_FLAGS_REPLACE = (1<<1),            /*< nick=replace >*/
+  E_BUS_NAME_OWNER_FLAGS_NONE = 0,                    /*< nick=none >*/
+  E_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT = (1<<0),  /*< nick=allow-replacement >*/
+  E_BUS_NAME_OWNER_FLAGS_REPLACE = (1<<1),            /*< nick=replace >*/
 } EDBusNameOwnerFlags;
 
 /**

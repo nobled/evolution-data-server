@@ -60,7 +60,7 @@ main (int argc, char *argv[])
       goto out;
     }
 
-  watcher_id = e_bus_watch_name (opt_system_bus ? G_BUS_TYPE_SYSTEM : G_BUS_TYPE_SESSION,
+  watcher_id = e_bus_watch_name (opt_system_bus ? E_BUS_TYPE_SYSTEM : E_BUS_TYPE_SESSION,
                                  opt_name,
                                  on_name_appeared,
                                  on_name_vanished,

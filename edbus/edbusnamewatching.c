@@ -410,7 +410,7 @@ connection_get_cb (GObject      *source_object,
 
 /**
  * e_bus_watch_name:
- * @bus_type: The type of bus to watch a name on (can't be #G_BUS_TYPE_NONE).
+ * @bus_type: The type of bus to watch a name on (can't be #E_BUS_TYPE_NONE).
  * @name: The name (well-known or unique) to watch.
  * @name_appeared_handler: Handler to invoke when @name is known to exist.
  * @name_vanished_handler: Handler to invoke when @name is known to not exist.
@@ -460,7 +460,7 @@ e_bus_watch_name (EDBusType                  bus_type,
 {
   Client *client;
 
-  g_return_val_if_fail (bus_type != G_BUS_TYPE_NONE, 0);
+  g_return_val_if_fail (bus_type != E_BUS_TYPE_NONE, 0);
   g_return_val_if_fail (name != NULL, 0);
   g_return_val_if_fail (name_appeared_handler != NULL, 0);
   g_return_val_if_fail (name_vanished_handler != NULL, 0);
