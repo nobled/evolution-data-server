@@ -621,7 +621,7 @@ e_cal_activate(GError **error)
 	/* FIXME: better to just watch for the proxy instead of using the
 	 * connection directly? */
 	if (!connection_gdbus) {
-		connection_gdbus = e_dbus_connection_bus_get_private_sync (G_BUS_TYPE_SESSION, NULL, error);
+		connection_gdbus = e_dbus_connection_bus_get_private_sync (E_BUS_TYPE_SESSION, NULL, error);
 		if (!connection_gdbus) {
 			UNLOCK_CONN ();
 
