@@ -328,6 +328,8 @@ compare_ids (gconstpointer a, gconstpointer b)
 		return 1;
 }
 
+#define ATTEMPTS_KEY "attempts"
+
 static gboolean
 get_deltas (gpointer handle)
 {
@@ -342,9 +344,9 @@ get_deltas (gpointer handle)
 	GPtrArray *uid_array = NULL;
 	gchar *time_string = NULL;
 	gchar t_str [26];
+	gchar *attempts;
+	gchar *container_id;
 	const gchar *serv_time;
-	const gchar *key = "attempts";
-	const gchar *attempts;
 	const gchar *position;
 
 	EGwFilter *filter;
@@ -358,19 +360,21 @@ get_deltas (gpointer handle)
 
 	if (!handle)
 		return FALSE;
-	cbgw = (ECalBackendGroupwise *) handle;
-	priv= cbgw->priv;
-	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgw));
-	cnc = priv->cnc;
-	store = priv->store;
-	item_list = NULL;
 
+	cbgw = (ECalBackendGroupwise *) handle;
+	priv = cbgw->priv;
 	if (priv->mode == CAL_MODE_LOCAL)
 		return FALSE;
 
-	attempts = e_cal_backend_store_get_key_value (store, key);
-
 	PRIV_LOCK (priv);
+
+	kind = e_cal_backend_get_kind (E_CAL_BACKEND (cbgw));
+	cnc = priv->cnc;
+
+	store = priv->store;
+	item_list = NULL;
+
+	attempts = g_strdup (e_cal_backend_store_get_key_value (store, ATTEMPTS_KEY));
 
 	serv_time = e_cal_backend_store_get_key_value (store, SERVER_UTC_TIME);
 	if (serv_time) {
@@ -401,22 +405,30 @@ get_deltas (gpointer handle)
 	e_gw_filter_add_filter_component (filter, E_GW_FILTER_OP_EQUAL, "@type", get_element_type (kind));
 	e_gw_filter_group_conditions (filter, E_GW_FILTER_OP_AND, 2);
 
-	status = e_gw_connection_get_items (cnc, cbgw->priv->container_id, "attachments recipients message recipientStatus default peek", filter, &item_list);
+	container_id = g_strdup (cbgw->priv->container_id);
+	PRIV_UNLOCK (priv);
+
+	status = e_gw_connection_get_items (cnc, container_id, "attachments recipients message recipientStatus default peek", filter, &item_list);
 	if (status == E_GW_CONNECTION_STATUS_INVALID_CONNECTION)
-		status = e_gw_connection_get_items (cnc, cbgw->priv->container_id, "attachments recipients message recipientStatus default peek", filter, &item_list);
+		status = e_gw_connection_get_items (cnc, container_id, "attachments recipients message recipientStatus default peek", filter, &item_list);
+	PRIV_LOCK (priv);
+
+	g_free (container_id);
 	g_object_unref (filter);
 
 	if (status != E_GW_CONNECTION_STATUS_OK) {
 
 		const gchar *msg = NULL;
+		gint failures;
 
-		if (!attempts) {
-			e_cal_backend_store_put_key_value (store, key, "2");
-		} else {
-			gint failures;
-			failures = g_ascii_strtod(attempts, NULL) + 1;
-			e_cal_backend_store_put_key_value (store, key, GINT_TO_POINTER (failures));
-		}
+		if (!attempts)
+			failures = 2;
+		else
+			failures = g_ascii_strtod (attempts, NULL) + 1;
+		g_free (attempts);
+		attempts = g_strdup_printf ("%d", failures);
+		e_cal_backend_store_put_key_value (store, ATTEMPTS_KEY, attempts);
+		g_free (attempts);
 
 		if (status == E_GW_CONNECTION_STATUS_NO_RESPONSE) {
 			PRIV_UNLOCK (priv);
@@ -497,10 +509,11 @@ get_deltas (gpointer handle)
 
 	if (attempts) {
 		tm.tm_min += (time_interval * g_ascii_strtod (attempts, NULL));
-		e_cal_backend_store_put_key_value (store, key, NULL);
+		e_cal_backend_store_put_key_value (store, ATTEMPTS_KEY, NULL);
 	} else {
 		tm.tm_min += time_interval;
 	}
+	g_free (attempts);
 	strftime (t_str, 26, "%Y-%m-%dT%H:%M:%SZ", &tm);
 	time_string = g_strdup (t_str);
 
