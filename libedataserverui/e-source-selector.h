@@ -65,33 +65,38 @@ struct _ESourceSelectorClass {
 	gpointer padding3;
 };
 
-GType  e_source_selector_get_type  (void);
-
-GtkWidget *e_source_selector_new  (ESourceList *list);
-ESourceList *	e_source_selector_get_source_list (ESourceSelector *selector);
-
-void      e_source_selector_select_source       (ESourceSelector *selector,
-						 ESource         *source);
-void      e_source_selector_unselect_source     (ESourceSelector *selector,
-						 ESource         *source);
-gboolean  e_source_selector_source_is_selected  (ESourceSelector *selector,
-						 ESource         *source);
-
-GSList *e_source_selector_get_selection   (ESourceSelector *selector);
-void    e_source_selector_free_selection  (GSList          *list);
-
-void      e_source_selector_show_selection   (ESourceSelector *selector,
-					      gboolean         show);
-gboolean  e_source_selector_selection_shown  (ESourceSelector *selector);
-
-void e_source_selector_set_select_new (ESourceSelector *selector, gboolean state);
-
-void     e_source_selector_edit_primary_selection  (ESourceSelector *selector);
-ESource *e_source_selector_peek_primary_selection  (ESourceSelector *selector);
-void     e_source_selector_set_primary_selection   (ESourceSelector *selector,
-						    ESource         *source);
-
-ESourceGroup *e_source_selector_get_primary_source_group (ESourceSelector *selector);
+GType		e_source_selector_get_type	(void);
+GtkWidget *	e_source_selector_new		(ESourceList *list);
+ESourceList *	e_source_selector_get_source_list
+						(ESourceSelector *selector);
+void		e_source_selector_select_source	(ESourceSelector *selector,
+						 ESource *source);
+void		e_source_selector_unselect_source
+						(ESourceSelector *selector,
+						 ESource *source);
+void		e_source_selector_select_exclusive
+						(ESourceSelector *selector,
+						 ESource *source);
+gboolean	e_source_selector_source_is_selected
+						(ESourceSelector *selector,
+						 ESource *source);
+GSList *	e_source_selector_get_selection	(ESourceSelector *selector);
+void		e_source_selector_free_selection(GSList *list);
+void		e_source_selector_show_selection(ESourceSelector *selector,
+						 gboolean show);
+gboolean	e_source_selector_selection_shown
+						(ESourceSelector *selector);
+void		e_source_selector_set_select_new(ESourceSelector *selector,
+						 gboolean state);
+void		e_source_selector_edit_primary_selection
+						(ESourceSelector *selector);
+ESource *	e_source_selector_peek_primary_selection
+						(ESourceSelector *selector);
+void		e_source_selector_set_primary_selection
+						(ESourceSelector *selector,
+						 ESource *source);
+ESourceGroup *	e_source_selector_get_primary_source_group
+						(ESourceSelector *selector);
 
 G_END_DECLS
 

@@ -912,6 +912,86 @@ source_selector_finalize (GObject *object)
 	G_OBJECT_CLASS (e_source_selector_parent_class)->finalize (object);
 }
 
+static gboolean
+source_selector_button_press_event (GtkWidget *widget,
+                                    GdkEventButton *event)
+{
+	ESourceSelector *selector;
+	GtkWidgetClass *widget_class;
+	GtkTreePath *path;
+	ESource *source = NULL;
+	gboolean right_click = FALSE;
+	gboolean triple_click = FALSE;
+	gboolean row_exists;
+	gboolean res = FALSE;
+
+	selector = E_SOURCE_SELECTOR (widget);
+
+	selector->priv->toggled_last = FALSE;
+
+	/* Triple-clicking a source selects it exclusively. */
+
+	if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
+		right_click = TRUE;
+	else if (event->button == 1 && event->type == GDK_3BUTTON_PRESS)
+		triple_click = TRUE;
+	else
+		goto chainup;
+
+	row_exists = gtk_tree_view_get_path_at_pos (
+		GTK_TREE_VIEW (widget), event->x, event->y,
+		&path, NULL, NULL, NULL);
+
+	/* Get the source/group */
+	if (row_exists) {
+		GtkTreeModel *model;
+		GtkTreeIter iter;
+		gpointer data;
+
+		model = gtk_tree_view_get_model (GTK_TREE_VIEW (widget));
+
+		if (gtk_tree_model_get_iter (model, &iter, path)) {
+			gtk_tree_model_get (model, &iter, 0, &data, -1);
+
+			/* Do not emit popup since we will
+			 * not be able to get the ESource. */
+			if (E_IS_SOURCE_GROUP (data)) {
+				selector->priv->primary_source_group =
+					g_object_ref (data);
+				/* Data shuld be unreffed after
+				 * creating the new source. */
+				goto chainup;
+			}
+
+			source = E_SOURCE (data);
+		}
+	}
+
+	if (source == NULL)
+		goto chainup;
+
+	e_source_selector_set_primary_selection (selector, source);
+
+	if (right_click)
+		g_signal_emit (
+			widget, signals[POPUP_EVENT], 0, source, event, &res);
+
+	if (triple_click) {
+		e_source_selector_select_exclusive (selector, source);
+		res = TRUE;
+	}
+
+	g_object_unref (source);
+
+	return res;
+
+chainup:
+
+	/* Chain up to parent's button_press_event() method. */
+	widget_class = GTK_WIDGET_CLASS (e_source_selector_parent_class);
+	return widget_class->button_press_event (widget, event);
+}
+
 static void
 source_selector_drag_leave (GtkWidget *widget,
                             GdkDragContext *context,
@@ -1420,8 +1500,9 @@ e_source_selector_select_source (ESourceSelector *selector,
 	g_return_if_fail (E_IS_SOURCE (source));
 
 	source = find_source (selector, source);
+	g_return_if_fail (source != NULL);
 
-	if (!source || source_is_selected (selector, source))
+	if (source_is_selected (selector, source))
 		return;
 
 	select_source (selector, source);
@@ -1455,8 +1536,9 @@ e_source_selector_unselect_source (ESourceSelector *selector,
 	g_return_if_fail (E_IS_SOURCE (source));
 
 	source = find_source (selector, source);
+	g_return_if_fail (source != NULL);
 
-	if (!source || !source_is_selected (selector, source))
+	if (!source_is_selected (selector, source))
 		return;
 
 	unselect_source (selector, source);
@@ -1471,6 +1553,73 @@ e_source_selector_unselect_source (ESourceSelector *selector,
 
 		g_signal_emit (selector, signals[SELECTION_CHANGED], 0);
 	}
+}
+
+/* Helper for e_source_selector_select_exclusive() */
+static gboolean
+source_selector_select_exclusive_foreach (GtkTreeModel *model,
+                                          GtkTreePath *path,
+                                          GtkTreeIter *iter,
+                                          gpointer user_data)
+{
+	ESource *source;
+
+	struct {
+		ESourceSelector *selector;
+		ESource *source_to_select;
+	} *data = user_data;
+
+	if (gtk_tree_path_get_depth (path) != 2)
+		return FALSE;
+
+	gtk_tree_model_get (model, iter, 0, &source, -1);
+
+	if (source == data->source_to_select)
+		select_source (data->selector, source);
+	else
+		unselect_source (data->selector, source);
+
+	gtk_tree_model_row_changed (model, path, iter);
+
+	g_object_unref (source);
+
+	return FALSE;
+}
+
+/**
+ * e_source_selector_select_exclusive:
+ * @selector: An #ESourceSelector widget
+ * @source: An #ESource.
+ *
+ * Select @source in @selector and unselect all others.
+ **/
+void
+e_source_selector_select_exclusive (ESourceSelector *selector,
+                                    ESource *source)
+{
+	GtkTreeModel *model;
+
+	struct {
+		ESourceSelector *selector;
+		ESource *source_to_select;
+	} data;
+
+	g_return_if_fail (E_IS_SOURCE_SELECTOR (selector));
+	g_return_if_fail (E_IS_SOURCE (source));
+
+	source = find_source (selector, source);
+	g_return_if_fail (source != NULL);
+
+	model = gtk_tree_view_get_model (GTK_TREE_VIEW (selector));
+
+	data.selector = selector;
+	data.source_to_select = source;
+
+	gtk_tree_model_foreach (
+		model, (GtkTreeModelForeachFunc)
+		source_selector_select_exclusive_foreach, &data);
+
+	g_signal_emit (selector, signals[SELECTION_CHANGED], 0);
 }
 
 /**
@@ -1490,8 +1639,9 @@ e_source_selector_source_is_selected (ESourceSelector *selector,
 	g_return_val_if_fail (E_IS_SOURCE (source), FALSE);
 
 	source = find_source (selector, source);
+	g_return_val_if_fail (source != NULL, FALSE);
 
-	return source && source_is_selected (selector, source);
+	return source_is_selected (selector, source);
 }
 
 /**
@@ -1624,10 +1774,9 @@ e_source_selector_set_primary_selection (ESourceSelector *selector, ESource *sou
 	g_return_if_fail (E_IS_SOURCE (source));
 
 	priv = selector->priv;
-	source = find_source (selector, source);
 
-	if (!source)
-		return;
+	source = find_source (selector, source);
+	g_return_if_fail (source != NULL);
 
 	if (find_source_iter (selector, source, &parent_iter, &source_iter)) {
 		GtkTreeSelection *selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (selector));
