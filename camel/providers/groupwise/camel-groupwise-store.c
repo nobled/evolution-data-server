@@ -1154,7 +1154,7 @@ groupwise_get_folder_info (CamelStore *store, const gchar *top, guint32 flags, G
 	CamelGroupwiseStore *groupwise_store = CAMEL_GROUPWISE_STORE (store);
 	CamelFolderInfo *info = NULL;
 
-	/* Do not call groupwise_store_connected function as it would internall call folders_sync 
+	/* Do not call groupwise_store_connected function as it would internall call folders_sync
 	   to populate the hash table which is used for mapping container id */
 	if (!(((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL
 	    && camel_service_connect ((CamelService *)store, error)))

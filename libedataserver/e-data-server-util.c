@@ -35,24 +35,6 @@
 #include "e-data-server-util.h"
 
 /**
- * e_util_mkdir_hier:
- * @path: The directory hierarchy to create.
- * @mode: The permissions to use for the directories.
- *
- * Creates a directory hierarchy based on the string @path. If @path
- * is an absolute path, the directories will be created relative to
- * the root of the file system; otherwise, the directories will be
- * created relative to the current directory.
- *
- * Returns: 0 on success; -1 on failure.
- **/
-gint
-e_util_mkdir_hier (const gchar *path, mode_t mode)
-{
-	return g_mkdir_with_parents (path, mode);
-}
-
-/**
  * e_util_strstrcase:
  * @haystack: The string to search in.
  * @needle: The string to search for.
@@ -287,6 +269,8 @@ e_util_utf8_strcasecmp (const gchar *s1, const gchar *s2)
  * e_util_utf8_remove_accents:
  *
  * Returns newly allocates string, copy of 'str', without accents.
+ *
+ * Since: 2.28
  **/
 gchar *
 e_util_utf8_remove_accents (const gchar *str)
@@ -522,7 +506,7 @@ static const gchar *cp_prefix;
 static const gchar *localedir;
 static const gchar *extensiondir;
 static const gchar *imagesdir;
-static const gchar *ui_gladedir;
+static const gchar *ui_uidir;
 
 static HMODULE hmodule;
 G_LOCK_DEFINE_STATIC (mutex);
@@ -602,7 +586,7 @@ setup (void)
 	localedir = replace_prefix (cp_prefix, EVOLUTION_LOCALEDIR);
 	extensiondir = replace_prefix (prefix, E_DATA_SERVER_EXTENSIONDIR);
 	imagesdir = replace_prefix (prefix, E_DATA_SERVER_IMAGESDIR);
-	ui_gladedir = replace_prefix (prefix, E_DATA_SERVER_UI_GLADEDIR);
+	ui_uidir = replace_prefix (prefix, E_DATA_SERVER_UI_UIDIR);
 
 	G_UNLOCK (mutex);
 }
@@ -627,7 +611,7 @@ e_util_get_##varbl (void)			\
 
 PRIVATE_GETTER(extensiondir)
 PRIVATE_GETTER(imagesdir)
-PRIVATE_GETTER(ui_gladedir)
+PRIVATE_GETTER(ui_uidir)
 
 PUBLIC_GETTER(prefix)
 PUBLIC_GETTER(cp_prefix)

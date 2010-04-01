@@ -177,7 +177,7 @@ camel_mbox_summary_init (CamelMboxSummary *mbox_summary)
  *
  * Create a new CamelMboxSummary object.
  *
- * Return value: A new CamelMboxSummary widget.
+ * Returns: A new CamelMboxSummary widget.
  **/
 CamelMboxSummary *
 camel_mbox_summary_new(struct _CamelFolder *folder, const gchar *filename, const gchar *mbox_name, CamelIndex *index)

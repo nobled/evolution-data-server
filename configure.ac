@@ -1,7 +1,7 @@
 dnl Evolution-Data-Server version
 m4_define([eds_major_version], [2])
-m4_define([eds_minor_version], [29])
-m4_define([eds_micro_version], [92])
+m4_define([eds_minor_version], [31])
+m4_define([eds_micro_version], [1])
 
 m4_define([eds_version],
 	[eds_major_version.eds_minor_version.eds_micro_version])
@@ -10,8 +10,8 @@ dnl Base Version: This is for API/version tracking for things like
 dnl Bonobo server files.  This should always be the major/minor of
 dnl the stable version or stable version to be.  Note, this is set
 dnl the way it is so that GETTEXT_PACKAGE will be parsed correctly.
-BASE_VERSION=2.30
-m4_define([base_version], [2.30])
+BASE_VERSION=3.0
+m4_define([base_version], [3.0])
 
 dnl This number is meaningless, but we're now stuck with it in our
 dnl library names for backward compatibility.
@@ -33,7 +33,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 dnl Required Package Versions
 m4_define([glib_minimum_version], [2.16.1])
-m4_define([gtk_minimum_version], [2.14.0])
+m4_define([gtk_minimum_version], [2.18.0])
 m4_define([gconf_minimum_version], [2.0.0])		dnl XXX Just a Guess
 m4_define([libxml_minimum_version], [2.0.0])		dnl XXX Just a Guess
 m4_define([libsoup_minimum_version], [2.3.0])
@@ -55,13 +55,13 @@ EDS_MICRO_VERSION=eds_micro_version
 dnl ******************************
 dnl Libtool versioning
 dnl ******************************
-LIBEDATASERVER_CURRENT=11
-LIBEDATASERVER_REVISION=1
+LIBEDATASERVER_CURRENT=12
+LIBEDATASERVER_REVISION=0
 LIBEDATASERVER_AGE=0
 
-LIBEDATASERVERUI_CURRENT=9
-LIBEDATASERVERUI_REVISION=1
-LIBEDATASERVERUI_AGE=1
+LIBEDATASERVERUI_CURRENT=10
+LIBEDATASERVERUI_REVISION=0
+LIBEDATASERVERUI_AGE=0
 
 LIBECAL_CURRENT=9
 LIBECAL_REVISION=2
@@ -84,7 +84,7 @@ LIBEGROUPWISE_REVISION=1
 LIBEGROUPWISE_AGE=0
 
 LIBCAMEL_CURRENT=15
-LIBCAMEL_REVISION=1
+LIBCAMEL_REVISION=0
 LIBCAMEL_AGE=0
 
 LIBGDATA_CURRENT=1
@@ -149,6 +149,7 @@ AS_COMPILER_FLAGS(WARNING_FLAGS,
 	-DPANGO_DISABLE_DEPRECATED
 	-DGDK_DISABLE_DEPRECATED
 	-DGDK_PIXBUF_DISABLE_DEPRECATED
+	-DGTK_DISABLE_DEPRECATED
 	-DG_DISABLE_SINGLE_INCLUDES
 	-DGTK_DISABLE_SINGLE_INCLUDES
 	-Wall -Wextra
@@ -1175,6 +1176,11 @@ PKG_CHECK_MODULES(DBUS_GLIB, dbus-glib-1 >= dbus_glib_minimum_version)
 AC_SUBST(DBUS_GLIB_CFLAGS)
 AC_SUBST(DBUS_GLIB_LIBS)
 
+AC_PATH_PROG(DBUS_BINDING_TOOL, dbus-binding-tool, [no])
+if test "x$DBUS_BINDING_TOOL" = "xno"; then
+  AC_MSG_ERROR([You need dbus-binding-tools to build evolution-data-server])
+fi
+
 dnl ***********************
 dnl Gnome keyring support
 dnl ***********************
@@ -1413,6 +1419,14 @@ AC_PATH_PROG(GCONFTOOL, gconftool-2, [no])
 AM_GCONF_SOURCE_2
 
 dnl ******************************
+dnl gperf stuff
+dnl ******************************
+AC_PATH_PROG(GPERF, gperf, [no])
+if test "x$GPERF" = "xno"; then
+  AC_MSG_ERROR([You need gperf to build evolution-data-server])
+fi
+
+dnl ******************************
 dnl Makefiles
 dnl ******************************
 export privlibdir
@@ -1491,7 +1505,6 @@ servers/google/libgdata/Makefile
 servers/google/libgdata/libgdata.pc
 servers/google/libgdata-google/Makefile
 servers/google/libgdata-google/libgdata-google.pc
-win32/Makefile
 docs/Makefile
 docs/reference/Makefile
 docs/reference/addressbook/Makefile

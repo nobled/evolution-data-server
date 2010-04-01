@@ -78,8 +78,6 @@ typedef struct _CamelHookPair
 } CamelHookPair;
 
 /* meta-data stuff */
-static void co_metadata_free(CamelObject *obj, CamelObjectMeta *meta);
-static CamelObjectMeta *co_metadata_get(CamelObject *obj);
 static CamelHookPair *co_metadata_pair(CamelObject *obj, gint create);
 
 static const gchar meta_name[] = "object:meta";
@@ -160,9 +158,6 @@ cobject_getv (CamelObject *o,
 		case CAMEL_OBJECT_ARG_DESCRIPTION:
 			*arg->ca_str = (gchar *) G_OBJECT_CLASS_NAME (class);
 			break;
-		case CAMEL_OBJECT_ARG_METADATA:
-			*arg->ca_ptr = co_metadata_get(o);
-			break;
 		case CAMEL_OBJECT_ARG_STATE_FILE: {
 			CamelHookPair *pair = co_metadata_pair(o, FALSE);
 
@@ -212,93 +207,10 @@ static void
 cobject_free(CamelObject *o, guint32 tag, gpointer value)
 {
 	switch (tag & CAMEL_ARG_TAG) {
-	case CAMEL_OBJECT_ARG_METADATA:
-		co_metadata_free(o, value);
-		break;
 	case CAMEL_OBJECT_ARG_STATE_FILE:
 		g_free(value);
 		break;
-	case CAMEL_OBJECT_ARG_PERSISTENT_PROPERTIES:
-		g_slist_free((GSList *)value);
-		break;
 	}
-}
-
-static gchar *
-cobject_meta_get(CamelObject *obj, const gchar * name)
-{
-	CamelHookPair *pair;
-	CamelObjectMeta *meta;
-	gchar *res = NULL;
-
-	g_return_val_if_fail(CAMEL_IS_OBJECT (obj), NULL);
-	g_return_val_if_fail(name != NULL, NULL);
-
-	pair = co_metadata_pair(obj, FALSE);
-	if (pair) {
-		meta = pair->data;
-		while (meta) {
-			if (!strcmp(meta->name, name)) {
-				res = g_strdup(meta->value);
-				break;
-			}
-			meta = meta->next;
-		}
-		camel_object_unget_hooks(obj);
-	}
-
-	return res;
-}
-
-static gboolean
-cobject_meta_set(CamelObject *obj, const gchar * name, const gchar *value)
-{
-	CamelHookPair *pair;
-	gint changed = FALSE;
-	CamelObjectMeta *meta, *metap;
-
-	g_return_val_if_fail(CAMEL_IS_OBJECT (obj), FALSE);
-	g_return_val_if_fail(name != NULL, FALSE);
-
-	if (obj->hooks == NULL && value == NULL)
-		return FALSE;
-
-	pair = co_metadata_pair(obj, TRUE);
-	meta = pair->data;
-	metap = (CamelObjectMeta *)&pair->data;
-	while (meta) {
-		if (!strcmp(meta->name, name))
-			break;
-		metap = meta;
-		meta = meta->next;
-	}
-
-	/* TODO: The camelobjectmeta structure is identical to
-	   CamelTag, they could be merged or share common code */
-	if (meta == NULL) {
-		if (value == NULL)
-			goto done;
-		meta = g_malloc(sizeof(*meta) + strlen(name));
-		meta->next = pair->data;
-		pair->data = meta;
-		strcpy(meta->name, name);
-		meta->value = g_strdup(value);
-		changed = TRUE;
-	} else if (value == NULL) {
-		metap->next = meta->next;
-		g_free(meta->value);
-		g_free(meta);
-		changed = TRUE;
-	} else if (strcmp(meta->value, value) != 0) {
-		g_free(meta->value);
-		meta->value = g_strdup(value);
-		changed = TRUE;
-	}
-
-done:
-	camel_object_unget_hooks(obj);
-
-	return changed;
 }
 
 /* State file for CamelObject data.  Any later versions should only append data.
@@ -333,7 +245,8 @@ cobject_state_read(CamelObject *obj, FILE *fp)
 
 		if (camel_file_util_decode_string(fp, &name) == 0
 		    && camel_file_util_decode_string(fp, &value) == 0) {
-			camel_object_meta_set(obj, name, value);
+			/* XXX This no longer does anything.
+			 *     We're just eating dead data. */
 			g_free(name);
 			g_free(value);
 		} else {
@@ -403,33 +316,15 @@ static gint
 cobject_state_write(CamelObject *obj, FILE *fp)
 {
 	gint32 count, i;
-	CamelObjectMeta *meta = NULL, *scan;
 	gint res = -1;
 	GSList *props = NULL, *l;
 	CamelArgGetV *arggetv = NULL;
 	CamelArgV *argv = NULL;
 
-	camel_object_get(obj, NULL, CAMEL_OBJECT_METADATA, &meta, NULL);
-
-	count = 0;
-	scan = meta;
-	while (scan) {
-		count++;
-		scan = scan->next;
-	}
-
 	/* current version is 1 */
 	if (camel_file_util_encode_uint32(fp, 1) == -1
-	    || camel_file_util_encode_uint32(fp, count) == -1)
+	    || camel_file_util_encode_uint32(fp, 0) == -1)
 		goto abort;
-
-	scan = meta;
-	while (scan) {
-		if (camel_file_util_encode_string(fp, scan->name) == -1
-		    || camel_file_util_encode_string(fp, scan->value) == -1)
-			goto abort;
-		scan = scan->next;
-	}
 
 	camel_object_get(obj, NULL, CAMEL_OBJECT_PERSISTENT_PROPERTIES, &props, NULL);
 
@@ -497,9 +392,6 @@ abort:
 	if (props)
 		camel_object_free(obj, CAMEL_OBJECT_PERSISTENT_PROPERTIES, props);
 
-	if (meta)
-		camel_object_free(obj, CAMEL_OBJECT_METADATA, meta);
-
 	return res;
 }
 
@@ -531,8 +423,6 @@ camel_object_class_init (CamelObjectClass *class)
 	class->setv = cobject_setv;
 	class->free = cobject_free;
 
-	class->meta_get = cobject_meta_get;
-	class->meta_set = cobject_meta_set;
 	class->state_read = cobject_state_read;
 	class->state_write = cobject_state_write;
 
@@ -612,11 +502,6 @@ camel_object_free_hooks(CamelObject *o)
                 pair = o->hooks->list;
                 while (pair) {
                         next = pair->next;
-
-                        if (pair->name == meta_name) {
-                                co_metadata_free(o, pair->data);
-                                g_free(pair->func.filename);
-                        }
 
                         pair_free(pair);
                         pair = next;
@@ -954,67 +839,6 @@ camel_object_get (gpointer vo,
 	return ret;
 }
 
-gpointer
-camel_object_get_ptr (gpointer vo,
-                      GError **error,
-                      gint tag)
-{
-	CamelObjectClass *class;
-	CamelObject *o = vo;
-	CamelArgGetV args;
-	gint ret = 0;
-	gpointer val = NULL;
-
-	g_return_val_if_fail(CAMEL_IS_OBJECT(o), NULL);
-	g_return_val_if_fail((tag & CAMEL_ARG_TYPE) == CAMEL_ARG_OBJ
-			     || (tag & CAMEL_ARG_TYPE) == CAMEL_ARG_STR
-			     || (tag & CAMEL_ARG_TYPE) == CAMEL_ARG_PTR, NULL);
-
-	/* woefully inefficient, *shrug */
-	args.argc = 1;
-	args.argv[0].tag = tag;
-	args.argv[0].ca_ptr = &val;
-
-	class = CAMEL_OBJECT_GET_CLASS (o);
-	g_return_val_if_fail (class->getv != NULL, NULL);
-
-	ret = class->getv(o, error, &args);
-	if (ret != 0)
-		return NULL;
-	else
-		return val;
-}
-
-gint
-camel_object_get_int (gpointer vo,
-                      GError **error,
-                      gint tag)
-{
-	CamelObjectClass *class;
-	CamelObject *o = vo;
-	CamelArgGetV args;
-	gint ret = 0;
-	gint val = 0;
-
-	g_return_val_if_fail(CAMEL_IS_OBJECT(o), 0);
-	g_return_val_if_fail((tag & CAMEL_ARG_TYPE) == CAMEL_ARG_INT
-			     || (tag & CAMEL_ARG_TYPE) == CAMEL_ARG_BOO, 0);
-
-	/* woefully inefficient, *shrug */
-	args.argc = 1;
-	args.argv[0].tag = tag;
-	args.argv[0].ca_int = &val;
-
-	class = CAMEL_OBJECT_GET_CLASS (o);
-	g_return_val_if_fail (class->getv != NULL, 0);
-
-	ret = class->getv(o, error, &args);
-	if (ret != 0)
-		return 0;
-	else
-		return val;
-}
-
 gint
 camel_object_getv (gpointer vo,
                    GError **error,
@@ -1065,109 +889,13 @@ co_metadata_pair(CamelObject *obj, gint create)
 	return pair;
 }
 
-static CamelObjectMeta *
-co_metadata_get(CamelObject *obj)
-{
-	CamelHookPair *pair;
-	CamelObjectMeta *meta = NULL, *metaout = NULL, *metalast = NULL;
-
-	pair = co_metadata_pair(obj, FALSE);
-	if (pair) {
-		meta = pair->data;
-
-		while (meta) {
-			CamelObjectMeta *m;
-
-			m = g_malloc(sizeof(*m) + strlen(meta->name));
-			m->next = NULL;
-			strcpy(m->name, meta->name);
-			m->value = g_strdup(meta->value);
-			if (metaout == NULL)
-				metalast = metaout = m;
-			else {
-				metalast->next = m;
-				metalast = m;
-			}
-			meta = meta->next;
-		}
-
-		camel_object_unget_hooks(obj);
-	}
-
-	return metaout;
-}
-
-static void
-co_metadata_free(CamelObject *obj, CamelObjectMeta *meta)
-{
-	while (meta) {
-		CamelObjectMeta *metan = meta->next;
-
-		g_free(meta->value);
-		g_free(meta);
-		meta = metan;
-	}
-}
-
-/**
- * camel_object_meta_get:
- * @vo:
- * @name:
- *
- * Get a meta-data on an object.
- *
- * Return value: NULL if the meta-data is not set.
- **/
-gchar *
-camel_object_meta_get (gpointer vo,
-                       const gchar * name)
-{
-	CamelObject *obj = vo;
-	CamelObjectClass *class;
-
-	g_return_val_if_fail (CAMEL_IS_OBJECT (obj), NULL);
-	g_return_val_if_fail (name != NULL, NULL);
-
-	class = CAMEL_OBJECT_GET_CLASS (obj);
-	g_return_val_if_fail (class->meta_get != NULL, NULL);
-
-	return class->meta_get (obj, name);
-}
-
-/**
- * camel_object_meta_set:
- * @vo:
- * @name: Name of meta-data.  Should be prefixed with class of setter.
- * @value: Value to set.  If NULL, then the meta-data is removed.
- *
- * Set a meta-data item on an object.  If the object supports persistent
- * data, then the meta-data will be persistent across sessions.
- *
- * Return Value: TRUE if the setting caused a change to the object's
- * metadata.
- **/
-gboolean
-camel_object_meta_set(gpointer vo, const gchar * name, const gchar *value)
-{
-	CamelObject *obj = vo;
-	CamelObjectClass *class;
-
-	g_return_val_if_fail (CAMEL_IS_OBJECT (obj), FALSE);
-	g_return_val_if_fail (name != NULL, FALSE);
-
-	class = CAMEL_OBJECT_GET_CLASS (obj);
-	g_return_val_if_fail (class->meta_set != NULL, FALSE);
-
-	return class->meta_set (obj, name, value);
-}
-
 /**
  * camel_object_state_read:
  * @vo:
  *
  * Read persistent object state from object_set(CAMEL_OBJECT_STATE_FILE).
  *
- * Return value: -1 on error.
+ * Returns: -1 on error.
  **/
 gint camel_object_state_read(gpointer vo)
 {
@@ -1202,7 +930,7 @@ gint camel_object_state_read(gpointer vo)
  *
  * Write persistent state to the file as set by object_set(CAMEL_OBJECT_STATE_FILE).
  *
- * Return value: -1 on error.
+ * Returns: -1 on error.
  **/
 gint camel_object_state_write(gpointer vo)
 {

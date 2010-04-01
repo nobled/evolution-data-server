@@ -17,7 +17,7 @@ SCAN_OPTIONS = --deprecated-guards="CAMEL_DISABLE_DEPRECATED"
 SCANGOBJ_OPTIONS = --type-init-func="g_thread_init (NULL); g_type_init ()"
 
 # Extra options to supply to gtkdoc-mkdb
-MKDB_OPTIONS = --sgml-mode --output-format=xml --ignore-files=trio
+MKDB_OPTIONS = --sgml-mode --output-format=xml --name-space=camel
 
 # CFLAGS and LDFLAGS for compiling gtkdoc-scangobj with your library.
 GTKDOC_CFLAGS = 		\
@@ -75,5 +75,7 @@ EXTRA_DIST += 				\
 	$(DOC_MODULE)-docs.sgml		\
 	$(DOC_MODULE)-sections.txt	\
 	camel.hierarchy
+
+#TESTS = $(GTKDOC_CHECK)
 
 -include $(top_srcdir)/git.mk

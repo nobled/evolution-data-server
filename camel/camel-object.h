@@ -69,7 +69,6 @@ G_BEGIN_DECLS
 typedef struct _CamelObjectClass CamelObjectClass;
 typedef struct _CamelObject CamelObject;
 typedef guint CamelObjectHookID;
-typedef struct _CamelObjectMeta CamelObjectMeta;
 
 typedef gboolean (*CamelObjectEventPrepFunc) (CamelObject *, gpointer);
 typedef void (*CamelObjectEventHookFunc) (CamelObject *, gpointer, gpointer);
@@ -83,28 +82,16 @@ typedef enum {
 enum {
 	/* Get a description of the object. */
 	CAMEL_OBJECT_ARG_DESCRIPTION = CAMEL_ARG_FIRST,
-	/* Get a copy of the meta-data list (should be freed) */
-	CAMEL_OBJECT_ARG_METADATA,
 	CAMEL_OBJECT_ARG_STATE_FILE,
 	CAMEL_OBJECT_ARG_PERSISTENT_PROPERTIES
 };
 
 enum {
 	CAMEL_OBJECT_DESCRIPTION = CAMEL_OBJECT_ARG_DESCRIPTION | CAMEL_ARG_STR,
-	/* Returns a CamelObjectMeta list */
-	CAMEL_OBJECT_METADATA = CAMEL_OBJECT_ARG_METADATA | CAMEL_ARG_PTR,
 	/* sets where the persistent data should reside, otherwise it isn't persistent */
 	CAMEL_OBJECT_STATE_FILE = CAMEL_OBJECT_ARG_STATE_FILE | CAMEL_ARG_STR,
 	/* returns a GSList CamelProperties of persistent properties */
-	CAMEL_OBJECT_PERSISTENT_PROPERTIES = CAMEL_OBJECT_ARG_PERSISTENT_PROPERTIES | CAMEL_ARG_PTR
-};
-
-/* returned by get::CAMEL_OBJECT_METADATA */
-struct _CamelObjectMeta {
-	CamelObjectMeta *next;
-
-	gchar *value;
-	gchar name[1];		/* allocated as part of structure */
+	CAMEL_OBJECT_PERSISTENT_PROPERTIES = CAMEL_OBJECT_ARG_PERSISTENT_PROPERTIES
 };
 
 struct _CamelObject {
@@ -128,10 +115,6 @@ struct _CamelObjectClass {
 	/* we only free 1 at a time, and only pointer types, obviously */
 	void (*free)(CamelObject *, guint32 tag, gpointer ptr);
 
-	/* get/set meta-data interface */
-	gchar *(*meta_get)(CamelObject *, const gchar * name);
-	gboolean (*meta_set)(CamelObject *, const gchar * name, const gchar *value);
-
 	/* persistence stuff */
 	gint (*state_read)(CamelObject *, FILE *fp);
 	gint (*state_write)(CamelObject *, FILE *fp);
@@ -154,14 +137,6 @@ gint camel_object_set(gpointer obj, GError **error, ...);
 gint camel_object_setv(gpointer obj, GError **error, CamelArgV *);
 gint camel_object_get(gpointer obj, GError **error, ...);
 gint camel_object_getv(gpointer obj, GError **error, CamelArgGetV *);
-
-/* not very efficient one-time calls */
-gpointer camel_object_get_ptr(gpointer vo, GError **error, gint tag);
-gint camel_object_get_int(gpointer vo, GError **error, gint tag);
-
-/* meta-data for user-specific data */
-gchar *camel_object_meta_get(gpointer vo, const gchar * name);
-gboolean camel_object_meta_set(gpointer vo, const gchar * name, const gchar *value);
 
 /* reads/writes the state from/to the CAMEL_OBJECT_STATE_FILE */
 gint camel_object_state_read(gpointer vo);

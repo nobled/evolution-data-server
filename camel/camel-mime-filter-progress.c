@@ -122,6 +122,8 @@ camel_mime_filter_progress_init (CamelMimeFilterProgress *filter)
  * streaming progress.
  *
  * Returns: a new #CamelMimeFilter object
+ *
+ * Since: 2.24
  **/
 CamelMimeFilter *
 camel_mime_filter_progress_new (CamelOperation *operation,

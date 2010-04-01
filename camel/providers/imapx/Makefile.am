@@ -6,8 +6,6 @@ libcamelimapx_la_CPPFLAGS = \
 	-I..					\
 	-I$(srcdir)/..				\
 	-I$(top_srcdir)/camel			\
-	-I$(top_srcdir)/intl			\
-	-I$(top_srcdir)/e-util			\
 	-I$(top_srcdir)				\
 	$(CAMEL_CFLAGS)				\
 	-DG_LOG_DOMAIN=\"camel-imapx\"
@@ -34,7 +32,7 @@ noinst_HEADERS =				\
 	camel-imapx-utils.h
 
 camel-imapx-tokenise.h: camel-imapx-tokens.txt
-	gperf -H imapx_hash -N imapx_tokenise_struct -L ANSI-C -o -t -k1,$$ $< > $@
+	@GPERF@ -H imapx_hash -N imapx_tokenise_struct -L ANSI-C -o -t -k1,$$ $< --output-file=$@
 
 libcamelimapx_la_LIBADD = \
         $(top_builddir)/libedataserver/libedataserver-${API_VERSION}.la \
@@ -42,7 +40,7 @@ libcamelimapx_la_LIBADD = \
         $(top_builddir)/camel/libcamel-1.2.la                           \
         $(CAMEL_LIBS)
 
-libcamelimapx_la_LDFLAGS = -avoid-version -module
+libcamelimapx_la_LDFLAGS = -avoid-version -module $(NO_UNDEFINED)
 
 noinst_PROGRAMS = test-imapx
 
@@ -51,16 +49,16 @@ test_imapx_CPPFLAGS = \
 	-I..					\
 	-I$(srcdir)/..				\
 	-I$(top_srcdir)/camel			\
-	-I$(top_srcdir)/intl			\
-	-I$(top_srcdir)/e-util			\
 	-I$(top_srcdir)				\
 	$(CAMEL_CFLAGS)				\
 	-DG_LOG_DOMAIN=\"camel-imapx\"
 test_imapx_SOURCES = test-imapx.c
 test_imapx_LDADD =							\
 	$(top_builddir)/camel/libcamel-1.2.la				\
-	$(top_builddir)/camel/libcamel-provider-1.2.la			\
-	libcamelimapx.la
+	$(top_builddir)/camel/libcamel-provider-1.2.la
+
+BUILT_SOURCES = camel-imapx-tokenise.h
+CLEANFILES = $(BUILT_SOURCES)
 
 EXTRA_DIST = libcamelimapx.urls camel-imapx-tokens.txt
 

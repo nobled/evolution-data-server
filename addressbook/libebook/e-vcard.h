@@ -36,7 +36,14 @@ G_BEGIN_DECLS
 #define EVC_ENCODING        "ENCODING"
 #define EVC_FBURL           "FBURL"
 #define EVC_FN              "FN"
+
+/**
+ * EVC_GEO:
+ *
+ * Since: 1.12
+ **/
 #define EVC_GEO		    "GEO"
+
 #define EVC_ICSCALENDAR     "ICSCALENDAR" /* XXX should this be X-EVOLUTION-ICSCALENDAR? */
 #define EVC_KEY             "KEY"
 #define EVC_LABEL           "LABEL"
@@ -81,9 +88,23 @@ G_BEGIN_DECLS
 #define EVC_X_LIST		"X-EVOLUTION-LIST"
 #define EVC_X_MANAGER	"X-EVOLUTION-MANAGER"
 #define EVC_X_MSN		"X-MSN"
+
+/**
+ * EVC_X_SKYPE:
+ *
+ * Since: 2.26
+ **/
 #define EVC_X_SKYPE		"X-SKYPE"
+
 #define EVC_X_RADIO		"X-EVOLUTION-RADIO"
+
+/**
+ * EVC_X_SIP:
+ *
+ * Since: 2.26
+ **/
 #define EVC_X_SIP		"X-SIP"
+
 #define EVC_X_SPOUSE		"X-EVOLUTION-SPOUSE"
 #define EVC_X_TELEX		"X-EVOLUTION-TELEX"
 #define EVC_X_TTYTDD		"X-EVOLUTION-TTYTDD"

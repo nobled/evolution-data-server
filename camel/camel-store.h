@@ -142,7 +142,15 @@ typedef struct _CamelRenameInfo {
 #define CAMEL_STORE_FILTER_INBOX	(1 << 2)
 #define CAMEL_STORE_VJUNK		(1 << 3)
 #define CAMEL_STORE_PROXY		(1 << 4)
+
+/**
+ * CAMEL_STORE_IS_MIGRATING:
+ *
+ * Since: 2.26
+ **/
 #define CAMEL_STORE_IS_MIGRATING (1 << 5)
+
+#define CAMEL_STORE_ASYNC		(1 << 6)
 
 struct _CamelDB;
 
@@ -179,10 +187,16 @@ struct _CamelStore {
 #define CAMEL_STORE_FOLDER_INFO_RECURSIVE  (1 << 1)
 #define CAMEL_STORE_FOLDER_INFO_SUBSCRIBED (1 << 2)
 #define CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL (1 << 3)  /* don't include vTrash/vJunk folders */
-/* Fetch only the subscription list. Clients should use this */
-/* flag for requesting the list of folders available for  */
-/* subscription. Used in Exchange / IMAP  connectors for public */
-/* folder fetching */
+/**
+ * CAMEL_STORE_FOLDER_INFO_SUBSCRIPTION_LIST:
+ *
+ * Fetch only the subscription list. Clients should use this
+ * flag for requesting the list of folders available for
+ * subscription. Used in Exchange / IMAP connectors for public
+ * folder fetching.
+ *
+ * Since: 2.28
+ **/
 #define CAMEL_STORE_FOLDER_INFO_SUBSCRIPTION_LIST (1 << 4)
 
 struct _CamelStoreClass {
@@ -280,6 +294,13 @@ void		camel_store_free_folder_info_nop(CamelStore *store,
 CamelFolderInfo *
 		camel_folder_info_new		(void);
 void		camel_folder_info_free		(CamelFolderInfo *fi);
+#ifndef CAMEL_DISABLE_DEPRECATED
+CamelFolderInfo *
+		camel_folder_info_build		(GPtrArray *folders,
+						 const gchar *name_space,
+						 gchar separator,
+						 gboolean short_names);
+#endif /* CAMEL_DISABLE_DEPRECATED */
 CamelFolderInfo *
 		camel_folder_info_clone		(CamelFolderInfo *fi);
 gboolean	camel_store_supports_subscriptions
@@ -300,14 +321,6 @@ gint		camel_store_folder_uri_equal	(CamelStore *store,
 gboolean	camel_store_can_refresh_folder	(CamelStore *store,
 						 CamelFolderInfo *info,
 						 GError **error);
-
-#ifndef CAMEL_DISABLE_DEPRECATED
-CamelFolderInfo *
-		camel_folder_info_build		(GPtrArray *folders,
-						 const gchar *namespace,
-						 gchar separator,
-						 gboolean short_names);
-#endif /* CAMEL_DISABLE_DEPRECATED */
 
 G_END_DECLS
 

@@ -252,7 +252,7 @@ camel_nntp_stream_init (CamelNNTPStream *is)
  * Returns a NULL stream.  A null stream is always at eof, and
  * always returns success for all reads and writes.
  *
- * Return value: the stream
+ * Returns: the stream
  **/
 CamelStream *
 camel_nntp_stream_new (CamelStream *source)

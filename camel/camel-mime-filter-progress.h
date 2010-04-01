@@ -55,6 +55,11 @@ typedef struct _CamelMimeFilterProgress CamelMimeFilterProgress;
 typedef struct _CamelMimeFilterProgressClass CamelMimeFilterProgressClass;
 typedef struct _CamelMimeFilterProgressPrivate CamelMimeFilterProgressPrivate;
 
+/**
+ * CamelMimeFilterProgress:
+ *
+ * Since: 2.24
+ **/
 struct _CamelMimeFilterProgress {
 	CamelMimeFilter parent;
 	CamelMimeFilterProgressPrivate *priv;

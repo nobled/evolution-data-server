@@ -44,15 +44,14 @@
 #include "camel-imapx-exception.h"
 #include "camel-imapx-server.h"
 
-#include <libedataserver/md5-utils.h>
-
 #include <stdlib.h>
 #include <string.h>
 
 #define d(x)
 
 #define CF_CLASS(o) (CAMEL_FOLDER_CLASS (CAMEL_OBJECT_GET_CLASS(o)))
-static CamelFolderClass *parent_class;
+static CamelObjectClass *parent_class;
+static CamelOfflineFolderClass *offline_folder_class = NULL;
 
 CamelFolder *
 camel_imapx_folder_new(CamelStore *store, const gchar *folder_dir, const gchar *folder_name, CamelException *ex)
@@ -60,7 +59,8 @@ camel_imapx_folder_new(CamelStore *store, const gchar *folder_dir, const gchar *
 	CamelFolder *folder;
 	CamelIMAPXFolder *ifolder;
 	const gchar *short_name;
-	gchar *summary_file;
+	gchar *summary_file, *state_file;
+	CamelIMAPXStore *istore;
 
 	d(printf("opening imap folder '%s'\n", folder_dir));
 
@@ -93,39 +93,31 @@ camel_imapx_folder_new(CamelStore *store, const gchar *folder_dir, const gchar *
 		return NULL;
 	}
 
+	state_file = g_strdup_printf ("%s/cmeta", folder_dir);
+	camel_object_set(folder, NULL, CAMEL_OBJECT_STATE_FILE, state_file, NULL);
+	g_free(state_file);
+	camel_object_state_read(folder);
+
 	ifolder->search = camel_folder_search_new ();
 	ifolder->search_lock = g_mutex_new ();
+	ifolder->stream_lock = g_mutex_new ();
+	ifolder->ignore_recent = g_hash_table_new_full (g_str_hash, g_str_equal, (GDestroyNotify) g_free, NULL); 
 	ifolder->exists_on_server = 0;
 	ifolder->unread_on_server = 0;
+
+	istore = (CamelIMAPXStore *) store;
+	if (!g_ascii_strcasecmp (folder_name, "INBOX")) {
+		if ((istore->rec_options & IMAPX_FILTER_INBOX))
+			folder->folder_flags |= CAMEL_FOLDER_FILTER_RECENT;
+		if ((istore->rec_options & IMAPX_FILTER_INBOX))
+			folder->folder_flags |= CAMEL_FOLDER_FILTER_JUNK;
+	} else if ((istore->rec_options & (IMAPX_FILTER_JUNK | IMAPX_FILTER_JUNK_INBOX)) == IMAPX_FILTER_JUNK)
+			folder->folder_flags |= CAMEL_FOLDER_FILTER_JUNK;	
 
 	g_free (summary_file);
 
 	return folder;
 }
-
-#if 0
-/* experimental interfaces */
-void
-camel_imapx_folder_open(CamelIMAPXFolder *folder, GError **error)
-{
-	/* */
-}
-
-void
-camel_imapx_folder_delete(CamelIMAPXFolder *folder, GError **error)
-{
-}
-
-void
-camel_imapx_folder_rename(CamelIMAPXFolder *folder, const gchar *new, GError **error)
-{
-}
-
-void
-camel_imapx_folder_close(CamelIMAPXFolder *folder, GError **error)
-{
-}
-#endif
 
 static void
 imapx_refresh_info (CamelFolder *folder, GError **error)
@@ -135,12 +127,12 @@ imapx_refresh_info (CamelFolder *folder, GError **error)
 	if (CAMEL_OFFLINE_STORE (istore)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 		return;
 
-	if (istore->server && camel_imapx_server_connect (istore->server, 1))
+	camel_service_connect((CamelService *)istore, ex);
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
 		camel_imapx_server_refresh_info(istore->server, folder, ex);
-
 }
 
-static void 
+static void
 imapx_expunge (CamelFolder *folder, CamelException *ex)
 {
 	CamelIMAPXStore *is = (CamelIMAPXStore *)folder->parent_store;
@@ -148,7 +140,7 @@ imapx_expunge (CamelFolder *folder, CamelException *ex)
 	if (CAMEL_OFFLINE_STORE (is)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 		return;
 
-	if (is->server && camel_imapx_server_connect (is->server, 1))
+	if (is->server && camel_imapx_server_connect (is->server, TRUE, ex))
 		camel_imapx_server_expunge(is->server, folder, ex);
 
 }
@@ -157,11 +149,15 @@ static void
 imapx_sync (CamelFolder *folder, gboolean expunge, GError **error)
 {
 	CamelIMAPXStore *is = (CamelIMAPXStore *)folder->parent_store;
+	CamelException eex = CAMEL_EXCEPTION_INITIALISER;
 
 	if (CAMEL_OFFLINE_STORE (is)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 		return;
 
-	if (is->server && camel_imapx_server_connect (is->server, 1))
+	if (!ex)
+		ex = &eex;
+
+	if (is->server && camel_imapx_server_connect (is->server, TRUE, ex))
 		camel_imapx_server_sync_changes (is->server, folder, ex);
 
 	/* Sync twice - make sure deleted flags are written out,
@@ -201,7 +197,7 @@ imapx_get_message (CamelFolder *folder, const gchar *uid, GError **error)
 		if (CAMEL_OFFLINE_STORE (istore)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 			return NULL;
 
-		if (istore->server && camel_imapx_server_connect (istore->server, 1)) {
+		if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex)) {
 			stream = camel_imapx_server_get_message(istore->server, folder, uid, ex);
 		} else {
 			camel_exception_setv(ex, 1, "not authenticated");
@@ -209,17 +205,31 @@ imapx_get_message (CamelFolder *folder, const gchar *uid, GError **error)
 		}
 	}
 
-	if (!camel_exception_is_set (ex)) {
+	if (!camel_exception_is_set (ex) && stream) {
 		msg = camel_mime_message_new();
+	
+		g_mutex_lock (ifolder->stream_lock);
 		if (camel_data_wrapper_construct_from_stream((CamelDataWrapper *)msg, stream) == -1) {
-			camel_exception_setv(ex, 1, "error building message?");
 			camel_object_unref(msg);
 			msg = NULL;
 		}
+		g_mutex_unlock (ifolder->stream_lock);
 		camel_object_unref(stream);
 	}
 
 	return msg;
+}
+
+static void
+imapx_sync_message (CamelFolder *folder, const gchar *uid, CamelException *ex)
+{
+	CamelIMAPXStore *istore = (CamelIMAPXStore *)folder->parent_store;
+
+	if (CAMEL_OFFLINE_STORE (istore)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
+		return;
+
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
+		camel_imapx_server_sync_message (istore->server, folder, uid, ex);
 }
 
 static void
@@ -232,7 +242,7 @@ imapx_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
 	if (CAMEL_OFFLINE_STORE (istore)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 		return;
 
-	if (istore->server && camel_imapx_server_connect (istore->server, 1))
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
 		camel_imapx_server_copy_message (istore->server, source, dest, uids, delete_originals, ex);
 
 	imapx_refresh_info (dest, ex);
@@ -249,7 +259,7 @@ imapx_append_message(CamelFolder *folder, CamelMimeMessage *message, const Camel
 	if (appended_uid)
 		*appended_uid = NULL;
 
-	if (istore->server && camel_imapx_server_connect (istore->server, 1))
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
 		camel_imapx_server_append_message(istore->server, folder, message, info, ex);
 }
 
@@ -383,8 +393,10 @@ imapx_search_by_expression (CamelFolder *folder, const gchar *expression, CamelE
 }
 
 static void
-imap_folder_class_init (CamelIMAPXFolderClass *klass)
+imapx_folder_class_init (CamelIMAPXFolderClass *klass)
 {
+	offline_folder_class = CAMEL_OFFLINE_FOLDER_CLASS (camel_type_get_global_classfuncs (camel_offline_folder_get_type ()));
+
 	((CamelFolderClass *)klass)->refresh_info = imapx_refresh_info;
 	((CamelFolderClass *)klass)->sync = imapx_sync;
 	((CamelFolderClass *)klass)->search_by_expression = imapx_search_by_expression;
@@ -394,13 +406,14 @@ imap_folder_class_init (CamelIMAPXFolderClass *klass)
 
 	((CamelFolderClass *)klass)->expunge = imapx_expunge;
 	((CamelFolderClass *)klass)->get_message = imapx_get_message;
+	((CamelFolderClass *)klass)->sync_message = imapx_sync_message;
 	((CamelFolderClass *)klass)->append_message = imapx_append_message;
 	((CamelFolderClass *)klass)->transfer_messages_to = imapx_transfer_messages_to;
 	((CamelFolderClass *)klass)->get_filename = imapx_get_filename;
 }
 
 static void
-imap_folder_init(CamelObject *o, CamelObjectClass *klass)
+imapx_folder_init(CamelObject *o, CamelObjectClass *klass)
 {
 	CamelFolder *folder = (CamelFolder *)o;
 
@@ -415,13 +428,17 @@ imap_folder_init(CamelObject *o, CamelObjectClass *klass)
 }
 
 static void
-imap_finalize (CamelObject *object)
+imapx_finalize (CamelObject *object)
 {
 	CamelIMAPXFolder *ifolder = (CamelIMAPXFolder *) object;
 
 	camel_object_unref (CAMEL_OBJECT (ifolder->cache));
+	
+	if (ifolder->ignore_recent)
+		g_hash_table_unref (ifolder->ignore_recent);
 
 	g_mutex_free (ifolder->search_lock);
+	g_mutex_free (ifolder->stream_lock);
 	if (ifolder->search)
 		camel_object_unref (CAMEL_OBJECT (ifolder->search));
 }
@@ -432,14 +449,14 @@ camel_imapx_folder_get_type (void)
 	static CamelType camel_imapx_folder_type = CAMEL_INVALID_TYPE;
 
 	if (!camel_imapx_folder_type) {
-		camel_imapx_folder_type = camel_type_register (CAMEL_FOLDER_TYPE, "CamelIMAPXFolder",
+		parent_class = camel_offline_folder_get_type();
+		camel_imapx_folder_type = camel_type_register (parent_class, "CamelIMAPXFolder",
 							      sizeof (CamelIMAPXFolder),
 							      sizeof (CamelIMAPXFolderClass),
-							      (CamelObjectClassInitFunc)imap_folder_class_init,
+							      (CamelObjectClassInitFunc)imapx_folder_class_init,
 							      NULL,
-							      imap_folder_init,
-							      (CamelObjectFinalizeFunc) imap_finalize);
-		parent_class = (CamelFolderClass *)camel_folder_get_type();
+							      imapx_folder_init,
+							      (CamelObjectFinalizeFunc) imapx_finalize);
 	}
 
 	return camel_imapx_folder_type;

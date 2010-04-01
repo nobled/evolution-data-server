@@ -130,7 +130,7 @@ e_name_selector_model_class_init (ENameSelectorModelClass *name_selector_model_c
  *
  * Creates a new #ENameSelectorModel.
  *
- * Return value: A new #ENameSelectorModel.
+ * Returns: A new #ENameSelectorModel.
  **/
 ENameSelectorModel *
 e_name_selector_model_new (void)
@@ -357,7 +357,7 @@ find_section_by_name (ENameSelectorModel *name_selector_model, const gchar *name
  *
  * Gets the #EContactStore associated with @name_selector_model.
  *
- * Return value: An #EContactStore.
+ * Returns: An #EContactStore.
  **/
 EContactStore *
 e_name_selector_model_peek_contact_store (ENameSelectorModel *name_selector_model)
@@ -374,7 +374,7 @@ e_name_selector_model_peek_contact_store (ENameSelectorModel *name_selector_mode
  * Gets the #ETreeModelGenerator being used to filter and/or extend the
  * list of contacts in @name_selector_model's #EContactStore.
  *
- * Return value: An #ETreeModelGenerator.
+ * Returns: An #ETreeModelGenerator.
  **/
 ETreeModelGenerator *
 e_name_selector_model_peek_contact_filter (ENameSelectorModel *name_selector_model)
@@ -390,7 +390,7 @@ e_name_selector_model_peek_contact_filter (ENameSelectorModel *name_selector_mod
  *
  * Gets a list of the destination sections in @name_selector_model.
  *
- * Return value: A #GList of pointers to strings. The #GList and the
+ * Returns: A #GList of pointers to strings. The #GList and the
  * strings belong to the caller, and must be freed when no longer needed.
  **/
 GList *
@@ -537,6 +537,8 @@ e_name_selector_model_peek_section (ENameSelectorModel *name_selector_model, con
  * Returns list of all email from @contact, without all used
  * in any section. Each item is a string, an email address.
  * Returned list should be freed with @e_name_selector_model_free_emails_list.
+ *
+ * Since: 2.30
  **/
 GList *
 e_name_selector_model_get_contact_emails_without_used (ENameSelectorModel *name_selector_model, EContact *contact, gboolean remove_used)
@@ -605,6 +607,8 @@ e_name_selector_model_get_contact_emails_without_used (ENameSelectorModel *name_
  * @email_list: list of emails returned from @e_name_selector_model_get_contact_emails_without_used
  *
  * Frees a list of emails returned from @e_name_selector_model_get_contact_emails_without_used.
+ *
+ * Since: 2.30
  **/
 void
 e_name_selector_model_free_emails_list (GList *email_list)

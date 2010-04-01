@@ -83,7 +83,11 @@ simple_data_wrapper_construct_from_parser (CamelDataWrapper *dw,
 	return (retval == 0);
 }
 
-/* This replaces the data wrapper repository ... and/or could be replaced by it? */
+/**
+ * camel_mime_part_construct_content_from_parser:
+ *
+ * Since: 2.24
+ **/
 gboolean
 camel_mime_part_construct_content_from_parser (CamelMimePart *dw,
                                                CamelMimeParser *mp,
@@ -150,6 +154,11 @@ camel_mime_part_construct_content_from_parser (CamelMimePart *dw,
 	return success;
 }
 
+/**
+ * camel_mime_message_build_preview:
+ *
+ * Since: 2.28
+ **/
 gboolean
 camel_mime_message_build_preview (CamelMimePart *msg,
                                   CamelMessageInfo *info)

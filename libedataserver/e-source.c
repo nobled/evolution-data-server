@@ -274,7 +274,7 @@ compare_str_hashes (GHashTable *table1, GHashTable *table2)
  *
  * Update the ESource properties from @node.
  *
- * Return value: %TRUE if the data in @node was recognized and parsed into
+ * Returns: %TRUE if the data in @node was recognized and parsed into
  * acceptable values for @source, %FALSE otherwise.
  **/
 gboolean
@@ -408,7 +408,7 @@ e_source_update_from_xml_node (ESource *source,
  * Assuming that @node is a valid ESource specification, retrieve the name of
  * the source from it.
  *
- * Return value: Name of the source in the specified @node.  The caller must
+ * Returns: Name of the source in the specified @node.  The caller must
  * free the string.
  **/
 gchar *
@@ -563,28 +563,6 @@ e_source_set_readonly (ESource  *source,
 
 }
 
-#ifndef EDS_DISABLE_DEPRECATED
-void
-e_source_set_color (ESource *source,
-		    guint32 color)
-{
-	gchar color_spec[8];
-
-	g_return_if_fail (E_IS_SOURCE (source));
-
-	g_snprintf (color_spec, sizeof (color_spec), "#%06x", color);
-	e_source_set_color_spec (source, color_spec);
-}
-
-void
-e_source_unset_color (ESource *source)
-{
-	g_return_if_fail (E_IS_SOURCE (source));
-
-	e_source_set_color_spec (source, NULL);
-}
-#endif
-
 /**
  * e_source_set_color_spec:
  * @source: an ESource
@@ -653,7 +631,7 @@ e_source_peek_absolute_uri (ESource *source)
  * Return the textual representation of the color for @source, or %NULL if it
  * has none.  The returned string should be parsable by #gdk_color_parse().
  *
- * Return value: a string specifying the color
+ * Returns: a string specifying the color
  *
  * Since: 1.10
  **/
@@ -672,42 +650,6 @@ e_source_get_readonly (ESource *source)
 
 	return source->priv->readonly;
 }
-
-#ifndef EDS_DISABLE_DEPRECATED
-/**
- * e_source_get_color:
- * @source: An ESource
- * @color_return: Pointer to a variable where the returned color will be
- * stored.
- *
- * If @source has an associated color, return it in *@color_return.
- *
- * Return value: %TRUE if the @source has a defined color (and hence
- * *@color_return was set), %FALSE otherwise.
- **/
-gboolean
-e_source_get_color (ESource *source,
-		    guint32 *color_return)
-{
-	const gchar *color_spec;
-	guint32 color;
-
-	g_return_val_if_fail (E_IS_SOURCE (source), FALSE);
-
-	color_spec = e_source_peek_color_spec (source);
-
-	if (color_spec == NULL)
-		return FALSE;
-
-	if (sscanf (color_spec, "#%06x", &color) != 1)
-		return FALSE;
-
-	if (color_return != NULL)
-		*color_return = color;
-
-	return TRUE;
-}
-#endif
 
 gchar *
 e_source_get_uri (ESource *source)
@@ -822,8 +764,10 @@ e_source_to_standalone_xml (ESource *source)
  *
  * Compares if @a is equivalent to @b.
  *
- * Return value: %TRUE if @a is equivalent to @b,
+ * Returns: %TRUE if @a is equivalent to @b,
  * %FALSE otherwise.
+ *
+ * Since: 2.24
  **/
 gboolean
 e_source_equal (ESource *a, ESource *b)
@@ -878,8 +822,10 @@ e_source_equal (ESource *a, ESource *b)
  *
  * Compares if @a is equivalent to @b.
  *
- * Return value: %TRUE if @a is equivalent to @b,
+ * Returns: %TRUE if @a is equivalent to @b,
  * %FALSE otherwise.
+ *
+ * Since: 2.24
  **/
 gboolean
 e_source_xmlstr_equal (const gchar *a, const gchar *b)
@@ -931,6 +877,11 @@ e_source_get_property (ESource *source,
 	return g_hash_table_lookup (priv->properties, property);
 }
 
+/**
+ * e_source_get_duped_property:
+ *
+ * Since: 1.12
+ **/
 gchar *
 e_source_get_duped_property (ESource *source, const gchar *property)
 {

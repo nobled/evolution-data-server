@@ -41,6 +41,8 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n-lib.h>
@@ -110,11 +112,26 @@ check_key_file (const gchar *funcname)
 static gchar *
 ep_key_file_get_filename (void)
 {
+#ifndef G_OS_WIN32
+	const gchar *override;
+
 	/* XXX It would be nice to someday move this data elsewhere, or else
 	 * fully migrate to GNOME Keyring or whatever software supercedes it.
 	 * Evolution is one of the few remaining GNOME-2 applications that
 	 * still uses the deprecated ~/.gnome2_private directory. */
 
+	override = g_getenv ("GNOME22_USER_DIR");
+	if (override != NULL) {
+		gchar resolved_path[PATH_MAX];
+
+		/* Use realpath() to canonicalize the path, which
+		 * strips off any trailing directory separators so
+		 * we can safely tack on "_private". */
+		return g_strdup_printf (
+			"%s_private" G_DIR_SEPARATOR_S "Evolution",
+			realpath (override, resolved_path));
+	}
+#endif
 	return g_build_filename (
 		g_get_home_dir (), ".gnome2_private", "Evolution", NULL);
 }
@@ -175,6 +192,7 @@ ep_key_file_save (void)
 {
 	gchar *contents;
 	gchar *filename;
+	gchar *pathname;
 	gsize length = 0;
 	GError *error = NULL;
 
@@ -183,9 +201,14 @@ ep_key_file_save (void)
 
 	filename = ep_key_file_get_filename ();
 	contents = g_key_file_to_data (key_file, &length, &error);
+	pathname = g_path_get_dirname (filename);
 
-	if (!error)
+	if (!error) {
+		g_mkdir_with_parents (pathname, 0700);
 		g_file_set_contents (filename, contents, length, &error);
+	}
+	
+	g_free (pathname);
 
 	if (error != NULL) {
 		g_warning ("%s: %s", filename, error->message);
@@ -1420,7 +1443,7 @@ e_passwords_forget_password (const gchar *component_name, const gchar *key)
  * e_passwords_get_password:
  * @key: the key
  *
- * Return value: the password associated with @key, or %NULL.  Caller
+ * Returns: the password associated with @key, or %NULL.  Caller
  * must free the returned password.
  **/
 gchar *
@@ -1484,7 +1507,7 @@ e_passwords_add_password (const gchar *key, const gchar *passwd)
  *
  * Asks the user for a password.
  *
- * Return value: the password, which the caller must free, or %NULL if
+ * Returns: the password, which the caller must free, or %NULL if
  * the user cancelled the operation. *@remember will be set if the
  * return value is non-%NULL and @remember_type is not
  * E_PASSWORDS_DO_NOT_REMEMBER.

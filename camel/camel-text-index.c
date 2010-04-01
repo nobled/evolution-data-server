@@ -36,10 +36,9 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-memory.h>
-
 #include "camel-block-file.h"
 #include "camel-list-utils.h"
+#include "camel-mempool.h"
 #include "camel-object.h"
 #include "camel-partition-table.h"
 #include "camel-private.h"
@@ -70,7 +69,7 @@ static gint text_index_compress_nosync (CamelIndex *idx, GError **error);
 struct _CamelTextIndexNamePrivate {
 	GString *buffer;
 	camel_key_t nameid;
-	EMemPool *pool;
+	CamelMemPool *pool;
 };
 
 CamelTextIndexName *camel_text_index_name_new (CamelTextIndex *idx, const gchar *name, camel_key_t nameid);
@@ -1458,7 +1457,7 @@ text_index_name_finalize (GObject *object)
 	g_hash_table_destroy (CAMEL_TEXT_INDEX_NAME (object)->parent.words);
 
 	g_string_free (priv->buffer, TRUE);
-	e_mempool_destroy (priv->pool);
+	camel_mempool_destroy (priv->pool);
 
 	/* Chain up to parent's finalize() method. */
 	G_OBJECT_CLASS (camel_text_index_name_parent_class)->finalize (object);
@@ -1470,7 +1469,7 @@ text_index_name_add_word (CamelIndexName *idn, const gchar *word)
 	CamelTextIndexNamePrivate *p = ((CamelTextIndexName *)idn)->priv;
 
 	if (g_hash_table_lookup (idn->words, word) == NULL) {
-		gchar *w = e_mempool_strdup (p->pool, word);
+		gchar *w = camel_mempool_strdup (p->pool, word);
 
 		g_hash_table_insert (idn->words, w, w);
 	}
@@ -1605,7 +1604,7 @@ camel_text_index_name_init (CamelTextIndexName *text_index_name)
 
 	text_index_name->priv->buffer = g_string_new ("");
 	text_index_name->priv->pool =
-		e_mempool_new (256, 128, E_MEMPOOL_ALIGN_BYTE);
+		camel_mempool_new (256, 128, CAMEL_MEMPOOL_ALIGN_BYTE);
 }
 
 CamelTextIndexName *
@@ -1617,7 +1616,7 @@ camel_text_index_name_new (CamelTextIndex *idx, const gchar *name, camel_key_t n
 
 	cin->index = (CamelIndex *)idx;
 	g_object_ref (idx);
-	cin->name = e_mempool_strdup (p->pool, name);
+	cin->name = camel_mempool_strdup (p->pool, name);
 	p->nameid = nameid;
 
 	return idn;

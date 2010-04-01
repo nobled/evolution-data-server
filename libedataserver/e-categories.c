@@ -194,13 +194,14 @@ idle_saver_cb (gpointer user_data)
 	GString *buffer;
 	gchar *contents;
 	gchar *filename;
+	gchar *pathname;
 	GError *error = NULL;
 
 	if (!save_is_pending)
 		goto exit;
 
 	filename = build_categories_filename ();
-
+	
 	g_debug ("Saving categories to \"%s\"", filename);
 
 	/* build the file contents */
@@ -209,11 +210,15 @@ idle_saver_cb (gpointer user_data)
 	g_string_append_len (buffer, "</categories>\n", 14);
 	contents = g_string_free (buffer, FALSE);
 
+	pathname = g_path_get_dirname (filename);
+	g_mkdir_with_parents (pathname, 0700);
+
 	if (!g_file_set_contents (filename, contents, -1, &error)) {
 		g_warning ("Unable to save categories: %s", error->message);
 		g_error_free (error);
 	}
 
+	g_free (pathname);
 	g_free (contents);
 	g_free (filename);
 	save_is_pending = FALSE;
@@ -258,25 +263,15 @@ parse_categories (const gchar *contents, gsize length)
 
 	for (node = node->xmlChildrenNode; node != NULL; node = node->next) {
 		xmlChar *category, *icon, *searchable;
-		#ifndef EDS_DISABLE_DEPRECATED
-		xmlChar *color;
-		#endif
 
 		category = xmlGetProp (node, (xmlChar *) "a");
 		icon = xmlGetProp (node, (xmlChar *) "icon");
-		#ifndef EDS_DISABLE_DEPRECATED
-		color = xmlGetProp (node, (xmlChar *) "color");
-		#endif
 		searchable = xmlGetProp (node, (xmlChar *) "searchable");
 
 		if (category != NULL) {
 			e_categories_add (
 				(gchar *) category,
-				#ifndef EDS_DISABLE_DEPRECATED
-				(gchar *) color,
-				#else
 				NULL,
-				#endif
 				(gchar *) icon,
 				(searchable != NULL) &&
 				strcmp ((gchar *) searchable, "0") != 0);
@@ -285,9 +280,6 @@ parse_categories (const gchar *contents, gsize length)
 
 		xmlFree (category);
 		xmlFree (icon);
-		#ifndef EDS_DISABLE_DEPRECATED
-		xmlFree (color);
-		#endif
 		xmlFree (searchable);
 	}
 
@@ -478,7 +470,7 @@ add_hash_to_list (gpointer key, gpointer value, gpointer user_data)
  *
  * Returns a sorted list of all the category names currently configured.
  *
- * Return value: a sorted GList containing the names of the categories. The
+ * Returns: a sorted GList containing the names of the categories. The
  * list should be freed using g_list_free, but the names of the categories
  * should not be touched at all, they are internal strings.
  */
@@ -553,7 +545,7 @@ e_categories_remove (const gchar *category)
  *
  * Checks whether the given category is available in the configuration.
  *
- * Return value: %TRUE if the category is available, %FALSE otherwise.
+ * Returns: %TRUE if the category is available, %FALSE otherwise.
  */
 gboolean
 e_categories_exist (const gchar *category)
@@ -566,43 +558,13 @@ e_categories_exist (const gchar *category)
 	return (g_hash_table_lookup (categories_table, category) != NULL);
 }
 
-#ifndef EDS_DISABLE_DEPRECATED
-/**
- * e_categories_get_color_for:
- * @category: category to retrieve the color for.
- *
- * Returns: %NULL, always
- *
- * DEPRECATED!
- */
-const gchar *
-e_categories_get_color_for (const gchar *category)
-{
-	return NULL;
-}
-
-/**
- * e_categories_set_color_for:
- * @category: category to set the color for.
- * @color: X color.
- *
- * This function does nothing.
- *
- * DEPRECATED!
- */
-void
-e_categories_set_color_for (const gchar *category, const gchar *color)
-{
-}
-#endif /* EDS_DISABLE_DEPRECATED */
-
 /**
  * e_categories_get_icon_file_for:
  * @category: category to retrieve the icon file for.
  *
  * Gets the icon file associated with the given category.
  *
- * Return value: icon file name.
+ * Returns: icon file name.
  */
 const gchar *
 e_categories_get_icon_file_for (const gchar *category)
@@ -680,6 +642,8 @@ e_categories_is_searchable (const gchar *category)
  * Registers callback to be called on change of any category.
  * Pair listener and user_data is used to distinguish between listeners.
  * Listeners can be unregistered with @e_categories_unregister_change_listener.
+ *
+ * Since: 2.24
  **/
 void
 e_categories_register_change_listener (GCallback listener, gpointer user_data)
@@ -697,6 +661,8 @@ e_categories_register_change_listener (GCallback listener, gpointer user_data)
  *
  * Removes previously registered callback from the list of listeners on changes.
  * If it was not registered, then does nothing.
+ *
+ * Since: 2.24
  **/
 void
 e_categories_unregister_change_listener (GCallback listener, gpointer user_data)

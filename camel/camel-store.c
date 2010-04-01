@@ -999,7 +999,9 @@ camel_folder_info_free (CamelFolderInfo *fi)
 /**
  * camel_folder_info_new:
  *
- * Return value: a new empty CamelFolderInfo instance
+ * Returns: a new empty CamelFolderInfo instance
+ *
+ * Since: 2.22
  **/
 CamelFolderInfo *
 camel_folder_info_new (void)
@@ -1019,14 +1021,14 @@ folder_info_cmp (gconstpointer ap, gconstpointer bp)
 /**
  * camel_folder_info_build:
  * @folders: an array of #CamelFolderInfo
- * @namespace: an ignorable prefix on the folder names
+ * @name_space: an ignorable prefix on the folder names
  * @separator: the hieararchy separator character
  * @short_names: %TRUE if the (short) name of a folder is the part after
  * the last @separator in the full name. %FALSE if it is the full name.
  *
  * This takes an array of folders and attaches them together according
  * to the hierarchy described by their full_names and @separator. If
- * @namespace is non-%NULL, then it will be ignored as a full_name
+ * @name_space is non-%NULL, then it will be ignored as a full_name
  * prefix, for purposes of comparison. If necessary,
  * #camel_folder_info_build will create additional #CamelFolderInfo with
  * %NULL urls to fill in gaps in the tree. The value of @short_names
@@ -1038,7 +1040,7 @@ folder_info_cmp (gconstpointer ap, gconstpointer bp)
  * Returns: the top level of the tree of linked folder info.
  **/
 CamelFolderInfo *
-camel_folder_info_build (GPtrArray *folders, const gchar *namespace,
+camel_folder_info_build (GPtrArray *folders, const gchar *name_space,
 			 gchar separator, gboolean short_names)
 {
 	CamelFolderInfo *fi, *pfi, *top = NULL, *tail = NULL;
@@ -1046,9 +1048,9 @@ camel_folder_info_build (GPtrArray *folders, const gchar *namespace,
 	gchar *p, *pname;
 	gint i, nlen;
 
-	if (!namespace)
-		namespace = "";
-	nlen = strlen (namespace);
+	if (!name_space)
+		name_space = "";
+	nlen = strlen (name_space);
 
 	qsort (folders->pdata, folders->len, sizeof (folders->pdata[0]), folder_info_cmp);
 
@@ -1062,7 +1064,7 @@ camel_folder_info_build (GPtrArray *folders, const gchar *namespace,
 	/* Now find parents. */
 	for (i = 0; i < folders->len; i++) {
 		fi = folders->pdata[i];
-		if (!strncmp (namespace, fi->full_name, nlen)
+		if (!strncmp (name_space, fi->full_name, nlen)
 		    && (p = strrchr(fi->full_name+nlen, separator))) {
 			pname = g_strndup(fi->full_name, p - fi->full_name);
 			pfi = g_hash_table_lookup(hash, pname);
@@ -1389,6 +1391,8 @@ camel_store_folder_uri_equal (CamelStore *store,
  * Default behavior is that all Inbox folders are intended to be refreshed.
  *
  * Returns: whether folder should be checked for new mails
+ *
+ * Since: 2.22
  **/
 gboolean
 camel_store_can_refresh_folder (CamelStore *store,

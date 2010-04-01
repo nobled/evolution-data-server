@@ -36,10 +36,7 @@ static GHashTable *debug_table = NULL;
  * debug_init:
  * @void:
  *
- * Init camel debug.  Maintain legacy CAMEL_VERBOSE_DEBUG as well as the
- * new CAMEL_DEBUG based environment variable interfaces.
- *
- * CAMEL_VERBOSE_DEBUG is set to a number to turn debug on.
+ * Init camel debug.
  *
  * CAMEL_DEBUG is set to a comma separated list of modules to debug.
  * The modules can contain module-specific specifiers after a ':', or
@@ -51,10 +48,6 @@ void
 camel_debug_init (void)
 {
 	gchar *d;
-
-	d = getenv("CAMEL_VERBOSE_DEBUG");
-	if (d)
-		camel_verbose_debug = atoi(d);
 
 	d = g_strdup(getenv("CAMEL_DEBUG"));
 	if (d) {
@@ -85,7 +78,7 @@ camel_debug_init (void)
  * returns a boolean to indicate if the module or module and target is
  * currently activated for debug output.
  *
- * Return value:
+ * Returns:
  **/
 gboolean camel_debug(const gchar *mode)
 {
@@ -127,7 +120,7 @@ static pthread_mutex_t debug_lock = PTHREAD_MUTEX_INITIALIZER;
  * Start debug output for a given mode, used to make sure debug output
  * is output atomically and not interspersed with unrelated stuff.
  *
- * Return value: Returns true if mode is set, and in which case, you must
+ * Returns: Returns true if mode is set, and in which case, you must
  * call debug_end when finished any screen output.
  **/
 gboolean

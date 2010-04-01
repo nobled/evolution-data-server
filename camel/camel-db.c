@@ -393,6 +393,11 @@ cdb_sql_exec (sqlite3 *db,
 	return 0;
 }
 
+/**
+ * camel_db_open:
+ *
+ * Since: 2.24
+ **/
 CamelDB *
 camel_db_open (const gchar *path,
                GError **error)
@@ -458,6 +463,11 @@ camel_db_open (const gchar *path,
 	return cdb;
 }
 
+/**
+ * camel_db_clone:
+ *
+ * Since: 2.26
+ **/
 CamelDB *
 camel_db_clone (CamelDB *cdb,
                 GError **error)
@@ -465,6 +475,11 @@ camel_db_clone (CamelDB *cdb,
 	return camel_db_open (cdb->priv->file_name, error);
 }
 
+/**
+ * camel_db_close:
+ *
+ * Since: 2.24
+ **/
 void
 camel_db_close (CamelDB *cdb)
 {
@@ -476,6 +491,11 @@ camel_db_close (CamelDB *cdb)
 	}
 }
 
+/**
+ * camel_db_set_collate:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_set_collate (CamelDB *cdb, const gchar *col, const gchar *collate, CamelDBCollate func)
 {
@@ -493,7 +513,11 @@ camel_db_set_collate (CamelDB *cdb, const gchar *col, const gchar *collate, Came
 		return ret;
 }
 
-/* Should this be really exposed ? */
+/**
+ * camel_db_command:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_command (CamelDB *cdb,
                   const gchar *stmt,
@@ -513,6 +537,11 @@ camel_db_command (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_begin_transaction:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_begin_transaction (CamelDB *cdb,
                             GError **error)
@@ -528,6 +557,11 @@ camel_db_begin_transaction (CamelDB *cdb,
 	return (cdb_sql_exec (cdb->db, "BEGIN", error));
 }
 
+/**
+ * camel_db_end_transaction:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_end_transaction (CamelDB *cdb,
                           GError **error)
@@ -547,6 +581,11 @@ camel_db_end_transaction (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_abort_transaction:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_abort_transaction (CamelDB *cdb,
                             GError **error)
@@ -562,6 +601,11 @@ camel_db_abort_transaction (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_add_to_transaction:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_add_to_transaction (CamelDB *cdb,
                              const gchar *stmt,
@@ -573,6 +617,11 @@ camel_db_add_to_transaction (CamelDB *cdb,
 	return (cdb_sql_exec (cdb->db, stmt, error));
 }
 
+/**
+ * camel_db_transaction_command:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_transaction_command (CamelDB *cdb,
                               GSList *qry_list,
@@ -619,6 +668,11 @@ count_cb (gpointer data, gint argc, gchar **argv, gchar **azColName)
 	return 0;
 }
 
+/**
+ * camel_db_count_message_info:
+ *
+ * Since: 2.26
+ **/
 gint
 camel_db_count_message_info (CamelDB *cdb,
                              const gchar *query,
@@ -664,6 +718,11 @@ camel_db_count_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_junk_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_junk_message_info (CamelDB *cdb,
                                   const gchar *table_name,
@@ -684,6 +743,11 @@ camel_db_count_junk_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_unread_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_unread_message_info (CamelDB *cdb,
                                     const gchar *table_name,
@@ -704,6 +768,11 @@ camel_db_count_unread_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_visible_unread_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_visible_unread_message_info (CamelDB *cdb,
                                             const gchar *table_name,
@@ -724,6 +793,11 @@ camel_db_count_visible_unread_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_visible_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_visible_message_info (CamelDB *cdb,
                                      const gchar *table_name,
@@ -744,6 +818,11 @@ camel_db_count_visible_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_junk_not-deleted_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_junk_not_deleted_message_info (CamelDB *cdb,
                                               const gchar *table_name,
@@ -764,6 +843,11 @@ camel_db_count_junk_not_deleted_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_deleted_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_deleted_message_info (CamelDB *cdb,
                                      const gchar *table_name,
@@ -784,6 +868,11 @@ camel_db_count_deleted_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_count_total_message_info:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_count_total_message_info (CamelDB *cdb,
                                    const gchar *table_name,
@@ -805,6 +894,11 @@ camel_db_count_total_message_info (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_select:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_select (CamelDB *cdb,
                  const gchar *stmt,
@@ -855,6 +949,11 @@ camel_db_select (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_create_vfolder:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_create_vfolder (CamelDB *db,
                          const gchar *folder_name,
@@ -880,6 +979,11 @@ camel_db_create_vfolder (CamelDB *db,
 	return ret;
 }
 
+/**
+ * camel_db_recreate_vfolder:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_recreate_vfolder (CamelDB *db,
                            const gchar *folder_name,
@@ -897,6 +1001,11 @@ camel_db_recreate_vfolder (CamelDB *db,
 	return camel_db_create_vfolder (db, folder_name, error);
 }
 
+/**
+ * camel_db_delete_uid_from_vfolder:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_delete_uid_from_vfolder (CamelDB *db,
                                   gchar *folder_name,
@@ -915,6 +1024,11 @@ camel_db_delete_uid_from_vfolder (CamelDB *db,
 	 return ret;
 }
 
+/**
+ * camel_db_delete_uid_from_vfolder_transaction:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_delete_uid_from_vfolder_transaction (CamelDB *db,
                                               const gchar *folder_name,
@@ -953,6 +1067,11 @@ read_uids_flags_callback (gpointer ref, gint ncol, gchar ** cols, gchar ** name)
 	 return 0;
 }
 
+/**
+ * camel_db_get_folder_uids_flags:
+ *
+ * Since: 2.26
+ **/
 gint
 camel_db_get_folder_uids_flags (CamelDB *db,
                                 const gchar *folder_name,
@@ -1003,6 +1122,11 @@ read_uids_callback (gpointer ref, gint ncol, gchar ** cols, gchar ** name)
 	 return 0;
 }
 
+/**
+ * camel_db_get_folder_uids:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_get_folder_uids (CamelDB *db,
                           const gchar *folder_name,
@@ -1022,6 +1146,11 @@ camel_db_get_folder_uids (CamelDB *db,
 	 return ret;
 }
 
+/**
+ * camel_db_get_folder_junk_uids:
+ *
+ * Since: 2.24
+ **/
 GPtrArray *
 camel_db_get_folder_junk_uids (CamelDB *db,
                                gchar *folder_name,
@@ -1044,6 +1173,11 @@ camel_db_get_folder_junk_uids (CamelDB *db,
 	 return array;
 }
 
+/**
+ * camel_db_get_folder_deleted_uids:
+ *
+ * Since: 2.24
+ **/
 GPtrArray *
 camel_db_get_folder_deleted_uids (CamelDB *db,
                                   gchar *folder_name,
@@ -1086,6 +1220,11 @@ read_preview_callback (gpointer ref, gint ncol, gchar ** cols, gchar ** name)
 	return 0;
 }
 
+/**
+ * camel_db_get_folder_preview:
+ *
+ * Since: 2.28
+ **/
 GHashTable *
 camel_db_get_folder_preview (CamelDB *db,
                              gchar *folder_name,
@@ -1108,6 +1247,11 @@ camel_db_get_folder_preview (CamelDB *db,
 	 return hash;
 }
 
+/**
+ * camel_db_write_preview_record:
+ *
+ * Since: 2.28
+ **/
 gint
 camel_db_write_preview_record (CamelDB *db,
                                gchar *folder_name,
@@ -1145,6 +1289,11 @@ read_vuids_callback (gpointer ref, gint ncol, gchar ** cols, gchar ** name)
 	 return 0;
 }
 
+/**
+ * camel_db_get_vuids_from_vfolder:
+ *
+ * Since: 2.24
+ **/
 GPtrArray *
 camel_db_get_vuids_from_vfolder (CamelDB *db,
                                  gchar *folder_name,
@@ -1177,6 +1326,11 @@ camel_db_get_vuids_from_vfolder (CamelDB *db,
 	 return array;
 }
 
+/**
+ * camel_db_add_to_vfolder:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_add_to_vfolder (CamelDB *db,
                          gchar *folder_name,
@@ -1195,6 +1349,11 @@ camel_db_add_to_vfolder (CamelDB *db,
 	 return ret;
 }
 
+/**
+ * camel_db_add_to_vfolder_transaction:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_add_to_vfolder_transaction (CamelDB *db,
                                      gchar *folder_name,
@@ -1213,6 +1372,11 @@ camel_db_add_to_vfolder_transaction (CamelDB *db,
 	 return ret;
 }
 
+/**
+ * camel_db_create_folders_table:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_create_folders_table (CamelDB *cdb,
                                GError **error)
@@ -1352,6 +1516,11 @@ camel_db_migrate_folder_recreate (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_reset_folder_version:
+ *
+ * Since: 2.28
+ **/
 gint
 camel_db_reset_folder_version (CamelDB *cdb,
                                const gchar *folder_name,
@@ -1430,6 +1599,11 @@ camel_db_get_folder_version (CamelDB *cdb,
 	return version;
 }
 
+/**
+ * camel_db_prepare_message_info_table:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_prepare_message_info_table (CamelDB *cdb,
                                      const gchar *folder_name,
@@ -1512,6 +1686,11 @@ write_mir (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_write_fresh_message_info_record:
+ *
+ * Since: 2.26
+ **/
 gint
 camel_db_write_fresh_message_info_record (CamelDB *cdb,
                                           const gchar *folder_name,
@@ -1521,6 +1700,11 @@ camel_db_write_fresh_message_info_record (CamelDB *cdb,
 	return write_mir (cdb, folder_name, record, error, FALSE);
 }
 
+/**
+ * camel_db_write_message_info_record:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_write_message_info_record (CamelDB *cdb,
                                     const gchar *folder_name,
@@ -1530,6 +1714,11 @@ camel_db_write_message_info_record (CamelDB *cdb,
 	return write_mir (cdb, folder_name, record, error, TRUE);
 }
 
+/**
+ * camel_db_write_folder_info_record:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_write_folder_info_record (CamelDB *cdb,
                                    CamelFIRecord *record,
@@ -1620,6 +1809,11 @@ read_fir_callback (gpointer  ref, gint ncol, gchar ** cols, gchar ** name)
 	return 0;
 }
 
+/**
+ * camel_db_read_folder_info_record:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_read_folder_info_record (CamelDB *cdb,
                                   const gchar *folder_name,
@@ -1636,6 +1830,11 @@ camel_db_read_folder_info_record (CamelDB *cdb,
 	return (ret);
 }
 
+/**
+ * camel_db_read_message_info_record_with_uid:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_read_message_info_record_with_uid (CamelDB *cdb,
                                             const gchar *folder_name,
@@ -1654,6 +1853,11 @@ camel_db_read_message_info_record_with_uid (CamelDB *cdb,
 	return (ret);
 }
 
+/**
+ * camel_db_read_message_info_records:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_read_message_info_records (CamelDB *cdb,
                                     const gchar *folder_name,
@@ -1671,6 +1875,11 @@ camel_db_read_message_info_records (CamelDB *cdb,
 	return (ret);
 }
 
+/**
+ * camel_db_create_deleted_table:
+ *
+ * Since: 2.24
+ **/
 static gint
 camel_db_create_deleted_table (CamelDB *cdb,
                                GError **error)
@@ -1696,6 +1905,11 @@ camel_db_trim_deleted_table (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_delete_uid:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_delete_uid (CamelDB *cdb,
                      const gchar *folder,
@@ -1805,6 +2019,11 @@ cdb_delete_ids (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_delete_uids:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_delete_uids (CamelDB *cdb,
                       const gchar *folder_name,
@@ -1817,6 +2036,11 @@ camel_db_delete_uids (CamelDB *cdb,
 	return cdb_delete_ids (cdb, folder_name, uids, "", "uid", error);
 }
 
+/**
+ * camel_db_delete_vuids:
+ *
+ * Since: 2.26
+ **/
 gint
 camel_db_delete_vuids (CamelDB *cdb,
                        const gchar *folder_name,
@@ -1827,6 +2051,11 @@ camel_db_delete_vuids (CamelDB *cdb,
 	return cdb_delete_ids (cdb, folder_name, uids, hash, "vuid", error);
 }
 
+/**
+ * camel_db_clear_folder_summary:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_clear_folder_summary (CamelDB *cdb,
                                gchar *folder,
@@ -1866,6 +2095,11 @@ camel_db_clear_folder_summary (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_delete_folder:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_delete_folder (CamelDB *cdb,
                         const gchar *folder,
@@ -1903,6 +2137,11 @@ camel_db_delete_folder (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_rename_folder:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_rename_folder (CamelDB *cdb,
                         const gchar *old_folder,
@@ -1944,6 +2183,11 @@ camel_db_rename_folder (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_camel_mir_free:
+ *
+ * Since: 2.24
+ **/
 void
 camel_db_camel_mir_free (CamelMIRecord *record)
 {
@@ -1968,12 +2212,22 @@ camel_db_camel_mir_free (CamelMIRecord *record)
 	}
 }
 
+/**
+ * camel_db_sqlize_string:
+ *
+ * Since: 2.24
+ **/
 gchar *
 camel_db_sqlize_string (const gchar *string)
 {
 	return sqlite3_mprintf ("%Q", string);
 }
 
+/**
+ * camel_db_free_sqlized_string:
+ *
+ * Since: 2.24
+ **/
 void
 camel_db_free_sqlized_string (gchar *string)
 {
@@ -1995,6 +2249,11 @@ followup_flag TEXT ,
 followup_completed_on TEXT ,
 followup_due_by TEXT ," */
 
+/**
+ * camel_db_get_column_name:
+ *
+ * Since: 2.24
+ **/
 gchar *
 camel_db_get_column_name (const gchar *raw_name)
 {
@@ -2029,6 +2288,11 @@ camel_db_get_column_name (const gchar *raw_name)
 
 }
 
+/**
+ * camel_db_migrate_vfolders_to_14:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_db_migrate_vfolders_to_14 (CamelDB *cdb,
                                  const gchar *folder,
@@ -2044,6 +2308,11 @@ camel_db_migrate_vfolders_to_14 (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_start_in_memory_transactions:
+ *
+ * Since: 2.26
+ **/
 gint
 camel_db_start_in_memory_transactions (CamelDB *cdb,
                                        GError **error)
@@ -2063,6 +2332,11 @@ camel_db_start_in_memory_transactions (CamelDB *cdb,
 	return ret;
 }
 
+/**
+ * camel_db_flush_in_memory_transactions:
+ *
+ * Since: 2.26
+ **/
 gint
 camel_db_flush_in_memory_transactions (CamelDB *cdb,
                                        const gchar *folder_name,

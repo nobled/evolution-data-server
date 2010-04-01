@@ -124,6 +124,11 @@ struct _CamelFolderChangeInfo {
 
 typedef struct _CamelFolderQuotaInfo CamelFolderQuotaInfo;
 
+/**
+ * CamelFolderQuotaInfo:
+ *
+ * Since: 2.24
+ **/
 struct _CamelFolderQuotaInfo {
 	gchar *name;
 	guint64 used;
@@ -273,6 +278,8 @@ gboolean	camel_folder_refresh_info	(CamelFolder *folder,
 gboolean	camel_folder_sync		(CamelFolder *folder,
 						 gboolean expunge,
 						 GError **error);
+void		camel_folder_set_lock_async	(CamelFolder *folder,
+						 gboolean skip_folder_lock);
 
 struct _CamelStore *
 		camel_folder_get_parent_store	(CamelFolder *folder);

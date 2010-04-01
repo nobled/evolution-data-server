@@ -77,6 +77,8 @@ camel_offline_store_init (CamelOfflineStore *store)
  *
  * Return the network state either #CAMEL_OFFLINE_STORE_NETWORK_AVAIL
  * or #CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL.
+ *
+ * Since: 2.24
  **/
 gint
 camel_offline_store_get_network_state (CamelOfflineStore *store,
@@ -147,6 +149,11 @@ camel_offline_store_set_network_state (CamelOfflineStore *store,
 	store->state = state;
 }
 
+/**
+ * camel_offline_store_prepare_for_offline:
+ *
+ * Since: 2.22
+ **/
 void
 camel_offline_store_prepare_for_offline (CamelOfflineStore *store,
                                          GError **error)

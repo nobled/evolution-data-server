@@ -45,9 +45,6 @@ libcamel_provider_1_2_la_CPPFLAGS = \
 
 libcamel_provider_1_2_la_SOURCES = 		\
 	camel-cipher-context.c			\
-	camel-digest-folder.c			\
-	camel-digest-store.c			\
-	camel-digest-summary.c			\
 	camel-disco-diary.c			\
 	camel-disco-folder.c			\
 	camel-disco-store.c			\
@@ -93,9 +90,6 @@ libcamel_provider_1_2_la_SOURCES = 		\
 
 libcamel_providerinclude_HEADERS =		\
 	camel-cipher-context.h			\
-	camel-digest-folder.h			\
-	camel-digest-store.h			\
-	camel-digest-summary.h			\
 	camel-disco-diary.h			\
 	camel-disco-folder.h			\
 	camel-disco-store.h			\
@@ -110,11 +104,9 @@ libcamel_providerinclude_HEADERS =		\
 	camel-html-parser.h			\
 	camel-lock-helper.h			\
 	camel-movemail.h			\
-	camel-news-address.h			\
 	camel-offline-folder.h			\
 	camel-offline-journal.h			\
 	camel-offline-store.h			\
-	camel-process.h				\
 	camel-provider.h			\
 	camel-sasl-anonymous.h			\
 	camel-sasl-cram-md5.h			\
@@ -184,6 +176,7 @@ libcamel_1_2_la_SOURCES = 			\
 	camel-list-utils.c			\
 	camel-lock.c				\
 	camel-medium.c				\
+	camel-mempool.c				\
 	camel-mime-filter-basic.c		\
 	camel-mime-filter-bestenc.c		\
 	camel-mime-filter-canon.c		\
@@ -247,7 +240,6 @@ libcamelinclude_HEADERS =			\
 	camel-db.h				\
 	camel-debug.h				\
 	camel-file-utils.h			\
-	camel-i18n.h				\
 	camel-iconv.h				\
 	camel-index.h				\
 	camel-internet-address.h		\
@@ -256,6 +248,7 @@ libcamelinclude_HEADERS =			\
 	camel-lock-client.h			\
 	camel-lock.h				\
 	camel-medium.h				\
+	camel-mempool.h				\
 	camel-mime-filter-basic.h		\
 	camel-mime-filter-bestenc.h		\
 	camel-mime-filter-canon.h		\

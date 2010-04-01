@@ -94,7 +94,7 @@ camel_mh_summary_init (CamelMhSummary *mh_summary)
  *
  * Create a new CamelMhSummary object.
  *
- * Return value: A new #CamelMhSummary object.
+ * Returns: A new #CamelMhSummary object.
  **/
 CamelMhSummary *
 camel_mh_summary_new (CamelFolder *folder,

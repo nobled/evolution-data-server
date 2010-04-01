@@ -1962,6 +1962,11 @@ camel_vee_folder_init (CamelVeeFolder *vee_folder)
 	vee_folder->priv->unread_vfolder = -1;
 }
 
+/**
+ * camel_vee_folder_mask_event_folder_changed:
+ *
+ * Since: 2.26
+ **/
 void
 camel_vee_folder_construct (CamelVeeFolder *vf, CamelStore *parent_store, const gchar *full, const gchar *name, guint32 flags)
 {
@@ -2019,6 +2024,11 @@ camel_vee_folder_new (CamelStore *parent_store, const gchar *full, guint32 flags
 	return (CamelFolder *)vf;
 }
 
+/**
+ * camel_vee_folder_unmask_event_folder_changed:
+ *
+ * Since: 2.26
+ **/
 void
 camel_vee_folder_set_expression (CamelVeeFolder *vf, const gchar *query)
 {

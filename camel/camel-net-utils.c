@@ -663,6 +663,11 @@ cs_getaddrinfo(gpointer data)
 }
 #endif /* NEED_ADDRINFO */
 
+/**
+ * camel_getaddrinfo:
+ *
+ * Since: 2.22
+ **/
 struct addrinfo *
 camel_getaddrinfo (const gchar *name,
                    const gchar *service,
@@ -722,6 +727,11 @@ camel_getaddrinfo (const gchar *name,
 	return res;
 }
 
+/**
+ * camel_freeaddrinfo:
+ *
+ * Since: 2.22
+ **/
 void
 camel_freeaddrinfo(struct addrinfo *host)
 {
@@ -804,6 +814,11 @@ cs_getnameinfo(gpointer data)
 }
 #endif
 
+/**
+ * camel_getnameinfo:
+ *
+ * Since: 2.22
+ **/
 gint
 camel_getnameinfo (const struct sockaddr *sa,
                    socklen_t salen,

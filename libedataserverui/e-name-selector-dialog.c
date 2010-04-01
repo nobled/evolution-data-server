@@ -349,7 +349,7 @@ e_name_selector_dialog_class_init (ENameSelectorDialogClass *name_selector_dialo
  *
  * Creates a new #ENameSelectorDialog.
  *
- * Return value: A new #ENameSelectorDialog.
+ * Returns: A new #ENameSelectorDialog.
  **/
 ENameSelectorDialog *
 e_name_selector_dialog_new (void)
@@ -1172,6 +1172,8 @@ contact_column_formatter (GtkTreeViewColumn *column, GtkCellRenderer *cell, GtkT
 	full_name_str = e_contact_get (contact, E_CONTACT_FULL_NAME);
 
 	if (e_contact_get (contact, E_CONTACT_IS_LIST)) {
+		if (!full_name_str)
+			full_name_str = e_contact_get (contact, E_CONTACT_FILE_AS);
 		string = g_strdup_printf ("%s", full_name_str ? full_name_str : "?");
 	} else {
 		string = g_strdup_printf ("%s%s<%s>", full_name_str ? full_name_str : "",
@@ -1222,7 +1224,7 @@ destination_column_formatter (GtkTreeViewColumn *column, GtkCellRenderer *cell, 
  *
  * Gets the #ENameSelectorModel used by @name_selector_model.
  *
- * Return value: The #ENameSelectorModel being used.
+ * Returns: The #ENameSelectorModel being used.
  **/
 ENameSelectorModel *
 e_name_selector_dialog_peek_model (ENameSelectorDialog *name_selector_dialog)
@@ -1275,24 +1277,3 @@ e_name_selector_dialog_set_destination_index (ENameSelectorDialog *name_selector
 
 	priv->destination_index = index;
 }
-
-/* ---------------------------------------- *
- * Widget creation functions for GtkBuilder *
- * ---------------------------------------- */
-
-#ifdef CATEGORIES_COMPONENTS_MOVED
-
-GtkWidget *
-e_name_selector_dialog_create_categories (void)
-{
-	ECategoriesMasterList *ecml;
-	GtkWidget             *option_menu;
-
-	ecml = e_categories_master_list_wombat_new ();
-	option_menu = e_categories_master_list_option_menu_new (ecml);
-	g_object_unref (ecml);
-
-	return option_menu;
-}
-
-#endif

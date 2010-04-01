@@ -228,6 +228,13 @@ CamelStore
 
 
 
+<!-- ##### MACRO CAMEL_STORE_ASYNC ##### -->
+<para>
+
+</para>
+
+
+
 <!-- ##### MACRO CAMEL_STORE_FOLDER_CREATE ##### -->
 <para>
 
@@ -447,7 +454,7 @@ CamelStore
 </para>
 
 @folders: 
-@namespace: 
+@name_space: 
 @separator: 
 @short_names: 
 @Returns: 

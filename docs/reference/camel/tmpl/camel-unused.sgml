@@ -1,3 +1,75 @@
+<!-- ##### SECTION ./tmpl/camel-digest-folder.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-folder.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-folder.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-folder.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-folder.sgml:Title ##### -->
+CamelDigestFolder
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-store.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-store.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-store.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-store.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-store.sgml:Title ##### -->
+CamelDigestStore
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-summary.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-summary.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-summary.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-summary.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-digest-summary.sgml:Title ##### -->
+CamelDigestSummary
+
+
 <!-- ##### SECTION ./tmpl/camel-groupwise-private.sgml:Long_Description ##### -->
 <para>
 
@@ -78,52 +150,52 @@ camel-imap-types
 camel-local-private
 
 
-<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Long_Description ##### -->
+<!-- ##### SECTION ./tmpl/camel-news-address.sgml:Long_Description ##### -->
 <para>
 
 </para>
 
 
-<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:See_Also ##### -->
+<!-- ##### SECTION ./tmpl/camel-news-address.sgml:See_Also ##### -->
 <para>
 
 </para>
 
 
-<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Short_Description ##### -->
+<!-- ##### SECTION ./tmpl/camel-news-address.sgml:Short_Description ##### -->
 
 
 
-<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Stability_Level ##### -->
+<!-- ##### SECTION ./tmpl/camel-news-address.sgml:Stability_Level ##### -->
 
 
 
-<!-- ##### SECTION ./tmpl/camel-md5-utils.sgml:Title ##### -->
-camel-md5-utils
+<!-- ##### SECTION ./tmpl/camel-news-address.sgml:Title ##### -->
+CamelNewsAddress
 
 
-<!-- ##### SECTION ./tmpl/camel-mime-part-utils.sgml:Long_Description ##### -->
+<!-- ##### SECTION ./tmpl/camel-nntp-address.sgml:Long_Description ##### -->
 <para>
 
 </para>
 
 
-<!-- ##### SECTION ./tmpl/camel-mime-part-utils.sgml:See_Also ##### -->
+<!-- ##### SECTION ./tmpl/camel-nntp-address.sgml:See_Also ##### -->
 <para>
 
 </para>
 
 
-<!-- ##### SECTION ./tmpl/camel-mime-part-utils.sgml:Short_Description ##### -->
+<!-- ##### SECTION ./tmpl/camel-nntp-address.sgml:Short_Description ##### -->
 
 
 
-<!-- ##### SECTION ./tmpl/camel-mime-part-utils.sgml:Stability_Level ##### -->
+<!-- ##### SECTION ./tmpl/camel-nntp-address.sgml:Stability_Level ##### -->
 
 
 
-<!-- ##### SECTION ./tmpl/camel-mime-part-utils.sgml:Title ##### -->
-camel-mime-part-utils
+<!-- ##### SECTION ./tmpl/camel-nntp-address.sgml:Title ##### -->
+CamelNNTPAddress
 
 
 <!-- ##### SECTION ./tmpl/camel-nntp-private.sgml:Long_Description ##### -->
@@ -164,6 +236,30 @@ camel-nntp-private
 
 <!-- ##### SECTION ./tmpl/camel-nntp-types.sgml:Title ##### -->
 camel-nntp-types
+
+
+<!-- ##### SECTION ./tmpl/camel-process.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-process.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/camel-process.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-process.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/camel-process.sgml:Title ##### -->
+camel-process
 
 
 <!-- ##### SECTION ./tmpl/camel-search-private.sgml:Long_Description ##### -->
@@ -230,46 +326,6 @@ camel-search-sql-sexp.h
 camel-types
 
 
-<!-- ##### MACRO CAMEL_CHECK_CAST ##### -->
-<para>
-
-</para>
-
-@instance: 
-@g_type: 
-@c_type: 
-
-<!-- ##### MACRO CAMEL_CHECK_CLASS_CAST ##### -->
-<para>
-
-</para>
-
-@g_class: 
-@g_type: 
-@c_type: 
-
-<!-- ##### MACRO CAMEL_CHECK_CLASS_TYPE ##### -->
-<para>
-
-</para>
-
-@g_class: 
-@g_type: 
-
-<!-- ##### MACRO CAMEL_CHECK_TYPE ##### -->
-<para>
-
-</para>
-
-@instance: 
-@g_type: 
-
-<!-- ##### MACRO CAMEL_EXCEPTION_INITIALISER ##### -->
-<para>
-
-</para>
-
-
 <!-- ##### MACRO CAMEL_GROUPWISE_FOLDER_LOCK ##### -->
 <para>
 
@@ -302,12 +358,6 @@ camel-types
 @f: 
 @l: 
 
-<!-- ##### MACRO CAMEL_IMAP_MESSAGE_RECENT ##### -->
-<para>
-
-</para>
-
-
 <!-- ##### MACRO CAMEL_IMAP_WRAPPER_LOCK ##### -->
 <para>
 
@@ -323,12 +373,6 @@ camel-types
 
 @f: 
 @l: 
-
-<!-- ##### MACRO CAMEL_INTERFACE_TYPE ##### -->
-<para>
-
-</para>
-
 
 <!-- ##### MACRO CAMEL_INVALID_TYPE ##### -->
 <para>
@@ -351,16 +395,6 @@ camel-types
 
 @f: 
 @l: 
-
-<!-- ##### MACRO CAMEL_MAKE_CLASS ##### -->
-<para>
-
-</para>
-
-@type: 
-@tname: 
-@parent: 
-@pname: 
 
 <!-- ##### MACRO CAMEL_NNTP_FOLDER_LOCK ##### -->
 <para>
@@ -394,64 +428,26 @@ camel-types
 @f: 
 @l: 
 
-<!-- ##### MACRO CAMEL_OBJECT_GET_TYPE ##### -->
+<!-- ##### STRUCT CamelDigestFolder ##### -->
 <para>
 
 </para>
 
-@object: 
+@parent: 
+@priv: 
 
-<!-- ##### MACRO CAMEL_OBJECT_TRACK_INSTANCES ##### -->
+<!-- ##### STRUCT CamelDigestStore ##### -->
 <para>
 
 </para>
 
-
-<!-- ##### MACRO CAMEL_OBJECT_TYPE ##### -->
-<para>
-
-</para>
-
+@parent: 
 
 <!-- ##### STRUCT CamelException ##### -->
 <para>
 
 </para>
 
-
-<!-- ##### SIGNAL CamelFolder::deleted ##### -->
-<para>
-
-</para>
-
-@camelfolder: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelFolder::folder-changed ##### -->
-<para>
-
-</para>
-
-@camelfolder: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelFolder::renamed ##### -->
-<para>
-
-</para>
-
-@camelfolder: the object which received the signal.
-@arg1: 
-
-<!-- ##### STRUCT CamelISubscribe ##### -->
-<para>
-
-</para>
-
-@iface: 
-@subscribed: 
-@subscribe: 
-@unsubscribe: 
 
 <!-- ##### STRUCT CamelImapFolderPrivate ##### -->
 <para>
@@ -466,29 +462,6 @@ camel-types
 </para>
 
 
-<!-- ##### STRUCT CamelInterface ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### STRUCT CamelIterator ##### -->
-<para>
-
-</para>
-
-@klass: 
-
-<!-- ##### STRUCT CamelIteratorVTable ##### -->
-<para>
-
-</para>
-
-@free: 
-@next: 
-@reset: 
-@length: 
-
 <!-- ##### STRUCT CamelLocalFolderPrivate ##### -->
 <para>
 
@@ -496,13 +469,13 @@ camel-types
 
 @search_lock: 
 
-<!-- ##### STRUCT CamelMD5Context ##### -->
+<!-- ##### STRUCT CamelMimeFilterChomp ##### -->
 <para>
 
 </para>
 
 
-<!-- ##### STRUCT CamelMimeFilterChomp ##### -->
+<!-- ##### STRUCT CamelNNTPAddress ##### -->
 <para>
 
 </para>
@@ -555,39 +528,34 @@ camel-types
 
 @dummy: 
 
-<!-- ##### SIGNAL CamelObject::finalize ##### -->
+<!-- ##### STRUCT CamelNewsAddress ##### -->
 <para>
 
 </para>
 
-@camelobject: the object which received the signal.
-@arg1: 
+@parent: 
+@priv: 
 
-<!-- ##### SIGNAL CamelObject::meta-changed ##### -->
+<!-- ##### USER_FUNCTION CamelObjectClassFinalizeFunc ##### -->
 <para>
 
 </para>
 
-@camelobject: the object which received the signal.
-@arg1: 
+@Param1: 
 
-<!-- ##### TYPEDEF CamelObjectClassFinalizeFunc ##### -->
+<!-- ##### USER_FUNCTION CamelObjectClassInitFunc ##### -->
 <para>
 
 </para>
 
+@Param1: 
 
-<!-- ##### TYPEDEF CamelObjectClassInitFunc ##### -->
+<!-- ##### USER_FUNCTION CamelObjectFinalizeFunc ##### -->
 <para>
 
 </para>
 
-
-<!-- ##### TYPEDEF CamelObjectFinalizeFunc ##### -->
-<para>
-
-</para>
-
+@Param1: 
 
 <!-- ##### ENUM CamelObjectFlags ##### -->
 <para>
@@ -596,19 +564,13 @@ camel-types
 
 @CAMEL_OBJECT_DESTROY: 
 
-<!-- ##### TYPEDEF CamelObjectInitFunc ##### -->
+<!-- ##### USER_FUNCTION CamelObjectInitFunc ##### -->
 <para>
 
 </para>
 
-
-<!-- ##### SIGNAL CamelSession::online ##### -->
-<para>
-
-</para>
-
-@camelsession: the object which received the signal.
-@arg1: 
+@Param1: 
+@Param2: 
 
 <!-- ##### STRUCT CamelSimpleDataWrapper ##### -->
 <para>
@@ -616,597 +578,129 @@ camel-types
 </para>
 
 
-<!-- ##### SIGNAL CamelStore::folder-created ##### -->
-<para>
-
-</para>
-
-@camelstore: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelStore::folder-deleted ##### -->
-<para>
-
-</para>
-
-@camelstore: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelStore::folder-opened ##### -->
-<para>
-
-</para>
-
-@camelstore: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelStore::folder-renamed ##### -->
-<para>
-
-</para>
-
-@camelstore: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelStore::folder-subscribed ##### -->
-<para>
-
-</para>
-
-@camelstore: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL CamelStore::folder-unsubscribed ##### -->
-<para>
-
-</para>
-
-@camelstore: the object which received the signal.
-@arg1: 
-
 <!-- ##### STRUCT CamelStreamDataWrapper ##### -->
 <para>
 
 </para>
 
 
-<!-- ##### TYPEDEF CamelType ##### -->
+<!-- ##### FUNCTION camel_name_to_type ##### -->
 <para>
 
 </para>
 
-
-<!-- ##### ENUM ExceptionId ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### MACRO NI_MAXHOST ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### MACRO NI_MAXSERV ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### FUNCTION add_recipients ##### -->
-<para>
-
-</para>
-
-@recipient_list: 
-@recipients: 
-@recipient_type: 
-@Returns: 
-
-<!-- ##### STRUCT addrinfo ##### -->
-<para>
-
-</para>
-
-@ai_flags: 
-@ai_family: 
-@ai_socktype: 
-@ai_protocol: 
-@ai_addrlen: 
-@ai_addr: 
-@ai_canonname: 
-@ai_next: 
-
-<!-- ##### FUNCTION camel_block_file_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_cipher_context_construct ##### -->
-<para>
-
-</para>
-
-@context: 
-@session: 
-
-<!-- ##### FUNCTION camel_exception_clear ##### -->
-<para>
-
-</para>
-
-@ex: 
-
-<!-- ##### FUNCTION camel_exception_free ##### -->
-<para>
-
-</para>
-
-@ex: 
-
-<!-- ##### FUNCTION camel_exception_get_description ##### -->
-<para>
-
-</para>
-
-@ex: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_exception_get_id ##### -->
-<para>
-
-</para>
-
-@ex: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_exception_init ##### -->
-<para>
-
-</para>
-
-@ex: 
-
-<!-- ##### MACRO camel_exception_is_set ##### -->
-<para>
-
-</para>
-
-@ex: 
-
-<!-- ##### FUNCTION camel_exception_new ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_exception_set ##### -->
-<para>
-
-</para>
-
-@ex: 
-@id: 
-@desc: 
-
-<!-- ##### FUNCTION camel_exception_setv ##### -->
-<para>
-
-</para>
-
-@ex: 
-@id: 
-@format: 
-@Varargs: 
-
-<!-- ##### FUNCTION camel_exception_xfer ##### -->
-<para>
-
-</para>
-
-@ex_dst: 
-@ex_src: 
-
-<!-- ##### FUNCTION camel_file_util_decode_size_t ##### -->
-<para>
-
-</para>
-
-@in: 
-@dest: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_file_util_encode_size_t ##### -->
-<para>
-
-</para>
-
-@out: 
-@value: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_folder_set_lock_async ##### -->
-<para>
-
-</para>
-
-@folder: 
-@async: 
-
-<!-- ##### FUNCTION camel_folder_summary_array_free ##### -->
-<para>
-
-</para>
-
-@summary: 
-@array: 
-
-<!-- ##### STRUCT camel_header_raw ##### -->
-<para>
-
-</para>
-
-@next: 
-@name: 
-@value: 
-@offset: 
-
-<!-- ##### FUNCTION camel_header_raw_find_next ##### -->
-<para>
-
-</para>
-
-@header_queue: 
-@header_name: 
-@offset: 
-@last_value: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_header_raw_fold ##### -->
-<para>
-
-</para>
-
-@list: 
-
-<!-- ##### FUNCTION camel_header_raw_replace ##### -->
-<para>
-
-</para>
-
-@header_queue: 
-@header_name: 
-@header_value: 
-@offset: 
-
-<!-- ##### FUNCTION camel_imap_store_summary_namespace_new ##### -->
-<para>
-
-</para>
-
-@s: 
-@full_name: 
-@dir_sep: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_imap_store_summary_namespace_set ##### -->
-<para>
-
-</para>
-
-@s: 
-@ns: 
-
-<!-- ##### FUNCTION camel_index_name_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### MACRO camel_interface_cast ##### -->
-<para>
-
-</para>
-
-@g_class: 
-@g_type: 
-@Returns: 
-
-<!-- ##### MACRO camel_interface_is ##### -->
-<para>
-
-</para>
-
-@g_class: 
-@g_type: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_interface_register ##### -->
-<para>
-
-</para>
-
-@parent: 
-@name: 
-@classfuncs_size: 
-@class_init: 
-@class_finalize: 
-@Returns: 
-
-<!-- ##### VARIABLE camel_interface_type ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### FUNCTION camel_isubscribe_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_isubscribe_subscribe ##### -->
-<para>
-
-</para>
-
-@store: 
-@folder_name: 
-@ex: 
-
-<!-- ##### FUNCTION camel_isubscribe_subscribed ##### -->
-<para>
-
-</para>
-
-@store: 
 @name: 
 @Returns: 
 
-<!-- ##### FUNCTION camel_isubscribe_unsubscribe ##### -->
+<!-- ##### FUNCTION camel_nntp_address_add ##### -->
 <para>
 
 </para>
 
-@store: 
-@folder_name: 
-@ex: 
-
-<!-- ##### FUNCTION camel_iterator_free ##### -->
-<para>
-
-</para>
-
-@it: 
-
-<!-- ##### FUNCTION camel_iterator_length ##### -->
-<para>
-
-</para>
-
-@it: 
+@a: 
+@name: 
 @Returns: 
 
-<!-- ##### FUNCTION camel_iterator_new ##### -->
+<!-- ##### FUNCTION camel_nntp_address_get ##### -->
 <para>
 
 </para>
 
-@klass: 
-@size: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_iterator_next ##### -->
-<para>
-
-</para>
-
-@it: 
-@ex: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_iterator_reset ##### -->
-<para>
-
-</para>
-
-@it: 
-
-<!-- ##### FUNCTION camel_key_file_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_key_table_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_md5_final ##### -->
-<para>
-
-</para>
-
-@ctx: 
-@digest: 
-
-<!-- ##### FUNCTION camel_md5_get_digest ##### -->
-<para>
-
-</para>
-
-@buffer: 
-@buffer_size: 
-@digest: 
-
-<!-- ##### FUNCTION camel_md5_get_digest_from_file ##### -->
-<para>
-
-</para>
-
-@filename: 
-@digest: 
-
-<!-- ##### FUNCTION camel_md5_init ##### -->
-<para>
-
-</para>
-
-@ctx: 
-
-<!-- ##### FUNCTION camel_md5_update ##### -->
-<para>
-
-</para>
-
-@ctx: 
-@buf: 
-@len: 
-
-<!-- ##### FUNCTION camel_medium_get_content_object ##### -->
-<para>
-
-</para>
-
-@medium: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_medium_set_content_object ##### -->
-<para>
-
-</para>
-
-@medium: 
-@content: 
-
-<!-- ##### FUNCTION camel_mime_filter_basic_new_type ##### -->
-<para>
-
-</para>
-
-@type: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_mime_filter_charset_new_convert ##### -->
-<para>
-
-</para>
-
-@from_charset: 
-@to_charset: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_mime_filter_index_new_index ##### -->
-<para>
-
-</para>
-
+@a: 
 @index: 
+@namep: 
 @Returns: 
 
-<!-- ##### FUNCTION camel_mime_filter_save_new_with_stream ##### -->
+<!-- ##### FUNCTION camel_nntp_address_new ##### -->
 <para>
 
 </para>
 
-@stream: 
 @Returns: 
 
-<!-- ##### FUNCTION camel_mime_part_get_content_MD5 ##### -->
+<!-- ##### FUNCTION camel_object_cast ##### -->
 <para>
 
 </para>
 
-@mime_part: 
+@obj: 
+@ctype: 
 @Returns: 
 
-<!-- ##### FUNCTION camel_mime_part_set_content_MD5 ##### -->
-<para>
-
-</para>
-
-@mime_part: 
-@md5sum: 
-
-<!-- ##### MACRO camel_name_to_type ##### -->
-<para>
-
-</para>
-
-@name: 
-@Returns: 
-
-<!-- ##### MACRO camel_object_cast ##### -->
-<para>
-
-</para>
-
-@instance: 
-@g_type: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_object_class_add_interface ##### -->
+<!-- ##### FUNCTION camel_object_class_cast ##### -->
 <para>
 
 </para>
 
 @klass: 
-@itype: 
-
-<!-- ##### MACRO camel_object_class_cast ##### -->
-<para>
-
-</para>
-
-@g_class: 
-@g_type: 
+@ctype: 
 @Returns: 
 
-<!-- ##### MACRO camel_object_class_dump_tree ##### -->
+<!-- ##### FUNCTION camel_object_class_dump_tree ##### -->
 <para>
 
 </para>
 
-@g_type: 
+@root: 
 
-<!-- ##### MACRO camel_object_class_is ##### -->
+<!-- ##### FUNCTION camel_object_class_is ##### -->
 <para>
 
 </para>
 
-@g_class: 
-@g_type: 
+@klass: 
+@ctype: 
 @Returns: 
 
-<!-- ##### MACRO camel_object_get_interface ##### -->
+<!-- ##### FUNCTION camel_object_get_int ##### -->
 <para>
 
 </para>
 
-@instance: 
-@g_type: 
+@vo: 
+@error: 
+@tag: 
 @Returns: 
 
-<!-- ##### MACRO camel_object_is ##### -->
+<!-- ##### FUNCTION camel_object_get_ptr ##### -->
 <para>
 
 </para>
 
-@instance: 
-@g_type: 
+@vo: 
+@error: 
+@tag: 
 @Returns: 
 
-<!-- ##### MACRO camel_object_new ##### -->
+<!-- ##### FUNCTION camel_object_is ##### -->
+<para>
+
+</para>
+
+@obj: 
+@ctype: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_object_meta_get ##### -->
+<para>
+
+</para>
+
+@vo: 
+@name: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_object_meta_set ##### -->
+<para>
+
+</para>
+
+@vo: 
+@name: 
+@value: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_object_new ##### -->
 <para>
 
 </para>
@@ -1214,46 +708,19 @@ camel-types
 @type: 
 @Returns: 
 
-<!-- ##### FUNCTION camel_object_new_name ##### -->
+<!-- ##### FUNCTION camel_object_ref ##### -->
 <para>
 
 </para>
 
-@name: 
-@Returns: 
+@Param1: 
 
-<!-- ##### MACRO camel_object_ref ##### -->
+<!-- ##### FUNCTION camel_object_unref ##### -->
 <para>
 
 </para>
 
-
-<!-- ##### VARIABLE camel_object_type ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### MACRO camel_object_unref ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### FUNCTION camel_partition_table_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_sasl_authenticated ##### -->
-<para>
-
-</para>
-
-@sasl: 
-@Returns: 
+@Param1: 
 
 <!-- ##### FUNCTION camel_search_build_match_regex ##### -->
 <para>
@@ -1356,61 +823,14 @@ camel-types
 @type: 
 @words: 
 
-<!-- ##### FUNCTION camel_stream_filter_new_with_stream ##### -->
-<para>
-
-</para>
-
-@stream: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_stream_vfs_new_with_handle ##### -->
-<para>
-
-</para>
-
-@handle: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_stream_vprintf ##### -->
-<para>
-
-</para>
-
-@stream: 
-@fmt: 
-@ap: 
-@Returns: 
-
-<!-- ##### FUNCTION camel_text_index_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_text_index_key_cursor_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-<!-- ##### FUNCTION camel_text_index_name_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
 <!-- ##### MACRO camel_type_get_global_classfuncs ##### -->
 <para>
 
 </para>
 
-@type: 
+@x: 
 
-<!-- ##### MACRO camel_type_init ##### -->
+<!-- ##### FUNCTION camel_type_init ##### -->
 <para>
 
 </para>
@@ -1431,12 +851,12 @@ camel-types
 @instance_finalize: 
 @Returns: 
 
-<!-- ##### MACRO camel_type_to_name ##### -->
+<!-- ##### FUNCTION camel_type_to_name ##### -->
 <para>
 
 </para>
 
-@g_class: 
+@type: 
 @Returns: 
 
 <!-- ##### FUNCTION camel_ustrstrcase ##### -->
@@ -1446,22 +866,5 @@ camel-types
 
 @haystack: 
 @needle: 
-@Returns: 
-
-<!-- ##### FUNCTION groupwise_refresh_folder ##### -->
-<para>
-
-</para>
-
-@folder: 
-@ex: 
-
-<!-- ##### FUNCTION gw_get_path ##### -->
-<para>
-
-</para>
-
-@gw_store: 
-@folder_name: 
 @Returns: 
 

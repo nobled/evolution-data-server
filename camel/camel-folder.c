@@ -30,12 +30,11 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-memory.h>
-
 #include "camel-db.h"
 #include "camel-debug.h"
 #include "camel-filter-driver.h"
 #include "camel-folder.h"
+#include "camel-mempool.h"
 #include "camel-mime-message.h"
 #include "camel-operation.h"
 #include "camel-private.h"
@@ -229,6 +228,11 @@ camel_folder_error_quark (void)
 	return quark;
 }
 
+/**
+ * camel_folder_get_filename:
+ *
+ * Since: 2.26
+ **/
 gchar *
 camel_folder_get_filename (CamelFolder *folder,
                            const gchar *uid,
@@ -1209,6 +1213,8 @@ camel_folder_get_message (CamelFolder *folder,
  * that camel_folder_get_message on it later will work in offline mode).
  *
  * Returns: %TRUE on success, %FALSE on failure
+ *
+ * Since: 2.26
  **/
 gboolean
 camel_folder_sync_message (CamelFolder *folder,
@@ -1334,6 +1340,8 @@ get_uncached_uids (CamelFolder *folder,
  * which are locally cached but should never filter out a uid which is not
  * locally cached. Free the result by called #camel_folder_free_uids.
  * Frees the array of UIDs returned by #camel_folder_get_uids.
+ *
+ * Since: 2.26
  **/
 GPtrArray *
 camel_folder_get_uncached_uids (CamelFolder *folder,
@@ -1370,6 +1378,8 @@ cmp_uids (CamelFolder *folder, const gchar *uid1, const gchar *uid2)
  *
  * Note that the default compare function expects a decimal number at the beginning of a uid,
  * thus if provider uses different uid values, then it should subclass this function.
+ *
+ * Since: 2.28
  **/
 gint
 camel_folder_cmp_uids (CamelFolder *folder,
@@ -1412,6 +1422,8 @@ sort_uids (CamelFolder *folder, GPtrArray *uids)
  * @uids: array of uids
  *
  * Sorts the array of UIDs.
+ *
+ * Since: 2.24
  **/
 void
 camel_folder_sort_uids (CamelFolder *folder,
@@ -1542,6 +1554,8 @@ camel_folder_search_by_expression (CamelFolder *folder,
  * Searches the folder for count of messages matching the given search expression.
  *
  * Returns: an interger
+ *
+ * Since: 2.26
  **/
 guint32
 camel_folder_count_by_expression (CamelFolder *folder,
@@ -1987,7 +2001,9 @@ get_quota_info (CamelFolder *folder)
  * camel_folder_get_quota_info:
  * @folder: a #CamelFolder object
  *
- * Returns: list of known quota (s) for the folder.
+ * Returns: list of known quota(s) for the folder.
+ *
+ * Since: 2.24
  **/
 CamelFolderQuotaInfo *
 camel_folder_get_quota_info (CamelFolder *folder)
@@ -2010,6 +2026,8 @@ camel_folder_get_quota_info (CamelFolder *folder)
  *
  * Returns: newly allocated #CamelFolderQuotaInfo structure with
  * initialized values based on the parameters, with next member set to NULL.
+ *
+ * Since: 2.24
  **/
 CamelFolderQuotaInfo *
 camel_folder_quota_info_new (const gchar *name, guint64 used, guint64 total)
@@ -2030,6 +2048,8 @@ camel_folder_quota_info_new (const gchar *name, guint64 used, guint64 total)
  * @info: a #CamelFolderQuotaInfo object to clone.
  *
  * Makes a copy of the given info and all next-s.
+ *
+ * Since: 2.24
  **/
 CamelFolderQuotaInfo *
 camel_folder_quota_info_clone (const CamelFolderQuotaInfo *info)
@@ -2056,6 +2076,8 @@ camel_folder_quota_info_clone (const CamelFolderQuotaInfo *info)
  * @info: a #CamelFolderQuotaInfo object to free.
  *
  * Frees this and all next objects.
+ *
+ * Since: 2.24
  **/
 void
 camel_folder_quota_info_free (CamelFolderQuotaInfo *info)
@@ -2204,7 +2226,7 @@ struct _CamelFolderChangeInfoPrivate {
 	GHashTable *uid_stored;	/* what we have stored, which array they're in */
 	GHashTable *uid_source;	/* used to create unique lists */
 	GPtrArray  *uid_filter; /* uids to be filtered */
-	struct _EMemPool *uid_pool;	/* pool used to store copies of uid strings */
+	CamelMemPool *uid_pool;	/* pool used to store copies of uid strings */
 };
 
 /* Event hooks that block emission when frozen */
@@ -2378,7 +2400,7 @@ camel_folder_change_info_new (void)
 	info->priv->uid_stored = g_hash_table_new (g_str_hash, g_str_equal);
 	info->priv->uid_source = NULL;
 	info->priv->uid_filter = g_ptr_array_new ();
-	info->priv->uid_pool = e_mempool_new (512, 256, E_MEMPOOL_ALIGN_BYTE);
+	info->priv->uid_pool = camel_mempool_new (512, 256, CAMEL_MEMPOOL_ALIGN_BYTE);
 
 	return info;
 }
@@ -2403,7 +2425,7 @@ camel_folder_change_info_add_source (CamelFolderChangeInfo *info, const gchar *u
 		p->uid_source = g_hash_table_new (g_str_hash, g_str_equal);
 
 	if (g_hash_table_lookup (p->uid_source, uid) == NULL)
-		g_hash_table_insert (p->uid_source, e_mempool_strdup (p->uid_pool, uid), GINT_TO_POINTER (1));
+		g_hash_table_insert (p->uid_source, camel_mempool_strdup (p->uid_pool, uid), GINT_TO_POINTER (1));
 }
 
 /**
@@ -2431,7 +2453,7 @@ camel_folder_change_info_add_source_list (CamelFolderChangeInfo *info, const GPt
 		gchar *uid = list->pdata[i];
 
 		if (g_hash_table_lookup (p->uid_source, uid) == NULL)
-			g_hash_table_insert (p->uid_source, e_mempool_strdup (p->uid_pool, uid), GINT_TO_POINTER (1));
+			g_hash_table_insert (p->uid_source, camel_mempool_strdup (p->uid_pool, uid), GINT_TO_POINTER (1));
 	}
 }
 
@@ -2540,7 +2562,7 @@ change_info_recent_uid (CamelFolderChangeInfo *info, const gchar *uid)
 
 	/* always add to recent, but dont let anyone else know */
 	if (!g_hash_table_lookup_extended (p->uid_stored, uid, (gpointer *)&olduid, (gpointer *)&olduids)) {
-		olduid = e_mempool_strdup (p->uid_pool, uid);
+		olduid = camel_mempool_strdup (p->uid_pool, uid);
 	}
 	g_ptr_array_add (info->uid_recent, olduid);
 }
@@ -2556,7 +2578,7 @@ change_info_filter_uid (CamelFolderChangeInfo *info, const gchar *uid)
 
 	/* always add to filter, but dont let anyone else know */
 	if (!g_hash_table_lookup_extended (p->uid_stored, uid, (gpointer *)&olduid, (gpointer *)&olduids)) {
-		olduid = e_mempool_strdup (p->uid_pool, uid);
+		olduid = camel_mempool_strdup (p->uid_pool, uid);
 	}
 	g_ptr_array_add (p->uid_filter, olduid);
 }
@@ -2620,7 +2642,7 @@ camel_folder_change_info_add_uid (CamelFolderChangeInfo *info, const gchar *uid)
 		return;
 	}
 
-	olduid = e_mempool_strdup (p->uid_pool, uid);
+	olduid = camel_mempool_strdup (p->uid_pool, uid);
 	g_ptr_array_add (info->uid_added, olduid);
 	g_hash_table_insert (p->uid_stored, olduid, info->uid_added);
 }
@@ -2653,7 +2675,7 @@ camel_folder_change_info_remove_uid (CamelFolderChangeInfo *info, const gchar *u
 		return;
 	}
 
-	olduid = e_mempool_strdup (p->uid_pool, uid);
+	olduid = camel_mempool_strdup (p->uid_pool, uid);
 	g_ptr_array_add (info->uid_removed, olduid);
 	g_hash_table_insert (p->uid_stored, olduid, info->uid_removed);
 }
@@ -2681,7 +2703,7 @@ camel_folder_change_info_change_uid (CamelFolderChangeInfo *info, const gchar *u
 		return;
 	}
 
-	olduid = e_mempool_strdup (p->uid_pool, uid);
+	olduid = camel_mempool_strdup (p->uid_pool, uid);
 	g_ptr_array_add (info->uid_changed, olduid);
 	g_hash_table_insert (p->uid_stored, olduid, info->uid_changed);
 }
@@ -2748,7 +2770,7 @@ camel_folder_change_info_clear (CamelFolderChangeInfo *info)
 	g_hash_table_destroy (p->uid_stored);
 	p->uid_stored = g_hash_table_new (g_str_hash, g_str_equal);
 	g_ptr_array_set_size (p->uid_filter, 0);
-	e_mempool_flush (p->uid_pool, TRUE);
+	camel_mempool_flush (p->uid_pool, TRUE);
 }
 
 /**
@@ -2771,7 +2793,7 @@ camel_folder_change_info_free (CamelFolderChangeInfo *info)
 
 	g_hash_table_destroy (p->uid_stored);
 	g_ptr_array_free (p->uid_filter, TRUE);
-	e_mempool_destroy (p->uid_pool);
+	camel_mempool_destroy (p->uid_pool);
 	g_slice_free (struct _CamelFolderChangeInfoPrivate, p);
 
 	g_ptr_array_free (info->uid_added, TRUE);

@@ -125,6 +125,15 @@ CamelFolder
 @Returns: 
 
 
+<!-- ##### FUNCTION camel_folder_set_lock_async ##### -->
+<para>
+
+</para>
+
+@folder: 
+@skip_folder_lock: 
+
+
 <!-- ##### FUNCTION camel_folder_get_parent_store ##### -->
 <para>
 

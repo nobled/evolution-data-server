@@ -88,7 +88,7 @@ cipher_sign (CamelCipherContext *ctx,
  * Converts the (unsigned) part @ipart into a new self-contained mime part @opart.
  * This may be a multipart/signed part, or a simple part for enveloped types.
  *
- * Return value: 0 for success or -1 for failure.
+ * Returns: 0 for success or -1 for failure.
  **/
 gint
 camel_cipher_sign (CamelCipherContext *context,
@@ -142,7 +142,7 @@ cipher_verify (CamelCipherContext *context,
  * @sigstream is assumed to be the signature stream and is used to
  * verify the integirity of the @istream.
  *
- * Return value: a CamelCipherValidity structure containing information
+ * Returns: a CamelCipherValidity structure containing information
  * about the integrity of the input stream or %NULL on failure to
  * execute at all.
  **/
@@ -199,7 +199,7 @@ cipher_encrypt (CamelCipherContext *context,
  * Encrypts (and optionally signs) the cleartext input stream and
  * writes the resulting ciphertext to the output stream.
  *
- * Return value: 0 for success or -1 for failure.
+ * Returns: 0 for success or -1 for failure.
  **/
 gint
 camel_cipher_encrypt (CamelCipherContext *context,
@@ -253,7 +253,7 @@ cipher_decrypt (CamelCipherContext *context,
  *
  * Decrypts @ipart into @opart.
  *
- * Return value: A validity/encryption status.
+ * Returns: A validity/encryption status.
  **/
 CamelCipherValidity *
 camel_cipher_decrypt (CamelCipherContext *context,
@@ -539,6 +539,8 @@ camel_cipher_validity_add_certinfo (CamelCipherValidity *vin, enum _camel_cipher
  * camel_cipher_validity_add_certinfo_ex:
  *
  * Add a cert info to the signer or encrypter info, with extended data set.
+ *
+ * Since: 2.30
  **/
 void
 camel_cipher_validity_add_certinfo_ex (CamelCipherValidity *vin, camel_cipher_validity_mode_t mode, const gchar *name, const gchar *email, gpointer cert_data, void (*cert_data_free)(gpointer cert_data), gpointer (*cert_data_clone)(gpointer cert_data))
@@ -814,7 +816,7 @@ cc_prepare_sign (CamelMimePart *part)
  *
  * The transfer encoding paramaters for the part may be changed by this function.
  *
- * Return value: -1 on error;
+ * Returns: -1 on error;
  **/
 gint
 camel_cipher_canonical_to_stream (CamelMimePart *part,

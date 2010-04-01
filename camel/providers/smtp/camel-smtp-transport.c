@@ -36,6 +36,8 @@
 
 #include <glib/gi18n-lib.h>
 
+#include <camel/camel-private.h>
+
 #include "camel-smtp-transport.h"
 
 #undef MIN

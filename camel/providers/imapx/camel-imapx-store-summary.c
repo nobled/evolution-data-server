@@ -126,7 +126,7 @@ camel_imapx_store_summary_get_type (void)
  *
  * Create a new CamelIMAPXStoreSummary object.
  *
- * Return value: A new CamelIMAPXStoreSummary widget.
+ * Returns: A new CamelIMAPXStoreSummary widget.
  **/
 CamelIMAPXStoreSummary *
 camel_imapx_store_summary_new (void)
@@ -146,7 +146,7 @@ camel_imapx_store_summary_new (void)
  * A referenced to the summary item is returned, which may be
  * ref'd or free'd as appropriate.
  *
- * Return value: The summary item, or NULL if the @full_name name
+ * Returns: The summary item, or NULL if the @full_name name
  * is not available.
  * It must be freed using camel_store_summary_info_free().
  **/
@@ -335,7 +335,7 @@ camel_imapx_store_summary_add_from_full(CamelIMAPXStoreSummary *s, const gchar *
 	info = (CamelIMAPXStoreInfo *)camel_store_summary_add_from_path((CamelStoreSummary *)s, pathu8);
 	if (info) {
 		d(printf("  '%s' -> '%s'\n", pathu8, full_name));
-		camel_store_info_set_string((CamelStoreSummary *)s, (CamelStoreInfo *)info, CAMEL_IMAP_STORE_INFO_FULL_NAME, full_name);
+		camel_store_info_set_string((CamelStoreSummary *)s, (CamelStoreInfo *)info, CAMEL_IMAPX_STORE_INFO_FULL_NAME, full_name);
 
 		if (!g_ascii_strcasecmp(full_name, "inbox"))
 			info->info.flags |= CAMEL_FOLDER_SYSTEM|CAMEL_FOLDER_TYPE_INBOX;
@@ -651,7 +651,7 @@ store_info_string(CamelStoreSummary *s, const CamelStoreInfo *mi, gint type)
 	g_assert (mi != NULL);
 
 	switch (type) {
-	case CAMEL_IMAP_STORE_INFO_FULL_NAME:
+	case CAMEL_IMAPX_STORE_INFO_FULL_NAME:
 		return isi->full_name;
 	default:
 		return camel_imapx_store_summary_parent->store_info_string(s, mi, type);
@@ -666,7 +666,7 @@ store_info_set_string(CamelStoreSummary *s, CamelStoreInfo *mi, gint type, const
 	g_assert(mi != NULL);
 
 	switch (type) {
-	case CAMEL_IMAP_STORE_INFO_FULL_NAME:
+	case CAMEL_IMAPX_STORE_INFO_FULL_NAME:
 		d(printf("Set full name %s -> %s\n", isi->full_name, str));
 		CAMEL_STORE_SUMMARY_LOCK(s, summary_lock);
 		g_free(isi->full_name);

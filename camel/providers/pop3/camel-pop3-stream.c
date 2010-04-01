@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <camel/camel-private.h>
+
 #include "camel-pop3-stream.h"
 
 #define dd(x) (camel_verbose_debug?(x):0)
@@ -252,7 +254,7 @@ camel_pop3_stream_init (CamelPOP3Stream *is)
  * Returns a NULL stream.  A null stream is always at eof, and
  * always returns success for all reads and writes.
  *
- * Return value: the stream
+ * Returns: the stream
  **/
 CamelStream *
 camel_pop3_stream_new (CamelStream *source)

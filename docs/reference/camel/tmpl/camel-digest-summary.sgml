@@ -17,17 +17,3 @@ CamelDigestSummary
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### STRUCT CamelDigestSummary ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### FUNCTION camel_digest_summary_new ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-

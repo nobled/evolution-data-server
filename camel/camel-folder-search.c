@@ -240,7 +240,7 @@ camel_folder_search_construct (CamelFolderSearch *search)
  * Particular methods may be overriden by an implementation to
  * implement a search for any sort of backend.
  *
- * Return value: A new CamelFolderSearch widget.
+ * Returns: A new CamelFolderSearch widget.
  **/
 CamelFolderSearch *
 camel_folder_search_new (void)
@@ -319,7 +319,7 @@ camel_folder_search_set_body_index(CamelFolderSearch *search, CamelIndex *index)
  * TODO: The interface should probably return summary items instead
  * (since they are much more useful to any client).
  *
- * Return value: A GPtrArray of strings of all matching messages.
+ * Returns: A GPtrArray of strings of all matching messages.
  * This must only be freed by camel_folder_search_free_result.
  **/
 GPtrArray *
@@ -415,7 +415,9 @@ camel_folder_search_execute_expression (CamelFolderSearch *search,
  * Run a search.  Search must have had Folder already set on it, and
  * it must implement summaries.
  *
- * Return value: Number of messages that match the query.
+ * Returns: Number of messages that match the query.
+ *
+ * Since: 2.26
  **/
 
 guint32
@@ -570,7 +572,7 @@ do_search_in_memory (const gchar *expr)
  * Run a search.  Search must have had Folder already set on it, and
  * it must implement summaries.
  *
- * Return value:
+ * Returns:
  **/
 GPtrArray *
 camel_folder_search_search (CamelFolderSearch *search,

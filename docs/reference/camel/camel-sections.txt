@@ -293,58 +293,6 @@ CamelDBPrivate
 </SECTION>
 
 <SECTION>
-<FILE>camel-digest-folder</FILE>
-<TITLE>CamelDigestFolder</TITLE>
-CamelDigestFolder
-camel_digest_folder_new
-<SUBSECTION Standard>
-CAMEL_DIGEST_FOLDER
-CAMEL_IS_DIGEST_FOLDER
-CAMEL_TYPE_DIGEST_FOLDER
-CAMEL_DIGEST_FOLDER_CLASS
-CAMEL_IS_DIGEST_FOLDER_CLASS
-CAMEL_DIGEST_FOLDER_GET_CLASS
-CamelDigestFolderClass
-<SUBSECTION Private>
-CamelDigestFolderPrivate
-camel_digest_folder_get_type
-</SECTION>
-
-<SECTION>
-<FILE>camel-digest-store</FILE>
-<TITLE>CamelDigestStore</TITLE>
-CamelDigestStore
-camel_digest_store_new
-<SUBSECTION Standard>
-CAMEL_DIGEST_STORE
-CAMEL_IS_DIGEST_STORE
-CAMEL_TYPE_DIGEST_STORE
-CAMEL_DIGEST_STORE_CLASS
-CAMEL_IS_DIGEST_STORE_CLASS
-CAMEL_DIGEST_STORE_GET_CLASS
-CamelDigestStoreClass
-<SUBSECTION Private>
-camel_digest_store_get_type
-</SECTION>
-
-<SECTION>
-<FILE>camel-digest-summary</FILE>
-<TITLE>CamelDigestSummary</TITLE>
-CamelDigestSummary
-camel_digest_summary_new
-<SUBSECTION Standard>
-CAMEL_DIGEST_SUMMARY
-CAMEL_IS_DIGEST_SUMMARY
-CAMEL_TYPE_DIGEST_SUMMARY
-CAMEL_DIGEST_SUMMARY_CLASS
-CAMEL_IS_DIGEST_SUMMARY_CLASS
-CAMEL_DIGEST_SUMMARY_GET_CLASS
-CamelDigestSummaryClass
-<SUBSECTION Private>
-camel_digest_summary_get_type
-</SECTION>
-
-<SECTION>
 <FILE>camel-disco-diary</FILE>
 <TITLE>CamelDiscoDiary</TITLE>
 CamelDiscoDiary
@@ -428,9 +376,6 @@ camel_filter_driver_flush
 camel_filter_driver_filter_message
 camel_filter_driver_filter_mbox
 camel_filter_driver_filter_folder
-camel_filter_driver_expand_option
-camel_filter_driver_rule_count
-camel_filter_driver_rule_get
 <SUBSECTION Standard>
 CAMEL_FILTER_DRIVER
 CAMEL_IS_FILTER_DRIVER
@@ -1457,41 +1402,29 @@ camel_multipart_signed_get_type
 </SECTION>
 
 <SECTION>
-<FILE>camel-news-address</FILE>
-<TITLE>CamelNewsAddress</TITLE>
-CamelNewsAddress
-camel_news_address_new
+<FILE>camel-multipart</FILE>
+<TITLE>CamelMultipart</TITLE>
+CamelMultipart
+camel_multipart_new
+camel_multipart_add_part
+camel_multipart_add_part_at
+camel_multipart_remove_part
+camel_multipart_remove_part_at
+camel_multipart_get_part
+camel_multipart_get_number
+camel_multipart_set_boundary
+camel_multipart_get_boundary
+camel_multipart_set_preface
+camel_multipart_set_postface
+camel_multipart_construct_from_parser
 <SUBSECTION Standard>
-CAMEL_NEWS_ADDRESS
-CAMEL_IS_NEWS_ADDRESS
-CAMEL_TYPE_NEWS_ADDRESS
-CAMEL_NEWS_ADDRESS_CLASS
-CAMEL_IS_NEWS_ADDRESS_CLASS
-CAMEL_NEWS_ADDRESS_GET_CLASS
-CamelNewsAddressClass
+CAMEL_MULTIPART
+CAMEL_IS_MULTIPART
+CAMEL_MULTIPART_TYPE
+CAMEL_MULTIPART_CLASS
+CamelMultipartClass
 <SUBSECTION Private>
-CamelNewsAddressPrivate
-camel_news_address_get_type
-</SECTION>
-
-<SECTION>
-<FILE>camel-nntp-address</FILE>
-<TITLE>CamelNNTPAddress</TITLE>
-CamelNNTPAddress
-camel_nntp_address_new
-camel_nntp_address_add
-camel_nntp_address_get
-<SUBSECTION Standard>
-CAMEL_NNTP_ADDRESS
-CAMEL_IS_NNTP_ADDRESS
-CAMEL_TYPE_NNTP_ADDRESS
-CAMEL_NNTP_ADDRESS_CLASS
-CAMEL_IS_NNTP_ADDRESS_CLASS
-CAMEL_NNTP_ADDRESS_GET_CLASS
-CamelNNTPAddressClass
-<SUBSECTION Private>
-CamelNNTPAddressPrivate
-camel_nntp_address_get_type
+camel_multipart_get_type
 </SECTION>
 
 <SECTION>
@@ -1499,10 +1432,28 @@ camel_nntp_address_get_type
 <TITLE>CamelObject</TITLE>
 CamelObject
 CamelObjectHookID
-CamelObjectMeta
+CamelObjectClassInitFunc
+CamelObjectClassFinalizeFunc
+CamelObjectInitFunc
+CamelObjectFinalizeFunc
 CamelObjectEventPrepFunc
 CamelObjectEventHookFunc
+CAMEL_INVALID_TYPE
+CamelObjectFlags
+camel_type_init
+camel_type_register
+camel_type_get_global_classfuncs
+camel_type_to_name
+camel_name_to_type
 camel_object_class_add_event
+camel_object_class_dump_tree
+camel_object_cast
+camel_object_is
+camel_object_class_cast
+camel_object_class_is
+camel_object_new
+camel_object_ref
+camel_object_unref
 camel_object_hook_event
 camel_object_remove_event
 camel_object_unhook_event
@@ -1511,10 +1462,6 @@ camel_object_set
 camel_object_setv
 camel_object_get
 camel_object_getv
-camel_object_get_ptr
-camel_object_get_int
-camel_object_meta_get
-camel_object_meta_set
 camel_object_state_read
 camel_object_state_write
 camel_object_free
@@ -2074,6 +2021,7 @@ CAMEL_STORE_FILTER_INBOX
 CAMEL_STORE_VJUNK
 CAMEL_STORE_PROXY
 CAMEL_STORE_IS_MIGRATING
+CAMEL_STORE_ASYNC
 CAMEL_STORE_FOLDER_CREATE
 CAMEL_STORE_FOLDER_EXCL
 CAMEL_STORE_FOLDER_BODY_INDEX
@@ -3700,7 +3648,6 @@ camel_debug_init
 camel_debug
 camel_debug_start
 camel_debug_end
-camel_verbose_debug
 </SECTION>
 
 <SECTION>
@@ -3743,7 +3690,6 @@ camel_write
 camel_read_socket
 camel_write_socket
 camel_file_util_savename
-camel_mkdir
 </SECTION>
 
 <SECTION>
@@ -3846,6 +3792,17 @@ camel_unlock_folder
 </SECTION>
 
 <SECTION>
+<FILE>camel-mempool</FILE>
+CamelMemPool
+CamelMemPoolFlags
+camel_mempool_new
+camel_mempool_alloc
+camel_mempool_strdup
+camel_mempool_flush
+camel_mempool_destroy
+</SECTION>
+
+<SECTION>
 <FILE>camel-mime-utils</FILE>
 CAMEL_FOLD_SIZE
 CAMEL_FOLD_MAX_SIZE
@@ -3937,17 +3894,12 @@ camel_header_newsgroups_free
 camel_transfer_encoding_to_string
 camel_transfer_encoding_from_string
 camel_header_mime_decode
-camel_base64_decode_step
-camel_base64_encode_step
-camel_base64_encode_close
 camel_uudecode_step
 camel_uuencode_step
 camel_uuencode_close
 camel_quoted_decode_step
 camel_quoted_encode_step
 camel_quoted_encode_close
-camel_base64_encode_simple
-camel_base64_decode_simple
 camel_mime_is_ctrl
 camel_mime_is_lwsp
 camel_mime_is_tspecial
@@ -3994,9 +3946,38 @@ camel_operation_end
 </SECTION>
 
 <SECTION>
-<FILE>camel-process</FILE>
-camel_process_fork
-camel_process_wait
+<FILE>camel-partition-table</FILE>
+<TITLE>CamelPartitionTable</TITLE>
+<TITLE>CamelKeyTable</TITLE>
+camel_hash_t
+CamelPartitionKey
+CamelPartitionKeyBlock
+CamelPartitionMap
+CamelPartitionMapBlock
+CamelPartitionTable
+camel_partition_table_new
+camel_partition_table_sync
+camel_partition_table_add
+camel_partition_table_lookup
+camel_partition_table_remove
+CamelKeyBlock
+CamelKeyRootBlock
+CamelKeyKey
+CAMEL_KEY_TABLE_MAX_KEY
+CamelKeyTable
+camel_key_table_new
+camel_key_table_sync
+camel_key_table_add
+camel_key_table_set_data
+camel_key_table_set_flags
+camel_key_table_lookup
+camel_key_table_next
+<SUBSECTION Standard>
+CamelPartitionTableClass
+CamelKeyTableClass
+<SUBSECTION Private>
+camel_partition_table_get_type
+camel_key_table_get_type
 </SECTION>
 
 <SECTION>

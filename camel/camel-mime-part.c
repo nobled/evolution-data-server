@@ -973,6 +973,8 @@ camel_mime_part_get_disposition (CamelMimePart *mime_part)
  * Returned pointer is owned by #mime_part.
  *
  * Returns: the disposition structure
+ *
+ * Since: 2.30
  **/
 const CamelContentDisposition *
 camel_mime_part_get_content_disposition (CamelMimePart *mime_part)
@@ -1379,6 +1381,8 @@ camel_mime_part_set_content (CamelMimePart *mime_part,
  * Get the decoded size of the MIME part's content.
  *
  * Returns: the size of the MIME part's content in bytes.
+ *
+ * Since: 2.22
  **/
 gsize
 camel_mime_part_get_content_size (CamelMimePart *mime_part)

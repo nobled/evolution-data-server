@@ -66,7 +66,7 @@ struct _CamelIMAPXServer {
 
 	/* Current command/work queue.  All commands are stored in one list,
 	   all the time, so they can be cleaned up in exception cases */
-	gpointer queue_lock;
+	GStaticRecMutex queue_lock;
 	struct _CamelIMAPXCommand *literal;
 	CamelDList queue;
 	CamelDList active;
@@ -89,14 +89,20 @@ struct _CamelIMAPXServer {
 	   processed after the command completes. */
 	GSList *expunged;
 
-	/* connect_lock used for locking input stream locking and 
-	   ostream_lock for locking output stream */
-	pthread_t parser_thread_id;
+	GThread *parser_thread;
+	/* Protects the output stream between parser thread (which can disconnect from server) and other threads that issue
+	   commands. Input stream does not require a lock since only parser_thread can operate on it */
 	GStaticRecMutex ostream_lock;
+	/* Used for canceling operations as well as signaling parser thread to disconnnect/quit */
+	CamelOperation *op;
+	gboolean parser_quit;
 
 	/* Idle */
 	struct _CamelIMAPXIdle *idle;
 	gboolean use_idle;
+
+	/* used for storing eflags to syncronize duplicate get_message requests */
+	GHashTable *uid_eflags;
 };
 
 struct _CamelIMAPXServerClass {
@@ -108,7 +114,8 @@ struct _CamelIMAPXServerClass {
 CamelType               camel_imapx_server_get_type     (void);
 CamelIMAPXServer *camel_imapx_server_new(struct _CamelStore *store, struct _CamelURL *url);
 
-gboolean camel_imapx_server_connect(CamelIMAPXServer *is, gint state);
+gboolean camel_imapx_server_connect(CamelIMAPXServer *is, gint state, CamelException *ex);
+gboolean imapx_connect_to_server (CamelIMAPXServer *is, CamelException *ex);
 
 GPtrArray *camel_imapx_server_list(CamelIMAPXServer *is, const gchar *top, guint32 flags, GError **error);
 
@@ -120,5 +127,11 @@ void camel_imapx_server_noop (CamelIMAPXServer *is, CamelFolder *folder, CamelEx
 CamelStream *camel_imapx_server_get_message(CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, struct _CamelException *ex);
 void camel_imapx_server_copy_message (CamelIMAPXServer *is, CamelFolder *source, CamelFolder *dest, GPtrArray *uids, gboolean delete_originals, CamelException *ex);
 void camel_imapx_server_append_message(CamelIMAPXServer *is, CamelFolder *folder, struct _CamelMimeMessage *message, const struct _CamelMessageInfo *mi, CamelException *ex);
+void camel_imapx_server_sync_message (CamelIMAPXServer *is, CamelFolder *folder, const gchar *uid, CamelException *ex);
+
+void camel_imapx_server_manage_subscription (CamelIMAPXServer *is, const gchar *folder_name, gboolean subscribe, CamelException *ex);
+void camel_imapx_server_create_folder (CamelIMAPXServer *is, const gchar *folder_name, CamelException *ex);
+void camel_imapx_server_delete_folder (CamelIMAPXServer *is, const gchar *folder_name, CamelException *ex);
+void camel_imapx_server_rename_folder (CamelIMAPXServer *is, const gchar *old_name, const gchar *new_name, CamelException *ex);
 
 #endif /* _CAMEL_IMAPX_SERVER_H */

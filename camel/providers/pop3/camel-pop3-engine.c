@@ -30,6 +30,8 @@
 
 #include <glib/gi18n-lib.h>
 
+#include <camel/camel-private.h>
+
 #include "camel-pop3-engine.h"
 #include "camel-pop3-stream.h"
 
@@ -125,7 +127,7 @@ read_greeting (CamelPOP3Engine *pe)
  * Returns a NULL stream.  A null stream is always at eof, and
  * always returns success for all reads and writes.
  *
- * Return value: the stream
+ * Returns: the stream
  **/
 CamelPOP3Engine *
 camel_pop3_engine_new(CamelStream *source, guint32 flags)

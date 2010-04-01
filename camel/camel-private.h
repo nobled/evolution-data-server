@@ -35,13 +35,15 @@
 
 G_BEGIN_DECLS
 
+extern gint camel_verbose_debug;
+
 struct _CamelFolderPrivate {
 	GStaticRecMutex lock;
 	GStaticMutex change_lock;
 	/* must require the 'change_lock' to access this */
 	gint frozen;
 	struct _CamelFolderChangeInfo *changed_frozen; /* queues changed events */
-	gboolean async_rec_locks;
+	gboolean skip_folder_lock;
 };
 
 #define CAMEL_FOLDER_LOCK(f, l) \
@@ -49,9 +51,9 @@ struct _CamelFolderPrivate {
 #define CAMEL_FOLDER_UNLOCK(f, l) \
 	(g_static_mutex_unlock(&((CamelFolder *) (f))->priv->l))
 #define CAMEL_FOLDER_REC_LOCK(f, l) \
-	if (((CamelFolder *) (f))->priv->async_rec_locks == FALSE) g_static_rec_mutex_lock(&((CamelFolder *) (f))->priv->l);
+	if (((CamelFolder *) (f))->priv->skip_folder_lock == FALSE) g_static_rec_mutex_lock(&((CamelFolder *) (f))->priv->l);
 #define CAMEL_FOLDER_REC_UNLOCK(f, l) \
-	if (((CamelFolder *) (f))->priv->async_rec_locks == FALSE) g_static_rec_mutex_unlock(&((CamelFolder *) (f))->priv->l);
+	if (((CamelFolder *) (f))->priv->skip_folder_lock == FALSE) g_static_rec_mutex_unlock(&((CamelFolder *) (f))->priv->l);
 
 struct _CamelStorePrivate {
 	GStaticRecMutex folder_lock;	/* for locking folder operations */

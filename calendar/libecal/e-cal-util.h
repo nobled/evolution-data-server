@@ -115,7 +115,14 @@ gboolean e_cal_util_event_dates_match (icalcomponent *icalcomp1, icalcomponent *
 #define CAL_STATIC_CAPABILITY_ORGANIZER_MUST_ATTEND       "organizer-must-attend"
 #define CAL_STATIC_CAPABILITY_ORGANIZER_NOT_EMAIL_ADDRESS "organizer-not-email-address"
 #define CAL_STATIC_CAPABILITY_REMOVE_ALARMS               "remove-alarms"
+
+/**
+ * CAL_STATIC_CAPABILITY_CREATE_MESSAGES:
+ *
+ * Since: 2.26
+ **/
 #define CAL_STATIC_CAPABILITY_CREATE_MESSAGES             "create-messages"
+
 #define CAL_STATIC_CAPABILITY_SAVE_SCHEDULES              "save-schedules"
 #define CAL_STATIC_CAPABILITY_NO_CONV_TO_ASSIGN_TASK	  "no-conv-to-assign-task"
 #define CAL_STATIC_CAPABILITY_NO_CONV_TO_RECUR		  "no-conv-to-recur"
@@ -127,6 +134,12 @@ gboolean e_cal_util_event_dates_match (icalcomponent *icalcomp1, icalcomponent *
 #define CAL_STATIC_CAPABILITY_NO_ORGANIZER		 "no-organizer"
 #define CAL_STATIC_CAPABILITY_DELEGATE_TO_MANY		 "delegate-to-many"
 #define CAL_STATIC_CAPABILITY_HAS_UNACCEPTED_MEETING     "has-unaccepted-meeting"
+
+/**
+ * CAL_STATIC_CAPABILITY_REFRESH_SUPPORTED:
+ *
+ * Since: 2.30
+ **/
 #define CAL_STATIC_CAPABILITY_REFRESH_SUPPORTED		"refresh-supported"
 
 /* Recurrent events. Management for instances */

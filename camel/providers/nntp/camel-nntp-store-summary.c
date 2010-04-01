@@ -88,7 +88,7 @@ camel_nntp_store_summary_init (CamelNNTPStoreSummary *nntp_store_summary)
  *
  * Create a new CamelNNTPStoreSummary object.
  *
- * Return value: A new CamelNNTPStoreSummary widget.
+ * Returns: A new CamelNNTPStoreSummary widget.
  **/
 CamelNNTPStoreSummary *
 camel_nntp_store_summary_new (void)
@@ -106,7 +106,7 @@ camel_nntp_store_summary_new (void)
  * A referenced to the summary item is returned, which may be
  * ref'd or free'd as appropriate.
  *
- * Return value: The summary item, or NULL if the @full_name name
+ * Returns: The summary item, or NULL if the @full_name name
  * is not available.
  * It must be freed using camel_store_summary_info_free().
  **/

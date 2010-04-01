@@ -1096,6 +1096,8 @@ camel_folder_summary_index (CamelFolderSummary *s, gint i)
  * free'd as appropriate.
  *
  * Returns: the summary item's uid , or %NULL if @index is out of range
+ *
+ * Since: 2.24
  **/
 gchar *
 camel_folder_summary_uid_from_index (CamelFolderSummary *s, gint i)
@@ -1121,6 +1123,8 @@ camel_folder_summary_uid_from_index (CamelFolderSummary *s, gint i)
  *
  *
  * Returns: if the uid is present in the summary or not  (%TRUE or %FALSE)
+ *
+ * Since: 2.24
  **/
 gboolean
 camel_folder_summary_check_uid (CamelFolderSummary *s, const gchar *uid)
@@ -1180,6 +1184,8 @@ camel_folder_summary_array(CamelFolderSummary *s)
  * It must be freed using camel_folder_summary_free_hashtable
  *
  * Returns: a #GHashTable of uids
+ *
+ * Since: 2.26
  **/
 GHashTable *
 camel_folder_summary_get_hashtable(CamelFolderSummary *s)
@@ -1197,6 +1203,11 @@ camel_folder_summary_get_hashtable(CamelFolderSummary *s)
 	return hash;
 }
 
+/**
+ * camel_folder_summary_free_hashtable:
+ *
+ * Since: 2.26
+ **/
 void
 camel_folder_summary_free_hashtable (GHashTable *ht)
 {
@@ -1204,6 +1215,11 @@ camel_folder_summary_free_hashtable (GHashTable *ht)
 	g_hash_table_destroy (ht);
 }
 
+/**
+ * camel_folder_summary_peek_info:
+ *
+ * Since: 2.26
+ **/
 CamelMessageInfo *
 camel_folder_summary_peek_info (CamelFolderSummary *s, const gchar *uid)
 {
@@ -1430,12 +1446,19 @@ append_changed_uids (gchar *key, CamelMessageInfoBase *info, GPtrArray *array)
 		g_ptr_array_add (array, (gpointer)camel_pstring_strdup((camel_message_info_uid(info))));
 }
 
-/* FIXME[disk-summary] sucks, this function returns from memory. We need to
- * have collate or something to get the modified ones from DB and merge */
+/**
+ * camel_folder_summary_get_changed:
+ *
+ * Since: 2.24
+ **/
 GPtrArray *
 camel_folder_summary_get_changed (CamelFolderSummary *s)
 {
 	GPtrArray *res = g_ptr_array_new();
+
+	/* FIXME[disk-summary] sucks, this function returns from memory.
+	 * We need to have collate or something to get the modified ones
+	 * from DB and merge */
 
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
 	g_hash_table_foreach (s->loaded_infos, (GHFunc) append_changed_uids, res);
@@ -1465,21 +1488,13 @@ cfs_count_dirty (CamelFolderSummary *s)
 
 /* FIXME[disk-summary] I should have a better LRU algorithm  */
 static gboolean
-remove_item (gchar *key, CamelMessageInfoBase *info, CamelFolderSummary *s)
+remove_item (gchar *key, CamelMessageInfoBase *info, GSList **to_free_list)
 {
 	d(printf("%d(%d)\t", info->refcount, info->dirty)); /* camel_message_info_dump (info); */
-	CAMEL_SUMMARY_LOCK(info->summary, ref_lock);
 	if (info->refcount == 1 && !info->dirty && !(info->flags & CAMEL_MESSAGE_FOLDER_FLAGGED)) {
-		CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);
-		/* Hackit so that hashtable isn;t corrupted. */
-		/* FIXME: These uid strings are not yet freed. We should get this done soon. */
-		camel_pstring_free (info->uid);
-		info->uid = NULL;
-		/* Noone seems to need it. Why not free it then. */
-		camel_message_info_free (info);
+		*to_free_list = g_slist_prepend (*to_free_list, info);
 		return TRUE;
 	}
-	CAMEL_SUMMARY_UNLOCK(info->summary, ref_lock);
 	return FALSE;
 }
 
@@ -1493,6 +1508,7 @@ remove_cache (CamelSession *session, CamelSessionThreadMsg *msg)
 {
 	struct _folder_summary_free_msg *m = (struct _folder_summary_free_msg *)msg;
 	CamelFolderSummary *s = m->summary;
+	GSList *to_free_list = NULL, *l;
 
 	CAMEL_DB_RELEASE_SQLITE_MEMORY;
 	camel_folder_sync (s->folder, FALSE, NULL);
@@ -1503,7 +1519,17 @@ remove_cache (CamelSession *session, CamelSessionThreadMsg *msg)
 	dd(printf("removing cache for  %s %d %p\n", s->folder ? s->folder->full_name : s->summary_path, g_hash_table_size (s->loaded_infos), (gpointer) s->loaded_infos));
 	/* FIXME[disk-summary] hack. fix it */
 	CAMEL_SUMMARY_LOCK (s, summary_lock);
-	g_hash_table_foreach_remove  (s->loaded_infos, (GHRFunc) remove_item, s);
+
+	CAMEL_SUMMARY_LOCK(s, ref_lock);
+	g_hash_table_foreach_remove  (s->loaded_infos, (GHRFunc) remove_item, &to_free_list);
+	CAMEL_SUMMARY_UNLOCK(s, ref_lock);
+
+	/* Deferred freeing as _free function will try to remove
+	   entries from the hash_table in foreach_remove otherwise */
+	for (l = to_free_list; l; l = l->next)
+		camel_message_info_free (l->data);
+	g_slist_free (to_free_list);
+
 	CAMEL_SUMMARY_UNLOCK (s, summary_lock);
 	dd(printf("done .. now %d\n",g_hash_table_size (s->loaded_infos)));
 
@@ -1547,6 +1573,11 @@ cfs_try_release_memory (CamelFolderSummary *s)
 	return TRUE;
 }
 
+/**
+ * camel_folder_summary_cache_size:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_cache_size (CamelFolderSummary *s)
 {
@@ -1647,6 +1678,12 @@ static CamelSessionThreadOps preview_update_ops = {
 };
 
 /* end */
+
+/**
+ * camel_folder_summary_reload_from_db:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_reload_from_db (CamelFolderSummary *s,
                                      GError **error)
@@ -1686,6 +1723,11 @@ camel_folder_summary_reload_from_db (CamelFolderSummary *s,
 	return ret == 0 ? 0 : -1;
 }
 
+/**
+ * camel_folder_summary_add_preview:
+ *
+ * Since: 2.28
+ **/
 void
 camel_folder_summary_add_preview (CamelFolderSummary *s, CamelMessageInfo *info)
 {
@@ -1702,6 +1744,8 @@ camel_folder_summary_add_preview (CamelFolderSummary *s, CamelMessageInfo *info)
  * @error: return location for a #GError, or %NULL
  *
  * Loads all infos into memory, if they are not yet.
+ *
+ * Since: 2.28
  **/
 void
 camel_folder_summary_ensure_infos_loaded (CamelFolderSummary *s,
@@ -1732,6 +1776,11 @@ camel_folder_summary_dump (CamelFolderSummary *s)
 }
 #endif
 
+/**
+ * camel_folder_summary_get_flag_cache:
+ *
+ * Since: 2.26
+ **/
 GHashTable *
 camel_folder_summary_get_flag_cache (CamelFolderSummary *summary)
 {
@@ -1740,6 +1789,11 @@ camel_folder_summary_get_flag_cache (CamelFolderSummary *summary)
 	return p->flag_cache;
 }
 
+/**
+ * camel_folder_summary_load_from_db:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_load_from_db (CamelFolderSummary *s,
                                    GError **error)
@@ -1980,6 +2034,11 @@ error:
 
 }
 
+/**
+ * camel_folder_summary_migrate_infos:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_migrate_infos(CamelFolderSummary *s)
 {
@@ -2219,6 +2278,11 @@ msg_save_preview (const gchar *uid, gpointer value, CamelFolder *folder)
 	camel_db_write_preview_record (folder->parent_store->cdb_w, folder->full_name, uid, (gchar *)value, NULL);
 }
 
+/**
+ * camel_folder_summary_save_to_db:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_save_to_db (CamelFolderSummary *s,
                                  GError **error)
@@ -2302,6 +2366,11 @@ camel_folder_summary_save_to_db (CamelFolderSummary *s,
 	return ret;
 }
 
+/**
+ * camel_folder_summary_header_save_to_db:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_header_save_to_db (CamelFolderSummary *s,
                                         GError **error)
@@ -2474,6 +2543,11 @@ exception:
 	return -1;
 }
 
+/**
+ * camel_folder_summary_header_load_from_db:
+ *
+ * Since: 2.24
+ **/
 gint
 camel_folder_summary_header_load_from_db (CamelFolderSummary *s,
                                           CamelStore *store,
@@ -2622,6 +2696,11 @@ camel_folder_summary_add (CamelFolderSummary *s, CamelMessageInfo *info)
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
+/**
+ * camel_folder_summary_insert:
+ *
+ * Since: 2.24
+ **/
 void
 camel_folder_summary_insert (CamelFolderSummary *s, CamelMessageInfo *info, gboolean load)
 {
@@ -2987,15 +3066,20 @@ camel_folder_summary_clear(CamelFolderSummary *s)
 	CAMEL_SUMMARY_UNLOCK(s, summary_lock);
 }
 
-/* FIXME: This is non-sense. Neither an exception is passed,
-nor a value returned. How is the caller supposed to know,
-whether the operation is succesful */
-
+/**
+ * camel_folder_summary_clear_db:
+ *
+ * Since: 2.24
+ **/
 void
 camel_folder_summary_clear_db (CamelFolderSummary *s)
 {
 	CamelDB *cdb;
 	gchar *folder_name;
+
+	/* FIXME: This is non-sense. Neither an exception is passed,
+	nor a value returned. How is the caller supposed to know,
+	whether the operation is succesful */
 
 	d(printf ("\ncamel_folder_summary_load_from_db called \n"));
 	s->flags &= ~CAMEL_SUMMARY_DIRTY;
@@ -3114,6 +3198,12 @@ camel_folder_summary_remove_uid(CamelFolderSummary *s, const gchar *uid)
 }
 
 /* _fast doesn't deal with db and leaves it to the caller. */
+
+/**
+ * camel_folder_summary_remove_uid_fast:
+ *
+ * Since: 2.24
+ **/
 void
 camel_folder_summary_remove_uid_fast (CamelFolderSummary *s, const gchar *uid)
 {
@@ -3143,6 +3233,11 @@ camel_folder_summary_remove_uid_fast (CamelFolderSummary *s, const gchar *uid)
 		}
 }
 
+/**
+ * camel_folder_summary_remove_index_fast:
+ *
+ * Since: 2.24
+ **/
 void
 camel_folder_summary_remove_index_fast (CamelFolderSummary *s, gint index)
 {
@@ -4965,11 +5060,18 @@ camel_message_info_user_tag(const CamelMessageInfo *mi, const gchar *id)
 		return info_user_tag(mi, id);
 }
 
+
+/**
+ * camel_folder_summary_update_flag_cache:
+ *
+ * Since: 2.26
+ **/
 void
 camel_folder_summary_update_flag_cache (CamelFolderSummary *s, const gchar *uid, guint32 flag)
 {
 	g_hash_table_replace (CAMEL_FOLDER_SUMMARY_GET_PRIVATE(s)->flag_cache, (gchar *) uid, GUINT_TO_POINTER(flag));
 }
+
 /**
  * camel_message_info_set_flags:
  * @mi: a #CamelMessageInfo
@@ -5075,12 +5177,23 @@ camel_message_info_dump (CamelMessageInfo *mi)
 }
 
 /* Utils */
+
+/**
+ * camel_folder_summary_set_need_preview:
+ *
+ * Since: 2.28
+ **/
 void
 camel_folder_summary_set_need_preview (CamelFolderSummary *summary, gboolean preview)
 {
 	CAMEL_FOLDER_SUMMARY_GET_PRIVATE(summary)->need_preview = preview;
 }
 
+/**
+ * camel_folder_summary_get_need_preview:
+ *
+ * Since: 2.28
+ **/
 gboolean
 camel_folder_summary_get_need_preview (CamelFolderSummary *summary)
 {
@@ -5116,6 +5229,15 @@ match_content_type (CamelContentType *info_ctype, CamelContentType *ctype)
 	return TRUE;
 }
 
+/**
+ * camel_folder_summary_guess_content_info:
+ * @mi: a #CamelMessageInfo
+ * @ctype: a #CamelContentType
+ *
+ * FIXME Document me!
+ *
+ * Since: 2.30
+ **/
 const CamelMessageContentInfo *
 camel_folder_summary_guess_content_info (CamelMessageInfo *mi, CamelContentType *ctype)
 {

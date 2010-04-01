@@ -17,18 +17,3 @@ CamelDigestStore
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### STRUCT CamelDigestStore ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### FUNCTION camel_digest_store_new ##### -->
-<para>
-
-</para>
-
-@url: 
-@Returns: 
-
-

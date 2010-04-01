@@ -41,8 +41,6 @@
 #include "camel-stream-mem.h"
 #include "camel-file-utils.h"
 
-extern gint camel_verbose_debug;
-#define dd(x) (camel_verbose_debug?(x):0)
 #define d(x)
 
 /* how many 'bits' of hash are used to key the toplevel directory */
@@ -170,7 +168,7 @@ camel_data_cache_init (CamelDataCache *data_cache)
  *
  * Create a new data cache.
  *
- * Return value: A new cache object, or NULL if the base path cannot
+ * Returns: A new cache object, or NULL if the base path cannot
  * be written to.
  **/
 CamelDataCache *
@@ -271,12 +269,10 @@ data_cache_expire(CamelDataCache *cdc, const gchar *path, const gchar *keep, tim
 			continue;
 
 		g_string_printf (s, "%s/%s", path, dname);
-		dd(printf("Checking '%s' for expiry\n", s->str));
 		if (g_stat(s->str, &st) == 0
 		    && S_ISREG(st.st_mode)
 		    && ((cdc->priv->expire_age != -1 && st.st_mtime + cdc->priv->expire_age < now)
 			|| (cdc->priv->expire_access != -1 && st.st_atime + cdc->priv->expire_access < now))) {
-			dd(printf("Has expired!  Removing!\n"));
 			g_unlink(s->str);
 			stream = camel_object_bag_get(cdc->priv->busy_bag, s->str);
 			if (stream) {
@@ -314,8 +310,6 @@ data_cache_path(CamelDataCache *cdc, gint create, const gchar *path, const gchar
 	} else if (cdc->priv->expire_age != -1 || cdc->priv->expire_access != -1) {
 		time_t now;
 
-		dd(printf("Checking expire cycle time on dir '%s'\n", dir));
-
 		/* This has a race, but at worst we re-run an expire cycle which is safe */
 		now = time(NULL);
 		if (cdc->priv->expire_last[hash] + CAMEL_DATA_CACHE_CYCLE_TIME < now) {
@@ -346,7 +340,7 @@ data_cache_path(CamelDataCache *cdc, gint create, const gchar *path, const gchar
  * Potentially, expiry processing will be performed while this call
  * is executing.
  *
- * Return value: A CamelStream (file) opened in read-write mode.
+ * Returns: A CamelStream (file) opened in read-write mode.
  * The caller must unref this when finished.
  **/
 CamelStream *
@@ -395,7 +389,7 @@ camel_data_cache_add (CamelDataCache *cdc,
  * multiple callers, so ensure the stream is in a valid state
  * through external locking.
  *
- * Return value: A cache item, or NULL if the cache item does not exist.
+ * Returns: A cache item, or NULL if the cache item does not exist.
  **/
 CamelStream *
 camel_data_cache_get (CamelDataCache *cdc,
@@ -430,7 +424,9 @@ camel_data_cache_get (CamelDataCache *cdc,
  *
  * Lookup the filename for an item in the cache
  *
- * Return value: The filename for a cache item
+ * Returns: The filename for a cache item
+ *
+ * Since: 2.26
  **/
 gchar *
 camel_data_cache_get_filename (CamelDataCache *cdc,
@@ -454,7 +450,7 @@ camel_data_cache_get_filename (CamelDataCache *cdc,
  *
  * Remove/expire a cache item.
  *
- * Return value:
+ * Returns:
  **/
 gint
 camel_data_cache_remove (CamelDataCache *cdc,
@@ -502,7 +498,7 @@ camel_data_cache_remove (CamelDataCache *cdc,
  *
  * CURRENTLY UNIMPLEMENTED
  *
- * Return value: -1 on error.
+ * Returns: -1 on error.
  **/
 gint
 camel_data_cache_rename (CamelDataCache *cache,
@@ -524,7 +520,7 @@ camel_data_cache_rename (CamelDataCache *cache,
  *
  * CURRENTLY_UNIMPLEMENTED
  *
- * Return value: -1 on error.
+ * Returns: -1 on error.
  **/
 gint
 camel_data_cache_clear (CamelDataCache *cache,

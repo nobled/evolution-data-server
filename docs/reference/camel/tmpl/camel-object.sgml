@@ -29,15 +29,6 @@ CamelObject
 </para>
 
 
-<!-- ##### STRUCT CamelObjectMeta ##### -->
-<para>
-
-</para>
-
-@next: 
-@value: 
-@name: 
-
 <!-- ##### USER_FUNCTION CamelObjectEventPrepFunc ##### -->
 <para>
 
@@ -151,49 +142,6 @@ CamelObject
 @obj: 
 @error: 
 @Param3: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_get_ptr ##### -->
-<para>
-
-</para>
-
-@vo: 
-@error: 
-@tag: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_get_int ##### -->
-<para>
-
-</para>
-
-@vo: 
-@error: 
-@tag: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_meta_get ##### -->
-<para>
-
-</para>
-
-@vo: 
-@name: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_object_meta_set ##### -->
-<para>
-
-</para>
-
-@vo: 
-@name: 
-@value: 
 @Returns: 
 
 

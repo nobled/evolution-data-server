@@ -26,14 +26,20 @@
 #endif
 
 #include <sys/types.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <glib/gstdio.h>
+#include <glib/gi18n-lib.h>
 
 #include "camel/camel-operation.h"
 
@@ -44,10 +50,10 @@
 #include "camel/camel-data-cache.h"
 #include "camel/camel-tcp-stream.h"
 #include "camel/camel-tcp-stream-raw.h"
+#include "camel/camel-db.h"
 #ifdef HAVE_SSL
 #include "camel/camel-tcp-stream-ssl.h"
 #endif
-#include "camel/camel-i18n.h"
 
 #include "camel-imapx-store.h"
 #include "camel-imapx-folder.h"
@@ -56,11 +62,14 @@
 #include "camel-imapx-server.h"
 #include "camel-imapx-summary.h"
 #include "camel-net-utils.h"
+#include "camel/camel-private.h"
 
 /* Specified in RFC 2060 section 2.1 */
 #define IMAP_PORT 143
 
-static CamelStoreClass *parent_class = NULL;
+#define FINFO_REFRESH_INTERVAL 60
+
+static CamelOfflineStoreClass *parent_class = NULL;
 
 static guint
 imapx_name_hash(gconstpointer key)
@@ -88,7 +97,7 @@ imapx_parse_receiving_options (CamelIMAPXStore *istore, CamelURL *url)
 {
 	if (camel_url_get_param (url, "use_lsub"))
 		istore->rec_options |= IMAPX_SUBSCRIPTIONS;
-	
+
 	if (camel_url_get_param (url, "override_namespace") && camel_url_get_param (url, "namespace")) {
 		istore->rec_options |= IMAPX_OVERRIDE_NAMESPACE;
 		g_free(istore->namespace);
@@ -115,8 +124,8 @@ imapx_parse_receiving_options (CamelIMAPXStore *istore, CamelURL *url)
 	if (camel_url_get_param (url, "use_idle"))
 		istore->rec_options |= IMAPX_USE_IDLE;
 }
-	
-static void 
+
+static void
 imapx_construct(CamelService *service, CamelSession *session, CamelProvider *provider, CamelURL *url, CamelException *ex)
 {
 	gchar *summary;
@@ -143,20 +152,45 @@ imapx_construct(CamelService *service, CamelSession *session, CamelProvider *pro
 }
 
 extern CamelServiceAuthType camel_imapx_password_authtype;
-extern CamelServiceAuthType camel_imapx_apop_authtype;
 
-/* TODO implement */
 static GList *
 imapx_query_auth_types (CamelService *service, CamelException *ex)
 {
-	/*CamelIMAPXStore *store = CAMEL_IMAPX_STORE (service);*/
-	GList *types = NULL;
+	CamelIMAPXStore *istore = CAMEL_IMAPX_STORE (service);
+	CamelServiceAuthType *authtype;
+	GList *sasl_types, *t, *next;
+	gboolean connected;
+	
+	if (CAMEL_OFFLINE_STORE (istore)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
+		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
+				     _("You must be working online to complete this operation"));
+		return NULL;
+	}
 
-        types = CAMEL_SERVICE_CLASS (parent_class)->query_auth_types (service, ex);
-	if (types == NULL)
+	CAMEL_SERVICE_REC_LOCK (istore, connect_lock);
+	
+	if (istore->server == NULL)
+		istore->server = camel_imapx_server_new((CamelStore *)istore, service->url);
+	
+	connected = istore->server->stream != NULL;
+	if (!connected)
+		connected = imapx_connect_to_server (istore->server, ex);
+	CAMEL_SERVICE_REC_UNLOCK (istore, connect_lock);
+	if (!connected)
 		return NULL;
 
-	return types;
+	sasl_types = camel_sasl_authtype_list (FALSE);
+	for (t = sasl_types; t; t = next) {
+		authtype = t->data;
+		next = t->next;
+
+		if (!g_hash_table_lookup (istore->server->cinfo->auth_types, authtype->authproto)) {
+			sasl_types = g_list_remove_link (sasl_types, t);
+			g_list_free_1 (t);
+		}
+	}
+
+	return g_list_prepend (sasl_types, &camel_imapx_password_authtype);
 }
 
 static gchar *
@@ -172,24 +206,24 @@ imapx_get_name (CamelService *service, gboolean brief)
 static gboolean
 imapx_connect (CamelService *service, CamelException *ex)
 {
-	CamelIMAPXStore *store = (CamelIMAPXStore *)service;
+	CamelIMAPXStore *istore = (CamelIMAPXStore *)service;
 
 	/* We never really are 'connected' or 'disconnected' */
-	if (store->server == NULL)
-		store->server = camel_imapx_server_new((CamelStore *)store, service->url);
+	if (istore->server == NULL)
+		istore->server = camel_imapx_server_new((CamelStore *)istore, service->url);
 
-	return camel_imapx_server_connect(store->server, 1);
+	return camel_imapx_server_connect (istore->server, TRUE, ex);
 }
 
 static gboolean
 imapx_disconnect (CamelService *service, gboolean clean, CamelException *ex)
 {
-	CamelIMAPXStore *store = CAMEL_IMAPX_STORE (service);
+	CamelIMAPXStore *istore = CAMEL_IMAPX_STORE (service);
 
 	CAMEL_SERVICE_CLASS (parent_class)->disconnect (service, clean, ex);
 
-	if (store->server)
-		camel_imapx_server_connect(store->server, 0);
+	if (istore->server)
+		camel_imapx_server_connect(istore->server, FALSE, ex);
 
 	return TRUE;
 }
@@ -232,11 +266,11 @@ static void
 imapx_noop (CamelStore *store, CamelException *ex)
 {
 	CamelIMAPXStore *istore = (CamelIMAPXStore *) store;
-	
+
 	if (CAMEL_OFFLINE_STORE(store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
 		return;
-		
-	if (istore->server && camel_imapx_server_connect (istore->server, 1))
+
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
 		camel_imapx_server_noop (istore->server, NULL, ex);
 }
 
@@ -386,7 +420,7 @@ fill_fi(CamelStore *store, CamelFolderInfo *fi, guint32 flags)
 
 /* imap needs to treat inbox case insensitive */
 /* we'll assume the names are normalised already */
-static guint 
+static guint
 folder_hash(gconstpointer ap)
 {
 	const gchar *a = ap;
@@ -397,7 +431,7 @@ folder_hash(gconstpointer ap)
 	return g_str_hash(a);
 }
 
-static gint 
+static gint
 folder_eq(gconstpointer ap, gconstpointer bp)
 {
 	const gchar *a = ap;
@@ -440,6 +474,324 @@ imapx_match_pattern(CamelIMAPXStoreNamespace *ns, const gchar *pattern, const gc
 
 	return n == 0 && (p == '%' || p == 0);
 }
+
+static void
+imapx_unmark_folder_subscribed (CamelIMAPXStore *istore, const gchar *folder_name, gboolean emit_signal, CamelException *ex)
+{
+	CamelStoreInfo *si;
+
+	si = camel_store_summary_path((CamelStoreSummary *)istore->summary, folder_name);
+	if (si) {
+		if (si->flags & CAMEL_STORE_INFO_FOLDER_SUBSCRIBED) {
+			si->flags &= ~CAMEL_STORE_INFO_FOLDER_SUBSCRIBED;
+			camel_store_summary_touch((CamelStoreSummary *)istore->summary);
+			camel_store_summary_save((CamelStoreSummary *)istore->summary);
+		}
+		camel_store_summary_info_free((CamelStoreSummary *)istore->summary, si);
+	}
+
+	if (emit_signal) {
+		CamelFolderInfo *fi;
+
+		fi = imapx_build_folder_info(istore, folder_name);
+		camel_object_trigger_event (CAMEL_OBJECT (istore), "folder_unsubscribed", fi);
+		camel_folder_info_free (fi);
+	}
+}
+
+static void
+imapx_mark_folder_subscribed (CamelIMAPXStore *istore, const gchar *folder_name, gboolean emit_signal, CamelException *ex)
+{
+	CamelStoreInfo *si;
+
+	si = camel_store_summary_path((CamelStoreSummary *)istore->summary, folder_name);
+	if (si) {
+		if ((si->flags & CAMEL_STORE_INFO_FOLDER_SUBSCRIBED) == 0) {
+			si->flags |= CAMEL_STORE_INFO_FOLDER_SUBSCRIBED;
+			camel_store_summary_touch((CamelStoreSummary *)istore->summary);
+			camel_store_summary_save((CamelStoreSummary *)istore->summary);
+		}
+		camel_store_summary_info_free((CamelStoreSummary *)istore->summary, si);
+	}
+	
+	if (emit_signal) {
+		CamelFolderInfo *fi;
+
+		fi = imapx_build_folder_info(istore, folder_name);
+		camel_object_trigger_event (CAMEL_OBJECT (istore), "folder_subscribed", fi);
+		camel_folder_info_free (fi);
+	}
+}
+
+static void
+imapx_subscribe_folder (CamelStore *store, const gchar *folder_name, gboolean emit_signal, CamelException *ex)
+{
+	CamelIMAPXStore *istore = (CamelIMAPXStore *) store;
+
+	if (CAMEL_OFFLINE_STORE(store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
+		return;
+
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
+		camel_imapx_server_manage_subscription (istore->server, folder_name, TRUE, ex);
+
+	if (!camel_exception_is_set (ex))
+		imapx_mark_folder_subscribed (istore, folder_name, emit_signal, ex);
+}
+
+static void
+imapx_unsubscribe_folder (CamelStore *store, const gchar *folder_name, gboolean emit_signal, CamelException *ex)
+{
+	CamelIMAPXStore *istore = (CamelIMAPXStore *) store;
+
+	if (CAMEL_OFFLINE_STORE(store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
+		return;
+
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
+		camel_imapx_server_manage_subscription (istore->server, folder_name, FALSE, ex);
+	
+	if (!camel_exception_is_set (ex))
+		imapx_unmark_folder_subscribed (istore, folder_name, emit_signal, ex);
+}
+
+static void
+imapx_store_subscribe_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
+{
+	imapx_subscribe_folder (store, folder_name, TRUE, ex);
+}
+
+static void
+imapx_store_unsubscribe_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
+{
+	CamelException eex = CAMEL_EXCEPTION_INITIALISER;
+	
+	if (!ex)
+		ex = &eex;
+
+	imapx_unsubscribe_folder (store, folder_name, TRUE, ex);
+}
+
+static void
+imapx_delete_folder_from_cache (CamelIMAPXStore *istore, const gchar *folder_name, CamelException *ex)
+{
+	gchar *state_file;
+	gchar *folder_dir, *storage_path;
+	CamelFolderInfo *fi;
+
+	storage_path = g_strdup_printf ("%s/folders", istore->storage_path);
+	folder_dir = imapx_path_to_physical (storage_path, folder_name);
+	g_free (storage_path);
+	if (g_access (folder_dir, F_OK) != 0) {
+		g_free (folder_dir);
+		goto event;
+	}
+
+	/* Delete summary and all the data */
+	state_file = g_strdup_printf ("%s/cmeta", folder_dir);
+	g_unlink (state_file);
+	g_free (state_file);
+
+	camel_db_delete_folder (((CamelStore *)istore)->cdb_w, folder_name, ex);
+	g_rmdir (folder_dir);
+
+	state_file = g_strdup_printf("%s/subfolders", folder_dir);
+	g_rmdir(state_file);
+	g_free(state_file);
+
+	g_rmdir (folder_dir);
+	g_free (folder_dir);
+
+ event:
+	camel_store_summary_remove_path((CamelStoreSummary *)istore->summary, folder_name);
+	camel_store_summary_save((CamelStoreSummary *)istore->summary);
+
+	fi = imapx_build_folder_info(istore, folder_name);
+	camel_object_trigger_event (CAMEL_OBJECT (istore), "folder_deleted", fi);
+	camel_folder_info_free (fi);
+}
+
+static void
+imapx_delete_folder (CamelStore *store, const gchar *folder_name, CamelException *ex)
+{
+	CamelIMAPXStore *istore = (CamelIMAPXStore *) store;
+
+	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
+		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
+				     _("You must be working online to complete this operation"));
+		return;
+	}
+
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
+		camel_imapx_server_delete_folder (istore->server, folder_name, ex);
+
+	if (!camel_exception_is_set (ex))
+		imapx_delete_folder_from_cache (istore, folder_name, ex);
+}
+
+
+static void
+rename_folder_info (CamelIMAPXStore *istore, const gchar *old_name, const gchar *new_name, CamelException *ex)
+{
+	gint i, count;
+	CamelStoreInfo *si;
+	gint olen = strlen(old_name);
+	const gchar *path;
+	gchar *npath, *nfull;
+
+	count = camel_store_summary_count((CamelStoreSummary *)istore->summary);
+	for (i=0;i<count;i++) {
+		si = camel_store_summary_index((CamelStoreSummary *)istore->summary, i);
+		if (si == NULL)
+			continue;
+		path = camel_store_info_path(istore->summary, si);
+		if (strncmp(path, old_name, olen) == 0) {
+			if (strlen(path) > olen)
+				npath = g_strdup_printf("%s/%s", new_name, path+olen+1);
+			else
+				npath = g_strdup(new_name);
+			nfull = camel_imapx_store_summary_path_to_full(istore->summary, npath, istore->dir_sep);
+
+			/* workaround for broken server (courier uses '.') that doesn't rename
+			   subordinate folders as required by rfc 2060 */
+			if (istore->dir_sep == '.') {
+				camel_imapx_server_rename_folder (istore->server, path, nfull, ex);
+			}
+
+			camel_store_info_set_string((CamelStoreSummary *)istore->summary, si, CAMEL_STORE_INFO_PATH, npath);
+			camel_store_info_set_string((CamelStoreSummary *)istore->summary, si, CAMEL_IMAPX_STORE_INFO_FULL_NAME, nfull);
+
+			camel_store_summary_touch((CamelStoreSummary *)istore->summary);
+			g_free(nfull);
+			g_free(npath);
+		}
+		camel_store_summary_info_free((CamelStoreSummary *)istore->summary, si);
+	}
+}
+
+static void
+imapx_rename_folder (CamelStore *store, const gchar *old, const gchar *new, CamelException *ex)
+{
+	CamelIMAPXStore *istore = (CamelIMAPXStore *) store;
+	gchar *oldpath, *newpath, *storage_path;
+
+
+	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
+		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
+				     _("You must be working online to complete this operation"));
+		return;
+	}
+
+	if (istore->rec_options & IMAPX_SUBSCRIPTIONS)
+		imapx_unsubscribe_folder (store, old, FALSE, ex);
+
+	if (istore->server && camel_imapx_server_connect (istore->server, TRUE, ex))
+		camel_imapx_server_rename_folder (istore->server, old, new, ex);
+
+	if (camel_exception_is_set (ex)) {
+		imapx_subscribe_folder (store, old, FALSE, ex);
+		return;
+	}
+
+	/* rename summary, and handle broken server */
+	rename_folder_info(istore, old, new, ex);
+
+	if (istore->rec_options & IMAPX_SUBSCRIPTIONS)
+		imapx_subscribe_folder (store, new, FALSE, ex);
+
+	storage_path = g_strdup_printf("%s/folders", istore->storage_path);
+	oldpath = imapx_path_to_physical (storage_path, old);
+	newpath = imapx_path_to_physical (storage_path, new);
+	g_free(storage_path);
+
+	/* So do we care if this didn't work?  Its just a cache? */
+	if (g_rename (oldpath, newpath) == -1) {
+		g_warning ("Could not rename message cache '%s' to '%s': %s: cache reset",
+			   oldpath, newpath, g_strerror (errno));
+	}
+
+	g_free (oldpath);
+	g_free (newpath);
+}
+
+static CamelFolderInfo *
+imapx_create_folder (CamelStore *store, const gchar *parent_name, const gchar *folder_name, CamelException *ex)
+{	
+	const gchar *c;
+	CamelStoreInfo *si;
+	CamelIMAPXStoreNamespace *ns;
+	CamelIMAPXStore *istore = (CamelIMAPXStore *) store;
+	gchar *real_name, *full_name, *parent_real;
+	CamelFolderInfo *fi = NULL;
+	gchar dir_sep;
+	
+	if (CAMEL_OFFLINE_STORE (store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
+		camel_exception_set (ex, CAMEL_EXCEPTION_SERVICE_UNAVAILABLE,
+				     _("You must be working online to complete this operation"));
+		return NULL;
+	}
+	
+	if (!(istore->server && camel_imapx_server_connect (istore->server, TRUE, ex)))
+		return NULL;
+
+	if (!parent_name)
+		parent_name = "";
+
+	ns = camel_imapx_store_summary_namespace_find_path (istore->summary, parent_name);
+	if (ns)
+		dir_sep = ns->sep;
+	else
+		dir_sep = '/';
+
+	c = folder_name;
+	while (*c && *c != dir_sep && !strchr ("#%*", *c))
+		c++;
+
+	if (*c != '\0') {
+		camel_exception_setv (ex, CAMEL_EXCEPTION_FOLDER_INVALID_PATH,
+				      _("The folder name \"%s\" is invalid because it contains the character \"%c\""),
+				      folder_name, *c);
+		return NULL;
+	}
+	
+	parent_real = camel_imapx_store_summary_full_from_path(istore->summary, parent_name);
+	if (parent_real == NULL) {
+		camel_exception_setv(ex, CAMEL_EXCEPTION_FOLDER_INVALID_STATE,
+				     _("Unknown parent folder: %s"), parent_name);
+		return NULL;
+	}
+
+	si = camel_store_summary_path ((CamelStoreSummary *)istore->summary, parent_name);
+	if (si && si->flags & CAMEL_STORE_INFO_FOLDER_NOINFERIORS) {
+		camel_exception_set (ex, CAMEL_EXCEPTION_FOLDER_INVALID_STATE,
+				_("The parent folder is not allowed to contain subfolders"));
+		return NULL;
+	}
+
+	if (si)
+		camel_store_summary_info_free ((CamelStoreSummary *) istore->summary, si);
+
+	real_name = camel_imapx_store_summary_path_to_full (istore->summary, folder_name, dir_sep);
+	full_name = imapx_concat (istore, parent_real, real_name);
+	g_free(real_name);
+
+	camel_imapx_server_create_folder (istore->server, full_name, ex);
+
+	if (!camel_exception_is_set (ex)) {
+		CamelIMAPXStoreInfo *si;
+
+		si = camel_imapx_store_summary_add_from_full(istore->summary, full_name, dir_sep);
+		camel_store_summary_save((CamelStoreSummary *)istore->summary);
+		fi = imapx_build_folder_info(istore, camel_store_info_path(istore->summary, si));
+		fi->flags |= CAMEL_FOLDER_NOCHILDREN;
+		camel_object_trigger_event (CAMEL_OBJECT (store), "folder_created", fi);
+	}
+
+
+	g_free (full_name);
+	g_free(parent_real);
+
+	return fi;
+}
+
 
 static CamelFolderInfo *
 get_folder_info_offline (CamelStore *store, const gchar *top,
@@ -517,8 +869,10 @@ get_folder_info_offline (CamelStore *store, const gchar *top,
 				fi->flags = (fi->flags & ~CAMEL_FOLDER_NOINFERIORS) | CAMEL_FOLDER_NOCHILDREN;
 
 			/* blah, this gets lost somewhere, i can't be bothered finding out why */
-			if (!g_ascii_strcasecmp(fi->full_name, "inbox"))
+			if (!g_ascii_strcasecmp(fi->full_name, "inbox")) {
 				fi->flags = (fi->flags & ~CAMEL_FOLDER_TYPE_MASK) | CAMEL_FOLDER_TYPE_INBOX;
+				fi->flags |= CAMEL_FOLDER_SYSTEM;
+			}
 
 			if (si->flags & CAMEL_FOLDER_NOSELECT) {
 				CamelURL *url = camel_url_new(fi->uri, NULL);
@@ -565,6 +919,9 @@ add_folders_to_summary (CamelIMAPXStore *istore, GPtrArray *folders, GHashTable 
 		new_flags = (si->info.flags & (CAMEL_STORE_INFO_FOLDER_SUBSCRIBED | CAMEL_STORE_INFO_FOLDER_CHECK_FOR_NEW)) |
 						(li->flags & ~CAMEL_STORE_INFO_FOLDER_SUBSCRIBED);
 
+		if (!(istore->server->cinfo->capa & IMAPX_CAPABILITY_NAMESPACE))
+			istore->dir_sep = li->separator;
+
 		if (si->info.flags != new_flags) {
 			si->info.flags = new_flags;
 			camel_store_summary_touch ((CamelStoreSummary *) istore->summary);
@@ -582,7 +939,7 @@ add_folders_to_summary (CamelIMAPXStore *istore, GPtrArray *folders, GHashTable 
 		if (hfi) {
 			if (subcribed)
 				hfi->flags |= CAMEL_STORE_INFO_FOLDER_SUBSCRIBED;
-			
+
 			camel_folder_info_free (fi);
 			continue;
 		}
@@ -633,6 +990,9 @@ fetch_folders_for_pattern (CamelIMAPXStore *istore, const gchar *pattern, guint3
 	GPtrArray *folders = NULL;
 
 	folders = camel_imapx_server_list (istore->server, pattern, flags, ex);
+	if (camel_exception_is_set (ex))
+		return;
+
 	add_folders_to_summary (istore, folders, table, (flags & CAMEL_STORE_FOLDER_INFO_SUBSCRIBED));
 
 	g_ptr_array_foreach (folders, free_list, folders);
@@ -658,7 +1018,7 @@ get_namespaces (CamelIMAPXStore *istore)
 }
 
 static GHashTable *
-fetch_folders_for_namespaces (CamelIMAPXStore *istore, const gchar *pattern, CamelException *ex)
+fetch_folders_for_namespaces (CamelIMAPXStore *istore, const gchar *pattern, gboolean sync, CamelException *ex)
 {
 	GHashTable *folders = NULL;
 	GSList *namespaces = NULL, *l;
@@ -682,10 +1042,22 @@ fetch_folders_for_namespaces (CamelIMAPXStore *istore, const gchar *pattern, Cam
 			} else
 				pat = g_strdup (pattern);
 
+			if (sync)
+				flags |= CAMEL_STORE_FOLDER_INFO_SUBSCRIPTION_LIST;
+
 			flags |= CAMEL_STORE_FOLDER_INFO_RECURSIVE;
 			fetch_folders_for_pattern (istore, pat, flags, folders, ex);
+			if (camel_exception_is_set (ex)) {
+				g_free (pat);
+				goto exception;
+			}
+
 			flags |= CAMEL_STORE_FOLDER_INFO_SUBSCRIBED;
 			fetch_folders_for_pattern (istore, pat, flags, folders, ex);
+			if (camel_exception_is_set (ex)) {
+				g_free (pat);
+				goto exception;
+			}
 
 			g_free (pat);
 
@@ -697,15 +1069,21 @@ fetch_folders_for_namespaces (CamelIMAPXStore *istore, const gchar *pattern, Cam
 	}
 
 	return folders;
+
+exception:
+	g_hash_table_destroy (folders);
+	return NULL;
 }
 
 static void
-sync_folders (CamelIMAPXStore *istore, const gchar *pattern, CamelException *ex)
+sync_folders (CamelIMAPXStore *istore, const gchar *pattern, gboolean sync, CamelException *ex)
 {
 	GHashTable *folders_from_server;
 	gint i, total;
 
-	folders_from_server = fetch_folders_for_namespaces (istore, pattern, ex);
+	folders_from_server = fetch_folders_for_namespaces (istore, pattern, sync, ex);
+	if (camel_exception_is_set (ex))
+		return;
 
 	total = camel_store_summary_count ((CamelStoreSummary *) istore->summary);
 	for (i = 0; i < total; i++) {
@@ -739,9 +1117,9 @@ sync_folders (CamelIMAPXStore *istore, const gchar *pattern, CamelException *ex)
 					CamelException eex;
 
 					camel_exception_init (&eex);
-
-					/* Delete the folder from cache */
-
+					imapx_unmark_folder_subscribed (istore,dup_folder_name, TRUE, &eex);
+					imapx_delete_folder_from_cache (istore, dup_folder_name, &eex);
+					
 					g_free (dup_folder_name);
 					camel_exception_clear (&eex);
 				} else {
@@ -759,47 +1137,147 @@ sync_folders (CamelIMAPXStore *istore, const gchar *pattern, CamelException *ex)
 	g_hash_table_destroy (folders_from_server);
 }
 
+struct _imapx_refresh_msg {
+	CamelSessionThreadMsg msg;
+
+	CamelStore *store;
+	CamelException ex;
+};
+
+static void
+imapx_refresh_finfo (CamelSession *session, CamelSessionThreadMsg *msg)
+{
+	struct _imapx_refresh_msg *m = (struct _imapx_refresh_msg *)msg;
+	CamelIMAPXStore *istore = (CamelIMAPXStore *)m->store;
+
+	if (CAMEL_OFFLINE_STORE(istore)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL)
+		return;
+
+	if (!camel_service_connect((CamelService *)istore, &m->ex))
+		return;
+
+	/* look in all namespaces */
+	sync_folders (istore, "", FALSE, &m->ex);
+	camel_store_summary_save ((CamelStoreSummary *)istore->summary);
+}
+
+static void
+imapx_refresh_free(CamelSession *session, CamelSessionThreadMsg *msg)
+{
+	struct _imapx_refresh_msg *m = (struct _imapx_refresh_msg *)msg;
+
+	camel_object_unref(m->store);
+	camel_exception_clear(&m->ex);
+}
+
+static CamelSessionThreadOps imapx_refresh_ops = {
+	imapx_refresh_finfo,
+	imapx_refresh_free,
+};
+
+static void
+discover_inbox (CamelStore *store, CamelException *ex)
+{
+	CamelStoreInfo *si;
+	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
+	
+	si = camel_store_summary_path((CamelStoreSummary *) istore->summary, "INBOX");
+	if (si == NULL || (si->flags & CAMEL_FOLDER_SUBSCRIBED) == 0) {
+		imapx_subscribe_folder (store, "INBOX", FALSE, ex);
+		
+		if (!camel_exception_is_set(ex) && !si)
+			sync_folders (istore, "INBOX", TRUE, ex);
+	
+		if (si)
+			camel_store_summary_info_free((CamelStoreSummary *) istore->summary, si);
+	}
+}
+
 static CamelFolderInfo *
 imapx_get_folder_info(CamelStore *store, const gchar *top, guint32 flags, CamelException *ex)
 {
 	CamelIMAPXStore *istore = (CamelIMAPXStore *)store;
 	CamelFolderInfo * fi= NULL;
+	gboolean initial_setup = FALSE;
+	gchar *pattern;
 
 	if (top == NULL)
 		top = "";
 
+	g_mutex_lock (istore->get_finfo_lock);
+
 	if (CAMEL_OFFLINE_STORE(store)->state == CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL) {
 		fi = get_folder_info_offline (store, top, flags, ex);
+	
+		g_mutex_unlock (istore->get_finfo_lock);
 		return fi;
 	}
 
-	if (!camel_service_connect((CamelService *)store, ex))
-		return NULL;
+	if (camel_store_summary_count ((CamelStoreSummary *) istore->summary) == 0)
+		initial_setup = TRUE;
 
-	sync_folders (istore, top, ex);
+	if (!initial_setup && flags & CAMEL_STORE_FOLDER_INFO_SUBSCRIBED) {
+		time_t now = time (NULL);
+
+		if (now - istore->last_refresh_time > FINFO_REFRESH_INTERVAL) {
+			struct _imapx_refresh_msg *m;
+			
+			istore->last_refresh_time = time (NULL);
+			m = camel_session_thread_msg_new(((CamelService *)store)->session, &imapx_refresh_ops, sizeof(*m));
+			m->store = store;
+			camel_object_ref(store);
+			camel_exception_init(&m->ex);
+			camel_session_thread_queue(((CamelService *)store)->session, &m->msg, 0);
+		}
+		
+		fi = get_folder_info_offline (store, top, flags, ex);
+		g_mutex_unlock (istore->get_finfo_lock);
+		return fi;
+	}
+	
+	if (!camel_service_connect((CamelService *)store, ex)) {
+		g_mutex_unlock (istore->get_finfo_lock);
+		return NULL;
+	}
+
+	if (*top && flags & CAMEL_STORE_FOLDER_INFO_SUBSCRIPTION_LIST) {
+		fi = get_folder_info_offline (store, top, flags, ex);
+		g_mutex_unlock (istore->get_finfo_lock);
+		return fi;
+	}
+
+	if (*top) {
+		gchar *name;
+		gint i;
+
+		name = camel_imapx_store_summary_full_from_path(istore->summary, top);
+		if (name == NULL)
+			name = camel_imapx_store_summary_path_to_full(istore->summary, top, istore->dir_sep);
+
+		i = strlen(name);
+		pattern = g_alloca(i+5);
+		strcpy(pattern, name);
+		g_free(name);
+	} else {
+		pattern = g_alloca (1);
+		pattern[0] = '\0';
+	}
+
+	sync_folders (istore, pattern, TRUE, ex);
+	if (camel_exception_is_set (ex)) {
+		g_mutex_unlock (istore->get_finfo_lock);
+		return NULL;
+	}
+
 	camel_store_summary_save((CamelStoreSummary *) istore->summary);
 
+	/* ensure the INBOX is subscribed if lsub was preferred*/
+	if (initial_setup && istore->rec_options & IMAPX_SUBSCRIPTIONS)
+		discover_inbox (store, ex);
+
 	fi = get_folder_info_offline (store, top, flags, ex);
+	g_mutex_unlock (istore->get_finfo_lock);
 	return fi;
-}
-
-static void
-imapx_delete_folder(CamelStore *store, const gchar *folder_name, CamelException *ex)
-{
-	camel_exception_setv(ex, 1, "delete_folder::unimplemented");
-}
-
-static void
-imapx_rename_folder(CamelStore *store, const gchar *old, const gchar *new, CamelException *ex)
-{
-	camel_exception_setv(ex, 1, "rename_folder::unimplemented");
-}
-
-static CamelFolderInfo *
-imapx_create_folder(CamelStore *store, const gchar *parent_name, const gchar *folder_name, CamelException *ex)
-{
-	camel_exception_setv(ex, 1, "create_folder::unimplemented");
-	return NULL;
 }
 
 static gboolean
@@ -851,7 +1329,7 @@ camel_imapx_store_class_init(CamelIMAPXStoreClass *klass)
 	CamelServiceClass *camel_service_class = CAMEL_SERVICE_CLASS(klass);
 	CamelStoreClass *camel_store_class = CAMEL_STORE_CLASS(klass);
 
-	parent_class = CAMEL_STORE_CLASS(camel_type_get_global_classfuncs(camel_store_get_type()));
+	parent_class = CAMEL_OFFLINE_STORE_CLASS (camel_type_get_global_classfuncs (camel_offline_store_get_type ()));
 
 	camel_service_class->construct = imapx_construct;
 	camel_service_class->query_auth_types = imapx_query_auth_types;
@@ -871,6 +1349,8 @@ camel_imapx_store_class_init(CamelIMAPXStoreClass *klass)
 	camel_store_class->create_folder = imapx_create_folder;
 	camel_store_class->rename_folder = imapx_rename_folder;
 	camel_store_class->delete_folder = imapx_delete_folder;
+	camel_store_class->subscribe_folder = imapx_store_subscribe_folder;
+	camel_store_class->unsubscribe_folder = imapx_store_unsubscribe_folder;
 	camel_store_class->get_folder_info = imapx_get_folder_info;
 	camel_store_class->folder_subscribed = imapx_folder_subscribed;
 	camel_store_class->free_folder_info = camel_store_free_folder_info_full;
@@ -882,7 +1362,13 @@ camel_imapx_store_class_init(CamelIMAPXStoreClass *klass)
 static void
 camel_imapx_store_init (gpointer object, gpointer klass)
 {
-	/*CamelIMAPXStore *istore = object;*/
+	CamelStore *store = (CamelStore *) object;
+	CamelIMAPXStore *istore = CAMEL_IMAPX_STORE (object);
+
+	store->flags |= CAMEL_STORE_ASYNC | CAMEL_STORE_SUBSCRIPTIONS;
+	istore->get_finfo_lock = g_mutex_new ();
+	istore->last_refresh_time = time (NULL) - (FINFO_REFRESH_INTERVAL + 10);
+	istore->dir_sep = '/';
 }
 
 static void
@@ -894,6 +1380,7 @@ imapx_store_finalise(CamelObject *object)
 	/* SIGH */
 
 	camel_service_disconnect((CamelService *)imapx_store, TRUE, NULL);
+	g_mutex_free (imapx_store->get_finfo_lock);
 
 	if (imapx_store->base_url)
 		g_free (imapx_store->base_url);

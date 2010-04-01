@@ -69,7 +69,7 @@
  * Create an exclusive lock using .lock semantics.
  * All locks are equivalent to write locks (exclusive).
  *
- * Return value: -1 on error, sets @ex appropriately.
+ * Returns: -1 on error, sets @ex appropriately.
  **/
 gint
 camel_lock_dot (const gchar *path,
@@ -183,7 +183,7 @@ camel_unlock_dot(const gchar *path)
  * @type is CAMEL_LOCK_WRITE or CAMEL_LOCK_READ,
  * to create exclusive or shared read locks
  *
- * Return value: -1 on error.
+ * Returns: -1 on error.
  **/
 gint
 camel_lock_fcntl (gint fd,
@@ -251,7 +251,7 @@ camel_unlock_fcntl(gint fd)
  * @type is CAMEL_LOCK_WRITE or CAMEL_LOCK_READ,
  * to create exclusive or shared read locks
  *
- * Return value: -1 on error.
+ * Returns: -1 on error.
  **/
 gint
 camel_lock_flock (gint fd,
@@ -306,7 +306,7 @@ camel_unlock_flock(gint fd)
  * Attempt to lock a folder, multiple attempts will be made using all
  * locking strategies available.
  *
- * Return value: -1 on error, @ex will describe the locking system that failed.
+ * Returns: -1 on error, @ex will describe the locking system that failed.
  **/
 gint
 camel_lock_folder (const gchar *path,

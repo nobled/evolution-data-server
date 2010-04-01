@@ -5,9 +5,6 @@ camel_certdb_get_type
 camel_cipher_context_get_type
 camel_data_cache_get_type
 camel_data_wrapper_get_type
-camel_digest_folder_get_type
-camel_digest_store_get_type
-camel_digest_summary_get_type
 camel_disco_diary_get_type
 camel_disco_folder_get_type
 camel_disco_store_get_type

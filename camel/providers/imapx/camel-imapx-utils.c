@@ -14,7 +14,6 @@
 #include "camel-imapx-store-summary.h"
 #include "camel-imapx-utils.h"
 #include "camel-imapx-exception.h"
-#include "libedataserver/e-memory.h"
 
 /* high-level parser state */
 #define p(x)
@@ -39,6 +38,7 @@ imapx_tokenise (register const gchar *str, register guint len)
 
 static void imapx_namespace_clear (CamelIMAPXStoreNamespace **ns);
 static const gchar * rename_label_flag (const gchar *flag, gint len, gboolean server_to_evo);
+static GPtrArray *imapx_parse_uids (CamelIMAPXStream *is, CamelException *ex);
 
 /* flag table */
 static struct {
@@ -109,9 +109,9 @@ imapx_parse_flags(CamelIMAPXStream *stream, guint32 *flagsp, CamelFlag **user_fl
  * if the flags does not match returns the original one as it is.
  * It will never return NULL, it will return empty string, instead.
  *
- * @param flag Flag to rename.
- * @param len Length of the flag name.
- * @param server_to_evo if TRUE, then converting server names to evo's names, if FALSE then opposite.
+ * @flag: Flag to rename.
+ * @len: Length of the flag name.
+ * @server_to_evo: if TRUE, then converting server names to evo's names, if FALSE then opposite.
  */
 static const gchar *
 rename_label_flag (const gchar *flag, gint len, gboolean server_to_evo)
@@ -400,6 +400,7 @@ imapx_parse_capability(CamelIMAPXStream *stream, CamelException *ex)
 	struct _capability_info * cinfo;
 
 	cinfo = g_malloc0(sizeof(*cinfo));
+	cinfo->auth_types = g_hash_table_new_full (g_str_hash, g_str_equal, (GDestroyNotify) g_free, NULL);
 
 	/* FIXME: handle auth types */
 	while (!camel_exception_is_set (ex) && (tok = camel_imapx_stream_token(stream, &token, &len, ex)) != '\n') {
@@ -412,8 +413,14 @@ imapx_parse_capability(CamelIMAPXStream *stream, CamelException *ex)
 				p = token;
 				while ((c = *p))
 					*p++ = toupper(c);
+				if (!strncmp ((gchar *) token, "AUTH=", 5)) {
+					g_hash_table_insert (cinfo->auth_types,
+							g_strdup ((gchar *)token + 5),
+							GINT_TO_POINTER (1));
+					break;
+				}
 			case IMAPX_TOK_INT:
-				printf(" cap: '%s'\n", token);
+				d(printf(" cap: '%s'\n", token));
 				for (i = 0; i < G_N_ELEMENTS (capa_table); i++)
 					if (!strcmp((gchar *) token, capa_table[i].name))
 						cinfo->capa |= capa_table[i].flag;
@@ -439,6 +446,7 @@ imapx_parse_capability(CamelIMAPXStream *stream, CamelException *ex)
 
 void imapx_free_capability(struct _capability_info *cinfo)
 {
+	g_hash_table_destroy (cinfo->auth_types);
 	g_free(cinfo);
 }
 
@@ -474,9 +482,7 @@ imapx_parse_namespace_list (CamelIMAPXStream *stream, CamelException *ex)
 
 				node = g_new0 (CamelIMAPXStoreNamespace, 1);
 				node->next = NULL;
-				node->full_name = g_strdup ((gchar *) token);
 				node->path = g_strdup ((gchar *) token);
-				g_message ("namespace: Node path is %s \n", node->path);
 
 				tok = camel_imapx_stream_token (stream, &token, &len, ex);
 
@@ -502,12 +508,16 @@ imapx_parse_namespace_list (CamelIMAPXStream *stream, CamelException *ex)
 				tail->next = node;
 				tail = node;
 
-				if (node->path [strlen (node->path) -1] == node->sep)
+				if (*node->path && node->path [strlen (node->path) -1] == node->sep)
 					node->path [strlen (node->path) - 1] = '\0';
 
 				if (!g_ascii_strncasecmp (node->path, "INBOX", 5) &&
 						(node->path [6] == '\0' || node->path [6] == node->sep ))
 					memcpy (node->path, "INBOX", 5);
+				
+				/* TODO remove full_name later. not required */
+				node->full_name = g_strdup (node->path);
+
 				tok = camel_imapx_stream_token (stream, &token, &len, ex);
 				if (tok != ')') {
 					camel_exception_set (ex, 1, "namespace: expected a ')'");
@@ -1301,9 +1311,9 @@ imapx_dump_fetch(struct _fetch_info *finfo)
 	CamelStream *sout;
 	gint fd;
 
-	printf("Fetch info:\n");
+	d(printf("Fetch info:\n"));
 	if (finfo == NULL) {
-		printf("Empty\n");
+		d(printf("Empty\n"));
 		return;
 	}
 
@@ -1503,50 +1513,42 @@ imapx_parse_status_info (struct _CamelIMAPXStream *is, CamelException *ex)
 }
 
 static void
-generate_uids_from_sequence (GPtrArray *uids, guint32 end_uid)
+generate_uids_from_sequence (GPtrArray *uids, guint32 begin_uid, guint32 end_uid)
 {
-	guint32 uid = GPOINTER_TO_UINT (g_ptr_array_index (uids, uids->len - 1));
+	guint32 i;
 
-	uid++;
-	while (uid <= end_uid) {
-		g_ptr_array_add (uids, GUINT_TO_POINTER (uid));
-		uid++;
-	}
+	for (i = begin_uid; i <= end_uid; i++)
+		g_ptr_array_add (uids, GUINT_TO_POINTER (i));
 }
 
 static GPtrArray *
 imapx_parse_uids (CamelIMAPXStream *is, CamelException *ex)
 {
 	GPtrArray *uids = g_ptr_array_new ();
-	gboolean is_prev_number = FALSE, sequence = FALSE;
 	guchar *token;
-	guint len;
-	gint tok;
+	gchar **splits;
+	guint len, str_len;
+	gint tok, i;
 
 	tok = camel_imapx_stream_token (is, &token, &len, ex);
-	while (tok != ']'|| !(is_prev_number && tok == IMAPX_TOK_INT)) {
-		if (tok == ',') {
-			is_prev_number = FALSE;
-			sequence = FALSE;
-		} else if (tok == ':') {
-			sequence = TRUE;
-			is_prev_number = FALSE;
+	splits = g_strsplit ((gchar *) token, ",", -1);
+	str_len = g_strv_length (splits);
+
+	for (i = 0; i < str_len; i++)	{
+		if (g_strstr_len (splits [i], -1, ":")) {
+			gchar **seq = g_strsplit (splits [i], ":", -1);
+			guint32 uid1 = strtoul ((gchar *) seq [0], NULL, 10);
+			guint32 uid2 = strtoul ((gchar *) seq [1], NULL, 10);
+
+			generate_uids_from_sequence (uids, uid1, uid2);
+			g_strfreev (seq);
 		} else {
 			guint32 uid = strtoul ((gchar *) token, NULL, 10);
-
-			is_prev_number = TRUE;
-			sequence = FALSE;
-
-			if (sequence)
-				generate_uids_from_sequence (uids, uid);
-			else
-				g_ptr_array_add (uids, GUINT_TO_POINTER (uid));
+			g_ptr_array_add (uids, GUINT_TO_POINTER (uid));
 		}
-		camel_imapx_stream_token (is, &token, &len, ex);
 	}
 
-	if (is_prev_number && tok == IMAPX_TOK_INT)
-		camel_imapx_stream_ungettoken (is, tok, token, len);
+	g_strfreev (splits);
 
 	return uids;
 }
@@ -1633,7 +1635,7 @@ imapx_parse_status(CamelIMAPXStream *is, CamelException *ex)
 				break;
 			default:
 				sinfo->condition = IMAPX_UNKNOWN;
-				printf("Got unknown response code: %s: ignored\n", token);
+				d(printf("Got unknown response code: %s: ignored\n", token));
 		}
 
 		/* ignore anything we dont know about */
@@ -1746,7 +1748,7 @@ imapx_parse_list(CamelIMAPXStream *is, CamelException *ex)
 	camel_imapx_stream_nstring(is, &token, ex);
 	linfo->separator = token?*token:0;
 	camel_imapx_stream_astring(is, &token, ex);
-	linfo->name = g_strdup((gchar *) token);
+	linfo->name = camel_utf7_utf8 ((gchar *) token);
 
 	return linfo;
 }

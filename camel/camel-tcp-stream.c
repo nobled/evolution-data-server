@@ -123,6 +123,8 @@ camel_tcp_stream_setsockopt (CamelTcpStream *stream,
  *
  * Returns: the stream's local address (which must be freed with
  * #g_free) if the stream is connected, or %NULL if not
+ *
+ * Since: 2.22
  **/
 struct sockaddr *
 camel_tcp_stream_get_local_address (CamelTcpStream *stream,
@@ -148,6 +150,8 @@ camel_tcp_stream_get_local_address (CamelTcpStream *stream,
  *
  * Returns: the stream's remote address (which must be freed with
  * #g_free) if the stream is connected, or %NULL if not.
+ *
+ * Since: 2.22
  **/
 struct sockaddr *
 camel_tcp_stream_get_remote_address (CamelTcpStream *stream,

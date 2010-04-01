@@ -353,7 +353,7 @@ camel_cache_remove(c, key);
  *
  * @block_size is currently ignored and is set to CAMEL_BLOCK_SIZE.
  *
- * Return value: The new block file, or NULL if it could not be created.
+ * Returns: The new block file, or NULL if it could not be created.
  **/
 CamelBlockFile *
 camel_block_file_new (const gchar *path,
@@ -468,7 +468,7 @@ camel_block_file_delete(CamelBlockFile *bs)
  * Allocate a new block, return a pointer to it.  Old blocks
  * may be flushed to disk during this call.
  *
- * Return value: The block, or NULL if an error occured.
+ * Returns: The block, or NULL if an error occured.
  **/
 CamelBlock *
 camel_block_file_new_block (CamelBlockFile *bs,
@@ -540,7 +540,7 @@ camel_block_file_free_block (CamelBlockFile *bs,
  *
  * Retreive a block @id.
  *
- * Return value: The block, or NULL if blockid is invalid or a file error
+ * Returns: The block, or NULL if blockid is invalid or a file error
  * occured.
  **/
 CamelBlock *
@@ -762,7 +762,7 @@ sync_nolock(CamelBlockFile *bs)
  * Flush a block to disk immediately.  The block will only
  * be flushed to disk if it is marked as dirty (touched).
  *
- * Return value: -1 on io error.
+ * Returns: -1 on io error.
  **/
 gint camel_block_file_sync_block(CamelBlockFile *bs, CamelBlock *bl)
 {
@@ -785,7 +785,7 @@ gint camel_block_file_sync_block(CamelBlockFile *bs, CamelBlock *bl)
  *
  * Sync all dirty blocks to disk, including the root block.
  *
- * Return value: -1 on io error.
+ * Returns: -1 on io error.
  **/
 gint camel_block_file_sync(CamelBlockFile *bs)
 {
@@ -981,7 +981,7 @@ key_file_unuse(CamelKeyFile *bs)
  *
  * Create a new key file.  A linked list of record blocks.
  *
- * Return value: A new key file, or NULL if the file could not
+ * Returns: A new key file, or NULL if the file could not
  * be opened/created/initialised.
  **/
 CamelKeyFile *
@@ -1090,7 +1090,7 @@ camel_key_file_delete(CamelKeyFile *kf)
  *
  * Write a new list of records to the key file.
  *
- * Return value: -1 on io error.  The key file will remain unchanged.
+ * Returns: -1 on io error.  The key file will remain unchanged.
  **/
 gint
 camel_key_file_write(CamelKeyFile *kf, camel_block_t *parent, gsize len, camel_key_t *records)
@@ -1145,7 +1145,7 @@ camel_key_file_write(CamelKeyFile *kf, camel_block_t *parent, gsize len, camel_k
  * Read the next block of data from the key file.  Returns the number of
  * records.
  *
- * Return value: -1 on io error.
+ * Returns: -1 on io error.
  **/
 gint
 camel_key_file_read(CamelKeyFile *kf, camel_block_t *start, gsize *len, camel_key_t **records)
