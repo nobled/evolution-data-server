@@ -35,7 +35,7 @@
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-imap-command.h"
 #include "camel-imap-folder.h"
@@ -2247,7 +2247,6 @@ rename_folder (CamelStore *store,
 	storage_path = g_strdup_printf("%s/folders", imap_store->storage_path);
 	oldpath = imap_path_to_physical (storage_path, old_name);
 	newpath = imap_path_to_physical (storage_path, new_name_in);
-	g_free(storage_path);
 
 	/* So do we care if this didn't work?  Its just a cache? */
 	if (g_rename (oldpath, newpath) == -1) {
@@ -2255,6 +2254,28 @@ rename_folder (CamelStore *store,
 			   oldpath, newpath, g_strerror (errno));
 	}
 
+	if (CAMEL_STORE (imap_store)->folders) {
+		CamelFolder *folder;
+
+		folder = camel_object_bag_get (CAMEL_STORE (imap_store)->folders, old_name);
+		if (folder) {
+			CamelImapFolder *imap_folder = CAMEL_IMAP_FOLDER (folder);
+
+			if (imap_folder && imap_folder->journal) {
+				gchar *folder_dir = imap_path_to_physical (storage_path, new_name_in);
+				gchar *path = g_strdup_printf ("%s/journal", folder_dir);
+
+				camel_offline_journal_set_filename (imap_folder->journal, path);
+
+				g_free (path);
+				g_free (folder_dir);
+			}
+
+			g_object_unref (folder);
+		}
+	}
+
+	g_free (storage_path);
 	g_free (oldpath);
 	g_free (newpath);
 fail:

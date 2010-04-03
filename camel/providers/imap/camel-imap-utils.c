@@ -906,9 +906,9 @@ imap_body_decode (const gchar **in, CamelMessageContentInfo *ci, CamelFolder *fo
 			child->parent = ci;
 			tail->next = child;
 			tail = child;
-		} while (*inptr == '(');
+		} while (inptr && *inptr == '(');
 
-		if (*inptr++ != ' ')
+		if (!inptr || *inptr++ != ' ')
 			return NULL;
 
 		if (g_ascii_strncasecmp (inptr, "nil", 3) != 0) {
@@ -921,7 +921,7 @@ imap_body_decode (const gchar **in, CamelMessageContentInfo *ci, CamelFolder *fo
 		ctype = camel_content_type_new ("multipart", subtype ? subtype : "mixed");
 		g_free (subtype);
 
-		if (*inptr++ != ')') {
+		if (!inptr || *inptr++ != ')') {
 			camel_content_type_unref (ctype);
 			return NULL;
 		}
@@ -970,7 +970,7 @@ imap_body_decode (const gchar **in, CamelMessageContentInfo *ci, CamelFolder *fo
 		if (parse_params (&inptr, ctype) == -1)
 			goto exception;
 
-		if (*inptr++ != ' ')
+		if (!inptr || *inptr++ != ' ')
 			goto exception;
 
 		/* content-id */
@@ -1025,7 +1025,7 @@ imap_body_decode (const gchar **in, CamelMessageContentInfo *ci, CamelFolder *fo
 
 		if (camel_content_type_is (ctype, "message", "rfc822")) {
 			/* body_type_msg */
-			if (*inptr++ != ' ')
+			if (!inptr || *inptr++ != ' ')
 				goto exception;
 
 			/* envelope */
@@ -1065,6 +1065,9 @@ imap_body_decode (const gchar **in, CamelMessageContentInfo *ci, CamelFolder *fo
 		ci->encoding = encoding;
 		ci->size = size;
 		ci->childs = child;
+
+		if (*inptr == ' ' && inptr[1] == '(' && inptr[2] == '\"')
+			inptr++;
 	}
 
 	*in = inptr;

@@ -40,7 +40,7 @@
 #include <posix1_lim.h>
 #endif
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-local-folder.h"
 #include "camel-local-private.h"
@@ -387,18 +387,27 @@ local_getv(CamelObject *object, GError **error, CamelArgGetV *args)
 				sprintf (path, "%s/%s", tmp, folder->full_name);
 
 				if ((tmp = getenv("HOME")) && strncmp(tmp, path, strlen(tmp)) == 0)
-					/* $HOME relative path + protocol string */
+					/* Translators: This is used for a folder description, for folders being under $HOME.
+					   The first %s is replaced with a relative path under $HOME,
+					   the second %s is replaced with a protocol name, like mbox/maldir/... */
 					folder->description = g_strdup_printf(_("~%s (%s)"), path+strlen(tmp),
 									      ((CamelService *)folder->parent_store)->url->protocol);
 				else if ((tmp = "/var/spool/mail") && strncmp(tmp, path, strlen(tmp)) == 0)
-					/* /var/spool/mail relative path + protocol */
+					/* Translators: This is used for a folder description, for folders being under /var/spool/mail.
+					   The first %s is replaced with a relative path under /var/spool/mail,
+					   the second %s is replaced with a protocol name, like mbox/maldir/... */
 					folder->description = g_strdup_printf(_("mailbox: %s (%s)"), path+strlen(tmp),
 									      ((CamelService *)folder->parent_store)->url->protocol);
 				else if ((tmp = "/var/mail") && strncmp(tmp, path, strlen(tmp)) == 0)
+					/* Translators: This is used for a folder description, for folders being under /var/mail.
+					   The first %s is replaced with a relative path under /var/mail,
+					   the second %s is replaced with a protocol name, like mbox/maldir/... */
 					folder->description = g_strdup_printf(_("mailbox: %s (%s)"), path+strlen(tmp),
 									      ((CamelService *)folder->parent_store)->url->protocol);
 				else
-					/* a full path + protocol */
+					/* Translators: This is used for a folder description.
+					   The first %s is replaced with a folder's full path,
+					   the second %s is replaced with a protocol name, like mbox/maldir/... */
 					folder->description = g_strdup_printf(_("%s (%s)"), path,
 									      ((CamelService *)folder->parent_store)->url->protocol);
 			}

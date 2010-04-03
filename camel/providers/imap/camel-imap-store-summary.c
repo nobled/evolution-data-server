@@ -29,7 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-imap-store-summary.h"
 

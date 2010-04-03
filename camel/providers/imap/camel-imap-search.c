@@ -30,8 +30,6 @@
 
 #include <string.h>
 
-#include <libedataserver/e-sexp.h>
-
 #include "camel-search-private.h"
 
 #include "camel-imap-command.h"
@@ -445,7 +443,7 @@ imap_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Cam
 	if (argc == 1 && argv[0]->value.string[0] == '\0') {
 		if (s->current) {
 			r = e_sexp_result_new(f, ESEXP_RES_BOOL);
-			r->value.bool = TRUE;
+			r->value.boolean = TRUE;
 		} else {
 			r = e_sexp_result_new(f, ESEXP_RES_ARRAY_PTR);
 			r->value.ptrarray = g_ptr_array_new ();
@@ -457,7 +455,7 @@ imap_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Cam
 		/* nothing to match case, do nothing (should be handled higher up?) */
 		if (s->current) {
 			r = e_sexp_result_new(f, ESEXP_RES_BOOL);
-			r->value.bool = FALSE;
+			r->value.boolean = FALSE;
 		} else {
 			r = e_sexp_result_new(f, ESEXP_RES_ARRAY_PTR);
 			r->value.ptrarray = g_ptr_array_new ();
@@ -478,7 +476,7 @@ imap_body_contains (struct _ESExp *f, gint argc, struct _ESExpResult **argv, Cam
 			for (i=0;i<j && !truth;i++)
 				truth = *uidp++ == uidn;
 			r = e_sexp_result_new(f, ESEXP_RES_BOOL);
-			r->value.bool = truth;
+			r->value.boolean = truth;
 		} else {
 			r = e_sexp_result_new(f, ESEXP_RES_ARRAY_PTR);
 			array = r->value.ptrarray = g_ptr_array_new();

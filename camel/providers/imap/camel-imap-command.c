@@ -35,7 +35,7 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-imap-command.h"
 #include "camel-imap-folder.h"

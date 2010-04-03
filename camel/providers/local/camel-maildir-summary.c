@@ -31,7 +31,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 
 #include <glib/gi18n-lib.h>

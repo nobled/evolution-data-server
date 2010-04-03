@@ -33,9 +33,7 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-data-server-util.h>
-
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-nntp-folder.h"
 #include "camel-nntp-private.h"

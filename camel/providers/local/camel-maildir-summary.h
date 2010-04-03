@@ -21,8 +21,6 @@
 #ifndef CAMEL_MAILDIR_SUMMARY_H
 #define CAMEL_MAILDIR_SUMMARY_H
 
-#include <camel/camel.h>
-
 #include "camel-local-summary.h"
 
 /* Standard GObject macros */

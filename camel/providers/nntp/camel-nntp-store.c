@@ -34,7 +34,7 @@
 
 #include <glib/gi18n-lib.h>
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-nntp-summary.h"
 #include "camel-nntp-store.h"

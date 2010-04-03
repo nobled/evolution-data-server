@@ -22,8 +22,6 @@
 #ifndef CAMEL_SPOOL_FOLDER_H
 #define CAMEL_SPOOL_FOLDER_H
 
-#include <camel/camel.h>
-
 #include "camel-mbox-folder.h"
 #include "camel-spool-summary.h"
 

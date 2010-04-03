@@ -26,7 +26,7 @@
 #ifndef CAMEL_IMAP_FOLDER_H
 #define CAMEL_IMAP_FOLDER_H
 
-#include <camel.h>
+#include <camel/camel.h>
 
 #include "camel-imap-command.h"
 #include "camel-imap-message-cache.h"

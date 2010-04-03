@@ -89,4 +89,4 @@ void groupwise_summary_clear (CamelFolderSummary *summary, gboolean uncache);
 
 G_END_DECLS
 
-#endif /*CAMEL_GW_SUMMARY_H*/
+#endif /* CAMEL_GW_SUMMARY_H */

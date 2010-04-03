@@ -8,8 +8,8 @@
 #error "Only <camel/camel.h> can be included directly."
 #endif
 
-#ifndef _CAMEL_NET_UTILS_WIN32_H_
-#define _CAMEL_NET_UTILS_WIN32_H_
+#ifndef CAMEL_NET_UTILS_WIN32_H
+#define CAMEL_NET_UTILS_WIN32_H
 
 #include <stdio.h>
 #include <stdlib.h>

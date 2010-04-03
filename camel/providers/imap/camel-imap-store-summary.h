@@ -22,7 +22,7 @@
 #ifndef CAMEL_IMAP_STORE_SUMMARY_H
 #define CAMEL_IMAP_STORE_SUMMARY_H
 
-#include <camel.h>
+#include <camel/camel.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_IMAP_STORE_SUMMARY \

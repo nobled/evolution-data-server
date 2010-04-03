@@ -17,8 +17,8 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef CAMEL_GROUPWISE_UTILS__
-#define CAMEL_GROUPWISE_UTILS__
+#ifndef CAMEL_GROUPWISE_UTILS_H
+#define CAMEL_GROUPWISE_UTILS_H
 
 #include <camel/camel.h>
 #include <e-gw-connection.h>

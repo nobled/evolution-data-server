@@ -1036,11 +1036,10 @@ gpg_ctx_parse_status (struct _GpgCtx *gpg,
 	gpg->statusleft -= len;                                           \
 } G_STMT_END
 
-#ifndef G_OS_WIN32
-
 static void
 gpg_ctx_op_cancel (struct _GpgCtx *gpg)
 {
+#ifndef G_OS_WIN32
 	pid_t retval;
 	gint status;
 
@@ -1057,9 +1056,8 @@ gpg_ctx_op_cancel (struct _GpgCtx *gpg)
 		sleep (1);
 		waitpid (gpg->pid, &status, WNOHANG);
 	}
-}
-
 #endif
+}
 
 static gint
 gpg_ctx_op_step (struct _GpgCtx *gpg,
@@ -1411,8 +1409,10 @@ gpg_sign (CamelCipherContext *context,
 	}
 
 	while (!gpg_ctx_op_complete (gpg)) {
-		if (gpg_ctx_op_step (gpg, error) == -1)
+		if (gpg_ctx_op_step (gpg, error) == -1) {
+			gpg_ctx_op_cancel (gpg);
 			goto fail;
+		}
 	}
 
 	if (gpg_ctx_op_wait (gpg) != 0) {
@@ -1671,8 +1671,10 @@ gpg_verify (CamelCipherContext *context,
 	}
 
 	while (!gpg_ctx_op_complete (gpg)) {
-		if (gpg_ctx_op_step (gpg, error) == -1)
+		if (gpg_ctx_op_step (gpg, error) == -1) {
+			gpg_ctx_op_cancel (gpg);
 			goto exception;
+		}
 	}
 
 	/* report error only when no data or didn't found signature */
@@ -1781,8 +1783,10 @@ gpg_encrypt (CamelCipherContext *context,
 
 	/* FIXME: move this to a common routine */
 	while (!gpg_ctx_op_complete(gpg)) {
-		if (gpg_ctx_op_step (gpg, error) == -1)
+		if (gpg_ctx_op_step (gpg, error) == -1) {
+			gpg_ctx_op_cancel (gpg);
 			goto fail;
+		}
 	}
 
 	if (gpg_ctx_op_wait (gpg) != 0) {
@@ -1923,8 +1927,10 @@ gpg_decrypt (CamelCipherContext *context,
 	}
 
 	while (!gpg_ctx_op_complete (gpg)) {
-		if (gpg_ctx_op_step (gpg, error) == -1)
+		if (gpg_ctx_op_step (gpg, error) == -1) {
+			gpg_ctx_op_cancel (gpg);
 			goto fail;
+		}
 	}
 
 	if (gpg_ctx_op_wait (gpg) != 0) {
@@ -2020,8 +2026,10 @@ gpg_import_keys (CamelCipherContext *context,
 	}
 
 	while (!gpg_ctx_op_complete (gpg)) {
-		if (gpg_ctx_op_step (gpg, error) == -1)
+		if (gpg_ctx_op_step (gpg, error) == -1) {
+			gpg_ctx_op_cancel (gpg);
 			goto fail;
+		}
 	}
 
 	if (gpg_ctx_op_wait (gpg) != 0) {
@@ -2070,8 +2078,10 @@ gpg_export_keys (CamelCipherContext *context,
 	}
 
 	while (!gpg_ctx_op_complete (gpg)) {
-		if (gpg_ctx_op_step (gpg, error) == -1)
+		if (gpg_ctx_op_step (gpg, error) == -1) {
+			gpg_ctx_op_cancel (gpg);
 			goto fail;
+		}
 	}
 
 	if (gpg_ctx_op_wait (gpg) != 0) {

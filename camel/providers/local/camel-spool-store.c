@@ -38,8 +38,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-data-server-util.h>
-
 #include "camel-spool-folder.h"
 #include "camel-spool-store.h"
 

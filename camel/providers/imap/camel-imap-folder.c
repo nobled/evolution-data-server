@@ -38,7 +38,7 @@
 
 #include <libedataserver/e-time-utils.h>
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-imap-command.h"
 #include "camel-imap-folder.h"

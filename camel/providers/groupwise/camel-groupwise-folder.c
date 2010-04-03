@@ -47,15 +47,13 @@ which needs to be better organized via functions */
 #include <e-gw-connection.h>
 #include <e-gw-item.h>
 
-#include "camel-private.h"
+#include <camel/camel-private.h>
 
 #include "camel-groupwise-folder.h"
 #include "camel-groupwise-journal.h"
 #include "camel-groupwise-private.h"
 #include "camel-groupwise-store.h"
-#include "camel-groupwise-store.h"
 #include "camel-groupwise-summary.h"
-#include "camel-groupwise-utils.h"
 #include "camel-groupwise-utils.h"
 
 #define ADD_JUNK_ENTRY 1
