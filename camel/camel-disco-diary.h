@@ -33,7 +33,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <camel/camel-object.h>
 #include <camel/camel-disco-store.h>
 
 /* Standard GObject macros */
@@ -88,27 +87,24 @@ struct _CamelDiscoDiaryClass {
 	CamelObjectClass parent_class;
 };
 
-/* public methods */
-CamelDiscoDiary *camel_disco_diary_new    (CamelDiscoStore *store,
-					   const gchar *filename,
-					   GError **error);
-
-gboolean         camel_disco_diary_empty  (CamelDiscoDiary *diary);
-
-void             camel_disco_diary_log    (CamelDiscoDiary *diary,
-					   CamelDiscoDiaryAction action,
-					   ...);
-void             camel_disco_diary_replay (CamelDiscoDiary *diary,
-					   GError **error);
+GType		camel_disco_diary_get_type	(void);
+CamelDiscoDiary *
+		camel_disco_diary_new		(CamelDiscoStore *store,
+						 const gchar *filename,
+						 GError **error);
+gboolean	camel_disco_diary_empty		(CamelDiscoDiary *diary);
+void		camel_disco_diary_log		(CamelDiscoDiary *diary,
+						 CamelDiscoDiaryAction action,
+						 ...);
+void		camel_disco_diary_replay	(CamelDiscoDiary *diary,
+						 GError **error);
 
 /* Temporary->Permanent UID map stuff */
-void        camel_disco_diary_uidmap_add    (CamelDiscoDiary *diary,
-					     const gchar *old_uid,
-					     const gchar *new_uid);
-const gchar *camel_disco_diary_uidmap_lookup (CamelDiscoDiary *diary,
-					     const gchar *uid);
-
-GType camel_disco_diary_get_type (void);
+void		camel_disco_diary_uidmap_add	(CamelDiscoDiary *diary,
+						 const gchar *old_uid,
+						 const gchar *new_uid);
+const gchar *camel_disco_diary_uidmap_lookup	(CamelDiscoDiary *diary,
+						 const gchar *uid);
 
 G_END_DECLS
 

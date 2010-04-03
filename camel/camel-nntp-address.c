@@ -179,7 +179,7 @@ camel_nntp_address_add (CamelNNTPAddress *a, const gchar *name)
  * Returns: TRUE if such an address exists, or FALSE otherwise.
  **/
 gboolean
-camel_nntp_address_get (const CamelNNTPAddress *a, gint index, const gchar **namep)
+camel_nntp_address_get (CamelNNTPAddress *a, gint index, const gchar **namep)
 {
 	g_assert(CAMEL_IS_NNTP_ADDRESS(a));
 

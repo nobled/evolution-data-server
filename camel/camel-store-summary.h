@@ -104,7 +104,6 @@ typedef enum _CamelStoreSummaryFlags {
 
 struct _CamelStoreSummary {
 	CamelObject parent;
-
 	CamelStoreSummaryPrivate *priv;
 
 	/* header info */

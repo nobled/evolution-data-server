@@ -68,13 +68,14 @@ struct _CamelSaslClass {
 						 GError **error);
 };
 
-GType  camel_sasl_get_type (void);
+GType		camel_sasl_get_type		(void);
 
-/* public methods */
-GByteArray *camel_sasl_challenge        (CamelSasl *sasl, GByteArray *token, GError **error);
-gchar       *camel_sasl_challenge_base64 (CamelSasl *sasl, const gchar *token, GError **error);
-
-/* utility functions */
+GByteArray *	camel_sasl_challenge		(CamelSasl *sasl,
+						 GByteArray *token,
+						 GError **error);
+gchar *		camel_sasl_challenge_base64	(CamelSasl *sasl,
+						 const gchar *token,
+						 GError **error);
 CamelSasl *	camel_sasl_new			(const gchar *service_name,
 						 const gchar *mechanism,
 						 CamelService *service);
@@ -85,8 +86,9 @@ const gchar *	camel_sasl_get_mechanism	(CamelSasl *sasl);
 CamelService *	camel_sasl_get_service		(CamelSasl *sasl);
 const gchar *	camel_sasl_get_service_name	(CamelSasl *sasl);
 
-GList                *camel_sasl_authtype_list (gboolean include_plain);
-CamelServiceAuthType *camel_sasl_authtype      (const gchar *mechanism);
+GList *		camel_sasl_authtype_list	(gboolean include_plain);
+CamelServiceAuthType *
+		camel_sasl_authtype		(const gchar *mechanism);
 
 G_END_DECLS
 

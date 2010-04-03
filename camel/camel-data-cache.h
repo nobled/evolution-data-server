@@ -91,16 +91,6 @@ gchar *		camel_data_cache_get_filename	(CamelDataCache *cdc,
 						 const gchar *key,
 						 GError **error);
 
-#ifndef CAMEL_DISABLE_DEPRECATED
-gint		camel_data_cache_rename		(CamelDataCache *cache,
-						 const gchar *old,
-						 const gchar *new,
-						 GError **error);
-gint		camel_data_cache_clear		(CamelDataCache *cache,
-						 const gchar *path,
-						 GError **error);
-#endif
-
 G_END_DECLS
 
 #endif /* CAMEL_DATA_CACHE_H */

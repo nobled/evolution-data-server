@@ -33,7 +33,6 @@
 #include <camel/camel-filter-driver.h>
 #include <camel/camel-junk-plugin.h>
 #include <camel/camel-msgport.h>
-#include <camel/camel-object.h>
 #include <camel/camel-provider.h>
 #include <camel/camel-service.h>
 
@@ -141,8 +140,8 @@ struct _CamelSessionClass {
 	gboolean        (*lookup_addressbook)(CamelSession *session,
 					      const gchar *name);
 	void		(*forward_to)        (CamelSession *session,
-					      struct _CamelFolder *folder,
-					      struct _CamelMimeMessage *message,
+					      CamelFolder *folder,
+					      CamelMimeMessage *message,
 					      const gchar *address,
 					      GError **error);
 };
@@ -207,8 +206,8 @@ void               camel_session_set_check_junk     (CamelSession *session,
 						     gboolean check_junk);
 
 struct _CamelSessionThreadOps {
-	void (*receive)(CamelSession *session, struct _CamelSessionThreadMsg *m);
-	void (*free)(CamelSession *session, struct _CamelSessionThreadMsg *m);
+	void (*receive)(CamelSession *session, CamelSessionThreadMsg *m);
+	void (*free)(CamelSession *session, CamelSessionThreadMsg *m);
 };
 
 struct _CamelSessionThreadMsg {
@@ -218,7 +217,7 @@ struct _CamelSessionThreadMsg {
 
 	GError *error;
 	CamelSessionThreadOps *ops;
-	struct _CamelOperation *op;
+	CamelOperation *op;
 	CamelSession *session;
 
 	gpointer data; /* free for implementation to define, not used by camel, do not use in client code */
@@ -247,8 +246,8 @@ gboolean           camel_session_lookup_addressbook (CamelSession *session,
 						     const gchar *name);
 
 void		   camel_session_forward_to         (CamelSession *session,
-						     struct _CamelFolder *folder,
-						     struct _CamelMimeMessage *message,
+						     CamelFolder *folder,
+						     CamelMimeMessage *message,
 						     const gchar *address,
 						     GError **error);
 

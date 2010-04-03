@@ -29,7 +29,6 @@
 #ifndef CAMEL_FOLDER_H
 #define CAMEL_FOLDER_H
 
-#include <camel/camel-object.h>
 #include <camel/camel-folder-summary.h>
 
 /* Standard GObject macros */
@@ -266,8 +265,6 @@ struct _CamelFolderClass {
 
 GType		camel_folder_get_type		(void);
 GQuark		camel_folder_error_quark	(void) G_GNUC_CONST;
-
-/* public methods */
 void		camel_folder_construct		(CamelFolder *folder,
 						 struct _CamelStore *parent_store,
 						 const gchar *full_name,

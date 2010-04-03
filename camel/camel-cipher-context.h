@@ -29,7 +29,6 @@
 
 #include <camel/camel-list-utils.h>
 #include <camel/camel-mime-part.h>
-#include <camel/camel-object.h>
 #include <camel/camel-session.h>
 
 /* Standard GObject macros */

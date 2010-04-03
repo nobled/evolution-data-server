@@ -75,7 +75,7 @@ struct _CamelVeeStoreClass {
 };
 
 GType		camel_vee_store_get_type	(void);
-CamelVeeStore      *camel_vee_store_new	(void);
+CamelVeeStore *	camel_vee_store_new		(void);
 
 G_END_DECLS
 

@@ -72,12 +72,11 @@ struct _CamelVTrashFolder {
 
 struct _CamelVTrashFolderClass {
 	CamelVeeFolderClass parent_class;
-
 };
 
-GType       camel_vtrash_folder_get_type    (void);
-
-CamelFolder    *camel_vtrash_folder_new		(CamelStore *parent_store, camel_vtrash_folder_t type);
+GType		camel_vtrash_folder_get_type	(void);
+CamelFolder *	camel_vtrash_folder_new		(CamelStore *parent_store,
+						 camel_vtrash_folder_t type);
 
 G_END_DECLS
 

@@ -35,7 +35,6 @@
 #include <sys/types.h>
 
 #include <camel/camel-folder.h>
-#include <camel/camel-object.h>
 #include <camel/camel-service.h>
 
 /* Standard GObject macros */

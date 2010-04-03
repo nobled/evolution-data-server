@@ -30,7 +30,7 @@
 #ifndef CAMEL_DISCO_FOLDER_H
 #define CAMEL_DISCO_FOLDER_H
 
-#include "camel-folder.h"
+#include <camel/camel-folder.h>
 
 /* Standard GObject macros */
 #define CAMEL_TYPE_DISCO_FOLDER \

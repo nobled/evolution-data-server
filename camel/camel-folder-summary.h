@@ -31,7 +31,6 @@
 
 #include <camel/camel-mime-message.h>
 #include <camel/camel-mime-parser.h>
-#include <camel/camel-object.h>
 #include <camel/camel-index.h>
 
 /* Standard GObject macros */
@@ -72,10 +71,10 @@ typedef struct _CamelMessageContentInfo CamelMessageContentInfo;
 /* A tree of message content info structures
    describe the content structure of the message (if it has any) */
 struct _CamelMessageContentInfo {
-	struct _CamelMessageContentInfo *next;
+	CamelMessageContentInfo *next;
 
-	struct _CamelMessageContentInfo *childs;
-	struct _CamelMessageContentInfo *parent;
+	CamelMessageContentInfo *childs;
+	CamelMessageContentInfo *parent;
 
 	CamelContentType *type;
 	gchar *id;

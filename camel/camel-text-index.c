@@ -865,7 +865,7 @@ camel_text_index_init (CamelTextIndex *text_index)
 }
 
 static gchar *
-text_index_normalise (CamelIndex *idx, const gchar *in, gpointer data)
+text_index_normalize (CamelIndex *idx, const gchar *in, gpointer data)
 {
 	gchar *word;
 
@@ -888,7 +888,7 @@ camel_text_index_new (const gchar *path,
 	CamelBlock *bl;
 
 	camel_index_construct ((CamelIndex *)idx, path, flags);
-	camel_index_set_normalise ((CamelIndex *)idx, text_index_normalise, NULL);
+	camel_index_set_normalize ((CamelIndex *)idx, text_index_normalize, NULL);
 
 	p->blocks = camel_block_file_new (
 		idx->parent.path, flags, CAMEL_TEXT_INDEX_VERSION,

@@ -63,8 +63,6 @@ typedef enum _camel_smime_describe_t {
 	CAMEL_SMIME_CRLS = 1<<3
 } camel_smime_describe_t;
 
-struct _CamelSession;
-
 typedef struct _CamelSMIMEContext CamelSMIMEContext;
 typedef struct _CamelSMIMEContextClass CamelSMIMEContextClass;
 typedef struct _CamelSMIMEContextPrivate CamelSMIMEContextPrivate;
@@ -80,7 +78,7 @@ struct _CamelSMIMEContextClass {
 
 GType camel_smime_context_get_type(void);
 
-CamelCipherContext *camel_smime_context_new(struct _CamelSession *session);
+CamelCipherContext *camel_smime_context_new(CamelSession *session);
 
 /* nick to use for SMIMEEncKeyPrefs attribute for signed data */
 void camel_smime_context_set_encrypt_key(CamelSMIMEContext *context, gboolean use, const gchar *key);

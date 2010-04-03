@@ -28,7 +28,6 @@
 
 #include <libedataserver/e-sexp.h>
 #include <camel/camel-folder.h>
-#include <camel/camel-object.h>
 #include <camel/camel-index.h>
 
 /* Standard GObject macros */

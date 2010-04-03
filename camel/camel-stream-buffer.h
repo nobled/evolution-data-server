@@ -92,8 +92,6 @@ CamelStream *	camel_stream_buffer_new_with_vbuf
 						 CamelStreamBufferMode mode,
 						 gchar *buf,
 						 guint32 size);
-
-/* read a line of characters */
 gint		camel_stream_buffer_gets	(CamelStreamBuffer *sbf,
 						 gchar *buf,
 						 guint max,

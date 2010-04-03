@@ -74,18 +74,6 @@ CamelDataCache
 @when: 
 
 
-<!-- ##### FUNCTION camel_data_cache_rename ##### -->
-<para>
-
-</para>
-
-@cache: 
-@old: 
-@new: 
-@error: 
-@Returns: 
-
-
 <!-- ##### FUNCTION camel_data_cache_add ##### -->
 <para>
 
@@ -118,17 +106,6 @@ CamelDataCache
 @cdc: 
 @path: 
 @key: 
-@error: 
-@Returns: 
-
-
-<!-- ##### FUNCTION camel_data_cache_clear ##### -->
-<para>
-
-</para>
-
-@cache: 
-@path: 
 @error: 
 @Returns: 
 

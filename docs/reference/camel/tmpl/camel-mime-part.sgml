@@ -278,7 +278,7 @@ CamelMimePart
 
 </para>
 
-@msg: 
+@mime_part: 
 @info: 
 @Returns: 
 

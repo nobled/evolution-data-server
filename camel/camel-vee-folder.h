@@ -58,7 +58,6 @@ typedef struct _CamelVeeFolderPrivate CamelVeeFolderPrivate;
 
 struct _CamelVeeFolder {
 	CamelFolder parent;
-
 	CamelVeeFolderPrivate *priv;
 
 	gchar *expression;	/* query expression */

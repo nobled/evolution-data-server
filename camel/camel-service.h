@@ -113,17 +113,14 @@ struct _CamelServiceClass {
 						 CamelProvider *provider,
 						 CamelURL *url,
 						 GError **error);
-
 	gboolean	(*connect)		(CamelService *service,
 						 GError **error);
 	gboolean	(*disconnect)		(CamelService *service,
 						 gboolean clean,
 						 GError **error);
 	void		(*cancel_connect)	(CamelService *service);
-
 	GList *		(*query_auth_types)	(CamelService *service,
 						 GError **error);
-
 	gchar *		(*get_name)		(CamelService *service,
 						 gboolean brief);
 	gchar *		(*get_path)		(CamelService *service);

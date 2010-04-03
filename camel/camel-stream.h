@@ -67,7 +67,7 @@ struct _CamelStreamClass {
 	CamelObjectClass parent_class;
 
 	gssize		(*read)			(CamelStream *stream,
-					 	 gchar *buffer,
+						 gchar *buffer,
 						 gsize n,
 						 GError **error);
 	gssize		(*write)		(CamelStream *stream,

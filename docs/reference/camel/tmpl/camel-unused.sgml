@@ -584,6 +584,36 @@ camel-types
 </para>
 
 
+<!-- ##### FUNCTION camel_data_cache_clear ##### -->
+<para>
+
+</para>
+
+@cache: 
+@path: 
+@error: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_data_cache_rename ##### -->
+<para>
+
+</para>
+
+@cache: 
+@old: 
+@new: 
+@error: 
+@Returns: 
+
+<!-- ##### FUNCTION camel_index_set_normalise ##### -->
+<para>
+
+</para>
+
+@idx: 
+@func: 
+@data: 
+
 <!-- ##### FUNCTION camel_name_to_type ##### -->
 <para>
 
@@ -721,6 +751,28 @@ camel-types
 </para>
 
 @Param1: 
+
+<!-- ##### FUNCTION camel_operation_cancel_block ##### -->
+<para>
+
+</para>
+
+@cc: 
+
+<!-- ##### FUNCTION camel_operation_cancel_unblock ##### -->
+<para>
+
+</para>
+
+@cc: 
+
+<!-- ##### FUNCTION camel_operation_progress_count ##### -->
+<para>
+
+</para>
+
+@cc: 
+@sofar: 
 
 <!-- ##### FUNCTION camel_search_build_match_regex ##### -->
 <para>

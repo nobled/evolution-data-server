@@ -122,12 +122,12 @@ camel_index_rename (CamelIndex *idx, const gchar *path)
 }
 
 void
-camel_index_set_normalise (CamelIndex *idx, CamelIndexNorm func, gpointer data)
+camel_index_set_normalize (CamelIndex *idx, CamelIndexNorm func, gpointer data)
 {
 	g_return_if_fail (CAMEL_IS_INDEX (idx));
 
-	idx->normalise = func;
-	idx->normalise_data = data;
+	idx->normalize = func;
+	idx->normalize_data = data;
 }
 
 gint
@@ -289,8 +289,8 @@ camel_index_find (CamelIndex *idx, const gchar *word)
 	if ((idx->state & CAMEL_INDEX_DELETED) != 0)
 		return NULL;
 
-	if (idx->normalise)
-		b = idx->normalise (idx, word, idx->normalise_data);
+	if (idx->normalize)
+		b = idx->normalize (idx, word, idx->normalize_data);
 
 	ret = class->find (idx, b);
 
@@ -389,8 +389,8 @@ camel_index_name_add_word (CamelIndexName *idn,
 	class = CAMEL_INDEX_NAME_GET_CLASS (idn);
 	g_return_if_fail (class->add_word != NULL);
 
-	if (idn->index->normalise)
-		b = idn->index->normalise (idn->index, word, idn->index->normalise_data);
+	if (idn->index->normalize)
+		b = idn->index->normalize (idn->index, word, idn->index->normalize_data);
 
 	class->add_word (idn, b);
 

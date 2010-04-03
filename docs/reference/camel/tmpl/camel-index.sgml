@@ -28,7 +28,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @word: 
 @data: 
 @Returns: 
@@ -45,7 +45,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @name: 
 @Returns: 
 
@@ -78,7 +78,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @name: 
 @Returns: 
 
@@ -140,22 +140,12 @@ CamelIndex
 @Returns: 
 
 
-<!-- ##### FUNCTION camel_index_set_normalise ##### -->
-<para>
-
-</para>
-
-@idx: 
-@func: 
-@data: 
-
-
 <!-- ##### FUNCTION camel_index_sync ##### -->
 <para>
 
 </para>
 
-@idx: 
+@index: 
 @error: 
 @Returns: 
 
@@ -165,7 +155,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @error: 
 @Returns: 
 
@@ -175,7 +165,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @Returns: 
 
 
@@ -184,7 +174,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @name: 
 @Returns: 
 
@@ -194,7 +184,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @name: 
 @Returns: 
 
@@ -204,7 +194,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @idn: 
 @Returns: 
 
@@ -214,7 +204,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @name: 
 @Returns: 
 
@@ -224,7 +214,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @name: 
 
 
@@ -233,7 +223,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @word: 
 @Returns: 
 
@@ -243,7 +233,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @Returns: 
 
 
@@ -252,7 +242,7 @@ CamelIndex
 
 </para>
 
-@idx: 
+@index: 
 @Returns: 
 
 

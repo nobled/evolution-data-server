@@ -26,7 +26,6 @@
 #ifndef CAMEL_FILTER_DRIVER_H
 #define CAMEL_FILTER_DRIVER_H
 
-#include <camel/camel-object.h>
 #include <camel/camel-folder.h>
 #include <camel/camel-uid-cache.h>
 

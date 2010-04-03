@@ -31,7 +31,6 @@
 
 #include <sys/types.h>
 
-#include <camel/camel-object.h>
 #include <camel/camel-mime-utils.h>
 #include <camel/camel-stream.h>
 

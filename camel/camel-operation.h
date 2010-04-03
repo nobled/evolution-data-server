@@ -66,12 +66,6 @@ void camel_operation_start_transient(CamelOperation *cc, const gchar *what, ...)
 void camel_operation_progress(CamelOperation *cc, gint pc);
 void camel_operation_end(CamelOperation *cc);
 
-#ifndef CAMEL_DISABLE_DEPRECATED
-void camel_operation_cancel_block(CamelOperation *cc);
-void camel_operation_cancel_unblock(CamelOperation *cc);
-void camel_operation_progress_count(CamelOperation *cc, gint sofar);
-#endif /* CAMEL_DISABLE_DEPRECATED */
-
 G_END_DECLS
 
 #endif /* CAMEL_OPERATION_H */

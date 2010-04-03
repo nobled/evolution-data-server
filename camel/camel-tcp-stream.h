@@ -123,7 +123,6 @@ struct _CamelTcpStreamClass {
 						 CamelSockOptData *data);
 	gint		(*setsockopt)		(CamelTcpStream *stream,
 						 const CamelSockOptData *data);
-
 	struct sockaddr *
 			(*get_local_address)	(CamelTcpStream *stream,
 						 socklen_t *len);
