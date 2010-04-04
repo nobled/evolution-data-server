@@ -80,7 +80,7 @@ struct _CamelMediumClass {
 						 const gchar *name);
 	gconstpointer	(*get_header)		(CamelMedium *medium,
 						 const gchar *name);
-	GArray * (*get_headers) (CamelMedium *medium);
+	GArray *	(*get_headers)		(CamelMedium *medium);
 	void		(*free_headers)		(CamelMedium *medium,
 						 GArray *headers);
 	CamelDataWrapper *
@@ -100,13 +100,13 @@ void		camel_medium_remove_header	(CamelMedium *medium,
 						 const gchar *name);
 gconstpointer	camel_medium_get_header		(CamelMedium *medium,
 						 const gchar *name);
-GArray *camel_medium_get_headers (CamelMedium *medium);
+GArray *	camel_medium_get_headers	(CamelMedium *medium);
 void		camel_medium_free_headers	(CamelMedium *medium,
 						 GArray *headers);
 CamelDataWrapper *
 		camel_medium_get_content	(CamelMedium *medium);
-void camel_medium_set_content (CamelMedium *medium,
-			       CamelDataWrapper *content);
+void		camel_medium_set_content	(CamelMedium *medium,
+						 CamelDataWrapper *content);
 
 G_END_DECLS
 

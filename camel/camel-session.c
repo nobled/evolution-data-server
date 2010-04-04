@@ -37,8 +37,6 @@
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 
-#include <libedataserver/e-data-server-util.h>
-
 #include "camel-file-utils.h"
 #include "camel-private.h"
 #include "camel-session.h"
@@ -581,7 +579,8 @@ camel_session_alert_user (CamelSession *session,
  * Since: 2.22
  **/
 gboolean
-camel_session_lookup_addressbook (CamelSession *session, const gchar *name)
+camel_session_lookup_addressbook (CamelSession *session,
+                                  const gchar *name)
 {
 	CamelSessionClass *class;
 

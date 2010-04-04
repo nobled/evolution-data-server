@@ -103,7 +103,7 @@ void		camel_disco_diary_replay	(CamelDiscoDiary *diary,
 void		camel_disco_diary_uidmap_add	(CamelDiscoDiary *diary,
 						 const gchar *old_uid,
 						 const gchar *new_uid);
-const gchar *camel_disco_diary_uidmap_lookup	(CamelDiscoDiary *diary,
+const gchar *	camel_disco_diary_uidmap_lookup	(CamelDiscoDiary *diary,
 						 const gchar *uid);
 
 G_END_DECLS

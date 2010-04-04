@@ -253,7 +253,7 @@ camel_mime_filter_basic_init (CamelMimeFilterBasic *filter)
 }
 
 /**
- * camel_mime_filter_basic_new_type:
+ * camel_mime_filter_basic_new:
  * @type: a #CamelMimeFilterBasicType type
  *
  * Create a new #CamelMimeFilterBasic object of type @type.

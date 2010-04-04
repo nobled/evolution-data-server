@@ -214,7 +214,7 @@ param_parse (const gchar *enriched, const gchar *inptr, gint inlen)
 #define IS_RICHTEXT CAMEL_MIME_FILTER_ENRICHED_IS_RICHTEXT
 
 static void
-enriched_to_html (CamelMimeFilter *filter,
+enriched_to_html (CamelMimeFilter *mime_filter,
                   const gchar *in,
                   gsize inlen,
                   gsize prespace,
@@ -228,14 +228,14 @@ enriched_to_html (CamelMimeFilter *filter,
 	register const gchar *inptr;
 	register gchar *outptr;
 
-	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (filter);
+	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (mime_filter);
 
-	camel_mime_filter_set_size (filter, inlen * 2 + 6, FALSE);
+	camel_mime_filter_set_size (mime_filter, inlen * 2 + 6, FALSE);
 
 	inptr = in;
 	inend = in + inlen;
-	outptr = filter->outbuf;
-	outend = filter->outbuf + filter->outsize;
+	outptr = mime_filter->outbuf;
+	outend = mime_filter->outbuf + mime_filter->outsize;
 
  retry:
 	do {
@@ -457,11 +457,11 @@ enriched_to_html (CamelMimeFilter *filter,
            do. */
 
 	if (inptr < inend)
-		camel_mime_filter_backup (filter, inptr, (unsigned) (inend - inptr));
+		camel_mime_filter_backup (mime_filter, inptr, (unsigned) (inend - inptr));
 
-	*out = filter->outbuf;
-	*outlen = outptr - filter->outbuf;
-	*outprespace = filter->outpre;
+	*out = mime_filter->outbuf;
+	*outlen = outptr - mime_filter->outbuf;
+	*outprespace = mime_filter->outpre;
 
 	return;
 
@@ -471,23 +471,23 @@ enriched_to_html (CamelMimeFilter *filter,
 		gsize offset, grow;
 
 		grow = (inend - inptr) * 2 + 20;
-		offset = outptr - filter->outbuf;
-		camel_mime_filter_set_size (filter, filter->outsize + grow, TRUE);
-		outend = filter->outbuf + filter->outsize;
-		outptr = filter->outbuf + offset;
+		offset = outptr - mime_filter->outbuf;
+		camel_mime_filter_set_size (mime_filter, mime_filter->outsize + grow, TRUE);
+		outend = mime_filter->outbuf + mime_filter->outsize;
+		outptr = mime_filter->outbuf + offset;
 
 		goto retry;
 	} else {
-		camel_mime_filter_backup (filter, inptr, (unsigned) (inend - inptr));
+		camel_mime_filter_backup (mime_filter, inptr, (unsigned) (inend - inptr));
 	}
 
-	*out = filter->outbuf;
-	*outlen = outptr - filter->outbuf;
-	*outprespace = filter->outpre;
+	*out = mime_filter->outbuf;
+	*outlen = outptr - mime_filter->outbuf;
+	*outprespace = mime_filter->outpre;
 }
 
 static void
-mime_filter_enriched_filter (CamelMimeFilter *filter,
+mime_filter_enriched_filter (CamelMimeFilter *mime_filter,
                              const gchar *in,
                              gsize len,
                              gsize prespace,
@@ -496,11 +496,12 @@ mime_filter_enriched_filter (CamelMimeFilter *filter,
                              gsize *outprespace)
 {
 	enriched_to_html (
-		filter, in, len, prespace, out, outlen, outprespace, FALSE);
+		mime_filter, in, len, prespace,
+		out, outlen, outprespace, FALSE);
 }
 
 static void
-mime_filter_enriched_complete (CamelMimeFilter *filter,
+mime_filter_enriched_complete (CamelMimeFilter *mime_filter,
                                const gchar *in,
                                gsize len,
                                gsize prespace,
@@ -509,15 +510,16 @@ mime_filter_enriched_complete (CamelMimeFilter *filter,
                                gsize *outprespace)
 {
 	enriched_to_html (
-		filter, in, len, prespace, out, outlen, outprespace, TRUE);
+		mime_filter, in, len, prespace,
+		out, outlen, outprespace, TRUE);
 }
 
 static void
-mime_filter_enriched_reset (CamelMimeFilter *filter)
+mime_filter_enriched_reset (CamelMimeFilter *mime_filter)
 {
 	CamelMimeFilterEnrichedPrivate *priv;
 
-	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (filter);
+	priv = CAMEL_MIME_FILTER_ENRICHED_GET_PRIVATE (mime_filter);
 
 	priv->nofill = 0;
 }

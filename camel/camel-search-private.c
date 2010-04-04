@@ -35,8 +35,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <libedataserver/e-sexp.h>
-
 #include "camel-mime-message.h"
 #include "camel-multipart.h"
 #include "camel-search-private.h"

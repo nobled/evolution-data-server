@@ -108,21 +108,21 @@ void                        camel_mime_message_set_message_id     (CamelMimeMess
 								   const gchar                 *message_id);
 const gchar                 *camel_mime_message_get_message_id     (CamelMimeMessage           *message);
 void                        camel_mime_message_set_reply_to       (CamelMimeMessage           *message,
-								   const CamelInternetAddress *reply_to);
-const CamelInternetAddress *camel_mime_message_get_reply_to       (CamelMimeMessage           *message);
+								   CamelInternetAddress *reply_to);
+CamelInternetAddress *      camel_mime_message_get_reply_to       (CamelMimeMessage           *message);
 
 void                        camel_mime_message_set_subject        (CamelMimeMessage           *message,
 								   const gchar                 *subject);
 const gchar                 *camel_mime_message_get_subject        (CamelMimeMessage           *message);
 void                        camel_mime_message_set_from           (CamelMimeMessage           *message,
-								   const CamelInternetAddress *from);
-const CamelInternetAddress *camel_mime_message_get_from           (CamelMimeMessage           *message);
+								   CamelInternetAddress *from);
+CamelInternetAddress *      camel_mime_message_get_from           (CamelMimeMessage           *message);
 
-const CamelInternetAddress *camel_mime_message_get_recipients     (CamelMimeMessage           *message,
+CamelInternetAddress *      camel_mime_message_get_recipients     (CamelMimeMessage           *message,
 								   const gchar                 *type);
 void                        camel_mime_message_set_recipients     (CamelMimeMessage           *message,
 								   const gchar                 *type,
-								   const CamelInternetAddress *recipients);
+								   CamelInternetAddress *recipients);
 
 void                        camel_mime_message_set_source         (CamelMimeMessage           *message,
 								   const gchar                 *identity);

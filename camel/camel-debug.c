@@ -33,7 +33,7 @@ gint camel_verbose_debug;
 static GHashTable *debug_table = NULL;
 
 /**
- * debug_init:
+ * camel_debug_init:
  * @void:
  *
  * Init camel debug.

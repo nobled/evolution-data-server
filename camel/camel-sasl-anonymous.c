@@ -42,6 +42,17 @@ CamelServiceAuthType camel_sasl_anonymous_authtype = {
 
 G_DEFINE_TYPE (CamelSaslAnonymous, camel_sasl_anonymous, CAMEL_TYPE_SASL)
 
+static void
+sasl_anonymous_finalize (GObject *object)
+{
+	CamelSaslAnonymous *sasl = CAMEL_SASL_ANONYMOUS (object);
+
+	g_free (sasl->trace_info);
+
+	/* Chain up to parent's finalize() method. */
+	G_OBJECT_CLASS (camel_sasl_anonymous_parent_class)->finalize (object);
+}
+
 static GByteArray *
 sasl_anonymous_challenge (CamelSasl *sasl,
                           GByteArray *token,
@@ -101,17 +112,6 @@ sasl_anonymous_challenge (CamelSasl *sasl,
 
 	camel_sasl_set_authenticated (sasl, TRUE);
 	return ret;
-}
-
-static void
-sasl_anonymous_finalize (GObject *object)
-{
-	CamelSaslAnonymous *sasl = CAMEL_SASL_ANONYMOUS (object);
-
-	g_free (sasl->trace_info);
-
-	/* Chain up to parent's finalize() method. */
-	G_OBJECT_CLASS (camel_sasl_anonymous_parent_class)->finalize (object);
 }
 
 static void

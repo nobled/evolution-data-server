@@ -484,7 +484,7 @@ camel_block_file_new_block (CamelBlockFile *bs,
 			goto fail;
 		bs->root->free = ((camel_block_t *)bl->data)[0];
 	} else {
-		bl = camel_block_file_get_block(bs, bs->root->last, error);
+		bl = camel_block_file_get_block (bs, bs->root->last, error);
 		if (bl == NULL)
 			goto fail;
 		bs->root->last += CAMEL_BLOCK_SIZE;

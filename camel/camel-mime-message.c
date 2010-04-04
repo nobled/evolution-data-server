@@ -541,7 +541,7 @@ camel_mime_message_get_message_id (CamelMimeMessage *mime_message)
  * Set the Reply-To of a message.
  **/
 void
-camel_mime_message_set_reply_to (CamelMimeMessage *msg, const CamelInternetAddress *reply_to)
+camel_mime_message_set_reply_to (CamelMimeMessage *msg, CamelInternetAddress *reply_to)
 {
 	gchar *addr;
 
@@ -571,7 +571,7 @@ camel_mime_message_set_reply_to (CamelMimeMessage *msg, const CamelInternetAddre
  *
  * Returns: the Reply-Toa ddress of the message
  **/
-const CamelInternetAddress *
+CamelInternetAddress *
 camel_mime_message_get_reply_to (CamelMimeMessage *mime_message)
 {
 	g_assert (mime_message);
@@ -641,7 +641,7 @@ camel_mime_message_get_subject (CamelMimeMessage *mime_message)
  * Set the from address of a message.
  **/
 void
-camel_mime_message_set_from (CamelMimeMessage *msg, const CamelInternetAddress *from)
+camel_mime_message_set_from (CamelMimeMessage *msg, CamelInternetAddress *from)
 {
 	gchar *addr;
 
@@ -671,7 +671,7 @@ camel_mime_message_set_from (CamelMimeMessage *msg, const CamelInternetAddress *
  *
  * Returns: the from address of the message
  **/
-const CamelInternetAddress *
+CamelInternetAddress *
 camel_mime_message_get_from (CamelMimeMessage *mime_message)
 {
 	g_assert (mime_message);
@@ -692,7 +692,7 @@ camel_mime_message_get_from (CamelMimeMessage *mime_message)
  * Set the recipients of a message.
  **/
 void
-camel_mime_message_set_recipients(CamelMimeMessage *mime_message, const gchar *type, const CamelInternetAddress *r)
+camel_mime_message_set_recipients(CamelMimeMessage *mime_message, const gchar *type, CamelInternetAddress *r)
 {
 	gchar *text;
 	CamelInternetAddress *addr;
@@ -729,7 +729,7 @@ camel_mime_message_set_recipients(CamelMimeMessage *mime_message, const gchar *t
  *
  * Returns: the requested recipients
  **/
-const CamelInternetAddress *
+CamelInternetAddress *
 camel_mime_message_get_recipients (CamelMimeMessage *mime_message, const gchar *type)
 {
 	g_assert(mime_message);
@@ -900,7 +900,8 @@ find_best_encoding (CamelMimePart *part, CamelBestencRequired required, CamelBes
 	}
 
 	bestenc = camel_mime_filter_bestenc_new (flags);
-	idb = camel_stream_filter_add (CAMEL_STREAM_FILTER (filter), bestenc);
+	idb = camel_stream_filter_add (
+		CAMEL_STREAM_FILTER (filter), bestenc);
 	d(printf("writing to checking stream\n"));
 	camel_data_wrapper_decode_to_stream (content, filter, NULL);
 	camel_stream_filter_remove (CAMEL_STREAM_FILTER (filter), idb);

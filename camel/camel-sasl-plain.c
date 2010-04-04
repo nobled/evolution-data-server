@@ -92,4 +92,3 @@ camel_sasl_plain_init (CamelSaslPlain *sasl)
 {
 	sasl->priv = CAMEL_SASL_PLAIN_GET_PRIVATE (sasl);
 }
-

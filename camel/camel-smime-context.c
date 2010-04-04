@@ -77,6 +77,22 @@ struct _CamelSMIMEContextPrivate {
 
 G_DEFINE_TYPE (CamelSMIMEContext, camel_smime_context, CAMEL_TYPE_CIPHER_CONTEXT)
 
+static void
+smime_cert_data_free (gpointer cert_data)
+{
+	g_return_if_fail (cert_data != NULL);
+
+	CERT_DestroyCertificate (cert_data);
+}
+
+static gpointer
+smime_cert_data_clone (gpointer cert_data)
+{
+	g_return_val_if_fail (cert_data != NULL, NULL);
+
+	return CERT_DupCertificate (cert_data);
+}
+
 /* used for decode content callback, for streaming decode */
 static void
 sm_write_stream (gpointer arg, const gchar *buf, gulong len)
@@ -615,7 +631,10 @@ sm_verify_cmsg (CamelCipherContext *context,
 							       cn?cn:"<unknown>", em?em:"<unknown>",
 							       sm_status_description (status));
 
-					camel_cipher_validity_add_certinfo (valid, CAMEL_CIPHER_VALIDITY_SIGN, cn, em);
+					camel_cipher_validity_add_certinfo_ex (
+						valid, CAMEL_CIPHER_VALIDITY_SIGN, cn, em,
+						smime_cert_data_clone (NSS_CMSSignerInfo_GetSigningCertificate (si, p->certdb)),
+						smime_cert_data_free, smime_cert_data_clone);
 
 					if (cn)
 						PORT_Free (cn);

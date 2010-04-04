@@ -193,7 +193,7 @@ do_perf(gint argc, gchar **argv)
 		printf("indexing '%s'\n", d->d_name);
 
 		idn = camel_index_add_name(idx, d->d_name);
-		camel_mime_filter_index_set_name(
+		camel_mime_filter_index_set_name (
 			CAMEL_MIME_FILTER_INDEX (filter_index), idn);
 		name = g_strdup_printf("%s/%s", path, d->d_name);
 		stream = camel_stream_fs_new_with_name(name, O_RDONLY, 0, NULL);
@@ -203,7 +203,7 @@ do_perf(gint argc, gchar **argv)
 
 		camel_index_write_name(idx, idn);
 		g_object_unref (idn);
-		camel_mime_filter_index_set_name(
+		camel_mime_filter_index_set_name (
 			CAMEL_MIME_FILTER_INDEX (filter_index), NULL);
 	}
 

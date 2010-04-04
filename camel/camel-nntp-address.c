@@ -26,11 +26,6 @@
 
 #define d(x)
 
-static gint    nntp_address_decode		(CamelAddress *, const gchar *raw);
-static gchar * nntp_address_encode		(CamelAddress *);
-static gint    nntp_address_cat		(CamelAddress *dest, CamelAddress *source);
-static void   nntp_address_remove		(CamelAddress *, gint index);
-
 struct _address {
 	gchar *name;
 	gchar *address;

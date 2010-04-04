@@ -810,7 +810,7 @@ sasl_digest_md5_challenge (CamelSasl *sasl,
 			g_set_error (
 				error, CAMEL_SERVICE_ERROR,
 				CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
-			      _("Server challenge too long (>2048 octets)"));
+				_("Server challenge too long (>2048 octets)"));
 			return NULL;
 		}
 

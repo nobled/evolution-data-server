@@ -157,7 +157,7 @@ camel_cipher_verify (CamelCipherContext *context,
 	g_return_val_if_fail (CAMEL_IS_CIPHER_CONTEXT (context), NULL);
 
 	class = CAMEL_CIPHER_CONTEXT_GET_CLASS (context);
-	g_return_val_if_fail (class->verify, NULL);
+	g_return_val_if_fail (class->verify != NULL, NULL);
 
 	camel_operation_start (NULL, _("Verifying message"));
 
@@ -412,13 +412,13 @@ camel_cipher_hash_to_id (CamelCipherContext *context,
 static void
 ccv_certinfo_free (CamelCipherCertInfo *info)
 {
-	g_free(info->name);
-	g_free(info->email);
+	g_free (info->name);
+	g_free (info->email);
 
 	if (info->cert_data && info->cert_data_free)
 		info->cert_data_free (info->cert_data);
 
-	g_free(info);
+	g_free (info);
 }
 
 CamelCipherValidity *
@@ -548,9 +548,9 @@ camel_cipher_validity_add_certinfo_ex (CamelCipherValidity *vin, camel_cipher_va
 	CamelCipherCertInfo *info;
 	CamelDList *list;
 
-	info = g_malloc0(sizeof(*info));
-	info->name = g_strdup(name);
-	info->email = g_strdup(email);
+	info = g_malloc0 (sizeof (*info));
+	info->name = g_strdup (name);
+	info->email = g_strdup (email);
 	if (cert_data) {
 		if (cert_data_free && cert_data_clone) {
 			info->cert_data = cert_data;
@@ -565,7 +565,7 @@ camel_cipher_validity_add_certinfo_ex (CamelCipherValidity *vin, camel_cipher_va
 	}
 
 	list = (mode==CAMEL_CIPHER_VALIDITY_SIGN)?&vin->sign.signers:&vin->encrypt.encrypters;
-	camel_dlist_addtail(list, (CamelDListNode *)info);
+	camel_dlist_addtail (list, (CamelDListNode *)info);
 }
 
 /**
@@ -754,7 +754,7 @@ camel_cipher_context_init (CamelCipherContext *context)
  * This creates a new CamelCipherContext object which is used to sign,
  * verify, encrypt and decrypt streams.
  *
- * Return value: the new CamelCipherContext
+ * Returns: the new CamelCipherContext
  **/
 CamelCipherContext *
 camel_cipher_context_new (CamelSession *session)

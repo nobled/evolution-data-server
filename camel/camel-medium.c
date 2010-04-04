@@ -108,7 +108,7 @@ medium_is_offline (CamelDataWrapper *data_wrapper)
 
 	content = camel_medium_get_content (CAMEL_MEDIUM (data_wrapper));
 
-	return CAMEL_DATA_WRAPPER_GET_CLASS (data_wrapper)->is_offline (data_wrapper) ||
+	return CAMEL_DATA_WRAPPER_CLASS (camel_medium_parent_class)->is_offline (data_wrapper) ||
 		camel_data_wrapper_is_offline (content);
 }
 

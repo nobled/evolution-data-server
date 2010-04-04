@@ -74,6 +74,12 @@ mime_filter_save_complete (CamelMimeFilter *mime_filter,
 }
 
 static void
+mime_filter_save_reset (CamelMimeFilter *mime_filter)
+{
+	/* no-op */
+}
+
+static void
 camel_mime_filter_save_class_init (CamelMimeFilterSaveClass *class)
 {
 	CamelMimeFilterClass *mime_filter_class;
@@ -83,6 +89,7 @@ camel_mime_filter_save_class_init (CamelMimeFilterSaveClass *class)
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
 	mime_filter_class->filter = mime_filter_save_filter;
 	mime_filter_class->complete = mime_filter_save_complete;
+	mime_filter_class->reset = mime_filter_save_reset;
 }
 
 static void

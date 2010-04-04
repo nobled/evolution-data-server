@@ -1363,7 +1363,7 @@ gpg_sign (CamelCipherContext *context,
 
 	/* FIXME: stream this, we stream output at least */
 	istream = camel_stream_mem_new();
-	if (camel_cipher_canonical_to_stream(
+	if (camel_cipher_canonical_to_stream (
 		ipart, CAMEL_MIME_FILTER_CANON_STRIP |
 		CAMEL_MIME_FILTER_CANON_CRLF |
 		CAMEL_MIME_FILTER_CANON_FROM,
@@ -1714,6 +1714,7 @@ gpg_verify (CamelCipherContext *context,
 		g_free (sigfile);
 	}
 	g_object_unref (istream);
+	g_object_unref (canon_stream);
 
 	return validity;
 

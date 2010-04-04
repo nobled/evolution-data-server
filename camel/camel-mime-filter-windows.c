@@ -104,7 +104,8 @@ mime_filter_windows_complete (CamelMimeFilter *mime_filter,
                               gsize *outprespace)
 {
 	mime_filter_windows_filter (
-		mime_filter, in, len, prespace, out, outlen, outprespace);
+		mime_filter, in, len, prespace,
+		out, outlen, outprespace);
 }
 
 static void
@@ -169,7 +170,7 @@ camel_mime_filter_windows_new (const gchar *claimed_charset)
  * camel_mime_filter_windows_is_windows_charset:
  * @filter: a #CamelMimeFilterWindows object
  *
- * Get whether or not the textual content filtered by @filetr is
+ * Get whether or not the textual content filtered by @filter is
  * really in a Microsoft Windows charset rather than the claimed ISO
  * charset.
  *

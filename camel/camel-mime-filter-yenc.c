@@ -61,86 +61,93 @@ mime_filter_yenc_filter (CamelMimeFilter *mime_filter,
 	priv = CAMEL_MIME_FILTER_YENC_GET_PRIVATE (mime_filter);
 
 	switch (priv->direction) {
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
-		/* won't go to more than 2 * (x + 2) + 62 */
-		camel_mime_filter_set_size (mime_filter, (len + 2) * 2 + 62, FALSE);
-		newlen = camel_yencode_step ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state,
-					     &priv->pcrc, &priv->crc);
-		g_assert (newlen <= (len + 2) * 2 + 62);
-		break;
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
-		if (!(priv->state & CAMEL_MIME_YDECODE_STATE_DECODE)) {
-			const gchar *inptr, *inend;
-			gsize left;
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
+			/* won't go to more than 2 * (x + 2) + 62 */
+			camel_mime_filter_set_size (
+				mime_filter, (len + 2) * 2 + 62, FALSE);
+			newlen = camel_yencode_step (
+				(const guchar *) in, len,
+				(guchar *) mime_filter->outbuf, &priv->state,
+				&priv->pcrc, &priv->crc);
+			g_assert (newlen <= (len + 2) * 2 + 62);
+			break;
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
+			if (!(priv->state & CAMEL_MIME_YDECODE_STATE_DECODE)) {
+				const gchar *inptr, *inend;
+				gsize left;
 
-			inptr = in;
-			inend = inptr + len;
+				inptr = in;
+				inend = inptr + len;
 
-			/* we cannot start decoding until we have found an =ybegin line */
-			if (!(priv->state & CAMEL_MIME_YDECODE_STATE_BEGIN)) {
-				while (inptr < inend) {
-					left = inend - inptr;
-					if (left < 8) {
-						if (!strncmp (inptr, "=ybegin ", left))
-							camel_mime_filter_backup (mime_filter, inptr, left);
-						break;
-					} else if (!strncmp (inptr, "=ybegin ", 8)) {
+				/* we cannot start decoding until we have found an =ybegin line */
+				if (!(priv->state & CAMEL_MIME_YDECODE_STATE_BEGIN)) {
+					while (inptr < inend) {
+						left = inend - inptr;
+						if (left < 8) {
+							if (!strncmp (inptr, "=ybegin ", left))
+								camel_mime_filter_backup (mime_filter, inptr, left);
+							break;
+						} else if (!strncmp (inptr, "=ybegin ", 8)) {
+							for (in = inptr; inptr < inend && *inptr != '\n'; inptr++);
+							if (inptr < inend) {
+								inptr++;
+								priv->state |= CAMEL_MIME_YDECODE_STATE_BEGIN;
+								/* we can start ydecoding if the next line isn't
+								   a ypart... */
+								in = inptr;
+								len = inend - in;
+							} else {
+								/* we don't have enough... */
+								camel_mime_filter_backup (mime_filter, in, left);
+							}
+							break;
+						}
+
+						/* go to the next line */
+						while (inptr < inend && *inptr != '\n')
+							inptr++;
+
+						if (inptr < inend)
+							inptr++;
+					}
+				}
+
+				left = inend - inptr;
+				if ((priv->state & CAMEL_MIME_YDECODE_STATE_BEGIN) && left > 0) {
+					/* we have found an '=ybegin' line but we may yet have an "=ypart" line to
+					   yield before decoding the content */
+					if (left < 7 && !strncmp (inptr, "=ypart ", left)) {
+						camel_mime_filter_backup (mime_filter, inptr, left);
+					} else if (!strncmp (inptr, "=ypart ", 7)) {
 						for (in = inptr; inptr < inend && *inptr != '\n'; inptr++);
 						if (inptr < inend) {
 							inptr++;
-							priv->state |= CAMEL_MIME_YDECODE_STATE_BEGIN;
-							/* we can start ydecoding if the next line isn't
-							   a ypart... */
+							priv->state |= CAMEL_MIME_YDECODE_STATE_PART | CAMEL_MIME_YDECODE_STATE_DECODE;
 							in = inptr;
 							len = inend - in;
 						} else {
-							/* we don't have enough... */
 							camel_mime_filter_backup (mime_filter, in, left);
 						}
-						break;
-					}
-
-					/* go to the next line */
-					while (inptr < inend && *inptr != '\n')
-						inptr++;
-
-					if (inptr < inend)
-						inptr++;
-				}
-			}
-
-			left = inend - inptr;
-			if ((priv->state & CAMEL_MIME_YDECODE_STATE_BEGIN) && left > 0) {
-				/* we have found an '=ybegin' line but we may yet have an "=ypart" line to
-				   yield before decoding the content */
-				if (left < 7 && !strncmp (inptr, "=ypart ", left)) {
-					camel_mime_filter_backup (mime_filter, inptr, left);
-				} else if (!strncmp (inptr, "=ypart ", 7)) {
-					for (in = inptr; inptr < inend && *inptr != '\n'; inptr++);
-					if (inptr < inend) {
-						inptr++;
-						priv->state |= CAMEL_MIME_YDECODE_STATE_PART | CAMEL_MIME_YDECODE_STATE_DECODE;
-						in = inptr;
-						len = inend - in;
 					} else {
-						camel_mime_filter_backup (mime_filter, in, left);
+						/* guess it doesn't have a =ypart line */
+						priv->state |= CAMEL_MIME_YDECODE_STATE_DECODE;
 					}
-				} else {
-					/* guess it doesn't have a =ypart line */
-					priv->state |= CAMEL_MIME_YDECODE_STATE_DECODE;
 				}
 			}
-		}
 
-		if ((priv->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(priv->state & CAMEL_MIME_YDECODE_STATE_END)) {
-			/* all yEnc headers have been found so we can now start decoding */
-			camel_mime_filter_set_size (mime_filter, len + 3, FALSE);
-			newlen = camel_ydecode_step ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state, &priv->pcrc, &priv->crc);
-			g_assert (newlen <= len + 3);
-		} else {
-			newlen = 0;
-		}
-		break;
+			if ((priv->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(priv->state & CAMEL_MIME_YDECODE_STATE_END)) {
+				/* all yEnc headers have been found so we can now start decoding */
+				camel_mime_filter_set_size (
+					mime_filter, len + 3, FALSE);
+				newlen = camel_ydecode_step (
+					(const guchar *) in, len,
+					(guchar *) mime_filter->outbuf,
+					&priv->state, &priv->pcrc, &priv->crc);
+				g_assert (newlen <= len + 3);
+			} else {
+				newlen = 0;
+			}
+			break;
 	}
 
 	*out = mime_filter->outbuf;
@@ -164,23 +171,31 @@ mime_filter_yenc_complete (CamelMimeFilter *mime_filter,
 
 	switch (priv->direction) {
 	case CAMEL_MIME_FILTER_YENC_DIRECTION_ENCODE:
-		/* won't go to more than 2 * (x + 2) + 62 */
-		camel_mime_filter_set_size (mime_filter, (len + 2) * 2 + 62, FALSE);
-		newlen = camel_yencode_close ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state,
-					       &priv->pcrc, &priv->crc);
-		g_assert (newlen <= (len + 2) * 2 + 62);
-		break;
-	case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
-		if ((priv->state & CAMEL_MIME_YDECODE_STATE_DECODE) && !(priv->state & CAMEL_MIME_YDECODE_STATE_END)) {
-			/* all yEnc headers have been found so we can now start decoding */
-			camel_mime_filter_set_size (mime_filter, len + 3, FALSE);
-			newlen = camel_ydecode_step ((const guchar *) in, len, (guchar *) mime_filter->outbuf, &priv->state,
-						      &priv->pcrc, &priv->crc);
-			g_assert (newlen <= len + 3);
-		} else {
-			newlen = 0;
-		}
-		break;
+			/* won't go to more than 2 * (x + 2) + 62 */
+			camel_mime_filter_set_size (
+				mime_filter, (len + 2) * 2 + 62, FALSE);
+			newlen = camel_yencode_close (
+				(const guchar *) in, len,
+				(guchar *) mime_filter->outbuf,
+				&priv->state, &priv->pcrc, &priv->crc);
+			g_assert (newlen <= (len + 2) * 2 + 62);
+			break;
+		case CAMEL_MIME_FILTER_YENC_DIRECTION_DECODE:
+			if ((priv->state & CAMEL_MIME_YDECODE_STATE_DECODE) &&
+				!(priv->state & CAMEL_MIME_YDECODE_STATE_END)) {
+				/* all yEnc headers have been found so we
+				 * can now start decoding */
+				camel_mime_filter_set_size (
+					mime_filter, len + 3, FALSE);
+				newlen = camel_ydecode_step (
+					(const guchar *) in, len,
+					(guchar *) mime_filter->outbuf,
+					&priv->state, &priv->pcrc, &priv->crc);
+				g_assert (newlen <= len + 3);
+			} else {
+				newlen = 0;
+			}
+			break;
 	}
 
 	*out = mime_filter->outbuf;
@@ -216,9 +231,9 @@ camel_mime_filter_yenc_class_init (CamelMimeFilterYencClass *class)
 	g_type_class_add_private (class, sizeof (CamelMimeFilterYencPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
-	mime_filter_class->reset = mime_filter_yenc_reset;
 	mime_filter_class->filter = mime_filter_yenc_filter;
 	mime_filter_class->complete = mime_filter_yenc_complete;
+	mime_filter_class->reset = mime_filter_yenc_reset;
 }
 
 static void

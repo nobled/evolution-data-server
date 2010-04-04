@@ -45,7 +45,7 @@ struct _CamelMimeFilterProgressPrivate {
 G_DEFINE_TYPE (CamelMimeFilterProgress, camel_mime_filter_progress, CAMEL_TYPE_MIME_FILTER)
 
 static void
-mime_filter_progress_filter (CamelMimeFilter *filter,
+mime_filter_progress_filter (CamelMimeFilter *mime_filter,
                              const gchar *in,
                              gsize len,
                              gsize prespace,
@@ -56,11 +56,11 @@ mime_filter_progress_filter (CamelMimeFilter *filter,
 	CamelMimeFilterProgressPrivate *priv;
 	gdouble percent;
 
-	priv = CAMEL_MIME_FILTER_PROGRESS_GET_PRIVATE (filter);
+	priv = CAMEL_MIME_FILTER_PROGRESS_GET_PRIVATE (mime_filter);
 	priv->count += len;
 
 	if (priv->count < priv->total)
-		percent = ((double) priv->count * 100.0) / ((double) priv->total);
+		percent = ((gdouble) priv->count * 100.0) / ((gdouble) priv->total);
 	else
 		percent = 100.0;
 
@@ -81,7 +81,8 @@ mime_filter_progress_complete (CamelMimeFilter *mime_filter,
                                gsize *outprespace)
 {
 	mime_filter_progress_filter (
-		mime_filter, in, len, prespace, out, outlen, outprespace);
+		mime_filter, in, len, prespace,
+		out, outlen, outprespace);
 }
 
 static void
@@ -102,9 +103,9 @@ camel_mime_filter_progress_class_init (CamelMimeFilterProgressClass *class)
 	g_type_class_add_private (class, sizeof (CamelMimeFilterProgressPrivate));
 
 	mime_filter_class = CAMEL_MIME_FILTER_CLASS (class);
-	mime_filter_class->reset = mime_filter_progress_reset;
 	mime_filter_class->filter = mime_filter_progress_filter;
 	mime_filter_class->complete = mime_filter_progress_complete;
+	mime_filter_class->reset = mime_filter_progress_reset;
 }
 
 static void

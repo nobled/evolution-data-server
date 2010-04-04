@@ -34,7 +34,7 @@
 #define d(x)
 
 struct _CamelMimeFilterFromPrivate {
-	gint midline;		/* are we between lines? */
+	gboolean midline;	/* are we between lines? */
 };
 
 struct fromnode {
@@ -43,20 +43,6 @@ struct fromnode {
 };
 
 G_DEFINE_TYPE (CamelMimeFilterFrom, camel_mime_filter_from, CAMEL_TYPE_MIME_FILTER)
-
-static void
-mime_filter_from_complete (CamelMimeFilter *mime_filter,
-                           const gchar *in,
-                           gsize len,
-                           gsize prespace,
-                           gchar **out,
-                           gsize *outlen,
-                           gsize *outprespace)
-{
-	*out = (gchar *) in;
-	*outlen = len;
-	*outprespace = prespace;
-}
 
 /* Yes, it is complicated ... */
 static void
@@ -147,6 +133,20 @@ mime_filter_from_filter (CamelMimeFilter *mime_filter,
 
 		d(printf("Filtered '%.*s'\n", *outlen, *out));
 	}
+}
+
+static void
+mime_filter_from_complete (CamelMimeFilter *mime_filter,
+                           const gchar *in,
+                           gsize len,
+                           gsize prespace,
+                           gchar **out,
+                           gsize *outlen,
+                           gsize *outprespace)
+{
+	*out = (gchar *) in;
+	*outlen = len;
+	*outprespace = prespace;
 }
 
 static void
