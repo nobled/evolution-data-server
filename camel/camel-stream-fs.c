@@ -283,7 +283,9 @@ camel_stream_fs_new_with_fd (gint fd)
  * Returns: the bound stream
  **/
 CamelStream *
-camel_stream_fs_new_with_fd_and_bounds (gint fd, off_t start, off_t end)
+camel_stream_fs_new_with_fd_and_bounds (gint fd,
+                                        off_t start,
+                                        off_t end)
 {
 	CamelStream *stream;
 

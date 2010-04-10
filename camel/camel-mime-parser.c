@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-
+#include "camel-mempool.h"
 #include "camel-mime-filter.h"
 #include "camel-mime-parser.h"
 #include "camel-mime-utils.h"
@@ -49,6 +49,8 @@
 /*#define PRESERVE_HEADERS*/
 
 /*#define PURIFY*/
+
+#define MEMPOOL
 
 #ifdef PURIFY
 gint inend_id = -1,
@@ -114,6 +116,9 @@ struct _header_scan_stack {
 
 	camel_mime_parser_state_t savestate; /* state at invocation of this part */
 
+#ifdef MEMPOOL
+	CamelMemPool *pool;	/* memory pool to keep track of headers/etc at this level */
+#endif
 	GQueue *raw_headers;	/* headers for this part */
 
 	CamelContentType *content_type;
@@ -150,6 +155,10 @@ static off_t folder_seek(struct _header_scan_state *s, off_t offset, gint whence
 static off_t folder_tell(struct _header_scan_state *s);
 static gint folder_read(struct _header_scan_state *s);
 static void folder_push_part(struct _header_scan_state *s, struct _header_scan_stack *h);
+
+#ifdef MEMPOOL
+static void header_append_mempool(struct _header_scan_state *s, struct _header_scan_stack *h, gchar *header, gint offset);
+#endif
 
 #if d(!)0
 static gchar *states[] = {
@@ -995,10 +1004,12 @@ folder_pull_part(struct _header_scan_state *s)
 	if (h) {
 		s->parts = h->parent;
 		g_free(h->boundary);
-
+#ifdef MEMPOOL
+		camel_mempool_destroy(h->pool);
+#else
 		camel_header_raw_clear(h->raw_headers);
 		g_queue_free (h->raw_headers);
-
+#endif
 		camel_content_type_unref(h->content_type);
 		if (h->pretext)
 			g_byte_array_free(h->pretext, TRUE);
@@ -1151,6 +1162,9 @@ folder_scan_header(struct _header_scan_state *s, gint *lastone)
 	h(printf("scanning first bit\n"));
 
 	h = g_malloc0(sizeof(*h));
+#ifdef MEMPOOL
+	h->pool = camel_mempool_new(8192, 4096, CAMEL_MEMPOOL_ALIGN_STRUCT);
+#endif
 	h->raw_headers = g_queue_new ();
 
 	if (s->parts)
@@ -1640,7 +1654,7 @@ tail_recurse:
 				while (f) {
 					camel_mime_filter_filter(f->filter, *databuffer, *datalength, presize,
 								 databuffer, datalength, &presize);
-					d(printf("Filtered content (%s): '", ((CamelObject *)f->filter)->class->name));
+					d(printf("Filtered content (%s): '", ((CamelObject *)f->filter)->klass->name));
 					d(fwrite(*databuffer, sizeof(gchar), *datalength, stdout));
 					d(printf("'\n"));
 					f = f->next;

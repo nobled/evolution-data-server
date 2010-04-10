@@ -115,8 +115,9 @@ stream_filter_read (CamelStream *stream,
 				priv->filtered = priv->buffer;
 				priv->filteredlen = 0;
 				while (f) {
-					camel_mime_filter_complete(f->filter, priv->filtered, priv->filteredlen,
-								   presize, &priv->filtered, &priv->filteredlen, &presize);
+					camel_mime_filter_complete (
+						f->filter, priv->filtered, priv->filteredlen,
+						presize, &priv->filtered, &priv->filteredlen, &presize);
 					g_check(priv->realbuffer);
 					f = f->next;
 				}
@@ -135,8 +136,9 @@ stream_filter_read (CamelStream *stream,
 			d(printf("'\n"));
 
 			while (f) {
-				camel_mime_filter_filter(f->filter, priv->filtered, priv->filteredlen, presize,
-							 &priv->filtered, &priv->filteredlen, &presize);
+				camel_mime_filter_filter (
+					f->filter, priv->filtered, priv->filteredlen, presize,
+					&priv->filtered, &priv->filteredlen, &presize);
 				g_check(priv->realbuffer);
 
 				d(printf ("Filtered content (%s): '", ((CamelObject *)f->filter)->class->name));
@@ -280,7 +282,7 @@ stream_filter_eos (CamelStream *stream)
 	if (!priv->flushed)
 		return FALSE;
 
-	return camel_stream_eos(priv->source);
+	return camel_stream_eos (priv->source);
 }
 
 static gint
@@ -323,7 +325,6 @@ camel_stream_filter_class_init (CamelStreamFilterClass *class)
 	stream_class->close = stream_filter_close;
 	stream_class->eos = stream_filter_eos;
 	stream_class->reset = stream_filter_reset;
-
 }
 
 static void
@@ -415,7 +416,8 @@ camel_stream_filter_add (CamelStreamFilter *stream,
  * Remove a processing filter from the stream by id.
  **/
 void
-camel_stream_filter_remove (CamelStreamFilter *stream, gint id)
+camel_stream_filter_remove (CamelStreamFilter *stream,
+                            gint id)
 {
 	CamelStreamFilterPrivate *priv;
 	struct _filter *fn, *f;

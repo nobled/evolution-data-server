@@ -50,7 +50,7 @@ seekable_substream_dispose (GObject *object)
 
 	seekable_substream = CAMEL_SEEKABLE_SUBSTREAM (object);
 
-	if (seekable_substream->parent_stream) {
+	if (seekable_substream->parent_stream != NULL) {
 		g_object_unref (seekable_substream->parent_stream);
 		seekable_substream = NULL;
 	}
@@ -207,7 +207,7 @@ seekable_substream_seek (CamelSeekableStream *seekable_stream,
 
 	case CAMEL_STREAM_END:
 		if (seekable_stream->bound_end == CAMEL_STREAM_UNBOUND) {
-			real_offset = camel_seekable_stream_seek(
+			real_offset = camel_seekable_stream_seek (
 				seekable_substream->parent_stream,
 				offset, CAMEL_STREAM_END, error);
 			if (real_offset != -1) {
@@ -273,7 +273,7 @@ camel_seekable_substream_init (CamelSeekableSubstream *seekable_substream)
  * the current position of @parent_stream. After the substream has been
  * closed, @parent_stream will stabilize again.
  *
- * Return value: the substream
+ * Returns: the substream
  **/
 CamelStream *
 camel_seekable_substream_new(CamelSeekableStream *parent_stream, off_t start, off_t end)

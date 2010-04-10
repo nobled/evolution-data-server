@@ -44,6 +44,8 @@
 #define SOCKET_ERROR_IS_EINPROGRESS() (errno == EINPROGRESS)
 #define SOCKET_ERROR_IS_EINTR() (errno == EINTR)
 #else
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #define SOCKET_ERROR_CODE() WSAGetLastError ()
 #define SOCKET_CLOSE(fd) closesocket (fd)
 #define SOCKET_ERROR_IS_EINPROGRESS() (WSAGetLastError () == WSAEWOULDBLOCK)
@@ -489,7 +491,8 @@ tcp_stream_raw_get_local_address (CamelTcpStream *stream,
 }
 
 static struct sockaddr *
-tcp_stream_raw_get_remote_address (CamelTcpStream *stream, socklen_t *len)
+tcp_stream_raw_get_remote_address (CamelTcpStream *stream,
+                                   socklen_t *len)
 {
 #ifdef ENABLE_IPv6
 	struct sockaddr_in6 sin;

@@ -164,7 +164,7 @@ camel_stream_process_init (CamelStreamProcess *stream)
  *
  * Returns a PROCESS stream.
  *
- * Return value: the stream
+ * Returns: the stream
  **/
 CamelStream *
 camel_stream_process_new (void)
@@ -223,6 +223,9 @@ camel_stream_process_connect (CamelStreamProcess *stream,
                               const gchar **env)
 {
 	gint sockfds[2];
+
+	g_return_val_if_fail (CAMEL_IS_STREAM_PROCESS (stream), -1);
+	g_return_val_if_fail (command != NULL, -1);
 
 	if (stream->sockfd != -1 || stream->childpid)
 		camel_stream_close (CAMEL_STREAM (stream), NULL);

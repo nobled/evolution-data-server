@@ -135,6 +135,13 @@ vee_store_construct (CamelService *service,
 	return TRUE;
 }
 
+static gchar *
+vee_store_get_name (CamelService *service,
+                    gboolean brief)
+{
+	return g_strdup ("Virtual Folder Store");
+}
+
 static CamelFolder *
 vee_store_get_folder (CamelStore *store,
                       const gchar *folder_name,
@@ -431,6 +438,7 @@ camel_vee_store_class_init (CamelVeeStoreClass *class)
 
 	service_class = CAMEL_SERVICE_CLASS (class);
 	service_class->construct = vee_store_construct;
+	service_class->get_name = vee_store_get_name;
 
 	store_class = CAMEL_STORE_CLASS (class);
 	store_class->get_folder = vee_store_get_folder;

@@ -107,7 +107,7 @@ multipart_signed_parse_content (CamelMultipartSigned *mps)
 	gsize len;
 	gint state;
 
-	boundary = camel_multipart_get_boundary(mp);
+	boundary = camel_multipart_get_boundary (mp);
 	g_return_val_if_fail (boundary != NULL, -1);
 
 	stream = ((CamelDataWrapper *)mps)->stream;
@@ -318,7 +318,7 @@ multipart_signed_write_to_stream (CamelDataWrapper *data_wrapper,
 
 	/* signature */
 	count = camel_data_wrapper_write_to_stream (
-		(CamelDataWrapper *) mps->signature, stream, error);
+		CAMEL_DATA_WRAPPER (mps->signature), stream, error);
 	if (count == -1)
 		return -1;
 	total += count;

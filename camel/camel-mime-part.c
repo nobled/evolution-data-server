@@ -224,7 +224,7 @@ static void
 mime_part_set_disposition (CamelMimePart *mime_part,
                            const gchar *disposition)
 {
-	camel_content_disposition_unref(mime_part->priv->disposition);
+	camel_content_disposition_unref (mime_part->priv->disposition);
 	if (disposition)
 		mime_part->priv->disposition =
 			camel_content_disposition_decode (disposition);
@@ -626,8 +626,7 @@ mime_part_write_to_stream (CamelDataWrapper *dw,
 			/* if we have a character encoder, add that always */
 			if (charenc) {
 				camel_stream_filter_add (
-					CAMEL_STREAM_FILTER (filter_stream),
-					charenc);
+					CAMEL_STREAM_FILTER (filter_stream), charenc);
 				g_object_unref (charenc);
 			}
 
@@ -637,15 +636,13 @@ mime_part_write_to_stream (CamelDataWrapper *dw,
 										   CAMEL_MIME_FILTER_CRLF_MODE_CRLF_ONLY);
 
 				camel_stream_filter_add (
-					CAMEL_STREAM_FILTER (filter_stream),
-					crlf);
+					CAMEL_STREAM_FILTER (filter_stream), crlf);
 				g_object_unref (crlf);
 			}
 
 			if (filter) {
 				camel_stream_filter_add (
-					CAMEL_STREAM_FILTER (filter_stream),
-					filter);
+					CAMEL_STREAM_FILTER (filter_stream), filter);
 				g_object_unref (filter);
 			}
 

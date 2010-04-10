@@ -47,6 +47,11 @@
 
 #define SSL_FLAGS (CAMEL_TCP_STREAM_SSL_ENABLE_SSL2 | CAMEL_TCP_STREAM_SSL_ENABLE_SSL3)
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #define d(x)
 
 G_DEFINE_TYPE (CamelHttpStream, camel_http_stream, CAMEL_TYPE_STREAM)
@@ -549,7 +554,7 @@ camel_http_stream_init (CamelHttpStream *http)
  * @session: active session
  * @url: URL to act upon
  *
- * Return value: a http stream
+ * Returns: a http stream
  **/
 CamelStream *
 camel_http_stream_new (CamelHttpMethod method, struct _CamelSession *session, CamelURL *url)

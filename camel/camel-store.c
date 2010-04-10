@@ -351,10 +351,13 @@ camel_store_get_folder (CamelStore *store,
                         guint32 flags,
                         GError **error)
 {
+	CamelStoreClass *class;
 	CamelFolder *folder = NULL;
 
 	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
 	g_return_val_if_fail (folder_name != NULL, NULL);
+
+	class = CAMEL_STORE_GET_CLASS (store);
 
 	/* O_EXCL doesn't make sense if we aren't requesting to also create the folder if it doesn't exist */
 	if (!(flags & CAMEL_STORE_FOLDER_CREATE))
@@ -391,11 +394,11 @@ camel_store_get_folder (CamelStore *store,
 		}
 
 		if ((store->flags & CAMEL_STORE_VTRASH) && strcmp(folder_name, CAMEL_VTRASH_NAME) == 0) {
-			folder = CAMEL_STORE_GET_CLASS(store)->get_trash(store, error);
+			folder = class->get_trash(store, error);
 		} else if ((store->flags & CAMEL_STORE_VJUNK) && strcmp(folder_name, CAMEL_VJUNK_NAME) == 0) {
-			folder = CAMEL_STORE_GET_CLASS(store)->get_junk(store, error);
+			folder = class->get_junk(store, error);
 		} else {
-			folder = CAMEL_STORE_GET_CLASS (store)->get_folder(store, folder_name, flags, error);
+			folder = class->get_folder(store, folder_name, flags, error);
 			if (folder) {
 				CamelVeeFolder *vfolder;
 
@@ -452,6 +455,9 @@ camel_store_create_folder (CamelStore *store,
 	g_return_val_if_fail (CAMEL_IS_STORE (store), NULL);
 	g_return_val_if_fail (folder_name != NULL, NULL);
 
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->create_folder != NULL, NULL);
+
 	if ((parent_name == NULL || parent_name[0] == 0)
 	    && (((store->flags & CAMEL_STORE_VTRASH) && strcmp(folder_name, CAMEL_VTRASH_NAME) == 0)
 		|| ((store->flags & CAMEL_STORE_VJUNK) && strcmp(folder_name, CAMEL_VJUNK_NAME) == 0))) {
@@ -462,9 +468,6 @@ camel_store_create_folder (CamelStore *store,
 			folder_name);
 		return NULL;
 	}
-
-	class = CAMEL_STORE_GET_CLASS (store);
-	g_return_val_if_fail (class->create_folder != NULL, NULL);
 
 	CAMEL_STORE_LOCK(store, folder_lock);
 	fi = class->create_folder (store, parent_name, folder_name, error);
@@ -524,6 +527,9 @@ camel_store_delete_folder (CamelStore *store,
 	g_return_val_if_fail (CAMEL_IS_STORE (store), FALSE);
 	g_return_val_if_fail (folder_name != NULL, FALSE);
 
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->delete_folder != NULL, FALSE);
+
 	/* TODO: should probably be a parameter/bit on the storeinfo */
 	if (((store->flags & CAMEL_STORE_VTRASH) && strcmp(folder_name, CAMEL_VTRASH_NAME) == 0)
 	    || ((store->flags & CAMEL_STORE_VJUNK) && strcmp(folder_name, CAMEL_VJUNK_NAME) == 0)) {
@@ -534,9 +540,6 @@ camel_store_delete_folder (CamelStore *store,
 			folder_name);
 		return FALSE;
 	}
-
-	class = CAMEL_STORE_GET_CLASS (store);
-	g_return_val_if_fail (class->delete_folder != NULL, FALSE);
 
 	CAMEL_STORE_LOCK(store, folder_lock);
 
@@ -585,6 +588,9 @@ camel_store_rename_folder (CamelStore *store,
 	g_return_val_if_fail (old_namein != NULL, FALSE);
 	g_return_val_if_fail (new_name != NULL, FALSE);
 
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->rename_folder != NULL, FALSE);
+
 	if (strcmp(old_namein, new_name) == 0)
 		return TRUE;
 
@@ -597,9 +603,6 @@ camel_store_rename_folder (CamelStore *store,
 			old_namein);
 		return FALSE;
 	}
-
-	class = CAMEL_STORE_GET_CLASS (store);
-	g_return_val_if_fail (class->rename_folder != NULL, FALSE);
 
 	/* need to save this, since old_namein might be folder->full_name, which could go away */
 	old_name = g_strdup(old_namein);
@@ -700,9 +703,9 @@ camel_store_get_inbox (CamelStore *store,
 	class = CAMEL_STORE_GET_CLASS (store);
 	g_return_val_if_fail (class->get_inbox != NULL, NULL);
 
-	CAMEL_STORE_LOCK(store, folder_lock);
+	CAMEL_STORE_LOCK (store, folder_lock);
 	folder = class->get_inbox (store, error);
-	CAMEL_STORE_UNLOCK(store, folder_lock);
+	CAMEL_STORE_UNLOCK (store, folder_lock);
 
 	return folder;
 }
@@ -786,7 +789,12 @@ camel_store_sync (CamelStore *store,
 }
 
 static void
-add_special_info (CamelStore *store, CamelFolderInfo *info, const gchar *name, const gchar *translated, gboolean unread_count, guint32 flags)
+add_special_info (CamelStore *store,
+                  CamelFolderInfo *info,
+                  const gchar *name,
+                  const gchar *translated,
+                  gboolean unread_count,
+                  guint32 flags)
 {
 	CamelFolderInfo *fi, *vinfo, *parent;
 	gchar *uri, *path;
@@ -843,7 +851,7 @@ add_special_info (CamelStore *store, CamelFolderInfo *info, const gchar *name, c
 }
 
 static void
-dump_fi(CamelFolderInfo *fi, gint depth)
+dump_fi (CamelFolderInfo *fi, gint depth)
 {
 	gchar *s;
 
@@ -941,7 +949,7 @@ camel_store_free_folder_info (CamelStore *store,
 
 	g_return_if_fail (CAMEL_IS_STORE (store));
 
-	if (!fi)
+	if (fi == NULL)
 		return;
 
 	class = CAMEL_STORE_GET_CLASS (store);
@@ -959,7 +967,8 @@ camel_store_free_folder_info (CamelStore *store,
  * of the data.
  **/
 void
-camel_store_free_folder_info_full (CamelStore *store, CamelFolderInfo *fi)
+camel_store_free_folder_info_full (CamelStore *store,
+                                   CamelFolderInfo *fi)
 {
 	camel_folder_info_free (fi);
 }
@@ -972,7 +981,8 @@ camel_store_free_folder_info_full (CamelStore *store, CamelFolderInfo *fi)
  * An implementation for #CamelStore::free_folder_info. Does nothing.
  **/
 void
-camel_store_free_folder_info_nop (CamelStore *store, CamelFolderInfo *fi)
+camel_store_free_folder_info_nop (CamelStore *store,
+                                  CamelFolderInfo *fi)
 {
 	;
 }
@@ -986,7 +996,7 @@ camel_store_free_folder_info_nop (CamelStore *store, CamelFolderInfo *fi)
 void
 camel_folder_info_free (CamelFolderInfo *fi)
 {
-	if (fi) {
+	if (fi != NULL) {
 		camel_folder_info_free (fi->next);
 		camel_folder_info_free (fi->child);
 		g_free (fi->name);
@@ -1010,7 +1020,8 @@ camel_folder_info_new (void)
 }
 
 static gint
-folder_info_cmp (gconstpointer ap, gconstpointer bp)
+folder_info_cmp (gconstpointer ap,
+                 gconstpointer bp)
 {
 	const CamelFolderInfo *a = ((CamelFolderInfo **)ap)[0];
 	const CamelFolderInfo *b = ((CamelFolderInfo **)bp)[0];
@@ -1040,17 +1051,19 @@ folder_info_cmp (gconstpointer ap, gconstpointer bp)
  * Returns: the top level of the tree of linked folder info.
  **/
 CamelFolderInfo *
-camel_folder_info_build (GPtrArray *folders, const gchar *name_space,
-			 gchar separator, gboolean short_names)
+camel_folder_info_build (GPtrArray *folders,
+                         const gchar *namespace,
+                         gchar separator,
+                         gboolean short_names)
 {
 	CamelFolderInfo *fi, *pfi, *top = NULL, *tail = NULL;
 	GHashTable *hash;
 	gchar *p, *pname;
 	gint i, nlen;
 
-	if (!name_space)
-		name_space = "";
-	nlen = strlen (name_space);
+	if (!namespace)
+		namespace = "";
+	nlen = strlen (namespace);
 
 	qsort (folders->pdata, folders->len, sizeof (folders->pdata[0]), folder_info_cmp);
 
@@ -1064,7 +1077,7 @@ camel_folder_info_build (GPtrArray *folders, const gchar *name_space,
 	/* Now find parents. */
 	for (i = 0; i < folders->len; i++) {
 		fi = folders->pdata[i];
-		if (!strncmp (name_space, fi->full_name, nlen)
+		if (!strncmp (namespace, fi->full_name, nlen)
 		    && (p = strrchr(fi->full_name+nlen, separator))) {
 			pname = g_strndup(fi->full_name, p - fi->full_name);
 			pfi = g_hash_table_lookup(hash, pname);
@@ -1143,7 +1156,8 @@ camel_folder_info_build (GPtrArray *folders, const gchar *name_space,
 }
 
 static CamelFolderInfo *
-folder_info_clone_rec(CamelFolderInfo *fi, CamelFolderInfo *parent)
+folder_info_clone_rec (CamelFolderInfo *fi,
+                       CamelFolderInfo *parent)
 {
 	CamelFolderInfo *info;
 
@@ -1177,7 +1191,7 @@ folder_info_clone_rec(CamelFolderInfo *fi, CamelFolderInfo *parent)
  * Returns: the cloned #CamelFolderInfo tree.
  **/
 CamelFolderInfo *
-camel_folder_info_clone(CamelFolderInfo *fi)
+camel_folder_info_clone (CamelFolderInfo *fi)
 {
 	if (fi == NULL)
 		return NULL;
@@ -1196,6 +1210,8 @@ camel_folder_info_clone(CamelFolderInfo *fi)
 gboolean
 camel_store_supports_subscriptions (CamelStore *store)
 {
+	g_return_val_if_fail (CAMEL_IS_STORE (store), FALSE);
+
 	return (store->flags & CAMEL_STORE_SUBSCRIPTIONS);
 }
 
@@ -1336,12 +1352,16 @@ camel_store_folder_uri_equal (CamelStore *store,
                               const gchar *uri0,
                               const gchar *uri1)
 {
+	CamelStoreClass *class;
 	CamelProvider *provider;
 	CamelURL *url0, *url1;
 	gint equal;
 
 	g_return_val_if_fail (CAMEL_IS_STORE (store), FALSE);
 	g_return_val_if_fail (uri0 && uri1, FALSE);
+
+	class = CAMEL_STORE_GET_CLASS (store);
+	g_return_val_if_fail (class->compare_folder_name != NULL, FALSE);
 
 	provider = ((CamelService *) store)->provider;
 
@@ -1370,7 +1390,7 @@ camel_store_folder_uri_equal (CamelStore *store,
 		if (name1 == NULL)
 			g_warning("URI is badly formed, missing folder name: %s", uri1);
 
-		equal = name0 && name1 && CAMEL_STORE_GET_CLASS (store)->compare_folder_name (name0, name1);
+		equal = name0 && name1 && class->compare_folder_name (name0, name1);
 	}
 
 	camel_url_free (url0);

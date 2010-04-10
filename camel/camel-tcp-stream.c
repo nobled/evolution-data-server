@@ -28,6 +28,11 @@
 
 #include "camel-tcp-stream.h"
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #define w(x)
 
 G_DEFINE_TYPE (CamelTcpStream, camel_tcp_stream, CAMEL_TYPE_STREAM)

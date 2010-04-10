@@ -76,9 +76,9 @@ stream_vfs_write (CamelStream *stream,
                   gsize n,
                   GError **error)
 {
+	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
 	gboolean success;
 	gsize bytes_written;
-	CamelStreamVFS *stream_vfs = CAMEL_STREAM_VFS (stream);
 
 	success = g_output_stream_write_all (
 		G_OUTPUT_STREAM (stream_vfs->stream),

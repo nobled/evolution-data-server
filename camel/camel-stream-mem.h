@@ -73,7 +73,7 @@ CamelStream *	camel_stream_mem_new_with_byte_array
 CamelStream *	camel_stream_mem_new_with_buffer(const gchar *buffer,
 						 gsize len);
 void		camel_stream_mem_set_secure	(CamelStreamMem *mem);
-GByteArray *	camel_stream_mem_get_byte_array (CamelStreamMem *mem);
+GByteArray *	camel_stream_mem_get_byte_array	(CamelStreamMem *mem);
 void		camel_stream_mem_set_byte_array	(CamelStreamMem *mem,
 						 GByteArray *buffer);
 void		camel_stream_mem_set_buffer	(CamelStreamMem *mem,

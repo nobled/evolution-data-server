@@ -127,10 +127,10 @@ stream_mem_write (CamelStream *stream,
 
 	/* FIXME: we shouldn't use g_byte_arrays or g_malloc perhaps? */
 	if (seekable->position == priv->buffer->len) {
-		g_byte_array_append(priv->buffer, (const guint8 *)buffer, nwrite);
+		g_byte_array_append (priv->buffer, (const guint8 *)buffer, nwrite);
 	} else {
-		g_byte_array_set_size(priv->buffer, nwrite + priv->buffer->len);
-		memcpy(priv->buffer->data + seekable->position, buffer, nwrite);
+		g_byte_array_set_size (priv->buffer, nwrite + priv->buffer->len);
+		memcpy (priv->buffer->data + seekable->position, buffer, nwrite);
 	}
 	seekable->position += nwrite;
 

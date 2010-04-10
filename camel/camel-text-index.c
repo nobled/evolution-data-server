@@ -401,8 +401,7 @@ text_index_sync (CamelIndex *idx,
 			ret = text_index_compress_nosync (idx, error);
 	}
 
-	if (ret == 0)
-		ret = camel_block_file_sync (p->blocks);
+	ret = camel_block_file_sync (p->blocks);
 
 	CAMEL_TEXT_INDEX_UNLOCK (idx, lock);
 
@@ -1292,7 +1291,7 @@ camel_text_index_dump (CamelTextIndex *idx)
 		printf ("Word: '%s':\n", word);
 
 		idc = camel_index_find ((CamelIndex *)idx, word);
-		while ( (name = camel_index_cursor_next (idc)) ) {
+		while ((name = camel_index_cursor_next (idc))) {
 			printf (" %s", name);
 		}
 		printf ("\n");
@@ -1349,8 +1348,8 @@ camel_text_index_validate (CamelTextIndex *idx)
 
 	keyid = 0;
 	while ((keyid = camel_key_table_next (p->name_index, keyid, &word, &flags, &data, NULL))) {
-		if ((oldword = g_hash_table_lookup (names, GINT_TO_POINTER(keyid))) != NULL
-		    || (oldword = g_hash_table_lookup (deleted, GINT_TO_POINTER(keyid))) != NULL) {
+		if ((oldword = g_hash_table_lookup (names, GINT_TO_POINTER (keyid))) != NULL
+		    || (oldword = g_hash_table_lookup (deleted, GINT_TO_POINTER (keyid))) != NULL) {
 			printf ("Warning, name '%s' duplicates key (%x) with name '%s'\n", word, keyid, oldword);
 			g_free (word);
 		} else {
@@ -1400,7 +1399,7 @@ camel_text_index_validate (CamelTextIndex *idx)
 		used = g_hash_table_new (g_str_hash, g_str_equal);
 
 		idc = camel_index_find ((CamelIndex *)idx, word);
-		while ( (name = camel_index_cursor_next (idc)) ) {
+		while ((name = camel_index_cursor_next (idc))) {
 			if (g_hash_table_lookup (name_word, name) == NULL) {
 				printf ("word '%s' references non-existant name '%s'\n", word, name);
 			}

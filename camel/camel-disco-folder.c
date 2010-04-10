@@ -37,25 +37,8 @@ static CamelProperty disco_property_list[] = {
 	{ CAMEL_DISCO_FOLDER_OFFLINE_SYNC, "offline_sync", N_("Copy folder content locally for offline operation") },
 };
 
-static gint disco_getv(CamelObject *object, GError **error, CamelArgGetV *args);
-static gint disco_setv(CamelObject *object, GError **error, CamelArgV *args);
-
-static gboolean disco_refresh_info (CamelFolder *folder, GError **error);
-static gboolean disco_refresh_info_online (CamelFolder *folder, GError **error);
-static gboolean disco_sync (CamelFolder *folder, gboolean expunge, GError **error);
+/* Forward Declarations */
 static gboolean disco_expunge (CamelFolder *folder, GError **error);
-
-static gboolean disco_append_message (CamelFolder *folder, CamelMimeMessage *message,
-				  const CamelMessageInfo *info, gchar **appended_uid, GError **error);
-static gboolean disco_transfer_messages_to (CamelFolder *source, GPtrArray *uids,
-					CamelFolder *destination,
-					GPtrArray **transferred_uids,
-					gboolean delete_originals,
-					GError **error);
-
-static gboolean disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
-				       const gchar *expression,
-				       GError **error);
 
 struct _cdf_sync_msg {
 	CamelSessionThreadMsg msg;
@@ -119,47 +102,9 @@ cdf_folder_changed(CamelFolder *folder, CamelFolderChangeInfo *changes, gpointer
 		m = camel_session_thread_msg_new(session, &cdf_sync_ops, sizeof(*m));
 		m->changes = camel_folder_change_info_new();
 		camel_folder_change_info_cat(m->changes, changes);
-		m->folder = folder;
-		g_object_ref (folder);
+		m->folder = g_object_ref (folder);
 		camel_session_thread_queue(session, &m->msg, 0);
 	}
-}
-
-static void
-camel_disco_folder_class_init (CamelDiscoFolderClass *class)
-{
-	CamelObjectClass *camel_object_class;
-	CamelFolderClass *folder_class;
-	gint ii;
-
-	camel_object_class = CAMEL_OBJECT_CLASS (class);
-	camel_object_class->getv = disco_getv;
-	camel_object_class->setv = disco_setv;
-
-	folder_class = CAMEL_FOLDER_CLASS (class);
-	folder_class->refresh_info = disco_refresh_info;
-	folder_class->sync = disco_sync;
-	folder_class->expunge = disco_expunge;
-	folder_class->append_message = disco_append_message;
-	folder_class->transfer_messages_to = disco_transfer_messages_to;
-
-	class->prepare_for_offline = disco_prepare_for_offline;
-	class->refresh_info_online = disco_refresh_info_online;
-
-	for (ii = 0; ii < G_N_ELEMENTS (disco_property_list); ii++) {
-		disco_property_list[ii].description =
-			_(disco_property_list[ii].description);
-		disco_folder_properties = g_slist_prepend (
-			disco_folder_properties, &disco_property_list[ii]);
-	}
-}
-
-static void
-camel_disco_folder_init (CamelDiscoFolder *disco_folder)
-{
-	camel_object_hook_event (
-		disco_folder, "folder_changed",
-		(CamelObjectEventHookFunc) cdf_folder_changed, NULL);
 }
 
 static gint
@@ -235,13 +180,6 @@ disco_setv (CamelObject *object,
 		camel_object_state_write(object);
 
 	return CAMEL_OBJECT_CLASS (camel_disco_folder_parent_class)->setv(object, error, args);
-}
-
-static gboolean
-disco_refresh_info_online (CamelFolder *folder,
-                           GError **error)
-{
-	return TRUE;
 }
 
 static gboolean
@@ -406,6 +344,90 @@ disco_transfer_messages_to (CamelFolder *source,
 	g_return_val_if_reached (FALSE);
 }
 
+static gboolean
+disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
+                           const gchar *expression,
+                           GError **error)
+{
+	CamelFolder *folder = CAMEL_FOLDER (disco_folder);
+	GPtrArray *uids;
+	gint i;
+	gboolean success = TRUE;
+
+	camel_operation_start(NULL, _("Preparing folder '%s' for offline"), folder->full_name);
+
+	if (expression)
+		uids = camel_folder_search_by_expression (folder, expression, error);
+	else
+		uids = camel_folder_get_uids (folder);
+
+	if (!uids) {
+		camel_operation_end(NULL);
+		return FALSE;
+	}
+
+	for (i = 0; i < uids->len && success; i++) {
+		gint pc = i * 100 / uids->len;
+
+		camel_operation_progress(NULL, pc);
+		success = camel_disco_folder_cache_message (
+			disco_folder, uids->pdata[i], error);
+	}
+
+	if (expression)
+		camel_folder_search_free (folder, uids);
+	else
+		camel_folder_free_uids (folder, uids);
+
+	camel_operation_end(NULL);
+
+	return success;
+}
+
+static gboolean
+disco_refresh_info_online (CamelFolder *folder,
+                           GError **error)
+{
+	return TRUE;
+}
+
+static void
+camel_disco_folder_class_init (CamelDiscoFolderClass *class)
+{
+	CamelObjectClass *camel_object_class;
+	CamelFolderClass *folder_class;
+	gint ii;
+
+	camel_object_class = CAMEL_OBJECT_CLASS (class);
+	camel_object_class->getv = disco_getv;
+	camel_object_class->setv = disco_setv;
+
+	folder_class = CAMEL_FOLDER_CLASS (class);
+	folder_class->refresh_info = disco_refresh_info;
+	folder_class->sync = disco_sync;
+	folder_class->expunge = disco_expunge;
+	folder_class->append_message = disco_append_message;
+	folder_class->transfer_messages_to = disco_transfer_messages_to;
+
+	class->prepare_for_offline = disco_prepare_for_offline;
+	class->refresh_info_online = disco_refresh_info_online;
+
+	for (ii = 0; ii < G_N_ELEMENTS (disco_property_list); ii++) {
+		disco_property_list[ii].description =
+			_(disco_property_list[ii].description);
+		disco_folder_properties = g_slist_prepend (
+			disco_folder_properties, &disco_property_list[ii]);
+	}
+}
+
+static void
+camel_disco_folder_init (CamelDiscoFolder *disco_folder)
+{
+	camel_object_hook_event (
+		disco_folder, "folder_changed",
+		(CamelObjectEventHookFunc) cdf_folder_changed, NULL);
+}
+
 /**
  * camel_disco_folder_expunge_uids:
  * @folder: a (disconnectable) folder
@@ -455,46 +477,6 @@ camel_disco_folder_cache_message (CamelDiscoFolder *disco_folder,
 	g_return_val_if_fail (class->cache_message != NULL, FALSE);
 
 	return class->cache_message (disco_folder, uid, error);
-}
-
-static gboolean
-disco_prepare_for_offline (CamelDiscoFolder *disco_folder,
-                           const gchar *expression,
-                           GError **error)
-{
-	CamelFolder *folder = CAMEL_FOLDER (disco_folder);
-	GPtrArray *uids;
-	gint i;
-	gboolean success = TRUE;
-
-	camel_operation_start(NULL, _("Preparing folder '%s' for offline"), folder->full_name);
-
-	if (expression)
-		uids = camel_folder_search_by_expression (folder, expression, error);
-	else
-		uids = camel_folder_get_uids (folder);
-
-	if (!uids) {
-		camel_operation_end(NULL);
-		return FALSE;
-	}
-
-	for (i = 0; i < uids->len && success; i++) {
-		gint pc = i * 100 / uids->len;
-
-		camel_operation_progress(NULL, pc);
-		success = camel_disco_folder_cache_message (
-			disco_folder, uids->pdata[i], error);
-	}
-
-	if (expression)
-		camel_folder_search_free (folder, uids);
-	else
-		camel_folder_free_uids (folder, uids);
-
-	camel_operation_end(NULL);
-
-	return success;
 }
 
 /**

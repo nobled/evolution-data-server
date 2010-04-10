@@ -153,7 +153,8 @@ multipart_is_offline (CamelDataWrapper *data_wrapper)
 }
 
 static void
-multipart_add_part (CamelMultipart *multipart, CamelMimePart *part)
+multipart_add_part (CamelMultipart *multipart,
+                    CamelMimePart *part)
 {
 	multipart->parts = g_list_append (
 		multipart->parts, g_object_ref (part));
@@ -407,7 +408,8 @@ camel_multipart_add_part (CamelMultipart *multipart,
  **/
 void
 camel_multipart_add_part_at (CamelMultipart *multipart,
-                             CamelMimePart *part, guint index)
+                             CamelMimePart *part,
+                             guint index)
 {
 	CamelMultipartClass *class;
 
@@ -559,15 +561,16 @@ camel_multipart_get_boundary (CamelMultipart *multipart)
  * be relatively short, and will be ignored by any MIME mail client.
  **/
 void
-camel_multipart_set_preface(CamelMultipart *multipart, const gchar *preface)
+camel_multipart_set_preface (CamelMultipart *multipart,
+                             const gchar *preface)
 {
-	if (multipart->preface != preface) {
-		g_free(multipart->preface);
-		if (preface)
-			multipart->preface = g_strdup(preface);
-		else
-			multipart->preface = NULL;
-	}
+	g_return_if_fail (CAMEL_IS_MULTIPART (multipart));
+
+	if (multipart->preface == preface)
+		return;
+
+	g_free (multipart->preface);
+	multipart->preface = g_strdup (preface);
 }
 
 /**
@@ -582,15 +585,16 @@ camel_multipart_set_preface(CamelMultipart *multipart, const gchar *preface)
  * Generally postface texts should not be sent with multipart messages.
  **/
 void
-camel_multipart_set_postface(CamelMultipart *multipart, const gchar *postface)
+camel_multipart_set_postface (CamelMultipart *multipart,
+                              const gchar *postface)
 {
-	if (multipart->postface != postface) {
-		g_free(multipart->postface);
-		if (postface)
-			multipart->postface = g_strdup(postface);
-		else
-			multipart->postface = NULL;
-	}
+	g_return_if_fail (CAMEL_IS_MULTIPART (multipart));
+
+	if (multipart->postface == postface)
+		return;
+
+	g_free (multipart->postface);
+	multipart->postface = g_strdup (postface);
 }
 
 /**
@@ -614,5 +618,5 @@ camel_multipart_construct_from_parser (CamelMultipart *multipart,
 	class = CAMEL_MULTIPART_GET_CLASS (multipart);
 	g_return_val_if_fail (class->construct_from_parser != NULL, -1);
 
-	return class->construct_from_parser(multipart, mp);
+	return class->construct_from_parser (multipart, mp);
 }

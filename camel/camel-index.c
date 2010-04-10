@@ -279,7 +279,7 @@ camel_index_find (CamelIndex *idx, const gchar *word)
 {
 	CamelIndexClass *class;
 	CamelIndexCursor *ret;
-	gchar *b = (gchar *)word;
+	gchar *b = (gchar *) word;
 
 	g_return_val_if_fail (CAMEL_IS_INDEX (idx), NULL);
 

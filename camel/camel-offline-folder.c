@@ -99,8 +99,7 @@ offline_folder_changed (CamelFolder *folder, CamelFolderChangeInfo *changes, gpo
 		m = camel_session_thread_msg_new (session, &offline_downsync_ops, sizeof (*m));
 		m->changes = camel_folder_change_info_new ();
 		camel_folder_change_info_cat (m->changes, changes);
-		g_object_ref (folder);
-		m->folder = folder;
+		m->folder = g_object_ref (folder);
 
 		camel_session_thread_queue (session, &m->msg, 0);
 	}
@@ -240,7 +239,6 @@ camel_offline_folder_class_init (CamelOfflineFolderClass *class)
 		offline_folder_props = g_slist_prepend (
 			offline_folder_props, &offline_prop_list[ii]);
 	}
-
 }
 
 static void

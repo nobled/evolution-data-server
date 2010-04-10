@@ -288,6 +288,9 @@ camel_stream_printf (CamelStream *stream,
 	string = g_strdup_vprintf (fmt, args);
 	va_end (args);
 
+	if (string == NULL)
+		return -1;
+
 	ret = camel_stream_write (stream, string, strlen (string), error);
 	g_free (string);
 
