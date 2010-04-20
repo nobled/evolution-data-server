@@ -45,6 +45,11 @@
 #include "camel-imap-summary.h"
 #include "camel-imap-utils.h"
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #define d(x)
 
 /* Specified in RFC 2060 */
@@ -2027,8 +2032,7 @@ get_folder (CamelStore *store, const gchar *folder_name, guint32 flags, GError *
 	new_folder = camel_imap_folder_new (store, folder_name, folder_dir, error);
 	g_free (folder_dir);
 	if (new_folder) {
-		imap_store->current_folder = new_folder;
-		g_object_ref (new_folder);
+		imap_store->current_folder = g_object_ref (new_folder);
 		if (!camel_imap_folder_selected (new_folder, response, error)) {
 
 			g_object_unref (imap_store->current_folder);
@@ -2116,7 +2120,9 @@ delete_folder (CamelStore *store,
 	if (response) {
 		camel_imap_response_free (imap_store, response);
 		imap_forget_folder (imap_store, folder_name, error);
-	}
+	} else
+		success = FALSE;
+
 fail:
 	CAMEL_SERVICE_REC_UNLOCK(imap_store, connect_lock);
 
@@ -2756,20 +2762,19 @@ refresh_refresh(CamelSession *session, CamelSessionThreadMsg *msg)
 
 	CAMEL_SERVICE_REC_LOCK (store, connect_lock);
 
-	if (!camel_imap_store_connected((CamelImapStore *)m->store, &m->error))
+	if (!camel_imap_store_connected (store, &m->error))
 		goto done;
 
 	if (store->users_namespace && store->users_namespace[0]) {
-		get_folders_sync (store, "INBOX", &m->error);
-		if (m->error != NULL)
+		if (!get_folders_sync (store, "INBOX", &m->error))
 			goto done;
 	} else {
 		get_folders_sync (store, "*", &m->error);
 	}
 
 	/* look in all namespaces */
-	get_folders_sync((CamelImapStore *)m->store, NULL, &m->error);
-	camel_store_summary_save((CamelStoreSummary *)((CamelImapStore *)m->store)->summary);
+	get_folders_sync (store, NULL, &m->error);
+	camel_store_summary_save ((CamelStoreSummary *)store->summary);
 done:
 	CAMEL_SERVICE_REC_UNLOCK (store, connect_lock);
 }
@@ -2828,8 +2833,7 @@ get_folder_info (CamelStore *store,
 				imap_store->refresh_stamp = now;
 
 				m = camel_session_thread_msg_new(((CamelService *)store)->session, &refresh_ops, sizeof(*m));
-				m->store = store;
-				g_object_ref (store);
+				m->store = g_object_ref (store);
 				camel_session_thread_queue(((CamelService *)store)->session, &m->msg, 0);
 			}
 			CAMEL_SERVICE_REC_UNLOCK(store, connect_lock);

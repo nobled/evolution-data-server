@@ -167,8 +167,7 @@ nntp_folder_download_message (CamelNNTPFolder *nntp_folder, const gchar *id, con
 			if (camel_stream_reset (stream, error) == -1)
 				goto fail;
 		} else {
-			stream = (CamelStream *) nntp_store->stream;
-			g_object_ref (stream);
+			stream = g_object_ref (nntp_store->stream);
 		}
 	} else if (ret == 423 || ret == 430) {
 		g_set_error (

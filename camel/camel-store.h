@@ -296,7 +296,7 @@ void		camel_folder_info_free		(CamelFolderInfo *fi);
 #ifndef CAMEL_DISABLE_DEPRECATED
 CamelFolderInfo *
 		camel_folder_info_build		(GPtrArray *folders,
-						 const gchar *name_space,
+						 const gchar *namespace,
 						 gchar separator,
 						 gboolean short_names);
 #endif /* CAMEL_DISABLE_DEPRECATED */

@@ -50,8 +50,7 @@ imap_wrapper_hydrate (CamelImapWrapper *imap_wrapper,
 {
 	CamelDataWrapper *data_wrapper = (CamelDataWrapper *) imap_wrapper;
 
-	g_object_ref (stream);
-	data_wrapper->stream = stream;
+	data_wrapper->stream = g_object_ref (stream);
 	data_wrapper->offline = FALSE;
 
 	g_object_unref (imap_wrapper->folder);
@@ -159,14 +158,11 @@ camel_imap_wrapper_new (CamelImapFolder *imap_folder,
 	gboolean sync_offline = FALSE;
 
 	imap_wrapper = g_object_new (CAMEL_TYPE_IMAP_WRAPPER, NULL);
-
-	imap_wrapper = (CamelImapWrapper *)g_object_new (camel_imap_wrapper_get_type(), NULL);
 	camel_data_wrapper_set_mime_type_field (CAMEL_DATA_WRAPPER (imap_wrapper), type);
 	((CamelDataWrapper *)imap_wrapper)->offline = !sync_offline;
 	((CamelDataWrapper *)imap_wrapper)->encoding = encoding;
 
-	imap_wrapper->folder = imap_folder;
-	g_object_ref (imap_folder);
+	imap_wrapper->folder = g_object_ref (imap_folder);
 	imap_wrapper->uid = g_strdup (uid);
 	imap_wrapper->part_spec = g_strdup (part_spec);
 

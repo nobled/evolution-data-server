@@ -33,10 +33,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #else
-#define WIN32_LEAN_AND_MEAN
-#include <winsock2.h>
-#undef WIN32_LEAN_AND_MEAN
-#include <ws2tcpip.h>
+#define socklen_t int
+struct sockaddr;
+struct addrinfo;
 #endif
 
 G_BEGIN_DECLS
@@ -96,5 +95,9 @@ gint camel_getnameinfo(const struct sockaddr *sa, socklen_t salen, gchar **host,
 		      gint flags, GError **error);
 
 G_END_DECLS
+
+#ifdef _WIN32
+#undef socklen_t
+#endif
 
 #endif /* CAMEL_NET_UTILS_H */

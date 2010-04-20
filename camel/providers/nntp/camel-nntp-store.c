@@ -43,6 +43,11 @@
 #include "camel-nntp-private.h"
 #include "camel-nntp-resp-codes.h"
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #define w(x)
 #define dd(x) (camel_debug("nntp")?(x):0)
 
@@ -1250,7 +1255,7 @@ camel_nntp_try_authenticate (CamelNNTPStore *store, GError **error)
 gint
 camel_nntp_raw_commandv (CamelNNTPStore *store, GError **error, gchar **line, const gchar *fmt, va_list ap)
 {
-	GByteArray *buffer;
+	GByteArray *byte_array;
 	const guchar *p, *ps;
 	guchar c;
 	gchar *s;
@@ -1305,14 +1310,14 @@ camel_nntp_raw_commandv (CamelNNTPStore *store, GError **error, gchar **line, co
 	camel_stream_write ((CamelStream *) store->mem, (const gchar *) ps, p-ps-1, NULL);
 	camel_stream_write ((CamelStream *) store->mem, "\r\n", 2, NULL);
 
-	buffer = camel_stream_mem_get_byte_array (store->mem);
+	byte_array = camel_stream_mem_get_byte_array (store->mem);
 
-	if (camel_stream_write((CamelStream *) store->stream, (const gchar *) buffer->data, buffer->len, error) == -1)
+	if (camel_stream_write((CamelStream *) store->stream, (const gchar *) byte_array->data, byte_array->len, error) == -1)
 		goto ioerror;
 
 	/* FIXME: hack */
 	camel_stream_reset ((CamelStream *) store->mem, NULL);
-	g_byte_array_set_size (buffer, 0);
+	g_byte_array_set_size (byte_array, 0);
 
 	if (camel_nntp_stream_line (store->stream, (guchar **) line, &u, error) == -1)
 		goto ioerror;

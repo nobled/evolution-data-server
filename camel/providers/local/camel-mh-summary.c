@@ -73,7 +73,6 @@ camel_mh_summary_class_init (CamelMhSummaryClass *class)
 	local_summary_class = CAMEL_LOCAL_SUMMARY_CLASS (class);
 	local_summary_class->check = mh_summary_check;
 	local_summary_class->sync = mh_summary_sync;
-	/*local_summary_class->add = mh_summary_add;*/
 }
 
 static void

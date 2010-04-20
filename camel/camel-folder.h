@@ -269,7 +269,6 @@ void		camel_folder_construct		(CamelFolder *folder,
 						 struct _CamelStore *parent_store,
 						 const gchar *full_name,
 						 const gchar *name);
-
 gboolean	camel_folder_refresh_info	(CamelFolder *folder,
 						 GError **error);
 gboolean	camel_folder_sync		(CamelFolder *folder,

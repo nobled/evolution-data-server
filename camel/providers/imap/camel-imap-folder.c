@@ -4237,7 +4237,7 @@ done:
  */
 static GPtrArray *
 imap_get_uncached_uids (CamelFolder *folder,
-                        GPtrArray * uids,
+                        GPtrArray *uids,
                         GError **error)
 {
 	GPtrArray *result;

@@ -36,12 +36,6 @@
 
 #define REPLY_VIEW "default message attachments threading"
 
-static gboolean groupwise_send_to (CamelTransport *transport,
-				  CamelMimeMessage *message,
-				  CamelAddress *from,
-				  CamelAddress *recipients,
-				  GError **error);
-
 G_DEFINE_TYPE (CamelGroupwiseTransport, camel_groupwise_transport, CAMEL_TYPE_TRANSPORT)
 
 static gboolean

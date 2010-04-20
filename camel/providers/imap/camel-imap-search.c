@@ -129,7 +129,7 @@ imap_search_finalize (GObject *object)
 
 	search = CAMEL_IMAP_SEARCH (object);
 
-	while ( (mr = (struct _match_record *)camel_dlist_remtail(&search->matches)) )
+	while ((mr = (struct _match_record *)camel_dlist_remtail(&search->matches)))
 		free_match (search, mr);
 
 	g_hash_table_destroy (search->matches_hash);

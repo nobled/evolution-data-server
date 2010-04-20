@@ -69,7 +69,6 @@ struct _CamelNNTPStoreInfo {
 
 struct _CamelNNTPStoreSummary {
 	CamelStoreSummary summary;
-
 	CamelNNTPStoreSummaryPrivate *priv;
 
 	/* header info */

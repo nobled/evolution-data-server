@@ -40,6 +40,11 @@
 
 #include "camel-smtp-transport.h"
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #undef MIN
 #undef MAX
 
@@ -681,7 +686,7 @@ smtp_send_to (CamelTransport *transport, CamelMimeMessage *message,
 	      GError **error)
 {
 	CamelSmtpTransport *smtp_transport = CAMEL_SMTP_TRANSPORT (transport);
-	const CamelInternetAddress *cia;
+	CamelInternetAddress *cia;
 	gboolean has_8bit_parts;
 	const gchar *addr;
 	gint i, len;

@@ -54,7 +54,6 @@ typedef struct _CamelNNTPSummaryPrivate CamelNNTPSummaryPrivate;
 
 struct _CamelNNTPSummary {
 	CamelFolderSummary parent;
-
 	CamelNNTPSummaryPrivate *priv;
 
 	guint32 version;

@@ -493,14 +493,12 @@ local_refresh_info(CamelFolder *folder, GError **error)
 		return FALSE;
 	}
 
-	CAMEL_FOLDER_REC_UNLOCK(folder, lock);
 	if (camel_folder_change_info_changed(lf->changes)) {
 		camel_object_trigger_event((CamelObject *)folder, "folder_changed", lf->changes);
 		camel_folder_change_info_clear(lf->changes);
 	}
 
 	return TRUE;
-
 }
 
 static GPtrArray *

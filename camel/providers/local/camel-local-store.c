@@ -172,7 +172,7 @@ get_folder(CamelStore * store, const gchar *folder_name, guint32 flags, GError *
 	}
 
 	/* need to create the dir heirarchy */
-	if (g_mkdir_with_parents (path, 0777) == -1 && errno != EEXIST) {
+	if (g_mkdir_with_parents (path, 0700) == -1 && errno != EEXIST) {
 		g_set_error (
 			error, G_FILE_ERROR,
 			g_file_error_from_errno (errno),

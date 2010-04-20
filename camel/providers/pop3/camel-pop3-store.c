@@ -40,6 +40,11 @@
 #include "camel-pop3-folder.h"
 #include "camel-pop3-store.h"
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 /* Specified in RFC 1939 */
 #define POP3_PORT "110"
 #define POP3S_PORT "995"
@@ -229,7 +234,8 @@ connect_to_server (CamelService *service,
 		tmp = get_valid_utf8_error ((gchar *) store->engine->line);
 		g_set_error (
 			error, CAMEL_ERROR, CAMEL_ERROR_SYSTEM,
-			_("Failed to connect to POP server %s in secure mode: %s"),
+			/* Translators: Last %s is an optional explanation beginning with ": " separator */
+			_("Failed to connect to POP server %s in secure mode%s"),
 			service->url->host, (tmp != NULL) ? tmp : "");
 		g_free (tmp);
 		goto stls_exception;
@@ -436,7 +442,8 @@ try_sasl (CamelPOP3Store *store,
 			g_set_error (
 				error, CAMEL_SERVICE_ERROR,
 				CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
-				_("SASL '%s' Login failed for POP server %s: %s"),
+				/* Translators: Last %s is an optional explanation beginning with ": " separator */
+				_("SASL '%s' Login failed for POP server %s%s"),
 				mech, CAMEL_SERVICE (store)->url->host,
 				(tmp != NULL) ? tmp : "");
 			g_free (tmp);
@@ -595,8 +602,9 @@ pop3_try_authenticate (CamelService *service,
 		g_set_error (
 			error, CAMEL_SERVICE_ERROR,
 			CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+			/* Translators: Last %s is an optional explanation beginning with ": " separator */
 			_("Unable to connect to POP server %s.\n"
-			  "Error sending username: %s"),
+			  "Error sending username%s"),
 			CAMEL_SERVICE (store)->url->host,
 			(tmp != NULL) ? tmp : "");
 		g_free (tmp);
@@ -607,8 +615,9 @@ pop3_try_authenticate (CamelService *service,
 		g_set_error (
 			error, CAMEL_SERVICE_ERROR,
 			CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+			/* Translators: Last %s is an optional explanation beginning with ": " separator */
 			_("Unable to connect to POP server %s.\n"
-			  "Error sending password: %s"),
+			  "Error sending password%s"),
 			CAMEL_SERVICE (store)->url->host,
 			(tmp != NULL) ? tmp : "");
 		g_free (tmp);

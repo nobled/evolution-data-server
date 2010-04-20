@@ -35,6 +35,7 @@
 #include <glib/gi18n-lib.h>
 
 #include "camel-mh-folder.h"
+#include "camel-mh-store.h"
 #include "camel-mh-summary.h"
 
 #define d(x) /*(printf("%s(%d): ", __FILE__, __LINE__),(x))*/

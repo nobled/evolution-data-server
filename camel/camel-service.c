@@ -29,7 +29,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -213,8 +212,7 @@ service_construct (CamelService *service,
 
 	service->provider = provider;
 	service->url = camel_url_copy(url);
-	service->session = session;
-	g_object_ref (session);
+	service->session = g_object_ref (session);
 
 	service->status = CAMEL_SERVICE_DISCONNECTED;
 

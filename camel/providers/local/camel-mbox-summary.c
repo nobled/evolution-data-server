@@ -142,7 +142,6 @@ camel_mbox_summary_class_init (CamelMboxSummaryClass *class)
 	folder_summary_class->message_info_load = message_info_load;
 	folder_summary_class->message_info_save = message_info_save;
 	folder_summary_class->meta_message_info_save = meta_message_info_save;
-	/*folder_summary_class->message_info_free = message_info_free;*/
 	folder_summary_class->info_set_user_flag = mbox_info_set_user_flag;
 	folder_summary_class->info_set_user_tag = mbox_info_set_user_tag;
 #ifdef STATUS_PINE

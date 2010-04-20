@@ -930,9 +930,7 @@ camel_folder_refresh_info (CamelFolder *folder,
 	g_return_val_if_fail (class->refresh_info != NULL, FALSE);
 
 	CAMEL_FOLDER_REC_LOCK (folder, lock);
-
 	success = class->refresh_info (folder, error);
-
 	CAMEL_FOLDER_REC_UNLOCK (folder, lock);
 
 	return success;
@@ -1116,15 +1114,15 @@ camel_folder_append_message (CamelFolder *folder,
 	gboolean success;
 
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), FALSE);
+	g_return_val_if_fail (CAMEL_IS_MIME_MESSAGE (message), FALSE);
+	g_return_val_if_fail (info != NULL, FALSE);
 
 	class = CAMEL_FOLDER_GET_CLASS (folder);
 	g_return_val_if_fail (class->append_message != NULL, FALSE);
 
 	CAMEL_FOLDER_REC_LOCK (folder, lock);
-
 	success = class->append_message (
 		folder, message, info, appended_uid, error);
-
 	CAMEL_FOLDER_REC_UNLOCK (folder, lock);
 
 	return success;
@@ -1493,8 +1491,10 @@ camel_folder_sync_message (CamelFolder *folder,
 	gboolean success = FALSE;
 
 	g_return_val_if_fail (CAMEL_IS_FOLDER (folder), FALSE);
+	g_return_val_if_fail (uid != NULL, FALSE);
 
 	class = CAMEL_FOLDER_GET_CLASS (folder);
+	g_return_val_if_fail (class->get_message != NULL, FALSE);
 
 	CAMEL_FOLDER_REC_LOCK (folder, lock);
 
@@ -1503,6 +1503,7 @@ camel_folder_sync_message (CamelFolder *folder,
 		success = class->sync_message (folder, uid, error);
 	else {
 		CamelMimeMessage *message;
+
 		message = class->get_message (folder, uid, error);
 		if (message != NULL) {
 			g_object_unref (message);

@@ -61,7 +61,6 @@ camel_imap_store_summary_class_init (CamelImapStoreSummaryClass *class)
 	store_summary_class = CAMEL_STORE_SUMMARY_CLASS (class);
 	store_summary_class->summary_header_load = summary_header_load;
 	store_summary_class->summary_header_save = summary_header_save;
-	/*store_summary_class->store_info_new  = store_info_new;*/
 	store_summary_class->store_info_load = store_info_load;
 	store_summary_class->store_info_save = store_info_save;
 	store_summary_class->store_info_free = store_info_free;

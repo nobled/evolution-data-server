@@ -432,7 +432,7 @@ camel_pop3_delete_old (CamelFolder *folder,
 			message = pop3_get_message (folder, fi->uid, error);
 			if (message) {
 				message_time = message->date + message->date_offset;
-				g_object_unref(message);
+				g_object_unref (message);
 			}
 		}
 
@@ -618,8 +618,7 @@ pop3_get_message (CamelFolder *folder, const gchar *uid, GError **error)
 			stream = camel_stream_mem_new();
 
 		/* ref it, the cache storage routine unref's when done */
-		g_object_ref (stream);
-		fi->stream = stream;
+		fi->stream = g_object_ref (stream);
 		fi->err = EIO;
 		pcr = camel_pop3_engine_command_new(pop3_store->engine, CAMEL_POP3_COMMAND_MULTI, cmd_tocache, fi, "RETR %u\r\n", fi->id);
 

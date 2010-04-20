@@ -95,7 +95,7 @@ camel_nntp_summary_init (CamelNNTPSummary *nntp_summary)
 }
 
 CamelNNTPSummary *
-camel_nntp_summary_new (struct _CamelFolder *folder, const gchar *path)
+camel_nntp_summary_new (CamelFolder *folder, const gchar *path)
 {
 	CamelNNTPSummary *cns;
 

@@ -99,7 +99,7 @@ maildir_compare_folder_name (gconstpointer a,
 }
 
 static CamelFolder *
-get_folder (CamelStore * store,
+get_folder (CamelStore *store,
             const gchar *folder_name,
             guint32 flags,
             GError **error)
@@ -210,7 +210,7 @@ get_inbox (CamelStore *store,
 }
 
 static gboolean
-delete_folder (CamelStore * store,
+delete_folder (CamelStore *store,
                const gchar *folder_name,
                GError **error)
 {

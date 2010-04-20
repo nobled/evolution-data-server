@@ -155,7 +155,7 @@ get_folder (CamelStore *store,
 		g_free (basename);
 
 		dirname = g_path_get_dirname(name);
-		if (g_mkdir_with_parents(dirname, 0777) == -1 && errno != EEXIST) {
+		if (g_mkdir_with_parents(dirname, 0700) == -1 && errno != EEXIST) {
 			g_set_error (
 				error, G_FILE_ERROR,
 				g_file_error_from_errno (errno),

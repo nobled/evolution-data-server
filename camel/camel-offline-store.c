@@ -96,7 +96,7 @@ camel_offline_store_get_network_state (CamelOfflineStore *store,
  * Set the network state to either #CAMEL_OFFLINE_STORE_NETWORK_AVAIL
  * or #CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL.
  **/
-void
+gboolean
 camel_offline_store_set_network_state (CamelOfflineStore *store,
                                        gint state,
                                        GError **error)
@@ -105,7 +105,7 @@ camel_offline_store_set_network_state (CamelOfflineStore *store,
 	gboolean network_state = camel_session_get_network_state (service->session);
 
 	if (store->state == state)
-		return;
+		return TRUE;
 
 	if (store->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL) {
 		/* network available -> network unavailable */
@@ -136,17 +136,19 @@ camel_offline_store_set_network_state (CamelOfflineStore *store,
 		}
 
 		if (!camel_service_disconnect (CAMEL_SERVICE (store), network_state, error))
-			return;
+			return FALSE;
 	} else {
 		store->state = state;
 		/* network unavailable -> network available */
 		if (!camel_service_connect (CAMEL_SERVICE (store), error)) {
 			store->state = CAMEL_OFFLINE_STORE_NETWORK_UNAVAIL;
-			return;
+			return FALSE;
 		}
 	}
 
 	store->state = state;
+
+	return TRUE;
 }
 
 /**
@@ -154,7 +156,7 @@ camel_offline_store_set_network_state (CamelOfflineStore *store,
  *
  * Since: 2.22
  **/
-void
+gboolean
 camel_offline_store_prepare_for_offline (CamelOfflineStore *store,
                                          GError **error)
 {
@@ -186,4 +188,6 @@ camel_offline_store_prepare_for_offline (CamelOfflineStore *store,
 
 		camel_store_sync (CAMEL_STORE (store), FALSE, NULL);
 	}
+
+	return TRUE;
 }

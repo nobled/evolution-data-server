@@ -242,8 +242,7 @@ vtrash_folder_transfer_messages_to (CamelFolder *source,
 			md = g_hash_table_lookup(batch, mi->summary->folder);
 			if (md == NULL) {
 				md = g_malloc0(sizeof(*md));
-				md->folder = mi->summary->folder;
-				g_object_ref (md->folder);
+				md->folder = g_object_ref (mi->summary->folder);
 				md->uids = g_ptr_array_new();
 				md->dest = dest;
 				g_hash_table_insert(batch, mi->summary->folder, md);

@@ -233,7 +233,7 @@ spool_summary_sync_full (CamelMboxSummary *cls,
 				error, G_FILE_ERROR,
 				g_file_error_from_errno (errno),
 				_("Could not sync spool folder %s: %s\n"
-				"Folder may be corrupt, copy saved in '%s'"),
+				  "Folder may be corrupt, copy saved in '%s'"),
 				((CamelLocalSummary *)cls)->folder_path,
 				g_strerror (errno), tmpname);
 			/* so we dont delete it */

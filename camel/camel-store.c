@@ -257,7 +257,7 @@ store_sync (CamelStore *store,
 
 	g_ptr_array_free (folders, TRUE);
 
-	return FALSE;
+	return success;
 }
 
 static gboolean
@@ -680,7 +680,7 @@ camel_store_rename_folder (CamelStore *store,
 	g_ptr_array_free(folders, TRUE);
 	g_free(old_name);
 
-	return TRUE;
+	return success;
 }
 
 /**
@@ -1032,14 +1032,14 @@ folder_info_cmp (gconstpointer ap,
 /**
  * camel_folder_info_build:
  * @folders: an array of #CamelFolderInfo
- * @name_space: an ignorable prefix on the folder names
+ * @namespace: an ignorable prefix on the folder names
  * @separator: the hieararchy separator character
  * @short_names: %TRUE if the (short) name of a folder is the part after
  * the last @separator in the full name. %FALSE if it is the full name.
  *
  * This takes an array of folders and attaches them together according
  * to the hierarchy described by their full_names and @separator. If
- * @name_space is non-%NULL, then it will be ignored as a full_name
+ * @namespace is non-%NULL, then it will be ignored as a full_name
  * prefix, for purposes of comparison. If necessary,
  * #camel_folder_info_build will create additional #CamelFolderInfo with
  * %NULL urls to fill in gaps in the tree. The value of @short_names
@@ -1343,7 +1343,7 @@ camel_store_noop (CamelStore *store,
  * @uri0: a folder uri
  * @uri1: another folder uri
  *
- * Compares 2 folder uris to check that they are equal.
+ * Compares two folder uris to check that they are equal.
  *
  * Returns: %TRUE if they are equal or %FALSE otherwise
  **/

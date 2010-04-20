@@ -385,7 +385,9 @@ camel_nntp_stream_gets (CamelNNTPStream *is,
 	return end == NULL?1:0;
 }
 
-void camel_nntp_stream_set_mode (CamelNNTPStream *is, camel_nntp_stream_mode_t mode)
+void
+camel_nntp_stream_set_mode (CamelNNTPStream *is,
+                            camel_nntp_stream_mode_t mode)
 {
 	is->mode = mode;
 }

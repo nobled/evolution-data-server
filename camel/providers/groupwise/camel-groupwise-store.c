@@ -45,6 +45,11 @@
 #include "camel-groupwise-summary.h"
 #include "camel-groupwise-utils.h"
 
+#ifdef G_OS_WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #define d(x)
 #define CURSOR_ITEM_LIMIT 100
 #define JUNK_ENABLE 1
@@ -276,10 +281,8 @@ groupwise_store_set_current_folder (CamelGroupwiseStore *groupwise_store, CamelF
 		groupwise_store->current_folder = NULL;
 	}
 
-	if (folder) {
-		g_object_ref (folder);
-		groupwise_store->current_folder = folder;
-	}
+	if (folder)
+		groupwise_store->current_folder = g_object_ref (folder);
 
 	CAMEL_SERVICE_REC_UNLOCK (groupwise_store, connect_lock);
 }
@@ -953,13 +956,6 @@ groupwise_folders_sync (CamelGroupwiseStore *store, GError **error)
 	CamelStoreInfo *si = NULL;
 	gint count, i;
 
-	if (!priv->cnc && ((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL) {
-		if (((CamelService *)store)->status == CAMEL_SERVICE_DISCONNECTED) {
-			((CamelService *)store)->status = CAMEL_SERVICE_CONNECTING;
-			groupwise_connect ((CamelService *)store, error);
-		}
-	}
-
 	status = e_gw_connection_get_container_list (priv->cnc, "folders", &folder_list);
 	if (status == E_GW_CONNECTION_STATUS_INVALID_CONNECTION)
 		status = e_gw_connection_get_container_list (priv->cnc, "folders", &folder_list);
@@ -1467,6 +1463,12 @@ camel_groupwise_store_connected (CamelGroupwiseStore *store, GError **error)
 {
 	if (((CamelOfflineStore *) store)->state == CAMEL_OFFLINE_STORE_NETWORK_AVAIL
 	    && camel_service_connect ((CamelService *)store, error)) {
+		CamelGroupwiseStore *gw_store = (CamelGroupwiseStore *) store;
+		CamelGroupwiseStorePrivate *priv = gw_store->priv;
+
+		if (g_hash_table_size (priv->name_hash) == 0)
+			groupwise_folders_sync ((CamelGroupwiseStore *) gw_store, NULL);
+
 		return TRUE;
 	}
 	/*Not online, so return FALSE*/

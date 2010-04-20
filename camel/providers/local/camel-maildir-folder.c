@@ -421,6 +421,7 @@ maildir_transfer_messages_to (CamelFolder *source,
 						error, CAMEL_ERROR,
 						CAMEL_ERROR_SYSTEM,
 						_("Cannot transfer message to destination folder"));
+					camel_message_info_free (info);
 					break;
 				}
 			} else {
