@@ -1659,7 +1659,7 @@ gpg_verify (CamelCipherContext *context,
 
 	/* Now start the real work of verifying the message */
 #ifdef GPG_LOG
-	if (camel_debug_start("gpg:sign")) {
+	if (camel_debug_start("gpg:verify")) {
 		gchar *name;
 		CamelStream *out;
 
